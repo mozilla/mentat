@@ -17,6 +17,7 @@
 /classes/
 /lib/
 /node_modules/
+/out/
 /target/
 pom.xml
 pom.xml.asc
