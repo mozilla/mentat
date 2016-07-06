@@ -116,11 +116,14 @@ To quit, type: :cljs/quit
 cljs.user=>
 ```
 
-in Vim:
+in Vim, in the working directory:
 
 ```
-:Connect nrepl://localhost:62385
 :Piggieback (cljs.repl.node/repl-env)
 ```
 
-Now you can use `:Eval`, `cqc`, and friends to evaluate code.
+Now you can use `:Eval`, `cqc`, and friends to evaluate code. Fireplace should connect automatically, but if it doesn't:
+
+```
+:Connect nrepl://localhost:62385
+```
