@@ -130,6 +130,10 @@ Now you can use `:Eval`, `cqc`, and friends to evaluate code. Fireplace should c
 :Connect nrepl://localhost:62385
 ```
 
+## To run the ClojureScript tests
+
+Run `lein doo node test once`, or `lein doo node` to re-run on file changes.
+
 ### Preparing an NPM release
 
 The intention is that the `release-js/` directory is roughly the shape of an npm-ready JavaScript package.
