@@ -1,16 +1,19 @@
 {
   "name": "datomish",
   "private": "true",
-  "engines": { "node": "6.x.x" },
+  "engines": {
+    "node": "6.x.x"
+  },
   "version": "0.1.0-SNAPSHOT",
   "description": "A persistent, embedded knowledge base inspired by Datomic and DataScript.",
   "main": "index.js",
   "dependencies": {
     "source-map-support": "ncalexan/node-source-map-support#fileUrls-plus",
+    "sqlite3": "mossop/node-sqlite3#v3.1.4.1",
+    "thenify-all": "^1.6.0",
     "ws": "1.1.1"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "directories": {
     "test": "test"
   },
