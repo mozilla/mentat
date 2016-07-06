@@ -40,6 +40,13 @@ Many of these design decisions are inapplicable to deployed desktop software; in
 Datomish is designed for embedding, initially in an Electron app ([Tofino](https://github.com/mozilla/tofino)). It is less concerned with exposing consistent database states outside transaction boundaries, because that's less important here, and dropping some of these requirements allows us to leverage SQLite itself.
 
 
+## Comparison to SQLite
+
+SQLite is a traditional SQL database in most respects: schemas conflate semantic, structural, and datatype concerns; the main interface with the database is human-first textual queries; sparse and graph-structured data are 'unnatural', if not always inefficient; experimenting with and evolving data models are error-prone and complicated activities; and so on.
+
+Datomish aims to offer many of the advantages of SQLite — single-file use, embeddability, and good performance — while building a more relaxed and expressive data model on top.
+
+
 ## Contributing
 
 Please note that this project is released with a Contributor Code of Conduct.
