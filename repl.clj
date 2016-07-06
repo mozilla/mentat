@@ -2,11 +2,13 @@
 (require 'cljs.build.api)
 (require 'cljs.repl.node)
 
-(cljs.build.api/build "src"
+(cljs.build.api/build
+  "src"
   {:main 'datomish.core
-   :output-to "out/main.js"
+   :output-to "target/datomish.js"
    :verbose true})
 
-(cljs.repl/repl (cljs.repl.node/repl-env)
+(cljs.repl/repl
+  (cljs.repl.node/repl-env)
   :watch "src"
-  :output-dir "out")
+  :output-dir "target")
