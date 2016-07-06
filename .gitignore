@@ -15,9 +15,8 @@
 /.nrepl-port
 /checkouts/
 /classes/
-/lib/
+/target/
 /node_modules/
-/out/
 /target/
 pom.xml
 pom.xml.asc
