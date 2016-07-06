@@ -6,6 +6,7 @@
   :dependencies [[org.clojure/clojurescript "1.9.89"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
+                 [datascript "0.15.1"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
   :cljsbuild {:builds {:release {
