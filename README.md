@@ -62,3 +62,65 @@ contribute.
 ## License
 
 At present this code is licensed under MPLv2.0. That license is subject to change prior to external contributions.
+
+## Running a REPL
+
+### Prep
+
+You'll need [Leiningen](http://leiningen.org).
+
+```
+# If you use nvm.
+nvm use 6
+
+lein deps
+npm install
+
+# If you want a decent REPL.
+brew install rlwrap
+```
+
+### Starting a ClojureScript REPL from the terminal
+
+```
+rlwrap lein run -m clojure.main repl.clj
+```
+
+### Connecting to a ClojureScript environment from Vim
+
+You'll need `vim-fireplace`. Install using Pathogen.
+
+First, start a Clojure REPL with an nREPL server. Then load our ClojureScript REPL and dependencies. Finally, connect to it from Vim.
+
+```
+$ lein repl
+nREPL server started on port 62385 on host 127.0.0.1 - nrepl://127.0.0.1:62385
+REPL-y 0.3.7, nREPL 0.2.10
+Clojure 1.8.0
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_60-b27
+    Docs: (doc function-name-here)
+          (find-doc "part-of-name-here")
+  Source: (source function-name-here)
+ Javadoc: (javadoc java-object-or-class-here)
+    Exit: Control+D or (exit) or (quit)
+ Results: Stored in vars *1, *2, *3, an exception in *e
+
+user=> (load-file "repl.clj")
+Reading analysis cache for jar:file:/Users/rnewman/.m2/repository/org/clojure/clojurescript/1.9.89/clojurescript-1.9.89.jar!/cljs/core.cljs
+Compiling out/cljs/nodejs.cljs
+Compiling src/datomish/sqlite.cljs
+Compiling src/datomish/core.cljs
+ClojureScript Node.js REPL server listening on 57134
+Watch compilation log available at: out/watch.log
+To quit, type: :cljs/quit
+cljs.user=>
+```
+
+in Vim:
+
+```
+:Connect nrepl://localhost:62385
+:Piggieback (cljs.repl.node/repl-env)
+```
+
+Now you can use `:Eval`, `cqc`, and friends to evaluate code.
