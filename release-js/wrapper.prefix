@@ -23,7 +23,7 @@
 
     // <script>
     } else {
-        datascript = definition();
+        datomish = definition();
     }
 })(function () {
     return function () {
