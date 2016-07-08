@@ -42,13 +42,14 @@
                        }
               }
 
-  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]
-                                  [org.clojure/tools.nrepl "0.2.10"]
+  :profiles {:dev {:dependencies [[cljsbuild "1.1.3"]
                                   [tempfile "0.2.0"]
+                                  [com.cemerick/piggieback "0.2.1"]
+                                  [org.clojure/tools.nrepl "0.2.10"]
                                   [org.clojure/java.jdbc "0.6.2-alpha1"]
                                   [org.xerial/sqlite-jdbc "3.8.11.2"]]
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :plugins      [[lein-cljsbuild "1.1.2"]
+                   :plugins      [[lein-cljsbuild "1.1.3"]
                                   [lein-doo "0.1.6"]]
                    }}
 
