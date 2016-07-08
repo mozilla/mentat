@@ -7,6 +7,7 @@
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
                  [datascript "0.15.1"]
+                 [honeysql "0.7.1-SNAPSHOT"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
   :cljsbuild {:builds {:release {
