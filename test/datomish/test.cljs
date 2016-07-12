@@ -6,7 +6,6 @@
    datomish.test.util
    datomish.test.transforms
    datomish.test.query
-   datomish.test.core
    datomish.test-macros-test))
 
 (doo-tests
