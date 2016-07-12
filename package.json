@@ -13,6 +13,7 @@
     "ws": "1.1.1"
   },
   "devDependencies": {
+    "tmp": "0.0.28"
   },
   "repository": {
     "type": "git",
