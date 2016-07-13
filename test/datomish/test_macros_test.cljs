@@ -5,10 +5,11 @@
 (ns datomish.test-macros-test
   (:require-macros
    [datomish.pair-chan :refer [go-pair]]
-   [datomish.test-macros :refer [deftest-async]]
    [cljs.core.async.macros])
-  (:require [cljs.core.async]
-            [cljs.test :refer-macros [is are deftest testing async]]))
+  (:require
+   [datomish.test-macros :refer-macros [deftest-async]]
+   [cljs.core.async]
+   [cljs.test :refer-macros [is are deftest testing async]]))
 
 (deftest sync-test
   (is (= 1 1)))

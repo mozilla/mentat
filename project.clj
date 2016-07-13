@@ -25,7 +25,7 @@
                                                  :optimizations        :advanced
                                                  :source-map           "target/advanced/datomish.js.map"
                                                  :pretty-print         true
-                                                 :recompile-dependents false
+                                                 :recompile-dependents true
                                                  :parallel-build       true
                                                  }}
                        :test {
@@ -35,7 +35,7 @@
                                              :main                 datomish.test
                                              :optimizations        :none
                                              :source-map           true
-                                             :recompile-dependents false
+                                             :recompile-dependents true
                                              :parallel-build       true
                                              :target               :nodejs
                                              }}

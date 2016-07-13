@@ -30,7 +30,7 @@
       (.close (.-db db)))))
 
 (defn open
-  [path & {:keys [mode] :or {:mode 6}}]
+  [path & {:keys [mode] :or {mode 6}}]
   (cljs-promises.async/pair-port
     (->
       (.open sqlite.DB path (clj->js {:mode mode}))
