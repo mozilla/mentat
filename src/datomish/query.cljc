@@ -71,15 +71,16 @@
     (raise (str "Non-default sources are not supported in patterns. Pattern: "
                 (print-str pattern))))
 
-  (let [table (keyword (name (gensym "eavt")))
+  (let [table :datoms
+        alias (gensym (name table))
         places (map (fn [place col] [place col])
                     (:pattern pattern)
-                    [:e :a :v :t :added])]
+                    [:e :a :v :tx])]
     (reduce
       (fn [context
            [pattern-part                           ; ?x, :foo/bar, 42
             position]]                             ; :a
-        (let [col (sql/qualify table position)]    ; :eavt.a
+        (let [col (sql/qualify alias (name position))]    ; :datoms123.a
           (condp instance? pattern-part
             ;; Placeholders don't contribute any bindings, nor do
             ;; they constrain the query -- there's no need to produce
@@ -96,20 +97,19 @@
             (raise (str "Unknown pattern part " (print-str pattern-part))))))
 
       ;; Record the new table mapping.
-      (util/conj-in context [:from] [:eavt table])
+      (util/conj-in context [:from] [table alias])
 
       places)))
 
 (defn- bindings->where
   "Take a bindings map like
-    {?foo [:eavt12.e :eavt13.v :eavt14.e]}
+    {?foo [:datoms12.e :datoms13.v :datoms14.e]}
   and produce a list of constraints expression like
-    [[:= :eavt12.e :eavt13.v] [:= :eavt12.e :eavt14.e]]
+    [[:= :datoms12.e :datoms13.v] [:= :datoms12.e :datoms14.e]]
 
   TODO: experiment; it might be the case that producing more
   pairwise equalities we get better or worse performance."
   [bindings]
-  (println bindings)
   (mapcat (fn [[_ vs]]
             (when (> (count vs) 1)
               (let [root (first vs)]
@@ -140,11 +140,11 @@
 
    with bindings in the context:
 
-     {?foo [:eavt12.e :eavt13.v], ?bar [:eavt13.e]}
+     {?foo [:datoms12.e :datoms13.v], ?bar [:datoms13.e]}
 
    =>
 
-     [[:eavt12.e :foo] [:eavt13.e :bar]]
+     [[:datoms12.e :foo] [:datoms13.e :bar]]
 
    @param context A Context.
    @param elements The input clause.
