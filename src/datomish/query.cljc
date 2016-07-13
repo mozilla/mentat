@@ -16,7 +16,7 @@
 
 ;; Setting this to something else will make your output more readable,
 ;; but not automatically safe for use.
-(def quote-style :ansi)
+(def sql-quoting-style :ansi)
 
 (defn pattern->parts
   "Transform a DataScript Pattern instance into the parts needed
@@ -165,7 +165,7 @@
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
   [find]
-  (-> find find->sql-clause (sql/format :quoting quote-style)))
+  (-> find find->sql-clause (sql/format :quoting sql-quoting-style)))
 
 (defn parse
   "Parse a Datalog query array into a structured `find` expression."
