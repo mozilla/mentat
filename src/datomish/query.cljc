@@ -107,6 +107,12 @@
    projection clause, suitable for passing as a `:select` clause to
    honeysql.
 
+   Example:
+     [Variable{:symbol ?foo}, Variable{:symbol ?bar}]
+     {?foo [:eavt12.e :eavt13.v], ?bar [:eavt13.e]}
+     =>
+     [[:eavt12.e :foo] [:eavt13.e :bar]]
+
    @param elements The input clause.
    @param variable-lookup A function from symbol to column name.
    @return a sequence of pairs."
