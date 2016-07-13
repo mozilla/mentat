@@ -171,6 +171,15 @@
 (comment
   (find->sql-string
     (datomish.query/parse
+      '[:find ?page
+      :in $
+      :where
+      [?page :page/starred true ?t]
+     ])))
+
+(comment
+  (find->sql-string
+    (datomish.query/parse
       '[:find ?timestampMicros ?page
       :in $
       :where
