@@ -83,12 +83,13 @@
   TODO: experiment; it might be the case that producing more
   pairwise equalities we get better or worse performance."
   [bindings]
-  (cons :and
-        (mapcat (fn [[k vs]]
-                  (when (> (count vs) 1)
-                    (let [root (first vs)]
-                      (map (fn [v] [:= root v]) (rest vs)))))
-                bindings)))
+  (let [clauses (mapcat (fn [[_ vs]]
+                          (when (> (count vs) 1)
+                            (let [root (first vs)]
+                              (map (fn [v] [:= root v]) (rest vs)))))
+                        bindings)]
+    (when-not (empty? clauses)
+      (cons :and clauses))))
 
 (defn patterns->body [patterns]
   (let [clauses
@@ -140,15 +141,16 @@
     (let [{:keys [from where bindings]}     ; 'where' here is SQL.
           (patterns->body where)            ; 'where' here is the Datalog :where clause.
           variable-lookup #(or (first (%1 bindings))
-                               (raise (str "Couldn't find variable " %1)))]
+                               (raise (str "Couldn't find variable " %1)))
+          where-from-bindings (bindings->where bindings)]
 
       ;; Now we expand the :where clause to also include any
       ;; repeated variable usage, as noted in `bindings`.
       {:select (elements->sql-projection (:elements find) variable-lookup)
        :from from
-       :where (list :and
-                    where
-                    (bindings->where bindings))})))
+       :where (if where-from-bindings
+                (list :and where where-from-bindings)
+                where)})))
 
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
