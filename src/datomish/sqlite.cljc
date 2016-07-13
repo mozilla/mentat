@@ -33,6 +33,11 @@
     [db]
     "Close this SQLite connection. Returns a pair channel of [nil error]."))
 
+(defprotocol ISQLiteConnectionFactory
+  (<sqlite-connection
+    [path]
+    "Open an ISQLiteConnection to `path`.  Returns a pair channel of `[sqlite-connection error]`"))
+
 (defn execute!
   [db [sql & bindings]]
   (-execute! db sql bindings))

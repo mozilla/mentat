@@ -38,3 +38,12 @@
         (j/get-connection spec)
         (assoc spec :connection)
         (->JDBCSQLiteConnection)))))
+
+(extend-protocol s/ISQLiteConnectionFactory
+  String
+  (<sqlite-connection [path]
+    (open path))
+
+  java.io.File
+  (<sqlite-connection [path]
+    (open path)))
