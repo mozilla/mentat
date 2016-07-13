@@ -1,7 +1,9 @@
 (ns datomish.test.transforms
   (:require
-   [cljs.test    :as t :refer-macros [is are deftest testing]]
-   [datomish.transforms :as transforms]))
+     [datomish.transforms :as transforms]
+     #?(:clj  [clojure.test :as t :refer [is are deftest testing]])
+     #?(:cljs [cljs.test :as t :refer-macros [is are deftest testing]])
+     ))
 
 (deftest test-attribute-transform-string
   (is (= "p/foo"
@@ -16,7 +18,8 @@
   (is (= 0 (transforms/constant-transform-default false)))
 
   ;; Numbers and strings.
-  (is (= 1 (transforms/constant-transform-default 1.0)))
+  #?(:cljs (is (= 1 (transforms/constant-transform-default 1.0))))
+  #?(:clj  (is (= 1.0 (transforms/constant-transform-default 1.0))))
   (is (= -1 (transforms/constant-transform-default -1)))
   (is (= 42 (transforms/constant-transform-default 42)))
   (is (= "" (transforms/constant-transform-default "")))

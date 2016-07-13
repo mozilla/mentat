@@ -9,7 +9,7 @@
 (defn var->sql-var
   "Turns '?xyz into :xyz."
   [x]
-  (when-not (and (symbol? x)
-                 (str/starts-with? (name x) "?"))
-    (raise (str x " is not a Datalog var.")))
-  (keyword (subs (name x) 1)))
+  (if (and (symbol? x)
+           (str/starts-with? (name x) "?"))
+    (keyword (subs (name x) 1))
+    (raise (str x " is not a Datalog var."))))
