@@ -4,13 +4,13 @@
 
 (ns datomish.query
   (:require
-     [datomish.util :as util :refer [raise var->sql-var]]
-     [datomish.transforms :as transforms]
-     [datascript.parser :as dp
-      #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
-     [clojure.string :as str]
-     [honeysql.core :as sql]
-     )
+   [datomish.util :as util :refer [raise var->sql-var]]
+   [datomish.transforms :as transforms]
+   [datascript.parser :as dp
+    #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
+   [clojure.string :as str]
+   [honeysql.core :as sql]
+   )
   #?(:clj (:import [datascript.parser Pattern DefaultSrc Variable Constant Placeholder]))
   )
 
@@ -20,7 +20,7 @@
 
 ;;
 ;; Context.
-;; 
+;;
 ;; `attribute-transform` is a function from attribute to constant value. Used to
 ;; turn, e.g., :p/attribute into an interned integer.
 ;; `constant-transform` is a function from constant value to constant value. Used to
@@ -56,7 +56,7 @@
   (->Context [] {} []
              transforms/attribute-transform-string
              transforms/constant-transform-default))
-  
+
 (defn apply-pattern-to-context
   "Transform a DataScript Pattern instance into the parts needed
    to build a SQL expression.
@@ -77,7 +77,7 @@
                     [:e :a :v :t :added])]
     (reduce
       (fn [context
-           [pattern-part                           ; ?x, :foo/bar, 42 
+           [pattern-part                           ; ?x, :foo/bar, 42
             position]]                             ; :a
         (let [col (sql/qualify table position)]    ; :eavt.a
           (condp instance? pattern-part
@@ -86,7 +86,7 @@
             ;; IS NOT NULL, because we don't store nulls in our schema.
             Placeholder
             context
-            
+
             Variable
             (bind-column-to-var context pattern-part col)
 
@@ -137,11 +137,11 @@
    For example:
 
      [Variable{:symbol ?foo}, Variable{:symbol ?bar}]
-  
+
    with bindings in the context:
-  
+
      {?foo [:eavt12.e :eavt13.v], ?bar [:eavt13.e]}
-  
+
    =>
 
      [[:eavt12.e :foo] [:eavt13.e :bar]]
@@ -172,7 +172,7 @@
   (when-not (and (== 1 (count in))
                  (= "$" (name (-> in first :variable :symbol))))
     (raise (str "Complex `in` not supported: " (print-str in)))))
-  
+
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
    expression that can be formatted by honeysql."
@@ -207,10 +207,10 @@
   (datomish.query/find->sql-string
     (datomish.query/parse
       '[:find ?timestampMicros ?page
-      :in $
-      :where
-      [?page :page/starred true ?t]
-      [?t :db/txInstant ?timestampMicros]])))
+        :in $
+        :where
+        [?page :page/starred true ?t]
+        [?t :db/txInstant ?timestampMicros]])))
 
 (comment
   (pattern->sql
