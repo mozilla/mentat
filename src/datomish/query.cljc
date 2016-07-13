@@ -29,7 +29,7 @@
 ;; `:bindings` is a map from var to qualified columns.
 ;; `:wheres` is a list of fragments that can be joined by `:and`.
 ;;
-(defrecord Context [from bindings wheres attribute-transform constant-transform])
+(defrecord Context [from bindings wheres elements attribute-transform constant-transform])
 
 (defn attribute-in-context [context attribute]
   ((:attribute-transform context) attribute))
@@ -53,7 +53,7 @@
       (raise (str "Couldn't find variable " variable))))
 
 (defn make-context []
-  (->Context [] {} []
+  (->Context [] {} [] []
              transforms/attribute-transform-string
              transforms/constant-transform-default))
 
@@ -124,12 +124,15 @@
   (assoc context :wheres (concat (bindings->where (:bindings context))
                                  (:wheres context))))
 
+(defn apply-elements-to-context [context elements]
+  (assoc context :elements elements))
+
 (defn patterns->context
   "Turn a sequence of patterns into a Context."
   [patterns]
   (reduce apply-pattern-to-context (make-context) patterns))
 
-(defn elements->sql-projection
+(defn sql-projection
   "Take a `find` clause's `:elements` list and turn it into a SQL
    projection clause, suitable for passing as a `:select` clause to
    honeysql.
@@ -146,19 +149,30 @@
 
      [[:datoms12.e :foo] [:datoms13.e :bar]]
 
-   @param context A Context.
-   @param elements The input clause.
+   @param context A Context, containing elements.
    @return a sequence of pairs."
-  [context elements]
-  (when-not (every? #(instance? Variable %1) elements)
-    (raise "Unable to :find non-variables."))
-  (map (fn [elem]
-         (let [var (:symbol elem)]
-           [(lookup-variable context var) (var->sql-var var)]))
-       elements))
+  [context]
+  (let [elements (:elements context)]
+    (when-not (every? #(instance? Variable %1) elements)
+      (raise "Unable to :find non-variables."))
+    (map (fn [elem]
+           (let [var (:symbol elem)]
+             [(lookup-variable context var) (var->sql-var var)]))
+         elements)))
 
-(defn context->sql-clause [context elements]
-  {:select (elements->sql-projection context elements)
+(defn row-transducer [context projection rf]
+  ;; For now, we only support straight var lists, so
+  ;; our transducer is trivial.
+  (let [columns-in-order (map second projection)
+        row-mapper (fn [row] (map columns-in-order row))]
+    (fn
+      ([] (rf))
+      ([result] (rf result))
+      ([result input]
+       (rf result (row-mapper input))))))
+
+(defn context->sql-clause [context]
+  {:select (sql-projection context)
    :from (:from context)
    :where (if (empty? (:wheres context))
             nil
@@ -173,6 +187,18 @@
                  (= "$" (name (-> in first :variable :symbol))))
     (raise (str "Complex `in` not supported: " (print-str in)))))
 
+(defn find->prepared-context [find]
+  ;; There's some confusing use of 'where' and friends here. That's because
+  ;; the parsed Datalog includes :where, and it's also input to honeysql's
+  ;; SQL formatter.
+  (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
+    (validate-with with)
+    (validate-in in)
+    (apply-elements-to-context
+      (expand-where-from-bindings
+        (patterns->context where))    ; 'where' here is the Datalog :where clause.
+      (:elements find))))
+
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
    expression that can be formatted by honeysql."
@@ -180,13 +206,8 @@
   ;; There's some confusing use of 'where' and friends here. That's because
   ;; the parsed Datalog includes :where, and it's also input to honeysql's
   ;; SQL formatter.
-  (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
-    (validate-with with)
-    (validate-in in)
-    (context->sql-clause
-      (expand-where-from-bindings
-        (patterns->context where))    ; 'where' here is the Datalog :where clause.
-      (:elements find))))
+  (context->sql-clause
+    (find->prepared-context find)))
 
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
