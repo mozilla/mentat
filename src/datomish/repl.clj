@@ -5,7 +5,7 @@
 (ns datomish.repl
   (:require
    [datomish.db :as db]
-   [datomish.util :as util :refer [raise]]
+   [datomish.util :as util :refer [raise cond-let]]
    [datomish.sqlite :as s]
    [datomish.jdbc-sqlite :as j]
    [tempfile.core]
