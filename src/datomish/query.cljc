@@ -174,7 +174,10 @@
             (cons :and (:wheres context)))})
 
 (defn context->sql-string [context]
-  (-> context context->sql-clause (sql/format :quoting sql-quoting-style)))
+  (->
+    context
+    context->sql-clause
+    (sql/format :quoting sql-quoting-style)))
 
 (defn- validate-with [with]
   (when-not (nil? with)
@@ -209,7 +212,10 @@
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
   [find]
-  (-> find find->sql-clause (sql/format :quoting sql-quoting-style)))
+  (->
+    find
+    find->sql-clause
+    (sql/format :quoting sql-quoting-style)))
 
 (defn parse
   "Parse a Datalog query array into a structured `find` expression."
