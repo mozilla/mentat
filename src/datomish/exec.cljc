@@ -8,11 +8,11 @@
      [datomish.sqlite-schema :as ss]
      [datomish.query :as dq]
      #?@(:clj
-           [[datomish.jdbc-sqlite :as j]
+           [[datomish.jdbc-sqlite]
             [datomish.pair-chan :refer [go-pair <?]]
             [clojure.core.async :refer [go <!! <! >! chan close! take!]]])
      #?@(:cljs
-           [[datomish.promise-sqlite :as j]
+           [[datomish.promise-sqlite]
             [datomish.pair-chan]
             [cljs.core.async :as a :refer [<!! <! >! chan close! take!]]])))
 
@@ -46,7 +46,7 @@
    and return the results as a sequence wrapped in a promise."
   [path find]
   (go-pair
-    (let [d (<? (j/open path))]
+    (let [d (<? (s/<sqlite-connection path))]
       (try
         (<? (ss/<ensure-current-version d))
         (doall (run-to-seq d find))
