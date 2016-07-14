@@ -10,11 +10,11 @@
   (is (= :XX (util/var->sql-var '?XX))))
 
 #?(:cljs
-     (deftest test-raise
-       (let [caught
-             (try
-               (do
-                 (util/raise "succeed")
-                 "fail")
-               (catch :default e e))]
-         (is (= "succeed" (aget caught "message"))))))
+   (deftest test-raise
+     (let [caught
+           (try
+             (do
+               (util/raise "succeed")
+               "fail")
+             (catch :default e e))]
+       (is (= "succeed" (aget caught "data"))))))

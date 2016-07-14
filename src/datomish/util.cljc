@@ -3,12 +3,22 @@
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 (ns datomish.util
+  #?(:cljs (:require-macros datomish.util))
   (:require
-     [clojure.string :as str]))
+   [clojure.string :as str]))
 
-(defn raise [s]
-  #?(:clj (throw (Exception. s)))
-  #?(:cljs (throw (js/Error s))))
+#?(:clj
+   (defmacro raise [& fragments]
+     (let [msgs (butlast fragments)
+           data (last fragments)]
+       `(throw (ex-info (str ~@(map (fn [m#] (if (string? m#) m# (list 'pr-str m#))) msgs)) ~data)))))
+
+#?(:clj
+   (defmacro cond-let [& clauses]
+     (when-let [[test expr & rest] clauses]
+       `(~(if (vector? test) 'if-let 'if) ~test
+         ~expr
+         (cond-let ~@rest)))))
 
 (defn var->sql-var
   "Turns '?xyz into :xyz."

@@ -9,7 +9,7 @@
       [datomish.node-tempfile-macros :refer [with-tempfile]]
       [cljs.core.async.macros :as a :refer [go]]))
   (:require
-   [datomish.util :as util :refer [raise]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.sqlite :as s]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [tempfile.core :refer [tempfile with-tempfile]]

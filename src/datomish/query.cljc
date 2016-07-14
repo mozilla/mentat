@@ -4,7 +4,7 @@
 
 (ns datomish.query
   (:require
-   [datomish.util :as util :refer [raise var->sql-var]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.transforms :as transforms]
    [datascript.parser :as dp
     #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
@@ -154,7 +154,7 @@
     (raise "Unable to :find non-variables."))
   (map (fn [elem]
          (let [var (:symbol elem)]
-           [(lookup-variable context var) (var->sql-var var)]))
+           [(lookup-variable context var) (util/var->sql-var var)]))
        elements))
 
 (defn context->sql-clause [context elements]
