@@ -24,7 +24,7 @@
    "CREATE INDEX avet ON datoms (a, v, e) WHERE index_avet = 1" ;; Opt-in index: only if a has :db/index true.
    "CREATE INDEX vaet ON datoms (v, a, e) WHERE index_vaet = 1" ;; Opt-in index: only if a has :db/valueType :db.type/ref
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1)"
-   "CREATE INDEX tx ON transactions (tx)"
+   "CREATE INDEX tx ON transactions (tx, e, a)" ;; Allow to find a previous value relatively efficiently.
    "CREATE TABLE attributes (name TEXT NOT NULL PRIMARY KEY, a INTEGER UNIQUE NOT NULL)"])
 
 (defn <create-current-version
