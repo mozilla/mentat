@@ -37,60 +37,67 @@
 
 (deftest-async test-add-one
   (with-tempfile [t (tempfile)]
-    (let [c (<? (s/<sqlite-connection t))
+    (let [c  (<? (s/<sqlite-connection t))
           db (<? (db/<with-sqlite-connection c))]
       (try
-        (let [now -1
-              report (<? (db/<transact! db [[:db/add 0 :a "value"]] nil now))
+        (let [now        -1
+              txInstant  (<? (db/<entid db :db/txInstant)) ;; TODO: convert entids to idents on egress.
+              x          (<? (db/<entid db :x))            ;; TODO: convert entids to idents on egress.
+              report     (<? (db/<transact! db [[:db/add 0 :x "valuex"]] nil now))
               current-tx (:current-tx report)]
           (is (= current-tx db/tx0))
           (is (= (<? (<datoms db))
-                 [[0 ":a" "value" db/tx0 true]
-                  [db/tx0 ":db/txInstant" now db/tx0 true]]))
+                 [[0 x "valuex" db/tx0 true]
+                  [db/tx0 txInstant now db/tx0 true]]))
           (is (= (<? (<transactions db))
-                 [[0 ":a" "value" db/tx0 1] ;; TODO: true, not 1.
-                  [db/tx0 ":db/txInstant" now db/tx0 1]])))
+                 [[0 x "valuex" db/tx0 1] ;; TODO: true, not 1.
+                  [db/tx0 txInstant now db/tx0 1]])))
         (finally
           (<? (db/close db)))))))
 
 (deftest-async test-add-two
   (with-tempfile [t (tempfile)]
-    (let [c (<? (s/<sqlite-connection t))
+    (let [c  (<? (s/<sqlite-connection t))
           db (<? (db/<with-sqlite-connection c))]
       (try
-        (let [now -1
-              report (<? (db/<transact! db [[:db/add 0 :a "valuea"] [:db/add 1 :b "valueb"]] nil now))
+        (let [now        -1
+              txInstant  (<? (db/<entid db :db/txInstant)) ;; TODO: convert entids to idents on egress.
+              x          (<? (db/<entid db :x))            ;; TODO: convert entids to idents on egress.
+              y          (<? (db/<entid db :y))            ;; TODO: convert entids to idents on egress.
+              report     (<? (db/<transact! db [[:db/add 0 :x "valuex"] [:db/add 1 :y "valuey"]] nil now))
               current-tx (:current-tx report)]
           (is (= current-tx db/tx0))
           (is (= (<? (<datoms db))
-                 [[0 ":a" "valuea" db/tx0 true]
-                  [1 ":b" "valueb" db/tx0 true]
-                  [db/tx0 ":db/txInstant" now db/tx0 true]]))
+                 [[0 x "valuex" db/tx0 true]
+                  [1 y "valuey" db/tx0 true]
+                  [db/tx0 txInstant now db/tx0 true]]))
           (is (= (<? (<transactions db))
-                 [[0 ":a" "valuea" db/tx0 1] ;; TODO: true, not 1.
-                  [1 ":b" "valueb" db/tx0 1]
-                  [db/tx0 ":db/txInstant" now db/tx0 1]])))
+                 [[0 x "valuex" db/tx0 1] ;; TODO: true, not 1.
+                  [1 y "valuey" db/tx0 1]
+                  [db/tx0 txInstant now db/tx0 1]])))
         (finally
           (<? (db/close db)))))))
 
 ;; TODO: test multipe :add and :retract of the same datom in the same transaction.
 (deftest-async test-retract
   (with-tempfile [t (tempfile)]
-    (let [c (<? (s/<sqlite-connection t))
+    (let [c  (<? (s/<sqlite-connection t))
           db (<? (db/<with-sqlite-connection c))]
       (try
-        (let [now -1
-              ra (<? (db/<transact! db [[:db/add     0 :a "value"]] nil now))
-              rb (<? (db/<transact! db [[:db/retract 0 :a "value"]] nil now))
-              txa (:current-tx ra)
-              txb (:current-tx rb)]
+        (let [now       -1
+              txInstant (<? (db/<entid db :db/txInstant)) ;; TODO: convert entids to idents on egress.
+              x         (<? (db/<entid db :x))            ;; TODO: convert entids to idents on egress.
+              ra        (<? (db/<transact! db [[:db/add     0 :x "valuex"]] nil now))
+              rb        (<? (db/<transact! db [[:db/retract 0 :x "valuex"]] nil now))
+              txa       (:current-tx ra)
+              txb       (:current-tx rb)]
           (is (= (<? (<datoms db))
-                 [[txa ":db/txInstant" now txa true]
-                  [txb ":db/txInstant" now txb true]]))
+                 [[txa txInstant now txa true]
+                  [txb txInstant now txb true]]))
           (is (= (<? (<transactions db))
-                 [[0 ":a" "value" txa 1] ;; TODO: true, not 1.
-                  [txa ":db/txInstant" -1 txa 1]
-                  [0 ":a" "value" txb 0]
-                  [txb ":db/txInstant" -1 txb 1]])))
+                 [[0 x "valuex" txa 1] ;; TODO: true, not 1.
+                  [txa txInstant -1 txa 1]
+                  [0 x "valuex" txb 0]
+                  [txb txInstant -1 txb 1]])))
         (finally
           (<? (db/close db)))))))

@@ -17,13 +17,20 @@
    #?@(:cljs [[datomish.pair-chan]
               [cljs.core.async :as a :refer [<! >!]]])))
 
+;; TODO: split connection and DB, in preparation for a DB-as-values world.
 (defprotocol IDB
+  (idents
+    [db]
+    "Return map {ident -> entid} if known idents.  See http://docs.datomic.com/identity.html#idents.")
+
   (close
     [db]
     "Close this database. Returns a pair channel of [nil error]."))
 
-(defrecord DB [sqlite-connection max-tx]
+(defrecord DB [sqlite-connection idents max-tx]
   IDB
+  (idents [db] @(:idents db))
+
   (close [db] (s/close (.-sqlite-connection db))))
 
 (defn db? [x]
@@ -37,6 +44,7 @@
     (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
       (raise "Could not ensure current SQLite schema version."))
     (map->DB {:sqlite-connection sqlite-connection
+              :idents            (atom {:db/txInstant 100 :x 101 :y 102}) ;; TODO: pre-populate idents and SQLite tables?
               :current-tx        (atom (dec tx0))}))) ;; TODO: get rid of dec.
 
 ;; TODO: consider CLJS interop.
@@ -69,8 +77,8 @@
            {:error :transact/syntax, :entity-id eid, :context at})))
 
 (defn- validate-attr [attr at]
-  (when-not (or (keyword? attr) (string? attr))
-    (raise "Bad entity attribute " attr " at " at ", expected keyword or string"
+  (when-not (number? attr)
+    (raise "Bad entity attribute " attr " at " at ", expected number"
            {:error :transact/syntax, :attribute attr, :context at})))
 
 (defn- validate-val [v at]
@@ -90,6 +98,10 @@
     (cond
       (number? eid)
       eid
+
+      (keyword? eid)
+      ;; Turn ident into entid if possible.
+      (get (idents db) eid eid)
 
       (sequential? eid)
       (raise "Lookup ref for entity id not yet supported, got " eid
@@ -121,7 +133,7 @@
     {:select [:*] ;; e :a :v :tx] ;; TODO: generalize columns.
      :from [:datoms]}
     (if-not (empty? pattern)
-      {:where (cons :and (map #(vector := %1 (if (keyword? %2) (str %2) %2)) [:e :a :v :tx] pattern))} ;; TODO: use schema to intern a and v.
+      {:where (cons :and (map #(vector := %1 %2) [:e :a :v :tx] pattern))} ;; TODO: use schema to v.
       {})))
 
 (defn <search [db pattern]
@@ -137,18 +149,20 @@
 (defn- <transact-report [db report datom]
   {:pre [(db? db)]}
   (go-pair
-    (let [exec (partial s/execute! (:sqlite-connection db))]
+    (let [exec (partial s/execute! (:sqlite-connection db))
+          [e a v tx added] [(.-e datom) (.-a datom) (.-v datom) (.-tx datom) (.-added datom)]] ;; TODO: destructuring.
+      (validate-eid e [e a v tx added]) ;; TODO: track original vs. transformed?
       ;; Append to transaction log.
       (<? (exec
-            ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" (.-e datom) (str (.-a datom)) (.-v datom) (.-tx datom) (.-added datom)]))
+            ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx added]))
       ;; Update materialized datom view.
       (if (.-added datom)
         (<? (exec
               ;; TODO: use schema to insert correct indexing flags.
-              ["INSERT INTO datoms VALUES (?, ?, ?, ?, 0, 0)" (.-e datom) (str (.-a datom)) (.-v datom) (.-tx datom)]))
+              ["INSERT INTO datoms VALUES (?, ?, ?, ?, 0, 0)" e a v tx]))
         (<? (exec
               ;; TODO: verify this is correct.
-              ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v = ?)" (.-e datom) (str (.-a datom)) (.-v datom)])))
+              ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v = ?)" e a v])))
       (-> report
           (update-in [:tx-data] conj datom)))))
 
@@ -201,12 +215,14 @@
              {:error :transact/syntax, :tx-data initial-es}))
     (loop [report initial-report
            es     initial-es]
-      (let [[entity & entities] es]
+      (let [[entity & entities] es
+            current-tx (:current-tx report)]
         (cond
           (nil? entity)
           ;; We're done!  Add transaction datom to the report.
-          (let [current-tx (:current-tx report)]
-            (<? (<transact-report db report (Datom. current-tx :db/txInstant now current-tx true)))
+          (do
+            ;; TODO: don't special case :db/txInstant attribute.
+            (<? (<transact-report db report (Datom. current-tx (get (idents db) :db/txInstant) now current-tx true)))
             (-> report
                 (assoc-in [:tempids :db/current-tx] current-tx)))
 
@@ -218,6 +234,13 @@
           (sequential? entity)
           (let [[op e a v] entity]
             (cond
+              (keyword? a)
+              (if-let [entid (get (idents db) a)]
+                (recur report (cons [op e entid v] entities))
+                (raise "No entid found for ident " a
+                       {:error :transact/syntax
+                        :op entity}))
+
               (= op :db.fn/call)
               (raise "DataScript's transactor functions are not yet supported, got " entity
                      {:error :transact/syntax
@@ -229,10 +252,10 @@
                       :op    entity })
 
               (tx-id? e)
-              (recur report (cons [op (:current-tx report) a v] entities))
+              (recur report (cons [op current-tx a v] entities))
 
               (and (ref? db a) (tx-id? v))
-              (recur report (cons [op e a (:current-tx report)] entities))
+              (recur report (cons [op e a current-tx] entities))
 
               (neg-number? e)
               (if (not= op :db/add)
