@@ -8,7 +8,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
-   [datomish.util :as util :refer [raise]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.sqlite :as s]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :refer [go <! >!]]])
@@ -24,7 +24,7 @@
    "CREATE INDEX avet ON datoms (a, v, e) WHERE index_avet = 1" ;; Opt-in index: only if a has :db/index true.
    "CREATE INDEX vaet ON datoms (v, a, e) WHERE index_vaet = 1" ;; Opt-in index: only if a has :db/valueType :db.type/ref
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1)"
-   "CREATE INDEX tx ON transactions (tx)"
+   "CREATE INDEX tx ON transactions (tx, e, a)" ;; Allow to find a previous value relatively efficiently.
    "CREATE TABLE attributes (name TEXT NOT NULL PRIMARY KEY, a INTEGER UNIQUE NOT NULL)"])
 
 (defn <create-current-version
@@ -42,7 +42,7 @@
   {:pre [(> from-version 0)]} ;; Or we'd create-current-version instead.
   {:pre [(< from-version current-version)]} ;; Or we wouldn't need to update-from-version.
   (go-pair
-    (raise "No migrations yet defioned!")
+    (raise "No migrations yet defined!")
     (<? (s/set-user-version db current-version))
     (<? (s/get-user-version db))))
 
