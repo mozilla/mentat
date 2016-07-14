@@ -10,11 +10,11 @@
   #?(:clj
      (:require
       [datomish.pair-chan :refer [go-pair <?]]
-      [clojure.core.async :refer [go <! >!]])
+      [clojure.core.async :refer [go <! >! chan put! take! close!]])
      :cljs
      (:require
       [datomish.pair-chan]
-      [cljs.core.async :as a :refer [<! >!]])))
+      [cljs.core.async :as a :refer [<! >! chan put! take! close!]])))
 
 (defprotocol ISQLiteConnection
   (-execute!
@@ -54,6 +54,15 @@
         (if err
           [nil err]
           [@acc nil])))))
+
+(defn <all-rows
+  "Takes a new channel, put!ing rows into it as they arrive
+   from storage. Closes the channel when no more results exist."
+  [db [sql & bindings :as rest] chan]
+  ;; TODO: I think this swallows errors...
+  (take! (-each db sql bindings (partial put! chan))
+         (fn [[count err]]
+           (close! chan))))
 
 (defn all-rows
   [db [sql & bindings :as rest]]
