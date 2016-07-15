@@ -55,12 +55,13 @@
 
 (defn <all-rows
   "Takes a new channel, put!ing rows into it as they arrive
-   from storage. Closes the channel when no more results exist."
+   from storage. Closes the channel when no more results exist.
+   Returns a pair-promise-chan to report error."
   [db [sql & bindings :as rest] chan]
-  ;; TODO: I think this swallows errors...
-  (take! (-each db sql bindings (partial put! chan))
-         (fn [[count err]]
-           (close! chan))))
+  (go-pair
+    (let [result (<? (-each db sql bindings (partial put! chan)))]
+      (close! chan)
+      result)))
 
 (defn all-rows
   [db [sql & bindings :as rest]]
