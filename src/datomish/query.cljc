@@ -52,10 +52,16 @@
   (or (-> context :bindings variable first)
       (raise (str "Couldn't find variable " variable))))
 
-(defn make-context []
-  (->Context [] {} [] []
-             transforms/attribute-transform-string
-             transforms/constant-transform-default))
+(defn make-context
+  ([]
+   (make-context transforms/attribute-transform-string transforms/constant-transform-default))
+  ([attribute-transform constant-transform]
+   (map->Context {:from []
+                  :bindings {}
+                  :wheres []
+                  :elements []
+                  :attribute-transform attribute-transform
+                  :constant-transform constant-transform})))
 
 (defn apply-pattern-to-context
   "Transform a DataScript Pattern instance into the parts needed
@@ -127,10 +133,10 @@
 (defn apply-elements-to-context [context elements]
   (assoc context :elements elements))
 
-(defn patterns->context
-  "Turn a sequence of patterns into a Context."
-  [patterns]
-  (reduce apply-pattern-to-context (make-context) patterns))
+(defn patterns->into-context
+  "Reduce a sequence of patterns into a Context."
+  [context patterns]
+  (reduce apply-pattern-to-context context patterns))
 
 (defn sql-projection
   "Take a `find` clause's `:elements` list and turn it into a SQL
@@ -192,7 +198,8 @@
                  (= "$" (name (-> in first :variable :symbol))))
     (raise (str "Complex `in` not supported: " (print-str in)))))
 
-(defn find->prepared-context [find]
+(defn find->into-context [context find]
+  "TODO"
   ;; There's some confusing use of 'where' and friends here. That's because
   ;; the parsed Datalog includes :where, and it's also input to honeysql's
   ;; SQL formatter.
@@ -201,24 +208,26 @@
     (validate-in in)
     (apply-elements-to-context
       (expand-where-from-bindings
-        (patterns->context where))    ; 'where' here is the Datalog :where clause.
+        (patterns->into-context context where))    ; 'where' here is the Datalog :where clause.
       (:elements find))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
    expression that can be formatted by honeysql."
-  [find]
+  [context find]
   ;; There's some confusing use of 'where' and friends here. That's because
   ;; the parsed Datalog includes :where, and it's also input to honeysql's
   ;; SQL formatter.
-  (-> find find->prepared-context context->sql-clause))
+  (->> find
+       (find->into-context context)
+       context->sql-clause))
 
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
-  [find]
-  (->
+  [context find]
+  (->>
     find
-    find->sql-clause
+    (find->sql-clause context)
     (sql/format :quoting sql-quoting-style)))
 
 (defn parse
