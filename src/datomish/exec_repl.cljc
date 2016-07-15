@@ -17,11 +17,12 @@
            [[datomish.jdbc-sqlite]
             [datomish.pair-chan :refer [go-pair <?]]
             [datomish.util :refer [while-let]]
-            [clojure.core.async]])
+            [clojure.core.async :refer [<!]]])
      #?@(:cljs
            [[datomish.promise-sqlite]
             [datomish.pair-chan]
-            [datomish.util]])))
+            [datomish.util]
+            [cljs.core.async :refer [<!]]])))
 
 #?(:clj
 (defn pair-channel->lazy-seq
@@ -57,13 +58,13 @@
       "/tmp/foo.sqlite"
       '[:find ?page :in $ :where [?page :page/starred true ?t]]))
 
-#_(defn test-cljs []
+#_(defn test-run []
     (datomish.pair-chan/go-pair
       (let [d (datomish.pair-chan/<? (s/<sqlite-connection "/tmp/foo.sqlite"))]
-        (cljs.core.async/<! (ss/<ensure-current-version d))
+        (<! (ss/<ensure-current-version d))
         (let [chan (exec/<?run d
                                '[:find ?page :in $ :where [?page :page/starred true ?t]])]
           (println (datomish.pair-chan/<? chan))
           (println (datomish.pair-chan/<? chan))
-          (println (datomish.pair-chan/<? chan))))))
-
+          (println (datomish.pair-chan/<? chan))
+          (s/close d)))))
