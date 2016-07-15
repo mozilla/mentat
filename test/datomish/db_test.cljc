@@ -101,3 +101,23 @@
                   [txb txInstant -1 txb 1]])))
         (finally
           (<? (db/close db)))))))
+
+(deftest-async test-q
+  (with-tempfile [t (tempfile)]
+    (let [c  (<? (s/<sqlite-connection t))
+          db (<? (db/<with-sqlite-connection c))]
+      (try
+        (let [now        -1
+              txInstant  (<? (db/<entid db :db/txInstant)) ;; TODO: convert entids to idents on egress.
+              x          (<? (db/<entid db :x))            ;; TODO: convert entids to idents on egress.
+              report     (<? (db/<transact! db [[:db/add 0 :x "valuex"]] nil now))
+              current-tx (:current-tx report)]
+          (is (= current-tx db/tx0))
+          (is (= (<? (<datoms db))
+                 [[0 x "valuex" db/tx0 true]
+                  [db/tx0 txInstant now db/tx0 true]]))
+          (is (= (<? (db/<q db '[:find ?e ?a ?v ?tx :in $ :where [?e ?a ?v ?tx]]))
+                 [[1 x "valuex" db/tx0] ;; TODO: include added.
+                  [db/tx0 txInstant now db/tx0]])))
+        (finally
+          (<? (db/close db)))))))

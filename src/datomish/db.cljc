@@ -11,6 +11,9 @@
    [honeysql.core :as sql]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.sqlite :as s]
+   [datomish.exec :as de]
+   [datomish.query :as dq]
+   [datomish.transforms :as dt]
    [datomish.sqlite-schema :as sqlite-schema]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :as a :refer [go <! >!]]])
@@ -35,6 +38,29 @@
 
 (defn db? [x]
   (and (satisfies? IDB x)))
+
+(defn <q
+  "Execute the provided query on the provided DB.
+   Returns a transduced pair-chan of [[results] err]."
+  [db find]
+  {:pre [(db? db)]}
+  (let [attribute-transform (fn [a] (get (idents db) a a))
+        constant-transform dt/constant-transform-default
+        initial-context (dq/make-context attribute-transform constant-transform)
+        context (dq/find->into-context initial-context (dq/parse find))
+        row-pair-transducer (dq/row-pair-transducer context (dq/sql-projection context))
+        chan (a/chan 50 row-pair-transducer)]
+
+    (s/<?all-rows (:sqlite-connection db) (dq/context->sql-string context) chan)
+    ;; TODO: extract this reducing function lifted to the Maybe monad.
+    (let [g (fn [f [rv re] [v e]]
+              (if re
+                [nil re]
+                (if e
+                  [nil e]
+                  [(f rv v) nil])))]
+      (go-pair
+        (<? (a/reduce (partial g conj) [[] nil] chan))))))
 
 ;; TODO: implement support for DB parts?
 (def tx0 0x2000000)
