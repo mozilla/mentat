@@ -32,7 +32,7 @@
    (when-let [v (clojure.core.async/<!! channel)]
      (if (second v)
        (cons v nil)
-       (cons v (channel->lazy-seq channel)))))))
+       (cons v (pair-channel->lazy-seq channel)))))))
 
 #?(:clj
 (defn run-to-pair-seq
