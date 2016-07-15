@@ -29,3 +29,9 @@
   (if ks
     (assoc m k (conj-in (get m k) ks v))
     (assoc m k (conj (get m k) v))))
+
+(defmacro while-let [binding & forms]
+  `(loop []
+     (when-let ~binding
+       ~@forms
+       (recur))))
