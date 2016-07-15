@@ -170,11 +170,12 @@
              [(map row columns-in-order) nil])))))
 
 (defn context->sql-clause [context]
-  {:select (sql-projection context)
-   :from (:from context)
-   :where (if (empty? (:wheres context))
-            nil
-            (cons :and (:wheres context)))})
+  (merge
+    {:select (sql-projection context)
+     :from (:from context)}
+    (if (empty? (:wheres context))
+      {}
+      {:where (cons :and (:wheres context))})))
 
 (defn context->sql-string [context]
   (->
