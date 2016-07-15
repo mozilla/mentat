@@ -25,14 +25,14 @@
             [cljs.core.async :refer [<!]]])))
 
 #?(:clj
-(defn pair-channel->lazy-seq
-  "Returns a blocking lazy sequence of items taken from the provided channel."
-  [channel]
-  (lazy-seq
-   (when-let [v (clojure.core.async/<!! channel)]
-     (if (second v)
-       (cons v nil)
-       (cons v (pair-channel->lazy-seq channel)))))))
+   (defn pair-channel->lazy-seq
+     "Returns a blocking lazy sequence of items taken from the provided channel."
+     [channel]
+     (lazy-seq
+       (when-let [v (clojure.core.async/<!! channel)]
+         (if (second v)
+           (cons v nil)
+           (cons v (pair-channel->lazy-seq channel)))))))
 
 #?(:clj
 (defn run-to-pair-seq
