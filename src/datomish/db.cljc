@@ -327,16 +327,27 @@
                  {:error :transact/syntax, :tx-data entity})
           )))))
 
+(defn <process-db-part
+  "Transactions may add idents, install new partitions, and install new schema attributes.  Handle
+  them, atomically, here."
+  [db report]
+  (go-pair
+    nil))
+
 (defn <transact!
   ([db tx-data]
    (<transact! db tx-data nil 0xdeadbeef)) ;; TODO: timestamp!
   ([db tx-data tx-meta now]
    {:pre [(db? db)]}
-   (go-pair
-     (let [current-tx (<? (<allocate-tx db))]
-       (<? (<transact-tx-data db now
-                              (map->TxReport
-                                {:current-tx current-tx
-                                 :tx-data    []
-                                 :tempids    {}
-                                 :tx-meta    tx-meta}) tx-data))))))
+   (s/in-transaction!
+     (:sqlite-connection db)
+     #(go-pair
+        (let [current-tx (<? (<allocate-tx db))
+              report     (<? (<transact-tx-data db now
+                                                (map->TxReport
+                                                  {:current-tx current-tx
+                                                   :tx-data    []
+                                                   :tempids    {}
+                                                   :tx-meta    tx-meta}) tx-data))]
+          (<? (<process-db-part db report))
+          report)))))
