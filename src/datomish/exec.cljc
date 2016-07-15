@@ -5,6 +5,7 @@
 (ns datomish.exec
   #?(:cljs
      (:require-macros
+      [datomish.util :refer [while-let]]
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
@@ -14,12 +15,18 @@
      #?@(:clj
            [[datomish.jdbc-sqlite]
             [datomish.pair-chan :refer [go-pair <?]]
-            [clojure.core.async :refer [go <!! <! >! chan close! take!]]])
+            [datomish.util :refer [while-let]]
+            [clojure.core.async :refer
+             [go                   ; macro in cljs.
+              <! >! chan close! take!]]])
      #?@(:cljs
            [[datomish.promise-sqlite]
             [datomish.pair-chan]
-            [cljs.core.async :as a :refer [<!! <! >! chan close! take!]]])))
+            [datomish.util]
+            [cljs.core.async :as a :refer
+             [<! >! chan close! take!]]])))
 
+#_
 (defn <run
   "Execute the provided query on the provided DB.
    Returns a transduced channel of results.
