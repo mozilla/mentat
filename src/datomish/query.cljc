@@ -160,16 +160,14 @@
              [(lookup-variable context var) (var->sql-var var)]))
          elements)))
 
-(defn row-transducer [context projection rf]
+(defn row-pair-transducer [context projection]
   ;; For now, we only support straight var lists, so
   ;; our transducer is trivial.
-  (let [columns-in-order (map second projection)
-        row-mapper (fn [row] (map columns-in-order row))]
-    (fn
-      ([] (rf))
-      ([result] (rf result))
-      ([result input]
-       (rf result (row-mapper input))))))
+  (let [columns-in-order (map second projection)]
+    (map (fn [[row err]]
+           (if err
+             [row err]
+             [(map row columns-in-order) nil])))))
 
 (defn context->sql-clause [context]
   {:select (sql-projection context)
@@ -177,6 +175,12 @@
    :where (if (empty? (:wheres context))
             nil
             (cons :and (:wheres context)))})
+
+(defn context->sql-string [context]
+  (->
+    context
+    context->sql-clause
+    (sql/format :quoting sql-quoting-style)))
 
 (defn- validate-with [with]
   (when-not (nil? with)
@@ -206,13 +210,15 @@
   ;; There's some confusing use of 'where' and friends here. That's because
   ;; the parsed Datalog includes :where, and it's also input to honeysql's
   ;; SQL formatter.
-  (context->sql-clause
-    (find->prepared-context find)))
+  (-> find find->prepared-context context->sql-clause))
 
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
   [find]
-  (-> find find->sql-clause (sql/format :quoting sql-quoting-style)))
+  (->
+    find
+    find->sql-clause
+    (sql/format :quoting sql-quoting-style)))
 
 (defn parse
   "Parse a Datalog query array into a structured `find` expression."
@@ -225,7 +231,7 @@
       '[:find ?page :in $ :where [?page :page/starred true ?t] ])))
 
 (comment
-  (datomish.query/find->sql-string
+  (datomish.query/find->prepared-context
     (datomish.query/parse
       '[:find ?timestampMicros ?page
         :in $

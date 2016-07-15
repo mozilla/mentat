@@ -5,16 +5,16 @@
 (ns datomish.sqlite
   #?(:cljs
      (:require-macros
-      [datomish.pair-chan :refer [go-pair <?]]
+      [datomish.pair-chan :refer [go-pair go-safely <?]]
       [cljs.core.async.macros :refer [go]]))
   #?(:clj
      (:require
-      [datomish.pair-chan :refer [go-pair <?]]
-      [clojure.core.async :refer [go <! >!]])
+      [datomish.pair-chan :refer [go-pair go-safely <?]]
+      [clojure.core.async :refer [go <! >! chan put! take! close!]])
      :cljs
      (:require
       [datomish.pair-chan]
-      [cljs.core.async :as a :refer [<! >!]])))
+      [cljs.core.async :as a :refer [<! >! chan put! take! close!]])))
 
 (defprotocol ISQLiteConnection
   (-execute!
@@ -49,11 +49,23 @@
 (defn reduce-rows
   [db [sql & bindings] initial f]
   (let [acc (atom initial)]
-    (go
-      (let [[_ err] (<! (-each db sql bindings #(swap! acc f %)))]
-        (if err
-          [nil err]
-          [@acc nil])))))
+    (go-pair
+      (<? (-each db sql bindings #(swap! acc f %)))
+      @acc)))
+
+(defn <?all-rows
+  "Takes a new channel, put!ing rows as [row err] pairs
+   into it as they arrive from storage. Closes the channel
+   when no more results exist. Consume with <?."
+  [db [sql & bindings :as rest] chan]
+  (go-safely [c chan]
+    (let [result (<! (-each db sql bindings (fn [row] (put! c [row nil]))))]
+      ;; We assume that a failure will result in the promise
+      ;; channel being rejected and no further row callbacks
+      ;; being called.
+      (when (second result)
+        (put! result c))
+      (close! c))))
 
 (defn all-rows
   [db [sql & bindings :as rest]]
