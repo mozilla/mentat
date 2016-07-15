@@ -16,11 +16,34 @@
   [then else]
   (if (cljs-env? &env) then else))
 
+(defmacro go-safely [[chan chan-form] & body]
+  "Evaluate `body` forms in a `go` block. Binds `chan-form` to `chan`.
+   `chan-form` must evaluate to an error-channel.
+   If `body` throws, the exception is propagated into `chan` and `chan` is closed.
+   Returns `chan`."
+  `(if-cljs
+     (let [~chan ~chan-form]
+       (cljs.core.async.macros/go
+         (try
+           (do ~@body)
+           (catch js/Error ex#
+             (cljs.core.async/>! ~chan [nil ex#]))))
+       ~chan)
+     (let [~chan ~chan-form]
+       (clojure.core.async/go
+         (try
+           (do ~@body)
+           (catch Exception ex#
+             (clojure.core.async/>! ~chan [nil ex#]))))
+       ~chan)))
+  
 ;; It's a huge pain to declare cross-environment macros.  This is awful, but making the namespace a
 ;; parameter appears to be *even worse*.  Note also that `go` is not in a consistent namespace...
 (defmacro go-pair [& body]
-  "Evaluate `body` forms in a `go` block.  Catch errors and return a
-  pair chan (a promise channel resolving to `[result error]`)."
+  "Evaluate `body` forms in a `go` block to yield a result.
+   Catch errors during evaluation.
+   Return a promise channel that yields a pair: the result (or nil), and any
+   error thrown (or nil)."
   `(if-cljs
      (let [pc-chan# (cljs.core.async/promise-chan)]
        (cljs.core.async.macros/go

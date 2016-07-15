@@ -29,7 +29,7 @@
 ;; `:bindings` is a map from var to qualified columns.
 ;; `:wheres` is a list of fragments that can be joined by `:and`.
 ;;
-(defrecord Context [from bindings wheres attribute-transform constant-transform])
+(defrecord Context [from bindings wheres elements attribute-transform constant-transform])
 
 (defn attribute-in-context [context attribute]
   ((:attribute-transform context) attribute))
@@ -53,7 +53,7 @@
       (raise (str "Couldn't find variable " variable))))
 
 (defn make-context []
-  (->Context [] {} []
+  (->Context [] {} [] []
              transforms/attribute-transform-string
              transforms/constant-transform-default))
 
@@ -71,15 +71,16 @@
     (raise (str "Non-default sources are not supported in patterns. Pattern: "
                 (print-str pattern))))
 
-  (let [table (keyword (name (gensym "eavt")))
+  (let [table :datoms
+        alias (gensym (name table))
         places (map (fn [place col] [place col])
                     (:pattern pattern)
-                    [:e :a :v :t :added])]
+                    [:e :a :v :tx])]
     (reduce
       (fn [context
            [pattern-part                           ; ?x, :foo/bar, 42
             position]]                             ; :a
-        (let [col (sql/qualify table position)]    ; :eavt.a
+        (let [col (sql/qualify alias (name position))]    ; :datoms123.a
           (condp instance? pattern-part
             ;; Placeholders don't contribute any bindings, nor do
             ;; they constrain the query -- there's no need to produce
@@ -96,20 +97,19 @@
             (raise (str "Unknown pattern part " (print-str pattern-part))))))
 
       ;; Record the new table mapping.
-      (util/conj-in context [:from] [:eavt table])
+      (util/conj-in context [:from] [table alias])
 
       places)))
 
 (defn- bindings->where
   "Take a bindings map like
-    {?foo [:eavt12.e :eavt13.v :eavt14.e]}
+    {?foo [:datoms12.e :datoms13.v :datoms14.e]}
   and produce a list of constraints expression like
-    [[:= :eavt12.e :eavt13.v] [:= :eavt12.e :eavt14.e]]
+    [[:= :datoms12.e :datoms13.v] [:= :datoms12.e :datoms14.e]]
 
   TODO: experiment; it might be the case that producing more
   pairwise equalities we get better or worse performance."
   [bindings]
-  (println bindings)
   (mapcat (fn [[_ vs]]
             (when (> (count vs) 1)
               (let [root (first vs)]
@@ -124,12 +124,15 @@
   (assoc context :wheres (concat (bindings->where (:bindings context))
                                  (:wheres context))))
 
+(defn apply-elements-to-context [context elements]
+  (assoc context :elements elements))
+
 (defn patterns->context
   "Turn a sequence of patterns into a Context."
   [patterns]
   (reduce apply-pattern-to-context (make-context) patterns))
 
-(defn elements->sql-projection
+(defn sql-projection
   "Take a `find` clause's `:elements` list and turn it into a SQL
    projection clause, suitable for passing as a `:select` clause to
    honeysql.
@@ -140,29 +143,44 @@
 
    with bindings in the context:
 
-     {?foo [:eavt12.e :eavt13.v], ?bar [:eavt13.e]}
+     {?foo [:datoms12.e :datoms13.v], ?bar [:datoms13.e]}
 
    =>
 
-     [[:eavt12.e :foo] [:eavt13.e :bar]]
+     [[:datoms12.e :foo] [:datoms13.e :bar]]
 
-   @param context A Context.
-   @param elements The input clause.
+   @param context A Context, containing elements.
    @return a sequence of pairs."
-  [context elements]
-  (when-not (every? #(instance? Variable %1) elements)
-    (raise "Unable to :find non-variables."))
-  (map (fn [elem]
-         (let [var (:symbol elem)]
-           [(lookup-variable context var) (var->sql-var var)]))
-       elements))
+  [context]
+  (let [elements (:elements context)]
+    (when-not (every? #(instance? Variable %1) elements)
+      (raise "Unable to :find non-variables."))
+    (map (fn [elem]
+           (let [var (:symbol elem)]
+             [(lookup-variable context var) (var->sql-var var)]))
+         elements)))
 
-(defn context->sql-clause [context elements]
-  {:select (elements->sql-projection context elements)
+(defn row-pair-transducer [context projection]
+  ;; For now, we only support straight var lists, so
+  ;; our transducer is trivial.
+  (let [columns-in-order (map second projection)]
+    (map (fn [[row err]]
+           (if err
+             [row err]
+             [(map row columns-in-order) nil])))))
+
+(defn context->sql-clause [context]
+  {:select (sql-projection context)
    :from (:from context)
    :where (if (empty? (:wheres context))
             nil
             (cons :and (:wheres context)))})
+
+(defn context->sql-string [context]
+  (->
+    context
+    context->sql-clause
+    (sql/format :quoting sql-quoting-style)))
 
 (defn- validate-with [with]
   (when-not (nil? with)
@@ -173,6 +191,18 @@
                  (= "$" (name (-> in first :variable :symbol))))
     (raise (str "Complex `in` not supported: " (print-str in)))))
 
+(defn find->prepared-context [find]
+  ;; There's some confusing use of 'where' and friends here. That's because
+  ;; the parsed Datalog includes :where, and it's also input to honeysql's
+  ;; SQL formatter.
+  (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
+    (validate-with with)
+    (validate-in in)
+    (apply-elements-to-context
+      (expand-where-from-bindings
+        (patterns->context where))    ; 'where' here is the Datalog :where clause.
+      (:elements find))))
+
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
    expression that can be formatted by honeysql."
@@ -180,18 +210,15 @@
   ;; There's some confusing use of 'where' and friends here. That's because
   ;; the parsed Datalog includes :where, and it's also input to honeysql's
   ;; SQL formatter.
-  (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
-    (validate-with with)
-    (validate-in in)
-    (context->sql-clause
-      (expand-where-from-bindings
-        (patterns->context where))    ; 'where' here is the Datalog :where clause.
-      (:elements find))))
+  (-> find find->prepared-context context->sql-clause))
 
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
   [find]
-  (-> find find->sql-clause (sql/format :quoting sql-quoting-style)))
+  (->
+    find
+    find->sql-clause
+    (sql/format :quoting sql-quoting-style)))
 
 (defn parse
   "Parse a Datalog query array into a structured `find` expression."
@@ -204,7 +231,7 @@
       '[:find ?page :in $ :where [?page :page/starred true ?t] ])))
 
 (comment
-  (datomish.query/find->sql-string
+  (datomish.query/find->prepared-context
     (datomish.query/parse
       '[:find ?timestampMicros ?page
         :in $
