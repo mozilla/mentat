@@ -19,8 +19,10 @@
 ;; It's a huge pain to declare cross-environment macros.  This is awful, but making the namespace a
 ;; parameter appears to be *even worse*.  Note also that `go` is not in a consistent namespace...
 (defmacro go-pair [& body]
-  "Evaluate `body` forms in a `go` block.  Catch errors and return a
-  pair chan (a promise channel resolving to `[result error]`)."
+  "Evaluate `body` forms in a `go` block to yield a result.
+   Catch errors during evaluation.
+   Return a promise channel that yields a pair: the result (or nil), and any
+   error thrown (or nil)."
   `(if-cljs
      (let [pc-chan# (cljs.core.async/promise-chan)]
        (cljs.core.async.macros/go
