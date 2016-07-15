@@ -49,11 +49,9 @@
 (defn reduce-rows
   [db [sql & bindings] initial f]
   (let [acc (atom initial)]
-    (go
-      (let [[_ err] (<! (-each db sql bindings #(swap! acc f %)))]
-        (if err
-          [nil err]
-          [@acc nil])))))
+    (go-pair
+      (<? (-each db sql bindings #(swap! acc f %)))
+      @acc)))
 
 (defn <all-rows
   "Takes a new channel, put!ing rows into it as they arrive
