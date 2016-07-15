@@ -160,11 +160,14 @@
              [(lookup-variable context var) (var->sql-var var)]))
          elements)))
 
-(defn row-transducer [context projection]
+(defn row-pair-transducer [context projection]
   ;; For now, we only support straight var lists, so
   ;; our transducer is trivial.
   (let [columns-in-order (map second projection)]
-    (map (fn [row] (map row columns-in-order)))))
+    (map (fn [[row err]]
+           (if err
+             [row err]
+             [(map row columns-in-order) nil])))))
 
 (defn context->sql-clause [context]
   {:select (sql-projection context)
