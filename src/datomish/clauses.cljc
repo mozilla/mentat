@@ -71,13 +71,32 @@
                 (map (fn [v] [:= root v]) (rest vs)))))
           bindings))
 
+;; This is so we can link clauses to the outside world.
+(defn impose-external-bindings [cc]
+  (if (empty? (:external-bindings cc))
+    cc
+    (let [ours (:bindings cc)
+          theirs (:external-bindings cc)
+          vars (clojure.set/intersection (set (keys theirs)) (set (keys ours)))]
+      (util/concat-in
+        cc [:wheres]
+        (map
+          (fn [v]
+            (let [external (first (v theirs))
+                  internal (first (v ours))]
+              (assert external)
+              (assert internal)
+              [:= external internal]))
+          vars)))))
+
 (defn expand-where-from-bindings
   "Take the bindings in the CC and contribute
    additional where clauses. Calling this more than
    once will result in duplicate clauses."
   [cc]
-  (assoc cc :wheres (concat (bindings->where (:bindings cc))
-                            (:wheres cc))))
+  (impose-external-bindings
+    (assoc cc :wheres (concat (bindings->where (:bindings cc))
+                              (:wheres cc)))))
 
 ;; Pattern building is recursive, so we need forward declarations.
 (declare Not->NotJoinClause not-join->where-fragment)
@@ -218,19 +237,7 @@
   (when-not (instance? DefaultSrc (:source not))
     (raise-str "Non-default sources are not supported in patterns. Pattern: "
            not))
-  (impose-external-bindings
-    (make-not-join-clause source external-bindings (:vars not) (:clauses not))))
-
-;; This is so we can link the clause to the outside world.
-(defn impose-external-constraints [not-join-clause wheres]
-  (util/concat-in not-join-clause [:cc :wheres] wheres))
-
-(defn impose-external-bindings [not-join-clause]
-  (let [ours (:bindings (:cc not-join-clause))
-        theirs (:external-bindings (:cc not-join-clause))
-        vars (clojure.set/intersection (set (keys theirs)) (set (keys ours)))
-        pairings (map (fn [v] [:= (first (v theirs)) (first (v ours))]) vars)]
-    (impose-external-constraints not-join-clause pairings)))
+  (make-not-join-clause source external-bindings (:vars not) (:clauses not)))
 
 (defn not-join->where-fragment [not-join]
   [:not
