@@ -23,7 +23,12 @@
 
 (defn context->sql-clause [context]
   (merge
-    {:select (projection/sql-projection context)}
+    {:select (projection/sql-projection context)
+
+     ;; Always SELECT DISTINCT, because Datalog is set-based.
+     ;; TODO: determine from schema analysis whether we can avoid
+     ;; the need to do this.
+     :modifiers [:distinct]}
     (clauses/cc->partial-subquery (:cc context))))
 
 (defn context->sql-string [context]
