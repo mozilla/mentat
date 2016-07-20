@@ -10,12 +10,30 @@
    [datomish.projection :as projection]
    [datomish.transforms :as transforms]
    [datascript.parser :as dp
-    #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
+    #?@(:cljs
+          [:refer [
+            BindScalar
+            Constant
+            DefaultSrc
+            Pattern
+            Placeholder
+            SrcVar
+            Variable
+            ]])]
    [clojure.string :as str]
    [honeysql.core :as sql]
    )
-  #?(:clj (:import [datascript.parser Pattern DefaultSrc Variable Constant Placeholder]))
-  )
+  #?(:clj
+       (:import
+          [datascript.parser
+            BindScalar
+            Constant
+            DefaultSrc
+            Pattern
+            Placeholder
+            SrcVar
+            Variable
+           ])))
 
 ;; Setting this to something else will make your output more readable,
 ;; but not automatically safe for use.
@@ -42,20 +60,35 @@
     (raise-str "`with` not supported.")))
 
 (defn- validate-in [in]
-  (when-not (and (== 1 (count in))
-                 (= "$" (name (-> in first :variable :symbol))))
-    (raise-str "Complex `in` not supported: " in)))
+  (when-not (= "$" (name (-> in first :variable :symbol)))
+    (raise-str "Non-default sources not supported."))
+  (when-not (every? (partial instance? BindScalar) (rest in))
+    (raise-str "Non-scalar bindings not supported.")))
+
+(defn in->bindings
+  "Take an `:in` list and return a bindings map suitable for use
+   as external bindings in a CC."
+  [in]
+  (reduce
+    (fn [m b]
+      (or
+        (when (instance? BindScalar b)
+          (let [var (:variable b)]
+            (when (instance? Variable var)
+              (let [v (:symbol var)]
+                (assoc m v [(sql/param (util/var->sql-var v))])))))
+        m))
+    {}
+    in))
 
 (defn expand-find-into-context [context find]
-  ;; There's some confusing use of 'where' and friends here. That's because
-  ;; the parsed Datalog includes :where, and it's also input to honeysql's
-  ;; SQL formatter.
   (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
     (validate-with with)
     (validate-in in)
-    (assoc context
-           :elements (:elements find)
-           :cc (clauses/patterns->cc (:default-source context) where nil))))
+    (let [external-bindings (in->bindings in)]
+      (assoc context
+             :elements (:elements find)
+             :cc (clauses/patterns->cc (:default-source context) where external-bindings)))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
@@ -70,10 +103,10 @@
 
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
-  [context find]
+  [context find args]
   (->
     (find->sql-clause context find)
-    (sql/format :quoting sql-quoting-style)))
+    (sql/format args :quoting sql-quoting-style)))
 
 (defn parse
   "Parse a Datalog query array into a structured `find` expression."
@@ -82,10 +115,12 @@
 
 (comment
   (def sql-quoting-style nil)
-  (datomish.query/find->sql-string (datomish.context/->Context (datomish.source/datoms-source nil) nil nil)
+  (datomish.query/find->sql-string
+    (datomish.context/->Context (datomish.source/datoms-source nil) nil nil)
     (datomish.query/parse
-      '[:find ?timestampMicros ?page :in $ :where
+      '[:find ?timestampMicros ?page :in $ ?latest :where
         [?page :page/starred true ?t]
         [?t :db/txInstant ?timestampMicros]
-        (not [(> ?t 1000000)]) ]))
+        (not [(> ?t ?latest)]) ])
+    {:latest 5})
 )

@@ -190,7 +190,11 @@
   ;; reorder your query yourself.
   (util/conj-in cc [:wheres]
                 (not-join->where-fragment
-                  (Not->NotJoinClause (:source cc) (:bindings cc) not))))
+                  (Not->NotJoinClause (:source cc)
+                                      (merge-with concat
+                                                  (:external-bindings cc)
+                                                  (:bindings cc))
+                                      not))))
 
 ;; We're keeping this simple for now: a straightforward type switch.
 (defn apply-clause [cc it]
