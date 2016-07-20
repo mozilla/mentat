@@ -4,7 +4,7 @@
 
 (ns datomish.query
   (:require
-   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
    [datomish.transforms :as transforms]
    [datascript.parser :as dp
     #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
@@ -17,163 +17,6 @@
 ;; Setting this to something else will make your output more readable,
 ;; but not automatically safe for use.
 (def sql-quoting-style :ansi)
-
-;;
-;; Context.
-;;
-;; `attribute-transform` is a function from attribute to constant value. Used to
-;; turn, e.g., :p/attribute into an interned integer.
-;; `constant-transform` is a function from constant value to constant value. Used to
-;; turn, e.g., the literal 'true' into 1.
-;; `from` is a list of table pairs, suitable for passing to honeysql.
-;; `:bindings` is a map from var to qualified columns.
-;; `:wheres` is a list of fragments that can be joined by `:and`.
-;;
-(defrecord Context [from bindings wheres elements attribute-transform constant-transform])
-
-(defn attribute-in-context [context attribute]
-  ((:attribute-transform context) attribute))
-
-(defn constant-in-context [context constant]
-  ((:constant-transform context) constant))
-
-(defn bind-column-to-var [context variable col]
-  (let [var (:symbol variable)
-        existing-bindings (get-in context [:bindings var])]
-    (assoc-in context [:bindings var] (conj existing-bindings col))))
-
-(defn constrain-column-to-constant [context col position value]
-  (util/conj-in context [:wheres]
-                [:= col (if (= :a position)
-                          (attribute-in-context context value)
-                          (constant-in-context context value))]))
-
-(defn lookup-variable [context variable]
-  (or (-> context :bindings variable first)
-      (raise (str "Couldn't find variable " variable))))
-
-(defn make-context
-  ([]
-   (make-context transforms/attribute-transform-string transforms/constant-transform-default))
-  ([attribute-transform constant-transform]
-   (map->Context {:from []
-                  :bindings {}
-                  :wheres []
-                  :elements []
-                  :attribute-transform attribute-transform
-                  :constant-transform constant-transform})))
-
-(defn apply-pattern-to-context
-  "Transform a DataScript Pattern instance into the parts needed
-   to build a SQL expression.
-
-  @arg context A Context instance.
-  @arg pattern The pattern instance.
-  @return an augmented Context."
-  [context pattern]
-  (when-not (instance? Pattern pattern)
-    (raise "Expected to be called with a Pattern instance."))
-  (when-not (instance? DefaultSrc (:source pattern))
-    (raise (str "Non-default sources are not supported in patterns. Pattern: "
-                (print-str pattern))))
-
-  (let [table :datoms
-        alias (gensym (name table))
-        places (map (fn [place col] [place col])
-                    (:pattern pattern)
-                    [:e :a :v :tx])]
-    (reduce
-      (fn [context
-           [pattern-part                           ; ?x, :foo/bar, 42
-            position]]                             ; :a
-        (let [col (sql/qualify alias (name position))]    ; :datoms123.a
-          (condp instance? pattern-part
-            ;; Placeholders don't contribute any bindings, nor do
-            ;; they constrain the query -- there's no need to produce
-            ;; IS NOT NULL, because we don't store nulls in our schema.
-            Placeholder
-            context
-
-            Variable
-            (bind-column-to-var context pattern-part col)
-
-            Constant
-            (constrain-column-to-constant context col position (:value pattern-part))
-
-            (raise (str "Unknown pattern part " (print-str pattern-part))))))
-
-      ;; Record the new table mapping.
-      (util/conj-in context [:from] [table alias])
-
-      places)))
-
-(defn- bindings->where
-  "Take a bindings map like
-    {?foo [:datoms12.e :datoms13.v :datoms14.e]}
-  and produce a list of constraints expression like
-    [[:= :datoms12.e :datoms13.v] [:= :datoms12.e :datoms14.e]]
-
-  TODO: experiment; it might be the case that producing more
-  pairwise equalities we get better or worse performance."
-  [bindings]
-  (mapcat (fn [[_ vs]]
-            (when (> (count vs) 1)
-              (let [root (first vs)]
-                (map (fn [v] [:= root v]) (rest vs)))))
-          bindings))
-
-(defn expand-where-from-bindings
-  "Take the bindings in the context and contribute
-   additional where clauses. Calling this more than
-   once will result in duplicate clauses."
-  [context]
-  (assoc context :wheres (concat (bindings->where (:bindings context))
-                                 (:wheres context))))
-
-(defn apply-elements-to-context [context elements]
-  (assoc context :elements elements))
-
-(defn expand-patterns-into-context
-  "Reduce a sequence of patterns into a Context."
-  [context patterns]
-  (reduce apply-pattern-to-context context patterns))
-
-(defn sql-projection
-  "Take a `find` clause's `:elements` list and turn it into a SQL
-   projection clause, suitable for passing as a `:select` clause to
-   honeysql.
-
-   For example:
-
-     [Variable{:symbol ?foo}, Variable{:symbol ?bar}]
-
-   with bindings in the context:
-
-     {?foo [:datoms12.e :datoms13.v], ?bar [:datoms13.e]}
-
-   =>
-
-     [[:datoms12.e :foo] [:datoms13.e :bar]]
-
-   @param context A Context, containing elements.
-   @return a sequence of pairs."
-  [context]
-  (let [elements (:elements context)]
-    (when-not (every? #(instance? Variable %1) elements)
-      (raise "Unable to :find non-variables."))
-    (map (fn [elem]
-           (let [var (:symbol elem)]
-             [(lookup-variable context var) (util/var->sql-var var)]))
-         elements)))
-
-(defn row-pair-transducer [context projection]
-  ;; For now, we only support straight var lists, so
-  ;; our transducer is trivial.
-  (let [columns-in-order (map second projection)]
-    (map (fn [[row err]]
-           (if err
-             [row err]
-             [(map row columns-in-order) nil])))))
 
 (defn context->sql-clause [context]
   (merge
@@ -191,12 +34,12 @@
 
 (defn- validate-with [with]
   (when-not (nil? with)
-    (raise "`with` not supported.")))
+    (raise-str "`with` not supported.")))
 
 (defn- validate-in [in]
   (when-not (and (== 1 (count in))
                  (= "$" (name (-> in first :variable :symbol))))
-    (raise (str "Complex `in` not supported: " (print-str in)))))
+    (raise-str "Complex `in` not supported: " in)))
 
 (defn expand-find-into-context [context find]
   ;; There's some confusing use of 'where' and friends here. That's because
@@ -252,10 +95,34 @@
   (pattern->sql
     (first
       (:where
-        (datomish.query/parse
+        (datascript.parser/parse-query
           '[:find (max ?timestampMicros) (pull ?page [:page/url :page/title]) ?page
           :in $
           :where
           [?page :page/starred true ?t]
+  (not-join [?fo]
+  [(> ?fooo 5)]
+  [?xpage :page/starred false]
+  )
           [?t :db/txInstant ?timestampMicros]])))
     identity))
+
+(cc->partial-subquery
+  
+  (require 'datomish.clauses)
+  (in-ns 'datomish.clauses)
+(patterns->cc (datomish.source/datoms-source nil)
+  (:where
+(datascript.parser/parse-query
+  '[:find (max ?timestampMicros) (pull ?page [:page/url :page/title]) ?page
+    :in $
+    :where
+    [?page :page/starred true ?t]
+    (not-join [?page]
+              [?page :page/starred false]
+              )
+          [?t :db/txInstant ?timestampMicros]])))
+
+(Not->NotJoinClause (datomish.source/datoms-source nil)
+#object[datomish.clauses$Not__GT_NotJoinClause 0x6d8aa02d "datomish.clauses$Not__GT_NotJoinClause@6d8aa02d"]
+datomish.clauses=> #datascript.parser.Not{:source #datascript.parser.DefaultSrc{}, :vars [#datascript.parser.Variable{:symbol ?fooo}], :clauses [#datascript.parser.Pattern{:source #datascript.parser.DefaultSrc{}, :pattern [#datascript.parser.Variable{:symbol ?xpage} #datascript.parser.Constant{:value :page/starred} #datascript.parser.Constant{:value false}]}]})

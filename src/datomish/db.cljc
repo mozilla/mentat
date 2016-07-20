@@ -8,7 +8,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
-   [datomish.util :as util :refer [raise]]
+   [datomish.util :as util :refer [raise-str]]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema :as sqlite-schema]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
@@ -28,5 +28,5 @@
 (defn <with-sqlite-connection [sqlite-connection]
   (go-pair
     (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
-      (raise "Could not ensure current SQLite schema version."))
+      (raise-str "Could not ensure current SQLite schema version."))
     (->DB sqlite-connection)))

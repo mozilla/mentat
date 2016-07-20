@@ -8,10 +8,20 @@
    [clojure.string :as str]))
 
 #?(:clj
-   (defmacro raise [& fragments]
+   (defmacro raise-str
+     "Like `raise`, but doesn't require a data argument."
+     [& fragments]
+     `(throw (ex-info (str ~@(map (fn [m#] (if (string? m#) m# (list 'pr-str m#))) fragments)) {}))))
+
+#?(:clj
+   (defmacro raise
+     "The last argument must be a map."
+     [& fragments]
      (let [msgs (butlast fragments)
            data (last fragments)]
-       `(throw (ex-info (str ~@(map (fn [m#] (if (string? m#) m# (list 'pr-str m#))) msgs)) ~data)))))
+       `(throw
+          (ex-info
+            (str ~@(map (fn [m#] (if (string? m#) m# (list 'pr-str m#))) msgs)) ~data)))))
 
 #?(:clj
    (defmacro cond-let [& clauses]
@@ -26,7 +36,7 @@
   (if (and (symbol? x)
            (str/starts-with? (name x) "?"))
     (keyword (subs (name x) 1))
-    (raise (str x " is not a Datalog var."))))
+    (raise-str x " is not a Datalog var.")))
 
 (defn conj-in
   "Associates a value into a sequence in a nested associative structure, where
@@ -39,6 +49,13 @@
   (if ks
     (assoc m k (conj-in (get m k) ks v))
     (assoc m k (conj (get m k) v))))
+
+(defn concat-in
+  {:static true}
+  [m [k & ks] vs]
+  (if ks
+    (assoc m k (concat-in (get m k) ks vs))
+    (assoc m k (concat (get m k) vs))))
 
 (defmacro while-let [binding & forms]
   `(loop []
