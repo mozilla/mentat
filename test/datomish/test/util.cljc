@@ -14,7 +14,7 @@
      (let [caught
            (try
              (do
-               (util/raise "succeed")
+               (util/raise "succeed" {})
                "fail")
              (catch :default e e))]
        (is (= "succeed" (aget caught "data"))))))

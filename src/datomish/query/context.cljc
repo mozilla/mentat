@@ -2,12 +2,8 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-(ns datomish.core
-  (:require [cljs.nodejs :as nodejs]))
+;; A context, very simply, holds on to a default source. Eventually
+;; it'll also do projection and similar transforms.
+(ns datomish.query.context)
 
-(nodejs/enable-util-print!)
-
-(defn -main [& args]
-  (println "Hello world!"))
-
-(set! *main-cli-fn* -main)
+(defrecord Context [default-source elements cc])

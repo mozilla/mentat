@@ -9,6 +9,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
+     [datomish.db :as db]
      [datomish.exec :as exec]
      [datomish.sqlite :as s]
      [datomish.sqlite-schema :as ss]
@@ -41,7 +42,7 @@
   [db find]
   (pair-channel->lazy-seq (exec/<?run db find))))
 
-#_(defn xxopen []
+(defn xxopen []
     (datomish.pair-chan/go-pair
       (let [d (datomish.pair-chan/<? (s/<sqlite-connection "/tmp/foo.sqlite"))]
         (clojure.core.async/<!! (ss/<ensure-current-version d))
@@ -58,13 +59,10 @@
       "/tmp/foo.sqlite"
       '[:find ?page :in $ :where [?page :page/starred true ?t]]))
 
-#_(defn test-run []
-    (datomish.pair-chan/go-pair
-      (let [d (datomish.pair-chan/<? (s/<sqlite-connection "/tmp/foo.sqlite"))]
-        (<! (ss/<ensure-current-version d))
-        (let [chan (exec/<?run d
-                               '[:find ?page :in $ :where [?page :page/starred true ?t]])]
-          (println (datomish.pair-chan/<? chan))
-          (println (datomish.pair-chan/<? chan))
-          (println (datomish.pair-chan/<? chan))
-          (s/close d)))))
+#_
+(go-pair
+  (let [connection (<? (s/<sqlite-connection "/tmp/foo.sqlite"))
+        d (<? (db/<with-sqlite-connection connection))]
+    (println
+      "Result: "
+      (<! (db/<?q d '[:find ?page :in $ :where [?page :page/starred true ?t]] {})))))

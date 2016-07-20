@@ -59,7 +59,9 @@
    when no more results exist. Consume with <?."
   [db [sql & bindings :as rest] chan]
   (go-safely [c chan]
-    (let [result (<! (-each db sql bindings (fn [row] (put! c [row nil]))))]
+    (let [result (<! (-each db sql bindings
+                            (fn [row]
+                              (put! c [row nil]))))]
       ;; We assume that a failure will result in the promise
       ;; channel being rejected and no further row callbacks
       ;; being called.

@@ -8,7 +8,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
-   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
    [datomish.sqlite :as s]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :refer [go <! >!]]])
@@ -42,7 +42,7 @@
   {:pre [(> from-version 0)]} ;; Or we'd create-current-version instead.
   {:pre [(< from-version current-version)]} ;; Or we wouldn't need to update-from-version.
   (go-pair
-    (raise "No migrations yet defined!")
+    (raise-str "No migrations yet defined!")
     (<? (s/set-user-version db current-version))
     (<? (s/get-user-version db))))
 
