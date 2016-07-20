@@ -11,13 +11,16 @@
               source->constraints]]
      [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
      [datascript.parser :as dp
-      #?@(:cljs [:refer [Not Pattern DefaultSrc Variable Constant Placeholder]])]
+      #?@(:cljs
+            [:refer
+             [PlainSymbol Predicate Not Pattern DefaultSrc Variable Constant Placeholder]])]
      [honeysql.core :as sql]
      [clojure.string :as str]
      )
   #?(:clj
        (:import
-          [datascript.parser Not Pattern DefaultSrc Variable Constant Placeholder])))
+          [datascript.parser
+           PlainSymbol Predicate Not Pattern DefaultSrc Variable Constant Placeholder])))
 
 ;; A CC is a collection of clauses that are combined with JOIN.
 ;; The topmost form in a query is a ConjoiningClauses.
@@ -41,12 +44,12 @@
 ;; `from` is a list of [source alias] pairs, suitable for passing to honeysql.
 ;; `bindings` is a map from var to qualified columns.
 ;; `wheres` is a list of fragments that can be joined by `:and`.
-(defrecord ConjoiningClauses [source from bindings wheres])
-           
+(defrecord ConjoiningClauses [source from external-bindings bindings wheres])
+
 (defn bind-column-to-var [cc variable col]
   (let [var (:symbol variable)]
     (util/conj-in cc [:bindings var] col)))
- 
+
 (defn constrain-column-to-constant [cc col position value]
   (util/conj-in cc [:wheres]
                 [:= col (if (= :a position)
@@ -77,7 +80,7 @@
                             (:wheres cc))))
 
 ;; Pattern building is recursive, so we need forward declarations.
-(declare Not->NotJoinClause not-join->where-fragment impose-external-bindings)
+(declare Not->NotJoinClause not-join->where-fragment)
 
 ;; Accumulates a pattern into the CC. Returns a new CC.
 (defn apply-pattern-clause
@@ -121,41 +124,72 @@
       (util/conj-in cc [:from] [table alias])
 
       places)))
-  
+
+(defn- plain-symbol->sql-predicate-symbol [fn]
+  (when-not (instance? PlainSymbol fn)
+    (raise-str "Predicate functions must be named by plain symbols." fn))
+  (#{:> :< :=} (keyword (name (:symbol fn)))))
+
+(defn apply-predicate-clause [cc predicate]
+  (when-not (instance? Predicate predicate)
+    (raise-str "Expected to be called with a Predicate instance." predicate))
+  (let [f (plain-symbol->sql-predicate-symbol (:fn predicate))]
+    (when-not f
+      (raise-str "Unknown function " (:fn predicate)))
+
+    (let [args (map
+                 (fn [arg]
+                   (condp instance? arg
+                     Placeholder
+                     (raise-str "Can't use a placeholder in a predicate.")
+
+                     Variable
+                     (let [v (:symbol arg)
+                           internal-bindings (v (:bindings cc))
+                           external-bindings (v (:external-bindings cc))]
+                       (or (first internal-bindings)
+                           (first external-bindings)
+                           (raise-str "No bindings yet for " v)))
+
+                     Constant
+                     (constant-in-source (:source cc) (:value arg))
+
+                     (raise-str "Unknown predicate argument " arg)))
+
+                 (:args predicate))]
+      (util/conj-in cc [:wheres] (cons f args)))))
+
 (defn apply-not-clause [cc not]
   (when-not (instance? Not not)
     (raise-str "Expected to be called with a Not instance." not))
   (when-not (instance? DefaultSrc (:source not))
     (raise-str "Non-default sources are not supported in patterns. Pattern: " not))
-  
-  (let [not-join-clause (Not->NotJoinClause (:source cc) not)
-        seen (set (keys (:bindings cc)))
-        to-unify (set (map :symbol (:unify-vars not-join-clause)))]
 
-    ;; If our bindings are already available, great -- emit a :wheres
-    ;; fragment, and include the external bindings so that they match up.
-    ;; Otherwise, we need to delay. Right now we're lazy, so we just fail:
-    ;; reorder your query yourself.
-    (if (clojure.set/subset? to-unify seen)
-      (util/conj-in cc [:wheres] (not-join->where-fragment
-                                   (impose-external-bindings not-join-clause (:bindings cc))))
-      (raise-str "Haven't seen all the necessary vars for this `not` clause."))))
+  ;; If our bindings are already available, great -- emit a :wheres
+  ;; fragment, and include the external bindings so that they match up.
+  ;; Otherwise, we need to delay. Right now we're lazy, so we just fail:
+  ;; reorder your query yourself.
+  (util/conj-in cc [:wheres]
+                (not-join->where-fragment
+                  (Not->NotJoinClause (:source cc) (:bindings cc) not))))
 
 ;; We're keeping this simple for now: a straightforward type switch.
 (defn apply-clause [cc it]
   (if (instance? Not it)
     (apply-not-clause cc it)
-    (apply-pattern-clause cc it)))
+    (if (instance? Predicate it)
+      (apply-predicate-clause cc it)
+      (apply-pattern-clause cc it))))
 
 (defn expand-pattern-clauses
   "Reduce a sequence of patterns into a CC."
   [cc patterns]
   (reduce apply-clause cc patterns))
 
-(defn patterns->cc [source patterns]
+(defn patterns->cc [source patterns external-bindings]
   (expand-where-from-bindings
     (expand-pattern-clauses
-      (->ConjoiningClauses source [] {} [])
+      (->ConjoiningClauses source [] (or external-bindings {}) {} [])
       patterns)))
 
 (defn cc->partial-subquery
@@ -177,24 +211,34 @@
 ;; that a declared variable list is valid for the clauses given.
 (defrecord NotJoinClause [unify-vars cc])
 
-(defn make-not-join-clause [source unify-vars patterns]
-  (->NotJoinClause unify-vars (patterns->cc source patterns)))
+(defn make-not-join-clause [source external-bindings unify-vars patterns]
+  (->NotJoinClause unify-vars (patterns->cc source patterns external-bindings)))
 
-(defn Not->NotJoinClause [source not]
+(defn Not->NotJoinClause [source external-bindings not]
   (when-not (instance? DefaultSrc (:source not))
     (raise-str "Non-default sources are not supported in patterns. Pattern: "
            not))
-  (make-not-join-clause source (:vars not) (:clauses not)))
+  (impose-external-bindings
+    (make-not-join-clause source external-bindings (:vars not) (:clauses not))))
 
 ;; This is so we can link the clause to the outside world.
-(defn impose-external-constraints [not-join-clause wheres] 
+(defn impose-external-constraints [not-join-clause wheres]
   (util/concat-in not-join-clause [:cc :wheres] wheres))
 
-(defn impose-external-bindings [not-join-clause bindings]
+(defn impose-external-bindings [not-join-clause]
   (let [ours (:bindings (:cc not-join-clause))
-        vars (clojure.set/intersection (set (keys bindings)) (set (keys ours)))
-        pairings (map (fn [v] [:= (first (v bindings)) (first (v ours))]) vars)]
+        theirs (:external-bindings (:cc not-join-clause))
+        vars (clojure.set/intersection (set (keys theirs)) (set (keys ours)))
+        pairings (map (fn [v] [:= (first (v theirs)) (first (v ours))]) vars)]
     (impose-external-constraints not-join-clause pairings)))
 
 (defn not-join->where-fragment [not-join]
-  [:not [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))]])
+  [:not
+    (if (empty? (:bindings (:cc not-join)))
+      ;; If the `not` doesn't establish any bindings, it means it only contains
+      ;; expressions that constrain variables established outside itself.
+      ;; We can just return an expression.
+      (cons :and (:wheres (:cc not-join)))
+
+      ;; If it does establish bindings, then it has to be a subquery.
+      [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))])])

@@ -50,7 +50,7 @@
     (validate-in in)
     (assoc context
            :elements (:elements find)
-           :cc (clauses/patterns->cc (:default-source context) where))))
+           :cc (clauses/patterns->cc (:default-source context) where nil))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
@@ -76,29 +76,11 @@
   (dp/parse-query q))
 
 (comment
-(def sql-quoting-style nil))
-(comment
+  (def sql-quoting-style nil)
   (datomish.query/find->sql-string (datomish.context/->Context (datomish.source/datoms-source nil) nil nil)
     (datomish.query/parse
-      '[:find ?timestampMicros ?page
-        :in $
-        :where
+      '[:find ?timestampMicros ?page :in $ :where
         [?page :page/starred true ?t]
         [?t :db/txInstant ?timestampMicros]
-        (not [?page :page/deleted true]) ])))
-
-(comment
-  (pattern->sql
-  (first
-  (:where
-  (datascript.parser/parse-query
-  '[:find (max ?timestampMicros) (pull ?page [:page/url :page/title]) ?page
-  :in $
-  :where
-  [?page :page/starred true ?t]
-  (not-join [?fo]
-  [(> ?fooo 5)]
-  [?xpage :page/starred false]
-  )
-  [?t :db/txInstant ?timestampMicros]])))
-  identity))
+        (not [(> ?t 1000000)]) ]))
+)
