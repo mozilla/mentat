@@ -53,6 +53,30 @@
                           (attribute-in-source (:source cc) value)
                           (constant-in-source (:source cc) value))]))
 
+(defn- bindings->where
+  "Take a bindings map like
+    {?foo [:datoms12.e :datoms13.v :datoms14.e]}
+  and produce a list of constraints expression like
+    [[:= :datoms12.e :datoms13.v] [:= :datoms12.e :datoms14.e]]
+
+  TODO: experiment; it might be the case that producing more
+  pairwise equalities we get better or worse performance."
+  [bindings]
+  (mapcat (fn [[_ vs]]
+            (when (> (count vs) 1)
+              (let [root (first vs)]
+                (map (fn [v] [:= root v]) (rest vs)))))
+          bindings))
+
+(defn expand-where-from-bindings
+  "Take the bindings in the CC and contribute
+   additional where clauses. Calling this more than
+   once will result in duplicate clauses."
+  [cc]
+  (assoc cc :wheres (concat (bindings->where (:bindings cc))
+                            (:wheres cc))))
+
+;; Pattern building is recursive, so we need forward declarations.
 (declare Not->NotJoinClause not-join->where-fragment impose-external-bindings)
 
 ;; Accumulates a pattern into the CC. Returns a new CC.
@@ -104,46 +128,24 @@
   (when-not (instance? DefaultSrc (:source not))
     (raise-str "Non-default sources are not supported in patterns. Pattern: " not))
   
-  (let [not-join-clause (Not->NotJoinClause (:source cc) not)]
+  (let [not-join-clause (Not->NotJoinClause (:source cc) not)
+        seen (set (keys (:bindings cc)))
+        to-unify (set (map :symbol (:unify-vars not-join-clause)))]
+
     ;; If our bindings are already available, great -- emit a :wheres
     ;; fragment, and include the external bindings so that they match up.
-    ;; Otherwise, we need to delay, and we do that now by failing.
-    
-    (let [seen (set (keys (:bindings cc)))
-          to-unify (set (map :symbol (:unify-vars not-join-clause)))]
-    (println "Seen " seen " need " to-unify)
-      (if (clojure.set/subset? to-unify seen)
-        (util/conj-in cc [:wheres] (not-join->where-fragment
-                                     (impose-external-bindings not-join-clause (:bindings cc))))
-        (raise-str "Haven't seen all the necessary vars for this `not` clause.")))))
+    ;; Otherwise, we need to delay. Right now we're lazy, so we just fail:
+    ;; reorder your query yourself.
+    (if (clojure.set/subset? to-unify seen)
+      (util/conj-in cc [:wheres] (not-join->where-fragment
+                                   (impose-external-bindings not-join-clause (:bindings cc))))
+      (raise-str "Haven't seen all the necessary vars for this `not` clause."))))
 
+;; We're keeping this simple for now: a straightforward type switch.
 (defn apply-clause [cc it]
   (if (instance? Not it)
     (apply-not-clause cc it)
     (apply-pattern-clause cc it)))
-
-(defn- bindings->where
-  "Take a bindings map like
-    {?foo [:datoms12.e :datoms13.v :datoms14.e]}
-  and produce a list of constraints expression like
-    [[:= :datoms12.e :datoms13.v] [:= :datoms12.e :datoms14.e]]
-
-  TODO: experiment; it might be the case that producing more
-  pairwise equalities we get better or worse performance."
-  [bindings]
-  (mapcat (fn [[_ vs]]
-            (when (> (count vs) 1)
-              (let [root (first vs)]
-                (map (fn [v] [:= root v]) (rest vs)))))
-          bindings))
-
-(defn expand-where-from-bindings
-  "Take the bindings in the CC and contribute
-   additional where clauses. Calling this more than
-   once will result in duplicate clauses."
-  [cc]
-  (assoc cc :wheres (concat (bindings->where (:bindings cc))
-                            (:wheres cc))))
 
 (defn expand-pattern-clauses
   "Reduce a sequence of patterns into a CC."
@@ -155,6 +157,17 @@
     (expand-pattern-clauses
       (->ConjoiningClauses source [] {} [])
       patterns)))
+
+(defn cc->partial-subquery
+  "Build part of a honeysql query map from a CC: the `:from` and `:where` parts.
+  This allows for reuse both in top-level query generation and also for
+  subqueries and NOT EXISTS clauses."
+  [cc]
+  (merge
+    {:from (:from cc)}
+    (when-not (empty? (:wheres cc))
+      {:where (cons :and (:wheres cc))})))
+
 
 ;; A `not-join` clause is a filter. It takes bindings from the enclosing query
 ;; and runs as a subquery with `NOT EXISTS`.
@@ -182,12 +195,6 @@
         vars (clojure.set/intersection (set (keys bindings)) (set (keys ours)))
         pairings (map (fn [v] [:= (first (v bindings)) (first (v ours))]) vars)]
     (impose-external-constraints not-join-clause pairings)))
-    
-(defn cc->partial-subquery [cc]
-  (merge
-    {:from (:from cc)}
-    (when-not (empty? (:wheres cc))
-      {:where (cons :and (:wheres cc))})))
 
 (defn not-join->where-fragment [not-join]
-  [:not [:exists (merge {:select 1} (cc->partial-subquery (:cc not-join)))]])
+  [:not [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))]])

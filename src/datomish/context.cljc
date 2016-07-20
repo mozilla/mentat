@@ -6,4 +6,4 @@
 ;; it'll also do projection and similar transforms.
 (ns datomish.context)
 
-(defrecord Context [default-source])
+(defrecord Context [default-source elements cc])

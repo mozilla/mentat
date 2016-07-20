@@ -4,7 +4,10 @@
 
 (ns datomish.query
   (:require
+   [datomish.clauses :as clauses]
+   [datomish.context :as context]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
+   [datomish.projection :as projection]
    [datomish.transforms :as transforms]
    [datascript.parser :as dp
     #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
@@ -20,11 +23,8 @@
 
 (defn context->sql-clause [context]
   (merge
-    {:select (sql-projection context)
-     :from (:from context)}
-    (if (empty? (:wheres context))
-      {}
-      {:where (cons :and (:wheres context))})))
+    {:select (projection/sql-projection context)}
+    (clauses/cc->partial-subquery (:cc context))))
 
 (defn context->sql-string [context]
   (->
@@ -48,10 +48,9 @@
   (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
     (validate-with with)
     (validate-in in)
-    (apply-elements-to-context
-      (expand-where-from-bindings
-        (expand-patterns-into-context context where))    ; 'where' here is the Datalog :where clause.
-      (:elements find))))
+    (assoc context
+           :elements (:elements find)
+           :cc (clauses/patterns->cc (:default-source context) where))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
@@ -67,9 +66,8 @@
 (defn find->sql-string
   "Take a parsed `find` expression and turn it into SQL."
   [context find]
-  (->>
-    find
-    (find->sql-clause context)
+  (->
+    (find->sql-clause context find)
     (sql/format :quoting sql-quoting-style)))
 
 (defn parse
@@ -78,51 +76,29 @@
   (dp/parse-query q))
 
 (comment
-  (datomish.query/find->sql-string
-    (datomish.query/parse
-      '[:find ?page :in $ :where [?page :page/starred true ?t] ])))
-
+(def sql-quoting-style nil))
 (comment
-  (datomish.query/find->prepared-context
+  (datomish.query/find->sql-string (datomish.context/->Context (datomish.source/datoms-source nil) nil nil)
     (datomish.query/parse
       '[:find ?timestampMicros ?page
         :in $
         :where
         [?page :page/starred true ?t]
-        [?t :db/txInstant ?timestampMicros]])))
+        [?t :db/txInstant ?timestampMicros]
+        (not [?page :page/deleted true]) ])))
 
 (comment
   (pattern->sql
-    (first
-      (:where
-        (datascript.parser/parse-query
-          '[:find (max ?timestampMicros) (pull ?page [:page/url :page/title]) ?page
-          :in $
-          :where
-          [?page :page/starred true ?t]
+  (first
+  (:where
+  (datascript.parser/parse-query
+  '[:find (max ?timestampMicros) (pull ?page [:page/url :page/title]) ?page
+  :in $
+  :where
+  [?page :page/starred true ?t]
   (not-join [?fo]
   [(> ?fooo 5)]
   [?xpage :page/starred false]
   )
-          [?t :db/txInstant ?timestampMicros]])))
-    identity))
-
-(cc->partial-subquery
-  
-  (require 'datomish.clauses)
-  (in-ns 'datomish.clauses)
-(patterns->cc (datomish.source/datoms-source nil)
-  (:where
-(datascript.parser/parse-query
-  '[:find (max ?timestampMicros) (pull ?page [:page/url :page/title]) ?page
-    :in $
-    :where
-    [?page :page/starred true ?t]
-    (not-join [?page]
-              [?page :page/starred false]
-              )
-          [?t :db/txInstant ?timestampMicros]])))
-
-(Not->NotJoinClause (datomish.source/datoms-source nil)
-#object[datomish.clauses$Not__GT_NotJoinClause 0x6d8aa02d "datomish.clauses$Not__GT_NotJoinClause@6d8aa02d"]
-datomish.clauses=> #datascript.parser.Not{:source #datascript.parser.DefaultSrc{}, :vars [#datascript.parser.Variable{:symbol ?fooo}], :clauses [#datascript.parser.Pattern{:source #datascript.parser.DefaultSrc{}, :pattern [#datascript.parser.Variable{:symbol ?xpage} #datascript.parser.Constant{:value :page/starred} #datascript.parser.Constant{:value false}]}]})
+  [?t :db/txInstant ?timestampMicros]])))
+  identity))

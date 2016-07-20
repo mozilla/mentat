@@ -12,11 +12,9 @@
   )
 
 (defn lookup-variable [cc variable]
+  (println "Looking up " variable " in " (:bindings cc))
   (or (-> cc :bindings variable first)
       (raise-str "Couldn't find variable " variable)))
-
-(defn apply-elements-to-context [context elements]
-  (assoc context :elements elements))
 
 (defn sql-projection
   "Take a `find` clause's `:elements` list and turn it into a SQL
@@ -43,7 +41,7 @@
       (raise-str "Unable to :find non-variables."))
     (map (fn [elem]
            (let [var (:symbol elem)]
-             [(lookup-variable context var) (util/var->sql-var var)]))
+             [(lookup-variable (:cc context) var) (util/var->sql-var var)]))
          elements)))
 
 (defn row-pair-transducer [context projection]
