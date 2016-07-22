@@ -60,6 +60,8 @@
     (raise-str "`with` not supported.")))
 
 (defn- validate-in [in]
+  (when (nil? in)
+    (raise-str ":in expression cannot be nil."))
   (when-not (= "$" (name (-> in first :variable :symbol)))
     (raise-str "Non-default sources not supported."))
   (when-not (every? (partial instance? BindScalar) (rest in))
@@ -81,7 +83,11 @@
     {}
     in))
 
-(defn expand-find-into-context [context find]
+(defn find-into-context
+  "Take a parsed `find` expression and return a fully populated
+  Context. You'll want this so you can get access to the
+  projection, amongst other things."
+  [context find]
   (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
     (validate-with with)
     (validate-in in)
@@ -90,15 +96,18 @@
              :elements (:elements find)
              :cc (clauses/patterns->cc (:default-source context) where external-bindings)))))
 
+(defn context->sql-string
+  [context args]
+  (-> context
+    context->sql-clause
+    (sql/format args :quoting sql-quoting-style)))
+
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
    expression that can be formatted by honeysql."
   [context find]
-  ;; There's some confusing use of 'where' and friends here. That's because
-  ;; the parsed Datalog includes :where, and it's also input to honeysql's
-  ;; SQL formatter.
   (->> find
-       (expand-find-into-context context)
+       (find-into-context context)
        context->sql-clause))
 
 (defn find->sql-string

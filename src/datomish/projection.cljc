@@ -12,7 +12,6 @@
   )
 
 (defn lookup-variable [cc variable]
-  (println "Looking up " variable " in " (:bindings cc))
   (or (-> cc :bindings variable first)
       (raise-str "Couldn't find variable " variable)))
 
@@ -36,6 +35,7 @@
    @param context A Context, containing elements.
    @return a sequence of pairs."
   [context]
+  (def foo context)
   (let [elements (:elements context)]
     (when-not (every? #(instance? Variable %1) elements)
       (raise-str "Unable to :find non-variables."))
@@ -44,10 +44,10 @@
              [(lookup-variable (:cc context) var) (util/var->sql-var var)]))
          elements)))
 
-(defn row-pair-transducer [context projection]
+(defn row-pair-transducer [context]
   ;; For now, we only support straight var lists, so
   ;; our transducer is trivial.
-  (let [columns-in-order (map second projection)]
+  (let [columns-in-order (map second (sql-projection context))]
     (map (fn [[row err]]
            (if err
              [row err]

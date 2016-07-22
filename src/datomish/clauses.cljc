@@ -32,7 +32,8 @@
 ;;   * Projection expressions, if only used for output.
 ;;   * Inline expressions?
 ;; `not` turns into NOT EXISTS with WHERE clauses inside the subquery to
-;; bind it to the outer variables.
+;; bind it to the outer variables, or adds simple WHERE clauses to the outer
+;; clause.
 ;; `not-join` is similar, but with explicit binding.
 ;; `or` turns into a collection of UNIONs inside a subquery.
 ;; `or`'s documentation states that all clauses must include the same vars,
