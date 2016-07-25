@@ -10,10 +10,10 @@
       [cljs.core.async.macros :refer [go]]))
   (:require
      [datomish.db :as db]
-     [datomish.exec :as exec]
      [datomish.sqlite :as s]
      [datomish.sqlite-schema :as ss]
      [datomish.query :as dq]
+     [datomish.transact :as transact]
      #?@(:clj
            [[datomish.jdbc-sqlite]
             [datomish.pair-chan :refer [go-pair <?]]
@@ -40,7 +40,7 @@
   "Given an open database, returns a lazy sequence of results.
    When fully consumed, underlying resources will be released."
   [db find]
-  (pair-channel->lazy-seq (exec/<?run db find))))
+  (pair-channel->lazy-seq (db/<?run db find))))
 
 (defn xxopen []
     (datomish.pair-chan/go-pair
@@ -49,7 +49,7 @@
         (def db d))))
 
 ;; With an open DB…
-#_(datomish.exec/run-to-pair-seq
+#_(run-to-pair-seq
     db
     '[:find ?page :in $ :where [?page :page/starred true ?t]])
 
@@ -66,3 +66,32 @@
     (println
       "Result: "
       (<! (db/<?q d '[:find ?page :in $ :where [?page :page/starred true ?t]] {})))))
+
+
+#_
+(go-pair
+  (let [connection (<? (s/<sqlite-connection "/tmp/foo.sqlite"))
+        dd (<? (db/<with-sqlite-connection connection))]
+    (def *db* dd)))
+#_
+(clojure.core.async/<!!
+(go-pair
+(let [now -1
+      forms (mapcat (fn [i]
+                      (map (fn [j]
+                             [:db/add i :x j true])
+                           (range 1000 (* i 2000) i)))
+                    (range 1 10))]
+  (println "Adding" (count forms) "forms")
+  (<? (transact/<transact! *db* forms nil now)))))
+
+#_
+(go-pair
+  (let [connection (<? (s/<sqlite-connection "/tmp/foo.sqlite"))
+        dd (<? (db/<with-sqlite-connection connection))]
+    (println
+       (count
+         (<? (db/<?q dd
+                     '[:find ?e ?v :in $ :where
+                       [?e :x ?v]
+                       #_[(> ?v 1000)]] {}))))))
