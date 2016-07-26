@@ -125,3 +125,42 @@
              [?page :page/starred true ?t]
              (not [?page :foo/bar _])
              [?t :db/txInstant ?timestampMicros]]))))
+
+(deftest test-single-or
+  (is (= '{:select ([:datoms1.e :page]),
+           :modifiers [:distinct],
+           :from ([:datoms datoms0] [:datoms datoms1] [:datoms datoms2]),
+           :where (:and
+                     [:= :datoms1.e :datoms0.e]
+                     [:= :datoms1.e :datoms2.v]
+                     [:= :datoms0.a "page/url"]
+                     [:= :datoms0.v "http://example.com/"]
+                     [:= :datoms1.a "page/title"]
+                     [:= :datoms2.a "page/loves"])}
+         (expand
+           '[:find ?page :in $ ?latest :where
+             [?page :page/url "http://example.com/"]
+             [?page :page/title ?title]
+             (or
+               [?entity :page/loves ?page])]))))
+
+(deftest test-simple-or
+  (is (= '{:select ([:datoms1.e :page]),
+           :modifiers [:distinct],
+           :from ([:datoms datoms0] [:datoms datoms1] [:datoms datoms2]),
+           :where (:and
+                     [:= :datoms1.e :datoms0.e]
+                     [:= :datoms1.e :datoms2.v]
+                     [:= :datoms0.a "page/url"]
+                     [:= :datoms0.v "http://example.com/"]
+                     [:= :datoms1.a "page/title"]
+                     (:or
+                        [:= :datoms2.a "page/likes"]
+                        [:= :datoms2.a "page/loves"]))}
+         (expand
+           '[:find ?page :in $ ?latest :where
+             [?page :page/url "http://example.com/"]
+             [?page :page/title ?title]
+             (or
+               [?entity :page/likes ?page]
+               [?entity :page/loves ?page])]))))
