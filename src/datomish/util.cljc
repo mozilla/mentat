@@ -62,3 +62,11 @@
      (when-let ~binding
        ~@forms
        (recur))))
+
+(defn every-pair? [f xs ys]
+  (or (and (empty? xs) (empty? ys))
+      (and (not (empty? xs))
+           (not (empty? ys))
+           (f (first xs) (first ys))
+           (recur f (rest xs) (rest ys)))))
+

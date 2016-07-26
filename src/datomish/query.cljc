@@ -8,7 +8,7 @@
    [datomish.query.context :as context]
    [datomish.query.projection :as projection]
    [datomish.query.transforms :as transforms]
-   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datascript.parser :as dp
     #?@(:cljs
           [:refer [
@@ -61,11 +61,11 @@
 
 (defn- validate-in [in]
   (when (nil? in)
-    (raise-str ":in expression cannot be nil."))
+    (raise ":in expression cannot be nil." {:binding in}))
   (when-not (= "$" (name (-> in first :variable :symbol)))
-    (raise-str "Non-default sources not supported."))
+    (raise "Non-default sources not supported." {:binding in}))
   (when-not (every? (partial instance? BindScalar) (rest in))
-    (raise-str "Non-scalar bindings not supported.")))
+    (raise "Non-scalar bindings not supported." {:binding in})))
 
 (defn in->bindings
   "Take an `:in` list and return a bindings map suitable for use
@@ -127,3 +127,16 @@
         (not [(> ?t ?latest)]) ])
     {:latest 5})
 )
+
+#_
+(datomish.query/find->sql-string
+  (datomish.query.context/->Context (datomish.query.source/datoms-source nil) nil nil)
+  (datomish.query/parse
+    '[:find ?page :in $ ?latest :where
+      [?page :page/url "http://example.com/"]
+      [?page :page/title ?title]
+      (or
+        [?entity :page/likes ?page]
+        [?entity :page/loves ?page])
+      ])
+  {})
