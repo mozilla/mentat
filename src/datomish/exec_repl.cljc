@@ -13,7 +13,6 @@
      [datomish.sqlite :as s]
      [datomish.sqlite-schema :as ss]
      [datomish.query :as dq]
-     [datomish.transact :as transact]
      #?@(:clj
            [[datomish.jdbc-sqlite]
             [datomish.pair-chan :refer [go-pair <?]]
@@ -42,6 +41,7 @@
   [db find]
   (pair-channel->lazy-seq (db/<?run db find))))
 
+#_
 (defn xxopen []
     (datomish.pair-chan/go-pair
       (let [d (datomish.pair-chan/<? (s/<sqlite-connection "/tmp/foo.sqlite"))]
