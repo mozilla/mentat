@@ -49,11 +49,11 @@
      :modifiers [:distinct]}
     (clauses/cc->partial-subquery (:cc context))))
 
-(defn context->sql-string [context]
+(defn context->sql-string [context args]
   (->
     context
     context->sql-clause
-    (sql/format :quoting sql-quoting-style)))
+    (sql/format args :quoting sql-quoting-style)))
 
 (defn- validate-with [with]
   (when-not (nil? with)
@@ -95,12 +95,6 @@
       (assoc context
              :elements (:elements find)
              :cc (clauses/patterns->cc (:default-source context) where external-bindings)))))
-
-(defn context->sql-string
-  [context args]
-  (-> context
-    context->sql-clause
-    (sql/format args :quoting sql-quoting-style)))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
