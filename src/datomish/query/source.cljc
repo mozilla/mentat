@@ -36,20 +36,27 @@
    attribute-transform
    constant-transform
    
+   ;; `table-alias` is a function from table to alias, e.g., :datoms => :datoms1234.
+   table-alias
+
    ;; Not currently used.
    make-constraints    ; ?fn [source alias] => [where-clauses]
    ])
+
+(defn gensym-table-alias [table]
+  (gensym (name table)))
 
 (defn datoms-source [db]
   (->Source :datoms
             [:e :a :v :tx :added]
             transforms/attribute-transform-string
             transforms/constant-transform-default
+            gensym-table-alias
             nil))
 
 (defn source->from [source]
   (let [table (:table source)]
-    [table (gensym (name table))]))
+    [table ((:table-alias source) table)]))
 
 (defn source->constraints [source alias]
   (when-let [f (:make-constraints source)]
