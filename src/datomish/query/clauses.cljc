@@ -101,8 +101,11 @@
    once will result in duplicate clauses."
   [cc]
   (impose-external-bindings
-    (assoc cc :wheres (concat (bindings->where (:bindings cc))
-                              (:wheres cc)))))
+    (assoc cc :wheres
+           ;; Note that the order of clauses here means that cross-pattern var bindings
+           ;; come first. That's OK: the SQL engine considers these altogether.
+           (concat (bindings->where (:bindings cc))
+                   (:wheres cc)))))
 
 ;; Pattern building is recursive, so we need forward declarations.
 (declare Not->NotJoinClause not-join->where-fragment)

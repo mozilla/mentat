@@ -80,3 +80,48 @@
              [?page :page/starred true ?t]
              [?t :db/txInstant ?timestampMicros]
              (not [?page :foo/bar _])]))))
+
+;; Note that clause ordering is not directly correlated to the output: cross-bindings end up
+;; at the front. The SQL engine will do its own analysis. See `clauses/expand-where-from-bindings`.
+(deftest test-not-clause-ordering-preserved
+  (is (= {:select '([:datoms1.v :timestampMicros] [:datoms0.e :page]),
+          :modifiers [:distinct],
+          :from '[[:datoms datoms0]
+                  [:datoms datoms1]],
+          :where (list
+                   :and
+                   [:= :datoms1.e :datoms0.tx]
+                   [:= :datoms0.a "page/starred"]
+                   [:= :datoms0.v 1]
+                   [:not
+                    (list :and (list :> :datoms0.tx (sql/param :latest)))]
+                   [:= :datoms1.a "db/txInstant"])}
+         (expand
+           '[:find ?timestampMicros ?page :in $ ?latest :where
+             [?page :page/starred true ?t]
+             (not [(> ?t ?latest)])
+             [?t :db/txInstant ?timestampMicros]]))))
+
+(deftest test-pattern-not-join-ordering-preserved
+  (is (= '{:select ([:datoms2.v :timestampMicros] [:datoms0.e :page]),
+           :modifiers [:distinct],
+           :from [[:datoms datoms0]
+                  [:datoms datoms2]],
+           :where (:and
+                     [:= :datoms2.e :datoms0.tx]
+                     [:= :datoms0.a "page/starred"]
+                     [:= :datoms0.v 1]
+                     [:not
+                      [:exists
+                       {:select [1],
+                        :from [[:datoms datoms1]],
+                        :where (:and
+                                  [:= :datoms1.a "foo/bar"]
+                                  [:= :datoms0.e :datoms1.e])}]]
+                     [:= :datoms2.a "db/txInstant"]
+                     )}
+         (expand
+           '[:find ?timestampMicros ?page :in $ ?latest :where
+             [?page :page/starred true ?t]
+             (not [?page :foo/bar _])
+             [?t :db/txInstant ?timestampMicros]]))))
