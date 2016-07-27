@@ -315,6 +315,10 @@
         (transduce conj [] initial-es))
       (assoc-in report [:entities]))))
 
+(defn- lookup-ref? [x]
+  (and (sequential? x)
+       (= (count x) 2)))
+
 (defn <?run
   "Execute the provided query on the provided DB.
    Returns a transduced channel of [result err] pairs.
@@ -344,6 +348,17 @@
   [db find args]
   (a/reduce (partial reduce-error-pair conj) [[] nil]
             (<?run db find args)))
+
+
+(defn <resolve-lookup-refs [db report]
+  (go-pair
+    (->>
+      (vec (for [[op & entity] (:entities report)]
+             (into [op] (for [field entity]
+                          (if (lookup-ref? field)
+                            (first (<? (<eavt db field))) ;; TODO improve this
+                            field)))))
+      (assoc-in report [:entities])))) ;; TODO: meta.
 
 (defonce -eid (atom (- 0x200 1)))
 
@@ -496,6 +511,9 @@
   (go-pair
     (->> initial-report
          (preprocess db)
+
+         (<resolve-lookup-refs db)
+         (<?)
 
          (<resolve-id-literals db)
          (<?)
