@@ -527,6 +527,45 @@
 
 ;; Upsert or allocate id-literals.
 
+(defn- is-ident? [db [_ a & _]]
+  (= a (get-in db [:idents :db/ident])))
+
+(defn process-db-idents
+  "Transactions may add idents, install new partitions, and install new schema attributes.
+  Handle :db/ident assertions here."
+  [db tx-data]
+  {:pre [(db? db)
+         ;; (report? report)
+         ]}
+  ;; TODO: use q to filter the report!
+  (let [original-db db
+        original-ident-assertions (filter (partial is-ident? db) tx-data)]
+    (loop [db original-db
+           ident-assertions original-ident-assertions]
+      (let [[ia & ias] ident-assertions]
+        (cond
+          (nil? ia)
+          db
+
+          (not (:added ia))
+          (raise "Retracting a :db/ident is not yet supported, got " ia
+                 {:error :schema/idents
+                  :op    ia })
+
+          :else
+          ;; Added.
+          (let [ident (:v ia)]
+            ;; TODO: accept re-assertions?
+            (when (get-in db [:idents ident])
+              (raise "Re-asserting a :db/ident is not yet supported, got " ia
+                     {:error :schema/idents
+                      :op    ia }))
+            (if (keyword? ident)
+              (recur (assoc-in db [:idents ident] (:e ia)) ias)
+              (raise "Cannot assert a :db/ident with a non-keyword value, got " ia
+                     {:error :schema/idents
+                      :op    ia }))))))))
+
 (defn <with [db tx-data]
   (go-pair
     (let [report (<? (<transact-tx-data db 0xdeadbeef ;; TODO
@@ -544,8 +583,9 @@
                      (<?)
 
                      (<advance-tx)
-                     (<?))]
+                     (<?)
 
+                     (process-db-idents (:tx-data report)))]
       (-> report
           (assoc-in [:db-after] db-after)))))
 

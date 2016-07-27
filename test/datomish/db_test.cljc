@@ -147,3 +147,32 @@
 
         (finally
           (<? (dm/close-db db)))))))
+
+(deftest-async test-add-ident
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c))
+          conn (dm/connection-with-db db)
+          now  -1]
+      (try
+        (let [report   (<? (dm/<transact! conn [[:db/add 44 :db/ident :name]] now))
+              db-after (:db-after report)
+              tx       (:current-tx db-after)]
+          (is (= (:name (dm/idents db-after)) 44)))
+
+        ;; TODO: This should fail, but doesn't, due to stringification of :name.
+        ;; (is (thrown-with-msg?
+        ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got "
+        ;;       (<? (dm/<transact! conn [[:db/retract 44 :db/ident :name]] now))))
+
+        ;; ;; Renaming looks like retraction and then assertion.
+        ;; (is (thrown-with-msg?
+        ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got"
+        ;;       (<? (dm/<transact! conn [[:db/add 44 :db/ident :other-name]] now))))
+
+        ;; (is (thrown-with-msg?
+        ;;       ExceptionInfo #"Re-asserting a :db/ident is not yet supported, got"
+        ;;       (<? (dm/<transact! conn [[:db/add 55 :db/ident :name]] now))))
+
+        (finally
+          (<? (dm/close-db db)))))))
