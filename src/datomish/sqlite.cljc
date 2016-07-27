@@ -85,7 +85,7 @@
           (do
             (<? (execute! db ["ROLLBACK TRANSACTION"]))
             [nil e])))
-      (catch #?(:clj Exception :cljs js/Error) e
+      (catch #?(:clj Throwable :cljs js/Error) e
         [nil e]))))
 
 (defn get-user-version [db]
