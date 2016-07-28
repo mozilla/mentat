@@ -4,7 +4,8 @@
 
 ;; Purloined from DataScript.
 
-(ns datomish.schema)
+(ns datomish.schema
+  (:require [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise]]))
 
 (defprotocol ISchema
   (attrs-by
@@ -38,6 +39,9 @@
 (defn #?@(:clj  [^Boolean unique-value?]
           :cljs [^boolean unique-value?]) [schema attr]
   (is-attr? schema attr :db.unique/value))
+
+(defn schema? [x]
+  (satisfies? ISchema x))
 
 (defrecord Schema [schema rschema]
   ISchema
@@ -76,8 +80,37 @@
                      :key k
                      :value v}))))
 
+;; TODO: consider doing this with a protocol and extending the underlying Clojure(Script) types.
+(def value-type-map
+  {:db.type/ref     { :valid? #(and (integer? %) (pos? %)) :->SQLite identity :<-SQLite identity }
+   :db.type/keyword { :valid? keyword? :->SQLite name :<-SQLite keyword }
+   :db.type/string  { :valid? string? :->SQLite identity :<-SQLite identity }
+   :db.type/boolean { :valid? #(instance? Boolean %) :->SQLite #(if % 1 0) :<-SQLite #(if (= % 1) true false) }
+   :db.type/integer { :valid? integer? :->SQLite identity :<-SQLite identity }
+   :db.type/real    { :valid? float? :->SQLite identity :<-SQLite identity }
+   })
+
+(defn #?@(:clj  [^Boolean ensure-valid-value]
+          :cljs [^boolean ensure-valid-value]) [schema attr value]
+  {:pre [(schema? schema)]}
+  (let [schema (.-schema schema)]
+    (if-let [valueType (get-in schema [attr :db/valueType])]
+      (if-let [valid? (get-in value-type-map [valueType :valid?])]
+        (when-not (valid? value)
+          (raise "Invalid value for attribute " attr ", expected " valueType " but got " value
+                 {:error :schema/valueType, :attribute attr, :value value}))
+        (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))
+               {:error :schema/valueType, :attribute attr}))
+      (raise "Unknown attribute " attr ", expected one of " (sorted-set (keys schema))
+             {:error :schema/valueType, :attribute attr}))))
+
 (defn- validate-schema [schema]
   (doseq [[a kv] schema]
+    (when-not (:db/valueType kv)
+      (throw (ex-info (str "Bad attribute specification for " a ": should have {:db/valueType ...}")
+                      {:error     :schema/validation
+                       :attribute a
+                       :key       :db/valueType})))
     (let [comp? (:db/isComponent kv false)]
       (validate-schema-key a :db/isComponent (:db/isComponent kv) #{true false})
       (when (and comp? (not= (:db/valueType kv) :db.type/ref))
@@ -86,7 +119,7 @@
                          :attribute a
                          :key       :db/isComponent}))))
     (validate-schema-key a :db/unique (:db/unique kv) #{:db.unique/value :db.unique/identity})
-    (validate-schema-key a :db/valueType (:db/valueType kv) #{:db.type/ref})
+    (validate-schema-key a :db/valueType (:db/valueType kv) (set (keys value-type-map)))
     (validate-schema-key a :db/cardinality (:db/cardinality kv) #{:db.cardinality/one :db.cardinality/many}))
   schema)
 

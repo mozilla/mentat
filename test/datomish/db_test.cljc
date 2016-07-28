@@ -53,20 +53,30 @@
 (defn tx [report]
   (get-in report [:db-after :current-tx]))
 
+(def test-schema
+  {:x    {:db/unique    :db.unique/identity
+          :db/valueType :db.type/integer}
+   :y    {:db/cardinality :db.cardinality/many
+          :db/valueType   :db.type/integer}
+   :name {:db/unique    :db.unique/identity
+          :db/valueType :db.type/string}
+   :aka  {:db/cardinality :db.cardinality/many
+          :db/valueType   :db.type/string}})
+
 (deftest-async test-add-one
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
           conn (dm/connection-with-db db)
           now  0xdeadbeef]
       (try
         (let [;; TODO: drop now, allow to set :db/txInstant.
-              report (<? (dm/<transact! conn [[:db/add 0 :x "valuex"]] now))
+              report (<? (dm/<transact! conn [[:db/add 0 :name "valuex"]] now))
               tx     (tx report)]
           (is (= (<? (<datoms (dm/db conn)))
-                 #{[0 :x "valuex"]}))
+                 #{[0 :name "valuex"]}))
           (is (= (<? (<transactions (dm/db conn)))
-                 [[0 :x "valuex" tx 1] ;; TODO: true, not 1.
+                 [[0 :name "valuex" tx 1] ;; TODO: true, not 1.
                   [tx :db/txInstant now tx 1]])))
         (finally
           (<? (dm/close-db db)))))))
@@ -74,30 +84,28 @@
 (deftest-async test-add-two
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c
-                                                  {:x {:db/unique :db.unique/identity} ;; TODO: :name and :aka.
-                                                   :y {:db/cardinality :db.cardinality/many}}))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
           conn (dm/connection-with-db db)
           now  0xdeadbeef]
       (try
-        (let [tx1 (tx (<? (dm/<transact! conn [[:db/add 1 :x "Ivan"]] now)))
-              tx2 (tx (<? (dm/<transact! conn [[:db/add 1 :x "Petr"]] now)))
-              tx3 (tx (<? (dm/<transact! conn [[:db/add 1 :y "Tupen"]] now)))
-              tx4 (tx (<? (dm/<transact! conn [[:db/add 1 :y "Devil"]] now)))]
+        (let [tx1 (tx (<? (dm/<transact! conn [[:db/add 1 :name "Ivan"]] now)))
+              tx2 (tx (<? (dm/<transact! conn [[:db/add 1 :name "Petr"]] now)))
+              tx3 (tx (<? (dm/<transact! conn [[:db/add 1 :aka "Tupen"]] now)))
+              tx4 (tx (<? (dm/<transact! conn [[:db/add 1 :aka "Devil"]] now)))]
           (is (= (<? (<datoms (dm/db conn)))
-                 #{[1 :x "Petr"]
-                   [1 :y "Tupen"]
-                   [1 :y "Devil"]}))
+                 #{[1 :name "Petr"]
+                   [1 :aka  "Tupen"]
+                   [1 :aka  "Devil"]}))
 
           (is (= (<? (<transactions (dm/db conn)))
-                 [[1 :x "Ivan" tx1 1] ;; TODO: true, not 1.
+                 [[1 :name "Ivan" tx1 1] ;; TODO: true, not 1.
                   [tx1 :db/txInstant now tx1 1]
-                  [1 :x "Ivan" tx2 0]
-                  [1 :x "Petr" tx2 1]
+                  [1 :name "Ivan" tx2 0]
+                  [1 :name "Petr" tx2 1]
                   [tx2 :db/txInstant now tx2 1]
-                  [1 :y "Tupen" tx3 1]
+                  [1 :aka "Tupen" tx3 1]
                   [tx3 :db/txInstant now tx3 1]
-                  [1 :y "Devil" tx4 1]
+                  [1 :aka "Devil" tx4 1]
                   [tx4 :db/txInstant now tx4 1]])))
         (finally
           (<? (dm/close-db db)))))))
@@ -106,18 +114,18 @@
 (deftest-async test-retract
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
           conn (dm/connection-with-db db)
           now  0xdeadbeef]
       (try
-        (let [txa (tx (<? (dm/<transact! conn [[:db/add     0 :x "valuex"]] now)))
-              txb (tx (<? (dm/<transact! conn [[:db/retract 0 :x "valuex"]] now)))]
+        (let [txa (tx (<? (dm/<transact! conn [[:db/add     0 :x 123]] now)))
+              txb (tx (<? (dm/<transact! conn [[:db/retract 0 :x 123]] now)))]
           (is (= (<? (<datoms db))
                  #{}))
           (is (= (<? (<transactions db))
-                 [[0 :x "valuex" txa 1] ;; TODO: true, not 1.
+                 [[0 :x 123 txa 1] ;; TODO: true, not 1.
                   [txa :db/txInstant now txa 1]
-                  [0 :x "valuex" txb 0]
+                  [0 :x 123 txb 0]
                   [txb :db/txInstant now txb 1]])))
         (finally
           (<? (dm/close-db db)))))))
@@ -125,7 +133,7 @@
 (deftest-async test-id-literal-1
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
           conn (dm/connection-with-db db)
           now  -1]
       (try
@@ -151,19 +159,19 @@
 (deftest-async test-add-ident
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
           conn (dm/connection-with-db db)
           now  -1]
       (try
-        (let [report   (<? (dm/<transact! conn [[:db/add 44 :db/ident :name]] now))
+        (let [report   (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/db -1) :db/ident :test/ident]] now))
               db-after (:db-after report)
               tx       (:current-tx db-after)]
-          (is (= (:name (dm/idents db-after)) 44)))
+          (is (= (:test/ident (dm/idents db-after)) (get-in report [:tempids (dm/id-literal :db.part/db -1)]))))
 
-        ;; TODO: This should fail, but doesn't, due to stringification of :name.
+        ;; TODO: This should fail, but doesn't, due to stringification of :test/ident.
         ;; (is (thrown-with-msg?
         ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got "
-        ;;       (<? (dm/<transact! conn [[:db/retract 44 :db/ident :name]] now))))
+        ;;       (<? (dm/<transact! conn [[:db/retract 44 :db/ident :test/ident]] now))))
 
         ;; ;; Renaming looks like retraction and then assertion.
         ;; (is (thrown-with-msg?
@@ -172,7 +180,7 @@
 
         ;; (is (thrown-with-msg?
         ;;       ExceptionInfo #"Re-asserting a :db/ident is not yet supported, got"
-        ;;       (<? (dm/<transact! conn [[:db/add 55 :db/ident :name]] now))))
+        ;;       (<? (dm/<transact! conn [[:db/add 55 :db/ident :test/ident]] now))))
 
         (finally
           (<? (dm/close-db db)))))))

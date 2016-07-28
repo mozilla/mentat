@@ -207,6 +207,11 @@
 ;; TODO: implement support for DB parts?
 (def tx0 0x2000000)
 
+(def default-schema
+  {:db/txInstant {:db/valueType :db.type/integer}
+   :db/ident {:db/valueType :db.type/keyword}
+   })
+
 (defn <idents [sqlite-connection]
   (go-pair
     (let [rows (<? (->>
@@ -223,11 +228,11 @@
    (go-pair
      (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
        (raise "Could not ensure current SQLite schema version."))
-     (let [idents (into (<? (<idents sqlite-connection)) {:db/txInstant 100 :db/ident 101 :x 102 :y 103})] ;; TODO: pre-populate idents and SQLite tables?
+     (let [idents (into (<? (<idents sqlite-connection)) {:db/txInstant 100 :db/ident 101 :x 102 :y 103 :name 104 :aka 105})] ;; TODO: pre-populate idents and SQLite tables?
        (map->DB
          {:sqlite-connection sqlite-connection
           :idents            idents
-          :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) schema)))
+          :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) (merge schema default-schema))))
           :current-tx        tx0})))))
 
 (defn connection-with-db [db]
@@ -288,6 +293,8 @@
     [op e a v (or tx current-tx)]))
 
 (defn preprocess [db report]
+  {:pre [(db? db) (report? report)]}
+
   (let [initial-es (conj (or (:entities report) []) (tx-entity db))]
     (when-not (sequential? initial-es)
       (raise "Bad transaction data " initial-es ", expected sequential collection"
@@ -351,6 +358,8 @@
 
 
 (defn <resolve-lookup-refs [db report]
+  {:pre [(db? db) (report? report)]}
+
   (go-pair
     (->>
       (vec (for [[op & entity] (:entities report)]
@@ -409,21 +418,29 @@
   simple allocations."
 
   [db report]
+  {:pre [(db? db) (report? report)]}
+
   (go-pair
     (let [keyfn (fn [[op e a v tx]]
                   (if (and (id-literal? e)
                            (not-any? id-literal? [a v tx]))
                     (- 5)
                     (- (count (filter id-literal? [e a v tx])))))
-          initial-report (dissoc report :entities) ;; TODO.
+          initial-report (assoc report :entities []) ;; TODO.
           initial-entities (sort-by keyfn (:entities report))]
       (loop [report initial-report
              es initial-entities]
+        (if (report? initial-report)
+          (update report :tempids #(into {} (filter (comp not temp-literal? first) %)))
+          (raise "fail" {:initial-report report}))
+
         (let [[[op e a v tx :as entity] & entities] es]
           (cond
             (nil? entity)
             ;; We can add :db.part/temp id-literals; remove them.
-            (update report :tempids #(into {} (filter (comp not temp-literal? first) %)))
+            (if (report? report)
+              (update report :tempids #(into {} (filter (comp not temp-literal? first) %)))
+              (raise "fail" {:report report}))
 
             (and (not= op :db/add)
                  (not (empty? (filter id-literal? [e a v tx]))))
@@ -438,9 +455,7 @@
             (let [upserted-eid (:e (first (<? (<avet db [a v]))))  ;; TODO: define this interface.
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
-                (do
-                  (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
-                  )
+                (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
                 (let [eid (or upserted-eid allocated-eid (next-eid db))]
                   (recur (allocate-eid report e eid) (cons [op eid a v tx] entities)))))
 
@@ -471,7 +486,22 @@
 (defn- transact-report [report datom]
   (update-in report [:tx-data] conj datom))
 
+(defn- ensure-schema-constraints
+  "Verify that all entities obey the schema constraints."
+
+  [db report]
+  {:pre [(db? db) (report? report)]}
+
+  ;; TODO: :db/unique :db.unique/value.
+  ;; TODO: consider accumulating errors to show more meaningful error reports.
+  ;; TODO: constrain entities; constrain attributes.
+
+  (doseq [[op e a v tx] (:entities report)]
+    (ds/ensure-valid-value (schema db) a v))
+  report)
+
 (defn <postprocess [db report]
+  {:pre [(db? db) (report? report)]}
   (go-pair
     (let [initial-report report]
       (loop [report initial-report
@@ -505,11 +535,11 @@
                    {:error :transact/syntax, :operation op, :tx-data entity})))))))
 
 (defn <transact-tx-data
-  [db now initial-report]
-  {:pre [(db? db)]}
+  [db now report]
+  {:pre [(db? db) (report? report)]}
 
   (go-pair
-    (->> initial-report
+    (->> report
          (preprocess db)
 
          (<resolve-lookup-refs db)
@@ -517,6 +547,8 @@
 
          (<resolve-id-literals db)
          (<?)
+
+         (ensure-schema-constraints db)
 
          (<postprocess db)
          (<?))))
