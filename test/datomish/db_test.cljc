@@ -45,6 +45,15 @@
         (filter #(not (= :db/txInstant (second %))))
         (set)))))
 
+(defn- <shallow-entity [db eid]
+  (let [entids (zipmap (vals (dm/idents db)) (keys (dm/idents db)))]
+    (go-pair
+      (->>
+        (s/all-rows (:sqlite-connection db) ["SELECT a, v FROM datoms WHERE e = ?" eid])
+        (<?)
+        (mapv #(vector (entids (:a %)) (:v %)))
+        (reduce conj {})))))
+
 (defn- <transactions [db]
   (let [entids (zipmap (vals (dm/idents db)) (keys (dm/idents db)))]
     (go-pair
@@ -57,14 +66,20 @@
   (get-in report [:db-after :current-tx]))
 
 (def test-schema
-  {:x    {:db/unique    :db.unique/identity
-          :db/valueType :db.type/integer}
-   :y    {:db/cardinality :db.cardinality/many
-          :db/valueType   :db.type/integer}
-   :name {:db/unique    :db.unique/identity
-          :db/valueType :db.type/string}
-   :aka  {:db/cardinality :db.cardinality/many
-          :db/valueType   :db.type/string}})
+  {:x     {:db/unique    :db.unique/identity
+           :db/valueType :db.type/integer}
+   :y     {:db/cardinality :db.cardinality/many
+           :db/valueType   :db.type/integer}
+   :name  {:db/unique    :db.unique/identity
+           :db/valueType :db.type/string}
+   :aka   {:db/cardinality :db.cardinality/many
+           :db/valueType   :db.type/string}
+   :age   {:db/valueType :db.type/integer}
+   :email {:db/unique    :db.unique/identity
+           :db/valueType :db.type/string}
+   :spouse {:db/unique    :db.unique/value
+            :db/valueType :db.type/string}
+   })
 
 (deftest-async test-add-one
   (with-tempfile [t (tempfile)]
@@ -159,6 +174,28 @@
         (finally
           (<? (dm/close-db db)))))))
 
+(deftest-async test-unique
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  -1]
+      (try
+        (testing "Multiple :db/unique values in tx-data violate unique constraint, no tempid"
+          (is (thrown-with-msg?
+                ExceptionInfo #"unique constraint"
+                (<? (dm/<transact! conn [[:db/add 1 :x 0]
+                                         [:db/add 2 :x 0]] now)))))
+
+        (testing "Multiple :db/unique values in tx-data violate unique constraint, tempid"
+          (is (thrown-with-msg?
+                ExceptionInfo #"unique constraint"
+                (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/user -1) :spouse "Dana"]
+                                         [:db/add (dm/id-literal :db.part/user -2) :spouse "Dana"]] now)))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
 (deftest-async test-add-ident
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
@@ -216,6 +253,151 @@
             (<? (dm/<transact! conn [[:db/retract eid :test/kw :test/kw2]] now))
             (is (= (<? (<datoms db))
                    #{}))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-vector-upsert
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  0xdeadbeef]
+      (try
+        ;; Not having DB-as-value really hurts us here.
+        (let [<with-base-and (fn [entities]
+                               (go-pair
+                                 (<? (s/execute! (:sqlite-connection (dm/db conn)) ["DELETE FROM datoms"]))
+                                 (<? (s/execute! (:sqlite-connection (dm/db conn)) ["DELETE FROM transactions"]))
+                                 ;; TODO: don't rely on explicit IDs.
+                                 (<? (dm/<transact! conn [{:db/id 1 :name "Ivan" :email "@1"}
+                                                          {:db/id 2 :name "Petr" :email "@2"}] now))
+                                 (<? (dm/<transact! conn entities now))))
+              tempids (fn [tx] (into {} (map (juxt (comp :idx first) second) (:tempids tx))))]
+
+          (testing "upsert with tempid"
+            (let [tx (<? (<with-base-and [[:db/add (dm/id-literal :db.part/user -1) :name "Ivan"]
+                                          [:db/add (dm/id-literal :db.part/user -1) :age 12]]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :age 12 :email "@1"}))
+              (is (= (tempids tx)
+                     {-1 1}))))
+
+          (testing "upsert with tempid, order does not matter"
+            (let [tx (<? (<with-base-and [[:db/add (dm/id-literal :db.part/user -1) :age 12]
+                                          [:db/add (dm/id-literal :db.part/user -1) :name "Ivan"]]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :age 12 :email "@1"}))
+              (is (= (tempids tx)
+                     {-1 1}))))
+
+          (testing "Conflicting upserts fail"
+            (is (thrown-with-msg? Throwable #"Conflicting upsert: #datomish.db.TempId\{:part :db.part/user, :idx -\d+\} resolves both to \d+ and \d+"
+                                  (<? (dm/<with db [[:db/add (dm/id-literal :db.part/user -1) :name "Ivan"]
+                                                    [:db/add (dm/id-literal :db.part/user -1) :age 35]
+                                                    [:db/add (dm/id-literal :db.part/user -1) :name "Petr"]
+                                                    [:db/add (dm/id-literal :db.part/user -1) :age 36]]))))))
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-map-upsert
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  0xdeadbeef]
+      (try
+        ;; Not having DB-as-value really hurts us here.
+        (let [<with-base-and (fn [entities]
+                               (go-pair
+                                 (<? (s/execute! (:sqlite-connection (dm/db conn)) ["DELETE FROM datoms"]))
+                                 (<? (s/execute! (:sqlite-connection (dm/db conn)) ["DELETE FROM transactions"]))
+                                 ;; TODO: don't rely on explicit IDs.
+                                 (<? (dm/<transact! conn [{:db/id 1 :name "Ivan" :email "@1"}
+                                                          {:db/id 2 :name "Petr" :email "@2"}] now))
+                                 (<? (dm/<transact! conn entities now))))
+              tempids (fn [tx] (into {} (map (juxt (comp :idx first) second) (:tempids tx))))]
+
+          (testing "upsert with tempid"
+            (let [tx (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :age 35}]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :email "@1" :age 35}))
+              (is (= (tempids tx)
+                     {-1 1}))))
+
+          (testing "upsert by 2 attrs with tempid"
+            (let [tx (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :email "@1" :age 35}]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :email "@1" :age 35}))
+              (is (= (tempids tx)
+                     {-1 1}))))
+
+          (testing "upsert to two entities, resolve to same tempid, fails due to overlapping writes"
+            (is (thrown-with-msg? Throwable #"cardinality constraint"
+                                  (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :age 35}
+                                                       {:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :age 36}])))))
+
+          (testing "upsert to two entities, two tempids, fails due to overlapping writes"
+            (is (thrown-with-msg? Throwable #"cardinality constraint"
+                                  (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :age 35}
+                                                       {:db/id (dm/id-literal :db.part/user -2) :name "Ivan" :age 36}])))))
+
+          (testing "upsert with existing id"
+            (let [tx (<? (<with-base-and [{:db/id 1 :name "Ivan" :age 35}]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :email "@1" :age 35}))
+              (is (= (tempids tx)
+                     {}))))
+
+          (testing "upsert by 2 attrs with existing id"
+            (let [tx (<? (<with-base-and [{:db/id 1 :name "Ivan" :email "@1" :age 35}]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :email "@1" :age 35}))
+              (is (= (tempids tx)
+                     {})))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-map-upsert-conflicts
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  0xdeadbeef]
+      (try
+        ;; Not having DB-as-value really hurts us here.
+        (let [<with-base-and (fn [entities]
+                               (go-pair
+                                 (<? (s/execute! (:sqlite-connection (dm/db conn)) ["DELETE FROM datoms"]))
+                                 (<? (s/execute! (:sqlite-connection (dm/db conn)) ["DELETE FROM transactions"]))
+                                 ;; TODO: don't rely on explicit IDs.
+                                 (<? (dm/<transact! conn [{:db/id 1 :name "Ivan" :email "@1"}
+                                                          {:db/id 2 :name "Petr" :email "@2"}] now))
+                                 (<? (dm/<transact! conn entities now))))
+              tempids (fn [tx] (into {} (map (juxt (comp :idx first) second) (:tempids tx))))]
+
+          ;; TODO: improve error message to refer to upsert inputs.
+          (testing "upsert conficts with existing id"
+            (is (thrown-with-msg? Throwable #"unique constraint"
+                                  (<? (<with-base-and [{:db/id 2 :name "Ivan" :age 36}])))))
+
+          ;; TODO: improve error message to refer to upsert inputs.
+          (testing "upsert conficts with non-existing id"
+            (is (thrown-with-msg? Throwable #"unique constraint"
+                                  (<? (<with-base-and [{:db/id 3 :name "Ivan" :age 36}])))))
+
+          (testing "upsert by non-existing value resolves as update"
+            (let [tx (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :email "@3" :age 35}]))]
+              (is (= (<? (<shallow-entity (dm/db conn) 1))
+                     {:name "Ivan" :email "@3" :age 35}))
+              (is (= (tempids tx)
+                     {-1 1}))))
+
+          ;; TODO: improve error message to refer to upsert inputs.
+          (testing "upsert by 2 conflicting fields"
+            (is (thrown-with-msg? Throwable #"Conflicting upsert: #datomish.db.TempId\{:part :db.part/user, :idx -\d+\} resolves both to \d+ and \d+"
+                                  (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :email "@2" :age 35}]))))))
 
         (finally
           (<? (dm/close-db db)))))))

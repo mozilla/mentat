@@ -32,6 +32,10 @@
           :cljs [^boolean indexing?]) [schema attr]
   (is-attr? schema attr :db/index))
 
+(defn #?@(:clj  [^Boolean unique?]
+          :cljs [^boolean unique?]) [schema attr]
+  (is-attr? schema attr :db/unique))
+
 (defn #?@(:clj  [^Boolean unique-identity?]
           :cljs [^boolean unique-identity?]) [schema attr]
   (is-attr? schema attr :db.unique/identity))

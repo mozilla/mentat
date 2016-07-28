@@ -18,11 +18,15 @@
 (def current-version 1)
 
 (def v1-statements
-  ["CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0)"
+  ["CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
+                         index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
+                         unique_value TINYINT NOT NULL DEFAULT 0, unique_identity TINYINT NOT NULL DEFAULT 0)"
    "CREATE INDEX eavt ON datoms (e, a)" ;; No v -- that's an opt-in index.
    "CREATE INDEX aevt ON datoms (a, e)" ;; No v -- that's an opt-in index.
-   "CREATE INDEX avet ON datoms (a, v, e) WHERE index_avet = 1" ;; Opt-in index: only if a has :db/index true.
-   "CREATE INDEX vaet ON datoms (v, a, e) WHERE index_vaet = 1" ;; Opt-in index: only if a has :db/valueType :db.type/ref
+   "CREATE UNIQUE INDEX avet ON datoms (a, v, e) WHERE index_avet = 1" ;; Opt-in index: only if a has :db/index true.
+   "CREATE UNIQUE INDEX vaet ON datoms (v, a, e) WHERE index_vaet = 1" ;; Opt-in index: only if a has :db/valueType :db.type/ref
+   "CREATE UNIQUE INDEX unique_value ON datoms (v) WHERE unique_value = 1" ;; TODO.
+   "CREATE UNIQUE INDEX unique_identity ON datoms (a, v) WHERE unique_identity = 1" ;; TODO.
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1)"
    "CREATE INDEX tx ON transactions (tx)"
    "CREATE TABLE attributes (name TEXT NOT NULL PRIMARY KEY, a INTEGER UNIQUE NOT NULL)"])
