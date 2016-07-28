@@ -122,7 +122,8 @@
     :v     (Datom. (.-e d) (.-a d) v       (.-tx d) (.-added d))
     :tx    (Datom. (.-e d) (.-a d) (.-v d) v        (.-added d))
     :added (Datom. (.-e d) (.-a d) (.-v d) (.-tx d) v)
-    (throw (IllegalArgumentException. (str "invalid key for #datascript/Datom: " k)))))
+    #?(:clj  (throw (IllegalArgumentException. (str "invalid key for #datascript/Datom: " k)))
+       :cljs (throw (js/Error. (str "invalid key for #datascript/Datom: " k))))))
 
 ;; printing and reading
 

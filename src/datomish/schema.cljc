@@ -85,9 +85,9 @@
   {:db.type/ref     { :valid? #(and (integer? %) (pos? %)) :->SQLite identity :<-SQLite identity }
    :db.type/keyword { :valid? keyword? :->SQLite str :<-SQLite #(keyword (subs % 1)) }
    :db.type/string  { :valid? string? :->SQLite identity :<-SQLite identity }
-   :db.type/boolean { :valid? #(instance? Boolean %) :->SQLite #(if % 1 0) :<-SQLite #(if (= % 1) true false) }
+   :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) :->SQLite #(if % 1 0) :<-SQLite #(if (= % 1) true false) }
    :db.type/integer { :valid? integer? :->SQLite identity :<-SQLite identity }
-   :db.type/real    { :valid? float? :->SQLite identity :<-SQLite identity }
+   :db.type/real    { :valid? #?(:clj float? :cljs number?) :->SQLite identity :<-SQLite identity }
    })
 
 (defn #?@(:clj  [^Boolean ensure-valid-value]

@@ -32,6 +32,9 @@
   #?(:clj
      (:import [datascript.db DB])))
 
+#?(:cljs
+   (def Throwable js/Error))
+
 (defn- <datoms [db]
   (let [entids (zipmap (vals (dm/idents db)) (keys (dm/idents db)))]
     (go-pair
