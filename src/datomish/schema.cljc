@@ -83,7 +83,7 @@
 ;; TODO: consider doing this with a protocol and extending the underlying Clojure(Script) types.
 (def value-type-map
   {:db.type/ref     { :valid? #(and (integer? %) (pos? %)) :->SQLite identity :<-SQLite identity }
-   :db.type/keyword { :valid? keyword? :->SQLite name :<-SQLite keyword }
+   :db.type/keyword { :valid? keyword? :->SQLite str :<-SQLite #(keyword (subs % 1)) }
    :db.type/string  { :valid? string? :->SQLite identity :<-SQLite identity }
    :db.type/boolean { :valid? #(instance? Boolean %) :->SQLite #(if % 1 0) :<-SQLite #(if (= % 1) true false) }
    :db.type/integer { :valid? integer? :->SQLite identity :<-SQLite identity }
@@ -99,6 +99,31 @@
         (when-not (valid? value)
           (raise "Invalid value for attribute " attr ", expected " valueType " but got " value
                  {:error :schema/valueType, :attribute attr, :value value}))
+        (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))
+               {:error :schema/valueType, :attribute attr}))
+      (raise "Unknown attribute " attr ", expected one of " (sorted-set (keys schema))
+             {:error :schema/valueType, :attribute attr}))))
+
+(defn ->SQLite [schema attr value]
+  {:pre [(schema? schema)]}
+  (let [schema (.-schema schema)]
+    (if-let [valueType (get-in schema [attr :db/valueType])]
+      (if-let [valid? (get-in value-type-map [valueType :valid?])]
+        (if (valid? value)
+          ((get-in value-type-map [valueType :->SQLite]) value)
+          (raise "Invalid value for attribute " attr ", expected " valueType " but got " value
+                 {:error :schema/valueType, :attribute attr, :value value}))
+        (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))
+               {:error :schema/valueType, :attribute attr}))
+      (raise "Unknown attribute " attr ", expected one of " (sorted-set (keys schema))
+             {:error :schema/valueType, :attribute attr}))))
+
+(defn <-SQLite [schema attr value]
+  {:pre [(schema? schema)]}
+  (let [schema (.-schema schema)]
+    (if-let [valueType (get-in schema [attr :db/valueType])]
+      (if-let [<-SQLite (get-in value-type-map [valueType :<-SQLite])]
+        (<-SQLite value)
         (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))
                {:error :schema/valueType, :attribute attr}))
       (raise "Unknown attribute " attr ", expected one of " (sorted-set (keys schema))

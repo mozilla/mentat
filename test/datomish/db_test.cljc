@@ -184,3 +184,35 @@
 
         (finally
           (<? (dm/close-db db)))))))
+
+(deftest-async test-valueType-keyword
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c
+                                                  (merge test-schema {:test/kw {:db/unique :db.unique/identity
+                                                                                :db/valueType :db.type/keyword}})))
+          conn (dm/connection-with-db db)
+          now  -1]
+      (try
+        (let [report (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/user -1) :test/kw :test/kw1]] now))
+              eid (get-in report [:tempids (dm/id-literal :db.part/user -1)])]
+          (is (= (<? (<datoms db))
+                 #{[eid :test/kw ":test/kw1"]})) ;; Value is raw.
+
+          (testing "Adding the same value compares existing values correctly."
+            (<? (dm/<transact! conn [[:db/add eid :test/kw :test/kw1]] now))
+            (is (= (<? (<datoms db))
+                   #{[eid :test/kw ":test/kw1"]}))) ;; Value is raw.
+
+          (testing "Upserting retracts existing value correctly."
+            (<? (dm/<transact! conn [[:db/add eid :test/kw :test/kw2]] now))
+            (is (= (<? (<datoms db))
+                   #{[eid :test/kw ":test/kw2"]}))) ;; Value is raw.
+
+          (testing "Retracting compares values correctly."
+            (<? (dm/<transact! conn [[:db/retract eid :test/kw :test/kw2]] now))
+            (is (= (<? (<datoms db))
+                   #{}))))
+
+        (finally
+          (<? (dm/close-db db)))))))

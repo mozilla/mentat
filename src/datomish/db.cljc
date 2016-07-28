@@ -70,14 +70,14 @@
     [db]
     "TODO: document this interface."))
 
-;; TODO: handle _?
-(defn search->sql-clause [pattern]
-  (merge
-    {:select [:*] ;; e :a :v :tx] ;; TODO: generalize columns.
-     :from [:datoms]}
-    (if-not (empty? pattern)
-      {:where (cons :and (map #(vector := %1 (if (keyword? %2) (str %2) %2)) [:e :a :v :tx] pattern))} ;; TODO: use schema to process v.
-      {})))
+(defn db? [x]
+  (and (satisfies? IDB x)))
+
+(defn- row->Datom [schema row]
+  (let [e (:e row)
+        a (:a row)
+        v (:v row)]
+    (Datom. e a (ds/<-SQLite schema a v) (:tx row) (:added row))))
 
 (defrecord DB [sqlite-connection schema idents current-tx]
   ;; idents is map {ident -> entid} of known idents.  See http://docs.datomic.com/identity.html#idents.
@@ -94,33 +94,43 @@
 
   ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
   (<eavt [db pattern]
-    (go-pair
-      ;; TODO: find a better expression of this pattern.
-      (let [rows (<? (->>
-                       (search->sql-clause pattern)
-                       (sql/format)
-                       (s/all-rows (:sqlite-connection db))))]
-        (mapv #(Datom. (:e %) (:a %) (:v %) (:tx %) true) rows)))) ;; TODO: map values according to schema.
+    (let [[e a v tx] pattern
+          v (and v (ds/->SQLite schema a v))] ;; We assume e and a are always given.
+      (go-pair
+        (->>
+          {:select [:*] ;; e :a :v :tx] ;; TODO: generalize columns.
+           :from [:datoms]
+           :where (cons :and (map #(vector := %1 %2) [:e :a :v :tx] (take-while (comp not nil?) [e a v tx])))} ;; Must drop nils.
+          (sql/format)
+
+          (s/all-rows (:sqlite-connection db))
+          (<?)
+
+          (mapv (partial row->Datom (.-schema db))))))) ;; TODO: understand why (schema db) fails.
 
   (<avet [db pattern]
-    (go-pair
-      ;; TODO: find a better expression of this pattern.
-      (let [[a v] pattern
-            rows (<? (->>
-                       {:select [:*] :from [:datoms] :where [:and [:= :a a] [:= :v v]]}
-                       (sql/format)
-                       (s/all-rows (:sqlite-connection db))))]
-        (mapv #(Datom. (:e %) (:a %) (:v %) (:tx %) true) rows)))) ;; TODO: map values according to schema.
+    (let [[a v] pattern
+          v (ds/->SQLite schema a v)]
+      (go-pair
+        (->>
+          {:select [:*] :from [:datoms] :where [:and [:= :a a] [:= :v v]]}
+          (sql/format)
+
+          (s/all-rows (:sqlite-connection db))
+          (<?)
+
+          (mapv (partial row->Datom (.-schema db))))))) ;; TODO: understand why (schema db) fails.
 
   (<apply-datoms [db datoms]
     (go-pair
       (let [exec (partial s/execute! (:sqlite-connection db))]
         ;; TODO: batch insert, batch delete.
         (doseq [datom datoms]
-          (let [[e a v tx added] datom]
+          (let [[e a v tx added] datom
+                v (ds/->SQLite (.-schema db) a v)] ;; TODO: understand why (schema db) fails.
             ;; Append to transaction log.
             (<? (exec
-                  ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx added]))
+                  ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx (if added 1 0)]))
             ;; Update materialized datom view.
             (if (.-added datom)
               (<? (exec
@@ -143,9 +153,6 @@
   ;;  )
 
   (close-db [db] (s/close (.-sqlite-connection db))))
-
-(defn db? [x]
-  (and (satisfies? IDB x)))
 
 (defprotocol IConnection
   (close
@@ -215,7 +222,7 @@
 (defn <idents [sqlite-connection]
   (go-pair
     (let [rows (<? (->>
-                     {:select [:e :v] :from [:datoms] :where [:= :a ":db/ident"]} ;; TODO: don't stringify?
+                     {:select [:e :v] :from [:datoms] :where [:= :a ":db/ident"]} ;; TODO: use raw entid.
                      (sql/format)
                      (s/all-rows sqlite-connection)))]
       (into {} (map #(-> {(keyword (:v %)) (:e %)})) rows))))
@@ -228,7 +235,7 @@
    (go-pair
      (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
        (raise "Could not ensure current SQLite schema version."))
-     (let [idents (into (<? (<idents sqlite-connection)) {:db/txInstant 100 :db/ident 101 :x 102 :y 103 :name 104 :aka 105})] ;; TODO: pre-populate idents and SQLite tables?
+     (let [idents (into (<? (<idents sqlite-connection)) {:db/txInstant 100 :db/ident 101 :x 102 :y 103 :name 104 :aka 105 :test/kw 106})] ;; TODO: pre-populate idents and SQLite tables?
        (map->DB
          {:sqlite-connection sqlite-connection
           :idents            idents
@@ -365,7 +372,7 @@
       (vec (for [[op & entity] (:entities report)]
              (into [op] (for [field entity]
                           (if (lookup-ref? field)
-                            (first (<? (<eavt db field))) ;; TODO improve this
+                            (first (<? (<eavt db field))) ;; TODO improve this -- this should be avet, shouldn't it?
                             field)))))
       (assoc-in report [:entities])))) ;; TODO: meta.
 
