@@ -196,35 +196,6 @@
         (finally
           (<? (dm/close-db db)))))))
 
-(deftest-async test-add-ident
-  (with-tempfile [t (tempfile)]
-    (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
-          conn (dm/connection-with-db db)
-          now  -1]
-      (try
-        (let [report   (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/db -1) :db/ident :test/ident]] now))
-              db-after (:db-after report)
-              tx       (:current-tx db-after)]
-          (is (= (:test/ident (dm/idents db-after)) (get-in report [:tempids (dm/id-literal :db.part/db -1)]))))
-
-        ;; TODO: This should fail, but doesn't, due to stringification of :test/ident.
-        ;; (is (thrown-with-msg?
-        ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got "
-        ;;       (<? (dm/<transact! conn [[:db/retract 44 :db/ident :test/ident]] now))))
-
-        ;; ;; Renaming looks like retraction and then assertion.
-        ;; (is (thrown-with-msg?
-        ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got"
-        ;;       (<? (dm/<transact! conn [[:db/add 44 :db/ident :other-name]] now))))
-
-        ;; (is (thrown-with-msg?
-        ;;       ExceptionInfo #"Re-asserting a :db/ident is not yet supported, got"
-        ;;       (<? (dm/<transact! conn [[:db/add 55 :db/ident :test/ident]] now))))
-
-        (finally
-          (<? (dm/close-db db)))))))
-
 (deftest-async test-valueType-keyword
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
@@ -398,6 +369,69 @@
           (testing "upsert by 2 conflicting fields"
             (is (thrown-with-msg? Throwable #"Conflicting upsert: #datomish.db.TempId\{:part :db.part/user, :idx -\d+\} resolves both to \d+ and \d+"
                                   (<? (<with-base-and [{:db/id (dm/id-literal :db.part/user -1) :name "Ivan" :email "@2" :age 35}]))))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-add-ident
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  -1]
+      (try
+        (let [report   (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/db -1) :db/ident :test/ident]] now))
+              db-after (:db-after report)
+              tx       (:current-tx db-after)]
+          (is (= (:test/ident (dm/idents db-after)) (get-in report [:tempids (dm/id-literal :db.part/db -1)]))))
+
+        ;; TODO: This should fail, but doesn't, due to stringification of :test/ident.
+        ;; (is (thrown-with-msg?
+        ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got "
+        ;;       (<? (dm/<transact! conn [[:db/retract 44 :db/ident :test/ident]] now))))
+
+        ;; ;; Renaming looks like retraction and then assertion.
+        ;; (is (thrown-with-msg?
+        ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got"
+        ;;       (<? (dm/<transact! conn [[:db/add 44 :db/ident :other-name]] now))))
+
+        ;; (is (thrown-with-msg?
+        ;;       ExceptionInfo #"Re-asserting a :db/ident is not yet supported, got"
+        ;;       (<? (dm/<transact! conn [[:db/add 55 :db/ident :test/ident]] now))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-add-schema
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  -1]
+      (try
+        (let [es       [[:db/add :db.part/db :db.install/attribute (dm/id-literal :db.part/db -1)]
+                        {:db/id (dm/id-literal :db.part/db -1)
+                         :db/ident :test/attr
+                         :db/valueType :db.type/string
+                         :db/cardinality :db.cardinality/one}]
+              report   (<? (dm/<transact! conn es now))
+              db-after (:db-after report)
+              tx       (:current-tx db-after)]
+
+          (testing "New ident is allocated"
+            (is (some? (get-in db-after [:idents :test/attr]))))
+
+          (testing "Schema is modified"
+            (is (= (get-in db-after [:symbolic-schema :test/attr])
+                   {:db/ident :test/attr,
+                    :db/valueType :db.type/string,
+                    :db/cardinality :db.cardinality/one})))
+
+          (testing "Schema is used in subsequent transaction"
+            (<? (dm/<transact! conn [{:db/id 1 :test/attr "value 1"}]))
+            (<? (dm/<transact! conn [{:db/id 1 :test/attr "value 2"}]))
+            (is (= (<? (<shallow-entity (dm/db conn) 1))
+                   {:test/attr "value 2"}))))
 
         (finally
           (<? (dm/close-db db)))))))

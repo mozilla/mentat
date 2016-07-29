@@ -16,6 +16,7 @@
    [datomish.datom :as dd :refer [datom datom? #?@(:cljs [Datom])]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datomish.schema :as ds]
+   [datomish.schema-changes]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema :as sqlite-schema]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
@@ -234,8 +235,36 @@
 (def tx0 0x2000000)
 
 (def default-schema
-  {:db/txInstant {:db/valueType :db.type/integer}
-   :db/ident {:db/valueType :db.type/keyword}
+  {
+   :db.install/partition {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/many}
+   :db.install/valueType {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/many}
+   :db.install/attribute {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/many}
+   ;; TODO: support user-specified functions in the future.
+   ;; :db.install/function {:db/valueType :db.type/ref
+   ;;                       :db/cardinality :db.cardinality/many}
+   :db/txInstant         {:db/valueType   :db.type/integer
+                          :db/cardinality :db.cardinality/one
+                          :db/index       true}
+   :db/ident             {:db/valueType   :db.type/keyword
+                          :db/cardinality :db.cardinality/one
+                          :db/unique      :db.unique/identity}
+   :db/valueType         {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/one}
+   :db/cardinality       {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/one}
+   :db/unique            {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/one}
+   :db/isComponent       {:db/valueType   :db.type/boolean
+                          :db/cardinality :db.cardinality/one}
+   :db/index             {:db/valueType   :db.type/boolean
+                          :db/cardinality :db.cardinality/one}
+   :db/fulltext          {:db/valueType   :db.type/boolean
+                          :db/cardinality :db.cardinality/one}
+   :db/noHistory         {:db/valueType   :db.type/boolean
+                          :db/cardinality :db.cardinality/one}
    })
 
 (defn <idents [sqlite-connection]
@@ -254,11 +283,15 @@
    (go-pair
      (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
        (raise "Could not ensure current SQLite schema version."))
-     (let [idents (into (<? (<idents sqlite-connection)) {:db/txInstant 100 :db/ident 101 :x 102 :y 103 :name 104 :aka 105 :test/kw 106 :age 107 :email 108 :spouse 109})] ;; TODO: pre-populate idents and SQLite tables?
+     (let [idents (clojure.set/union [:db/txInstant :db/ident :db.part/db :db.install/attribute :db.type/string :db.type/integer :db.type/ref :db/id :db.cardinality/one :db.cardinality/many :db/cardinality :db/valueType :x :y :name :aka :test/kw :age :email :spouse] (keys default-schema))
+           idents (into {} (map-indexed #(vector %2 %1) idents))
+           idents (into (<? (<idents sqlite-connection)) idents) ;; TODO: pre-populate idents and SQLite tables?
+           symbolic-schema (merge schema default-schema)]
        (map->DB
          {:sqlite-connection sqlite-connection
           :idents            idents
-          :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) (merge schema default-schema))))
+          :symbolic-schema   symbolic-schema
+          :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema)))
           :current-tx        tx0})))))
 
 (defn connection-with-db [db]
@@ -628,14 +661,15 @@
 (defn- is-ident? [db [_ a & _]]
   (= a (get-in db [:idents :db/ident])))
 
-(defn process-db-idents
+(defn process-db-ident-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
   Handle :db/ident assertions here."
-  [db tx-data]
-  {:pre [(db? db)]}
+  [db report]
+  {:pre [(db? db) (report? report)]}
 
   ;; TODO: use q to filter the report!
   (let [original-db db
+        tx-data (:tx-data report)
         original-ident-assertions (filter (partial is-ident? db) tx-data)]
     (loop [db original-db
            ident-assertions original-ident-assertions]
@@ -663,6 +697,37 @@
                      {:error :schema/idents
                       :op    ia }))))))))
 
+(defn- symbolicate-datom [db [e a v tx added]]
+  (let [entids (zipmap (vals (idents db)) (keys (idents db)))
+        symbolicate (fn [x]
+                      (get entids x x))]
+    (datom
+      (symbolicate e)
+      (symbolicate a)
+      (symbolicate v)
+      (symbolicate tx)
+      added)))
+
+(defn process-db-install-assertions
+  "Transactions may add idents, install new partitions, and install new schema attributes.
+  Handle [:db.part/db :db.install/attribute] assertions here."
+  [db report]
+  {:pre [(db? db) (report? report)]}
+
+  ;; TODO: be more efficient; symbolicating each datom is expensive!
+  (let [datoms (map (partial symbolicate-datom db) (:tx-data report))
+        schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)
+        fail (fn [old new] (raise "Altering schema elements is not yet supported, got " new " altering existing schema element " old
+                                  {:error :schema/alter-schema :old old :new new}))]
+
+    (if (empty? schema-fragment)
+      db
+      (let [symbolic-schema (merge-with fail (:symbolic-schema db) schema-fragment)
+            schema (ds/schema (into {} (map (fn [[k v]] [(k (idents db)) v]) symbolic-schema)))]
+        (assoc db
+               :symbolic-schema symbolic-schema
+               :schema schema)))))
+
 (defn <with [db tx-data]
   (go-pair
     (let [report (<? (<transact-tx-data db 0xdeadbeef ;; TODO
@@ -682,7 +747,9 @@
                      (<advance-tx)
                      (<?)
 
-                     (process-db-idents (:tx-data report)))]
+                     (process-db-ident-assertions report)
+
+                     (process-db-install-assertions report))]
       (-> report
           (assoc-in [:db-after] db-after)))))
 
