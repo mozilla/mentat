@@ -353,6 +353,31 @@
   (let [[op e a v tx] entity]
     [op e a v (or tx current-tx)]))
 
+(defn ensure-entity-form [[op e a v tx :as entity]]
+  (cond
+    (not (sequential? entity))
+    (raise "Bad entity " entity ", should be sequential at this point"
+           {:error :transact/bad-entity, :entity entity})
+
+    (not (contains? #{:db/add :db/retract} op))
+    (raise "Unrecognized operation " op " expected one of :db/add :db/retract at this point"
+           {:error :transact/bad-operation :entity entity })
+
+    (not e)
+    (raise "Bad entity: nil e in " entity
+           {:error :transact/bad-entity :entity entity })
+
+    (not a)
+    (raise "Bad entity: nil a in " entity
+           {:error :transact/bad-entity :entity entity })
+
+    (not v)
+    (raise "Bad entity: nil v in " entity
+           {:error :transact/bad-entity :entity entity })
+
+    true
+    entity))
+
 (defn preprocess [db report]
   {:pre [(db? db) (report? report)]}
 
@@ -374,6 +399,8 @@
       ;; to a list of vectors, like
       ;; [[:db/add e :attr value] [:db/add ref :reverse e]].
       (->> (explode-entities (schema db)))
+
+      (update :entities (partial map ensure-entity-form))
 
       ;; Replace idents with entids where possible.
       (update :entities (partial map (partial maybe-ident->entid db)))
