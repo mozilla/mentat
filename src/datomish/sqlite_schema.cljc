@@ -25,11 +25,24 @@
    "CREATE INDEX aevt ON datoms (a, e)" ;; No v -- that's an opt-in index.
    "CREATE UNIQUE INDEX avet ON datoms (a, v, e) WHERE index_avet = 1" ;; Opt-in index: only if a has :db/index true.
    "CREATE UNIQUE INDEX vaet ON datoms (v, a, e) WHERE index_vaet = 1" ;; Opt-in index: only if a has :db/valueType :db.type/ref
-   "CREATE UNIQUE INDEX unique_value ON datoms (v) WHERE unique_value = 1" ;; TODO.
-   "CREATE UNIQUE INDEX unique_identity ON datoms (a, v) WHERE unique_identity = 1" ;; TODO.
+
+   ;; TODO: possibly remove this index.  :db.unique/value should be asserted by the transactor in
+   ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it services
+   ;; to validate the transactor implementation.
+   "CREATE UNIQUE INDEX unique_value ON datoms (v) WHERE unique_value = 1"
+   ;; TODO: possibly remove this index.  :db.unique/identity should be asserted by the transactor in
+   ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it serves to
+   ;; validate the transactor implementation.
+   "CREATE UNIQUE INDEX unique_identity ON datoms (a, v) WHERE unique_identity = 1"
+
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1)"
    "CREATE INDEX tx ON transactions (tx)"
-   "CREATE TABLE attributes (name TEXT NOT NULL PRIMARY KEY, a INTEGER UNIQUE NOT NULL)"])
+
+   ;; Materialized views of the schema.
+   "CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"
+   "CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value TEXT NOT NULL, FOREIGN KEY (ident) REFERENCES idents (ident))"
+   "CREATE INDEX unique_schema ON schema (ident, attr, value)"
+   ])
 
 (defn <create-current-version
   [db]

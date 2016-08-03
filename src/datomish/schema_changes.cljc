@@ -21,7 +21,8 @@
   Input: a sequence of datoms, like [e :keyword-attr v _ added].
   1. Select [:db.part/db :db.install/attribute ... ].
   2. Fail if any are not (= added true)
-  3. For each [ :db.part/db :db.install/attribute e ], collect {e {:db/* v}}.
+  3. For each [ :db.part/db :db.install/attribute e ], collect
+     {e {:db/* v}}, dropping the inner :db/ident key.
   4. Map e -> ident; fail if not possible.
   5. Return the map, with ident keys.
 
@@ -55,6 +56,6 @@
                            db-avs (into {} (map ->av (filter db-*? datoms)))]
                        ;; TODO: get ident from existing datom, to allow [:db.part/db :db.install/attribute existing-id].
                        (if-let [ident (:db/ident db-avs)]
-                         [ident db-avs]
+                         [ident (dissoc db-avs :db/ident)]
                          (raise ":db.install/attribute requires :db/ident, got " db-avs " for " e
                                 {:error :schema/db-install :op db-avs}))))))))))

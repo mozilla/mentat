@@ -61,13 +61,11 @@
        [2 :db/valueType :db.value/integer]
        [2 :db/cardinalty :db.cardinality/many]]
       {:test/attr1
-       {:db/ident :test/attr1
-        :db/valueType :db.value/string
+       {:db/valueType :db.value/string
         :db/cardinalty :db.cardinality/one
         :db/unique :db.unique/identity}
        :test/attr2
-       {:db/ident :test/attr2
-        :db/valueType :db.value/integer
+       {:db/valueType :db.value/integer
         :db/cardinalty :db.cardinality/many}})
 
     ;; :db/ident, :db/valueType, and :db/cardinality are required.  valueType and cardinality are

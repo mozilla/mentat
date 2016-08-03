@@ -209,7 +209,15 @@
 (defn id-literal? [x]
   (and (instance? TempId x)))
 
-(defrecord TxReport [db-before db-after entities tx-data tempids])
+(defrecord TxReport [db-before ;; The DB before the transaction.
+                     db-after  ;; The DB after the transaction.
+                     entities  ;; The set of entities (like [:db/add e a v tx]) processed.
+                     tx-data   ;; The set of datoms applied to the database, like (Datom. e a v tx added).
+                     tempids   ;; The map from id-literal -> numeric entid.
+                     added-parts ;; The set of parts added during the transaction via :db.part/db :db.install/part.
+                     added-idents ;; The map of idents -> entid added during the transaction, via e :db/ident ident.
+                     added-attributes ;; The map of schema attributes (ident -> schema fragment) added during the transaction, via :db.part/db :db.install/attribute.
+                     ])
 
 (defn- report? [x]
   (and (instance? TxReport x)))
@@ -234,8 +242,10 @@
 ;; TODO: implement support for DB parts?
 (def tx0 0x2000000)
 
-(def default-schema
-  {
+(def ^{:private true} bootstrap-symbolic-schema
+  {:db/ident             {:db/valueType   :db.type/keyword
+                          :db/cardinality :db.cardinality/one
+                          :db/unique      :db.unique/identity}
    :db.install/partition {:db/valueType   :db.type/ref
                           :db/cardinality :db.cardinality/many}
    :db.install/valueType {:db/valueType   :db.type/ref
@@ -247,10 +257,7 @@
    ;;                       :db/cardinality :db.cardinality/many}
    :db/txInstant         {:db/valueType   :db.type/integer
                           :db/cardinality :db.cardinality/one
-                          :db/index       true}
-   :db/ident             {:db/valueType   :db.type/keyword
-                          :db/cardinality :db.cardinality/one
-                          :db/unique      :db.unique/identity}
+                          } ;; :db/index       true} TODO: Handle this using SQLite protocol.
    :db/valueType         {:db/valueType   :db.type/ref
                           :db/cardinality :db.cardinality/one}
    :db/cardinality       {:db/valueType   :db.type/ref
@@ -267,13 +274,90 @@
                           :db/cardinality :db.cardinality/one}
    })
 
+(def ^{:private true} bootstrap-idents
+  {:db/ident             1
+   :db.part/db           2
+   :db/txInstant         3
+   :db.install/partition 4
+   :db.install/valueType 5
+   :db.install/attribute 6
+   :db/valueType         7
+   :db/cardinality       8
+   :db/unique            9
+   :db/isComponent       10
+   :db/index             11
+   :db/fulltext          12
+   :db/noHistory         13
+   :db/add               14
+   :db/retract           15
+   :db.part/tx           16
+   :db.part/user         17
+   :db/excise            18
+   :db.excise/attrs      19
+   :db.excise/beforeT    20
+   :db.excise/before     21
+   :db.alter/attribute   22
+   :db.type/ref          23
+   :db.type/keyword      24
+   :db.type/integer      25 ;; TODO: :db.type/long, to match Datomic?
+   :db.type/string       26
+   :db.type/boolean      27
+   :db.type/instant      28
+   :db.type/bytes        29
+   :db.cardinality/one   30
+   :db.cardinality/many  31
+   :db.unique/value      32
+   :db.unique/identity   33})
+
+(defn- bootstrap-tx-data []
+  (concat
+    (map (fn [[ident entid]] [:db/add entid :db/ident ident]) bootstrap-idents)
+    (map (fn [[ident attrs]] (assoc attrs :db/id ident)) bootstrap-symbolic-schema)
+    (map (fn [[ident attrs]] [:db/add :db.part/db :db.install/attribute (get bootstrap-idents ident)]) bootstrap-symbolic-schema) ;; TODO: fail if nil.
+    ))
+
 (defn <idents [sqlite-connection]
+  "Read the ident map materialized view from the given SQLite store.
+  Returns a map (keyword ident) -> (integer entid), like {:db/ident 0}."
+
+  (let [<-SQLite (get-in ds/value-type-map [:db.type/keyword :<-SQLite])] ;; TODO: make this a protocol.
+    (go-pair
+      (let [rows (<? (->>
+                       {:select [:ident :entid] :from [:idents]}
+                       (sql/format)
+                       (s/all-rows sqlite-connection)))]
+        (into {} (map (fn [row] [(<-SQLite (:ident row)) (:entid row)])) rows)))))
+
+(defn <current-tx [sqlite-connection]
+  "Find the largest tx written to the SQLite store.
+  Returns an integer, -1 if no transactions have been written yet."
+
   (go-pair
-    (let [rows (<? (->>
-                     {:select [:e :v] :from [:datoms] :where [:= :a ":db/ident"]} ;; TODO: use raw entid.
-                     (sql/format)
-                     (s/all-rows sqlite-connection)))]
-      (into {} (map #(-> {(keyword (:v %)) (:e %)})) rows))))
+    (let [rows (<? (s/all-rows sqlite-connection ["SELECT COALESCE(MAX(tx), -1) AS current_tx FROM transactions"]))]
+      (:current_tx (first rows)))))
+
+(defn <symbolic-schema [sqlite-connection]
+  "Read the schema map materialized view from the given SQLite store.
+  Returns a map (keyword ident) -> (map (keyword attribute -> keyword value)), like
+  {:db/ident {:db/cardinality :db.cardinality/one}}."
+
+  (let [<-SQLite (get-in ds/value-type-map [:db.type/keyword :<-SQLite])] ;; TODO: make this a protocol.
+    (go-pair
+      (->>
+        (->>
+          {:select [:ident :attr :value] :from [:schema]}
+          (sql/format)
+          (s/all-rows sqlite-connection))
+        (<?)
+
+        (group-by (comp <-SQLite :ident))
+        (map (fn [[ident rows]]
+               [ident
+                (into {} (map (fn [row]
+                                [(<-SQLite (:attr row)) (<-SQLite (:value row))]) rows))]))
+        (into {})))))
+
+(declare <with-internal)
 
 (defn <db-with-sqlite-connection
   ([sqlite-connection]
@@ -283,16 +367,56 @@
    (go-pair
      (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
        (raise "Could not ensure current SQLite schema version."))
-     (let [idents (clojure.set/union [:db/txInstant :db/ident :db.part/db :db.install/attribute :db.type/string :db.type/integer :db.type/ref :db/id :db.cardinality/one :db.cardinality/many :db/cardinality :db/valueType :x :y :name :aka :test/kw :age :email :spouse] (keys default-schema))
-           idents (into {} (map-indexed #(vector %2 %1) idents))
-           idents (into (<? (<idents sqlite-connection)) idents) ;; TODO: pre-populate idents and SQLite tables?
-           symbolic-schema (merge schema default-schema)]
-       (map->DB
-         {:sqlite-connection sqlite-connection
-          :idents            idents
-          :symbolic-schema   symbolic-schema
-          :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema)))
-          :current-tx        tx0})))))
+
+     (let [current-tx   (<? (<current-tx sqlite-connection))
+           bootstrapped (>= current-tx 0)
+           current-tx   (max current-tx tx0)]
+       (when-not bootstrapped
+         ;; We need to bootstrap the DB.
+         (let [fail-alter-ident (fn [old new] (if-not (= old new)
+                                                (raise "Altering idents is not yet supported, got " new " altering existing ident " old
+                                                       {:error :schema/alter-idents :old old :new new})
+                                                new))
+               fail-alter-attr  (fn [old new] (if-not (= old new)
+                                                (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
+                                                       {:error :schema/alter-schema :old old :new new})
+                                                new))]
+           (-> (map->DB
+                 {:sqlite-connection sqlite-connection
+                  :idents            bootstrap-idents
+                  :symbolic-schema   bootstrap-symbolic-schema
+                  :schema            (ds/schema (into {} (map (fn [[k v]] [(k bootstrap-idents) v]) bootstrap-symbolic-schema))) ;; TODO: fail if ident missing.
+                  :current-tx        current-tx})
+               ;; We use <with rather than <transact! to apply the bootstrap transaction data but to
+               ;; not follow the regular schema application process.  We can't apply the schema
+               ;; changes, since the applied datoms would conflict with the bootstrapping idents and
+               ;; schema.  (The bootstrapping idents and schema are required to be able to write to
+               ;; the database conveniently; without them, we'd have to manually write datoms to the
+               ;; store.  It's feasible but awkward.)  After bootstrapping, we read back the idents
+               ;; and schema, just like when we re-open.
+               (<with-internal (bootstrap-tx-data) fail-alter-ident fail-alter-attr)
+               (<?))))
+
+       ;; We just bootstrapped, or we are returning to an already bootstrapped DB.
+       (let [idents          (<? (<idents sqlite-connection))
+             symbolic-schema (<? (<symbolic-schema sqlite-connection))]
+         (when-not bootstrapped
+           (when (not (= idents bootstrap-idents))
+             (raise "After bootstrapping database, expected new materialized idents and old bootstrapped idents to be identical"
+                    {:error :bootstrap/bad-idents,
+                     :new idents :old bootstrap-idents
+                     }))
+           (when (not (= symbolic-schema bootstrap-symbolic-schema))
+             (raise "After bootstrapping database, expected new materialized symbolic schema and old bootstrapped symbolic schema to be identical"
+                    {:error :bootstrap/bad-symbolic-schema,
+                     :new symbolic-schema :old bootstrap-symbolic-schema
+                     })))
+         (map->DB
+           {:sqlite-connection sqlite-connection
+            :idents            idents
+            :symbolic-schema   symbolic-schema
+            :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema))) ;; TODO: fail if ident missing.
+            :current-tx        (inc current-tx)}))))))
 
 (defn connection-with-db [db]
   (map->Connection {:current-db (atom db)}))
@@ -688,22 +812,22 @@
 (defn- is-ident? [db [_ a & _]]
   (= a (get-in db [:idents :db/ident])))
 
-(defn process-db-ident-assertions
+(defn collect-db-ident-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
-  Handle :db/ident assertions here."
+  Collect :db/ident assertions into :added-idents here."
   [db report]
   {:pre [(db? db) (report? report)]}
 
   ;; TODO: use q to filter the report!
-  (let [original-db db
+  (let [original-report report
         tx-data (:tx-data report)
         original-ident-assertions (filter (partial is-ident? db) tx-data)]
-    (loop [db original-db
+    (loop [report original-report
            ident-assertions original-ident-assertions]
       (let [[ia & ias] ident-assertions]
         (cond
           (nil? ia)
-          db
+          report
 
           (not (:added ia))
           (raise "Retracting a :db/ident is not yet supported, got " ia
@@ -713,13 +837,8 @@
           :else
           ;; Added.
           (let [ident (:v ia)]
-            ;; TODO: accept re-assertions?
-            (when (get-in db [:idents ident])
-              (raise "Re-asserting a :db/ident is not yet supported, got " ia
-                     {:error :schema/idents
-                      :op    ia }))
             (if (keyword? ident)
-              (recur (assoc-in db [:idents ident] (:e ia)) ias)
+              (recur (assoc-in report [:added-idents ident] (:e ia)) ias)
               (raise "Cannot assert a :db/ident with a non-keyword value, got " ia
                      {:error :schema/idents
                       :op    ia }))))))))
@@ -735,50 +854,90 @@
       (symbolicate tx)
       added)))
 
-(defn process-db-install-assertions
+(defn collect-db-install-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
-  Handle [:db.part/db :db.install/attribute] assertions here."
+  Collect [:db.part/db :db.install/attribute] assertions here."
   [db report]
   {:pre [(db? db) (report? report)]}
 
   ;; TODO: be more efficient; symbolicating each datom is expensive!
   (let [datoms (map (partial symbolicate-datom db) (:tx-data report))
-        schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)
-        fail (fn [old new] (raise "Altering schema elements is not yet supported, got " new " altering existing schema element " old
-                                  {:error :schema/alter-schema :old old :new new}))]
+        schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)]
+    (assoc-in report [:added-attributes] schema-fragment)))
 
-    (if (empty? schema-fragment)
-      db
-      (let [symbolic-schema (merge-with fail (:symbolic-schema db) schema-fragment)
-            schema (ds/schema (into {} (map (fn [[k v]] [(k (idents db)) v]) symbolic-schema)))]
-        (assoc db
-               :symbolic-schema symbolic-schema
-               :schema schema)))))
-
-(defn <with [db tx-data]
+;; TODO: lift to IDB.
+(defn <apply-db-ident-assertions [db added-idents]
   (go-pair
-    (let [report (<? (<transact-tx-data db 0xdeadbeef ;; TODO
-                                        (map->TxReport
-                                          {:db-before  db
-                                           :db-after   db
-                                           ;; :current-tx current-tx
-                                           :entities   tx-data
-                                           :tx-data    []
-                                           :tempids    {}})))
-          db-after (->
-                     db
+    (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
+          exec     (partial s/execute! (:sqlite-connection db))]
+      ;; TODO: batch insert.
+      (doseq [[ident entid] added-idents]
+        (<? (exec
+              ["INSERT INTO idents VALUES (?, ?)" (->SQLite ident) entid]))))
+    db))
 
-                     (<apply-datoms (:tx-data report))
-                     (<?)
+(defn <apply-db-install-assertions [db fragment]
+  (go-pair
+    (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
+          exec     (partial s/execute! (:sqlite-connection db))]
+      ;; TODO: batch insert.
+      (doseq [[ident attr-map] fragment]
+        (doseq [[attr value] attr-map]
+          (<? (exec
+                ["INSERT INTO schema VALUES (?, ?, ?)" (->SQLite ident) (->SQLite attr) (->SQLite value)])))))
+    db))
 
-                     (<advance-tx)
-                     (<?)
+(defn- <with-internal [db tx-data merge-ident merge-attr]
+  (go-pair
+    (let [report (->>
+                   (map->TxReport
+                     {:db-before        db
+                      :db-after         db
+                      ;; :current-tx current-tx
+                      :entities         tx-data
+                      :tx-data          []
+                      :tempids          {}
+                      :added-parts      {}
+                      :added-idents     {}
+                      :added-attributes {}
+                      })
 
-                     (process-db-ident-assertions report)
+                   (<transact-tx-data db 0xdeadbeef) ;; TODO: timestamp properly.
+                   (<?)
 
-                     (process-db-install-assertions report))]
+                   (collect-db-ident-assertions db)
+
+                   (collect-db-install-assertions db))
+          idents          (merge-with merge-ident (:idents db) (:added-idents report))
+          symbolic-schema (merge-with merge-attr (:symbolic-schema db) (:added-attributes report))
+          schema          (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema)))
+          db-after        (->
+                            db
+
+                            (<apply-datoms (:tx-data report))
+                            (<?)
+
+                            (<apply-db-ident-assertions (:added-idents report))
+                            (<?)
+
+                            (<apply-db-install-assertions (:added-attributes report))
+                            (<?)
+
+                            (assoc :idents idents
+                                   :symbolic-schema symbolic-schema
+                                   :schema schema)
+
+                            (<advance-tx)
+                            (<?))]
       (-> report
           (assoc-in [:db-after] db-after)))))
+
+(defn- <with [db tx-data]
+  (let [fail-touch-ident (fn [old new] (raise "Altering idents is not yet supported, got " new " altering existing ident " old
+                                              {:error :schema/alter-idents :old old :new new}))
+        fail-touch-attr  (fn [old new] (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
+                                              {:error :schema/alter-schema :old old :new new}))]
+    (<with-internal db tx-data fail-touch-ident fail-touch-attr)))
 
 (defn <db-with [db tx-data]
   (go-pair
