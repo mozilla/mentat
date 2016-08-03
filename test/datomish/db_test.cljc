@@ -69,6 +69,13 @@
 (defn- <transactions [db]
   (<transactions-after db 0))
 
+(defn- <fulltext-values [db]
+  (go-pair
+    (->>
+      (s/all-rows (:sqlite-connection db) ["SELECT rowid, text FROM fulltext_values"])
+      (<?)
+      (mapv #(vector (:rowid %) (:text %))))))
+
 (defn tx [report]
   (get-in report [:db-after :current-tx]))
 
@@ -458,6 +465,81 @@
             (<? (dm/<transact! conn [{:db/id 100 :test/attr "value 2"}]))
             (is (= (<? (<shallow-entity (dm/db conn) 100))
                    {:test/attr "value 2"}))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-fulltext
+  (with-tempfile [t (tempfile)]
+    (let [c    (<? (s/<sqlite-connection t))
+          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn (dm/connection-with-db db)
+          now  0xdeadbeef
+          schema [{:db/id (dm/id-literal :db.part/db -1)
+                   :db/ident :test/fulltext
+                   :db/valueType :db.type/string
+                   :db/fulltext true
+                   :db/unique :db.unique/identity}
+                  {:db/id :db.part/db :db.install/attribute (dm/id-literal :db.part/db -1)}
+                  {:db/id (dm/id-literal :db.part/db -2)
+                   :db/ident :test/other
+                   :db/valueType :db.type/string
+                   :db/fulltext true
+                   :db/cardinality :db.cardinality/one}
+                  {:db/id :db.part/db :db.install/attribute (dm/id-literal :db.part/db -2)}
+                  ]
+          tx0 (tx (<? (dm/<transact! conn schema now)))]
+      (try
+        (testing "Can add fulltext indexed datoms"
+          (let [r (<? (dm/<transact! conn [[:db/add 101 :test/fulltext "test this"]] now))]
+            (is (= (<? (<fulltext-values (dm/db conn)))
+                   [[1 "test this"]]))
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :test/fulltext 1]})) ;; Values are raw; 1 is the rowid into fulltext_values.
+            ))
+
+        (testing "Can replace fulltext indexed datoms"
+          (let [r (<? (dm/<transact! conn [[:db/add 101 :test/fulltext "alternate thing"]] now))]
+            (is (= (<? (<fulltext-values (dm/db conn)))
+                   [[1 "test this"]
+                    [2 "alternate thing"]]))
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :test/fulltext 2]})) ;; Values are raw; 2 is the rowid into fulltext_values.
+            ))
+
+        (testing "Can upsert keyed by fulltext indexed datoms"
+          (let [r (<? (dm/<transact! conn [{:db/id (dm/id-literal :db.part/user) :test/fulltext "alternate thing" :test/other "other"}] now))]
+            (is (= (<? (<fulltext-values (dm/db conn)))
+                   [[1 "test this"]
+                    [2 "alternate thing"]
+                    [3 "other"]]))
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :test/fulltext 2] ;; Values are raw; 2, 3 are the rowids into fulltext_values.
+                     [101 :test/other 3]}))
+            ))
+
+        (testing "Can re-use fulltext indexed datoms"
+          (let [r (<? (dm/<transact! conn [[:db/add 102 :test/other "test this"]] now))]
+            (is (= (<? (<fulltext-values (dm/db conn)))
+                   [[1 "test this"]
+                    [2 "alternate thing"]
+                    [3 "other"]]))
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :test/fulltext 2]
+                     [101 :test/other 3]
+                     [102 :test/other 1]})) ;; Values are raw; 1, 2, 3 are the rowids into fulltext_values.
+            ))
+
+        (testing "Can retract fulltext indexed datoms"
+          (let [r (<? (dm/<transact! conn [[:db/retract 101 :test/fulltext "alternate thing"]] now))]
+            (is (= (<? (<fulltext-values (dm/db conn)))
+                   [[1 "test this"]
+                    [2 "alternate thing"]
+                    [3 "other"]]))
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :test/other 3]
+                     [102 :test/other 1]})) ;; Values are raw; 1, 3 are the rowids into fulltext_values.
+            ))
 
         (finally
           (<? (dm/close-db db)))))))

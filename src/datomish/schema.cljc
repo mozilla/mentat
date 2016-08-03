@@ -36,6 +36,10 @@
           :cljs [^boolean indexing?]) [schema attr]
   (is-attr? schema attr :db/index))
 
+(defn #?@(:clj  [^Boolean fulltext?]
+          :cljs [^boolean fulltext?]) [schema attr]
+  (is-attr? schema attr :db/fulltext))
+
 (defn #?@(:clj  [^Boolean unique?]
           :cljs [^boolean unique?]) [schema attr]
   (is-attr? schema attr :db/unique))
@@ -64,6 +68,7 @@
     (= v :db.unique/identity)        [:db/unique :db.unique/identity :db/index]
     (= v :db.unique/value)           [:db/unique :db.unique/value    :db/index]
     (= [k v] [:db/index true])       [:db/index]
+    (= [k v] [:db/fulltext true])    [:db/fulltext :db/index]
     (= k :db/valueType)              [v]))
 
 (defn- multimap [e m]

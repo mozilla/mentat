@@ -80,6 +80,24 @@
         v (:v row)]
     (Datom. e a (ds/<-SQLite schema a v) (:tx row) (and (some? (:added row)) (not= 0 (:added row))))))
 
+(defn- <insert-fulltext-value [db value]
+  (go-pair
+    ;; This dance is necessary to keep fulltext_values.text unique.  We want uniqueness so that we
+    ;; can work with string values, maintaining consistency throughout the transactor
+    ;; implementation.  (Without this, we'd need to handle a [rowid text] pair specially when
+    ;; comparing in the transactor.)  Unfortunately, it's not possible to declare a unique
+    ;; constraint on a virtual table, including an FTS table.  External content tables (see
+    ;; http://www.sqlite.org/fts3.html#section_6_2_2) don't appear to address our use case, so we
+    ;; maintain uniqueness ourselves.
+    (let [rowid
+          (if-let [row (first (<? (s/all-rows (:sqlite-connection db) ["SELECT rowid FROM fulltext_values WHERE text = ?" value])))]
+            (:rowid row)
+            (do
+              (<? (s/execute! (:sqlite-connection db) ["INSERT INTO fulltext_values VALUES (?)" value]))
+              (:rowid (first (<? (s/all-rows (:sqlite-connection db) ["SELECT last_insert_rowid() AS rowid"]))))))
+          ]
+      rowid)))
+
 (defrecord DB [sqlite-connection schema idents current-tx]
   ;; idents is map {ident -> entid} of known idents.  See http://docs.datomic.com/identity.html#idents.
   IDB
@@ -100,7 +118,7 @@
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
-           :from [:datoms]
+           :from [:all_datoms]
            :where (cons :and (map #(vector := %1 %2) [:e :a :v :tx] (take-while (comp not nil?) [e a v tx])))} ;; Must drop nils.
           (sql/format)
 
@@ -115,7 +133,7 @@
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
-           :from [:datoms]
+           :from [:all_datoms]
            :where [:and [:= :a a] [:= :v v] [:= :index_avet 1]]}
           (sql/format)
 
@@ -130,22 +148,31 @@
         ;; TODO: batch insert, batch delete.
         (doseq [datom datoms]
           (let [[e a v tx added] datom
-                v (ds/->SQLite (.-schema db) a v)] ;; TODO: understand why (schema db) fails.
+                schema (.-schema db) ;; TODO: understand why (schema db) fails.
+                v (ds/->SQLite schema a v)
+                fulltext? (ds/fulltext? schema a)]
             ;; Append to transaction log.
             (<? (exec
                   ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx (if added 1 0)]))
             ;; Update materialized datom view.
             (if (.-added datom)
-              (<? (exec
-                    ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
-                     (ds/indexing? (.-schema db) a) ;; index_avet
-                     (ds/ref? (.-schema db) a) ;; index_vaet
-                     (ds/unique-value? (.-schema db) a) ;; unique_value
-                     (ds/unique-identity? (.-schema db) a) ;; unique_identity
-                     ]))
-              (<? (exec
-                    ;; TODO: verify this is correct.
-                    ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v = ?)" e a v]))))))
+              (let [v (if fulltext?
+                        (<? (<insert-fulltext-value db v))
+                        v)]
+                (<? (exec
+                      ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
+                       (ds/indexing? schema a) ;; index_avet
+                       (ds/ref? schema a) ;; index_vaet
+                       fulltext? ;; index_fulltext
+                       (ds/unique-value? schema a) ;; unique_value
+                       (ds/unique-identity? schema a) ;; unique_identity
+                       ])))
+              (if fulltext?
+                (<? (exec
+                      ;; TODO: in the future, purge fulltext values from the fulltext_datoms table.
+                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v IN (SELECT rowid FROM fulltext_values WHERE text = ?))" e a v]))
+                (<? (exec
+                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v = ?)" e a v])))))))
       db))
 
   (<advance-tx [db]
