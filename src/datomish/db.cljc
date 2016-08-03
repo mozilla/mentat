@@ -335,13 +335,13 @@
           true
           (recur (util/conj-in report [:entities] entity) entities))))))
 
-(defn maybe-ident->entid [db [op & entity :as orig]]
-  ;; TODO: use something faster than `into` here.
-  (->
-    (into [op] (for [field entity]
-                 (get (idents db) field field))) ;; TODO: schema, not db.
-    ;; (with-meta (get (meta orig) :source {:source orig}))
-    ))
+(defn maybe-ident->entid [db [op e a v tx :as orig]]
+  (let [e (get (idents db) e e) ;; TODO: use ident, entid here.
+        a (get (idents db) a a)
+        v (if (ds/kw? (schema db) a) ;; TODO: decide if this is best.  We could also check for ref and numeric types.
+            v
+            (get (idents db) v v))]
+    [op e a v tx]))
 
 (defrecord Transaction [db tempids entities])
 

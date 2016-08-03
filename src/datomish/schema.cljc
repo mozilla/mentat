@@ -24,6 +24,10 @@
           :cljs [^boolean ref?]) [schema attr]
   (is-attr? schema attr :db.type/ref))
 
+(defn #?@(:clj  [^Boolean kw?]
+          :cljs [^boolean kw?]) [schema attr]
+  (is-attr? schema attr :db.type/keyword))
+
 (defn #?@(:clj  [^Boolean component?]
           :cljs [^boolean component?]) [schema attr]
   (is-attr? schema attr :db/isComponent))
@@ -59,7 +63,8 @@
     (= v :db.cardinality/many)       [:db.cardinality/many]
     (= v :db.unique/identity)        [:db/unique :db.unique/identity :db/index]
     (= v :db.unique/value)           [:db/unique :db.unique/value    :db/index]
-    (= [k v] [:db/index true])       [:db/index]))
+    (= [k v] [:db/index true])       [:db/index]
+    (= k :db/valueType)              [v]))
 
 (defn- multimap [e m]
   (reduce
