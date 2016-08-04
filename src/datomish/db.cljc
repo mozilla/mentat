@@ -35,6 +35,11 @@
        (uncaughtException [_ thread ex]
          (println ex "Uncaught exception on" (.getName thread))))))
 
+(defprotocol IClock
+  (now
+    [clock]
+    "Return integer milliseconds since the Unix epoch."))
+
 (defprotocol IDB
   (query-context
     [db])
@@ -72,7 +77,8 @@
     "TODO: document this interface."))
 
 (defn db? [x]
-  (and (satisfies? IDB x)))
+  (and (satisfies? IDB x)
+       (satisfies? IClock x)))
 
 (defn- row->Datom [schema row]
   (let [e (:e row)
@@ -186,7 +192,14 @@
         (update db :current-tx inc))))
   ;;  )
 
-  (close-db [db] (s/close (.-sqlite-connection db))))
+  (close-db [db] (s/close (.-sqlite-connection db)))
+
+  IClock
+  (now [db]
+    #?(:clj
+       (System/currentTimeMillis)
+       :cljs
+       (.getTime (js/Date.)))))
 
 (defprotocol IConnection
   (close
@@ -238,6 +251,7 @@
 
 (defrecord TxReport [db-before ;; The DB before the transaction.
                      db-after  ;; The DB after the transaction.
+                     current-tx ;; The tx ID represented by the transaction in this report.
                      entities  ;; The set of entities (like [:db/add e a v tx]) processed.
                      tx-data   ;; The set of datoms applied to the database, like (Datom. e a v tx added).
                      tempids   ;; The map from id-literal -> numeric entid.
@@ -496,11 +510,15 @@
 
 (defrecord Transaction [db tempids entities])
 
-(defn- tx-entity [db]
-  (let [tx (current-tx db)]
-    [:db/add tx :db/txInstant 0xdeadbeef tx])) ;; TODO: now.
+(defn- tx-entity [db report]
+  {:pre [(db? db) (report? report)]}
+  (let [tx        (:tx report)
+        txInstant (:txInstant report)]
+    ;; n.b., this must not be symbolic -- it's inserted after we map idents -> entids.
+    [:db/add tx (get-in db [:idents :db/txInstant]) txInstant]))
 
-(defn maybe-add-current-tx [current-tx entity]
+;; TODO: never accept incoming tx, throughout.
+(defn maybe-add-tx [current-tx entity]
   (let [[op e a v tx] entity]
     [op e a v (or tx current-tx)]))
 
@@ -533,10 +551,31 @@
     true
     entity))
 
+(defn- tx-instant? [db [op e a & _]]
+  (and (= op :db/add)
+       (= e (get-in db [:idents :db/tx]))
+       (= a (get-in db [:idents :db/txInstant]))))
+
+(defn- update-txInstant [db report]
+  "Extract [:db/add :db/tx :db/txInstant ...], and update :txInstant with that value."
+  {:pre [(db? db) (report? report)]}
+
+  ;; TODO: be more efficient here: don't iterate all entities.
+  (if-let [[_ _ _ txInstant] (first (filter (partial tx-instant? db) (:entities report)))]
+    (assoc report :txInstant txInstant)
+    report))
+
 (defn preprocess [db report]
   {:pre [(db? db) (report? report)]}
 
-  (let [initial-es (or (:entities report) [])]
+  (let [initial-es (or (:entities report) [])
+        ;; :db/tx is a "dynamic enum ident" that maps to the current transaction ID.  This approach
+        ;; mimics DataScript's :db/current-tx.  (We don't follow DataScript because
+        ;; current-txInstant is awkward.)  It's much simpler than Datomic's approach, which appears
+        ;; to unify all id-literals in :db.part/tx to the current transaction value, but also seems
+        ;; inconsistent.
+        tx         (:tx report)
+        db*        (assoc-in db [:idents :db/tx] tx)]
     (when-not (sequential? initial-es)
       (raise "Bad transaction data " initial-es ", expected sequential collection"
              {:error :transact/syntax, :tx-data initial-es}))
@@ -544,8 +583,6 @@
     ;; TODO: find an approach that generates less garbage.
     (->
       report
-
-      (update :entities conj (tx-entity db))
 
       ;; Normalize Datoms into :db/add or :db/retract vectors.
       (update :entities (partial map maybe-datom->entity))
@@ -557,11 +594,21 @@
 
       (update :entities (partial map ensure-entity-form))
 
-      ;; Replace idents with entids where possible.
-      (update :entities (partial map (partial maybe-ident->entid db)))
+      ;; Replace idents with entids where possible, using db* to capture :db/tx.
+      (update :entities (partial map (partial maybe-ident->entid db*)))
+
+      ;; If an explicit [:db/add :db/tx :db/txInstant] is not given, add one.  Use db* to
+      ;; capture :db/tx.
+      (update :entities (fn [entities]
+                          (if (first (filter (partial tx-instant? db*) entities))
+                            entities
+                            (conj entities (tx-entity db report)))))
+
+      ;; Extract the current txInstant for the report.
+      (->> (update-txInstant db*))
 
       ;; Add tx if not given.
-      (update :entities (partial map (partial maybe-add-current-tx (current-tx db)))))))
+      (update :entities (partial map (partial maybe-add-tx tx))))))
 
 (defn- lookup-ref? [x]
   (and (sequential? x)
@@ -811,7 +858,7 @@
                    {:error :transact/syntax, :operation op, :tx-data entity})))))))
 
 (defn <transact-tx-data
-  [db now report]
+  [db report]
   {:pre [(db? db) (report? report)]}
 
   (go-pair
@@ -922,18 +969,23 @@
   (go-pair
     (let [report (->>
                    (map->TxReport
-                     {:db-before        db
-                      :db-after         db
-                      ;; :current-tx current-tx
-                      :entities         tx-data
-                      :tx-data          []
-                      :tempids          {}
-                      :added-parts      {}
-                      :added-idents     {}
-                      :added-attributes {}
+                     {:db-before         db
+                      :db-after          db
+                      ;; This mimics DataScript.  It's convenient to be able to extract the
+                      ;; transaction ID and transaction timestamp directly from the report; Datomic
+                      ;; makes this surprisingly difficult: one needs a :db.part/tx temporary and an
+                      ;; explicit upsert of that temporary.
+                      :tx                (current-tx db)
+                      :txInstant         (now db)
+                      :entities          tx-data
+                      :tx-data           []
+                      :tempids           {}
+                      :added-parts       {}
+                      :added-idents      {}
+                      :added-attributes  {}
                       })
 
-                   (<transact-tx-data db 0xdeadbeef) ;; TODO: timestamp properly.
+                   (<transact-tx-data db)
                    (<?)
 
                    (collect-db-ident-assertions db)
@@ -975,14 +1027,12 @@
     (:db-after (<? (<with db tx-data)))))
 
 (defn <transact!
-  ([conn tx-data]
-   (<transact! conn tx-data 0xdeadbeef)) ;; TODO: timestamp!
-  ([conn tx-data now]
-   {:pre [(conn? conn)]}
-   (let [db (db conn)] ;; TODO: be careful with swapping atoms.
-     (s/in-transaction!
-       (:sqlite-connection db)
-       #(go-pair
-          (let [report (<? (<with db tx-data))] ;; TODO: timestamp!
-            (reset! (:current-db conn) (:db-after report))
-            report))))))
+  [conn tx-data]
+  {:pre [(conn? conn)]}
+  (let [db (db conn)] ;; TODO: be careful with swapping atoms.
+    (s/in-transaction!
+      (:sqlite-connection db)
+      #(go-pair
+         (let [report (<? (<with db tx-data))]
+           (reset! (:current-db conn) (:db-after report))
+           report)))))
