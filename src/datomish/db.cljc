@@ -119,13 +119,13 @@
 
   ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
   (<eavt [db pattern]
-    (let [[e a v tx] pattern
+    (let [[e a v] pattern
           v (and v (ds/->SQLite schema a v))] ;; We assume e and a are always given.
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
            :from [:all_datoms]
-           :where (cons :and (map #(vector := %1 %2) [:e :a :v :tx] (take-while (comp not nil?) [e a v tx])))} ;; Must drop nils.
+           :where (cons :and (map #(vector := %1 %2) [:e :a :v] (take-while (comp not nil?) [e a v])))} ;; Must drop nils.
           (sql/format)
 
           (s/all-rows (:sqlite-connection db))
@@ -517,12 +517,7 @@
     ;; n.b., this must not be symbolic -- it's inserted after we map idents -> entids.
     [:db/add tx (get-in db [:idents :db/txInstant]) txInstant]))
 
-;; TODO: never accept incoming tx, throughout.
-(defn maybe-add-tx [current-tx entity]
-  (let [[op e a v tx] entity]
-    [op e a v (or tx current-tx)]))
-
-(defn ensure-entity-form [[op e a v tx & rest :as entity]]
+(defn ensure-entity-form [[op e a v & rest :as entity]]
   (cond
     (not (sequential? entity))
     (raise "Bad entity " entity ", should be sequential at this point"
@@ -605,10 +600,7 @@
                             (conj entities (tx-entity db report)))))
 
       ;; Extract the current txInstant for the report.
-      (->> (update-txInstant db*))
-
-      ;; Add tx if not given.
-      (update :entities (partial map (partial maybe-add-tx tx))))))
+      (->> (update-txInstant db*)))))
 
 (defn- lookup-ref? [x]
   (and (sequential? x)
@@ -699,22 +691,22 @@
   {:pre [(db? db) (report? report)]}
 
   (go-pair
-    (let [keyfn (fn [[op e a v tx]]
+    (let [keyfn (fn [[op e a v]]
                   (if (and (id-literal? e)
-                           (not-any? id-literal? [a v tx]))
+                           (not-any? id-literal? [a v]))
                     (- 5)
-                    (- (count (filter id-literal? [e a v tx])))))
+                    (- (count (filter id-literal? [e a v])))))
           initial-report (assoc report :entities []) ;; TODO.
           initial-entities (sort-by keyfn (:entities report))]
       (loop [report initial-report
              es initial-entities]
-        (let [[[op e a v tx :as entity] & entities] es]
+        (let [[[op e a v :as entity] & entities] es]
           (cond
             (nil? entity)
             report
 
             (and (not= op :db/add)
-                 (not (empty? (filter id-literal? [e a v tx]))))
+                 (not (empty? (filter id-literal? [e a v]))))
             (raise "id-literals are resolved for :db/add only"
                    {:error :transact/syntax
                     :op    entity })
@@ -722,33 +714,28 @@
             ;; Upsert!
             (and (id-literal? e)
                  (ds/unique-identity? (schema db) a)
-                 (not-any? id-literal? [a v tx]))
+                 (not-any? id-literal? [a v]))
             (let [upserted-eid (:e (first (<? (<avet db [a v]))))
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
                 (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
                 (let [eid (or upserted-eid allocated-eid (next-eid db))]
-                  (recur (allocate-eid report e eid) (cons [op eid a v tx] entities)))))
+                  (recur (allocate-eid report e eid) (cons [op eid a v] entities)))))
 
             ;; Start allocating and retrying.  We try with e last, so as to eventually upsert it.
-            (id-literal? tx)
-            ;; TODO: enforce tx part only?
-            (let [eid (or (get-in report [:tempids tx]) (next-eid db))]
-              (recur (allocate-eid report tx eid) (cons [op e a v eid] entities)))
-
             (id-literal? v)
-            ;; We can't fail with unbound literals here, since we could have multiple
+            ;; We can't fail with unbound literals here, since we could have multiple.
             (let [eid (or (get-in report [:tempids v]) (next-eid db))]
-              (recur (allocate-eid report v eid) (cons [op e a eid tx] entities)))
+              (recur (allocate-eid report v eid) (cons [op e a eid] entities)))
 
             (id-literal? a)
             ;; TODO: should we even allow id-literal attributes?  Datomic fails in some cases here.
             (let [eid (or (get-in report [:tempids a]) (next-eid db))]
-              (recur (allocate-eid report a eid) (cons [op e eid v tx] entities)))
+              (recur (allocate-eid report a eid) (cons [op e eid v] entities)))
 
             (id-literal? e)
             (let [eid (or (get-in report [:tempids e]) (next-eid db))]
-              (recur (allocate-eid report e eid) (cons [op eid a v tx] entities)))
+              (recur (allocate-eid report e eid) (cons [op eid a v] entities)))
 
             true
             (recur (transact-entity report entity) entities)
@@ -767,7 +754,7 @@
   ;; TODO: constrain entities; constrain attributes.
 
   (go-pair
-    (doseq [[op e a v tx] (:entities report)]
+    (doseq [[op e a v] (:entities report)]
       (ds/ensure-valid-value (schema db) a v))
     report))
 
@@ -826,10 +813,11 @@
 (defn <entities->tx-data [db report]
   {:pre [(db? db) (report? report)]}
   (go-pair
-    (let [initial-report report]
+    (let [initial-report report
+          {tx :tx}       report]
       (loop [report initial-report
              es (:entities initial-report)]
-        (let [[[op e a v tx :as entity] & entities] es]
+        (let [[[op e a v :as entity] & entities] es]
           (cond
             (nil? entity)
             report
@@ -881,7 +869,7 @@
       (<ensure-unique-constraints db)
       (<?))))
 
-;; Normalize as [op int|id-literal int|id-literal value|id-literal tx|id-literal]. ;; TODO: mention lookup-refs.
+;; Normalize as [op int|id-literal int|id-literal value|id-literal]. ;; TODO: mention lookup-refs.
 
 ;; Replace lookup-refs with entids where possible.
 
@@ -921,7 +909,7 @@
                      {:error :schema/idents
                       :op    ia }))))))))
 
-(defn- symbolicate-datom [db [e a v tx added]]
+(defn- symbolicate-datom [db [e a v added]]
   (let [entids (zipmap (vals (idents db)) (keys (idents db)))
         symbolicate (fn [x]
                       (get entids x x))]
@@ -929,7 +917,6 @@
       (symbolicate e)
       (symbolicate a)
       (symbolicate v)
-      (symbolicate tx)
       added)))
 
 (defn collect-db-install-assertions

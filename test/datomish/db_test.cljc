@@ -561,3 +561,18 @@
 
         (finally
           (<? (dm/close-db db)))))))
+
+(deftest-async test-no-tx
+  (with-tempfile [t (tempfile)]
+    (let [c         (<? (s/<sqlite-connection t))
+          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn      (dm/connection-with-db db)
+          {tx0 :tx} (<? (dm/<transact! conn test-schema))]
+      (try
+        (testing "Cannot specificy an explicit tx"
+          (is (thrown-with-msg?
+                ExceptionInfo #"Bad entity: too long"
+                (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/user) :x 0 10101]])))))
+
+        (finally
+          (<? (dm/close-db db)))))))
