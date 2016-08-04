@@ -67,6 +67,12 @@
     [db]
     "TODO: document this interface.")
 
+  (in-transaction!
+    [db chan-fn]
+    "Evaluate the given pair-chan `chan-fn` in an exclusive transaction. If it returns non-nil,
+    commit the transaction; otherwise, rollback the transaction.  Returns a pair-chan resolving to
+    the pair-chan returned by `chan-fn`.")
+
   (<eavt
     [db pattern]
     "Search for datoms using the EAVT index.")
@@ -131,6 +137,10 @@
   (current-tx
     [db]
     (inc (:current-tx db)))
+
+  (in-transaction! [db chan-fn]
+    (s/in-transaction!
+      (:sqlite-connection db) chan-fn))
 
   ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
   (<eavt [db pattern]
@@ -1077,8 +1087,8 @@
   [conn tx-data]
   {:pre [(conn? conn)]}
   (let [db (db conn)] ;; TODO: be careful with swapping atoms.
-    (s/in-transaction!
-      (:sqlite-connection db)
+    (in-transaction!
+      db
       #(go-pair
          (let [report (<? (<with db tx-data))]
            (reset! (:current-db conn) (:db-after report))
