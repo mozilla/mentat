@@ -95,3 +95,7 @@
                      '[:find ?e ?v :in $ :where
                        [?e :x ?v]
                        #_[(> ?v 1000)]] {}))))))
+
+(dq/parse '[:find ?entity ?name ?tx ?score
+ :in $ ?search
+ :where [(fulltext $ :artist/name ?search) [[?entity ?name ?tx ?score]]]])
