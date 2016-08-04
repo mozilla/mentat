@@ -79,6 +79,14 @@
     [db datoms]
     "Apply datoms to the store.")
 
+  (<apply-db-ident-assertions
+    [db added-idents]
+    "Apply added idents to the store.")
+
+  (<apply-db-install-assertions
+    [db fragment]
+    "Apply added schema fragment to the store.")
+
   (<advance-tx
     [db]
     "TODO: document this interface."))
@@ -197,7 +205,27 @@
 
         ;; TODO: handle exclusion across transactions here.
         (update db :current-tx inc))))
-  ;;  )
+
+  (<apply-db-ident-assertions [db added-idents]
+    (go-pair
+      (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
+            exec     (partial s/execute! (:sqlite-connection db))]
+        ;; TODO: batch insert.
+        (doseq [[ident entid] added-idents]
+          (<? (exec
+                ["INSERT INTO idents VALUES (?, ?)" (->SQLite ident) entid]))))
+      db))
+
+  (<apply-db-install-assertions [db fragment]
+    (go-pair
+      (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
+            exec     (partial s/execute! (:sqlite-connection db))]
+        ;; TODO: batch insert.
+        (doseq [[ident attr-map] fragment]
+          (doseq [[attr value] attr-map]
+            (<? (exec
+                  ["INSERT INTO schema VALUES (?, ?, ?)" (->SQLite ident) (->SQLite attr) (->SQLite value)])))))
+      db))
 
   (close-db [db] (s/close (.-sqlite-connection db)))
 
@@ -983,28 +1011,6 @@
   (let [datoms (map (partial symbolicate-datom db) (:tx-data report))
         schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)]
     (assoc-in report [:added-attributes] schema-fragment)))
-
-;; TODO: lift to IDB.
-(defn <apply-db-ident-assertions [db added-idents]
-  (go-pair
-    (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
-          exec     (partial s/execute! (:sqlite-connection db))]
-      ;; TODO: batch insert.
-      (doseq [[ident entid] added-idents]
-        (<? (exec
-              ["INSERT INTO idents VALUES (?, ?)" (->SQLite ident) entid]))))
-    db))
-
-(defn <apply-db-install-assertions [db fragment]
-  (go-pair
-    (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
-          exec     (partial s/execute! (:sqlite-connection db))]
-      ;; TODO: batch insert.
-      (doseq [[ident attr-map] fragment]
-        (doseq [[attr value] attr-map]
-          (<? (exec
-                ["INSERT INTO schema VALUES (?, ?, ?)" (->SQLite ident) (->SQLite attr) (->SQLite value)])))))
-    db))
 
 (defn- <with-internal [db tx-data merge-ident merge-attr]
   (go-pair
