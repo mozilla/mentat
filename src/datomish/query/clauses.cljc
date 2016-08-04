@@ -143,10 +143,13 @@
             Constant
             (constrain-column-to-constant cc col position (:value pattern-part))
 
-            (raise-str "Unknown pattern part " pattern-part))))
+            (raise "Unknown pattern part." {:part pattern-part :clause pattern}))))
 
       cc
       places)))
+
+(defn pattern->attribute [pattern]
+  (second (:pattern pattern)))
 
 ;; Accumulates a pattern into the CC. Returns a new CC.
 (defn apply-pattern-clause
@@ -162,7 +165,11 @@
   (when-not (instance? DefaultSrc (:source pattern))
     (raise-str "Non-default sources are not supported in patterns. Pattern: " pattern))
 
-  (let [[table alias] (source->from (:source cc))]   ; e.g., [:datoms :datoms123]
+  ;; TODO: look up the attribute in external bindings if it's a var. Perhaps we
+  ;; already know what it is…
+  (let [[table alias] (source->from
+                        (:source cc)     ; e.g., [:datoms :datoms123]
+                        (pattern->attribute pattern))]
     (apply-pattern-clause-for-alias
 
       ;; Record the new table mapping.
