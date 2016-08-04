@@ -504,7 +504,7 @@
   (let [[op e a v tx] entity]
     [op e a v (or tx current-tx)]))
 
-(defn ensure-entity-form [[op e a v tx :as entity]]
+(defn ensure-entity-form [[op e a v tx & rest :as entity]]
   (cond
     (not (sequential? entity))
     (raise "Bad entity " entity ", should be sequential at this point"
@@ -514,16 +514,20 @@
     (raise "Unrecognized operation " op " expected one of :db/add :db/retract at this point"
            {:error :transact/bad-operation :entity entity })
 
-    (not e)
+    (nil? e)
     (raise "Bad entity: nil e in " entity
            {:error :transact/bad-entity :entity entity })
 
-    (not a)
+    (nil? a)
     (raise "Bad entity: nil a in " entity
            {:error :transact/bad-entity :entity entity })
 
-    (not v)
+    (nil? v)
     (raise "Bad entity: nil v in " entity
+           {:error :transact/bad-entity :entity entity })
+
+    (some? rest)
+    (raise "Bad entity: too long " entity
            {:error :transact/bad-entity :entity entity })
 
     true
