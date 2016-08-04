@@ -35,6 +35,13 @@
        (uncaughtException [_ thread ex]
          (println ex "Uncaught exception on" (.getName thread))))))
 
+;; Setting this to something else will make your output more readable,
+;; but not automatically safe for use.
+(def sql-quoting-style :ansi)
+
+(defn- sql-format [args]
+  (sql/format args :quoting :ansi))
+
 (defprotocol IClock
   (now
     [clock]
@@ -126,7 +133,7 @@
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
            :from   [:all_datoms]
            :where  (cons :and (map #(vector := %1 %2) [:e :a :v] (take-while (comp not nil?) [e a v])))} ;; Must drop nils.
-          (sql/format)
+          (sql-format)
 
           (s/all-rows (:sqlite-connection db))
           (<?)
@@ -141,7 +148,7 @@
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
            :from   [:all_datoms]
            :where  [:and [:= :a a] [:= :v v] [:= :index_avet 1]]}
-          (sql/format)
+          (sql-format)
 
           (s/all-rows (:sqlite-connection db))
           (<?)
@@ -365,7 +372,7 @@
     (go-pair
       (let [rows (<? (->>
                        {:select [:ident :entid] :from [:idents]}
-                       (sql/format)
+                       (sql-format)
                        (s/all-rows sqlite-connection)))]
         (into {} (map (fn [row] [(<-SQLite (:ident row)) (:entid row)])) rows)))))
 
@@ -387,7 +394,7 @@
       (->>
         (->>
           {:select [:ident :attr :value] :from [:schema]}
-          (sql/format)
+          (sql-format)
           (s/all-rows sqlite-connection))
         (<?)
 
