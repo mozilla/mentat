@@ -644,8 +644,11 @@
       (->> (update-txInstant db*)))))
 
 (defn- lookup-ref? [x]
+  "Return true if `x` is like [:attr value]."
   (and (sequential? x)
-       (= (count x) 2)))
+       (= (count x) 2)
+       (or (keyword? (first x))
+           (integer? (first x)))))
 
 (defn <?run
   "Execute the provided query on the provided DB.
