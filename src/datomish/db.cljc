@@ -446,63 +446,60 @@
 (declare <with-internal)
 
 (defn <db-with-sqlite-connection
-  ([sqlite-connection]
-   (<db-with-sqlite-connection sqlite-connection {}))
+  [sqlite-connection]
+  (go-pair
+    (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
+      (raise "Could not ensure current SQLite schema version."))
 
-  ([sqlite-connection schema]
-   (go-pair
-     (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
-       (raise "Could not ensure current SQLite schema version."))
+    (let [current-tx   (<? (<current-tx sqlite-connection))
+          bootstrapped (>= current-tx 0)
+          current-tx   (max current-tx tx0)]
+      (when-not bootstrapped
+        ;; We need to bootstrap the DB.
+        (let [fail-alter-ident (fn [old new] (if-not (= old new)
+                                               (raise "Altering idents is not yet supported, got " new " altering existing ident " old
+                                                      {:error :schema/alter-idents :old old :new new})
+                                               new))
+              fail-alter-attr  (fn [old new] (if-not (= old new)
+                                               (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
+                                                      {:error :schema/alter-schema :old old :new new})
+                                               new))]
+          (-> (map->DB
+                {:sqlite-connection sqlite-connection
+                 :idents            bootstrap-idents
+                 :symbolic-schema   bootstrap-symbolic-schema
+                 :schema            (ds/schema (into {} (map (fn [[k v]] [(k bootstrap-idents) v]) bootstrap-symbolic-schema))) ;; TODO: fail if ident missing.
+                 :current-tx        current-tx})
+              ;; We use <with rather than <transact! to apply the bootstrap transaction data but to
+              ;; not follow the regular schema application process.  We can't apply the schema
+              ;; changes, since the applied datoms would conflict with the bootstrapping idents and
+              ;; schema.  (The bootstrapping idents and schema are required to be able to write to
+              ;; the database conveniently; without them, we'd have to manually write datoms to the
+              ;; store.  It's feasible but awkward.)  After bootstrapping, we read back the idents
+              ;; and schema, just like when we re-open.
+              (<with-internal (bootstrap-tx-data) fail-alter-ident fail-alter-attr)
+              (<?))))
 
-     (let [current-tx   (<? (<current-tx sqlite-connection))
-           bootstrapped (>= current-tx 0)
-           current-tx   (max current-tx tx0)]
-       (when-not bootstrapped
-         ;; We need to bootstrap the DB.
-         (let [fail-alter-ident (fn [old new] (if-not (= old new)
-                                                (raise "Altering idents is not yet supported, got " new " altering existing ident " old
-                                                       {:error :schema/alter-idents :old old :new new})
-                                                new))
-               fail-alter-attr  (fn [old new] (if-not (= old new)
-                                                (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
-                                                       {:error :schema/alter-schema :old old :new new})
-                                                new))]
-           (-> (map->DB
-                 {:sqlite-connection sqlite-connection
-                  :idents            bootstrap-idents
-                  :symbolic-schema   bootstrap-symbolic-schema
-                  :schema            (ds/schema (into {} (map (fn [[k v]] [(k bootstrap-idents) v]) bootstrap-symbolic-schema))) ;; TODO: fail if ident missing.
-                  :current-tx        current-tx})
-               ;; We use <with rather than <transact! to apply the bootstrap transaction data but to
-               ;; not follow the regular schema application process.  We can't apply the schema
-               ;; changes, since the applied datoms would conflict with the bootstrapping idents and
-               ;; schema.  (The bootstrapping idents and schema are required to be able to write to
-               ;; the database conveniently; without them, we'd have to manually write datoms to the
-               ;; store.  It's feasible but awkward.)  After bootstrapping, we read back the idents
-               ;; and schema, just like when we re-open.
-               (<with-internal (bootstrap-tx-data) fail-alter-ident fail-alter-attr)
-               (<?))))
-
-       ;; We just bootstrapped, or we are returning to an already bootstrapped DB.
-       (let [idents          (<? (<idents sqlite-connection))
-             symbolic-schema (<? (<symbolic-schema sqlite-connection))]
-         (when-not bootstrapped
-           (when (not (= idents bootstrap-idents))
-             (raise "After bootstrapping database, expected new materialized idents and old bootstrapped idents to be identical"
-                    {:error :bootstrap/bad-idents,
-                     :new idents :old bootstrap-idents
-                     }))
-           (when (not (= symbolic-schema bootstrap-symbolic-schema))
-             (raise "After bootstrapping database, expected new materialized symbolic schema and old bootstrapped symbolic schema to be identical"
-                    {:error :bootstrap/bad-symbolic-schema,
-                     :new symbolic-schema :old bootstrap-symbolic-schema
-                     })))
-         (map->DB
-           {:sqlite-connection sqlite-connection
-            :idents            idents
-            :symbolic-schema   symbolic-schema
-            :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema))) ;; TODO: fail if ident missing.
-            :current-tx        (inc current-tx)}))))))
+      ;; We just bootstrapped, or we are returning to an already bootstrapped DB.
+      (let [idents          (<? (<idents sqlite-connection))
+            symbolic-schema (<? (<symbolic-schema sqlite-connection))]
+        (when-not bootstrapped
+          (when (not (= idents bootstrap-idents))
+            (raise "After bootstrapping database, expected new materialized idents and old bootstrapped idents to be identical"
+                   {:error :bootstrap/bad-idents,
+                    :new idents :old bootstrap-idents
+                    }))
+          (when (not (= symbolic-schema bootstrap-symbolic-schema))
+            (raise "After bootstrapping database, expected new materialized symbolic schema and old bootstrapped symbolic schema to be identical"
+                   {:error :bootstrap/bad-symbolic-schema,
+                    :new symbolic-schema :old bootstrap-symbolic-schema
+                    })))
+        (map->DB
+          {:sqlite-connection sqlite-connection
+           :idents            idents
+           :symbolic-schema   symbolic-schema
+           :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema))) ;; TODO: fail if ident missing.
+           :current-tx        (inc current-tx)})))))
 
 (defn connection-with-db [db]
   (map->Connection {:current-db (atom db)}))

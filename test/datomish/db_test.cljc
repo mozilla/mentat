@@ -123,7 +123,7 @@
 (deftest-async test-add-one
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [{tx0 :tx} (<? (dm/<transact! conn test-schema))]
@@ -139,7 +139,7 @@
 (deftest-async test-add-two
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [{tx0 :tx} (<? (dm/<transact! conn test-schema))
@@ -169,7 +169,7 @@
 (deftest-async test-retract
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [{tx0 :tx} (<? (dm/<transact! conn test-schema))
@@ -188,7 +188,7 @@
 (deftest-async test-id-literal-1
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [tx0 (:tx (<? (dm/<transact! conn test-schema)))
@@ -214,7 +214,7 @@
 (deftest-async test-unique
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [tx0 (:tx (<? (dm/<transact! conn test-schema)))]
@@ -236,7 +236,7 @@
 (deftest-async test-valueType-keyword
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [tx0 (:tx (<? (dm/<transact! conn [{:db/id        (dm/id-literal :db.part/user -1)
@@ -271,7 +271,7 @@
 (deftest-async test-vector-upsert
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)
           tempids (fn [tx] (into {} (map (juxt (comp :idx first) second) (:tempids tx))))]
       (try
@@ -309,7 +309,7 @@
 (deftest-async test-map-upsert
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)
           tempids (fn [tx] (into {} (map (juxt (comp :idx first) second) (:tempids tx))))]
       (try
@@ -363,7 +363,7 @@
 (deftest-async test-map-upsert-conflicts
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)
           tempids (fn [tx] (into {} (map (juxt (comp :idx first) second) (:tempids tx))))]
       (try
@@ -401,7 +401,7 @@
 (deftest-async test-add-ident
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [report   (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/db -1) :db/ident :test/ident]]))
@@ -429,7 +429,7 @@
 (deftest-async test-add-schema
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)]
       (try
         (let [es       [[:db/add :db.part/db :db.install/attribute (dm/id-literal :db.part/db -1)]
@@ -461,7 +461,7 @@
 (deftest-async test-fulltext
   (with-tempfile [t (tempfile)]
     (let [c    (<? (s/<sqlite-connection t))
-          db   (<? (dm/<db-with-sqlite-connection c test-schema))
+          db   (<? (dm/<db-with-sqlite-connection c))
           conn (dm/connection-with-db db)
           schema [{:db/id (dm/id-literal :db.part/db -1)
                    :db/ident :test/fulltext
@@ -535,7 +535,7 @@
 (deftest-async test-txInstant
   (with-tempfile [t (tempfile)]
     (let [c         (<? (s/<sqlite-connection t))
-          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          db        (<? (dm/<db-with-sqlite-connection c))
           conn      (dm/connection-with-db db)
           {tx0 :tx} (<? (dm/<transact! conn test-schema))]
       (try
@@ -571,7 +571,7 @@
 (deftest-async test-no-tx
   (with-tempfile [t (tempfile)]
     (let [c         (<? (s/<sqlite-connection t))
-          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          db        (<? (dm/<db-with-sqlite-connection c))
           conn      (dm/connection-with-db db)
           {tx0 :tx} (<? (dm/<transact! conn test-schema))]
       (try
@@ -586,7 +586,7 @@
 (deftest-async test-explode-sequences
   (with-tempfile [t (tempfile)]
     (let [c         (<? (s/<sqlite-connection t))
-          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          db        (<? (dm/<db-with-sqlite-connection c))
           conn      (dm/connection-with-db db)
           {tx0 :tx} (<? (dm/<transact! conn test-schema))]
       (try
@@ -615,7 +615,7 @@
 (deftest-async test-explode-maps
   (with-tempfile [t (tempfile)]
     (let [c         (<? (s/<sqlite-connection t))
-          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          db        (<? (dm/<db-with-sqlite-connection c))
           conn      (dm/connection-with-db db)
           {tx0 :tx} (<? (dm/<transact! conn test-schema))]
       (try
@@ -650,7 +650,7 @@
 (deftest-async test-explode-reverse-refs
   (with-tempfile [t (tempfile)]
     (let [c         (<? (s/<sqlite-connection t))
-          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          db        (<? (dm/<db-with-sqlite-connection c))
           conn      (dm/connection-with-db db)
           {tx0 :tx} (<? (dm/<transact! conn test-schema))]
       (try
