@@ -50,6 +50,7 @@
   (<datoms-after db 0))
 
 (defn- <shallow-entity [db eid]
+  ;; TODO: make this actually be <entity.  Handle :db.cardinality/many and :db/isComponent.
   (let [entids (zipmap (vals (dm/idents db)) (keys (dm/idents db)))]
     (go-pair
       (->>
@@ -112,6 +113,11 @@
     :db/unique    :db.unique/value
     :db/valueType :db.type/string}
    {:db/id :db.part/db :db.install/attribute (dm/id-literal :test -8)}
+   {:db/id          (dm/id-literal :test -9)
+    :db/ident       :friends
+    :db/cardinality :db.cardinality/many
+    :db/valueType   :db.type/ref}
+   {:db/id :db.part/db :db.install/attribute (dm/id-literal :test -9)}
    ])
 
 (deftest-async test-add-one
@@ -573,6 +579,93 @@
           (is (thrown-with-msg?
                 ExceptionInfo #"Bad entity: too long"
                 (<? (dm/<transact! conn [[:db/add (dm/id-literal :db.part/user) :x 0 10101]])))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-explode-sequences
+  (with-tempfile [t (tempfile)]
+    (let [c         (<? (s/<sqlite-connection t))
+          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn      (dm/connection-with-db db)
+          {tx0 :tx} (<? (dm/<transact! conn test-schema))]
+      (try
+        (testing ":db.cardinality/many sequences are accepted"
+          (<? (dm/<transact! conn [{:db/id 101 :aka ["first" "second"]}]))
+          (is (= (<? (<datoms-after (dm/db conn) tx0))
+                 #{[101 :aka "first"]
+                   [101 :aka "second"]})))
+
+        (testing ":db.cardinality/many sequences are recursively applied, allowing unexpected sequence nesting"
+          (<? (dm/<transact! conn [{:db/id 102 :aka [[["first"]] ["second"]]}]))
+          (is (= (<? (<datoms-after (dm/db conn) tx0))
+                 #{[101 :aka "first"]
+                   [101 :aka "second"]
+                   [102 :aka "first"]
+                   [102 :aka "second"]})))
+
+        (testing ":db.cardinality/one sequences fail"
+          (is (thrown-with-msg?
+                ExceptionInfo #"Sequential values"
+                (<? (dm/<transact! conn [{:db/id 101 :email ["@1" "@2"]}])))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-explode-maps
+  (with-tempfile [t (tempfile)]
+    (let [c         (<? (s/<sqlite-connection t))
+          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn      (dm/connection-with-db db)
+          {tx0 :tx} (<? (dm/<transact! conn test-schema))]
+      (try
+        (testing "nested maps are accepted"
+          (<? (dm/<transact! conn [{:db/id 101 :friends {:name "Petr"}}]))
+          ;; TODO: this works only because we have a single friend.
+          (let [{petr :friends} (<? (<shallow-entity (dm/db conn) 101))]
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :friends petr]
+                     [petr :name "Petr"]}))))
+
+        (testing "recursively nested maps are accepted"
+          (<? (dm/<transact! conn [{:db/id 102 :friends {:name "Ivan" :friends {:name "Petr"}}}]))
+          ;; This would be much easier with `entity` and lookup refs.
+          (let [{ivan :friends} (<? (<shallow-entity (dm/db conn) 102))
+                {petr :friends} (<? (<shallow-entity (dm/db conn) ivan))]
+            (is (= (<? (<datoms-after (dm/db conn) tx0))
+                   #{[101 :friends petr]
+                     [petr :name "Petr"]
+                     [102 :friends ivan]
+                     [ivan :name "Ivan"]
+                     [ivan :friends petr]}))))
+
+        (testing "nested maps without :db.type/ref fail"
+          (is (thrown-with-msg?
+                ExceptionInfo #"\{:db/valueType :db.type/ref\}"
+                (<? (dm/<transact! conn [{:db/id 101 :aka {:name "Petr"}}])))))
+
+        (finally
+          (<? (dm/close-db db)))))))
+
+(deftest-async test-explode-reverse-refs
+  (with-tempfile [t (tempfile)]
+    (let [c         (<? (s/<sqlite-connection t))
+          db        (<? (dm/<db-with-sqlite-connection c test-schema))
+          conn      (dm/connection-with-db db)
+          {tx0 :tx} (<? (dm/<transact! conn test-schema))]
+      (try
+        (testing "reverse refs are accepted"
+          (<? (dm/<transact! conn [{:db/id 101 :name "Igor"}]))
+          (<? (dm/<transact! conn [{:db/id 102 :name "Oleg" :_friends 101}]))
+          (is (= (<? (<datoms-after (dm/db conn) tx0))
+                 #{[101 :name "Igor"]
+                   [102 :name "Oleg"]
+                   [101 :friends 102]})))
+
+        (testing "reverse refs without :db.type/ref fail"
+          (is (thrown-with-msg?
+                ExceptionInfo #"\{:db/valueType :db.type/ref\}"
+                (<? (dm/<transact! conn [{:db/id 101 :_aka 102}])))))
 
         (finally
           (<? (dm/close-db db)))))))
