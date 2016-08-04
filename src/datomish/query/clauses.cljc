@@ -13,14 +13,35 @@
      [datascript.parser :as dp
       #?@(:cljs
             [:refer
-             [PlainSymbol Predicate Not Or Pattern DefaultSrc Variable Constant Placeholder]])]
+             [
+              Constant
+              DefaultSrc
+              Function
+              Not
+              Or
+              Pattern
+              Placeholder
+              PlainSymbol
+              Predicate
+              Variable
+              ]])]
      [honeysql.core :as sql]
      [clojure.string :as str]
      )
   #?(:clj
        (:import
           [datascript.parser
-           PlainSymbol Predicate Not Or Pattern DefaultSrc Variable Constant Placeholder])))
+           Constant
+           DefaultSrc
+           Function
+           Not
+           Or
+           Pattern
+           Placeholder
+           PlainSymbol
+           Predicate
+           Variable
+           ])))
 
 ;; A ConjoiningClauses (CC) is a collection of clauses that are combined with JOIN.
 ;; The topmost form in a query is a ConjoiningClauses.
@@ -258,6 +279,9 @@
     ;; TODO: handle And within the Or patterns.
     (raise "Non-simple `or` clauses not yet supported." {:clause orc})))
 
+(apply-function-clause [cc function]
+  cc)
+
 ;; We're keeping this simple for now: a straightforward type switch.
 (defn apply-clause [cc it]
   (condp instance? it
@@ -272,6 +296,9 @@
 
     Pattern
     (apply-pattern-clause cc it)
+
+    Function
+    (apply-function-clause cc it)
 
     (raise "Unknown clause." {:clause it})))
 
