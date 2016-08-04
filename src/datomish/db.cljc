@@ -120,12 +120,12 @@
   ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
   (<eavt [db pattern]
     (let [[e a v] pattern
-          v (and v (ds/->SQLite schema a v))] ;; We assume e and a are always given.
+          v       (and v (ds/->SQLite schema a v))] ;; We assume e and a are always given.
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
-           :from [:all_datoms]
-           :where (cons :and (map #(vector := %1 %2) [:e :a :v] (take-while (comp not nil?) [e a v])))} ;; Must drop nils.
+           :from   [:all_datoms]
+           :where  (cons :and (map #(vector := %1 %2) [:e :a :v] (take-while (comp not nil?) [e a v])))} ;; Must drop nils.
           (sql/format)
 
           (s/all-rows (:sqlite-connection db))
@@ -135,12 +135,12 @@
 
   (<avet [db pattern]
     (let [[a v] pattern
-          v (ds/->SQLite schema a v)]
+          v     (ds/->SQLite schema a v)]
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
-           :from [:all_datoms]
-           :where [:and [:= :a a] [:= :v v] [:= :index_avet 1]]}
+           :from   [:all_datoms]
+           :where  [:and [:= :a a] [:= :v v] [:= :index_avet 1]]}
           (sql/format)
 
           (s/all-rows (:sqlite-connection db))
@@ -150,13 +150,13 @@
 
   (<apply-datoms [db datoms]
     (go-pair
-      (let [exec (partial s/execute! (:sqlite-connection db))]
+      (let [exec   (partial s/execute! (:sqlite-connection db))
+            schema (.-schema db)] ;; TODO: understand why (schema db) fails.
         ;; TODO: batch insert, batch delete.
         (doseq [datom datoms]
           (let [[e a v tx added] datom
-                schema (.-schema db) ;; TODO: understand why (schema db) fails.
-                v (ds/->SQLite schema a v)
-                fulltext? (ds/fulltext? schema a)]
+                v                (ds/->SQLite schema a v)
+                fulltext?        (ds/fulltext? schema a)]
             ;; Append to transaction log.
             (<? (exec
                   ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx (if added 1 0)]))
@@ -798,8 +798,9 @@
   ;; TODO: constrain entities; constrain attributes.
 
   (go-pair
-    (doseq [[op e a v] (:entities report)]
-      (ds/ensure-valid-value (schema db) a v))
+    (let [schema (schema db)]
+      (doseq [[op e a v] (:entities report)]
+        (ds/ensure-valid-value schema a v)))
     report))
 
 (defn- <ensure-unique-constraints
@@ -813,12 +814,13 @@
 
   (go-pair
     ;; TODO: comment on applying datoms that violate uniqueness.
-    (let [unique-datoms (transient {})] ;; map (nil, a, v)|(e, a, nil)|(e, a, v) -> datom.
+    (let [schema (schema db)
+          unique-datoms (transient {})] ;; map (nil, a, v)|(e, a, nil)|(e, a, v) -> datom.
       (doseq [[e a v tx added :as datom] (:tx-data report)]
 
         (when added
           ;; Check for violated :db/unique constraint between datom and existing store.
-          (when (ds/unique? (schema db) a)
+          (when (ds/unique? schema a)
             (when-let [found (first (<? (<avet db [a v])))]
               (raise "Cannot add " datom " because of unique constraint: " found
                      {:error :transact/unique
@@ -826,7 +828,7 @@
                       :entity datom})))
 
           ;; Check for violated :db/unique constraint between datoms.
-          (when (ds/unique? (schema db) a)
+          (when (ds/unique? schema a)
             (let [key [nil a v]]
               (when-let [other (get unique-datoms key)]
                 (raise "Cannot add " datom " and " other " because together they violate unique constraint"
@@ -836,7 +838,7 @@
               (assoc! unique-datoms key datom)))
 
           ;; Check for violated :db/cardinality :db.cardinality/one constraint between datoms.
-          (when-not (ds/multival? (schema db) a)
+          (when-not (ds/multival? schema a)
             (let [key [e a nil]]
               (when-let [other (get unique-datoms key)]
                 (raise "Cannot add " datom " and " other " because together they violate cardinality constraint"
@@ -858,7 +860,8 @@
   {:pre [(db? db) (report? report)]}
   (go-pair
     (let [initial-report report
-          {tx :tx}       report]
+          {tx :tx}       report
+          schema         (schema db)]
       (loop [report initial-report
              es (:entities initial-report)]
         (let [[[op e a v :as entity] & entities] es]
@@ -867,7 +870,7 @@
             report
 
             (= op :db/add)
-            (if (ds/multival? (schema db) a)
+            (if (ds/multival? schema a)
               (if (empty? (<? (<eavt db [e a v])))
                 (recur (transact-report report (datom e a v tx true)) entities)
                 (recur report entities))
