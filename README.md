@@ -63,6 +63,12 @@ contribute.
 
 At present this code is licensed under MPLv2.0. That license is subject to change prior to external contributions.
 
+## SQLite dependencies
+
+Datomish uses partial indices, which are available in SQLite 3.8.0 and higher.
+
+It also uses FTS4, which is [a compile time option](http://www.sqlite.org/fts3.html#section_2).
+
 ## Running a REPL
 
 ### Prep
