@@ -95,3 +95,9 @@
                      '[:find ?e ?v :in $ :where
                        [?e :x ?v]
                        #_[(> ?v 1000)]] {}))))))
+
+(dq/parse '[:find ?entity ?tx ?score
+ :in $ ?search
+ :where [(foobar $ :artist/name ?search) [[?entity _ ?tx ?score]]]])
+
+(honeysql.core/format {:select [:?foo] :from [:foo] :where [:match :foo.x "Bar"]})
