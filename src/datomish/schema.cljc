@@ -157,6 +157,13 @@
                         {:error     :schema/validation
                          :attribute a
                          :key       :db/isComponent}))))
+    (let [fulltext? (:db/fulltext kv false)]
+      (validate-schema-key a :db/fulltext (:db/fulltext kv) #{true false})
+      (when (and fulltext? (not= (:db/valueType kv) :db.type/string))
+        (throw (ex-info (str "Bad attribute specification for " a ": {:db/fulltext true} should also have {:db/valueType :db.type/string}")
+                        {:error     :schema/validation
+                         :attribute a
+                         :key       :db/fulltext}))))
     (validate-schema-key a :db/unique (:db/unique kv) #{:db.unique/value :db.unique/identity})
     (validate-schema-key a :db/valueType (:db/valueType kv) (set (keys value-type-map)))
     (validate-schema-key a :db/cardinality (:db/cardinality kv) #{:db.cardinality/one :db.cardinality/many}))

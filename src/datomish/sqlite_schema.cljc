@@ -22,24 +22,31 @@
                          index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
                          index_fulltext TINYINT NOT NULL DEFAULT 0,
                          unique_value TINYINT NOT NULL DEFAULT 0, unique_identity TINYINT NOT NULL DEFAULT 0)"
-   "CREATE INDEX eavt ON datoms (e, a)" ;; No v -- that's an opt-in index.
-   "CREATE INDEX aevt ON datoms (a, e)" ;; No v -- that's an opt-in index.
-   "CREATE UNIQUE INDEX avet ON datoms (a, v, e) WHERE index_avet = 1" ;; Opt-in index: only if a has :db/index true.
-   "CREATE UNIQUE INDEX vaet ON datoms (v, a, e) WHERE index_vaet = 1" ;; Opt-in index: only if a has :db/valueType :db.type/ref
+   "CREATE INDEX idx_datoms_eavt ON datoms (e, a, v)"
+   "CREATE INDEX idx_datoms_aevt ON datoms (a, e, v)"
+
+   ;; Opt-in index: only if a has :db/index true.
+   "CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, v, e) WHERE index_avet IS NOT 0"
+
+   ;; Opt-in index: only if a has :db/valueType :db.type/ref.
+   "CREATE UNIQUE INDEX idx_datoms_vaet ON datoms (v, a, e) WHERE index_vaet IS NOT 0"
+
+   ;; Opt-in index: only if a has :db/fulltext true; thus, it has :db/valueType :db.type/string,
+   ;; which is not :db/valueType :db.type/ref.  That is, index_vaet and index_fulltext are mutually
+   ;; exclusive.
+   "CREATE INDEX idx_datoms_fulltext ON datoms (v, a, e) WHERE index_fulltext IS NOT 0"
 
    ;; TODO: possibly remove this index.  :db.unique/value should be asserted by the transactor in
    ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it services
    ;; to validate the transactor implementation.
-   "CREATE UNIQUE INDEX unique_value ON datoms (v) WHERE unique_value = 1"
+   "CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (v) WHERE unique_value IS NOT 0"
    ;; TODO: possibly remove this index.  :db.unique/identity should be asserted by the transactor in
    ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it serves to
    ;; validate the transactor implementation.
-   "CREATE UNIQUE INDEX unique_identity ON datoms (a, v) WHERE unique_identity = 1"
-
-   "CREATE INDEX fulltext ON datoms (v) WHERE index_fulltext = 1"
+   "CREATE UNIQUE INDEX idx_datoms_unique_identity ON datoms (a, v) WHERE unique_identity IS NOT 0"
 
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1)"
-   "CREATE INDEX tx ON transactions (tx)"
+   "CREATE INDEX idx_transactions_tx ON transactions (tx)"
 
    ;; Fulltext indexing.
    ;; A fulltext indexed value v is an integer rowid referencing fulltext_values.
@@ -55,14 +62,14 @@
    ;; A view transparently interpolating fulltext indexed values into the datom structure.
    "CREATE VIEW fulltext_datoms AS
      SELECT e, a, fulltext_values.text AS v, tx, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
-       FROM datoms JOIN fulltext_values ON datoms.v = fulltext_values.rowid
-       WHERE datoms.index_fulltext = 1"
+       FROM datoms, fulltext_values
+       WHERE datoms.index_fulltext IS NOT 0 AND datoms.v = fulltext_values.rowid"
 
    ;; A view transparently interpolating all entities (fulltext and non-fulltext) into the datom structure.
    "CREATE VIEW all_datoms AS
      SELECT e, a, v, tx, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
        FROM datoms
-       WHERE index_fulltext != 1
+       WHERE index_fulltext IS 0
      UNION ALL
      SELECT e, a, v, tx, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
        FROM fulltext_datoms"
@@ -70,7 +77,7 @@
    ;; Materialized views of the schema.
    "CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"
    "CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value TEXT NOT NULL, FOREIGN KEY (ident) REFERENCES idents (ident))"
-   "CREATE INDEX unique_schema ON schema (ident, attr, value)"
+   "CREATE INDEX idx_schema_unique ON schema (ident, attr, value)"
    ])
 
 (defn <create-current-version
