@@ -3,18 +3,28 @@
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 (ns datomish.sqlite
+  (:refer-clojure :exclude [format])
   #?(:cljs
      (:require-macros
       [datomish.pair-chan :refer [go-pair go-safely <?]]
       [cljs.core.async.macros :refer [go]]))
   #?(:clj
      (:require
+      [honeysql.core]
       [datomish.pair-chan :refer [go-pair go-safely <?]]
       [clojure.core.async :refer [go <! >! chan put! take! close!]])
      :cljs
      (:require
+      [honeysql.core]
       [datomish.pair-chan]
       [cljs.core.async :as a :refer [<! >! chan put! take! close!]])))
+
+;; Setting this to something else will make your output more readable,
+;; but not automatically safe for use.
+(def sql-quoting-style :ansi)
+
+(defn format [args]
+  (honeysql.core/format args :quoting :ansi))
 
 (defprotocol ISQLiteConnection
   (-execute!
