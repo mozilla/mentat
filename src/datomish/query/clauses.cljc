@@ -4,6 +4,7 @@
 
 (ns datomish.query.clauses
   (:require
+     [datomish.query.cc :as cc]
      [datomish.query.source
       :refer [attribute-in-source
               constant-in-source
@@ -43,97 +44,6 @@
            Variable
            ])))
 
-;; A ConjoiningClauses (CC) is a collection of clauses that are combined with JOIN.
-;; The topmost form in a query is a ConjoiningClauses.
-;;
-;;---------------------------------------------------------------------------------------
-;; Done:
-;; - Ordinary pattern clauses turn into FROM parts and WHERE parts using :=.
-;; - Predicate clauses turn into the same, but with other functions.
-;; - `not` turns into NOT EXISTS with WHERE clauses inside the subquery to
-;;   bind it to the outer variables, or adds simple WHERE clauses to the outer
-;;   clause.
-;; - `not-join` is similar, but with explicit binding.
-;;
-;; Not yet done:
-;; - Function clauses with bindings turn into:
-;;   * Subqueries. Perhaps less efficient? Certainly clearer.
-;;   * Projection expressions, if only used for output.
-;;   * Inline expressions?
-;; - `or` turns into a collection of UNIONs inside a subquery.
-;;   `or`'s documentation states that all clauses must include the same vars,
-;;   but that's an over-simplification: all clauses must refer to the external
-;;   unification vars.
-;;   The entire UNION-set is JOINed to any surrounding expressions per the `rule-vars`
-;;   clause, or the intersection of the vars in the two sides of the JOIN.
-;;---------------------------------------------------------------------------------------
-;;
-;; `from` is a list of [source alias] pairs, suitable for passing to honeysql.
-;; `bindings` is a map from var to qualified columns.
-;; `wheres` is a list of fragments that can be joined by `:and`.
-(defrecord ConjoiningClauses [source from external-bindings bindings wheres])
-
-(defn bind-column-to-var [cc variable col]
-  (let [var (:symbol variable)]
-    (util/conj-in cc [:bindings var] col)))
-
-(defn constrain-column-to-constant [cc col position value]
-  (util/conj-in cc [:wheres]
-                [:= col (if (= :a position)
-                          (attribute-in-source (:source cc) value)
-                          (constant-in-source (:source cc) value))]))
-
-(defn merge-ccs [left right]
-  (assoc left
-         :from (concat (:from left) (:from right))
-         :bindings (merge-with concat (:bindings left) (:bindings right))
-         :wheres (concat (:wheres left) (:wheres right))))
-
-(defn- bindings->where
-  "Take a bindings map like
-    {?foo [:datoms12.e :datoms13.v :datoms14.e]}
-  and produce a list of constraints expression like
-    [[:= :datoms12.e :datoms13.v] [:= :datoms12.e :datoms14.e]]
-
-  TODO: experiment; it might be the case that producing more
-  pairwise equalities we get better or worse performance."
-  [bindings]
-  (mapcat (fn [[_ vs]]
-            (when (> (count vs) 1)
-              (let [root (first vs)]
-                (map (fn [v] [:= root v]) (rest vs)))))
-          bindings))
-
-;; This is so we can link clauses to the outside world.
-(defn impose-external-bindings [cc]
-  (if (empty? (:external-bindings cc))
-    cc
-    (let [ours (:bindings cc)
-          theirs (:external-bindings cc)
-          vars (clojure.set/intersection (set (keys theirs)) (set (keys ours)))]
-      (util/concat-in
-        cc [:wheres]
-        (map
-          (fn [v]
-            (let [external (first (v theirs))
-                  internal (first (v ours))]
-              (assert external)
-              (assert internal)
-              [:= external internal]))
-          vars)))))
-
-(defn expand-where-from-bindings
-  "Take the bindings in the CC and contribute
-   additional where clauses. Calling this more than
-   once will result in duplicate clauses."
-  [cc]
-  (impose-external-bindings
-    (assoc cc :wheres
-           ;; Note that the order of clauses here means that cross-pattern var bindings
-           ;; come first. That's OK: the SQL engine considers these altogether.
-           (concat (bindings->where (:bindings cc))
-                   (:wheres cc)))))
-
 ;; Pattern building is recursive, so we need forward declarations.
 (declare
   Not->NotJoinClause not-join->where-fragment
@@ -159,10 +69,10 @@
             cc
 
             Variable
-            (bind-column-to-var cc pattern-part col)
+            (cc/bind-column-to-var cc pattern-part col)
 
             Constant
-            (constrain-column-to-constant cc col position (:value pattern-part))
+            (cc/constrain-column-to-constant cc col position (:value pattern-part))
 
             (raise "Unknown pattern part." {:part pattern-part :clause pattern}))))
 
@@ -212,26 +122,7 @@
     (when-not f
       (raise-str "Unknown function " (:fn predicate)))
 
-    (let [args (map
-                 (fn [arg]
-                   (condp instance? arg
-                     Placeholder
-                     (raise-str "Can't use a placeholder in a predicate.")
-
-                     Variable
-                     (let [v (:symbol arg)
-                           internal-bindings (v (:bindings cc))
-                           external-bindings (v (:external-bindings cc))]
-                       (or (first internal-bindings)
-                           (first external-bindings)
-                           (raise-str "No bindings yet for " v)))
-
-                     Constant
-                     (constant-in-source (:source cc) (:value arg))
-
-                     (raise-str "Unknown predicate argument " arg)))
-
-                 (:args predicate))]
+    (let [args (map (partial cc/argument->value cc) (:args predicate))]
       (util/conj-in cc [:wheres] (cons f args)))))
 
 (defn apply-not-clause [cc not]
@@ -270,11 +161,11 @@
   ;; subquery.
 
   (if (simple-or? orc)
-    (merge-ccs cc (simple-or->cc (:source cc)
-                                 (merge-with concat
-                                             (:external-bindings cc)
-                                             (:bindings cc))
-                                 orc))
+    (cc/merge-ccs cc (simple-or->cc (:source cc)
+                                    (merge-with concat
+                                                (:external-bindings cc)
+                                                (:bindings cc))
+                                    orc))
 
     ;; TODO: handle And within the Or patterns.
     (raise "Non-simple `or` clauses not yet supported." {:clause orc})))
@@ -308,9 +199,9 @@
   (reduce apply-clause cc patterns))
 
 (defn patterns->cc [source patterns external-bindings]
-  (expand-where-from-bindings
+  (cc/expand-where-from-bindings
     (expand-pattern-clauses
-      (map->ConjoiningClauses
+      (cc/map->ConjoiningClauses
         {:source source
          :from []
          :external-bindings (or external-bindings {})
@@ -401,7 +292,7 @@
   ;; We 'fork' a CC for each pattern, then union them together.
   ;; We need to build the first in order that the others use the same
   ;; column names.
-  (let [cc (map->ConjoiningClauses
+  (let [cc (cc/map->ConjoiningClauses
              {:source source
               :from []
               :external-bindings (or external-bindings {})
