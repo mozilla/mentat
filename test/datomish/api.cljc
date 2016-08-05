@@ -35,6 +35,6 @@
 ;; https://github.com/ztellman/potemkin/issues/31) to improve this re-exporting process.
 (def <close transact/close)
 
-(def id-literal transact/id-literal)
+(def id-literal db/id-literal)
 
 (def db transact/db)

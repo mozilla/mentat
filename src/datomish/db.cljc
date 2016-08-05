@@ -34,6 +34,29 @@
        (uncaughtException [_ thread ex]
          (println ex "Uncaught exception on" (.getName thread))))))
 
+;; ----------------------------------------------------------------------------
+;; define data-readers to be made available to EDN readers. in CLJS
+;; they're magically available. in CLJ, data_readers.clj may or may
+;; not work, but you can always simply do
+;;
+;;  (clojure.edn/read-string {:readers datomish/data-readers} "...")
+;;
+
+(defonce -id-literal-idx (atom -1000000))
+
+(defrecord TempId [part idx])
+
+(defn id-literal
+  ([part]
+   (if (sequential? part)
+     (apply id-literal part)
+     (->TempId part (swap! -id-literal-idx dec))))
+  ([part idx]
+   (->TempId part idx)))
+
+(defn id-literal? [x]
+  (and (instance? TempId x)))
+
 (defprotocol IClock
   (now
     [clock]
