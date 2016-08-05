@@ -34,14 +34,14 @@
 (declare explode-entity)
 
 (defn- explode-entity-a-v [db entity eid a v]
-  ;; a should be symbolic at this point.  Map it.  TODO: use ident/entid to ensure we have a symbolic attr.
-  (let [reverse?    (reverse-ref? a)
+  (let [a           (db/ident db a) ;; We expect a to be an ident, but it's legal to provide an entid.
+        a*          (db/entid db a)
+        reverse?    (reverse-ref? a)
         straight-a  (if reverse? (reverse-ref a) a)
-        straight-a* (get-in db [:idents straight-a] straight-a)
+        straight-a* (db/entid db straight-a)
         _           (when (and reverse? (not (ds/ref? (db/schema db) straight-a*)))
                       (raise "Bad attribute " a ": reverse attribute name requires {:db/valueType :db.type/ref} in schema"
-                             {:error :transact/syntax, :attribute a, :op entity}))
-        a*          (get-in db [:idents a] a)]
+                             {:error :transact/syntax, :attribute a, :op entity}))]
     (cond
       reverse?
       (explode-entity-a-v db entity v straight-a eid)

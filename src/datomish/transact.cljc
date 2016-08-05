@@ -106,11 +106,11 @@
     entity))
 
 (defn maybe-ident->entid [db [op e a v tx :as orig]]
-  (let [e (get (db/idents db) e e) ;; TODO: use ident, entid here.
-        a (get (db/idents db) a a)
+  (let [e (db/entid db e)
+        a (db/entid db a)
         v (if (ds/kw? (db/schema db) a) ;; TODO: decide if this is best.  We could also check for ref and numeric types.
             v
-            (get (db/idents db) v v))]
+            (db/entid db v))]
     [op e a v tx]))
 
 (defrecord Transaction [db tempids entities])
@@ -120,7 +120,7 @@
   (let [tx        (:tx report)
         txInstant (:txInstant report)]
     ;; n.b., this must not be symbolic -- it's inserted after we map idents -> entids.
-    [:db/add tx (get-in db [:idents :db/txInstant]) txInstant]))
+    [:db/add tx (db/entid db :db/txInstant) txInstant]))
 
 (defn ensure-entity-form [[op e a v & rest :as entity]]
   (cond
@@ -153,8 +153,8 @@
 
 (defn- tx-instant? [db [op e a & _]]
   (and (= op :db/add)
-       (= e (get-in db [:idents :db/tx]))
-       (= a (get-in db [:idents :db/txInstant]))))
+       (= (db/entid db e) (db/entid db :db/tx))
+       (= (db/entid db a) (db/entid db :db/txInstant))))
 
 (defn- update-txInstant [db report]
   "Extract [:db/add :db/tx :db/txInstant ...], and update :txInstant with that value."
@@ -175,7 +175,7 @@
         ;; to unify all id-literals in :db.part/tx to the current transaction value, but also seems
         ;; inconsistent.
         tx         (:tx report)
-        db*        (assoc-in db [:idents :db/tx] tx)]
+        db*        (db/with-ident db :db/tx tx)]
     (when-not (sequential? initial-es)
       (raise "Bad transaction data " initial-es ", expected sequential collection"
              {:error :transact/syntax, :tx-data initial-es}))
@@ -453,7 +453,7 @@
 ;; Upsert or allocate id-literals.
 
 (defn- is-ident? [db [_ a & _]]
-  (= a (get-in db [:idents :db/ident])))
+  (= a (db/entid db :db/ident)))
 
 (defn collect-db-ident-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
@@ -486,15 +486,13 @@
                      {:error :schema/idents
                       :op    ia }))))))))
 
-(defn- symbolicate-datom [db [e a v added]]
-  (let [entids (zipmap (vals (db/idents db)) (keys (db/idents db)))
-        symbolicate (fn [x]
-                      (get entids x x))]
-    (datom
-      (symbolicate e)
-      (symbolicate a)
-      (symbolicate v)
-      added)))
+(defn- symbolicate-datom [db [e a v tx added]]
+  (datom
+    (db/ident db e)
+    (db/ident db a)
+    (db/ident db v)
+    tx
+    added))
 
 (defn collect-db-install-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
@@ -534,25 +532,17 @@
                    (collect-db-ident-assertions db)
 
                    (collect-db-install-assertions db))
-          idents          (merge-with merge-ident (:idents db) (:added-idents report))
-          symbolic-schema (merge-with merge-attr (:symbolic-schema db) (:added-attributes report))
-          schema          (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema)))
           db-after        (->
                             db
 
                             (db/<apply-datoms (:tx-data report))
                             (<?)
 
-                            (db/<apply-db-ident-assertions (:added-idents report))
+                            (db/<apply-db-ident-assertions (:added-idents report) merge-ident)
                             (<?)
 
-                            (db/<apply-db-install-assertions (:added-attributes report))
+                            (db/<apply-db-install-assertions (:added-attributes report) merge-attr)
                             (<?)
-
-                            ;; TODO: abstract this.
-                            (assoc :idents idents
-                                   :symbolic-schema symbolic-schema
-                                   :schema schema)
 
                             (db/<advance-tx)
                             (<?))]

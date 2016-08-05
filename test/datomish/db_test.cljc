@@ -14,7 +14,6 @@
    [datomish.sqlite :as s]
    [datomish.sqlite-schema]
    [datomish.datom]
-   [datomish.db :as db]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [tempfile.core :refer [tempfile with-tempfile]]
              [datomish.test-macros :refer [deftest-async]]
@@ -37,35 +36,32 @@
   (into {} (map (juxt (comp :idx first) second) (:tempids tx))))
 
 (defn- <datoms-after [db tx]
-  (let [entids (zipmap (vals (db/idents db)) (keys (db/idents db)))]
-    (go-pair
-      (->>
-        (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx FROM datoms WHERE tx > ?" tx])
-        (<?)
-        (mapv #(vector (:e %) (get entids (:a %) (str "fail" (:a %))) (:v %)))
-        (filter #(not (= :db/txInstant (second %))))
-        (set)))))
+  (go-pair
+    (->>
+      (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx FROM datoms WHERE tx > ?" tx])
+      (<?)
+      (mapv #(vector (:e %) (d/ident db (:a %)) (:v %)))
+      (filter #(not (= :db/txInstant (second %))))
+      (set))))
 
 (defn- <datoms [db]
   (<datoms-after db 0))
 
 (defn- <shallow-entity [db eid]
   ;; TODO: make this actually be <entity.  Handle :db.cardinality/many and :db/isComponent.
-  (let [entids (zipmap (vals (db/idents db)) (keys (db/idents db)))]
-    (go-pair
-      (->>
-        (s/all-rows (:sqlite-connection db) ["SELECT a, v FROM datoms WHERE e = ?" eid])
-        (<?)
-        (mapv #(vector (entids (:a %)) (:v %)))
-        (reduce conj {})))))
+  (go-pair
+    (->>
+      (s/all-rows (:sqlite-connection db) ["SELECT a, v FROM datoms WHERE e = ?" eid])
+      (<?)
+      (mapv #(vector (d/ident db (:a %)) (:v %)))
+      (reduce conj {}))))
 
 (defn- <transactions-after [db tx]
-  (let [entids (zipmap (vals (db/idents db)) (keys (db/idents db)))]
-    (go-pair
-      (->>
-        (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e, a, v, added" tx])
-        (<?)
-        (mapv #(vector (:e %) (entids (:a %)) (:v %) (:tx %) (:added %)))))))
+  (go-pair
+    (->>
+      (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e, a, v, added" tx])
+      (<?)
+      (mapv #(vector (:e %) (d/ident db (:a %)) (:v %) (:tx %) (:added %))))))
 
 (defn- <transactions [db]
   (<transactions-after db 0))
@@ -381,10 +377,12 @@
   (with-tempfile [t (tempfile)]
     (let [conn (<? (d/<connect t))]
       (try
+        (is (= :test/ident (d/entid (d/db conn) :test/ident)))
+
         (let [report   (<? (d/<transact! conn [[:db/add (d/id-literal :db.part/db -1) :db/ident :test/ident]]))
-              db-after (:db-after report)
-              tx       (:tx db-after)]
-          (is (= (:test/ident (db/idents db-after)) (get-in report [:tempids (d/id-literal :db.part/db -1)]))))
+              eid      (get-in report [:tempids (d/id-literal :db.part/db -1)])]
+          (is (= eid (d/entid (d/db conn) :test/ident)))
+          (is (= :test/ident (d/ident (d/db conn) eid))))
 
         ;; TODO: This should fail, but doesn't, due to stringification of :test/ident.
         ;; (is (thrown-with-msg?
@@ -417,7 +415,7 @@
               tx       (:tx db-after)]
 
           (testing "New ident is allocated"
-            (is (some? (get-in db-after [:idents :test/attr]))))
+            (is (some? (d/entid db-after :test/attr))))
 
           (testing "Schema is modified"
             (is (= (get-in db-after [:symbolic-schema :test/attr])
