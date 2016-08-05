@@ -134,7 +134,7 @@
   (datomish.query/parse
     '[:find ?page :in $ ?latest :where
       [?page :page/url "http://example.com/"]
-      [?page :page/title ?title]
+      [(fulltext $ :page/title "Some title") [[?page ?title _ _]]]
       (or
         [?entity :page/likes ?page]
         [?entity :page/loves ?page])
