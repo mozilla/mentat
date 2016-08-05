@@ -97,12 +97,7 @@
                                                (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
                                                       {:error :schema/alter-schema :old old :new new})
                                                new))]
-          (-> (db/map->DB
-                {:sqlite-connection sqlite-connection
-                 :idents            bootstrap/idents
-                 :symbolic-schema   bootstrap/symbolic-schema
-                 :schema            (ds/schema (into {} (map (fn [[k v]] [(k bootstrap/idents) v]) bootstrap/symbolic-schema))) ;; TODO: fail if ident missing.
-                 :current-tx        current-tx})
+          (-> (db/db sqlite-connection bootstrap/idents bootstrap/symbolic-schema current-tx)
               ;; We use <with-internal rather than <transact! to apply the bootstrap transaction
               ;; data but to not follow the regular schema application process.  We can't apply the
               ;; schema changes, since the applied datoms would conflict with the bootstrapping
@@ -127,9 +122,4 @@
                    {:error :bootstrap/bad-symbolic-schema,
                     :new symbolic-schema :old bootstrap/symbolic-schema
                     })))
-        (db/map->DB
-          {:sqlite-connection sqlite-connection
-           :idents            idents
-           :symbolic-schema   symbolic-schema
-           :schema            (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema))) ;; TODO: fail if ident missing.
-           :current-tx        (inc current-tx)})))))
+        (db/db sqlite-connection idents symbolic-schema (inc current-tx))))))

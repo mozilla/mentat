@@ -8,6 +8,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
+   [clojure.set]
    [datomish.query.context :as context]
    [datomish.query.projection :as projection]
    [datomish.query.source :as source]
@@ -15,7 +16,6 @@
    [datomish.datom :as dd :refer [datom datom? #?@(:cljs [Datom])]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datomish.schema :as ds]
-   [datomish.schema-changes]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema :as sqlite-schema]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
@@ -74,9 +74,13 @@
     [db]
     "Return the schema of this database.")
 
-  (idents
-    [db]
-    "Return the known idents of this database, as a map from keyword idents to entids.")
+  (entid
+    [db ident]
+    "Returns the entity id associated with a symbolic keyword, or the id itself if passed.")
+
+  (ident
+    [db eid]
+    "Returns the keyword associated with an id, or the key itself if passed.")
 
   (current-tx
     [db]
@@ -101,12 +105,12 @@
     "Apply datoms to the store.")
 
   (<apply-db-ident-assertions
-    [db added-idents]
-    "Apply added idents to the store.")
+    [db added-idents merge]
+    "Apply added idents to the store, using `merge` as a `merge-with` function.")
 
   (<apply-db-install-assertions
-    [db fragment]
-    "Apply added schema fragment to the store.")
+    [db fragment merge]
+    "Apply added schema fragment to the store, using `merge` as a `merge-with` function.")
 
   (<advance-tx
     [db]
@@ -140,14 +144,25 @@
           ]
       rowid)))
 
-(defrecord DB [sqlite-connection schema idents current-tx]
-  ;; idents is map {ident -> entid} of known idents.  See http://docs.datomic.com/identity.html#idents.
+(defrecord DB [sqlite-connection schema entids ident-map current-tx]
+  ;; ident-map maps between keyword idents and integer entids.  The set of idents and entids is
+  ;; disjoint, so we represent both directions of the mapping in the same map for simplicity.  Also
+  ;; for simplicity, we assume that an entid has at most one associated ident, and vice-versa.  See
+  ;; http://docs.datomic.com/identity.html#idents.
   IDB
   (query-context [db] (context/->Context (source/datoms-source db) nil nil))
 
   (schema [db] (.-schema db))
 
-  (idents [db] (.-idents db))
+  (entid [db ident]
+    (if (keyword? ident)
+      (get (.-ident-map db) ident ident)
+      ident))
+
+  (ident [db eid]
+    (if-not (keyword? eid)
+      (get (.-ident-map db) eid eid)
+      eid))
 
   (current-tx
     [db]
@@ -231,7 +246,7 @@
         ;; TODO: handle exclusion across transactions here.
         (update db :current-tx inc))))
 
-  (<apply-db-ident-assertions [db added-idents]
+  (<apply-db-ident-assertions [db added-idents merge]
     (go-pair
       (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
             exec     (partial s/execute! (:sqlite-connection db))]
@@ -239,9 +254,12 @@
         (doseq [[ident entid] added-idents]
           (<? (exec
                 ["INSERT INTO idents VALUES (?, ?)" (->SQLite ident) entid]))))
-      db))
 
-  (<apply-db-install-assertions [db fragment]
+      (let [db (update db :ident-map #(merge-with merge % added-idents))
+            db (update db :ident-map #(merge-with merge % (clojure.set/map-invert added-idents)))]
+        db)))
+
+  (<apply-db-install-assertions [db fragment merge]
     (go-pair
       (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
             exec     (partial s/execute! (:sqlite-connection db))]
@@ -250,7 +268,12 @@
           (doseq [[attr value] attr-map]
             (<? (exec
                   ["INSERT INTO schema VALUES (?, ?, ?)" (->SQLite ident) (->SQLite attr) (->SQLite value)])))))
-      db))
+
+      (let [symbolic-schema (merge-with merge (:symbolic-schema db) fragment)
+            schema          (ds/schema (into {} (map (fn [[k v]] [(entid db k) v]) symbolic-schema)))]
+        (assoc db
+               :symbolic-schema symbolic-schema
+               :schema schema))))
 
   (close-db [db] (s/close (.-sqlite-connection db)))
 
@@ -260,6 +283,23 @@
        (System/currentTimeMillis)
        :cljs
        (.getTime (js/Date.)))))
+
+(defn with-ident [db ident entid]
+  (update db :ident-map #(assoc % ident entid, entid ident)))
+
+(defn db [sqlite-connection idents schema current-tx]
+  {:pre [(map? idents)
+         (every? keyword? (keys idents))
+         (map? schema)
+         (every? keyword? (keys schema))]}
+  (let [entid-schema (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) schema))) ;; TODO: fail if ident missing.
+        ident-map    (into idents (clojure.set/map-invert idents))]
+    (map->DB
+      {:sqlite-connection sqlite-connection
+       :ident-map         ident-map
+       :symbolic-schema   schema
+       :schema            entid-schema
+       :current-tx        current-tx})))
 
 ;; TODO: factor this into the overall design.
 (defn <?run

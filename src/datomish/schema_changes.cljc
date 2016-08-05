@@ -6,9 +6,6 @@
   (:require
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]))
 
-(defn- is-install? [db [_ a & _]]
-  (= a (get-in db [:idents :db.install/attribute])))
-
 (defn datoms->schema-fragment
   "Turn [[:db.part/db :db.install/attribute e] [e :db/ident :attr]] into {:attr {:db/* v}}.
 

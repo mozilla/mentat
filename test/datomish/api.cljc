@@ -33,3 +33,7 @@
 (def id-literal db/id-literal)
 
 (def db transact/db)
+
+(def entid db/entid)
+
+(def ident db/ident)
