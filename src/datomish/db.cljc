@@ -12,32 +12,256 @@
    [datomish.query.projection :as projection]
    [datomish.query.source :as source]
    [datomish.query :as query]
+   [datomish.datom :as dd :refer [datom datom? #?@(:cljs [Datom])]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
+   [datomish.schema :as ds]
+   [datomish.schema-changes]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema :as sqlite-schema]
-   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str]]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :as a :refer [chan go <! >!]]])
    #?@(:cljs [[datomish.pair-chan]
-              [cljs.core.async :as a :refer [chan <! >!]]])))
+              [cljs.core.async :as a :refer [chan <! >!]]]))
+  #?(:clj
+     (:import
+      [datomish.datom Datom])))
+
+#?(:clj
+   ;; From https://stuartsierra.com/2015/05/27/clojure-uncaught-exceptions
+   ;; Assuming require [clojure.tools.logging :as log]
+   (Thread/setDefaultUncaughtExceptionHandler
+     (reify Thread$UncaughtExceptionHandler
+       (uncaughtException [_ thread ex]
+         (println ex "Uncaught exception on" (.getName thread))))))
+
+;; ----------------------------------------------------------------------------
+;; define data-readers to be made available to EDN readers. in CLJS
+;; they're magically available. in CLJ, data_readers.clj may or may
+;; not work, but you can always simply do
+;;
+;;  (clojure.edn/read-string {:readers datomish/data-readers} "...")
+;;
+
+(defonce -id-literal-idx (atom -1000000))
+
+(defrecord TempId [part idx])
+
+(defn id-literal
+  ([part]
+   (if (sequential? part)
+     (apply id-literal part)
+     (->TempId part (swap! -id-literal-idx dec))))
+  ([part idx]
+   (->TempId part idx)))
+
+(defn id-literal? [x]
+  (and (instance? TempId x)))
+
+(defprotocol IClock
+  (now
+    [clock]
+    "Return integer milliseconds since the Unix epoch."))
 
 (defprotocol IDB
   (query-context
     [db])
-  (close
-    [db]
-    "Close this database. Returns a pair channel of [nil error]."))
 
-(defrecord DB [sqlite-connection]
+  (close-db
+    [db]
+    "Close this database. Returns a pair channel of [nil error].")
+
+  (schema
+    [db]
+    "Return the schema of this database.")
+
+  (idents
+    [db]
+    "Return the known idents of this database, as a map from keyword idents to entids.")
+
+  (current-tx
+    [db]
+    "TODO: document this interface.")
+
+  (in-transaction!
+    [db chan-fn]
+    "Evaluate the given pair-chan `chan-fn` in an exclusive transaction. If it returns non-nil,
+    commit the transaction; otherwise, rollback the transaction.  Returns a pair-chan resolving to
+    the pair-chan returned by `chan-fn`.")
+
+  (<eavt
+    [db pattern]
+    "Search for datoms using the EAVT index.")
+
+  (<avet
+    [db pattern]
+    "Search for datoms using the AVET index.")
+
+  (<apply-datoms
+    [db datoms]
+    "Apply datoms to the store.")
+
+  (<apply-db-ident-assertions
+    [db added-idents]
+    "Apply added idents to the store.")
+
+  (<apply-db-install-assertions
+    [db fragment]
+    "Apply added schema fragment to the store.")
+
+  (<advance-tx
+    [db]
+    "TODO: document this interface."))
+
+(defn db? [x]
+  (and (satisfies? IDB x)
+       (satisfies? IClock x)))
+
+(defn- row->Datom [schema row]
+  (let [e (:e row)
+        a (:a row)
+        v (:v row)]
+    (Datom. e a (ds/<-SQLite schema a v) (:tx row) (and (some? (:added row)) (not= 0 (:added row))))))
+
+(defn- <insert-fulltext-value [db value]
+  (go-pair
+    ;; This dance is necessary to keep fulltext_values.text unique.  We want uniqueness so that we
+    ;; can work with string values, maintaining consistency throughout the transactor
+    ;; implementation.  (Without this, we'd need to handle a [rowid text] pair specially when
+    ;; comparing in the transactor.)  Unfortunately, it's not possible to declare a unique
+    ;; constraint on a virtual table, including an FTS table.  External content tables (see
+    ;; http://www.sqlite.org/fts3.html#section_6_2_2) don't appear to address our use case, so we
+    ;; maintain uniqueness ourselves.
+    (let [rowid
+          (if-let [row (first (<? (s/all-rows (:sqlite-connection db) ["SELECT rowid FROM fulltext_values WHERE text = ?" value])))]
+            (:rowid row)
+            (do
+              (<? (s/execute! (:sqlite-connection db) ["INSERT INTO fulltext_values VALUES (?)" value]))
+              (:rowid (first (<? (s/all-rows (:sqlite-connection db) ["SELECT last_insert_rowid() AS rowid"]))))))
+          ]
+      rowid)))
+
+(defrecord DB [sqlite-connection schema idents current-tx]
+  ;; idents is map {ident -> entid} of known idents.  See http://docs.datomic.com/identity.html#idents.
   IDB
   (query-context [db] (context/->Context (source/datoms-source db) nil nil))
-  (close [db] (s/close (.-sqlite-connection db))))
 
-(defn <with-sqlite-connection [sqlite-connection]
-  (go-pair
-    (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
-      (raise-str "Could not ensure current SQLite schema version."))
-    (->DB sqlite-connection)))
+  (schema [db] (.-schema db))
 
+  (idents [db] (.-idents db))
+
+  (current-tx
+    [db]
+    (inc (:current-tx db)))
+
+  (in-transaction! [db chan-fn]
+    (s/in-transaction!
+      (:sqlite-connection db) chan-fn))
+
+  ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
+  (<eavt [db pattern]
+    (let [[e a v] pattern
+          v       (and v (ds/->SQLite schema a v))] ;; We assume e and a are always given.
+      (go-pair
+        (->>
+          {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
+           :from   [:all_datoms]
+           :where  (cons :and (map #(vector := %1 %2) [:e :a :v] (take-while (comp not nil?) [e a v])))} ;; Must drop nils.
+          (s/format)
+
+          (s/all-rows (:sqlite-connection db))
+          (<?)
+
+          (mapv (partial row->Datom (.-schema db))))))) ;; TODO: understand why (schema db) fails.
+
+  (<avet [db pattern]
+    (let [[a v] pattern
+          v     (ds/->SQLite schema a v)]
+      (go-pair
+        (->>
+          {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
+           :from   [:all_datoms]
+           :where  [:and [:= :a a] [:= :v v] [:= :index_avet 1]]}
+          (s/format)
+
+          (s/all-rows (:sqlite-connection db))
+          (<?)
+
+          (mapv (partial row->Datom (.-schema db))))))) ;; TODO: understand why (schema db) fails.
+
+  (<apply-datoms [db datoms]
+    (go-pair
+      (let [exec   (partial s/execute! (:sqlite-connection db))
+            schema (.-schema db)] ;; TODO: understand why (schema db) fails.
+        ;; TODO: batch insert, batch delete.
+        (doseq [datom datoms]
+          (let [[e a v tx added] datom
+                v                (ds/->SQLite schema a v)
+                fulltext?        (ds/fulltext? schema a)]
+            ;; Append to transaction log.
+            (<? (exec
+                  ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx (if added 1 0)]))
+            ;; Update materialized datom view.
+            (if (.-added datom)
+              (let [v (if fulltext?
+                        (<? (<insert-fulltext-value db v))
+                        v)]
+                (<? (exec
+                      ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
+                       (ds/indexing? schema a) ;; index_avet
+                       (ds/ref? schema a) ;; index_vaet
+                       fulltext? ;; index_fulltext
+                       (ds/unique-value? schema a) ;; unique_value
+                       (ds/unique-identity? schema a) ;; unique_identity
+                       ])))
+              (if fulltext?
+                (<? (exec
+                      ;; TODO: in the future, purge fulltext values from the fulltext_datoms table.
+                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v IN (SELECT rowid FROM fulltext_values WHERE text = ?))" e a v]))
+                (<? (exec
+                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v = ?)" e a v])))))))
+      db))
+
+  (<advance-tx [db]
+    (go-pair
+      (let [exec (partial s/execute! (:sqlite-connection db))]
+        ;; (let [ret (<? (exec
+        ;;                 ;; TODO: be more clever about UPDATE OR ...?
+        ;;                 ["UPDATE metadata SET current_tx = ? WHERE current_tx = ?" (inc (:current-tx db)) (:current-tx db)]))]
+
+        ;; TODO: handle exclusion across transactions here.
+        (update db :current-tx inc))))
+
+  (<apply-db-ident-assertions [db added-idents]
+    (go-pair
+      (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
+            exec     (partial s/execute! (:sqlite-connection db))]
+        ;; TODO: batch insert.
+        (doseq [[ident entid] added-idents]
+          (<? (exec
+                ["INSERT INTO idents VALUES (?, ?)" (->SQLite ident) entid]))))
+      db))
+
+  (<apply-db-install-assertions [db fragment]
+    (go-pair
+      (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
+            exec     (partial s/execute! (:sqlite-connection db))]
+        ;; TODO: batch insert.
+        (doseq [[ident attr-map] fragment]
+          (doseq [[attr value] attr-map]
+            (<? (exec
+                  ["INSERT INTO schema VALUES (?, ?, ?)" (->SQLite ident) (->SQLite attr) (->SQLite value)])))))
+      db))
+
+  (close-db [db] (s/close (.-sqlite-connection db)))
+
+  IClock
+  (now [db]
+    #?(:clj
+       (System/currentTimeMillis)
+       :cljs
+       (.getTime (js/Date.)))))
+
+;; TODO: factor this into the overall design.
 (defn <?run
   "Execute the provided query on the provided DB.
    Returns a transduced channel of [result err] pairs.
@@ -45,8 +269,8 @@
   [db find args]
   (let [parsed (query/parse find)
         context (-> db
-                  query-context
-                  (query/find-into-context parsed))
+                    query-context
+                    (query/find-into-context parsed))
         row-pair-transducer (projection/row-pair-transducer context)
         sql (query/context->sql-string context args)
         chan (chan 50 row-pair-transducer)]
@@ -67,4 +291,3 @@
   [db find args]
   (a/reduce (partial reduce-error-pair conj) [[] nil]
             (<?run db find args)))
-    

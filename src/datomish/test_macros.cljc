@@ -31,9 +31,10 @@
                         (->
                           (datomish.pair-chan/go-pair ~@body)
                           (cljs.core.async/take! (fn [[v# e#]]
-                                                   (cljs.test/is (= e# nil))
+                                                   (cljs.test/is (= e# nil)) ;; Can't synchronously fail.
                                                    (done#))))))
      (clojure.test/deftest
        ~(with-meta name {:async true})
        (let [[v# e#] (clojure.core.async/<!! (datomish.pair-chan/go-pair ~@body))]
+         (when e# (throw e#)) ;; Assert nil just to be safe, even though we should always throw first.
          (clojure.test/is (= e# nil))))))

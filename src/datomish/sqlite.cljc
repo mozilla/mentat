@@ -3,18 +3,28 @@
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 (ns datomish.sqlite
+  (:refer-clojure :exclude [format])
   #?(:cljs
      (:require-macros
       [datomish.pair-chan :refer [go-pair go-safely <?]]
       [cljs.core.async.macros :refer [go]]))
   #?(:clj
      (:require
+      [honeysql.core]
       [datomish.pair-chan :refer [go-pair go-safely <?]]
       [clojure.core.async :refer [go <! >! chan put! take! close!]])
      :cljs
      (:require
+      [honeysql.core]
       [datomish.pair-chan]
       [cljs.core.async :as a :refer [<! >! chan put! take! close!]])))
+
+;; Setting this to something else will make your output more readable,
+;; but not automatically safe for use.
+(def sql-quoting-style :ansi)
+
+(defn format [args]
+  (honeysql.core/format args :quoting :ansi))
 
 (defprotocol ISQLiteConnection
   (-execute!
@@ -59,15 +69,15 @@
    when no more results exist. Consume with <?."
   [db [sql & bindings :as rest] chan]
   (go-safely [c chan]
-    (let [result (<! (-each db sql bindings
-                            (fn [row]
-                              (put! c [row nil]))))]
-      ;; We assume that a failure will result in the promise
-      ;; channel being rejected and no further row callbacks
-      ;; being called.
-      (when (second result)
-        (put! result c))
-      (close! c))))
+             (let [result (<! (-each db sql bindings
+                                     (fn [row]
+                                       (put! c [row nil]))))]
+               ;; We assume that a failure will result in the promise
+               ;; channel being rejected and no further row callbacks
+               ;; being called.
+               (when (second result)
+                 (put! result c))
+               (close! c))))
 
 (defn all-rows
   [db [sql & bindings :as rest]]
@@ -76,7 +86,7 @@
 (defn in-transaction! [db chan-fn]
   (go
     (try
-      (<? (execute! db ["BEGIN TRANSACTION"]))
+      (<? (execute! db ["BEGIN EXCLUSIVE TRANSACTION"]))
       (let [[v e] (<! (chan-fn))]
         (if v
           (do
@@ -85,7 +95,7 @@
           (do
             (<? (execute! db ["ROLLBACK TRANSACTION"]))
             [nil e])))
-      (catch #?(:clj Exception :cljs js/Error) e
+      (catch #?(:clj Throwable :cljs js/Error) e
         [nil e]))))
 
 (defn get-user-version [db]

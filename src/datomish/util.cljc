@@ -36,7 +36,7 @@
   (if (and (symbol? x)
            (str/starts-with? (name x) "?"))
     (keyword (subs (name x) 1))
-    (raise-str x " is not a Datalog var.")))
+    (throw (ex-info (str x " is not a Datalog var.") {}))))
 
 (defn conj-in
   "Associates a value into a sequence in a nested associative structure, where
