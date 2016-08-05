@@ -28,7 +28,8 @@
 (defn mock-source [db]
   (source/map->DatomsSource
     {:table :datoms
-     :fts-view :fulltext_datoms
+     :fulltext-table :fulltext_values
+     :fulltext-view :fulltext_datoms
      :columns [:e :a :v :tx :added]
      :attribute-transform transforms/attribute-transform-string
      :constant-transform transforms/constant-transform-default

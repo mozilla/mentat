@@ -5,6 +5,7 @@
 (ns datomish.query.clauses
   (:require
      [datomish.query.cc :as cc]
+     [datomish.query.functions :as functions]
      [datomish.query.source
       :refer [attribute-in-source
               constant-in-source
@@ -170,8 +171,9 @@
     ;; TODO: handle And within the Or patterns.
     (raise "Non-simple `or` clauses not yet supported." {:clause orc})))
 
-(apply-function-clause [cc function]
-  cc)
+(defn apply-function-clause [cc function]
+  (or (functions/apply-sql-function cc function)
+      (raise "Unknown function expression." {:clause function})))
 
 ;; We're keeping this simple for now: a straightforward type switch.
 (defn apply-clause [cc it]
