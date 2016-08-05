@@ -26,8 +26,10 @@
        (fgensym s (dec (swap! counter inc)))))))
 
 (defn mock-source [db]
-  (source/map->Source
+  (source/map->DatomsSource
     {:table :datoms
+     :fts-table :fulltext_values
+     :fts-view :fulltext_datoms
      :columns [:e :a :v :tx :added]
      :attribute-transform transforms/attribute-transform-string
      :constant-transform transforms/constant-transform-default

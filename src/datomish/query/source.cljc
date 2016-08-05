@@ -4,7 +4,15 @@
 
 (ns datomish.query.source
   (:require
-   [datomish.query.transforms :as transforms]))
+     [datomish.query.transforms :as transforms]
+     [datascript.parser
+      #?@(:cljs
+            [:refer [Variable Constant Placeholder]])])
+  #?(:clj
+       (:import [datascript.parser Variable Constant Placeholder])))
+
+(defn- gensym-table-alias [table]
+  (gensym (name table)))
 
 ;;;
 ;;; A source is something that can match patterns. For example:
@@ -24,9 +32,21 @@
 ;;; * Transform constants and attributes into something usable
 ;;;   by the source.
 
+(defprotocol Source
+  (source->from [source attribute]
+    "Returns a pair, `[table alias]` for a pattern with the provided attribute.")
+  (source->non-fts-from [source])
+  (source->fts-from [source]
+    "Returns a pair, `[table alias]` for querying the source's fulltext index.")
+  (source->constraints [source alias])
+  (attribute-in-source [source attribute])
+  (constant-in-source [source constant]))
+
 (defrecord
-  Source
-  [table               ; e.g., :datoms
+  DatomsSource
+  [table               ; Typically :datoms.
+   fts-table           ; Typically :fulltext_values
+   fts-view            ; Typically :fulltext_datoms.
    columns             ; e.g., [:e :a :v :tx]
 
    ;; `attribute-transform` is a function from attribute to constant value. Used to
@@ -35,35 +55,53 @@
    ;; turn, e.g., the literal 'true' into 1.
    attribute-transform
    constant-transform
-   
+
    ;; `table-alias` is a function from table to alias, e.g., :datoms => :datoms1234.
    table-alias
 
    ;; Not currently used.
    make-constraints    ; ?fn [source alias] => [where-clauses]
-   ])
+   ]
+  Source
 
-(defn gensym-table-alias [table]
-  (gensym (name table)))
+  (source->from [source attribute]
+    (let [table
+          (if (and (instance? Constant attribute)
+                   ;; TODO: look in the DB schema to see if `attribute` is known to not be
+                   ;; a fulltext attribute.
+                   true)
+            (:table source)
+
+            ;; It's variable. We must act as if it could be a fulltext datom.
+            (:fts-view source))]
+      [table ((:table-alias source) table)]))
+
+  (source->non-fts-from [source]
+    (let [table (:table source)]
+      [table ((:table-alias source) table)]))
+
+  (source->fts-from [source]
+    (let [table (:fts-table source)]
+      [table ((:table-alias source) table)]))
+
+  (source->constraints [source alias]
+    (when-let [f (:make-constraints source)]
+      (f alias)))
+
+  (attribute-in-source [source attribute]
+    ((:attribute-transform source) attribute))
+
+  (constant-in-source [source constant]
+    ((:constant-transform source) constant)))
 
 (defn datoms-source [db]
-  (->Source :datoms
-            [:e :a :v :tx :added]
-            transforms/attribute-transform-string
-            transforms/constant-transform-default
-            gensym-table-alias
-            nil))
+  (map->DatomsSource
+    {:table :datoms
+     :fts-table :fulltext_values
+     :fts-view :fulltext_datoms
+     :columns [:e :a :v :tx :added]
+     :attribute-transform transforms/attribute-transform-string
+     :constant-transform transforms/constant-transform-default
+     :table-alias gensym-table-alias
+     :make-constraints nil}))
 
-(defn source->from [source]
-  (let [table (:table source)]
-    [table ((:table-alias source) table)]))
-
-(defn source->constraints [source alias]
-  (when-let [f (:make-constraints source)]
-    (f alias)))
-
-(defn attribute-in-source [source attribute]
-  ((:attribute-transform source) attribute))
-
-(defn constant-in-source [source constant]
-  ((:constant-transform source) constant))
