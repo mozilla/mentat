@@ -45,8 +45,8 @@
 (defrecord
   DatomsSource
   [table               ; Typically :datoms.
-   fulltext-table           ; Typically :fulltext_values
-   fulltext-view            ; Typically :fulltext_datoms.
+   fulltext-table      ; Typically :fulltext_values
+   fulltext-view       ; Typically :all_datoms
    columns             ; e.g., [:e :a :v :tx]
 
    ;; `attribute-transform` is a function from attribute to constant value. Used to
@@ -98,7 +98,7 @@
   (map->DatomsSource
     {:table :datoms
      :fulltext-table :fulltext_values
-     :fulltext-view :fulltext_datoms
+     :fulltext-view :all_datoms
      :columns [:e :a :v :tx :added]
      :attribute-transform transforms/attribute-transform-string
      :constant-transform transforms/constant-transform-default
