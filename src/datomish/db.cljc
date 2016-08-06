@@ -248,12 +248,11 @@
 
   (<apply-db-ident-assertions [db added-idents merge]
     (go-pair
-      (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
-            exec     (partial s/execute! (:sqlite-connection db))]
+      (let [exec     (partial s/execute! (:sqlite-connection db))]
         ;; TODO: batch insert.
         (doseq [[ident entid] added-idents]
           (<? (exec
-                ["INSERT INTO idents VALUES (?, ?)" (->SQLite ident) entid]))))
+                ["INSERT INTO idents VALUES (?, ?)" (sqlite-schema/->SQLite ident) entid]))))
 
       (let [db (update db :ident-map #(merge-with merge % added-idents))
             db (update db :ident-map #(merge-with merge % (clojure.set/map-invert added-idents)))]
@@ -261,13 +260,12 @@
 
   (<apply-db-install-assertions [db fragment merge]
     (go-pair
-      (let [->SQLite (get-in ds/value-type-map [:db.type/keyword :->SQLite]) ;; TODO: make this a protocol.
-            exec     (partial s/execute! (:sqlite-connection db))]
+      (let [exec     (partial s/execute! (:sqlite-connection db))]
         ;; TODO: batch insert.
         (doseq [[ident attr-map] fragment]
           (doseq [[attr value] attr-map]
             (<? (exec
-                  ["INSERT INTO schema VALUES (?, ?, ?)" (->SQLite ident) (->SQLite attr) (->SQLite value)])))))
+                  ["INSERT INTO schema VALUES (?, ?, ?)" (sqlite-schema/->SQLite ident) (sqlite-schema/->SQLite attr) (sqlite-schema/->SQLite value)])))))
 
       (let [symbolic-schema (merge-with merge (:symbolic-schema db) fragment)
             schema          (ds/schema (into {} (map (fn [[k v]] [(entid db k) v]) symbolic-schema)))]

@@ -115,3 +115,52 @@
 
         (< v current-version)
         (<? (<update-from-version db v))))))
+
+;; This is close to the SQLite schema since it may impact the value tag bit.
+(defprotocol IEncodeSQLite
+  (->SQLite [x] "Transforms Clojure{Script} values to SQLite."))
+
+(extend-protocol IEncodeSQLite
+  #?@(:clj
+      [String
+       (->SQLite [x] x)
+
+       clojure.lang.Keyword
+       (->SQLite [x] (str x))
+
+       Boolean
+       (->SQLite [x] (if x 1 0))
+
+       Integer
+       (->SQLite [x] x)
+
+       Long
+       (->SQLite [x] x)
+
+       Float
+       (->SQLite [x] x)
+
+       Double
+       (->SQLite [x] x)]
+      :cljs
+      [string
+       (->SQLite [x] x)
+
+       Keyword
+       (->SQLite [x] (str x))
+
+       boolean
+       (->SQLite [x] (if x 1 0))
+
+       number
+       (->SQLite [x] x)]))
+
+(defn <-SQLite "Transforms SQLite values to Clojure{Script}."
+  [valueType value]
+  (case valueType
+    :db.type/ref     value
+    :db.type/keyword (keyword (subs value 1))
+    :db.type/string  value
+    :db.type/boolean (not= value 0)
+    :db.type/integer value
+    :db.type/real    value))

@@ -30,13 +30,12 @@
   "Read the ident map materialized view from the given SQLite store.
   Returns a map (keyword ident) -> (integer entid), like {:db/ident 0}."
 
-  (let [<-SQLite (get-in ds/value-type-map [:db.type/keyword :<-SQLite])] ;; TODO: make this a protocol.
-    (go-pair
-      (let [rows (<? (->>
-                       {:select [:ident :entid] :from [:idents]}
-                       (s/format)
-                       (s/all-rows sqlite-connection)))]
-        (into {} (map (fn [row] [(<-SQLite (:ident row)) (:entid row)])) rows)))))
+  (go-pair
+    (let [rows (<? (->>
+                     {:select [:ident :entid] :from [:idents]}
+                     (s/format)
+                     (s/all-rows sqlite-connection)))]
+      (into {} (map (fn [row] [(sqlite-schema/<-SQLite :db.type/keyword (:ident row)) (:entid row)])) rows))))
 
 (defn <current-tx [sqlite-connection]
   "Find the largest tx written to the SQLite store.
@@ -51,21 +50,21 @@
   Returns a map (keyword ident) -> (map (keyword attribute -> keyword value)), like
   {:db/ident {:db/cardinality :db.cardinality/one}}."
 
-  (let [<-SQLite (get-in ds/value-type-map [:db.type/keyword :<-SQLite])] ;; TODO: make this a protocol.
-    (go-pair
+  (go-pair
+    (->>
       (->>
-        (->>
-          {:select [:ident :attr :value] :from [:schema]}
-          (s/format)
-          (s/all-rows sqlite-connection))
-        (<?)
+        {:select [:ident :attr :value] :from [:schema]}
+        (s/format)
+        (s/all-rows sqlite-connection))
+      (<?)
 
-        (group-by (comp <-SQLite :ident))
-        (map (fn [[ident rows]]
-               [ident
-                (into {} (map (fn [row]
-                                [(<-SQLite (:attr row)) (<-SQLite (:value row))]) rows))]))
-        (into {})))))
+      (group-by (comp (partial sqlite-schema/<-SQLite :db.type/keyword) :ident))
+      (map (fn [[ident rows]]
+             [ident
+              (into {} (map (fn [row]
+                              [(sqlite-schema/<-SQLite :db.type/keyword (:attr row))
+                               (sqlite-schema/<-SQLite :db.type/keyword (:value row))]) rows))])) ;; TODO: this is wrong, it doesn't handle true.
+      (into {}))))
 
 (defn <initialize-connection [sqlite-connection]
   (go-pair
