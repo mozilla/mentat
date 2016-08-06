@@ -144,13 +144,35 @@
           ]
       rowid)))
 
+
+(defn datoms-attribute-transform
+  [db x]
+  {:pre [(db? db)]}
+  (entid db x))
+
+(defn datoms-constant-transform
+  [db x]
+  {:pre [(db? db)]}
+  (sqlite-schema/->SQLite x))
+
+(defn datoms-source [db]
+  (source/map->DatomsSource
+    {:table :datoms
+     :fulltext-table :fulltext_values
+     :fulltext-view :all_datoms
+     :columns [:e :a :v :tx :added]
+     :attribute-transform (partial datoms-attribute-transform db)
+     :constant-transform (partial datoms-constant-transform db)
+     :table-alias source/gensym-table-alias
+     :make-constraints nil}))
+
 (defrecord DB [sqlite-connection schema entids ident-map current-tx]
   ;; ident-map maps between keyword idents and integer entids.  The set of idents and entids is
   ;; disjoint, so we represent both directions of the mapping in the same map for simplicity.  Also
   ;; for simplicity, we assume that an entid has at most one associated ident, and vice-versa.  See
   ;; http://docs.datomic.com/identity.html#idents.
   IDB
-  (query-context [db] (context/->Context (source/datoms-source db) nil nil))
+  (query-context [db] (context/->Context (datoms-source db) nil nil))
 
   (schema [db] (.-schema db))
 

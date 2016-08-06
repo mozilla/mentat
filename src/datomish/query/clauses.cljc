@@ -4,46 +4,46 @@
 
 (ns datomish.query.clauses
   (:require
-     [datomish.query.cc :as cc]
-     [datomish.query.functions :as functions]
-     [datomish.query.source
-      :refer [attribute-in-source
-              constant-in-source
-              source->from
-              source->constraints]]
-     [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
-     [datascript.parser :as dp
-      #?@(:cljs
-            [:refer
-             [
-              Constant
-              DefaultSrc
-              Function
-              Not
-              Or
-              Pattern
-              Placeholder
-              PlainSymbol
-              Predicate
-              Variable
-              ]])]
-     [honeysql.core :as sql]
-     [clojure.string :as str]
-     )
+   [datomish.query.cc :as cc]
+   [datomish.query.functions :as functions]
+   [datomish.query.source
+    :refer [attribute-in-source
+            constant-in-source
+            source->from
+            source->constraints]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
+   [datascript.parser :as dp
+    #?@(:cljs
+        [:refer
+         [
+          Constant
+          DefaultSrc
+          Function
+          Not
+          Or
+          Pattern
+          Placeholder
+          PlainSymbol
+          Predicate
+          Variable
+          ]])]
+   [honeysql.core :as sql]
+   [clojure.string :as str]
+   )
   #?(:clj
-       (:import
-          [datascript.parser
-           Constant
-           DefaultSrc
-           Function
-           Not
-           Or
-           Pattern
-           Placeholder
-           PlainSymbol
-           Predicate
-           Variable
-           ])))
+     (:import
+      [datascript.parser
+       Constant
+       DefaultSrc
+       Function
+       Not
+       Or
+       Pattern
+       Placeholder
+       PlainSymbol
+       Predicate
+       Variable
+       ])))
 
 ;; Pattern building is recursive, so we need forward declarations.
 (declare
@@ -114,7 +114,7 @@
 (defn- plain-symbol->sql-predicate-symbol [fn]
   (when-not (instance? PlainSymbol fn)
     (raise-str "Predicate functions must be named by plain symbols." fn))
-  (#{:> :< :=} (keyword (name (:symbol fn)))))
+  (#{:> :>= :< :<= := :!=} (keyword (name (:symbol fn)))))
 
 (defn apply-predicate-clause [cc predicate]
   (when-not (instance? Predicate predicate)
@@ -240,14 +240,14 @@
 
 (defn not-join->where-fragment [not-join]
   [:not
-    (if (empty? (:bindings (:cc not-join)))
-      ;; If the `not` doesn't establish any bindings, it means it only contains
-      ;; expressions that constrain variables established outside itself.
-      ;; We can just return an expression.
-      (cons :and (:wheres (:cc not-join)))
+   (if (empty? (:bindings (:cc not-join)))
+     ;; If the `not` doesn't establish any bindings, it means it only contains
+     ;; expressions that constrain variables established outside itself.
+     ;; We can just return an expression.
+     (cons :and (:wheres (:cc not-join)))
 
-      ;; If it does establish bindings, then it has to be a subquery.
-      [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))])])
+     ;; If it does establish bindings, then it has to be a subquery.
+     [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))])])
 
 
 ;; A simple Or clause is one in which each branch can be evaluated against
