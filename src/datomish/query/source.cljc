@@ -4,14 +4,14 @@
 
 (ns datomish.query.source
   (:require
-     [datomish.query.transforms :as transforms]
-     [datascript.parser
-      #?@(:cljs
-            [:refer [Variable Constant Placeholder]])])
+   [datomish.query.transforms :as transforms]
+   [datascript.parser
+    #?@(:cljs
+        [:refer [Variable Constant Placeholder]])])
   #?(:clj
-       (:import [datascript.parser Variable Constant Placeholder])))
+     (:import [datascript.parser Variable Constant Placeholder])))
 
-(defn- gensym-table-alias [table]
+(defn gensym-table-alias [table]
   (gensym (name table)))
 
 ;;;
@@ -43,25 +43,25 @@
   (constant-in-source [source constant]))
 
 (defrecord
-  DatomsSource
-  [table               ; Typically :datoms.
-   fulltext-table      ; Typically :fulltext_values
-   fulltext-view       ; Typically :all_datoms
-   columns             ; e.g., [:e :a :v :tx]
+    DatomsSource
+    [table               ; Typically :datoms.
+     fulltext-table      ; Typically :fulltext_values
+     fulltext-view       ; Typically :all_datoms
+     columns             ; e.g., [:e :a :v :tx]
 
-   ;; `attribute-transform` is a function from attribute to constant value. Used to
-   ;; turn, e.g., :p/attribute into an interned integer.
-   ;; `constant-transform` is a function from constant value to constant value. Used to
-   ;; turn, e.g., the literal 'true' into 1.
-   attribute-transform
-   constant-transform
+     ;; `attribute-transform` is a function from attribute to constant value. Used to
+     ;; turn, e.g., :p/attribute into an interned integer.
+     ;; `constant-transform` is a function from constant value to constant value. Used to
+     ;; turn, e.g., the literal 'true' into 1.
+     attribute-transform
+     constant-transform
 
-   ;; `table-alias` is a function from table to alias, e.g., :datoms => :datoms1234.
-   table-alias
+     ;; `table-alias` is a function from table to alias, e.g., :datoms => :datoms1234.
+     table-alias
 
-   ;; Not currently used.
-   make-constraints    ; ?fn [source alias] => [where-clauses]
-   ]
+     ;; Not currently used.
+     make-constraints    ; ?fn [source alias] => [where-clauses]
+     ]
   Source
 
   (source->from [source attribute]
@@ -93,15 +93,3 @@
 
   (constant-in-source [source constant]
     ((:constant-transform source) constant)))
-
-(defn datoms-source [db]
-  (map->DatomsSource
-    {:table :datoms
-     :fulltext-table :fulltext_values
-     :fulltext-view :all_datoms
-     :columns [:e :a :v :tx :added]
-     :attribute-transform transforms/attribute-transform-string
-     :constant-transform transforms/constant-transform-default
-     :table-alias gensym-table-alias
-     :make-constraints nil}))
-

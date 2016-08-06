@@ -116,17 +116,18 @@
   [q]
   (dp/parse-query q))
 
-(comment
-  (def sql-quoting-style nil)
-  (datomish.query/find->sql-string
-    (datomish.query.context/->Context (datomish.query.source/datoms-source nil) nil nil)
-    (datomish.query/parse
-      '[:find ?timestampMicros ?page :in $ ?latest :where
-        [?page :page/starred true ?t]
-        [?t :db/txInstant ?timestampMicros]
-        (not [(> ?t ?latest)]) ])
-    {:latest 5})
-)
+#_
+(def sql-quoting-style nil)
+
+#_
+(datomish.query/find->sql-string
+  (datomish.query.context/->Context (datomish.query.source/datoms-source nil) nil nil)
+  (datomish.query/parse
+    '[:find ?timestampMicros ?page :in $ ?latest :where
+      [?page :page/starred true ?t]
+      [?t :db/txInstant ?timestampMicros]
+      (not [(> ?t ?latest)]) ])
+  {:latest 5})
 
 #_
 (datomish.query/find->sql-string
