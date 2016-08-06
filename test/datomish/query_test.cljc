@@ -32,7 +32,7 @@
   [{:db/id        (d/id-literal :test -1)
     :db/ident     :x
     :db/unique    :db.unique/identity
-    :db/valueType :db.type/integer
+    :db/valueType :db.type/long
     :db.install/_attribute :db.part/db}
    ])
 

@@ -92,12 +92,14 @@
     commit the transaction; otherwise, rollback the transaction.  Returns a pair-chan resolving to
     the pair-chan returned by `chan-fn`.")
 
-  (<eavt
-    [db pattern]
+  (<ea [db e a]
     "Search for datoms using the EAVT index.")
 
-  (<avet
-    [db pattern]
+  (<eav [db e a v]
+    "Search for datoms using the EAVT index.")
+
+  (<av
+    [db a v]
     "Search for datoms using the AVET index.")
 
   (<apply-datoms
@@ -195,30 +197,41 @@
       (:sqlite-connection db) chan-fn))
 
   ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
-  (<eavt [db pattern]
-    (let [[e a v] pattern
-          v       (and v (ds/->SQLite schema a v))] ;; We assume e and a are always given.
+  (<ea [db e a]
+    (go-pair
+      (->>
+        {:select [:e :a :v :tx [1 :added]]
+         :from   [:all_datoms]
+         :where  [:and [:= :e e] [:= :a a]]}
+        (s/format) ;; TODO: format these statements only once.
+
+        (s/all-rows (:sqlite-connection db))
+        (<?)
+
+        (mapv (partial row->Datom (.-schema db))))))
+
+  (<eav [db e a v]
+    (let [[v tag] (ds/->SQLite schema a v)]
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
            :from   [:all_datoms]
-           :where  (cons :and (map #(vector := %1 %2) [:e :a :v] (take-while (comp not nil?) [e a v])))} ;; Must drop nils.
-          (s/format)
+           :where  [:and [:= :e e] [:= :a a] [:= :value_type_tag tag] [:= :v v]]}
+          (s/format) ;; TODO: format these statements only once.
 
           (s/all-rows (:sqlite-connection db))
           (<?)
 
           (mapv (partial row->Datom (.-schema db))))))) ;; TODO: understand why (schema db) fails.
 
-  (<avet [db pattern]
-    (let [[a v] pattern
-          v     (ds/->SQLite schema a v)]
+  (<av [db a v]
+    (let [[v tag] (ds/->SQLite schema a v)]
       (go-pair
         (->>
           {:select [:e :a :v :tx [1 :added]] ;; TODO: generalize columns.
            :from   [:all_datoms]
-           :where  [:and [:= :a a] [:= :v v] [:= :index_avet 1]]}
-          (s/format)
+           :where  [:and [:= :index_avet 1] [:= :a a] [:= :value_type_tag tag] [:= :v v]]}
+          (s/format) ;; TODO: format these statements only once.
 
           (s/all-rows (:sqlite-connection db))
           (<?)
@@ -232,18 +245,19 @@
         ;; TODO: batch insert, batch delete.
         (doseq [datom datoms]
           (let [[e a v tx added] datom
-                v                (ds/->SQLite schema a v)
+                [v tag]          (ds/->SQLite schema a v)
                 fulltext?        (ds/fulltext? schema a)]
             ;; Append to transaction log.
             (<? (exec
-                  ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?)" e a v tx (if added 1 0)]))
+                  ["INSERT INTO transactions VALUES (?, ?, ?, ?, ?, ?)" e a v tx (if added 1 0) tag]))
             ;; Update materialized datom view.
             (if (.-added datom)
               (let [v (if fulltext?
                         (<? (<insert-fulltext-value db v))
                         v)]
                 (<? (exec
-                      ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
+                      ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
+                       tag ;; value_type_tag
                        (ds/indexing? schema a) ;; index_avet
                        (ds/ref? schema a) ;; index_vaet
                        fulltext? ;; index_fulltext
@@ -253,9 +267,9 @@
               (if fulltext?
                 (<? (exec
                       ;; TODO: in the future, purge fulltext values from the fulltext_datoms table.
-                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v IN (SELECT rowid FROM fulltext_values WHERE text = ?))" e a v]))
+                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND value_type_tag = ? AND v IN (SELECT rowid FROM fulltext_values WHERE text = ?))" e a tag v]))
                 (<? (exec
-                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND v = ?)" e a v])))))))
+                      ["DELETE FROM datoms WHERE (e = ? AND a = ? AND value_type_tag = ? AND v = ?)" e a tag v])))))))
       db))
 
   (<advance-tx [db]
@@ -270,7 +284,7 @@
 
   (<apply-db-ident-assertions [db added-idents merge]
     (go-pair
-      (let [exec     (partial s/execute! (:sqlite-connection db))]
+      (let [exec (partial s/execute! (:sqlite-connection db))]
         ;; TODO: batch insert.
         (doseq [[ident entid] added-idents]
           (<? (exec
@@ -282,7 +296,7 @@
 
   (<apply-db-install-assertions [db fragment merge]
     (go-pair
-      (let [exec     (partial s/execute! (:sqlite-connection db))]
+      (let [exec (partial s/execute! (:sqlite-connection db))]
         ;; TODO: batch insert.
         (doseq [[ident attr-map] fragment]
           (doseq [[attr value] attr-map]

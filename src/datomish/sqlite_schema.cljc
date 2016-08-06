@@ -8,7 +8,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
-   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datomish.sqlite :as s]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :refer [go <! >!]]])
@@ -17,35 +17,54 @@
 
 (def current-version 1)
 
+;; Datomish rows are tagged with a numeric representation of :db/valueType:
+;; The tag is used to limit queries, and therefore is placed carefully in the relevant indices to
+;; allow searching numeric longs and doubles quickly.  The tag is also used to convert SQLite values
+;; to the correct Datomish value type on query egress.
+(def value-type-tag-map
+  {:db.type/ref     0
+   :db.type/boolean 1
+   :db.type/instant 4
+   :db.type/long    5 ;; SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+   :db.type/double  5 ;; SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+   :db.type/string  10
+   :db.type/uuid    11
+   :db.type/uri     12
+   :db.type/keyword 13})
+
 (def v1-statements
   ["CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
+                         value_type_tag SMALLINT NOT NULL,
                          index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
                          index_fulltext TINYINT NOT NULL DEFAULT 0,
                          unique_value TINYINT NOT NULL DEFAULT 0, unique_identity TINYINT NOT NULL DEFAULT 0)"
-   "CREATE INDEX idx_datoms_eavt ON datoms (e, a, v)"
-   "CREATE INDEX idx_datoms_aevt ON datoms (a, e, v)"
+   "CREATE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"
+   "CREATE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"
 
    ;; Opt-in index: only if a has :db/index true.
-   "CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, v, e) WHERE index_avet IS NOT 0"
+   "CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, value_type_tag, v, e) WHERE index_avet IS NOT 0"
 
-   ;; Opt-in index: only if a has :db/valueType :db.type/ref.
+   ;; Opt-in index: only if a has :db/valueType :db.type/ref.  No need for tag here since all
+   ;; indexed elements are refs.
    "CREATE UNIQUE INDEX idx_datoms_vaet ON datoms (v, a, e) WHERE index_vaet IS NOT 0"
 
    ;; Opt-in index: only if a has :db/fulltext true; thus, it has :db/valueType :db.type/string,
    ;; which is not :db/valueType :db.type/ref.  That is, index_vaet and index_fulltext are mutually
    ;; exclusive.
-   "CREATE INDEX idx_datoms_fulltext ON datoms (v, a, e) WHERE index_fulltext IS NOT 0"
+   "CREATE INDEX idx_datoms_fulltext ON datoms (value_type_tag, v, a, e) WHERE index_fulltext IS NOT 0"
 
    ;; TODO: possibly remove this index.  :db.unique/value should be asserted by the transactor in
    ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it services
-   ;; to validate the transactor implementation.
-   "CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (v) WHERE unique_value IS NOT 0"
+   ;; to validate the transactor implementation.  Note that tag is needed here, since we could have
+   ;; a keyword (stored as ":foo") that overlaps a string value ":foo".
+   "CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (value_type_tag, v) WHERE unique_value IS NOT 0"
    ;; TODO: possibly remove this index.  :db.unique/identity should be asserted by the transactor in
    ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it serves to
-   ;; validate the transactor implementation.
-   "CREATE UNIQUE INDEX idx_datoms_unique_identity ON datoms (a, v) WHERE unique_identity IS NOT 0"
+   ;; validate the transactor implementation.  Note that tag is needed here to differentiate, e.g.,
+   ;; keywords and strings.
+   "CREATE UNIQUE INDEX idx_datoms_unique_identity ON datoms (a, value_type_tag, v) WHERE unique_identity IS NOT 0"
 
-   "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1)"
+   "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"
    "CREATE INDEX idx_transactions_tx ON transactions (tx)"
 
    ;; Fulltext indexing.
@@ -61,21 +80,22 @@
 
    ;; A view transparently interpolating fulltext indexed values into the datom structure.
    "CREATE VIEW fulltext_datoms AS
-     SELECT e, a, fulltext_values.text AS v, tx, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
+     SELECT e, a, fulltext_values.text AS v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
        FROM datoms, fulltext_values
        WHERE datoms.index_fulltext IS NOT 0 AND datoms.v = fulltext_values.rowid"
 
    ;; A view transparently interpolating all entities (fulltext and non-fulltext) into the datom structure.
    "CREATE VIEW all_datoms AS
-     SELECT e, a, v, tx, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
+     SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
        FROM datoms
        WHERE index_fulltext IS 0
      UNION ALL
-     SELECT e, a, v, tx, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
+     SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
        FROM fulltext_datoms"
 
    ;; Materialized views of the schema.
    "CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"
+   ;; TODO: allow arbitrary schema values (true/false) and tag the resulting values.
    "CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value TEXT NOT NULL, FOREIGN KEY (ident) REFERENCES idents (ident))"
    "CREATE INDEX idx_schema_unique ON schema (ident, attr, value)"
    ])
@@ -142,6 +162,7 @@
 
        Double
        (->SQLite [x] x)]
+
       :cljs
       [string
        (->SQLite [x] x)
@@ -162,5 +183,11 @@
     :db.type/keyword (keyword (subs value 1))
     :db.type/string  value
     :db.type/boolean (not= value 0)
-    :db.type/integer value
-    :db.type/real    value))
+    :db.type/long    value
+    :db.type/double  value))
+
+(defn ->tag [valueType]
+  (or
+    (valueType value-type-tag-map)
+    (raise "Unknown valueType " valueType ", expected one of " (sorted-set (keys value-type-tag-map))
+           {:error :SQLite/tag, :valueType valueType})))
