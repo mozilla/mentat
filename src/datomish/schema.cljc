@@ -101,8 +101,8 @@
    :db.type/keyword { :valid? keyword? }
    :db.type/string  { :valid? string? }
    :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) }
-   :db.type/integer { :valid? integer? }
-   :db.type/real    { :valid? #?(:clj float? :cljs number?) }
+   :db.type/long    { :valid? integer? }
+   :db.type/double  { :valid? #?(:clj float? :cljs number?) }
    })
 
 (defn #?@(:clj  [^Boolean ensure-valid-value]
@@ -125,7 +125,7 @@
     (if-let [valueType (get-in schema [attr :db/valueType])]
       (if-let [valid? (get-in value-type-map [valueType :valid?])]
         (if (valid? value)
-          (sqlite-schema/->SQLite value)
+          [(sqlite-schema/->SQLite value) (sqlite-schema/->tag valueType)]
           (raise "Invalid value for attribute " attr ", expected " valueType " but got " value
                  {:error :schema/valueType, :attribute attr, :value value}))
         (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))

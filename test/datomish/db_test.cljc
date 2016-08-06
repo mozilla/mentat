@@ -78,7 +78,7 @@
   [{:db/id        (d/id-literal :test -1)
     :db/ident     :x
     :db/unique    :db.unique/identity
-    :db/valueType :db.type/integer}
+    :db/valueType :db.type/long}
    {:db/id :db.part/db :db.install/attribute (d/id-literal :test -1)}
    {:db/id        (d/id-literal :test -2)
     :db/ident     :name
@@ -88,7 +88,7 @@
    {:db/id          (d/id-literal :test -3)
     :db/ident       :y
     :db/cardinality :db.cardinality/many
-    :db/valueType   :db.type/integer}
+    :db/valueType   :db.type/long}
    {:db/id :db.part/db :db.install/attribute (d/id-literal :test -3)}
    {:db/id          (d/id-literal :test -5)
     :db/ident       :aka
@@ -97,7 +97,7 @@
    {:db/id :db.part/db :db.install/attribute (d/id-literal :test -5)}
    {:db/id        (d/id-literal :test -6)
     :db/ident     :age
-    :db/valueType :db.type/integer}
+    :db/valueType :db.type/long}
    {:db/id :db.part/db :db.install/attribute (d/id-literal :test -6)}
    {:db/id        (d/id-literal :test -7)
     :db/ident     :email

@@ -17,7 +17,7 @@
    ;; TODO: support user-specified functions in the future.
    ;; :db.install/function {:db/valueType :db.type/ref
    ;;                       :db/cardinality :db.cardinality/many}
-   :db/txInstant         {:db/valueType   :db.type/integer
+   :db/txInstant         {:db/valueType   :db.type/long
                           :db/cardinality :db.cardinality/one
                           } ;; :db/index       true} TODO: Handle this using SQLite protocol.
    :db/valueType         {:db/valueType   :db.type/ref
@@ -61,15 +61,16 @@
    :db.alter/attribute   22
    :db.type/ref          23
    :db.type/keyword      24
-   :db.type/integer      25 ;; TODO: :db.type/long, to match Datomic?
-   :db.type/string       26
-   :db.type/boolean      27
-   :db.type/instant      28
-   :db.type/bytes        29
-   :db.cardinality/one   30
-   :db.cardinality/many  31
-   :db.unique/value      32
-   :db.unique/identity   33})
+   :db.type/long         25
+   :db.type/double       26
+   :db.type/string       27
+   :db.type/boolean      28
+   :db.type/instant      29
+   :db.type/bytes        30
+   :db.cardinality/one   31
+   :db.cardinality/many  32
+   :db.unique/value      33
+   :db.unique/identity   34})
 
 (defn tx-data []
   (concat

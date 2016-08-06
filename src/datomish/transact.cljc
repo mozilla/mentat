@@ -219,7 +219,7 @@
       (vec (for [[op & entity] (:entities report)]
              (into [op] (for [field entity]
                           (if (lookup-ref? field)
-                            (first (<? (db/<eavt db field))) ;; TODO improve this -- this should be avet, shouldn't it?
+                            (first (<? (apply db/<av db field)))
                             field)))))
       (assoc-in report [:entities])))) ;; TODO: meta.
 
@@ -289,7 +289,7 @@
             (and (id-literal? e)
                  (ds/unique-identity? (db/schema db) a)
                  (not-any? id-literal? [a v]))
-            (let [upserted-eid (:e (first (<? (db/<avet db [a v]))))
+            (let [upserted-eid (:e (first (<? (db/<av db a v))))
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
                 (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
@@ -351,7 +351,7 @@
         (when added
           ;; Check for violated :db/unique constraint between datom and existing store.
           (when (ds/unique? schema a)
-            (when-let [found (first (<? (db/<avet db [a v])))]
+            (when-let [found (first (<? (db/<av db a v)))]
               (raise "Cannot add " datom " because of unique constraint: " found
                      {:error :transact/unique
                       :attribute a ;; TODO: map attribute back to ident.
@@ -401,10 +401,10 @@
 
             (= op :db/add)
             (if (ds/multival? schema a)
-              (if (empty? (<? (db/<eavt db [e a v])))
+              (if (empty? (<? (db/<eav db e a v)))
                 (recur (transact-report report (datom e a v tx true)) entities)
                 (recur report entities))
-              (if-let [^Datom old-datom (first (<? (db/<eavt db [e a])))]
+              (if-let [^Datom old-datom (first (<? (db/<ea db e a)))]
                 (if  (= (.-v old-datom) v)
                   (recur report entities)
                   (recur (-> report
@@ -414,7 +414,7 @@
                 (recur (transact-report report (datom e a v tx true)) entities)))
 
             (= op :db/retract)
-            (if (first (<? (db/<eavt db [e a v])))
+            (if (first (<? (db/<eav db e a v)))
               (recur (transact-report report (datom e a v tx false)) entities)
               (recur report entities))
 
