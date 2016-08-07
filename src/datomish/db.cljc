@@ -82,15 +82,14 @@
     [db eid]
     "Returns the keyword associated with an id, or the key itself if passed.")
 
-  (current-tx
-    [db]
-    "TODO: document this interface.")
-
   (in-transaction!
     [db chan-fn]
     "Evaluate the given pair-chan `chan-fn` in an exclusive transaction. If it returns non-nil,
     commit the transaction; otherwise, rollback the transaction.  Returns a pair-chan resolving to
     the pair-chan returned by `chan-fn`.")
+
+  (<bootstrapped? [db]
+    "Return true if this database has no transactions yet committed.")
 
   (<ea [db e a]
     "Search for datoms using the EAVT index.")
@@ -114,9 +113,10 @@
     [db fragment merge]
     "Apply added schema fragment to the store, using `merge` as a `merge-with` function.")
 
-  (<advance-tx
-    [db]
-    "TODO: document this interface."))
+  (<next-eid
+    [db id-literal]
+    "Return a unique integer for the given id-literal, accounting for the literal's partition.  The
+    returned integer should never be returned again."))
 
 (defn db? [x]
   (and (satisfies? IDB x)
@@ -146,7 +146,6 @@
           ]
       rowid)))
 
-
 (defn datoms-attribute-transform
   [db x]
   {:pre [(db? db)]}
@@ -168,11 +167,14 @@
      :table-alias source/gensym-table-alias
      :make-constraints nil}))
 
-(defrecord DB [sqlite-connection schema entids ident-map current-tx]
+(defrecord DB [sqlite-connection schema ident-map]
   ;; ident-map maps between keyword idents and integer entids.  The set of idents and entids is
   ;; disjoint, so we represent both directions of the mapping in the same map for simplicity.  Also
   ;; for simplicity, we assume that an entid has at most one associated ident, and vice-versa.  See
   ;; http://docs.datomic.com/identity.html#idents.
+
+  ;; TODO: cache parts.  parts looks like {:db.part/db {:start 0 :current 10}}.  It maps between
+  ;; keyword ident part names and integer ranges.
   IDB
   (query-context [db] (context/->Context (datoms-source db) nil nil))
 
@@ -188,13 +190,19 @@
       (get (.-ident-map db) eid eid)
       eid))
 
-  (current-tx
-    [db]
-    (inc (:current-tx db)))
-
   (in-transaction! [db chan-fn]
     (s/in-transaction!
       (:sqlite-connection db) chan-fn))
+
+  (<bootstrapped? [db]
+    (go-pair
+      (->
+        (:sqlite-connection db)
+        (s/all-rows ["SELECT EXISTS(SELECT 1 FROM transactions LIMIT 1) AS bootstrapped"])
+        (<?)
+        (first)
+        (:bootstrapped)
+        (not= 0))))
 
   ;; TODO: use q for searching?  Have q use this for searching for a single pattern?
   (<ea [db e a]
@@ -272,15 +280,21 @@
                       ["DELETE FROM datoms WHERE (e = ? AND a = ? AND value_type_tag = ? AND v = ?)" e a tag v])))))))
       db))
 
-  (<advance-tx [db]
+  (<next-eid [db tempid]
+    {:pre [(id-literal? tempid)]}
+    {:post [ds/entid?]}
     (go-pair
-      (let [exec (partial s/execute! (:sqlite-connection db))]
-        ;; (let [ret (<? (exec
-        ;;                 ;; TODO: be more clever about UPDATE OR ...?
-        ;;                 ["UPDATE metadata SET current_tx = ? WHERE current_tx = ?" (inc (:current-tx db)) (:current-tx db)]))]
+      ;; TODO: keep all of these eid allocations in the transaction report and apply them at the end
+      ;; of the transaction.
+      (let [exec (partial s/execute! (:sqlite-connection db))
+            part (entid db (:part tempid))]
+        (when-not (ds/entid? part) ;; TODO: cache parts materialized view.
+          (raise "Cannot allocate entid for id-literal " tempid " because part " (:part tempid) " is not known"
+                 {:error :db/bad-part
+                  :part (:part tempid)}))
 
-        ;; TODO: handle exclusion across transactions here.
-        (update db :current-tx inc))))
+        (<? (exec ["UPDATE parts SET idx = idx + 1 WHERE part = ?" part]))
+        (:eid (first (<? (s/all-rows (:sqlite-connection db) ["SELECT (start + idx) AS eid FROM parts WHERE part = ?" part])))))))
 
   (<apply-db-ident-assertions [db added-idents merge]
     (go-pair
@@ -321,7 +335,7 @@
 (defn with-ident [db ident entid]
   (update db :ident-map #(assoc % ident entid, entid ident)))
 
-(defn db [sqlite-connection idents schema current-tx]
+(defn db [sqlite-connection idents schema]
   {:pre [(map? idents)
          (every? keyword? (keys idents))
          (map? schema)
@@ -333,7 +347,8 @@
        :ident-map         ident-map
        :symbolic-schema   schema
        :schema            entid-schema
-       :current-tx        current-tx})))
+       ;; TODO :parts
+       })))
 
 ;; TODO: factor this into the overall design.
 (defn <?run

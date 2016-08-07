@@ -9,6 +9,9 @@
    [datomish.sqlite-schema :as sqlite-schema]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise]]))
 
+(defn entid? [x]
+  (and (integer? x) (pos? x)))
+
 (defprotocol ISchema
   (attrs-by
     [schema property]
@@ -97,7 +100,7 @@
                      :value v}))))
 
 (def value-type-map
-  {:db.type/ref     { :valid? #(and (integer? %) (pos? %)) }
+  {:db.type/ref     { :valid? entid? }
    :db.type/keyword { :valid? keyword? }
    :db.type/string  { :valid? string? }
    :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) }

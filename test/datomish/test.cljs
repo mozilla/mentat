@@ -4,6 +4,7 @@
    [cljs.test :as t :refer-macros [is are deftest testing]]
    datomish.promise-sqlite-test
    datomish.db-test
+   datomish.query-test
    datomish.sqlite-user-version-test
    datomish.test.util
    datomish.test.transforms
@@ -13,6 +14,7 @@
 (doo-tests
   'datomish.promise-sqlite-test
   'datomish.db-test
+  'datomish.query-test
   'datomish.sqlite-user-version-test
   'datomish.test.util
   'datomish.test.transforms

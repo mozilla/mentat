@@ -56,7 +56,8 @@
 
 (defrecord TxReport [db-before ;; The DB before the transaction.
                      db-after  ;; The DB after the transaction.
-                     current-tx ;; The tx ID represented by the transaction in this report.
+                     tx        ;; The tx ID represented by the transaction in this report; refer :db/tx.
+                     txInstant ;; The timestamp instant when the the transaction was processed/committed in this report; refer :db/txInstant.
                      entities  ;; The set of entities (like [:db/add e a v tx]) processed.
                      tx-data   ;; The set of datoms applied to the database, like (Datom. e a v tx added).
                      tempids   ;; The map from id-literal -> numeric entid.
@@ -293,22 +294,22 @@
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
                 (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
-                (let [eid (or upserted-eid allocated-eid (next-eid db))]
+                (let [eid (or upserted-eid allocated-eid (<? (db/<next-eid db e)))]
                   (recur (allocate-eid report e eid) (cons [op eid a v] entities)))))
 
             ;; Start allocating and retrying.  We try with e last, so as to eventually upsert it.
             (id-literal? v)
             ;; We can't fail with unbound literals here, since we could have multiple.
-            (let [eid (or (get-in report [:tempids v]) (next-eid db))]
+            (let [eid (or (get-in report [:tempids v]) (<? (db/<next-eid db e)))]
               (recur (allocate-eid report v eid) (cons [op e a eid] entities)))
 
             (id-literal? a)
             ;; TODO: should we even allow id-literal attributes?  Datomic fails in some cases here.
-            (let [eid (or (get-in report [:tempids a]) (next-eid db))]
+            (let [eid (or (get-in report [:tempids a]) (<? (db/<next-eid db e)))]
               (recur (allocate-eid report a eid) (cons [op e eid v] entities)))
 
             (id-literal? e)
-            (let [eid (or (get-in report [:tempids e]) (next-eid db))]
+            (let [eid (or (get-in report [:tempids e]) (<? (db/<next-eid db e)))]
               (recur (allocate-eid report e eid) (cons [op eid a v] entities)))
 
             true
@@ -516,7 +517,7 @@
                       ;; transaction ID and transaction timestamp directly from the report; Datomic
                       ;; makes this surprisingly difficult: one needs a :db.part/tx temporary and an
                       ;; explicit upsert of that temporary.
-                      :tx                (db/current-tx db)
+                      :tx                (<? (db/<next-eid db (id-literal :db.part/tx)))
                       :txInstant         (db/now db)
                       :entities          tx-data
                       :tx-data           []
@@ -542,9 +543,6 @@
                             (<?)
 
                             (db/<apply-db-install-assertions (:added-attributes report) merge-attr)
-                            (<?)
-
-                            (db/<advance-tx)
                             (<?))]
       (-> report
           (assoc-in [:db-after] db-after)))))
