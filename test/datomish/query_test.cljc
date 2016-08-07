@@ -29,7 +29,7 @@
    (def Throwable js/Error))
 
 (def test-schema
-  [{:db/id        (d/id-literal :test -1)
+  [{:db/id        (d/id-literal :db.part/user)
     :db/ident     :x
     :db/unique    :db.unique/identity
     :db/valueType :db.type/long

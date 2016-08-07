@@ -83,6 +83,7 @@
    ;; TODO: allow arbitrary schema values (true/false) and tag the resulting values.
    "CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value TEXT NOT NULL, FOREIGN KEY (ident) REFERENCES idents (ident))"
    "CREATE INDEX idx_schema_unique ON schema (ident, attr, value)"
+   "CREATE TABLE parts (part INTEGER NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"
    ])
 
 (defn <create-current-version

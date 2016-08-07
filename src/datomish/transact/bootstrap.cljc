@@ -52,8 +52,8 @@
    :db/noHistory         13
    :db/add               14
    :db/retract           15
-   :db.part/tx           16
-   :db.part/user         17
+   :db.part/user         16
+   :db.part/tx           17
    :db/excise            18
    :db.excise/attrs      19
    :db.excise/beforeT    20

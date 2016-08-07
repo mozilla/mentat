@@ -73,47 +73,46 @@
       (<?)
       (mapv #(vector (:rowid %) (:text %))))))
 
-;; TODO: use reverse refs!
 (def test-schema
-  [{:db/id        (d/id-literal :test -1)
+  [{:db/id        (d/id-literal :db.part/user)
     :db/ident     :x
     :db/unique    :db.unique/identity
-    :db/valueType :db.type/long}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -1)}
-   {:db/id        (d/id-literal :test -2)
+    :db/valueType :db.type/long
+    :db.install/_attribute :db.part/db}
+   {:db/id        (d/id-literal :db.part/user)
     :db/ident     :name
     :db/unique    :db.unique/identity
-    :db/valueType :db.type/string}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -2)}
-   {:db/id          (d/id-literal :test -3)
+    :db/valueType :db.type/string
+    :db.install/_attribute :db.part/db}
+   {:db/id          (d/id-literal :db.part/user)
     :db/ident       :y
     :db/cardinality :db.cardinality/many
-    :db/valueType   :db.type/long}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -3)}
-   {:db/id          (d/id-literal :test -5)
+    :db/valueType   :db.type/long
+    :db.install/_attribute :db.part/db}
+   {:db/id          (d/id-literal :db.part/user)
     :db/ident       :aka
     :db/cardinality :db.cardinality/many
-    :db/valueType   :db.type/string}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -5)}
-   {:db/id        (d/id-literal :test -6)
+    :db/valueType   :db.type/string
+    :db.install/_attribute :db.part/db}
+   {:db/id        (d/id-literal :db.part/user)
     :db/ident     :age
-    :db/valueType :db.type/long}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -6)}
-   {:db/id        (d/id-literal :test -7)
+    :db/valueType :db.type/long
+    :db.install/_attribute :db.part/db}
+   {:db/id        (d/id-literal :db.part/user)
     :db/ident     :email
     :db/unique    :db.unique/identity
-    :db/valueType :db.type/string}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -7)}
-   {:db/id        (d/id-literal :test -8)
+    :db/valueType :db.type/string
+    :db.install/_attribute :db.part/db}
+   {:db/id        (d/id-literal :db.part/user)
     :db/ident     :spouse
     :db/unique    :db.unique/value
-    :db/valueType :db.type/string}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -8)}
-   {:db/id          (d/id-literal :test -9)
+    :db/valueType :db.type/string
+    :db.install/_attribute :db.part/db}
+   {:db/id          (d/id-literal :db.part/user)
     :db/ident       :friends
     :db/cardinality :db.cardinality/many
-    :db/valueType   :db.type/ref}
-   {:db/id :db.part/db :db.install/attribute (d/id-literal :test -9)}
+    :db/valueType   :db.type/ref
+    :db.install/_attribute :db.part/db}
    ])
 
 (deftest-async test-add-one
@@ -630,3 +629,31 @@
 
         (finally
           (<? (d/<close conn)))))))
+
+(deftest-async test-next-eid
+  (with-tempfile [t (tempfile)]
+    (let [conn      (<? (d/<connect t))
+          {tx0 :tx} (<? (d/<transact! conn test-schema))]
+      (testing "entids are increasing, tx ids are larger than user ids"
+        (let [r1 (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :name "Igor"}]))
+              r2 (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -2) :name "Oleg"}]))
+              e1 (get (tempids r1) -1)
+              e2 (get (tempids r2) -2)]
+          (is (< e1 (:tx r1)))
+          (is (< e2 (:tx r2)))
+          (is (< e1 e2))
+          (is (< (:tx r1) (:tx r2)))
+
+          ;; Close and re-open same DB.
+          (<? (d/<close conn))
+          (let [conn (<? (d/<connect t))]
+            (try
+              (testing "entid counters are persisted across re-opens"
+                (let [r3 (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -3) :name "Petr"}]))
+                      e3 (get (tempids r3) -3)]
+                  (is (< e3 (:tx r3)))
+                  (is (< e2 e3))
+                  (is (< (:tx r2) (:tx r3)))))
+
+              (finally
+                (<? (d/<close conn))))))))))
