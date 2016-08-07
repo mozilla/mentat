@@ -8,6 +8,7 @@
                  [org.clojure/core.async "0.2.385"]
                  [datascript "0.15.1"]
                  [honeysql "0.8.0"]
+                 [com.datomic/datomic-free "0.9.5359"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
   :cljsbuild {:builds {:release {

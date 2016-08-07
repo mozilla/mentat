@@ -1,0 +1,59 @@
+[
+ ;; news
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/title
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/fulltext true
+  :db/doc "A news story's title"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/foobar
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/unique :db.unique/identity
+  :db/fulltext true
+  :db/doc "A news story's foobar"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/zot
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/unique :db.unique/identity
+  :db/fulltext true
+  :db/doc "A news story's zot"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/baz
+  :db/valueType :db.type/ref
+  :db/cardinality :db.cardinality/one
+  :db/doc "A news story's baz"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/url
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "A news story's url"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/summary
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "Automatically generated summary of a news story"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :news/category
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/many
+  :db/fulltext true
+  :db/doc "Categories automatically set for a news story"
+  :db.install/_attribute :db.part/db}
+
+ ]
