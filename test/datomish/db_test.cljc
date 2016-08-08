@@ -10,6 +10,7 @@
       [cljs.core.async.macros :as a :refer [go]]))
   (:require
    [datomish.api :as d]
+   [datomish.db.debug :refer [<datoms-after <transactions-after <shallow-entity <fulltext-values]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema]
@@ -34,44 +35,6 @@
 
 (defn- tempids [tx]
   (into {} (map (juxt (comp :idx first) second) (:tempids tx))))
-
-(defn- <datoms-after [db tx]
-  (go-pair
-    (->>
-      (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx FROM datoms WHERE tx > ?" tx])
-      (<?)
-      (mapv #(vector (:e %) (d/ident db (:a %)) (:v %)))
-      (filter #(not (= :db/txInstant (second %))))
-      (set))))
-
-(defn- <datoms [db]
-  (<datoms-after db 0))
-
-(defn- <shallow-entity [db eid]
-  ;; TODO: make this actually be <entity.  Handle :db.cardinality/many and :db/isComponent.
-  (go-pair
-    (->>
-      (s/all-rows (:sqlite-connection db) ["SELECT a, v FROM datoms WHERE e = ?" eid])
-      (<?)
-      (mapv #(vector (d/ident db (:a %)) (:v %)))
-      (reduce conj {}))))
-
-(defn- <transactions-after [db tx]
-  (go-pair
-    (->>
-      (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e, a, v, added" tx])
-      (<?)
-      (mapv #(vector (:e %) (d/ident db (:a %)) (:v %) (:tx %) (:added %))))))
-
-(defn- <transactions [db]
-  (<transactions-after db 0))
-
-(defn- <fulltext-values [db]
-  (go-pair
-    (->>
-      (s/all-rows (:sqlite-connection db) ["SELECT rowid, text FROM fulltext_values"])
-      (<?)
-      (mapv #(vector (:rowid %) (:text %))))))
 
 (def test-schema
   [{:db/id        (d/id-literal :db.part/user)
