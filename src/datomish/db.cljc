@@ -264,13 +264,12 @@
                         (<? (<insert-fulltext-value db v))
                         v)]
                 (<? (exec
-                      ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
+                      ["INSERT INTO datoms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" e a v tx
                        tag ;; value_type_tag
                        (ds/indexing? schema a) ;; index_avet
                        (ds/ref? schema a) ;; index_vaet
                        fulltext? ;; index_fulltext
-                       (ds/unique-value? schema a) ;; unique_value
-                       (ds/unique-identity? schema a) ;; unique_identity
+                       (ds/unique? schema a) ;; unique_value
                        ])))
               (if fulltext?
                 (<? (exec

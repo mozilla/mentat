@@ -22,7 +22,7 @@
                          value_type_tag SMALLINT NOT NULL,
                          index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
                          index_fulltext TINYINT NOT NULL DEFAULT 0,
-                         unique_value TINYINT NOT NULL DEFAULT 0, unique_identity TINYINT NOT NULL DEFAULT 0)"
+                         unique_value TINYINT NOT NULL DEFAULT 0)"
    "CREATE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"
    "CREATE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"
 
@@ -38,16 +38,11 @@
    ;; exclusive.
    "CREATE INDEX idx_datoms_fulltext ON datoms (value_type_tag, v, a, e) WHERE index_fulltext IS NOT 0"
 
-   ;; TODO: possibly remove this index.  :db.unique/value should be asserted by the transactor in
-   ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it services
-   ;; to validate the transactor implementation.  Note that tag is needed here, since we could have
-   ;; a keyword (stored as ":foo") that overlaps a string value ":foo".
-   "CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (value_type_tag, v) WHERE unique_value IS NOT 0"
-   ;; TODO: possibly remove this index.  :db.unique/identity should be asserted by the transactor in
-   ;; all cases, but the index may speed up some of SQLite's query planning.  For now, it serves to
-   ;; validate the transactor implementation.  Note that tag is needed here to differentiate, e.g.,
-   ;; keywords and strings.
-   "CREATE UNIQUE INDEX idx_datoms_unique_identity ON datoms (a, value_type_tag, v) WHERE unique_identity IS NOT 0"
+   ;; TODO: possibly remove this index.  :db.unique/{value,identity} should be asserted by the
+   ;; transactor in all cases, but the index may speed up some of SQLite's query planning.  For now,
+   ;; it serves to validate the transactor implementation.  Note that tag is needed here to
+   ;; differentiate, e.g., keywords and strings.
+   "CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"
 
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"
    "CREATE INDEX idx_transactions_tx ON transactions (tx)"
@@ -65,17 +60,17 @@
 
    ;; A view transparently interpolating fulltext indexed values into the datom structure.
    "CREATE VIEW fulltext_datoms AS
-     SELECT e, a, fulltext_values.text AS v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
+     SELECT e, a, fulltext_values.text AS v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
        FROM datoms, fulltext_values
        WHERE datoms.index_fulltext IS NOT 0 AND datoms.v = fulltext_values.rowid"
 
    ;; A view transparently interpolating all entities (fulltext and non-fulltext) into the datom structure.
    "CREATE VIEW all_datoms AS
-     SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
+     SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
        FROM datoms
        WHERE index_fulltext IS 0
      UNION ALL
-     SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value, unique_identity
+     SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
        FROM fulltext_datoms"
 
    ;; Materialized views of the schema.
