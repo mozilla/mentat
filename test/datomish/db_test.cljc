@@ -657,3 +657,35 @@
 
               (finally
                 (<? (d/<close conn))))))))))
+
+(deftest-async test-unique-value
+  (with-tempfile [t (tempfile)]
+    (let [conn (<? (d/<connect t))]
+      (try
+        (let [tx0 (:tx (<? (d/<transact! conn [{:db/id                 (d/id-literal :db.part/user -1)
+                                                :db/ident              :test/x
+                                                :db/unique             :db.unique/value
+                                                :db/valueType          :db.type/long
+                                                :db.install/_attribute :db.part/db}
+                                               {:db/id                 (d/id-literal :db.part/user -2)
+                                                :db/ident              :test/y
+                                                :db/unique             :db.unique/value
+                                                :db/valueType          :db.type/long
+                                                :db.install/_attribute :db.part/db}])))]
+
+          (testing "can insert different :db.unique/value attributes with the same value"
+            (let [report1 (<? (d/<transact! conn [[:db/add (d/id-literal :db.part/user -1) :test/x 12345]]))
+                  eid1    (get-in report1 [:tempids (d/id-literal :db.part/user -1)])
+                  report2 (<? (d/<transact! conn [[:db/add (d/id-literal :db.part/user -2) :test/y 12345]]))
+                  eid2    (get-in report2 [:tempids (d/id-literal :db.part/user -2)])]
+              (is (= (<? (<datoms-after (d/db conn) tx0))
+                     #{[eid1 :test/x 12345]
+                       [eid2 :test/y 12345]}))))
+
+          (testing "can't upsert a :db.unique/value field"
+            (is (thrown-with-msg?
+                  ExceptionInfo #"because of unique constraint"
+                  (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/x 12345 :test/y 99999}]))))))
+
+        (finally
+          (<? (d/<close conn)))))))
