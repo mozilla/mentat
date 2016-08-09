@@ -412,32 +412,48 @@
           tx0 (:tx (<? (d/<transact! conn schema)))]
       (try
         (testing "Can add fulltext indexed datoms"
-          (let [r (<? (d/<transact! conn [[:db/add 101 :test/fulltext "test this"]]))]
+          (let [{tx1 :tx txInstant1 :txInstant} (<? (d/<transact! conn [[:db/add 101 :test/fulltext "test this"]]))]
             (is (= (<? (<fulltext-values (d/db conn)))
                    [[1 "test this"]]))
             (is (= (<? (<datoms-after (d/db conn) tx0))
                    #{[101 :test/fulltext 1]})) ;; Values are raw; 1 is the rowid into fulltext_values.
-            ))
+            (is (= (<? (<transactions-after (d/db conn) tx0))
+                   [[101 :test/fulltext 1 tx1 1] ;; Values are raw; 1 is the rowid into fulltext_values.
+                    [tx1 :db/txInstant txInstant1 tx1 1]]))
 
-        (testing "Can replace fulltext indexed datoms"
-          (let [r (<? (d/<transact! conn [[:db/add 101 :test/fulltext "alternate thing"]]))]
-            (is (= (<? (<fulltext-values (d/db conn)))
-                   [[1 "test this"]
-                    [2 "alternate thing"]]))
-            (is (= (<? (<datoms-after (d/db conn) tx0))
-                   #{[101 :test/fulltext 2]})) ;; Values are raw; 2 is the rowid into fulltext_values.
-            ))
+            (testing "Can replace fulltext indexed datoms"
+              (let [{tx2 :tx txInstant2 :txInstant} (<? (d/<transact! conn [[:db/add 101 :test/fulltext "alternate thing"]]))]
+                (is (= (<? (<fulltext-values (d/db conn)))
+                       [[1 "test this"]
+                        [2 "alternate thing"]]))
+                (is (= (<? (<datoms-after (d/db conn) tx0))
+                       #{[101 :test/fulltext 2]})) ;; Values are raw; 2 is the rowid into fulltext_values.
+                (is (= (<? (<transactions-after (d/db conn) tx0))
+                       [[101 :test/fulltext 1 tx1 1] ;; Values are raw; 1 is the rowid into fulltext_values.
+                        [tx1 :db/txInstant txInstant1 tx1 1]
+                        [101 :test/fulltext 1 tx2 0] ;; Values are raw; 1 is the rowid into fulltext_values.
+                        [101 :test/fulltext 2 tx2 1] ;; Values are raw; 2 is the rowid into fulltext_values.
+                        [tx2 :db/txInstant txInstant2 tx2 1]]))
 
-        (testing "Can upsert keyed by fulltext indexed datoms"
-          (let [r (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user) :test/fulltext "alternate thing" :test/other "other"}]))]
-            (is (= (<? (<fulltext-values (d/db conn)))
-                   [[1 "test this"]
-                    [2 "alternate thing"]
-                    [3 "other"]]))
-            (is (= (<? (<datoms-after (d/db conn) tx0))
-                   #{[101 :test/fulltext 2] ;; Values are raw; 2, 3 are the rowids into fulltext_values.
-                     [101 :test/other 3]}))
-            ))
+                (testing "Can upsert keyed by fulltext indexed datoms"
+                  (let [{tx3 :tx txInstant3 :txInstant} (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user) :test/fulltext "alternate thing" :test/other "other"}]))]
+                    (is (= (<? (<fulltext-values (d/db conn)))
+                           [[1 "test this"]
+                            [2 "alternate thing"]
+                            [3 "other"]]))
+                    (is (= (<? (<datoms-after (d/db conn) tx0))
+                           #{[101 :test/fulltext 2] ;; Values are raw; 2, 3 are the rowids into fulltext_values.
+                             [101 :test/other 3]}))
+                    (is (= (<? (<transactions-after (d/db conn) tx0))
+                           [[101 :test/fulltext 1 tx1 1] ;; Values are raw; 1 is the rowid into fulltext_values.
+                            [tx1 :db/txInstant txInstant1 tx1 1]
+                            [101 :test/fulltext 1 tx2 0] ;; Values are raw; 1 is the rowid into fulltext_values.
+                            [101 :test/fulltext 2 tx2 1] ;; Values are raw; 2 is the rowid into fulltext_values.
+                            [tx2 :db/txInstant txInstant2 tx2 1]
+                            [101 :test/other 3 tx3 1] ;; Values are raw; 3 is the rowid into fulltext_values.
+                            [tx3 :db/txInstant txInstant3 tx3 1]]))
+
+                    ))))))
 
         (testing "Can re-use fulltext indexed datoms"
           (let [r (<? (d/<transact! conn [[:db/add 102 :test/other "test this"]]))]
@@ -647,7 +663,7 @@
 
           (testing "can't upsert a :db.unique/value field"
             (is (thrown-with-msg?
-                  ExceptionInfo #"because of unique constraint"
+                  ExceptionInfo #"unique constraint"
                   (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/x 12345 :test/y 99999}]))))))
 
         (finally

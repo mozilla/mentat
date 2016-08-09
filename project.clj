@@ -9,6 +9,7 @@
                  [datascript "0.15.1"]
                  [honeysql "0.8.0"]
                  [com.datomic/datomic-free "0.9.5359"]
+                 [com.taoensso/tufte "1.0.2"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
   :cljsbuild {:builds {:release {
