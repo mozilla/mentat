@@ -13,6 +13,7 @@
    [datomish.query.source :as source]
    [datomish.query :as query]
    [datomish.db :as db :refer [id-literal id-literal?]]
+   [datomish.db.debug :as debug]
    [datomish.datom :as dd :refer [datom datom? #?@(:cljs [Datom])]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datomish.schema :as ds]
@@ -21,6 +22,8 @@
    [datomish.sqlite-schema :as sqlite-schema]
    [datomish.transact.bootstrap :as bootstrap]
    [datomish.transact.explode :as explode]
+   [taoensso.tufte :as tufte
+    #?(:cljs :refer-macros :clj :refer) [defnp p profiled profile]]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :as a :refer [chan go <! >!]]])
    #?@(:cljs [[datomish.pair-chan]
@@ -334,124 +337,35 @@
         (ds/ensure-valid-value schema a v)))
     report))
 
-(defn- <ensure-unique-constraints
-  "Throw unless all datoms in :tx-data obey the uniqueness constraints."
-
-  [db report]
-  {:pre [(db/db? db) (report? report)]}
-
-  ;; TODO: consider accumulating errors to show more meaningful error reports.
-  ;; TODO: constrain entities; constrain attributes.
-
-  (go-pair
-    ;; TODO: comment on applying datoms that violate uniqueness.
-    (let [schema (db/schema db)
-          unique-datoms (transient {})] ;; map (nil, a, v)|(e, a, nil)|(e, a, v) -> datom.
-      (doseq [[e a v tx added :as datom] (:tx-data report)]
-
-        (when added
-          ;; Check for violated :db/unique constraint between datom and existing store.
-          (when (ds/unique? schema a)
-            (when-let [found (first (<? (db/<av db a v)))]
-              (raise "Cannot add " datom " because of unique constraint: " found
-                     {:error :transact/unique
-                      :attribute a ;; TODO: map attribute back to ident.
-                      :entity datom})))
-
-          ;; Check for violated :db/unique constraint between datoms.
-          (when (ds/unique? schema a)
-            (let [key [nil a v]]
-              (when-let [other (get unique-datoms key)]
-                (raise "Cannot add " datom " and " other " because together they violate unique constraint"
-                       {:error :transact/unique
-                        :attribute a ;; TODO: map attribute back to ident.
-                        :entity datom}))
-              (assoc! unique-datoms key datom)))
-
-          ;; Check for violated :db/cardinality :db.cardinality/one constraint between datoms.
-          (when-not (ds/multival? schema a)
-            (let [key [e a nil]]
-              (when-let [other (get unique-datoms key)]
-                (raise "Cannot add " datom " and " other " because together they violate cardinality constraint"
-                       {:error :transact/unique
-                        :entity datom}))
-              (assoc! unique-datoms key datom)))
-
-          ;; Check for duplicated datoms.  Datomic doesn't allow overlapping writes, and we don't
-          ;; want to guarantee order, so we don't either.
-          (let [key [e a v]]
-            (when-let [other (get unique-datoms key)]
-              (raise "Cannot add duplicate " datom
-                     {:error :transact/unique
-                      :entity datom}))
-            (assoc! unique-datoms key datom)))))
-    report))
-
-(defn <entities->tx-data [db report]
-  {:pre [(db/db? db) (report? report)]}
-  (go-pair
-    (let [initial-report report
-          {tx :tx}       report
-          schema         (db/schema db)]
-      (loop [report initial-report
-             es (:entities initial-report)]
-        (let [[[op e a v :as entity] & entities] es]
-          (cond
-            (nil? entity)
-            report
-
-            (= op :db/add)
-            (if (ds/multival? schema a)
-              (if (empty? (<? (db/<eav db e a v)))
-                (recur (transact-report report (datom e a v tx true)) entities)
-                (recur report entities))
-              (if-let [^Datom old-datom (first (<? (db/<ea db e a)))]
-                (if  (= (.-v old-datom) v)
-                  (recur report entities)
-                  (recur (-> report
-                             (transact-report (datom e a (.-v old-datom) tx false))
-                             (transact-report (datom e a v tx true)))
-                         entities))
-                (recur (transact-report report (datom e a v tx true)) entities)))
-
-            (= op :db/retract)
-            (if (first (<? (db/<eav db e a v)))
-              (recur (transact-report report (datom e a v tx false)) entities)
-              (recur report entities))
-
-            true
-            (raise "Unknown operation at " entity ", expected :db/add, :db/retract"
-                   {:error :transact/syntax, :operation op, :tx-data entity})))))))
-
 (defn <transact-tx-data
   [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  (go-pair
-    (->>
-      report
-      (preprocess db)
+  (let [<apply-entities (fn [db report]
+                          (go-pair
+                            (let [tx-data (<? (db/<apply-entities db (:tx report) (:entities report)))]
+                              (assoc report :tx-data tx-data))))]
+    (go-pair
+      (->>
+        report
+        (preprocess db)
 
-      (<resolve-lookup-refs db)
-      (<?)
+        (<resolve-lookup-refs db)
+        (<?)
+        (p :resolve-lookup-refs)
 
-      (<resolve-id-literals db)
-      (<?)
+        (<resolve-id-literals db)
+        (<?)
+        (p :resolve-id-literals)
 
-      (<ensure-schema-constraints db)
-      (<?)
+        (<ensure-schema-constraints db)
+        (<?)
+        (p :ensure-schema-constraints)
 
-      (<entities->tx-data db)
-      (<?)
-
-      (<ensure-unique-constraints db)
-      (<?))))
-
-;; Normalize as [op int|id-literal int|id-literal value|id-literal]. ;; TODO: mention lookup-refs.
-
-;; Replace lookup-refs with entids where possible.
-
-;; Upsert or allocate id-literals.
+        (<apply-entities db)
+        (<?)
+        (p :apply-entities)
+        ))))
 
 (defn- is-ident? [db [_ a & _]]
   (= a (db/entid db :db/ident)))
@@ -529,21 +443,25 @@
 
                    (<transact-tx-data db)
                    (<?)
+                   (p :transact-tx-data)
 
                    (collect-db-ident-assertions db)
+                   (p :collect-db-ident-assertions)
 
-                   (collect-db-install-assertions db))
-          db-after        (->
-                            db
+                   (collect-db-install-assertions db)
+                   (p :collect-db-install-assertions))
 
-                            (db/<apply-datoms (:tx-data report))
-                            (<?)
+          db-after (->
+                     db
 
-                            (db/<apply-db-ident-assertions (:added-idents report) merge-ident)
-                            (<?)
+                     (db/<apply-db-ident-assertions (:added-idents report) merge-ident)
+                     (<?)
+                     (->> (p :apply-db-ident-assertions))
 
-                            (db/<apply-db-install-assertions (:added-attributes report) merge-attr)
-                            (<?))]
+                     (db/<apply-db-install-assertions (:added-attributes report) merge-attr)
+                     (<?)
+                     (->> (p :apply-db-install-assertions)))
+          ]
       (-> report
           (assoc-in [:db-after] db-after)))))
 

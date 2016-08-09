@@ -23,8 +23,26 @@
                          index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
                          index_fulltext TINYINT NOT NULL DEFAULT 0,
                          unique_value TINYINT NOT NULL DEFAULT 0)"
-   "CREATE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"
-   "CREATE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"
+   "CREATE UNIQUE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"
+   "CREATE UNIQUE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"
+
+   ;; n.b., v0/value_type_tag0 can be NULL, in which case we look up v from datoms;
+   ;; and the datom columns are NULL into the LEFT JOIN fills them in.
+   ;; TODO: update comment about sv.
+   "CREATE TABLE tx_lookup (e0 INTEGER NOT NULL, a0 SMALLINT NOT NULL, v0 BLOB NOT NULL, tx0 INTEGER NOT NULL, added0 TINYINT NOT NULL,
+                         value_type_tag0 SMALLINT NOT NULL,
+                         index_avet0 TINYINT, index_vaet0 TINYINT,
+                         index_fulltext0 TINYINT,
+                         unique_value0 TINYINT,
+                         sv BLOB,
+                         svalue_type_tag SMALLINT,
+                         rid INTEGER,
+                         e INTEGER, a SMALLINT, v BLOB, tx INTEGER, value_type_tag SMALLINT)"
+
+   "CREATE INDEX idx_tx_lookup_added ON tx_lookup (added0)"
+
+   ;; Prevent overlapping transactions.  TODO: drop added0?
+   "CREATE UNIQUE INDEX idx_tx_lookup_eavt ON tx_lookup (e0, a0, v0, added0, value_type_tag0) WHERE sv IS NOT NULL"
 
    ;; Opt-in index: only if a has :db/index true.
    "CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, value_type_tag, v, e) WHERE index_avet IS NOT 0"
@@ -45,7 +63,7 @@
    "CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"
 
    "CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"
-   "CREATE INDEX idx_transactions_tx ON transactions (tx)"
+   "CREATE INDEX idx_transactions_tx ON transactions (tx, added)"
 
    ;; Fulltext indexing.
    ;; A fulltext indexed value v is an integer rowid referencing fulltext_values.
