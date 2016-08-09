@@ -39,8 +39,8 @@
                          rid INTEGER,
                          e INTEGER, a SMALLINT, v BLOB, tx INTEGER, value_type_tag SMALLINT)"
 
-   "CREATE INDEX idx_tx_lookup_added ON tx_lookup (added0)"
-
+   ;; Note that `id_tx_lookup_added` is created and dropped
+   ;; after insertion, which makes insertion slightly faster.
    ;; Prevent overlapping transactions.  TODO: drop added0?
    "CREATE UNIQUE INDEX idx_tx_lookup_eavt ON tx_lookup (e0, a0, v0, added0, value_type_tag0) WHERE sv IS NOT NULL"
 

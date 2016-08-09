@@ -238,6 +238,7 @@
             many?          (memoize (fn [a] (ds/multival? schema a)))
             <exec          (partial s/execute! (:sqlite-connection db))]
         (p :delete-tx-lookup-before
+           (<? (<exec ["DROP INDEX IF EXISTS id_tx_lookup_added"]))
            (<? (<exec ["DELETE FROM tx_lookup"])))
 
         (p :insertions
@@ -303,6 +304,9 @@
              (catch java.sql.SQLException e
                (throw (ex-info "Transaction violates cardinality constraint" {} e))))) ;; TODO: say more about the conflicting datoms.
 
+        (p :create-tx-lookup-indices
+           (<? (<exec ["CREATE INDEX IF NOT EXISTS idx_tx_lookup_added ON tx_lookup (added0)"])))
+
         (p :join
            ;; Fast, only one table walk: lookup by exact eav.
            (p :join-eav
@@ -348,6 +352,7 @@
 
         ;; The lookup table takes space on disk, so we purge it aggressively.
         (p :delete-tx-lookup-after
+           (<? (<exec ["DROP INDEX IF EXISTS id_tx_lookup_added"]))
            (<? (<exec ["DELETE FROM tx_lookup"])))
 
         ;; The transaction has been written -- read it back.  (We index on tx, so the following is fast.)
