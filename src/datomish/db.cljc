@@ -308,13 +308,29 @@
            (<? (<exec ["CREATE INDEX IF NOT EXISTS idx_tx_lookup_added ON tx_lookup (added0)"])))
 
         (p :join
-           ;; Fast, only one table walk: lookup by exact eav.
-           (p :join-eav
-              (<? (<exec [(str "INSERT INTO tx_lookup SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag FROM tx_lookup AS t LEFT JOIN datoms AS d ON t.e0 = d.e AND t.a0 = d.a AND t.sv = d.v AND t.svalue_type_tag = d.value_type_tag AND t.sv IS NOT NULL")])))
+           (<?
+              (<exec
+                ;; First is fast, only one table walk: lookup by exact eav.
+                ;; Second is slower, but still only one table walk: lookup old value by ea.
+                ["INSERT INTO tx_lookup
 
-           ;; Slower, but still only one table walk: lookup old value by ea.
-           (p :join-ea
-              (<? (<exec [(str "INSERT INTO tx_lookup SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag FROM tx_lookup AS t, datoms AS d WHERE t.sv IS NULL AND t.e0 = d.e AND t.a0 = d.a")]))))
+                 SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
+                 FROM tx_lookup AS t
+                 LEFT JOIN datoms AS d
+                 ON t.e0 = d.e AND
+                    t.a0 = d.a AND
+                    t.sv = d.v AND
+                    t.svalue_type_tag = d.value_type_tag AND
+                    t.sv IS NOT NULL
+
+                 UNION ALL
+                 SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
+                 FROM tx_lookup AS t,
+                      datoms AS d
+                 WHERE t.sv IS NULL AND
+                       t.e0 = d.e AND
+                       t.a0 = d.a
+                 "])))
 
         (p :insert-transaction
            (p :insert-transaction-added
