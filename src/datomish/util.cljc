@@ -70,3 +70,5 @@
            (f (first xs) (first ys))
            (recur f (rest xs) (rest ys)))))
 
+(defn mapvals [f m]
+  (into (empty m) (map #(vector (first %) (f (second %))) m)))
