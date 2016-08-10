@@ -58,7 +58,7 @@
    (->TempId part idx)))
 
 (defn id-literal? [x]
-  (and (instance? TempId x)))
+  (instance? TempId x))
 
 (defprotocol IClock
   (now

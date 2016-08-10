@@ -284,7 +284,9 @@
             report
 
             (and (not= op :db/add)
-                 (not (empty? (filter id-literal? [e a v]))))
+                 (or (id-literal? e)
+                     (id-literal? a)
+                     (id-literal? v)))
             (raise "id-literals are resolved for :db/add only"
                    {:error :transact/syntax
                     :op    entity })
