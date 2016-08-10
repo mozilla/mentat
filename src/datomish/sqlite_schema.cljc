@@ -74,7 +74,23 @@
    ;; By default we use Unicode-aware tokenizing (particularly for case folding), but preserve
    ;; diacritics.
    "CREATE VIRTUAL TABLE fulltext_values
-     USING FTS4 (text NOT NULL, tokenize=unicode61 \"remove_diacritics=0\")"
+     USING FTS4 (text NOT NULL, searchid INT, tokenize=unicode61 \"remove_diacritics=0\")"
+
+   ;; This combination of view and triggers allows you to transparently
+   ;; update-or-insert into FTS. Just INSERT INTO fulltext_values_view (text, searchid).
+   "CREATE VIEW fulltext_values_view AS SELECT * FROM fulltext_values"
+   "CREATE TRIGGER replace_fulltext_searchid
+   INSTEAD OF INSERT ON fulltext_values_view
+   WHEN EXISTS (SELECT 1 FROM fulltext_values WHERE text = new.text)
+   BEGIN
+     UPDATE fulltext_values SET searchid = new.searchid WHERE text = new.text;
+   END"
+   "CREATE TRIGGER insert_fulltext_searchid
+   INSTEAD OF INSERT ON fulltext_values_view
+   WHEN NOT EXISTS (SELECT 1 FROM fulltext_values WHERE text = new.text)
+   BEGIN
+     INSERT INTO fulltext_values (text, searchid) VALUES (new.text, new.searchid);
+   END"
 
    ;; A view transparently interpolating fulltext indexed values into the datom structure.
    "CREATE VIEW fulltext_datoms AS

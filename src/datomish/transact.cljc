@@ -295,7 +295,7 @@
             (and (id-literal? e)
                  (ds/unique-identity? (db/schema db) a)
                  (not-any? id-literal? [a v]))
-            (let [upserted-eid (:e (first (<? (db/<av db a v))))
+            (let [upserted-eid (:e (<? (db/<av db a v)))
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
                 (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
