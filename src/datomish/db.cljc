@@ -236,6 +236,9 @@
     (go-pair
       (let [schema         (.-schema db)
             many?          (memoize (fn [a] (ds/multival? schema a)))
+            indexing?      (memoize (fn [a] (ds/indexing? schema a)))
+            ref?           (memoize (fn [a] (ds/ref? schema a)))
+            unique?        (memoize (fn [a] (ds/unique? schema a)))
             <exec          (partial s/execute! (:sqlite-connection db))]
         (p :delete-tx-lookup-before
            (<? (<exec ["DROP INDEX IF EXISTS id_tx_lookup_added"]))
@@ -255,43 +258,43 @@
                      (if (many? a)
                        ;; :db.cardinality/many
                        (<? (<exec [(str "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES ("
-                                        "?, ?, ?, ?, 1, ?, " ;; e0, a0, v0, tx0, added0, value_type_tag0
-                                        "?, ?, ?, ?, " ;; flags0
-                                        "?, ?" ;; sv, svalue_type_tag
+                                        "?, ?, ?, ?, 1, ?, " ; e0, a0, v0, tx0, added0, value_type_tag0
+                                        "?, ?, ?, ?, "       ; flags0
+                                        "?, ?"               ; sv, svalue_type_tag
                                         ")")
                                    e a v tx tag
-                                   (ds/indexing? schema a) ;; index_avet
-                                   (ds/ref? schema a) ;; index_vaet
-                                   fulltext? ;; index_fulltext
-                                   (ds/unique? schema a) ;; unique_value
+                                   (indexing? a)      ; index_avet
+                                   (ref? a)           ; index_vaet
+                                   fulltext?          ; index_fulltext
+                                   (unique? a)        ; unique_value
                                    v tag
                                    ]))
                        ;; :db.cardinality/one
                        (do
                          (<? (<exec [(str "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES ("
-                                          "?, ?, ?, ?, ?, ?, " ;; TODO: order value and tag closer together.
-                                          "?, ?, ?, ?, " ;; flags0
-                                          "?, ?" ;; sv, svalue_type_tag
+                                          "?, ?, ?, ?, ?, ?, " ; TODO: order value and tag closer together.
+                                          "?, ?, ?, ?, "       ; flags0
+                                          "?, ?"               ; sv, svalue_type_tag
                                           ")")
                                      e a v tx 1 tag
-                                     (ds/indexing? schema a) ;; index_avet
-                                     (ds/ref? schema a) ;; index_vaet
-                                     fulltext? ;; index_fulltext
-                                     (ds/unique? schema a) ;; unique_value
+                                     (indexing? a)   ; index_avet
+                                     (ref? a)        ; index_vaet
+                                     fulltext?       ; index_fulltext
+                                     (unique? a)     ; unique_value
                                      v tag
                                      ]))
                          (<? (<exec [(str "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag) VALUES ("
                                           "?, ?, ?, ?, ?, ?, "
-                                          "?, ?" ;; sv, svalue_type_tag
+                                          "?, ?" ; sv, svalue_type_tag
                                           ")")
                                      e a v tx 0 tag
-                                     nil nil ;; Search values.
+                                     nil nil ; Search values.
                                      ])))))
 
                    (= op :db/retract)
                    (<? (<exec [(str "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag) VALUES ("
                                     "?, ?, ?, ?, ?, ?, "
-                                    "?, ?" ;; sv, svalue_type_tag
+                                    "?, ?" ; sv, svalue_type_tag
                                     ")")
                                e a v tx 0 tag
                                v tag
@@ -335,33 +338,34 @@
         (p :insert-transaction
            (p :insert-transaction-added
               ;; Add datoms that aren't already present.
-              (<? (<exec [(str "INSERT INTO transactions (e, a, v, tx, added, value_type_tag) "
-                               "SELECT e0, a0, v0, ?, 1, value_type_tag0 "
-                               "FROM tx_lookup "
-                               "WHERE added0 IS 3 AND e IS NULL") tx]))) ;; TODO: get rid of magic value 3.
+              (<? (<exec ["INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+                          SELECT e0, a0, v0, ?, 1, value_type_tag0
+                          FROM tx_lookup
+                          WHERE added0 IS 3 AND e IS NULL" tx]))) ;; TODO: get rid of magic value 3.
 
            (p :insert-transaction-retracted
               ;; Retract datoms carefully, either when they're matched exactly or when the existing value doesn't match the new value.
-              (<? (<exec [(str "INSERT INTO transactions (e, a, v, tx, added, value_type_tag) "
-                               "SELECT e, a, v, ?, 0, value_type_tag "
-                               "FROM tx_lookup "
-                               "WHERE added0 IS 2 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL") tx])))) ;; TODO: get rid of magic value 2.
+              (<? (<exec ["INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+                          SELECT e, a, v, ?, 0, value_type_tag
+                          FROM tx_lookup
+                          WHERE added0 IS 2 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL" tx])))) ;; TODO: get rid of magic value 2.
 
         (try
           (p :update-datoms-materialized-view
              (p :insert-datoms-added
                 ;; Add datoms that aren't already present.
-                (<? (<exec [(str "INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value) "
-                                 "SELECT e0, a0, v0, ?, value_type_tag0, "
-                                 "index_avet0, index_vaet0, index_fulltext0, unique_value0 "
-                                 "FROM tx_lookup "
-                                 "WHERE added0 IS 3 AND e IS NULL") tx])) ;; TODO: get rid of magic value 3.)
+                (<? (<exec ["INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
+                            SELECT e0, a0, v0, ?, value_type_tag0,
+                            index_avet0, index_vaet0, index_fulltext0, unique_value0
+                            FROM tx_lookup
+                            WHERE added0 IS 3 AND e IS NULL" tx])) ;; TODO: get rid of magic value 3.)
 
                 ;; TODO: retract fulltext datoms correctly.
                 (p :delete-datoms-retracted
-                   (<? (<exec [(str "WITH ids AS (SELECT l.rid FROM tx_lookup AS l WHERE l.added0 IS 2 AND ((l.sv IS NOT NULL) OR (l.sv IS NULL AND l.v0 IS NOT l.v))) " ;; TODO: get rid of magic value 2.
-                                    "DELETE FROM datoms WHERE rowid IN ids"
-                                    )])))))
+                   (<? (<exec
+                         ["WITH ids AS (SELECT l.rid FROM tx_lookup AS l WHERE l.added0 IS 2 AND ((l.sv IS NOT NULL) OR (l.sv IS NULL AND l.v0 IS NOT l.v)))
+                          DELETE FROM datoms WHERE rowid IN ids" ;; TODO: get rid of magic value 2.
+                          ])))))
 
           (catch java.sql.SQLException e
             (throw (ex-info "Transaction violates unique constraint" {} e)))) ;; TODO: say more about the conflicting datoms.
