@@ -401,22 +401,22 @@
                      {:error :schema/idents
                       :op    ia }))))))))
 
-(defn- symbolicate-datom [db [e a v tx added]]
-  (datom
-    (db/ident db e)
-    (db/ident db a)
-    (db/ident db v)
-    tx
-    added))
-
 (defn collect-db-install-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
   Collect [:db.part/db :db.install/attribute] assertions here."
   [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  ;; TODO: be more efficient; symbolicating each datom is expensive!
-  (let [datoms (map (partial symbolicate-datom db) (:tx-data report))
+  ;; Symbolicating is not expensive.
+  (let [symbolicate-install-datom
+        (fn [[e a v tx added]]
+          (datom
+            (db/ident db e)
+            (db/ident db a)
+            (db/ident db v)
+            tx
+            added))
+        datoms (map symbolicate-install-datom (:tx-data report))
         schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)]
     (assoc-in report [:added-attributes] schema-fragment)))
 
