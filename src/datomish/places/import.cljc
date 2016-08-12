@@ -55,7 +55,7 @@
 
 
 (defn- place->entity [[id rows]]
-  (let [title (:title (first (filter :page/title rows)))
+  (let [title (:title (first rows))
         required {:db/id (db/id-literal :db.part/user)
                   :page/url (:url (first rows))
                   :page/guid (:guid (first rows))}
