@@ -8,67 +8,83 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
+     [datomish.db :as db]
+     [datomish.transact :as transact]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datomish.sqlite :as s]
-   [datomish.api :as d]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :as a :refer [chan go <! >!]]])
    #?@(:cljs [[datomish.pair-chan]
               [cljs.core.async :as a :refer [chan <! >!]]])))
 
 (def places-schema-fragment
-  [{:db/id        (d/id-literal :db.part/user)
+  [{:db/id        (db/id-literal :db.part/user)
     :db/ident     :page/url
     :db/unique    :db.unique/identity
     :db/valueType :db.type/string ;; TODO: uri
     :db.install/_attribute :db.part/db}
-   {:db/id        (d/id-literal :db.part/user)
+   {:db/id        (db/id-literal :db.part/user)
     :db/ident     :page/guid
     :db/unique    :db.unique/identity
     :db/valueType :db.type/string ;; TODO: uuid or guid?
     :db.install/_attribute :db.part/db}
-   {:db/id          (d/id-literal :db.part/user)
+   {:db/id          (db/id-literal :db.part/user)
     :db/ident       :page/title
     :db/cardinality :db.cardinality/one
     :db/valueType   :db.type/string
     :db.install/_attribute :db.part/db}
-   {:db/id        (d/id-literal :db.part/user)
+   {:db/id        (db/id-literal :db.part/user)
     :db/ident     :page/visitAt
     :db/cardinality :db.cardinality/many
     :db/valueType :db.type/long ;; TODO: instant
     :db.install/_attribute :db.part/db}
    ])
 
+(defn assoc-if
+  ([m k v]
+   (if v
+     (assoc m k v)
+     m))
+  ([m k v & kvs]
+   (if kvs
+     (let [[kk vv & remainder] kvs]
+       (apply assoc-if
+              (assoc-if m k v)
+              kk vv remainder))
+     (assoc-if m k v))))
+
+
 (defn- place->entity [[id rows]]
-  (let [title (:title (first (filter :page/title rows)))]
-    (cond-> {:db/id (d/id-literal :db.part/user)
-             :page/url (:url (first rows))
-             :page/guid (:guid (first rows))
-             :page/visitAt (map :visit_date rows)}
-      title (assoc :page/title title))))
+  (let [title (:title (first (filter :page/title rows)))
+        required {:db/id (db/id-literal :db.part/user)
+                  :page/url (:url (first rows))
+                  :page/guid (:guid (first rows))}
+        visits (map :visit_date rows)]
+    (assoc-if required
+              :page/title title
+              :page/visitAt visits)))
 
 (defn import-places [conn places-connection]
   (go-pair
     ;; Ensure schema fragment is in place, even though it may cost a (mostly empty) transaction.
-    (<? (d/<transact! conn places-schema-fragment))
+    (<? (transact/<transact! conn places-schema-fragment))
 
-    (->>
-      ["SELECT DISTINCT p.id, p.url, p.title, p.visit_count, p.last_visit_date, p.guid,"
-       "hv.visit_date"
-       "FROM moz_places AS p LEFT JOIN moz_historyvisits AS hv"
-       "WHERE p.hidden = 0 AND p.id = hv.place_id"
-       "ORDER BY p.id, hv.visit_date"
-       "LIMIT 20000"] ;; TODO: remove limit.
-      (interpose " ")
-      (apply str)
-      (vector)
+    (let [rows
+          (<?
+            (s/all-rows
+              places-connection
+              ["SELECT DISTINCT p.id AS id, p.url AS url, p.title AS title, p.visit_count, p.last_visit_date, p.guid,
+               hv.visit_date
+               FROM moz_places AS p LEFT JOIN moz_historyvisits AS hv
+               WHERE p.hidden = 0 AND p.id = hv.place_id
+               ORDER BY p.id, hv.visit_date"]))]
+      (<?
+        (transact/<transact!
+          conn
+          (map place->entity (group-by :id rows)))))))
 
-      (s/all-rows places-connection)
-      (<?)
-
-      (group-by :id)
-
-      (map place->entity)
-
-      (d/<transact! conn)
-      (<?))))
+(defn import-places-from-path [db places]
+  (go-pair
+    (let [conn (transact/connection-with-db db)
+          pdb (<? (s/<sqlite-connection places))]
+      (import-places conn pdb))))
