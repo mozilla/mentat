@@ -209,23 +209,48 @@
       (->> (update-txInstant db*)))))
 
 (defn- lookup-ref? [x]
-  "Return true if `x` is like [:attr value]."
+  "Return `x` if `x` is like [:attr value], false otherwise."
   (and (sequential? x)
        (= (count x) 2)
        (or (keyword? (first x))
-           (integer? (first x)))))
+           (integer? (first x)))
+       x))
 
 (defn <resolve-lookup-refs [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  (go-pair
-    (->>
-      (vec (for [[op & entity] (:entities report)]
-             (into [op] (for [field entity]
-                          (if (lookup-ref? field)
-                            (first (<? (apply db/<av db field)))
-                            field)))))
-      (assoc-in report [:entities])))) ;; TODO: meta.
+  (let [entities (:entities report)]
+    ;; TODO: meta.
+    (go-pair
+      (if (empty? entities)
+        report
+        (assoc-in
+          report [:entities]
+          ;; We can't use `for` because go-pair doesn't traverse function boundaries.
+          ;; Apologies for the tortured nested loop.
+          (loop [[op & entity] (first entities)
+                 next (rest entities)
+                 acc []]
+            (if (nil? op)
+              acc
+              (recur (first next)
+                     (rest next)
+                     (conj acc
+                           (loop [field (first entity)
+                                  rem (rest entity)
+                                  acc [op]]
+                             (if (nil? field)
+                               acc
+                               (recur (first rem)
+                                      (rest rem)
+                                      (conj acc
+                                            (if-let [[a v] (lookup-ref? field)]
+                                              (or
+                                                ;; The lookup might fail! If so, throw.
+                                                (:e (<? (db/<av db a v)))
+                                                (raise "No entity found with attr " a " and val " v "."
+                                                       {:a a :v v}))
+                                              field))))))))))))))
 
 (declare <resolve-id-literals)
 
