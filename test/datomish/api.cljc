@@ -39,3 +39,5 @@
 (def ident db/ident)
 
 (def <q db/<?q)
+
+(def schema db/schema)
