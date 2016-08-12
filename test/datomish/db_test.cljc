@@ -12,6 +12,7 @@
    [datomish.api :as d]
    [datomish.db.debug :refer [<datoms-after <transactions-after <shallow-entity <fulltext-values]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
+   [datomish.schema :as ds]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema]
    [datomish.datom]
@@ -412,9 +413,13 @@
                   {:db/id :db.part/db :db.install/attribute (d/id-literal :db.part/db -2)}
                   ]
           tx0 (:tx (<? (d/<transact! conn schema)))]
+      (testing "Schema checks"
+               (is (ds/fulltext? (d/schema (d/db conn))
+                                 (d/entid (d/db conn) :test/fulltext))))
       (try
         (testing "Can add fulltext indexed datoms"
-          (let [{tx1 :tx txInstant1 :txInstant} (<? (d/<transact! conn [[:db/add 101 :test/fulltext "test this"]]))]
+          (let [{tx1 :tx txInstant1 :txInstant}
+                (<? (d/<transact! conn [[:db/add 101 :test/fulltext "test this"]]))]
             (is (= (<? (<fulltext-values (d/db conn)))
                    [[1 "test this"]]))
             (is (= (<? (<datoms-after (d/db conn) tx0))
