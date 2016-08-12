@@ -75,8 +75,8 @@
               places-connection
               ["SELECT DISTINCT p.id AS id, p.url AS url, p.title AS title, p.visit_count, p.last_visit_date, p.guid,
                hv.visit_date
-               FROM moz_places AS p LEFT JOIN moz_historyvisits AS hv
-               WHERE p.hidden = 0 AND p.id = hv.place_id
+               FROM moz_places AS p LEFT JOIN moz_historyvisits AS hv ON p.id = hv.place_id
+               WHERE p.hidden = 0
                ORDER BY p.id, hv.visit_date"]))]
       (<?
         (transact/<transact!
