@@ -64,6 +64,23 @@
               :page/title title
               :page/visitAt visits)))
 
+(defn import-titles [conn places-connection]
+  (go-pair
+    (let [rows
+          (<?
+            (s/all-rows
+              places-connection
+              ["SELECT DISTINCT p.title AS title, p.guid
+               FROM moz_places AS p
+               WHERE p.title IS NOT NULL AND p.hidden = 0 LIMIT 10"]))]
+      (<?
+        (transact/<transact!
+          conn
+          (map (fn [row]
+                 {:db/id [:page/guid (:guid row)]
+                  :page/title (:title row)})
+               rows))))))
+
 (defn import-places [conn places-connection]
   (go-pair
     ;; Ensure schema fragment is in place, even though it may cost a (mostly empty) transaction.
@@ -82,6 +99,12 @@
         (transact/<transact!
           conn
           (map place->entity (group-by :id rows)))))))
+
+(defn import-titles-from-path [db places]
+  (go-pair
+    (let [conn (transact/connection-with-db db)
+          pdb (<? (s/<sqlite-connection places))]
+      (import-titles conn pdb))))
 
 (defn import-places-from-path [db places]
   (go-pair
