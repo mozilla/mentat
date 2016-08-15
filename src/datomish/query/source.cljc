@@ -5,6 +5,7 @@
 (ns datomish.query.source
   (:require
    [datomish.query.transforms :as transforms]
+   [datomish.schema :as schema]
    [datascript.parser
     #?@(:cljs
         [:refer [Variable Constant Placeholder]])])
@@ -39,6 +40,7 @@
   (source->fulltext-from [source]
     "Returns a pair, `[table alias]` for querying the source's fulltext index.")
   (source->constraints [source alias])
+  (pattern->schema-value-type [source pattern])
   (attribute-in-source [source attribute])
   (constant-in-source [source constant]))
 
@@ -48,6 +50,7 @@
      fulltext-table      ; Typically :fulltext_values
      fulltext-view       ; Typically :all_datoms
      columns             ; e.g., [:e :a :v :tx]
+     schema              ; An ISchema instance.
 
      ;; `attribute-transform` is a function from attribute to constant value. Used to
      ;; turn, e.g., :p/attribute into an interned integer.
@@ -87,6 +90,19 @@
   (source->constraints [source alias]
     (when-let [f (:make-constraints source)]
       (f alias)))
+
+  (pattern->schema-value-type [source pattern]
+    (let [[_ a v _] pattern
+          schema (:schema (:schema source))]
+      (when (instance? Constant a)
+        (let [val (:value a)]
+          (if (keyword? val)
+            ;; We need to find the entid for the keyword attribute,
+            ;; because the schema stores attributes by ID.
+            (let [id (attribute-in-source source val)]
+              (get-in schema [id :db/valueType]))
+            (when (integer? val)
+              (get-in schema [val :db/valueType])))))))
 
   (attribute-in-source [source attribute]
     ((:attribute-transform source) attribute))

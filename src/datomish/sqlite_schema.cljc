@@ -248,7 +248,7 @@
   (case tag
     0  value                               ; ref.
     1  (= value 1)                         ; boolean
-    4  (new Date value)                    ; instant
+    4  (js/Date. value)                    ; instant
     13 (keyword (subs value 1))            ; keyword
     ; 12 value                             ; URI
     ; 11 value                             ; UUID

@@ -159,6 +159,7 @@
 (defn datoms-source [db]
   (source/map->DatomsSource
     {:table :datoms
+     :schema (:schema db)
      :fulltext-table :fulltext_values
      :fulltext-view :all_datoms
      :columns [:e :a :v :tx :added]

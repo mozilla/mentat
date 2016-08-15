@@ -105,12 +105,26 @@
    :db.type/string  { :valid? string? }
    :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) }
    :db.type/long    { :valid? integer? }
+   :db.type/uuid    { :valid? #?(:clj #(instance? java.util.UUID %) :cljs string?) }
+   :db.type/instant { :valid? #?(:clj #(instance? java.util.Date %) :cljs #(= js/Date (type %))) }
+   :db.type/uri     { :valid? #?(:clj #(instance? java.net.URI %) :cljs string?) }
    :db.type/double  { :valid? #?(:clj float? :cljs number?) }
    })
 
+(defn #?@(:clj  [^Boolean ensure-value-matches-type]
+          :cljs [^boolean ensure-value-matches-type]) [type value]
+  (if-let [valid? (get-in value-type-map [type :valid?])]
+    (when-not (valid? value)
+      (raise "Invalid value for type " type "; got " value
+             {:error :schema/valueType, :type type, :value value}))
+    (raise "Unknown valueType " type ", expected one of " (sorted-set (keys value-type-map))
+           {:error :schema/valueType, :type type})))
+
+;; There's some duplication here so we get better error messages.
 (defn #?@(:clj  [^Boolean ensure-valid-value]
           :cljs [^boolean ensure-valid-value]) [schema attr value]
-  {:pre [(schema? schema)]}
+  {:pre [(schema? schema)
+         (integer? attr)]}
   (let [schema (.-schema schema)]
     (if-let [valueType (get-in schema [attr :db/valueType])]
       (if-let [valid? (get-in value-type-map [valueType :valid?])]
@@ -123,7 +137,8 @@
              {:error :schema/valueType, :attribute attr}))))
 
 (defn ->SQLite [schema attr value]
-  {:pre [(schema? schema)]}
+  {:pre [(schema? schema)
+         (integer? attr)]}
   (let [schema (.-schema schema)]
     (if-let [valueType (get-in schema [attr :db/valueType])]
       (if-let [valid? (get-in value-type-map [valueType :valid?])]
