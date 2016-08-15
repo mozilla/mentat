@@ -35,13 +35,26 @@
    @param context A Context, containing elements.
    @return a sequence of pairs."
   [context]
-  (def foo context)
-  (let [elements (:elements context)]
+  (let [elements (:elements context)
+        cc (:cc context)
+        known-types (:known-types cc)
+        extracted-types (:extracted-types cc)]
+
     (when-not (every? #(instance? Variable %1) elements)
       (raise-str "Unable to :find non-variables."))
-    (map (fn [elem]
-           (let [var (:symbol elem)]
-             [(lookup-variable (:cc context) var) (util/var->sql-var var)]))
+
+    ;; If the type of a variable isn't explicitly known, we also select
+    ;; its type column so we can transform it.
+    (mapcat (fn [elem]
+              (let [var (:symbol elem)
+                    lookup-var (lookup-variable cc var)
+                    projected-var (util/var->sql-var var)
+                    var-projection [lookup-var projected-var]]
+                (if (or (contains? known-types var)
+                        (not (contains? extracted-types var)))
+                  [var-projection]
+                  [var-projection [(get extracted-types var)
+                                   (util/var->sql-type-var var)]])))
          elements)))
 
 (defn row-pair-transducer [context]

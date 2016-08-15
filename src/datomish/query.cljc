@@ -91,10 +91,11 @@
   (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
     (validate-with with)
     (validate-in in)
-    (let [external-bindings (in->bindings in)]
+    (let [external-bindings (in->bindings in)
+          known-types {}]
       (assoc context
              :elements (:elements find)
-             :cc (clauses/patterns->cc (:default-source context) where external-bindings)))))
+             :cc (clauses/patterns->cc (:default-source context) where known-types external-bindings)))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
