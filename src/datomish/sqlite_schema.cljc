@@ -17,21 +17,6 @@
 
 (def current-version 1)
 
-;; Datomish rows are tagged with a numeric representation of :db/valueType:
-;; The tag is used to limit queries, and therefore is placed carefully in the relevant indices to
-;; allow searching numeric longs and doubles quickly.  The tag is also used to convert SQLite values
-;; to the correct Datomish value type on query egress.
-(def value-type-tag-map
-  {:db.type/ref     0
-   :db.type/boolean 1
-   :db.type/instant 4
-   :db.type/long    5 ;; SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-   :db.type/double  5 ;; SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-   :db.type/string  10
-   :db.type/uuid    11
-   :db.type/uri     12
-   :db.type/keyword 13})
-
 (def v1-statements
   ["CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
                          value_type_tag SMALLINT NOT NULL,
@@ -176,7 +161,8 @@
        number
        (->SQLite [x] x)]))
 
-(defn <-SQLite "Transforms SQLite values to Clojure{Script}."
+(defn <-SQLite
+  "Transforms SQLite values to Clojure{Script}."
   [valueType value]
   (case valueType
     :db.type/ref     value
@@ -186,8 +172,67 @@
     :db.type/long    value
     :db.type/double  value))
 
+;; Datomish rows are tagged with a numeric representation of :db/valueType:
+;; The tag is used to limit queries, and therefore is placed carefully in the relevant indices to
+;; allow searching numeric longs and doubles quickly.  The tag is also used to convert SQLite values
+;; to the correct Datomish value type on query egress.
+(def value-type-tag-map
+  {:db.type/ref     0
+   :db.type/boolean 1
+   :db.type/instant 4
+   :db.type/long    5 ;; SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+   :db.type/double  5 ;; SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+   :db.type/string  10
+   :db.type/uuid    11
+   :db.type/uri     12
+   :db.type/keyword 13})
+
 (defn ->tag [valueType]
   (or
     (valueType value-type-tag-map)
     (raise "Unknown valueType " valueType ", expected one of " (sorted-set (keys value-type-tag-map))
            {:error :SQLite/tag, :valueType valueType})))
+
+#?(:clj
+(defn <-tagged-SQLite
+  "Transforms SQLite values to Clojure with tag awareness."
+  [tag value]
+  (case tag
+    ;; In approximate commonality order.
+    0  value                               ; ref.
+    1  (= value 1)                         ; boolean
+    4  (java.util.Date. value)             ; instant
+    13 (keyword (subs value 1))            ; keyword
+    12 (java.net.URI. value)               ; URI
+    11 (java.util.UUID/fromString value)   ; UUID
+    ;  5 value                             ; numeric
+    ; 10 value                             ; string
+    value
+    )))
+
+#?(:cljs
+(defn <-tagged-SQLite
+  "Transforms SQLite values to ClojureScript with tag awareness."
+  [tag value]
+  ;; In approximate commonality order.
+  (case tag
+    0  value                               ; ref.
+    1  (= value 1)                         ; boolean
+    4  (new Date value)                    ; instant
+    13 (keyword (subs value 1))            ; keyword
+    ; 12 value                             ; URI
+    ; 11 value                             ; UUID
+    ;  5 value                             ; numeric
+    ; 10 value                             ; string
+    value
+    )))
+
+(defn tagged-SQLite-to-JS
+  "Transforms SQLite values to JavaScript-compatible values."
+  [tag value]
+  (case tag
+    1  (= value 1)     ; boolean.
+    ;  0 value         ; No point trying to ident.
+    ;  4 value         ; JS doesn't have a Date representation.
+    ; 13 value         ; Return the keyword string from the DB: ":foobar".
+    value))
