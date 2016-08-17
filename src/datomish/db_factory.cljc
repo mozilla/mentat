@@ -67,9 +67,20 @@
                                 [(<-SQLite (:attr row)) (<-SQLite (:value row))]) rows))]))
         (into {})))))
 
+(defn <initialize-connection [sqlite-connection]
+  (go-pair
+    ;; Some of these return values when set, and some don't, hence the craziness here.
+    (<? (s/execute! sqlite-connection ["PRAGMA page_size=32768"]))
+    (<? (s/all-rows sqlite-connection ["PRAGMA journal_mode=wal"]))
+    (<? (s/all-rows sqlite-connection ["PRAGMA wal_autocheckpoint=32"]))
+    (<? (s/all-rows sqlite-connection ["PRAGMA journal_size_limit=3145728"]))
+    (s/execute! sqlite-connection ["PRAGMA foreign_keys=ON"])))
+
 (defn <db-with-sqlite-connection
   [sqlite-connection]
   (go-pair
+    (<? (<initialize-connection sqlite-connection))
+
     (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
       (raise "Could not ensure current SQLite schema version."))
 
