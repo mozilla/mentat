@@ -60,11 +60,19 @@
                 :op    entity }))
 
       (sequential? v)
-      (if (ds/multival? (db/schema db) a*) ;; dm/schema
-        (mapcat (partial explode-entity-a-v db entity eid a) v) ;; Allow sequences of nested maps, etc.  This does mean [[1]] will work.
-        (raise "Sequential values " v " but attribute " a " is :db.cardinality/one"
-               {:error :transact/entity-sequential-cardinality-one
-                :op    entity }))
+      (if (some nil? v)
+        ;; This is a hard one to track down, with a steep stack back in `transact/ensure-entity-form`, so
+        ;; we error specifically here rather than expanding further.
+        (raise "Sequential attribute value for " a " contains nil."
+               {:error :transact/sequence-contains-nil
+                :op entity
+                :attribute a
+                :value v})
+        (if (ds/multival? (db/schema db) a*) ;; dm/schema
+          (mapcat (partial explode-entity-a-v db entity eid a) v) ;; Allow sequences of nested maps, etc.  This does mean [[1]] will work.
+          (raise "Sequential values " v " but attribute " a " is :db.cardinality/one"
+                 {:error :transact/entity-sequential-cardinality-one
+                  :op    entity })))
 
       true
       [[:db/add eid a* v]])))
