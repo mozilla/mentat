@@ -59,7 +59,8 @@
         required {:db/id (db/id-literal :db.part/user)
                   :page/url (:url (first rows))
                   :page/guid (:guid (first rows))}
-        visits (map :visit_date rows)]
+        visits (keep :visit_date rows)]
+
     (assoc-if required
               :page/title title
               :page/visitAt visits)))
