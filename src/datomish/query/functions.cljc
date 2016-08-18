@@ -107,6 +107,8 @@
         from [[fulltext-table fulltext-alias]
               [datom-table datom-alias]]
 
+        extracted-types {}    ; TODO
+
         wheres [[:match match-column match-value]      ; The FTS match.
 
                 ;; The fulltext rowid-to-datom correspondence.
@@ -134,7 +136,7 @@
                           ;; if this is a variable rather than a placeholder.
                           [score [0]]]))]
 
-    (cc/augment-cc cc from bindings wheres)))
+    (cc/augment-cc cc from bindings extracted-types wheres)))
 
 (def sql-functions
   ;; Future: versions of this that uses snippet() or matchinfo().
