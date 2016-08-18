@@ -71,10 +71,8 @@
     (when-not (and (instance? SrcVar src)
                    (= "$" (name (:symbol src))))
       (raise "Non-default sources not supported." {:arg src}))
-    (when-not (instance? Constant attr)
-      (raise "Non-constant fulltext attributes not supported." {:arg attr}))
-
-    (when-not (fulltext-attribute? (:source cc) (:value attr))
+    (when (and (instance? Constant attr)
+               (not (fulltext-attribute? (:source cc) (:value attr))))
       (raise-str "Attribute " (:value attr) " is not a fulltext-indexed attribute."))
 
     (when-not (and (instance? BindColl bind-coll)
@@ -94,6 +92,18 @@
   ;; We do not currently support scoring; the score value will always be 0.
   (let [[src attr search] (:args function)
 
+        ;; Note that DataScript's parser won't allow us to write a term like
+        ;;
+        ;;   [(fulltext $ _ "foo") [[?x]]]
+        ;;
+        ;; so we instead have a placeholder attribute. Sigh.
+        attr-constant (or
+                        (and (instance? Constant attr)
+                             (not (= :any (:value attr)))
+                             (source/attribute-in-source (:source cc) (:value attr)))
+                        (and (instance? Variable attr)
+                             (cc/binding-for-symbol-or-throw cc (:symbol attr))))
+
         ;; Pull out the symbols for the binding array.
         [entity value tx score]
         (map (comp :symbol :variable)     ; This will nil-out placeholders.
@@ -112,22 +122,27 @@
         from [[fulltext-table fulltext-alias]
               [datom-table datom-alias]]
 
-        wheres [[:match match-column match-value]      ; The FTS match.
+        extracted-types {}    ; TODO
+
+        wheres (concat
+                 [[:match match-column match-value]      ; The FTS match.
 
                 ;; The fulltext rowid-to-datom correspondence.
                 [:=
                  (sql/qualify datom-alias :v)
-                 (sql/qualify fulltext-alias :rowid)]
+                 (sql/qualify fulltext-alias :rowid)]]
 
-                ;; The attribute itself must match.
-                [:=
-                 (sql/qualify datom-alias :a)
-                 (source/attribute-in-source (:source cc) (:value attr))]]
+                 (when attr-constant
+                   ;; If known, the attribute itself must match.
+                   [[:=
+                     (sql/qualify datom-alias :a)
+                     attr-constant]]))
 
         ;; Now compose any bindings for entity, value, tx, and score.
         ;; TODO: do we need to examine existing bindings to capture
         ;; wheres for any of these? We shouldn't, because the CC will
         ;; be internally cross-where'd when everything is done...
+        ;; TODO: bind attribute?
         bindings (into {}
                        (filter
                          (comp not nil? first)
@@ -139,7 +154,7 @@
                           ;; if this is a variable rather than a placeholder.
                           [score [0]]]))]
 
-    (cc/augment-cc cc from bindings wheres)))
+    (cc/augment-cc cc from bindings extracted-types wheres)))
 
 ;; get-else is how Datalog handles optional attributes.
 ;;

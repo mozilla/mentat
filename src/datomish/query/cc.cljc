@@ -190,12 +190,15 @@
            (concat (:wheres cc)
                    (bindings->where (:bindings cc))))))
 
-(defn binding-for-symbol-or-throw [cc symbol]
+(defn binding-for-symbol [cc symbol]
   (let [internal-bindings (symbol (:bindings cc))
         external-bindings (symbol (:external-bindings cc))]
     (or (first internal-bindings)
-        (first external-bindings)
-        (raise-str "No bindings yet for " symbol))))
+        (first external-bindings))))
+
+(defn binding-for-symbol-or-throw [cc symbol]
+  (or (binding-for-symbol cc symbol)
+      (raise-str "No bindings yet for " symbol)))
 
 (defn argument->value
   "Take a value from an argument list and resolve it against the CC.
