@@ -10,12 +10,14 @@
       [cljs.core.async.macros :as a :refer [go]]))
   (:require
    [datomish.api :as d]
-   #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
+   #?@(:clj [[datomish.jdbc-sqlite]
+             [datomish.pair-chan :refer [go-pair <?]]
              [tempfile.core :refer [tempfile with-tempfile]]
              [datomish.test-macros :refer [deftest-async]]
              [clojure.test :as t :refer [is are deftest testing]]
              [clojure.core.async :refer [go <! >!]]])
-   #?@(:cljs [[datomish.pair-chan]
+   #?@(:cljs [[datomish.promise-sqlite]
+              [datomish.pair-chan]
               [datomish.test-macros :refer-macros [deftest-async]]
               [datomish.node-tempfile :refer [tempfile]]
               [cljs.test :as t :refer-macros [is are deftest testing async]]

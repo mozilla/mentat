@@ -4,6 +4,8 @@
 
 (ns datomish.query.projection
   (:require
+   [datomish.query.source :as source]
+   [datomish.sqlite-schema :as ss]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise-str cond-let]]
    [datascript.parser :as dp
     #?@(:cljs [:refer [Pattern DefaultSrc Variable Constant Placeholder]])]
@@ -57,11 +59,48 @@
                                    (util/var->sql-type-var var)]])))
          elements)))
 
+(defn make-projectors-for-columns [elements known-types extracted-types]
+  {:pre [(map? extracted-types)
+         (map? known-types)]}
+  (map (fn [elem]
+         (let [var (:symbol elem)
+               projected-var (util/var->sql-var var)
+               tag-decoder (memoize
+                             (fn [tag]
+                               (partial ss/<-tagged-SQLite tag)))]
+
+           (if-let [type (get known-types var)]
+             ;; We know the type! We already know how to decode it.
+             ;; TODO: most of these tags don't actually require calling through to <-tagged-SQLite.
+             ;; TODO: optimize this without making it horrible.
+             (let [decoder (tag-decoder (ss/->tag type))]
+               (fn [row]
+                 (decoder (get row projected-var))))
+
+             ;; We don't know the type. Find the type projection column
+             ;; and use it to decode the value.
+             (if (contains? extracted-types var)
+               (let [type-column (util/var->sql-type-var var)]
+                 (fn [row]
+                   (ss/<-tagged-SQLite
+                     (get row type-column)
+                     (get row projected-var))))
+
+               ;; We didn't extract a type and we don't know it in advance.
+               ;; Just pass through; the :col will look itself up in the row.
+               projected-var))))
+       elements))
+
 (defn row-pair-transducer [context]
-  ;; For now, we only support straight var lists, so
-  ;; our transducer is trivial.
-  (let [columns-in-order (map second (sql-projection context))]
-    (map (fn [[row err]]
-           (if err
-             [row err]
-             [(map row columns-in-order) nil])))))
+  (let [{:keys [elements cc]} context
+        {:keys [source known-types extracted-types]} cc
+
+        ;; We know the projection will fail above if these aren't simple variables.
+        projectors
+        (make-projectors-for-columns elements known-types extracted-types)]
+
+    (map
+      (fn [[row err]]
+        (if err
+          [row err]
+          [(map (fn [projector] (projector row)) projectors) nil])))))
