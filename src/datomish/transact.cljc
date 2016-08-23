@@ -115,6 +115,8 @@
         v (if (ds/kw? (db/schema db) a) ;; TODO: decide if this is best.  We could also check for ref and numeric types.
             v
             (db/entid db v))]
+    (when-not (integer? a)
+      (println "WARNING: unknown attribute" a))
     [op e a v tx]))
 
 (defrecord Transaction [db tempids entities])
