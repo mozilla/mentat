@@ -172,6 +172,9 @@
        Long
        (->SQLite [x] x)
 
+       java.util.Date
+       (->SQLite [x] (.getTime x))
+
        Float
        (->SQLite [x] x)
 
@@ -188,19 +191,11 @@
        boolean
        (->SQLite [x] (if x 1 0))
 
+       js/Date
+       (->SQLite [x] (.getTime x))
+
        number
        (->SQLite [x] x)]))
-
-(defn <-SQLite
-  "Transforms SQLite values to Clojure{Script}."
-  [valueType value]
-  (case valueType
-    :db.type/ref     value
-    :db.type/keyword (keyword (subs value 1))
-    :db.type/string  value
-    :db.type/boolean (not= value 0)
-    :db.type/long    value
-    :db.type/double  value))
 
 ;; Datomish rows are tagged with a numeric representation of :db/valueType:
 ;; The tag is used to limit queries, and therefore is placed carefully in the relevant indices to
@@ -266,3 +261,15 @@
     ;  4 value         ; JS doesn't have a Date representation.
     ; 13 value         ; Return the keyword string from the DB: ":foobar".
     value))
+
+(defn <-SQLite
+  "Transforms SQLite values to Clojure{Script}."
+  [valueType value]
+  (case valueType
+    :db.type/ref     value
+    :db.type/keyword (keyword (subs value 1))
+    :db.type/string  value
+    :db.type/boolean (not= value 0)
+    :db.type/long    value
+    :db.type/instant (<-tagged-SQLite 4 value)
+    :db.type/double  value))
