@@ -24,6 +24,8 @@
                           :db/cardinality :db.cardinality/one}
    :db/cardinality       {:db/valueType   :db.type/ref
                           :db/cardinality :db.cardinality/one}
+   :db/doc               {:db/valueType   :db.type/string
+                          :db/cardinality :db.cardinality/one}
    :db/unique            {:db/valueType   :db.type/ref
                           :db/cardinality :db.cardinality/one}
    :db/isComponent       {:db/valueType   :db.type/boolean
@@ -70,7 +72,9 @@
    :db.cardinality/one   31
    :db.cardinality/many  32
    :db.unique/value      33
-   :db.unique/identity   34})
+   :db.unique/identity   34
+   :db/doc               35
+   })
 
 (defn tx-data []
   (concat
