@@ -76,7 +76,7 @@
                ;; channel being rejected and no further row callbacks
                ;; being called.
                (when (second result)
-                 (put! result c))
+                 (put! c result))
                (close! c))))
 
 (defn all-rows
