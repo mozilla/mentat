@@ -91,6 +91,24 @@
     :db/valueType :db.type/boolean
     :db/cardinality :db.cardinality/one}])
 
+(def aggregate-schema
+  [{:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/ident :page/url
+    :db/valueType :db.type/string
+    :db/unique :db.unique/identity
+    :db/cardinality :db.cardinality/one}
+   {:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/ident :foo/points
+    :db/valueType :db.type/long
+    :db/cardinality :db.cardinality/many}
+   {:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/ident :foo/visitedAt
+    :db/valueType :db.type/instant
+    :db/cardinality :db.cardinality/many}])
+
 (def schema-with-page
   (concat
     simple-schema
@@ -101,7 +119,7 @@
          :table-alias (comp (make-predictable-gensym) name)))
 
 (defn conn->context [conn]
-  (context/->Context (mock-source (d/db conn)) nil nil))
+  (context/make-context (mock-source (d/db conn))))
 
 (defn- expand [find conn]
   (let [context (conn->context conn)
@@ -443,3 +461,34 @@
              '[:find ?page ?thing :in $ :where
                [?page _ ?thing]]
              conn)))))
+
+(deftest-db test-aggregates conn
+  (let [attrs (<? (<initialize-with-schema conn aggregate-schema))
+        context
+        (populate '[:find ?date (max ?v)
+                    :with ?e
+                    :in $ ?then
+                    :where
+                    [?e :foo/visitedAt ?date]
+                    [(> ?date ?then)]
+                    [?e :foo/points ?v]] conn)]
+
+    (is (= (:group-by-vars context)
+           ['?date '?e]))
+
+    (is (= {:select '([:inner.date :date]
+                      [:%max.inner.v :_max_v])
+            :modifiers [:distinct]
+            :from [[{:select '([:datoms0.v :date]
+                               [:datoms1.v :v]
+                               [:datoms0.e :e]),          ; Because we need to group on it.
+                     :modifiers [:distinct],
+                     :group-by '(:date :e),
+                     :from '([:datoms datoms0] [:datoms datoms1]),
+                     :where (list
+                              :and
+                              [:= :datoms0.a (:foo/visitedAt attrs)]
+                              (list :> :datoms0.v (sql/param :then))
+                              [:= :datoms1.a (:foo/points attrs)]
+                              [:= :datoms0.e :datoms1.e])} :inner]]}
+           (query/context->sql-clause context)))))

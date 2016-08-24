@@ -495,7 +495,7 @@
   ;; TODO: cache parts.  parts looks like {:db.part/db {:start 0 :current 10}}.  It maps between
   ;; keyword ident part names and integer ranges.
   IDB
-  (query-context [db] (context/->Context (datoms-source db) nil nil))
+  (query-context [db] (context/make-context (datoms-source db)))
 
   (schema [db] (.-schema db))
 
