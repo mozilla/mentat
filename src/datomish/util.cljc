@@ -46,6 +46,11 @@
     (keyword (subs (name x) 1))
     (throw (ex-info (str x " is not a Datalog var.") {}))))
 
+(defn aggregate->sql-var
+  "Turns (:max 'column) into :%max.column."
+  [fn-kw x]
+  (keyword (str "%" (name fn-kw) "." (name x))))
+
 (defn concat-in
   {:static true}
   [m [k & ks] vs]
