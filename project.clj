@@ -51,7 +51,9 @@
                    :jvm-opts ["-Xss4m"]
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :plugins      [[lein-cljsbuild "1.1.3"]
-                                  [lein-doo "0.1.6"]]
+                                  [lein-doo "0.1.6"]
+                                  [venantius/ultra "0.4.1"]
+                                  [com.jakemccrary/lein-test-refresh "0.16.0"]]
                    }}
 
   :doo {:build "test"}
