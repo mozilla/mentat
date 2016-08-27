@@ -255,6 +255,7 @@
          :extracted-types {}
          :external-bindings (or external-bindings {})
          :bindings {}
+         :ctes {}
          :wheres []})
       patterns)))
 
@@ -265,6 +266,8 @@
   [cc]
   (merge
     {:from (:from cc)}
+    (when-not (empty? (:ctes cc))
+      {:with (:ctes cc)})
     (when-not (empty? (:wheres cc))
       {:where (cons :and (:wheres cc))})))
 

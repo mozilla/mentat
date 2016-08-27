@@ -65,6 +65,7 @@
             known-types       ; {?var1 :db.type/integer}
             extracted-types   ; {?var2 :datoms123.value_type_tag}
             wheres            ; [[:= :datoms123.v 15]]
+            ctes              ; {:name {:select …}}
             ])
 
 (defn bind-column-to-var [cc variable table position]
