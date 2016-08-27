@@ -6,6 +6,7 @@
   (:require
    [datomish.query.transforms :as transforms]
    [datomish.schema :as schema]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str]]
    [datascript.parser
     #?@(:cljs
         [:refer [Variable Constant Placeholder]])])
@@ -68,15 +69,31 @@
   Source
 
   (source->from [source attribute]
-    (let [table
-          (if (and (instance? Constant attribute)
-                   ;; TODO: look in the DB schema to see if `attribute` is known to not be
-                   ;; a fulltext attribute.
-                   true)
-            (:table source)
+    (let [schema (:schema source)
+          int->table (fn [a]
+                       (if (schema/fulltext? schema a)
+                         (:fulltext-table source)
+                         (:table source)))
+          table
+          (cond
+            (integer? attribute)
+            (int->table attribute)
 
+            (instance? Constant attribute)
+            (let [a (:value attribute)
+                  id (if (keyword? a)
+                       (attribute-in-source source a)
+                       a)]
+              (int->table id))
+
+            ;; TODO: perhaps we know an external binding already?
+            (or (instance? Variable attribute)
+                (instance? Placeholder attribute))
             ;; It's variable. We must act as if it could be a fulltext datom.
-            (:fulltext-view source))]
+            (:fulltext-view source)
+
+            true
+            (raise "Unknown source->from attribute " attribute {:attribute attribute}))]
       [table ((:table-alias source) table)]))
 
   (source->non-fulltext-from [source]

@@ -6,7 +6,12 @@
   (:require
      [honeysql.format :as fmt]
      [datomish.query.cc :as cc]
-     [datomish.query.source :as source]
+     [datomish.schema :as schema]
+     [datomish.sqlite-schema :refer [->tag ->SQLite]]
+     [datomish.query.source
+      :as source
+      :refer [attribute-in-source
+              constant-in-source]]
      [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
      [datascript.parser :as dp
       #?@(:cljs
@@ -136,9 +141,95 @@
 
     (cc/augment-cc cc from bindings wheres)))
 
+;; get-else is how Datalog handles optional attributes.
+;;
+;; It consists of:
+;; * A bound entity
+;; * A cardinality-one attribute
+;; * A var to bind the value
+;; * A default value.
+;;
+;; We model this as:
+;; * A check against known bindings for the entity.
+;; * A check against the schema for cardinality-one.
+;; * Generating a COALESCE expression with a query inside the projection itself.
+;;
+;; Note that this will be messy for queries like:
+;;
+;;   [:find ?page ?title :in $
+;;    :where [?page :page/url _]
+;;           [(get-else ?page :page/title "<empty>") ?title]
+;;           [_ :foo/quoted ?title]]
+;;
+;; or
+;;           [(some-function ?title)]
+;;
+;; -- we aren't really establishing a binding, so the subquery will be
+;; repeated. But this will do for now.
+(defn apply-get-else-clause [cc function]
+  (let [{:keys [source bindings external-bindings]} cc
+        schema (:schema source)
+
+        {:keys [args binding]} function
+        [src e a default-val] args]
+
+    (when-not (instance? BindScalar binding)
+      (raise-str "Expected scalar binding."))
+    (when-not (instance? Variable (:variable binding))
+      (raise-str "Expected variable binding."))
+    (when-not (instance? Constant a)
+      (raise-str "Expected constant attribute."))
+    (when-not (instance? Constant default-val)
+      (raise-str "Expected constant default value."))
+    (when-not (and (instance? SrcVar src)
+                   (= "$" (name (:symbol src))))
+      (raise "Non-default sources not supported." {:arg src}))
+
+    (let [a (attribute-in-source source (:value a))
+          a-type (get-in (:schema schema) [a :db/valueType])
+          a-tag (->tag a-type)
+
+          default-val (:value default-val)
+          var (:variable binding)]
+
+      ;; Schema check.
+      (when-not (and (integer? a)
+                     (not (datomish.schema/multival? schema a)))
+        (raise-str "Attribute " a " is not cardinality-one."))
+
+      ;; TODO: type-check the default value.
+
+      (condp instance? e
+        Variable
+        (let [e (:symbol e)
+              e-binding (cc/binding-for-symbol-or-throw cc e)]
+
+          (let [[table _] (source/source->from source a)  ; We don't need to alias: single pattern.
+                ;; These :limit values shouldn't be needed, but sqlite will
+                ;; appreciate them.
+                ;; Note that we don't extract type tags here: the attribute
+                ;; must be known!
+                subquery {:select
+                          [(sql/call
+                             :coalesce
+                             {:select [:v]
+                              :from [table]
+                              :where [:and
+                                      [:= 'a a]
+                                      [:= 'e e-binding]]
+                              :limit 1}
+                             (->SQLite default-val))]
+                          :limit 1}]
+            (->
+              (assoc-in cc [:known-types (:symbol var)] a-type)
+              (util/append-in [:bindings (:symbol var)] subquery))))
+
+        (raise-str "Can't handle entity" e)))))
+
 (def sql-functions
   ;; Future: versions of this that uses snippet() or matchinfo().
-  {"fulltext" apply-fulltext-clause})
+  {"fulltext" apply-fulltext-clause
+   "get-else" apply-get-else-clause})
 
 (defn apply-sql-function
   "Either returns an application of `function` to `cc`, or nil to

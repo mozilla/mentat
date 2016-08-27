@@ -494,3 +494,26 @@
                               [:= :datoms0.e :datoms1.e])}}
             :from [:preag]}
            (query/context->sql-clause context)))))
+
+(deftest-db test-get-else conn
+  (let [attrs (<? (<initialize-with-schema conn page-schema))]
+    (is (= {:select (list
+                      [:datoms0.e :page]
+                      [{:select [(sql/call
+                                   :coalesce
+                                   {:select [:v],
+                                    :from [:datoms],
+                                    :where [:and
+                                            [:= 'a 65540]
+                                            [:= 'e :datoms0.e]],
+                                    :limit 1}
+                                   "No title")],
+                        :limit 1} :title]),
+            :modifiers [:distinct],
+            :from '([:datoms datoms0]),
+            :where (list :and [:= :datoms0.a 65539])}
+           (expand '[:find ?page ?title :in $
+                     :where
+                     [?page :page/url _]
+                     [(get-else $ ?page :page/title "No title") ?title]]
+                   conn)))))
