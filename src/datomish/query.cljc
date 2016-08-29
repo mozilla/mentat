@@ -40,14 +40,26 @@
 (def sql-quoting-style :ansi)
 
 (defn context->sql-clause [context]
-  (merge
-    {:select (projection/sql-projection context)
+  (let [inner
+        (merge
+          {:select (projection/sql-projection-for-relation context)
 
-     ;; Always SELECT DISTINCT, because Datalog is set-based.
-     ;; TODO: determine from schema analysis whether we can avoid
-     ;; the need to do this.
-     :modifiers [:distinct]}
-    (clauses/cc->partial-subquery (:cc context))))
+           ;; Always SELECT DISTINCT, because Datalog is set-based.
+           ;; TODO: determine from schema analysis whether we can avoid
+           ;; the need to do this.
+           :modifiers [:distinct]}
+
+          (when-not (empty? (:group-by-vars context))
+            ;; We shouldn't need to account for types here, until we account for
+            ;; `:or` clauses that bind from different attributes.
+            {:group-by (map util/var->sql-var (:group-by-vars context))})
+
+          (clauses/cc->partial-subquery (:cc context)))]
+  (if (:has-aggregates? context)
+    {:select (projection/sql-projection-for-aggregation context :inner)
+     :modifiers [:distinct]
+     :from [[inner :inner]]}
+    inner)))
 
 (defn context->sql-string [context args]
   (->
@@ -56,8 +68,9 @@
     (sql/format args :quoting sql-quoting-style)))
 
 (defn- validate-with [with]
-  (when-not (nil? with)
-    (raise-str "`with` not supported.")))
+  (when-not (or (nil? with)
+                (every? #(instance? Variable %1) with))
+    (raise "Complex :with not supported." {:with with})))
 
 (defn- validate-in [in]
   (when (nil? in)
@@ -91,10 +104,15 @@
   (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
     (validate-with with)
     (validate-in in)
-    (let [external-bindings (in->bindings in)]
+    (let [external-bindings (in->bindings in)
+          elements (:elements find)
+          known-types {}
+          group-by-vars (projection/extract-group-by-vars elements with)]
       (assoc context
-             :elements (:elements find)
-             :cc (clauses/patterns->cc (:default-source context) where external-bindings)))))
+             :elements elements
+             :group-by-vars group-by-vars
+             :has-aggregates? (not (nil? group-by-vars))
+             :cc (clauses/patterns->cc (:default-source context) where known-types external-bindings)))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL
@@ -116,25 +134,26 @@
   [q]
   (dp/parse-query q))
 
-(comment
-  (def sql-quoting-style nil)
-  (datomish.query/find->sql-string
-    (datomish.query.context/->Context (datomish.query.source/datoms-source nil) nil nil)
-    (datomish.query/parse
-      '[:find ?timestampMicros ?page :in $ ?latest :where
-        [?page :page/starred true ?t]
-        [?t :db/txInstant ?timestampMicros]
-        (not [(> ?t ?latest)]) ])
-    {:latest 5})
-)
+#_
+(def sql-quoting-style nil)
 
 #_
 (datomish.query/find->sql-string
-  (datomish.query.context/->Context (datomish.query.source/datoms-source nil) nil nil)
+  (datomish.query.context/make-context (datomish.query.source/datoms-source nil))
+  (datomish.query/parse
+    '[:find ?timestampMicros ?page :in $ ?latest :where
+      [?page :page/starred true ?t]
+      [?t :db/txInstant ?timestampMicros]
+      (not [(> ?t ?latest)]) ])
+  {:latest 5})
+
+#_
+(datomish.query/find->sql-string
+  (datomish.query.context/make-context (datomish.query.source/datoms-source nil))
   (datomish.query/parse
     '[:find ?page :in $ ?latest :where
       [?page :page/url "http://example.com/"]
-      [?page :page/title ?title]
+      [(fulltext $ :page/title "Some title") [[?page ?title _ _]]]
       (or
         [?entity :page/likes ?page]
         [?entity :page/loves ?page])

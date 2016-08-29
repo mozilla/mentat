@@ -10,6 +10,13 @@
   (is (= :XX (util/var->sql-var '?XX))))
 
 #?(:cljs
+   (deftest test-integer?-js
+     (is (integer? 0))
+     (is (integer? 5))
+     (is (integer? 50000000000))
+     (is (not (integer? 5.1)))))
+
+#?(:cljs
    (deftest test-raise
      (let [caught
            (try

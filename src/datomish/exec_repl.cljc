@@ -9,6 +9,7 @@
       [datomish.pair-chan :refer [go-pair <?]]
       [cljs.core.async.macros :refer [go]]))
   (:require
+     [datomish.db-factory]
      [datomish.db :as db]
      [datomish.sqlite :as s]
      [datomish.sqlite-schema :as ss]
@@ -44,7 +45,7 @@
 #_
 (defn xxopen []
     (datomish.pair-chan/go-pair
-      (let [d (datomish.pair-chan/<? (s/<sqlite-connection "/tmp/foo.sqlite"))]
+      (let [d (datomish.pair-chan/<? (s/<sqlite-connection "/tmp/import.sqlite"))]
         (clojure.core.async/<!! (ss/<ensure-current-version d))
         (def db d))))
 
@@ -59,19 +60,26 @@
       "/tmp/foo.sqlite"
       '[:find ?page :in $ :where [?page :page/starred true ?t]]))
 
+#_(require 'datomish.exec-repl)
+#_(in-ns 'datomish.exec-repl)
 #_
 (go-pair
-  (let [connection (<? (s/<sqlite-connection "/tmp/foo.sqlite"))
-        d (<? (db/<with-sqlite-connection connection))]
-    (println
-      "Result: "
-      (<! (db/<?q d '[:find ?page :in $ :where [?page :page/starred true ?t]] {})))))
+  (let [connection (<? (s/<sqlite-connection "/tmp/bigport.db"))
+        d (<? (datomish.db-factory/<db-with-sqlite-connection connection))]
+    (def db d)))
+
+#_
+(go-pair
+  (println (count (first (time
+    (<! (db/<?q db
+                '[:find ?url ?title :in $ :where
+                  [?page :page/visitAt ?v] [(> ?v 1438748166567751)] [?page :page/title ?title] [?page :page/url ?url] ] {})))))))
 
 
 #_
 (go-pair
   (let [connection (<? (s/<sqlite-connection "/tmp/foo.sqlite"))
-        dd (<? (db/<with-sqlite-connection connection))]
+        dd (<? (datomish.db-factory/<db-with-sqlite-connection connection))]
     (def *db* dd)))
 #_
 (clojure.core.async/<!!
@@ -95,3 +103,9 @@
                      '[:find ?e ?v :in $ :where
                        [?e :x ?v]
                        #_[(> ?v 1000)]] {}))))))
+
+(dq/parse '[:find ?entity ?tx ?score
+ :in $ ?search
+ :where [(foobar $ :artist/name ?search) [[?entity _ ?tx ?score]]]])
+
+(honeysql.core/format {:select [:?foo] :from [:foo] :where [:match :foo.x "Bar"]})

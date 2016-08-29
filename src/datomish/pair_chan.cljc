@@ -33,7 +33,7 @@
        (clojure.core.async/go
          (try
            (do ~@body)
-           (catch Exception ex#
+           (catch Throwable ex#
              (clojure.core.async/>! ~chan [nil ex#]))))
        ~chan)))
 
@@ -56,7 +56,7 @@
        (clojure.core.async/go
          (try
            (clojure.core.async/>! pc-chan# [(do ~@body) nil])
-           (catch Exception ex#
+           (catch Throwable ex#
              (clojure.core.async/>! pc-chan# [nil ex#]))))
        pc-chan#)))
 

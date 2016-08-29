@@ -4,7 +4,16 @@
 
 (ns datomish.query.source
   (:require
-   [datomish.query.transforms :as transforms]))
+   [datomish.query.transforms :as transforms]
+   [datomish.schema :as schema]
+   [datascript.parser
+    #?@(:cljs
+        [:refer [Variable Constant Placeholder]])])
+  #?(:clj
+     (:import [datascript.parser Variable Constant Placeholder])))
+
+(defn gensym-table-alias [table]
+  (gensym (name table)))
 
 ;;;
 ;;; A source is something that can match patterns. For example:
@@ -24,46 +33,79 @@
 ;;; * Transform constants and attributes into something usable
 ;;;   by the source.
 
+(defprotocol Source
+  (source->from [source attribute]
+    "Returns a pair, `[table alias]` for a pattern with the provided attribute.")
+  (source->non-fulltext-from [source])
+  (source->fulltext-from [source]
+    "Returns a pair, `[table alias]` for querying the source's fulltext index.")
+  (source->constraints [source alias])
+  (pattern->schema-value-type [source pattern])
+  (attribute-in-source [source attribute])
+  (constant-in-source [source constant]))
+
 (defrecord
+    DatomsSource
+    [table               ; Typically :datoms.
+     fulltext-table      ; Typically :fulltext_values
+     fulltext-view       ; Typically :all_datoms
+     columns             ; e.g., [:e :a :v :tx]
+     schema              ; An ISchema instance.
+
+     ;; `attribute-transform` is a function from attribute to constant value. Used to
+     ;; turn, e.g., :p/attribute into an interned integer.
+     ;; `constant-transform` is a function from constant value to constant value. Used to
+     ;; turn, e.g., the literal 'true' into 1.
+     attribute-transform
+     constant-transform
+
+     ;; `table-alias` is a function from table to alias, e.g., :datoms => :datoms1234.
+     table-alias
+
+     ;; Not currently used.
+     make-constraints    ; ?fn [source alias] => [where-clauses]
+     ]
   Source
-  [table               ; e.g., :datoms
-   columns             ; e.g., [:e :a :v :tx]
 
-   ;; `attribute-transform` is a function from attribute to constant value. Used to
-   ;; turn, e.g., :p/attribute into an interned integer.
-   ;; `constant-transform` is a function from constant value to constant value. Used to
-   ;; turn, e.g., the literal 'true' into 1.
-   attribute-transform
-   constant-transform
-   
-   ;; `table-alias` is a function from table to alias, e.g., :datoms => :datoms1234.
-   table-alias
+  (source->from [source attribute]
+    (let [table
+          (if (and (instance? Constant attribute)
+                   ;; TODO: look in the DB schema to see if `attribute` is known to not be
+                   ;; a fulltext attribute.
+                   true)
+            (:table source)
 
-   ;; Not currently used.
-   make-constraints    ; ?fn [source alias] => [where-clauses]
-   ])
+            ;; It's variable. We must act as if it could be a fulltext datom.
+            (:fulltext-view source))]
+      [table ((:table-alias source) table)]))
 
-(defn gensym-table-alias [table]
-  (gensym (name table)))
+  (source->non-fulltext-from [source]
+    (let [table (:table source)]
+      [table ((:table-alias source) table)]))
 
-(defn datoms-source [db]
-  (->Source :datoms
-            [:e :a :v :tx :added]
-            transforms/attribute-transform-string
-            transforms/constant-transform-default
-            gensym-table-alias
-            nil))
+  (source->fulltext-from [source]
+    (let [table (:fulltext-table source)]
+      [table ((:table-alias source) table)]))
 
-(defn source->from [source]
-  (let [table (:table source)]
-    [table ((:table-alias source) table)]))
+  (source->constraints [source alias]
+    (when-let [f (:make-constraints source)]
+      (f alias)))
 
-(defn source->constraints [source alias]
-  (when-let [f (:make-constraints source)]
-    (f alias)))
+  (pattern->schema-value-type [source pattern]
+    (let [[_ a v _] pattern
+          schema (:schema (:schema source))]
+      (when (instance? Constant a)
+        (let [val (:value a)]
+          (if (keyword? val)
+            ;; We need to find the entid for the keyword attribute,
+            ;; because the schema stores attributes by ID.
+            (let [id (attribute-in-source source val)]
+              (get-in schema [id :db/valueType]))
+            (when (integer? val)
+              (get-in schema [val :db/valueType])))))))
 
-(defn attribute-in-source [source attribute]
-  ((:attribute-transform source) attribute))
+  (attribute-in-source [source attribute]
+    ((:attribute-transform source) attribute))
 
-(defn constant-in-source [source constant]
-  ((:constant-transform source) constant))
+  (constant-in-source [source constant]
+    ((:constant-transform source) constant)))
