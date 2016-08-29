@@ -160,7 +160,8 @@
   (source/map->DatomsSource
     {:table :datoms
      :schema (:schema db)
-     :fulltext-table :fulltext_values
+     :fulltext-table :fulltext_datoms
+     :fulltext-values :fulltext_values
      :fulltext-view :all_datoms
      :columns [:e :a :v :tx :added]
      :attribute-transform (partial datoms-attribute-transform db)

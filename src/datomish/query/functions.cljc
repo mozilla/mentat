@@ -102,8 +102,8 @@
         ;; Find the FTS table name and alias. We might have multiple fulltext
         ;; expressions so we will generate a query like
         ;;   SELECT ttt.a FROM t1 AS ttt WHERE ttt.t1 MATCH 'string'
-        [fulltext-table fulltext-alias] (source/source->fulltext-from (:source cc))   ; [:t1 :ttt]
-        match-column (sql/qualify fulltext-alias fulltext-table)                      ; :ttt.t1
+        [fulltext-table fulltext-alias] (source/source->fulltext-values (:source cc))   ; [:t1 :ttt]
+        match-column (sql/qualify fulltext-alias fulltext-table)                        ; :ttt.t1
         match-value (cc/argument->value cc search)
 
         [datom-table datom-alias] (source/source->non-fulltext-from (:source cc))

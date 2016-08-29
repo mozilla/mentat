@@ -40,6 +40,8 @@
   (source->non-fulltext-from [source])
   (source->fulltext-from [source]
     "Returns a pair, `[table alias]` for querying the source's fulltext index.")
+  (source->fulltext-values [source]
+    "Returns a pair, `[table alias]` for querying the source's fulltext values")
   (source->constraints [source alias])
   (pattern->schema-value-type [source pattern])
   (attribute-in-source [source attribute])
@@ -48,8 +50,9 @@
 (defrecord
     DatomsSource
     [table               ; Typically :datoms.
-     fulltext-table      ; Typically :fulltext_values
+     fulltext-table      ; Typically :fulltext_datoms
      fulltext-view       ; Typically :all_datoms
+     fulltext-values     ; Typically :fulltext_values
      columns             ; e.g., [:e :a :v :tx]
      schema              ; An ISchema instance.
 
@@ -102,6 +105,10 @@
 
   (source->fulltext-from [source]
     (let [table (:fulltext-table source)]
+      [table ((:table-alias source) table)]))
+
+  (source->fulltext-values [source]
+    (let [table (:fulltext-values source)]
       [table ((:table-alias source) table)]))
 
   (source->constraints [source alias]
