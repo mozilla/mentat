@@ -181,12 +181,12 @@
                            {:select [1],
                             :from [[:all_datoms 'all_datoms1]],
                             :where (list :and
-                                      [:= :all_datoms1.e 15]
+                                      [:= :all_datoms1.e 999]
                                       [:= :datoms0.v :all_datoms1.v])}]])}
              (expand
                '[:find ?e ?v :in $ :where
                  [?e :foo/int ?v]
-                 (not [15 ?a ?v])]
+                 (not [999 ?a ?v])]
                conn))))
 
     (testing "Type collisions inside :not."
@@ -195,7 +195,7 @@
             (expand
               '[:find ?e ?v :in $ :where
                 [?e :foo/int ?v]
-                (not [15 :foo/str ?v])]
+                (not [999 :foo/str ?v])]
               conn))))
 
     (testing "Type collisions inside :or"
@@ -205,8 +205,8 @@
               '[:find ?e ?v :in $ :where
                 [?e :foo/int ?v]
                 (or
-                  [15 :foo/str ?v]
-                  [10 :foo/int ?v])]
+                  [999 :foo/str ?v]
+                  [666 :foo/int ?v])]
               conn))))))
 
 (deftest-db test-type-collision conn

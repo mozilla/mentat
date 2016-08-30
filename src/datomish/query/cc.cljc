@@ -53,7 +53,7 @@
 ;;
 ;; `from` is a list of [source alias] pairs, suitable for passing to honeysql.
 ;; `bindings` is a map from var to qualified columns.
-;; `known-types` is a map from var to type keyword.
+;; `known-types` is a map from var to type keyword (e.g., :db.type/ref)
 ;; `extracted-types` is a mapping, similar to `bindings`, but used to pull
 ;; type tags out of the store at runtime.
 ;; `wheres` is a list of fragments that can be joined by `:and`.

@@ -260,12 +260,20 @@
                    chunk))])
       (partition-all (quot max-sql-vars 11) ops))))
 
+(def initial-many-searchid 2000)    ; Just to make it more obvious in the DB.
+(def initial-one-searchid  5000)
+
 ;;; An FTS insertion happens in two parts.
+;;;
 ;;; Firstly, we ensure that the fulltext value is present in the store.
 ;;; This is effectively an INSERT OR IGNORE… but FTS tables don't support
 ;;; uniqueness constraints. So we do it through a trigger on a view.
+;;;
 ;;; When we insert the value, we pass with it a searchid. We'll use this
-;;; later when inserting the datom.
+;;; later when inserting the datom, then we'll throw it away. The FTS table
+;;; only contains searchids for the duration of the transaction that uses
+;;; them.
+;;;
 ;;; Secondly, we insert a row just like for non-FTS. The only difference
 ;;; is that the value is the rowid into the fulltext_values table.
 (defn- fts-many->queries [ops tx ->SQLite indexing? ref? unique?]
@@ -293,7 +301,7 @@
             (unique? a)        ; unique_value
             tag]]))
       ops
-      (range 2000 999999999))
+      (range initial-many-searchid 999999999))
     ["UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL"]))
 
 (defn fts-one->queries [ops tx ->SQLite indexing? ref? unique?]
@@ -322,7 +330,7 @@
               "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, 0, ?)")
             e a searchid tx tag]]))
       ops
-      (range 3000 999999999))
+      (range initial-one-searchid 999999999))
     ["UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL"]))
 
 (defn- -run-queries [conn queries exception-message]
