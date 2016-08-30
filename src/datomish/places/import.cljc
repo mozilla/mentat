@@ -40,19 +40,6 @@
     :db.install/_attribute :db.part/db}
    ])
 
-(defn assoc-if
-  ([m k v]
-   (if v
-     (assoc m k v)
-     m))
-  ([m k v & kvs]
-   (if kvs
-     (let [[kk vv & remainder] kvs]
-       (apply assoc-if
-              (assoc-if m k v)
-              kk vv remainder))
-     (assoc-if m k v))))
-
 
 (defn- place->entity [[id rows]]
   (let [title (:title (first rows))
@@ -61,9 +48,9 @@
                   :page/guid (:guid (first rows))}
         visits (keep :visit_date rows)]
 
-    (assoc-if required
-              :page/title title
-              :page/visitAt visits)))
+    (util/assoc-if required
+                   :page/title title
+                   :page/visitAt visits)))
 
 (defn import-titles [conn places-connection]
   (go-pair

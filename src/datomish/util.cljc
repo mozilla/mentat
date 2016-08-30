@@ -73,6 +73,19 @@
   [m path v]
   (concat-in m path [v]))
 
+(defn assoc-if
+  ([m k v]
+   (if v
+     (assoc m k v)
+     m))
+  ([m k v & kvs]
+   (if kvs
+     (let [[kk vv & remainder] kvs]
+       (apply assoc-if
+              (assoc-if m k v)
+              kk vv remainder))
+     (assoc-if m k v))))
+
 (defmacro while-let [binding & forms]
   `(loop []
      (when-let ~binding
