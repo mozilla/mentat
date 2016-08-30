@@ -46,11 +46,11 @@
         (let [{tx1 :tx} (<? (d/<transact! conn [{:db/id 101 :x 505}]))]
 
           (is (= (<? (d/<q (d/db conn)
-                           `[:find ?e ?a ?v ?tx :in $ :where
-                             [?e ?a ?v ?tx]
-                             [(> ?tx ~tx0)]
-                             [(!= ?a ~(d/entid (d/db conn) :db/txInstant))] ;; TODO: map ident->entid for values.
-                             ] {}))
+                           [:find '?e '?a '?v '?tx :in '$ :where
+                            '[?e ?a ?v ?tx]
+                            [(list '> '?tx tx0)]
+                            [(list '!= '?a (d/entid (d/db conn) :db/txInstant))] ;; TODO: map ident->entid for values.
+                            ] {}))
                  [[101 (d/entid (d/db conn) :x) 505 tx1]]))) ;; TODO: map entid->ident on egress.
         (finally
           (<? (d/<close conn)))))))
