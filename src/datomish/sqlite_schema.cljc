@@ -175,6 +175,9 @@
        java.util.Date
        (->SQLite [x] (.getTime x))
 
+       java.util.UUID
+       (->SQLite [x] (.toString x))   ; TODO: BLOB storage. Issue #44.
+
        Float
        (->SQLite [x] x)
 
@@ -272,4 +275,5 @@
     :db.type/boolean (not= value 0)
     :db.type/long    value
     :db.type/instant (<-tagged-SQLite 4 value)
+    :db.type/uuid    (<-tagged-SQLite 11 value)
     :db.type/double  value))

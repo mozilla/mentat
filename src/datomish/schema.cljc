@@ -99,13 +99,22 @@
                      :key k
                      :value v}))))
 
+#?(:clj
+     (defn uuidish? [x]
+       (instance? java.util.UUID x)))
+#?(:cljs
+     (let [uuid-re (js/RegExp. "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" "i")]
+       (defn uuidish? [x]
+         (and (string? x)
+              (re-find uuid-re x)))))
+
 (def value-type-map
   {:db.type/ref     { :valid? entid? }
    :db.type/keyword { :valid? keyword? }
    :db.type/string  { :valid? string? }
    :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) }
    :db.type/long    { :valid? integer? }
-   :db.type/uuid    { :valid? #?(:clj #(instance? java.util.UUID %) :cljs string?) }
+   :db.type/uuid    { :valid? uuidish? }
    :db.type/instant { :valid? #?(:clj #(instance? java.util.Date %) :cljs #(= js/Date (type %))) }
    :db.type/uri     { :valid? #?(:clj #(instance? java.net.URI %) :cljs string?) }
    :db.type/double  { :valid? #?(:clj float? :cljs number?) }

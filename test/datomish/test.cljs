@@ -6,6 +6,7 @@
    datomish.promise-sqlite-test
    datomish.db-test
    datomish.query-test
+   datomish.schema-test
    datomish.sqlite-user-version-test
    datomish.test.util
    datomish.test.transforms
@@ -17,6 +18,7 @@
   'datomish.promise-sqlite-test
   'datomish.db-test
   'datomish.query-test
+  'datomish.schema-test
   'datomish.sqlite-user-version-test
   'datomish.test.util
   'datomish.test.transforms
