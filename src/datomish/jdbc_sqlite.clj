@@ -31,6 +31,7 @@
 (defn open
   [path & {:keys [mode]}]
   (let [spec {:classname "org.sqlite.JDBC"
+              :identifiers identity
               :subprotocol "sqlite"
               :subname path}] ;; TODO: use mode.
     (go-pair
