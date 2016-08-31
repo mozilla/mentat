@@ -88,6 +88,10 @@
     [db eid]
     "Returns the keyword associated with an id, or the key itself if passed.")
 
+  (part-map
+    [db]
+    "Return the partition map of this database, like {:db.part/user {:start 0x100 :idx 0x101}, ...}.")
+
   (in-transaction!
     [db chan-fn]
     "Evaluate the given pair-chan `chan-fn` in an exclusive transaction. If it returns non-nil,
@@ -113,10 +117,9 @@
     [db fragment merge]
     "Apply added schema fragment to the store, using `merge` as a `merge-with` function.")
 
-  (<next-eid
-    [db id-literal]
-    "Return a unique integer for the given id-literal, accounting for the literal's partition.  The
-    returned integer should never be returned again."))
+  (<apply-db-part-map
+    [db part-map]
+    "Apply updated partition map."))
 
 (defn db? [x]
   (and (satisfies? IDB x)
@@ -495,14 +498,17 @@
                    ;; We index on tx, so the following is fast.
                    ["SELECT * FROM transactions WHERE tx = ?" tx])))))))
 
-(defrecord DB [sqlite-connection schema ident-map]
+(defrecord DB [sqlite-connection schema ident-map part-map]
   ;; ident-map maps between keyword idents and integer entids.  The set of idents and entids is
   ;; disjoint, so we represent both directions of the mapping in the same map for simplicity.  Also
   ;; for simplicity, we assume that an entid has at most one associated ident, and vice-versa.  See
   ;; http://docs.datomic.com/identity.html#idents.
+  ;;
+  ;; The partition-map part-map looks like {:db.part/user {:start 0x100 :idx 0x101}, ...}.  It maps
+  ;; between keyword ident part names and integer ranges, where start is the beginning of the
+  ;; range (for future use to help identify which partition entids lie in, and idx is the current
+  ;; maximum entid in the partition.
 
-  ;; TODO: cache parts.  parts looks like {:db.part/db {:start 0 :current 10}}.  It maps between
-  ;; keyword ident part names and integer ranges.
   IDB
   (query-context [db] (context/make-context (datoms-source db)))
 
@@ -517,6 +523,9 @@
     (if-not (keyword? eid)
       (get (.-ident-map db) eid eid)
       eid))
+
+  (part-map [db]
+    (:part-map db))
 
   (in-transaction! [db chan-fn]
     (s/in-transaction!
@@ -551,27 +560,27 @@
           <?
           yield-datom))))
 
-  (<next-eid [db tempid]
-    {:pre [(id-literal? tempid)]}
-    {:post [ds/entid?]}
-    (go-pair
-      ;; TODO: keep all of these eid allocations in the transaction report and apply them at the end
-      ;; of the transaction.
-      (let [exec (partial s/execute! (:sqlite-connection db))
-            part (entid db (:part tempid))]
-        (when-not (ds/entid? part) ;; TODO: cache parts materialized view.
-          (raise "Cannot allocate entid for id-literal " tempid " because part " (:part tempid) " is not known"
-                 {:error :db/bad-part
-                  :part (:part tempid)}))
-
-        (p :next-eid-body
-           (<? (exec ["UPDATE parts SET idx = idx + 1 WHERE part = ?" part]))
-        (:eid (first (<? (s/all-rows (:sqlite-connection db) ["SELECT (start + idx) AS eid FROM parts WHERE part = ?" part]))))))))
-
   (<apply-entities [db tx entities]
     {:pre [(db? db) (sequential? entities)]}
     (-<apply-entities db tx entities))
 
+  (<apply-db-part-map [db part-map]
+    (go-pair
+      (let [exec (partial s/execute! (:sqlite-connection db))]
+        (let [pairs (mapcat (fn [[part {:keys [start idx]}]]
+                              (when-not (= idx (get-in db [:part-map part :idx]))
+                                [(sqlite-schema/->SQLite part) idx]))
+                            part-map)]
+          ;; TODO: chunk into 999/2 sections, for safety.
+          (when-not (empty? pairs)
+            (<?
+              (exec
+                (cons (apply str "UPDATE parts SET idx = CASE"
+                             (concat
+                               (repeat (count pairs) " WHEN part = ? THEN ?")
+                               [" ELSE idx END"]))
+                      pairs))))))
+      (assoc db :part-map part-map)))
 
   (<apply-db-ident-assertions [db added-idents merge]
     (go-pair
@@ -612,9 +621,11 @@
 (defn with-ident [db ident entid]
   (update db :ident-map #(assoc % ident entid, entid ident)))
 
-(defn db [sqlite-connection idents schema]
+(defn db [sqlite-connection idents parts schema]
   {:pre [(map? idents)
          (every? keyword? (keys idents))
+         (map? parts)
+         (every? keyword? (keys parts))
          (map? schema)
          (every? keyword? (keys schema))]}
   (let [entid-schema (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) schema))) ;; TODO: fail if ident missing.
@@ -622,9 +633,9 @@
     (map->DB
       {:sqlite-connection sqlite-connection
        :ident-map         ident-map
+       :part-map          parts
        :symbolic-schema   schema
        :schema            entid-schema
-       ;; TODO :parts
        })))
 
 ;; TODO: factor this into the overall design.
