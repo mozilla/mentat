@@ -24,7 +24,7 @@
 (def sql-quoting-style :ansi)
 
 (defn format [args]
-  (honeysql.core/format args :quoting :ansi))
+  (honeysql.core/format args :quoting sql-quoting-style))
 
 (defprotocol ISQLiteConnection
   (-execute!
