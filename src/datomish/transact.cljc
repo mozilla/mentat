@@ -13,6 +13,7 @@
    [datomish.query.source :as source]
    [datomish.query :as query]
    [datomish.db :as db :refer [id-literal id-literal?]]
+   [datomish.db.debug :as debug]
    [datomish.datom :as dd :refer [datom datom? #?@(:cljs [Datom])]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datomish.schema :as ds]
@@ -21,6 +22,8 @@
    [datomish.sqlite-schema :as sqlite-schema]
    [datomish.transact.bootstrap :as bootstrap]
    [datomish.transact.explode :as explode]
+   [taoensso.tufte :as tufte
+    #?(:cljs :refer-macros :clj :refer) [defnp p profiled profile]]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :as a :refer [chan go <! >!]]])
    #?@(:cljs [[datomish.pair-chan]
@@ -56,7 +59,8 @@
 
 (defrecord TxReport [db-before ;; The DB before the transaction.
                      db-after  ;; The DB after the transaction.
-                     current-tx ;; The tx ID represented by the transaction in this report.
+                     tx        ;; The tx ID represented by the transaction in this report; refer :db/tx.
+                     txInstant ;; The timestamp instant when the the transaction was processed/committed in this report; refer :db/txInstant.
                      entities  ;; The set of entities (like [:db/add e a v tx]) processed.
                      tx-data   ;; The set of datoms applied to the database, like (Datom. e a v tx added).
                      tempids   ;; The map from id-literal -> numeric entid.
@@ -106,11 +110,14 @@
     entity))
 
 (defn maybe-ident->entid [db [op e a v tx :as orig]]
-  (let [e (get (db/idents db) e e) ;; TODO: use ident, entid here.
-        a (get (db/idents db) a a)
+  (let [e (db/entid db e)
+        a (db/entid db a)
         v (if (ds/kw? (db/schema db) a) ;; TODO: decide if this is best.  We could also check for ref and numeric types.
             v
-            (get (db/idents db) v v))]
+            (db/entid db v))]
+    (when-not (integer? a)
+      (raise "Unknown attribute " a
+             {:form orig :attribute a}))
     [op e a v tx]))
 
 (defrecord Transaction [db tempids entities])
@@ -120,7 +127,7 @@
   (let [tx        (:tx report)
         txInstant (:txInstant report)]
     ;; n.b., this must not be symbolic -- it's inserted after we map idents -> entids.
-    [:db/add tx (get-in db [:idents :db/txInstant]) txInstant]))
+    [:db/add tx (db/entid db :db/txInstant) txInstant]))
 
 (defn ensure-entity-form [[op e a v & rest :as entity]]
   (cond
@@ -153,8 +160,8 @@
 
 (defn- tx-instant? [db [op e a & _]]
   (and (= op :db/add)
-       (= e (get-in db [:idents :db/tx]))
-       (= a (get-in db [:idents :db/txInstant]))))
+       (= (db/entid db e) (db/entid db :db/tx))
+       (= (db/entid db a) (db/entid db :db/txInstant))))
 
 (defn- update-txInstant [db report]
   "Extract [:db/add :db/tx :db/txInstant ...], and update :txInstant with that value."
@@ -175,7 +182,7 @@
         ;; to unify all id-literals in :db.part/tx to the current transaction value, but also seems
         ;; inconsistent.
         tx         (:tx report)
-        db*        (assoc-in db [:idents :db/tx] tx)]
+        db*        (db/with-ident db :db/tx tx)]
     (when-not (sequential? initial-es)
       (raise "Bad transaction data " initial-es ", expected sequential collection"
              {:error :transact/syntax, :tx-data initial-es}))
@@ -205,23 +212,48 @@
       (->> (update-txInstant db*)))))
 
 (defn- lookup-ref? [x]
-  "Return true if `x` is like [:attr value]."
+  "Return `x` if `x` is like [:attr value], false otherwise."
   (and (sequential? x)
        (= (count x) 2)
        (or (keyword? (first x))
-           (integer? (first x)))))
+           (integer? (first x)))
+       x))
 
 (defn <resolve-lookup-refs [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  (go-pair
-    (->>
-      (vec (for [[op & entity] (:entities report)]
-             (into [op] (for [field entity]
-                          (if (lookup-ref? field)
-                            (first (<? (db/<eavt db field))) ;; TODO improve this -- this should be avet, shouldn't it?
-                            field)))))
-      (assoc-in report [:entities])))) ;; TODO: meta.
+  (let [entities (:entities report)]
+    ;; TODO: meta.
+    (go-pair
+      (if (empty? entities)
+        report
+        (assoc-in
+          report [:entities]
+          ;; We can't use `for` because go-pair doesn't traverse function boundaries.
+          ;; Apologies for the tortured nested loop.
+          (loop [[op & entity] (first entities)
+                 next (rest entities)
+                 acc []]
+            (if (nil? op)
+              acc
+              (recur (first next)
+                     (rest next)
+                     (conj acc
+                           (loop [field (first entity)
+                                  rem (rest entity)
+                                  acc [op]]
+                             (if (nil? field)
+                               acc
+                               (recur (first rem)
+                                      (rest rem)
+                                      (conj acc
+                                            (if-let [[a v] (lookup-ref? field)]
+                                              (or
+                                                ;; The lookup might fail! If so, throw.
+                                                (:e (<? (db/<av db a v)))
+                                                (raise "No entity found with attr " a " and val " v "."
+                                                       {:a a :v v}))
+                                              field))))))))))))))
 
 (declare <resolve-id-literals)
 
@@ -280,7 +312,9 @@
             report
 
             (and (not= op :db/add)
-                 (not (empty? (filter id-literal? [e a v]))))
+                 (or (id-literal? e)
+                     (id-literal? a)
+                     (id-literal? v)))
             (raise "id-literals are resolved for :db/add only"
                    {:error :transact/syntax
                     :op    entity })
@@ -289,26 +323,26 @@
             (and (id-literal? e)
                  (ds/unique-identity? (db/schema db) a)
                  (not-any? id-literal? [a v]))
-            (let [upserted-eid (:e (first (<? (db/<avet db [a v]))))
+            (let [upserted-eid (:e (<? (db/<av db a v)))
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
                 (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
-                (let [eid (or upserted-eid allocated-eid (next-eid db))]
+                (let [eid (or upserted-eid allocated-eid (<? (db/<next-eid db e)))]
                   (recur (allocate-eid report e eid) (cons [op eid a v] entities)))))
 
             ;; Start allocating and retrying.  We try with e last, so as to eventually upsert it.
             (id-literal? v)
             ;; We can't fail with unbound literals here, since we could have multiple.
-            (let [eid (or (get-in report [:tempids v]) (next-eid db))]
+            (let [eid (or (get-in report [:tempids v]) (<? (db/<next-eid db e)))]
               (recur (allocate-eid report v eid) (cons [op e a eid] entities)))
 
             (id-literal? a)
             ;; TODO: should we even allow id-literal attributes?  Datomic fails in some cases here.
-            (let [eid (or (get-in report [:tempids a]) (next-eid db))]
+            (let [eid (or (get-in report [:tempids a]) (<? (db/<next-eid db e)))]
               (recur (allocate-eid report a eid) (cons [op e eid v] entities)))
 
             (id-literal? e)
-            (let [eid (or (get-in report [:tempids e]) (next-eid db))]
+            (let [eid (or (get-in report [:tempids e]) (<? (db/<next-eid db e)))]
               (recur (allocate-eid report e eid) (cons [op eid a v] entities)))
 
             true
@@ -333,127 +367,38 @@
         (ds/ensure-valid-value schema a v)))
     report))
 
-(defn- <ensure-unique-constraints
-  "Throw unless all datoms in :tx-data obey the uniqueness constraints."
-
-  [db report]
-  {:pre [(db/db? db) (report? report)]}
-
-  ;; TODO: consider accumulating errors to show more meaningful error reports.
-  ;; TODO: constrain entities; constrain attributes.
-
-  (go-pair
-    ;; TODO: comment on applying datoms that violate uniqueness.
-    (let [schema (db/schema db)
-          unique-datoms (transient {})] ;; map (nil, a, v)|(e, a, nil)|(e, a, v) -> datom.
-      (doseq [[e a v tx added :as datom] (:tx-data report)]
-
-        (when added
-          ;; Check for violated :db/unique constraint between datom and existing store.
-          (when (ds/unique? schema a)
-            (when-let [found (first (<? (db/<avet db [a v])))]
-              (raise "Cannot add " datom " because of unique constraint: " found
-                     {:error :transact/unique
-                      :attribute a ;; TODO: map attribute back to ident.
-                      :entity datom})))
-
-          ;; Check for violated :db/unique constraint between datoms.
-          (when (ds/unique? schema a)
-            (let [key [nil a v]]
-              (when-let [other (get unique-datoms key)]
-                (raise "Cannot add " datom " and " other " because together they violate unique constraint"
-                       {:error :transact/unique
-                        :attribute a ;; TODO: map attribute back to ident.
-                        :entity datom}))
-              (assoc! unique-datoms key datom)))
-
-          ;; Check for violated :db/cardinality :db.cardinality/one constraint between datoms.
-          (when-not (ds/multival? schema a)
-            (let [key [e a nil]]
-              (when-let [other (get unique-datoms key)]
-                (raise "Cannot add " datom " and " other " because together they violate cardinality constraint"
-                       {:error :transact/unique
-                        :entity datom}))
-              (assoc! unique-datoms key datom)))
-
-          ;; Check for duplicated datoms.  Datomic doesn't allow overlapping writes, and we don't
-          ;; want to guarantee order, so we don't either.
-          (let [key [e a v]]
-            (when-let [other (get unique-datoms key)]
-              (raise "Cannot add duplicate " datom
-                     {:error :transact/unique
-                      :entity datom}))
-            (assoc! unique-datoms key datom)))))
-    report))
-
-(defn <entities->tx-data [db report]
-  {:pre [(db/db? db) (report? report)]}
-  (go-pair
-    (let [initial-report report
-          {tx :tx}       report
-          schema         (db/schema db)]
-      (loop [report initial-report
-             es (:entities initial-report)]
-        (let [[[op e a v :as entity] & entities] es]
-          (cond
-            (nil? entity)
-            report
-
-            (= op :db/add)
-            (if (ds/multival? schema a)
-              (if (empty? (<? (db/<eavt db [e a v])))
-                (recur (transact-report report (datom e a v tx true)) entities)
-                (recur report entities))
-              (if-let [^Datom old-datom (first (<? (db/<eavt db [e a])))]
-                (if  (= (.-v old-datom) v)
-                  (recur report entities)
-                  (recur (-> report
-                             (transact-report (datom e a (.-v old-datom) tx false))
-                             (transact-report (datom e a v tx true)))
-                         entities))
-                (recur (transact-report report (datom e a v tx true)) entities)))
-
-            (= op :db/retract)
-            (if (first (<? (db/<eavt db [e a v])))
-              (recur (transact-report report (datom e a v tx false)) entities)
-              (recur report entities))
-
-            true
-            (raise "Unknown operation at " entity ", expected :db/add, :db/retract"
-                   {:error :transact/syntax, :operation op, :tx-data entity})))))))
-
 (defn <transact-tx-data
   [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  (go-pair
-    (->>
-      report
-      (preprocess db)
+  (let [<apply-entities (fn [db report]
+                          (go-pair
+                            (let [tx-data (<? (db/<apply-entities db (:tx report) (:entities report)))]
+                              (assoc report :tx-data tx-data))))]
+    (go-pair
+      (->>
+        report
+        (preprocess db)
 
-      (<resolve-lookup-refs db)
-      (<?)
+        (<resolve-lookup-refs db)
+        (<?)
+        (p :resolve-lookup-refs)
 
-      (<resolve-id-literals db)
-      (<?)
+        (<resolve-id-literals db)
+        (<?)
+        (p :resolve-id-literals)
 
-      (<ensure-schema-constraints db)
-      (<?)
+        (<ensure-schema-constraints db)
+        (<?)
+        (p :ensure-schema-constraints)
 
-      (<entities->tx-data db)
-      (<?)
-
-      (<ensure-unique-constraints db)
-      (<?))))
-
-;; Normalize as [op int|id-literal int|id-literal value|id-literal]. ;; TODO: mention lookup-refs.
-
-;; Replace lookup-refs with entids where possible.
-
-;; Upsert or allocate id-literals.
+        (<apply-entities db)
+        (<?)
+        (p :apply-entities)
+        ))))
 
 (defn- is-ident? [db [_ a & _]]
-  (= a (get-in db [:idents :db/ident])))
+  (= a (db/entid db :db/ident)))
 
 (defn collect-db-ident-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
@@ -486,24 +431,22 @@
                      {:error :schema/idents
                       :op    ia }))))))))
 
-(defn- symbolicate-datom [db [e a v added]]
-  (let [entids (zipmap (vals (db/idents db)) (keys (db/idents db)))
-        symbolicate (fn [x]
-                      (get entids x x))]
-    (datom
-      (symbolicate e)
-      (symbolicate a)
-      (symbolicate v)
-      added)))
-
 (defn collect-db-install-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
   Collect [:db.part/db :db.install/attribute] assertions here."
   [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  ;; TODO: be more efficient; symbolicating each datom is expensive!
-  (let [datoms (map (partial symbolicate-datom db) (:tx-data report))
+  ;; Symbolicating is not expensive.
+  (let [symbolicate-install-datom
+        (fn [[e a v tx added]]
+          (datom
+            (db/ident db e)
+            (db/ident db a)
+            (db/ident db v)
+            tx
+            added))
+        datoms (map symbolicate-install-datom (:tx-data report))
         schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)]
     (assoc-in report [:added-attributes] schema-fragment)))
 
@@ -518,7 +461,7 @@
                       ;; transaction ID and transaction timestamp directly from the report; Datomic
                       ;; makes this surprisingly difficult: one needs a :db.part/tx temporary and an
                       ;; explicit upsert of that temporary.
-                      :tx                (db/current-tx db)
+                      :tx                (<? (db/<next-eid db (id-literal :db.part/tx)))
                       :txInstant         (db/now db)
                       :entities          tx-data
                       :tx-data           []
@@ -530,32 +473,25 @@
 
                    (<transact-tx-data db)
                    (<?)
+                   (p :transact-tx-data)
 
                    (collect-db-ident-assertions db)
+                   (p :collect-db-ident-assertions)
 
-                   (collect-db-install-assertions db))
-          idents          (merge-with merge-ident (:idents db) (:added-idents report))
-          symbolic-schema (merge-with merge-attr (:symbolic-schema db) (:added-attributes report))
-          schema          (ds/schema (into {} (map (fn [[k v]] [(k idents) v]) symbolic-schema)))
-          db-after        (->
-                            db
+                   (collect-db-install-assertions db)
+                   (p :collect-db-install-assertions))
 
-                            (db/<apply-datoms (:tx-data report))
-                            (<?)
+          db-after (->
+                     db
 
-                            (db/<apply-db-ident-assertions (:added-idents report))
-                            (<?)
+                     (db/<apply-db-ident-assertions (:added-idents report) merge-ident)
+                     (<?)
+                     (->> (p :apply-db-ident-assertions))
 
-                            (db/<apply-db-install-assertions (:added-attributes report))
-                            (<?)
-
-                            ;; TODO: abstract this.
-                            (assoc :idents idents
-                                   :symbolic-schema symbolic-schema
-                                   :schema schema)
-
-                            (db/<advance-tx)
-                            (<?))]
+                     (db/<apply-db-install-assertions (:added-attributes report) merge-attr)
+                     (<?)
+                     (->> (p :apply-db-install-assertions)))
+          ]
       (-> report
           (assoc-in [:db-after] db-after)))))
 

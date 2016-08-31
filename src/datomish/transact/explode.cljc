@@ -34,14 +34,14 @@
 (declare explode-entity)
 
 (defn- explode-entity-a-v [db entity eid a v]
-  ;; a should be symbolic at this point.  Map it.  TODO: use ident/entid to ensure we have a symbolic attr.
-  (let [reverse?    (reverse-ref? a)
+  (let [a           (db/ident db a) ;; We expect a to be an ident, but it's legal to provide an entid.
+        a*          (db/entid db a)
+        reverse?    (reverse-ref? a)
         straight-a  (if reverse? (reverse-ref a) a)
-        straight-a* (get-in db [:idents straight-a] straight-a)
+        straight-a* (db/entid db straight-a)
         _           (when (and reverse? (not (ds/ref? (db/schema db) straight-a*)))
                       (raise "Bad attribute " a ": reverse attribute name requires {:db/valueType :db.type/ref} in schema"
-                             {:error :transact/syntax, :attribute a, :op entity}))
-        a*          (get-in db [:idents a] a)]
+                             {:error :transact/syntax, :attribute a, :op entity}))]
     (cond
       reverse?
       (explode-entity-a-v db entity v straight-a eid)
@@ -60,11 +60,19 @@
                 :op    entity }))
 
       (sequential? v)
-      (if (ds/multival? (db/schema db) a*) ;; dm/schema
-        (mapcat (partial explode-entity-a-v db entity eid a) v) ;; Allow sequences of nested maps, etc.  This does mean [[1]] will work.
-        (raise "Sequential values " v " but attribute " a " is :db.cardinality/one"
-               {:error :transact/entity-sequential-cardinality-one
-                :op    entity }))
+      (if (some nil? v)
+        ;; This is a hard one to track down, with a steep stack back in `transact/ensure-entity-form`, so
+        ;; we error specifically here rather than expanding further.
+        (raise "Sequential attribute value for " a " contains nil."
+               {:error :transact/sequence-contains-nil
+                :op entity
+                :attribute a
+                :value v})
+        (if (ds/multival? (db/schema db) a*) ;; dm/schema
+          (mapcat (partial explode-entity-a-v db entity eid a) v) ;; Allow sequences of nested maps, etc.  This does mean [[1]] will work.
+          (raise "Sequential values " v " but attribute " a " is :db.cardinality/one"
+                 {:error :transact/entity-sequential-cardinality-one
+                  :op    entity })))
 
       true
       [[:db/add eid a* v]])))

@@ -24,7 +24,7 @@
 (def sql-quoting-style :ansi)
 
 (defn format [args]
-  (honeysql.core/format args :quoting :ansi))
+  (honeysql.core/format args :quoting sql-quoting-style))
 
 (defprotocol ISQLiteConnection
   (-execute!
@@ -76,7 +76,7 @@
                ;; channel being rejected and no further row callbacks
                ;; being called.
                (when (second result)
-                 (put! result c))
+                 (put! c result))
                (close! c))))
 
 (defn all-rows

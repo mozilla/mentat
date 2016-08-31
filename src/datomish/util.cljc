@@ -30,25 +30,30 @@
          ~expr
          (cond-let ~@rest)))))
 
+(defn ensure-datalog-var [x]
+  (or (and (symbol? x)
+           (nil? (namespace x))
+           (str/starts-with? (name x) "?"))
+      (throw (ex-info (str x " is not a Datalog var.") {}))))
+
+(defn var->sql-type-var
+  "Turns '?xyz into :_xyz_type_tag."
+  [x]
+  (and
+    (ensure-datalog-var x)
+    (keyword (str "_" (subs (name x) 1) "_type_tag"))))
+
 (defn var->sql-var
   "Turns '?xyz into :xyz."
   [x]
-  (if (and (symbol? x)
-           (str/starts-with? (name x) "?"))
-    (keyword (subs (name x) 1))
-    (throw (ex-info (str x " is not a Datalog var.") {}))))
+  (and
+    (ensure-datalog-var x)
+    (keyword (subs (name x) 1))))
 
-(defn conj-in
-  "Associates a value into a sequence in a nested associative structure, where
-  ks is a sequence of keys and v is the new value, and returns a new nested
-  structure.
-  If any levels do not exist, hash-maps will be created. If the destination
-  sequence does not exist, a new one is created."
-  {:static true}
-  [m [k & ks] v]
-  (if ks
-    (assoc m k (conj-in (get m k) ks v))
-    (assoc m k (conj (get m k) v))))
+(defn aggregate->sql-var
+  "Turns (:max 'column) into :%max.column."
+  [fn-kw x]
+  (keyword (str "%" (name fn-kw) "." (name x))))
 
 (defn concat-in
   {:static true}
@@ -56,6 +61,30 @@
   (if ks
     (assoc m k (concat-in (get m k) ks vs))
     (assoc m k (concat (get m k) vs))))
+
+(defn append-in
+  "Associates a value into a sequence in a nested associative structure, where
+  ks is a sequence of keys and v is the new value, and returns a new nested
+  structure.
+  Always puts the value last.
+  If any levels do not exist, hash-maps will be created. If the destination
+  sequence does not exist, a new one is created."
+  {:static true}
+  [m path v]
+  (concat-in m path [v]))
+
+(defn assoc-if
+  ([m k v]
+   (if v
+     (assoc m k v)
+     m))
+  ([m k v & kvs]
+   (if kvs
+     (let [[kk vv & remainder] kvs]
+       (apply assoc-if
+              (assoc-if m k v)
+              kk vv remainder))
+     (assoc-if m k v))))
 
 (defmacro while-let [binding & forms]
   `(loop []
@@ -70,3 +99,5 @@
            (f (first xs) (first ys))
            (recur f (rest xs) (rest ys)))))
 
+(defn mapvals [f m]
+  (into (empty m) (map #(vector (first %) (f (second %))) m)))

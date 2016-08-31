@@ -5,7 +5,12 @@
 ;; Purloined from DataScript.
 
 (ns datomish.schema
-  (:require [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise]]))
+  (:require
+   [datomish.sqlite-schema :as sqlite-schema]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise]]))
+
+(defn entid? [x]
+  (and (integer? x) (pos? x)))
 
 (defprotocol ISchema
   (attrs-by
@@ -94,19 +99,41 @@
                      :key k
                      :value v}))))
 
-;; TODO: consider doing this with a protocol and extending the underlying Clojure(Script) types.
+#?(:clj
+     (defn uuidish? [x]
+       (instance? java.util.UUID x)))
+#?(:cljs
+     (let [uuid-re (js/RegExp. "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" "i")]
+       (defn uuidish? [x]
+         (and (string? x)
+              (re-find uuid-re x)))))
+
 (def value-type-map
-  {:db.type/ref     { :valid? #(and (integer? %) (pos? %)) :->SQLite identity :<-SQLite identity }
-   :db.type/keyword { :valid? keyword? :->SQLite str :<-SQLite #(keyword (subs % 1)) }
-   :db.type/string  { :valid? string? :->SQLite identity :<-SQLite identity }
-   :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) :->SQLite #(if % 1 0) :<-SQLite #(not= % 0) }
-   :db.type/integer { :valid? integer? :->SQLite identity :<-SQLite identity }
-   :db.type/real    { :valid? #?(:clj float? :cljs number?) :->SQLite identity :<-SQLite identity }
+  {:db.type/ref     { :valid? entid? }
+   :db.type/keyword { :valid? keyword? }
+   :db.type/string  { :valid? string? }
+   :db.type/boolean { :valid? #?(:clj #(instance? Boolean %) :cljs #(= js/Boolean (type %))) }
+   :db.type/long    { :valid? integer? }
+   :db.type/uuid    { :valid? uuidish? }
+   :db.type/instant { :valid? #?(:clj #(instance? java.util.Date %) :cljs #(= js/Date (type %))) }
+   :db.type/uri     { :valid? #?(:clj #(instance? java.net.URI %) :cljs string?) }
+   :db.type/double  { :valid? #?(:clj float? :cljs number?) }
    })
 
+(defn #?@(:clj  [^Boolean ensure-value-matches-type]
+          :cljs [^boolean ensure-value-matches-type]) [type value]
+  (if-let [valid? (get-in value-type-map [type :valid?])]
+    (when-not (valid? value)
+      (raise "Invalid value for type " type "; got " value
+             {:error :schema/valueType, :type type, :value value}))
+    (raise "Unknown valueType " type ", expected one of " (sorted-set (keys value-type-map))
+           {:error :schema/valueType, :type type})))
+
+;; There's some duplication here so we get better error messages.
 (defn #?@(:clj  [^Boolean ensure-valid-value]
           :cljs [^boolean ensure-valid-value]) [schema attr value]
-  {:pre [(schema? schema)]}
+  {:pre [(schema? schema)
+         (integer? attr)]}
   (let [schema (.-schema schema)]
     (if-let [valueType (get-in schema [attr :db/valueType])]
       (if-let [valid? (get-in value-type-map [valueType :valid?])]
@@ -119,12 +146,13 @@
              {:error :schema/valueType, :attribute attr}))))
 
 (defn ->SQLite [schema attr value]
-  {:pre [(schema? schema)]}
+  {:pre [(schema? schema)
+         (integer? attr)]}
   (let [schema (.-schema schema)]
     (if-let [valueType (get-in schema [attr :db/valueType])]
       (if-let [valid? (get-in value-type-map [valueType :valid?])]
         (if (valid? value)
-          ((get-in value-type-map [valueType :->SQLite]) value)
+          [(sqlite-schema/->SQLite value) (sqlite-schema/->tag valueType)]
           (raise "Invalid value for attribute " attr ", expected " valueType " but got " value
                  {:error :schema/valueType, :attribute attr, :value value}))
         (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))
@@ -136,8 +164,8 @@
   {:pre [(schema? schema)]}
   (let [schema (.-schema schema)]
     (if-let [valueType (get-in schema [attr :db/valueType])]
-      (if-let [<-SQLite (get-in value-type-map [valueType :<-SQLite])]
-        (<-SQLite value)
+      (if (contains? value-type-map valueType)
+        (sqlite-schema/<-SQLite valueType value)
         (raise "Unknown valueType for attribute " attr ", expected one of " (sorted-set (keys value-type-map))
                {:error :schema/valueType, :attribute attr}))
       (raise "Unknown attribute " attr ", expected one of " (sorted-set (keys schema))

@@ -6,7 +6,12 @@
   (:require
      [honeysql.format :as fmt]
      [datomish.query.cc :as cc]
-     [datomish.query.source :as source]
+     [datomish.schema :as schema]
+     [datomish.sqlite-schema :refer [->tag ->SQLite]]
+     [datomish.query.source
+      :as source
+      :refer [attribute-in-source
+              constant-in-source]]
      [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
      [datascript.parser :as dp
       #?@(:cljs
@@ -66,10 +71,8 @@
     (when-not (and (instance? SrcVar src)
                    (= "$" (name (:symbol src))))
       (raise "Non-default sources not supported." {:arg src}))
-    (when-not (instance? Constant attr)
-      (raise "Non-constant fulltext attributes not supported." {:arg attr}))
-
-    (when-not (fulltext-attribute? (:source cc) (:value attr))
+    (when (and (instance? Constant attr)
+               (not (fulltext-attribute? (:source cc) (:value attr))))
       (raise-str "Attribute " (:value attr) " is not a fulltext-indexed attribute."))
 
     (when-not (and (instance? BindColl bind-coll)
@@ -89,6 +92,18 @@
   ;; We do not currently support scoring; the score value will always be 0.
   (let [[src attr search] (:args function)
 
+        ;; Note that DataScript's parser won't allow us to write a term like
+        ;;
+        ;;   [(fulltext $ _ "foo") [[?x]]]
+        ;;
+        ;; so we instead have a placeholder attribute. Sigh.
+        attr-constant (or
+                        (and (instance? Constant attr)
+                             (not (= :any (:value attr)))
+                             (source/attribute-in-source (:source cc) (:value attr)))
+                        (and (instance? Variable attr)
+                             (cc/binding-for-symbol-or-throw cc (:symbol attr))))
+
         ;; Pull out the symbols for the binding array.
         [entity value tx score]
         (map (comp :symbol :variable)     ; This will nil-out placeholders.
@@ -97,8 +112,8 @@
         ;; Find the FTS table name and alias. We might have multiple fulltext
         ;; expressions so we will generate a query like
         ;;   SELECT ttt.a FROM t1 AS ttt WHERE ttt.t1 MATCH 'string'
-        [fulltext-table fulltext-alias] (source/source->fulltext-from (:source cc))   ; [:t1 :ttt]
-        match-column (sql/qualify fulltext-alias fulltext-table)                      ; :ttt.t1
+        [fulltext-table fulltext-alias] (source/source->fulltext-values (:source cc))   ; [:t1 :ttt]
+        match-column (sql/qualify fulltext-alias fulltext-table)                        ; :ttt.t1
         match-value (cc/argument->value cc search)
 
         [datom-table datom-alias] (source/source->non-fulltext-from (:source cc))
@@ -107,22 +122,27 @@
         from [[fulltext-table fulltext-alias]
               [datom-table datom-alias]]
 
-        wheres [[:match match-column match-value]      ; The FTS match.
+        extracted-types {}    ; TODO
+
+        wheres (concat
+                 [[:match match-column match-value]      ; The FTS match.
 
                 ;; The fulltext rowid-to-datom correspondence.
                 [:=
                  (sql/qualify datom-alias :v)
-                 (sql/qualify fulltext-alias :rowid)]
+                 (sql/qualify fulltext-alias :rowid)]]
 
-                ;; The attribute itself must match.
-                [:=
-                 (sql/qualify datom-alias :a)
-                 (source/attribute-in-source (:source cc) (:value attr))]]
+                 (when attr-constant
+                   ;; If known, the attribute itself must match.
+                   [[:=
+                     (sql/qualify datom-alias :a)
+                     attr-constant]]))
 
         ;; Now compose any bindings for entity, value, tx, and score.
         ;; TODO: do we need to examine existing bindings to capture
         ;; wheres for any of these? We shouldn't, because the CC will
         ;; be internally cross-where'd when everything is done...
+        ;; TODO: bind attribute?
         bindings (into {}
                        (filter
                          (comp not nil? first)
@@ -134,11 +154,97 @@
                           ;; if this is a variable rather than a placeholder.
                           [score [0]]]))]
 
-    (cc/augment-cc cc from bindings wheres)))
+    (cc/augment-cc cc from bindings extracted-types wheres)))
+
+;; get-else is how Datalog handles optional attributes.
+;;
+;; It consists of:
+;; * A bound entity
+;; * A cardinality-one attribute
+;; * A var to bind the value
+;; * A default value.
+;;
+;; We model this as:
+;; * A check against known bindings for the entity.
+;; * A check against the schema for cardinality-one.
+;; * Generating a COALESCE expression with a query inside the projection itself.
+;;
+;; Note that this will be messy for queries like:
+;;
+;;   [:find ?page ?title :in $
+;;    :where [?page :page/url _]
+;;           [(get-else ?page :page/title "<empty>") ?title]
+;;           [_ :foo/quoted ?title]]
+;;
+;; or
+;;           [(some-function ?title)]
+;;
+;; -- we aren't really establishing a binding, so the subquery will be
+;; repeated. But this will do for now.
+(defn apply-get-else-clause [cc function]
+  (let [{:keys [source bindings external-bindings]} cc
+        schema (:schema source)
+
+        {:keys [args binding]} function
+        [src e a default-val] args]
+
+    (when-not (instance? BindScalar binding)
+      (raise-str "Expected scalar binding."))
+    (when-not (instance? Variable (:variable binding))
+      (raise-str "Expected variable binding."))
+    (when-not (instance? Constant a)
+      (raise-str "Expected constant attribute."))
+    (when-not (instance? Constant default-val)
+      (raise-str "Expected constant default value."))
+    (when-not (and (instance? SrcVar src)
+                   (= "$" (name (:symbol src))))
+      (raise "Non-default sources not supported." {:arg src}))
+
+    (let [a (attribute-in-source source (:value a))
+          a-type (get-in (:schema schema) [a :db/valueType])
+          a-tag (->tag a-type)
+
+          default-val (:value default-val)
+          var (:variable binding)]
+
+      ;; Schema check.
+      (when-not (and (integer? a)
+                     (not (datomish.schema/multival? schema a)))
+        (raise-str "Attribute " a " is not cardinality-one."))
+
+      ;; TODO: type-check the default value.
+
+      (condp instance? e
+        Variable
+        (let [e (:symbol e)
+              e-binding (cc/binding-for-symbol-or-throw cc e)]
+
+          (let [[table _] (source/source->from source a)  ; We don't need to alias: single pattern.
+                ;; These :limit values shouldn't be needed, but sqlite will
+                ;; appreciate them.
+                ;; Note that we don't extract type tags here: the attribute
+                ;; must be known!
+                subquery {:select
+                          [(sql/call
+                             :coalesce
+                             {:select [:v]
+                              :from [table]
+                              :where [:and
+                                      [:= 'a a]
+                                      [:= 'e e-binding]]
+                              :limit 1}
+                             (->SQLite default-val))]
+                          :limit 1}]
+            (->
+              (assoc-in cc [:known-types (:symbol var)] a-type)
+              (util/append-in [:bindings (:symbol var)] subquery))))
+
+        (raise-str "Can't handle entity" e)))))
 
 (def sql-functions
   ;; Future: versions of this that uses snippet() or matchinfo().
-  {"fulltext" apply-fulltext-clause})
+  {"fulltext" apply-fulltext-clause
+   "get-else" apply-get-else-clause})
 
 (defn apply-sql-function
   "Either returns an application of `function` to `cc`, or nil to

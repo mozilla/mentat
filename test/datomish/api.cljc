@@ -20,14 +20,9 @@
 (defn <connect [uri]
   ;; Eventually, URI.  For now, just a plain path (no file://).
   (go-pair
-    (->
-      (sqlite/<sqlite-connection uri)
-      (<?)
-
-      (db-factory/<db-with-sqlite-connection)
-      (<?)
-
-      (transact/connection-with-db))))
+    (let [conn (<? (sqlite/<sqlite-connection uri))
+          db (<? (db-factory/<db-with-sqlite-connection conn))]
+      (transact/connection-with-db db))))
 
 (def <transact! transact/<transact!)
 
@@ -38,3 +33,11 @@
 (def id-literal db/id-literal)
 
 (def db transact/db)
+
+(def entid db/entid)
+
+(def ident db/ident)
+
+(def <q db/<?q)
+
+(def schema db/schema)

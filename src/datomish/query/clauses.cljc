@@ -4,64 +4,96 @@
 
 (ns datomish.query.clauses
   (:require
-     [datomish.query.cc :as cc]
-     [datomish.query.functions :as functions]
-     [datomish.query.source
-      :refer [attribute-in-source
-              constant-in-source
-              source->from
-              source->constraints]]
-     [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
-     [datascript.parser :as dp
-      #?@(:cljs
-            [:refer
-             [
-              Constant
-              DefaultSrc
-              Function
-              Not
-              Or
-              Pattern
-              Placeholder
-              PlainSymbol
-              Predicate
-              Variable
-              ]])]
-     [honeysql.core :as sql]
-     [clojure.string :as str]
-     )
+   [datomish.query.cc :as cc]
+   [datomish.query.functions :as functions]
+   [datomish.query.source
+    :refer [pattern->schema-value-type
+            attribute-in-source
+            constant-in-source
+            source->from
+            source->constraints]]
+   [datomish.schema :as schema]
+   [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
+   [datascript.parser :as dp
+    #?@(:cljs
+        [:refer
+         [
+          Constant
+          DefaultSrc
+          Function
+          Not
+          Or
+          Pattern
+          Placeholder
+          PlainSymbol
+          Predicate
+          Variable
+          ]])]
+   [honeysql.core :as sql]
+   [clojure.string :as str]
+   )
   #?(:clj
-       (:import
-          [datascript.parser
-           Constant
-           DefaultSrc
-           Function
-           Not
-           Or
-           Pattern
-           Placeholder
-           PlainSymbol
-           Predicate
-           Variable
-           ])))
+     (:import
+      [datascript.parser
+       Constant
+       DefaultSrc
+       Function
+       Not
+       Or
+       Pattern
+       Placeholder
+       PlainSymbol
+       Predicate
+       Variable
+       ])))
 
 ;; Pattern building is recursive, so we need forward declarations.
 (declare
   Not->NotJoinClause not-join->where-fragment
   simple-or? simple-or->cc)
 
+(defn- check-or-apply-value-type [cc value-type pattern-part]
+  (if (nil? value-type)
+    cc
+    (condp instance? pattern-part
+      Placeholder
+      cc
+
+      Variable
+      (let [var-sym (:symbol pattern-part)]
+        (if-let [existing-type (var-sym (:known-types cc))]
+          (if (= existing-type value-type)
+            cc
+            (raise "Var " var-sym " already has type " existing-type "; this pattern wants " value-type
+                   {:pattern pattern-part :value-type value-type}))
+          (assoc-in cc [:known-types var-sym] value-type)))
+
+      Constant
+      (do
+        (or (and (= :db.type/ref value-type)
+                 (or (keyword? (:value pattern-part))   ; ident
+                     (integer? (:value pattern-part)))) ; entid
+            (schema/ensure-value-matches-type value-type (:value pattern-part)))
+        cc))))
+
 (defn- apply-pattern-clause-for-alias
   "This helper assumes that `cc` has already established a table association
    for the provided alias."
   [cc alias pattern]
-  (let [places (map vector
-                    (:pattern pattern)
-                    (:columns (:source cc)))]
+  (let [pattern (:pattern pattern)
+        columns (:columns (:source cc))
+        places (map vector pattern columns)
+        value-type (pattern->schema-value-type (:source cc) pattern)]   ; Optional; e.g., :db.type/string
     (reduce
       (fn [cc
            [pattern-part                           ; ?x, :foo/bar, 42
             position]]                             ; :a
-        (let [col (sql/qualify alias (name position))]    ; :datoms123.a
+        (let [cc (case position
+                       ;; TODO: we should be able to constrain :e and :a to be
+                       ;; entities... but the type checker expects that to be an int.
+                       :v (check-or-apply-value-type cc value-type pattern-part)
+                       :e (check-or-apply-value-type cc :db.type/ref pattern-part)
+                       cc)]
           (condp instance? pattern-part
             ;; Placeholders don't contribute any bindings, nor do
             ;; they constrain the query -- there's no need to produce
@@ -70,10 +102,16 @@
             cc
 
             Variable
-            (cc/bind-column-to-var cc pattern-part col)
+            (cc/bind-column-to-var cc pattern-part alias position)
 
             Constant
-            (cc/constrain-column-to-constant cc col position (:value pattern-part))
+            (if (and (nil? value-type)
+                     (= position :v))
+              ;; If we don't know the type, but we have a constant, generate
+              ;; a :wheres clause constraining the accompanying value_type_tag
+              ;; column.
+              (cc/constrain-value-column-to-constant cc alias (:value pattern-part))
+              (cc/constrain-column-to-constant cc alias position (:value pattern-part)))
 
             (raise "Unknown pattern part." {:part pattern-part :clause pattern}))))
 
@@ -105,7 +143,7 @@
     (apply-pattern-clause-for-alias
 
       ;; Record the new table mapping.
-      (util/conj-in cc [:from] [table alias])
+      (util/append-in cc [:from] [table alias])
 
       ;; Use the new alias for columns.
       alias
@@ -114,7 +152,7 @@
 (defn- plain-symbol->sql-predicate-symbol [fn]
   (when-not (instance? PlainSymbol fn)
     (raise-str "Predicate functions must be named by plain symbols." fn))
-  (#{:> :< :=} (keyword (name (:symbol fn)))))
+  (#{:> :>= :< :<= := :!=} (keyword (name (:symbol fn)))))
 
 (defn apply-predicate-clause [cc predicate]
   (when-not (instance? Predicate predicate)
@@ -124,7 +162,7 @@
       (raise-str "Unknown function " (:fn predicate)))
 
     (let [args (map (partial cc/argument->value cc) (:args predicate))]
-      (util/conj-in cc [:wheres] (cons f args)))))
+      (util/append-in cc [:wheres] (cons f args)))))
 
 (defn apply-not-clause [cc not]
   (when-not (instance? Not not)
@@ -136,13 +174,19 @@
   ;; fragment, and include the external bindings so that they match up.
   ;; Otherwise, we need to delay. Right now we're lazy, so we just fail:
   ;; reorder your query yourself.
-  (util/conj-in cc [:wheres]
-                (not-join->where-fragment
-                  (Not->NotJoinClause (:source cc)
-                                      (merge-with concat
-                                                  (:external-bindings cc)
-                                                  (:bindings cc))
-                                      not))))
+  ;;
+  ;; Note that we don't extract and reuse any types established inside
+  ;; the `not` clause: perhaps those won't make sense outside. But it's
+  ;; a filter, so we push the external types _in_.
+  (util/append-in cc
+                  [:wheres]
+                  (not-join->where-fragment
+                    (Not->NotJoinClause (:source cc)
+                                        (:known-types cc)
+                                        (merge-with concat
+                                                    (:external-bindings cc)
+                                                    (:bindings cc))
+                                        not))))
 
 (defn apply-or-clause [cc orc]
   (when-not (instance? Or orc)
@@ -163,6 +207,7 @@
 
   (if (simple-or? orc)
     (cc/merge-ccs cc (simple-or->cc (:source cc)
+                                    (:known-types cc)
                                     (merge-with concat
                                                 (:external-bindings cc)
                                                 (:bindings cc))
@@ -200,14 +245,17 @@
   [cc patterns]
   (reduce apply-clause cc patterns))
 
-(defn patterns->cc [source patterns external-bindings]
+(defn patterns->cc [source patterns known-types external-bindings]
   (cc/expand-where-from-bindings
     (expand-pattern-clauses
       (cc/map->ConjoiningClauses
         {:source source
          :from []
+         :known-types (or known-types {})
+         :extracted-types {}
          :external-bindings (or external-bindings {})
          :bindings {}
+         :ctes {}
          :wheres []})
       patterns)))
 
@@ -218,6 +266,8 @@
   [cc]
   (merge
     {:from (:from cc)}
+    (when-not (empty? (:ctes cc))
+      {:with (:ctes cc)})
     (when-not (empty? (:wheres cc))
       {:where (cons :and (:wheres cc))})))
 
@@ -230,24 +280,23 @@
 ;; that a declared variable list is valid for the clauses given.
 (defrecord NotJoinClause [unify-vars cc])
 
-(defn make-not-join-clause [source external-bindings unify-vars patterns]
-  (->NotJoinClause unify-vars (patterns->cc source patterns external-bindings)))
-
-(defn Not->NotJoinClause [source external-bindings not]
+(defn Not->NotJoinClause [source known-types external-bindings not]
   (when-not (instance? DefaultSrc (:source not))
     (raise "Non-default sources are not supported in `not` clauses." {:clause not}))
-  (make-not-join-clause source external-bindings (:vars not) (:clauses not)))
+  (map->NotJoinClause
+    {:unify-vars (:vars not)
+     :cc (patterns->cc source (:clauses not) known-types external-bindings)}))
 
 (defn not-join->where-fragment [not-join]
   [:not
-    (if (empty? (:bindings (:cc not-join)))
-      ;; If the `not` doesn't establish any bindings, it means it only contains
-      ;; expressions that constrain variables established outside itself.
-      ;; We can just return an expression.
-      (cons :and (:wheres (:cc not-join)))
+   (if (empty? (:bindings (:cc not-join)))
+     ;; If the `not` doesn't establish any bindings, it means it only contains
+     ;; expressions that constrain variables established outside itself.
+     ;; We can just return an expression.
+     (cons :and (:wheres (:cc not-join)))
 
-      ;; If it does establish bindings, then it has to be a subquery.
-      [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))])])
+     ;; If it does establish bindings, then it has to be a subquery.
+     [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))])])
 
 
 ;; A simple Or clause is one in which each branch can be evaluated against
@@ -288,15 +337,17 @@
 
 (defn simple-or->cc
   "The returned CC has not yet had bindings expanded."
-  [source external-bindings orc]
+  [source known-types external-bindings orc]
   (validate-or-clause orc)
 
   ;; We 'fork' a CC for each pattern, then union them together.
   ;; We need to build the first in order that the others use the same
-  ;; column names.
+  ;; column names and known types.
   (let [cc (cc/map->ConjoiningClauses
              {:source source
               :from []
+              :known-types (or known-types {})
+              :extracted-types {}
               :external-bindings (or external-bindings {})
               :bindings {}
               :wheres []})
@@ -307,6 +358,9 @@
       ;; That was easy.
       primary
 
+      ;; Note that for a simple `or` clause, the same template is used for each,
+      ;; so we can simply use the `extracted-types` bindings from `primary`.
+      ;; A complex `or` is much harder to handle.
       (let [template (assoc primary :wheres [])
             alias (second (first (:from template)))
             ccs (map (partial apply-pattern-clause-for-alias template alias)
@@ -315,7 +369,8 @@
         ;; Because this is a simple clause, we know that the first pattern established
         ;; any necessary bindings.
         ;; Take any new :wheres from each CC and combine them with :or.
-        (assoc primary :wheres
+        (assoc primary
+               :wheres
                [(cons :or
                      (reduce (fn [acc cc]
                                (let [w (:wheres cc)]
