@@ -76,9 +76,16 @@
    :db/doc               35
    })
 
+(def parts
+  {:db.part/db   {:start 0 :idx (inc (apply max (vals idents)))}
+   :db.part/user {:start 0x10000 :idx 0x10000}
+   :db.part/tx   {:start 0x10000000 :idx 0x10000000}
+   })
+
 (defn tx-data []
   (concat
     (map (fn [[ident entid]] [:db/add entid :db/ident ident]) idents)
+    ;; TODO: install partitions as well, like (map (fn [[ident entid]] [:db/add :db.part/db :db.install/partition ident])).
     (map (fn [[ident attrs]] (assoc attrs :db/id ident)) symbolic-schema)
     (map (fn [[ident attrs]] [:db/add :db.part/db :db.install/attribute (get idents ident)]) symbolic-schema) ;; TODO: fail if nil.
     ))

@@ -64,6 +64,7 @@
                      entities  ;; The set of entities (like [:db/add e a v tx]) processed.
                      tx-data   ;; The set of datoms applied to the database, like (Datom. e a v tx added).
                      tempids   ;; The map from id-literal -> numeric entid.
+                     part-map  ;; Map {:db.part/user {:start 0x10000 :idx 0x10000}, ...}.
                      added-parts ;; The set of parts added during the transaction via :db.part/db :db.install/part.
                      added-idents ;; The map of idents -> entid added during the transaction, via e :db/ident ident.
                      added-attributes ;; The map of schema attributes (ident -> schema fragment) added during the transaction, via :db.part/db :db.install/attribute.
@@ -72,11 +73,19 @@
 (defn- report? [x]
   (and (instance? TxReport x)))
 
-(defonce -eid (atom (- 0x200 1)))
-
-;; TODO: better here.
-(defn- next-eid [db]
-  (swap! -eid inc))
+(defn- -next-eid! [part-map-atom tempid]
+  "Advance {:db.part/user {:start 0x10 :idx 0x11}, ...} to {:db.part/user {:start 0x10 :idx 0x12}, ...} and return 0x12."
+  {:pre [(id-literal? tempid)]}
+  (let [part (:part tempid)
+        next (fn [part-map]
+               (let [idx (get-in part-map [part :idx])]
+                 (when-not idx
+                   (raise "Cannot allocate entid for id-literal " tempid " because part " part " is not known"
+                          {:error :db/bad-part
+                           :parts (sorted-set (keys part-map))
+                           :part  part}))
+                 (update-in part-map [part :idx] inc)))]
+    (get-in (swap! part-map-atom next) [part :idx])))
 
 (defn- allocate-eid
   [report id-literal eid]
@@ -327,22 +336,22 @@
                   allocated-eid (get-in report [:tempids e])]
               (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
                 (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
-                (let [eid (or upserted-eid allocated-eid (<? (db/<next-eid db e)))]
+                (let [eid (or upserted-eid allocated-eid (-next-eid! (:part-map-atom report) e))]
                   (recur (allocate-eid report e eid) (cons [op eid a v] entities)))))
 
             ;; Start allocating and retrying.  We try with e last, so as to eventually upsert it.
             (id-literal? v)
             ;; We can't fail with unbound literals here, since we could have multiple.
-            (let [eid (or (get-in report [:tempids v]) (<? (db/<next-eid db e)))]
+            (let [eid (or (get-in report [:tempids v]) (-next-eid! (:part-map-atom report) e))]
               (recur (allocate-eid report v eid) (cons [op e a eid] entities)))
 
             (id-literal? a)
             ;; TODO: should we even allow id-literal attributes?  Datomic fails in some cases here.
-            (let [eid (or (get-in report [:tempids a]) (<? (db/<next-eid db e)))]
+            (let [eid (or (get-in report [:tempids a]) (-next-eid! (:part-map-atom report) e))]
               (recur (allocate-eid report a eid) (cons [op e eid v] entities)))
 
             (id-literal? e)
-            (let [eid (or (get-in report [:tempids e]) (<? (db/<next-eid db e)))]
+            (let [eid (or (get-in report [:tempids e]) (-next-eid! (:part-map-atom report) e))]
               (recur (allocate-eid report e eid) (cons [op eid a v] entities)))
 
             true
@@ -453,22 +462,29 @@
 ;; TODO: expose this in a more appropriate way.
 (defn <with-internal [db tx-data merge-ident merge-attr]
   (go-pair
-    (let [report (->>
+    (let [part-map-atom
+          (atom (db/part-map db))
+
+          tx
+          (-next-eid! part-map-atom (id-literal :db.part/tx))
+
+          report (->>
                    (map->TxReport
-                     {:db-before         db
-                      :db-after          db
+                     {:db-before        db
+                      :db-after         db
                       ;; This mimics DataScript.  It's convenient to be able to extract the
                       ;; transaction ID and transaction timestamp directly from the report; Datomic
                       ;; makes this surprisingly difficult: one needs a :db.part/tx temporary and an
                       ;; explicit upsert of that temporary.
-                      :tx                (<? (db/<next-eid db (id-literal :db.part/tx)))
-                      :txInstant         (db/now db)
-                      :entities          tx-data
-                      :tx-data           []
-                      :tempids           {}
-                      :added-parts       {}
-                      :added-idents      {}
-                      :added-attributes  {}
+                      :part-map-atom    part-map-atom
+                      :tx               tx
+                      :txInstant        (db/now db)
+                      :entities         tx-data
+                      :tx-data          []
+                      :tempids          {}
+                      :added-parts      {}
+                      :added-idents     {}
+                      :added-attributes {}
                       })
 
                    (<transact-tx-data db)
@@ -483,6 +499,10 @@
 
           db-after (->
                      db
+
+                     (db/<apply-db-part-map @(:part-map-atom report))
+                     (<?)
+                     (->> (p :apply-db-part-changes))
 
                      (db/<apply-db-ident-assertions (:added-idents report) merge-ident)
                      (<?)
