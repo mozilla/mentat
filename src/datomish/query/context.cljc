@@ -12,8 +12,10 @@
    elements        ; The :find list itself.
    has-aggregates?
    group-by-vars   ; A list of variables from :find and :with, used to generate GROUP BY.
+   order-by-vars   ; A list of projected variables and directions, e.g., [:date :asc], [:_max_timestamp :desc].
+   limit           ; The limit to apply to the final results of the query. Only makes sense with ORDER BY.
    cc              ; The main conjoining clause.
    ])
 
 (defn make-context [source]
-  (->Context source nil false nil nil))
+  (->Context source nil false nil nil nil nil))
