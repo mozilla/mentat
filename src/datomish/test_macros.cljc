@@ -5,8 +5,7 @@
 (ns datomish.test-macros
   #?(:cljs
      (:require-macros
-        [datomish.test-macros]
-        [datomish.node-tempfile-macros]))
+      [datomish.test-macros]))
   (:require
    [datomish.pair-chan]))
 
@@ -44,16 +43,8 @@
 (defmacro deftest-db
   [n conn-var & body]
   `(deftest-async ~n
-    (if-cljs
-      (datomish.node-tempfile-macros/with-tempfile [t# (datomish.node-tempfile/tempfile)]
-         (let [~conn-var (datomish.pair-chan/<? (datomish.api/<connect t#))]
-           (try
-             ~@body
-             (finally
-               (datomish.pair-chan/<? (datomish.api/<close ~conn-var))))))
-      (tempfile.core/with-tempfile [t# (tempfile.core/tempfile)]
-       (let [~conn-var (datomish.pair-chan/<? (datomish.api/<connect t#))]
-         (try
-           ~@body
-           (finally
-             (datomish.pair-chan/<? (datomish.api/<close ~conn-var)))))))))
+     (let [~conn-var (datomish.pair-chan/<? (datomish.api/<connect ""))]
+       (try
+         ~@body
+         (finally
+           (datomish.pair-chan/<? (datomish.api/<close ~conn-var)))))))
