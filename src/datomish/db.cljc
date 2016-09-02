@@ -644,14 +644,14 @@
    Returns a transduced channel of [result err] pairs.
    Closes the channel when fully consumed."
   [db find options]
-  (let [{:keys [limit order-by args]} options
+  (let [{:keys [limit order-by inputs]} options
         parsed (query/parse find)
         context (-> db
                     query-context
                     (query/options-into-context limit order-by)
                     (query/find-into-context parsed))
         row-pair-transducer (projection/row-pair-transducer context)
-        sql (query/context->sql-string context args)
+        sql (query/context->sql-string context inputs)
         chan (chan 50 row-pair-transducer)]
 
     (s/<?all-rows (.-sqlite-connection db) sql chan)

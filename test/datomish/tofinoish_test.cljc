@@ -302,7 +302,7 @@
                         :where where}
                        {:limit limit
                         :order-by [[:_max_time :desc]]
-                        :args {:since since}}))]
+                        :inputs {:since since}}))]
         (map (fn [[uri title lastVisited]]
                {:uri uri :title title :lastVisited lastVisited})
              rows)))))
@@ -318,7 +318,7 @@
                   :where
                   [?page :page/url ?url]
                   [(get-else $ ?page :page/title "") ?title]]
-                {:args {:url url}}))))))
+                {:inputs {:url url}}))))))
 
 ;; Ensure that we can grow the schema over time.
 (deftest-db test-schema-evolution conn
