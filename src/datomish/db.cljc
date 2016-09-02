@@ -643,13 +643,15 @@
   "Execute the provided query on the provided DB.
    Returns a transduced channel of [result err] pairs.
    Closes the channel when fully consumed."
-  [db find args]
-  (let [parsed (query/parse find)
+  [db find options]
+  (let [{:keys [limit order-by inputs]} options
+        parsed (query/parse find)
         context (-> db
                     query-context
+                    (query/options-into-context limit order-by)
                     (query/find-into-context parsed))
         row-pair-transducer (projection/row-pair-transducer context)
-        sql (query/context->sql-string context args)
+        sql (query/context->sql-string context inputs)
         chan (chan 50 row-pair-transducer)]
 
     (s/<?all-rows (.-sqlite-connection db) sql chan)
@@ -665,6 +667,8 @@
 (defn <?q
   "Execute the provided query on the provided DB.
    Returns a transduced pair-chan with one [[results] err] item."
-  [db find args]
-  (a/reduce (partial reduce-error-pair conj) [[] nil]
-            (<?run db find args)))
+  ([db find]
+   (<?q db find {}))
+  ([db find options]
+   (a/reduce (partial reduce-error-pair conj) [[] nil]
+             (<?run db find options))))

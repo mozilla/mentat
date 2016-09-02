@@ -39,27 +39,59 @@
 ;; but not automatically safe for use.
 (def sql-quoting-style :ansi)
 
+(defn- validated-order-by [projection order-by]
+  (let [ordering-vars (set (map first order-by))
+        projected-vars (set (map second projection))]
+
+    (when-not (every? #{:desc :asc} (map second order-by))
+      (raise-str "Ordering expressions must be :asc or :desc."))
+    (when-not
+      (clojure.set/subset? ordering-vars projected-vars)
+      (raise "Ordering vars " ordering-vars " not a subset of projected vars " projected-vars
+             {:projected projected-vars
+              :ordering ordering-vars}))
+
+    order-by))
+
+(defn- limit-and-order [limit projection order-by]
+  (when (or limit order-by)
+    (util/assoc-if {}
+                   :limit limit
+                   :order-by (validated-order-by projection order-by))))
+
 (defn context->sql-clause [context]
-  (let [inner
+  (let [inner-projection (projection/sql-projection-for-relation context)
+        inner
         (merge
-          {:select (projection/sql-projection-for-relation context)
+          {:select inner-projection
 
            ;; Always SELECT DISTINCT, because Datalog is set-based.
            ;; TODO: determine from schema analysis whether we can avoid
            ;; the need to do this.
            :modifiers [:distinct]}
-          (clauses/cc->partial-subquery (:cc context)))]
-  (if (:has-aggregates? context)
-    (merge
-      (when-not (empty? (:group-by-vars context))
-        ;; We shouldn't need to account for types here, until we account for
-        ;; `:or` clauses that bind from different attributes.
-        {:group-by (map util/var->sql-var (:group-by-vars context))})
-      {:select (projection/sql-projection-for-aggregation context :preag)
-       :modifiers [:distinct]
-       :from [:preag]
-       :with {:preag inner}})
-    inner)))
+          (clauses/cc->partial-subquery (:cc context)))
+
+        limit (:limit context)
+        order-by (:order-by-vars context)]
+
+    (if (:has-aggregates? context)
+      (let [outer-projection (projection/sql-projection-for-aggregation context :preag)]
+        ;; Validate the projected vars against the ordering clauses.
+        (merge
+          (limit-and-order limit outer-projection order-by)
+          (when-not (empty? (:group-by-vars context))
+            ;; We shouldn't need to account for types here, until we account for
+            ;; `:or` clauses that bind from different attributes.
+            {:group-by (map util/var->sql-var (:group-by-vars context))})
+          {:select outer-projection
+           :modifiers [:distinct]
+           :from [:preag]
+           :with {:preag inner}}))
+
+      ;; Otherwise, validate against the inner.
+      (merge
+        (limit-and-order limit inner-projection order-by)
+        inner))))
 
 (defn context->sql-string [context args]
   (->
@@ -95,6 +127,14 @@
         m))
     {}
     in))
+
+(defn options-into-context
+  [context limit order-by]
+  (when-not (or (and (integer? limit)
+                     (pos? limit))
+                (nil? limit))
+    (raise "Invalid limit " limit {:limit limit}))
+  (assoc context :limit limit :order-by-vars order-by))
 
 (defn find-into-context
   "Take a parsed `find` expression and return a fully populated

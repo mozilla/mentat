@@ -176,8 +176,7 @@
       [?id :session/startReason ?reason ?tx]
       [?tx :db/txInstant ?ts]
       (not-join [?id]
-        [?id :session/endReason _])]
-    {}))
+        [?id :session/endReason _])]))
 
 (defn <ended-sessions [db]
   (d/<q
@@ -185,8 +184,7 @@
     '[:find ?id ?endReason ?ts :in $
       :where
       [?id :session/endReason ?endReason ?tx]
-      [?tx :db/txInstant ?ts]]
-    {}))
+      [?tx :db/txInstant ?ts]]))
 
 (defn <star-page [conn {:keys [url uri title session]}]
   (let [page (d/id-literal :db.part/user -1)]
@@ -214,8 +212,7 @@
             [?tx :db/txInstant ?starredOn]
             [?page :page/url ?uri]
             [?page :page/title ?title]                   ; N.B., this means we will exclude pages with no title.
-            ]
-          {}))
+            ]))
 
       (map (fn [[page uri title starredOn]]
              {:page page :uri uri :title title :starredOn starredOn})))))
@@ -248,8 +245,7 @@
           [?save :save/page ?page]
           [?page :page/url ?url]
           [(get-else $ ?save :save/title "") ?title]
-          [(get-else $ ?save :save/excerpt "") ?excerpt]]
-        {}))
+          [(get-else $ ?save :save/excerpt "") ?excerpt]]))
 
 (defn <saved-pages-matching-string [db string]
   (d/<q db
@@ -259,8 +255,7 @@
                  '[?save :save/page ?page]
                  '[?page :page/url ?url]
                  '[(get-else $ ?save :save/title "") ?title]
-                 '[(get-else $ ?save :save/excerpt "") ?excerpt]]}
-        {}))
+                 '[(get-else $ ?save :save/excerpt "") ?excerpt]]}))
 
 
 ;; TODO: return ID?
@@ -305,13 +300,12 @@
                        {:find '[?uri ?title (max ?time)]
                         :in (if since '[$ ?since] '[$])
                         :where where}
-                       {:since since}))]
-      (->>
-        rows
-        (sort-by (comp unchecked-negate third))    ;; TODO: these should be dates!
-        (take limit)
+                       {:limit limit
+                        :order-by [[:_max_time :desc]]
+                        :inputs {:since since}}))]
         (map (fn [[uri title lastVisited]]
-               {:uri uri :title title :lastVisited lastVisited})))))))
+               {:uri uri :title title :lastVisited lastVisited})
+             rows)))))
 
 (defn <find-title [db url]
   ;; Until we support [:find ?title . :in…] we crunch this by hand.
@@ -324,7 +318,7 @@
                   :where
                   [?page :page/url ?url]
                   [(get-else $ ?page :page/title "") ?title]]
-                {:url url}))))))
+                {:inputs {:url url}}))))))
 
 ;; Ensure that we can grow the schema over time.
 (deftest-db test-schema-evolution conn
@@ -385,10 +379,12 @@
     (<? (<add-visit conn {:uri "http://notitle.example.org/"
                           :session session}))
     (is (= "" (<? (<find-title (d/db conn) "http://notitle.example.org/"))))
-    (is (= (select-keys (first (<? (<visited (d/db conn) {:limit 1})))
-                        [:uri :title])
-           {:uri "http://notitle.example.org/"
-            :title ""}))
+    (let [only-one (<? (<visited (d/db conn) {:limit 1}))]
+      (is (= 1 (count only-one)))
+      (is (= (select-keys (first only-one)
+                          [:uri :title])
+             {:uri "http://notitle.example.org/"
+              :title ""})))
 
     ;; If we end this one, then it's no longer active but is ended.
     (<? (<end-session conn {:session session}))

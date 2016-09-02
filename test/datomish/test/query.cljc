@@ -517,3 +517,53 @@
                      [?page :page/url _]
                      [(get-else $ ?page :page/title "No title") ?title]]
                    conn)))))
+
+(deftest-db test-limit-order conn
+  (let [attrs (<? (<initialize-with-schema conn aggregate-schema))
+        context
+        (populate '[:find ?date (max ?v)
+                    :with ?e
+                    :in $ ?then
+                    :where
+                    [?e :foo/visitedAt ?date]
+                    [(> ?date ?then)]
+                    [?e :foo/points ?v]] conn)]
+    (is
+      (thrown-with-msg?
+        ExceptionInfo #"Invalid limit \?x"
+        (query/options-into-context context '?x [[:date :asc]])))
+    (is
+      (thrown-with-msg?
+        ExceptionInfo #"Ordering expressions must be :asc or :desc"
+        (query/context->sql-clause
+          (query/options-into-context context 10 [[:date :upsidedown]]))))
+    (is
+      (thrown-with-msg?
+        ExceptionInfo #"Ordering vars \#\{:nonexistent\} not a subset"
+        (query/context->sql-clause
+          (query/options-into-context context 10 [[:nonexistent :desc]]))))
+    (is
+      (=
+        {:limit 10}
+        (select-keys
+          (query/context->sql-clause
+            (query/options-into-context context 10 nil))
+          [:order-by :limit]
+          )))
+    (is
+      (=
+        {:order-by [[:date :asc]]}
+        (select-keys
+          (query/context->sql-clause
+            (query/options-into-context context nil [[:date :asc]]))
+          [:order-by :limit]
+          )))
+    (is
+      (=
+        {:limit 10
+         :order-by [[:date :asc]]}
+        (select-keys
+          (query/context->sql-clause
+            (query/options-into-context context 10 [[:date :asc]]))
+          [:order-by :limit]
+          )))))
