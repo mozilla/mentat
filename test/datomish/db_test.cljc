@@ -574,4 +574,211 @@
             ExceptionInfo #"unique constraint"
             (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/x 12345 :test/y 99999}])))))))
 
+(def retract-schema
+  [{:db/id                 (d/id-literal :db.part/user -1)
+    :db/ident              :test/long
+    :db/cardinality        :db.cardinality/many
+    :db/valueType          :db.type/long
+    :db.install/_attribute :db.part/db}
+   {:db/id                 (d/id-literal :db.part/user -2)
+    :db/ident              :test/fulltext
+    :db/cardinality        :db.cardinality/many
+    :db/valueType          :db.type/string
+    :db/fulltext           true
+    :db.install/_attribute :db.part/db}
+   {:db/id                 (d/id-literal :db.part/user -3)
+    :db/ident              :test/ref
+    :db/valueType          :db.type/ref
+    :db.install/_attribute :db.part/db}])
+
+(deftest-db test-retract-attribute conn
+  (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
+
+    (testing "retractAttribute"
+      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/long [12345 123456]}
+                                           {:db/id (d/id-literal :db.part/user -2) :test/ref (d/id-literal :db.part/user -1)}]))
+            eid1    (get-in report [:tempids (d/id-literal :db.part/user -1)])
+            eid2    (get-in report [:tempids (d/id-literal :db.part/user -2)])]
+        (is (= (<? (<datoms-after (d/db conn) tx0))
+               #{[eid1 :test/long 12345]
+                 [eid1 :test/long 123456]
+                 [eid2 :test/ref eid1]}))
+
+        (testing "retractAttribute with no matching datoms succeeds"
+          (<? (d/<transact! conn [[:db.fn/retractAttribute eid1 :test/ref]]))
+          (is (= (<? (<datoms-after (d/db conn) tx0))
+                 #{[eid1 :test/long 12345]
+                   [eid1 :test/long 123456]
+                   [eid2 :test/ref eid1]})))
+
+        (testing "retractAttribute retracts datoms"
+          (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid2 :test/ref]]))]
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   #{[eid1 :test/long 12345]
+                     [eid1 :test/long 123456]})))
+
+          (let [{tx2 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid1 :test/long]]))]
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   #{}))))))))
+
+(deftest-db test-retract-attribute-multiple conn
+  (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
+
+    (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/long [12345 123456]}
+                                         {:db/id (d/id-literal :db.part/user -1) :test/fulltext ["first fulltext value" "second fulltext value"]}]))
+          eid1   (get-in report [:tempids (d/id-literal :db.part/user -1)])]
+      (is (= (<? (<fulltext-values (d/db conn)))
+             [[1 "first fulltext value"]
+              [2 "second fulltext value"]]))
+      (is (= (<? (<datoms-after (d/db conn) tx0))
+             #{[eid1 :test/fulltext 1]
+               [eid1 :test/fulltext 2]
+               [eid1 :test/long 12345]
+               [eid1 :test/long 123456]}))
+
+      (testing "multiple retractAttribute in one transaction"
+        (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid1 :test/long]
+                                                [:db.fn/retractAttribute eid1 :test/fulltext]]))]
+          (is (= (<? (<datoms-after (d/db conn) tx0))
+                 #{})))))))
+
+(deftest-db test-retract-attribute-fulltext conn
+  (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
+
+    (testing "retractAttribute, fulltext"
+      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/fulltext ["first fulltext value" "second fulltext value"]}
+                                           {:db/id (d/id-literal :db.part/user -2) :test/ref (d/id-literal :db.part/user -1)}]))
+            eid1    (get-in report [:tempids (d/id-literal :db.part/user -1)])
+            eid2    (get-in report [:tempids (d/id-literal :db.part/user -2)])]
+        (is (= (<? (<fulltext-values (d/db conn)))
+               [[1 "first fulltext value"]
+                [2 "second fulltext value"]]))
+        (is (= (<? (<datoms-after (d/db conn) tx0))
+               #{[eid1 :test/fulltext 1]
+                 [eid1 :test/fulltext 2]
+                 [eid2 :test/ref eid1]}))
+
+        (testing "retractAttribute retracts datoms, fulltext"
+          (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid2 :test/ref]]))]
+            ;; fulltext values are not purged.
+            (is (= (<? (<fulltext-values (d/db conn)))
+                   [[1 "first fulltext value"]
+                    [2 "second fulltext value"]]))
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   #{[eid1 :test/fulltext 1]
+                     [eid1 :test/fulltext 2]})))
+
+          (let [{tx2 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid1 :test/fulltext]]))]
+            ;; fulltext values are not purged.
+            (is (= (<? (<fulltext-values (d/db conn)))
+                   [[1 "first fulltext value"]
+                    [2 "second fulltext value"]]))
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   #{}))))))))
+
+(deftest-db test-retract-entity conn
+  (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
+
+    (testing "retractEntity"
+      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/long [12345 123456]}
+                                           {:db/id (d/id-literal :db.part/user -2) :test/ref (d/id-literal :db.part/user -1)}
+                                           {:db/id (d/id-literal :db.part/user -3) :test/long 0xdeadbeef}]))
+            eid1    (get-in report [:tempids (d/id-literal :db.part/user -1)])
+            eid2    (get-in report [:tempids (d/id-literal :db.part/user -2)])
+            eid3    (get-in report [:tempids (d/id-literal :db.part/user -3)])]
+        (is (= (<? (<datoms-after (d/db conn) tx0))
+               #{[eid1 :test/long 12345]
+                 [eid1 :test/long 123456]
+                 [eid2 :test/ref eid1]
+                 [eid3 :test/long 0xdeadbeef]}))
+
+        (testing "retractEntity with no matching datoms succeeds"
+          (<? (d/<transact! conn [[:db.fn/retractEntity 0xdeadbeef]]))
+          (is (= (<? (<datoms-after (d/db conn) tx0))
+                 #{[eid1 :test/long 12345]
+                   [eid1 :test/long 123456]
+                   [eid2 :test/ref eid1]
+                   [eid3 :test/long 0xdeadbeef]})))
+
+        (testing "retractEntity retracts datoms"
+          (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractEntity eid3]]))]
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   #{[eid1 :test/long 12345]
+                     [eid1 :test/long 123456]
+                     [eid2 :test/ref eid1]}))))
+
+        (testing "retractEntity retracts datoms and references"
+          (let [{tx2 :tx} (<? (d/<transact! conn [[:db.fn/retractEntity eid1]]))]
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   ;; [eid2 :test/ref eid1] is gone, since the ref eid1 is gone.
+                   #{}))))))))
+
+(deftest-db test-retract-entity-multiple conn
+  (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
+
+    (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/long [12345 123456]}
+                                         {:db/id (d/id-literal :db.part/user -2) :test/fulltext ["first fulltext value" "second fulltext value"]}]))
+          eid1   (get-in report [:tempids (d/id-literal :db.part/user -1)])
+          eid2   (get-in report [:tempids (d/id-literal :db.part/user -2)])]
+      (is (= (<? (<fulltext-values (d/db conn)))
+             [[1 "first fulltext value"]
+              [2 "second fulltext value"]]))
+      (is (= (<? (<datoms-after (d/db conn) tx0))
+             #{[eid2 :test/fulltext 1]
+               [eid2 :test/fulltext 2]
+               [eid1 :test/long 12345]
+               [eid1 :test/long 123456]}))
+
+      (testing "multiple retractEntity in one transaction"
+        (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractEntity eid1]
+                                                [:db.fn/retractEntity eid2]]))]
+          (is (= (<? (<datoms-after (d/db conn) tx0))
+                 #{})))))))
+
+(deftest-db test-retract-entity-fulltext conn
+  (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
+
+    (testing "retractEntity, fulltext"
+      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/fulltext ["first fulltext value" "second fulltext value"]}
+                                           {:db/id (d/id-literal :db.part/user -2) :test/ref (d/id-literal :db.part/user -1)}
+                                           {:db/id (d/id-literal :db.part/user -3) :test/fulltext "other fulltext value"}]))
+            eid1    (get-in report [:tempids (d/id-literal :db.part/user -1)])
+            eid2    (get-in report [:tempids (d/id-literal :db.part/user -2)])
+            eid3    (get-in report [:tempids (d/id-literal :db.part/user -3)])]
+        (is (= (<? (<fulltext-values (d/db conn)))
+               [[1 "first fulltext value"]
+                [2 "second fulltext value"]
+                [3 "other fulltext value"]]))
+        (is (= (<? (<datoms-after (d/db conn) tx0))
+               #{[eid1 :test/fulltext 1]
+                 [eid1 :test/fulltext 2]
+                 [eid2 :test/ref eid1]
+                 [eid3 :test/fulltext 3]}))
+
+        (testing "retractEntity with no matching datoms succeeds, fulltext"
+          (<? (d/<transact! conn [[:db.fn/retractEntity 0xdeadbeef]]))
+          (is (= (<? (<datoms-after (d/db conn) tx0))
+                 #{[eid1 :test/fulltext 1]
+                   [eid1 :test/fulltext 2]
+                   [eid2 :test/ref eid1]
+                   [eid3 :test/fulltext 3]})))
+
+        (testing "retractEntity retracts datoms, fulltext"
+          (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractEntity eid3]]))]
+            ;; fulltext values are not purged.
+            (is (= (<? (<fulltext-values (d/db conn)))
+                   [[1 "first fulltext value"]
+                    [2 "second fulltext value"]
+                    [3 "other fulltext value"]]))
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   #{[eid1 :test/fulltext 1]
+                     [eid1 :test/fulltext 2]
+                     [eid2 :test/ref eid1]}))))
+
+        (testing "retractEntity retracts datoms and references, fulltext"
+          (let [{tx2 :tx} (<? (d/<transact! conn [[:db.fn/retractEntity eid1]]))]
+            (is (= (<? (<datoms-after (d/db conn) tx0))
+                   ;; [eid2 :test/ref eid1] is gone, since the ref eid1 is gone.
+                   #{}))))))))
+
 #_ (time (t/run-tests))

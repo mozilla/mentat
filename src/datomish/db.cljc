@@ -172,15 +172,64 @@
      :table-alias source/gensym-table-alias
      :make-constraints nil}))
 
+;; TODO: make this not do the tx_lookup.  We could achieve this by having additional special values
+;; of added0, or by separating the tx_lookup table into before and after tables.
+(defn- retractAttributes->queries [eas tx]
+  (let [where-part
+        "(e = ? AND a = ?)"
+
+        repeater (memoize (fn [n] (interpose " OR " (repeat n where-part))))]
+    (map
+      (fn [chunk]
+        (cons
+          (apply str
+                 "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
+                SELECT e, a, v, ?, 0, value_type_tag, v, value_type_tag
+                FROM datoms
+                WHERE "
+                 (repeater (count chunk)))
+          (cons
+            tx
+            (mapcat (fn [[_ e a]]
+                      [e a])
+                    chunk))))
+      (partition-all (quot (dec max-sql-vars) 2) eas))))
+
+;; TODO: make this not do the tx_lookup.  We could achieve this by having additional special values
+;; of added0, or by separating the tx_lookup table into before and after tables.
+(defn- retractEntities->queries [es tx]
+  (let [ref-tag (sqlite-schema/->tag :db.type/ref)
+
+        ;; TODO: include index_vaet flag here, so we can use that index to speed up the deletion.
+        where-part
+        (str "e = ? OR (v = ? AND value_type_tag = " ref-tag ")") ;; Retract the entity and all refs to the entity.
+
+        repeater (memoize (fn [n] (interpose " OR " (repeat n where-part))))]
+    (map
+      (fn [chunk]
+        (cons
+          (apply str
+                 "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
+                SELECT e, a, v, ?, 0, value_type_tag, v, value_type_tag
+                FROM datoms
+                WHERE "
+                 (repeater (count chunk)))
+          (cons
+            tx
+            (mapcat (fn [[_ e]]
+                      [e e])
+                    chunk))))
+      (partition-all (quot (dec max-sql-vars) 2) es))))
+
 (defn- retractions->queries [retractions tx fulltext? ->SQLite]
   (let
-    [f-q
-     "WITH vv AS (SELECT rowid FROM fulltext_values WHERE text = ?)
+      [f-q
+       "WITH vv AS (SELECT rowid FROM fulltext_values WHERE text = ?)
      INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
      VALUES (?, ?, (SELECT rowid FROM vv), ?, 0, ?, (SELECT rowid FROM vv), ?)"
 
-     non-f-q
-     "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
+       non-f-q
+       "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
      VALUES (?, ?, ?, ?, 0, ?, ?, ?)"]
     (map
       (fn [[_ e a v]]
@@ -394,7 +443,7 @@
           SELECT e, a, v, ?, 0, value_type_tag
           FROM tx_lookup
           WHERE added0 IS 2 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL" tx] ;; TODO: get rid of magic value 2.
-]
+        ]
     (go-pair
       (doseq [q [build-indices insert-into-tx-lookup
                  t-datoms-not-already-present
@@ -431,15 +480,26 @@
         queries (atom [])
         operations (group-by first entities)]
 
-    (when-not (clojure.set/subset? (keys operations) #{:db/retract :db/add})
-      (raise (str "Unknown operations " (keys operations))
-             {:error :transact/syntax, :operations (dissoc operations :db/retract :db/add)}))
+    ;; Belt and braces.  At this point, we should have already errored out if op is not known.
+    (let [known #{:db/retract :db/add :db.fn/retractAttribute :db.fn/retractEntity}]
+      (when-not (clojure.set/subset? (keys operations) known)
+        (let [unknown (apply dissoc operations known)]
+          (raise (str "Unknown operations " (apply sorted-set (keys unknown)))
+                 {:error :transact/syntax, :operations (apply sorted-set (keys unknown))}))))
 
     ;; We can turn all non-FTS operations into simple SQL queries that we run serially.
     ;; FTS queries require us to get a rowid from the FTS table and use that for
     ;; insertion, so we need another pass.
     ;; We can't just freely use `go-pair` here, because this function is so complicated
     ;; that ClojureScript blows the stack trying to compile it.
+
+    (when-let [eas (:db.fn/retractAttribute operations)]
+      (swap!
+        queries concat (retractAttributes->queries eas tx)))
+
+    (when-let [es (:db.fn/retractEntity operations)]
+      (swap!
+        queries concat (retractEntities->queries es tx)))
 
     (when-let [retractions (:db/retract operations)]
       (swap!
