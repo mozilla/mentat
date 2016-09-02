@@ -97,7 +97,6 @@
                                                new))]
           (let [exec (partial s/execute! (:sqlite-connection db))
                 part->vector (fn [[part {:keys [start idx]}]]
-                               (println "part->vector" part start idx)
                                [(sqlite-schema/->SQLite part) start idx])]
             ;; TODO: allow inserting new parts.
             ;; TODO: think more carefully about allocating new parts and bitmasking part ranges.
