@@ -119,12 +119,13 @@
     entity))
 
 (defn maybe-ident->entid [db [op e a v tx :as orig]]
+  ;; We have to handle all ops, including those when a or v are not defined.
   (let [e (db/entid db e)
         a (db/entid db a)
-        v (if (ds/kw? (db/schema db) a) ;; TODO: decide if this is best.  We could also check for ref and numeric types.
+        v (if (and a (ds/kw? (db/schema db) a)) ;; TODO: decide if this is best.  We could also check for ref and numeric types.
             v
             (db/entid db v))]
-    (when-not (integer? a)
+    (when (and a (not (integer? a)))
       (raise "Unknown attribute " a
              {:form orig :attribute a}))
     [op e a v tx]))
@@ -138,34 +139,63 @@
     ;; n.b., this must not be symbolic -- it's inserted after we map idents -> entids.
     [:db/add tx (db/entid db :db/txInstant) txInstant]))
 
-(defn ensure-entity-form [[op e a v & rest :as entity]]
-  (cond
-    (not (sequential? entity))
+(defn ensure-entity-form [entity]
+  (when-not (sequential? entity)
     (raise "Bad entity " entity ", should be sequential at this point"
-           {:error :transact/bad-entity, :entity entity})
+           {:error :transact/bad-entity, :entity entity}))
 
-    (not (contains? #{:db/add :db/retract} op))
-    (raise "Unrecognized operation " op " expected one of :db/add :db/retract at this point"
-           {:error :transact/bad-operation :entity entity })
+  (let [[op] entity]
+    (case op
+      (:db/add :db/retract)
+      (let [[_ e a v & rest] entity]
+        (cond
+          (nil? e)
+          (raise "Bad entity: nil e in " entity
+                 {:error :transact/bad-entity :entity entity })
 
-    (nil? e)
-    (raise "Bad entity: nil e in " entity
-           {:error :transact/bad-entity :entity entity })
+          (nil? a)
+          (raise "Bad entity: nil a in " entity
+                 {:error :transact/bad-entity :entity entity })
 
-    (nil? a)
-    (raise "Bad entity: nil a in " entity
-           {:error :transact/bad-entity :entity entity })
+          (nil? v)
+          (raise "Bad entity: nil v in " entity
+                 {:error :transact/bad-entity :entity entity })
 
-    (nil? v)
-    (raise "Bad entity: nil v in " entity
-           {:error :transact/bad-entity :entity entity })
+          (some? rest)
+          (raise "Bad entity: too long " entity
+                 {:error :transact/bad-entity :entity entity })))
 
-    (some? rest)
-    (raise "Bad entity: too long " entity
-           {:error :transact/bad-entity :entity entity })
+      :db.fn/retractAttribute
+      (let [[_ e a & rest] entity]
+        (cond
+          (nil? e)
+          (raise "Bad entity: nil e in " entity
+                 {:error :transact/bad-entity :entity entity })
 
-    true
-    entity))
+          (nil? a)
+          (raise "Bad entity: nil a in " entity
+                 {:error :transact/bad-entity :entity entity })
+
+          (some? rest)
+          (raise "Bad entity: too long " entity
+                 {:error :transact/bad-entity :entity entity })))
+
+      :db.fn/retractEntity
+      (let [[_ e & rest] entity]
+        (cond
+          (nil? e)
+          (raise "Bad entity: nil e in " entity
+                 {:error :transact/bad-entity :entity entity })
+
+          (some? rest)
+          (raise "Bad entity: too long " entity
+                 {:error :transact/bad-entity :entity entity })))
+
+      ;; Default
+      (raise "Unrecognized operation " op " expected one of :db/add :db/retract :db/fn.retractAttribute :db/fn.retractEntity at this point"
+             {:error :transact/bad-operation :entity entity })))
+
+  entity)
 
 (defn- tx-instant? [db [op e a & _]]
   (and (= op :db/add)
@@ -373,7 +403,8 @@
   (go-pair
     (let [schema (db/schema db)]
       (doseq [[op e a v] (:entities report)]
-        (ds/ensure-valid-value schema a v)))
+        (if (and e a v)
+          (ds/ensure-valid-value schema a v))))
     report))
 
 (defn <transact-tx-data
