@@ -183,7 +183,7 @@
           (apply str
                  "INSERT INTO temp.tx_lookup_after (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag,
                   rid, e, a, v, tx, value_type_tag)
-                  SELECT e, a, v, ?, 0 + 2, value_type_tag, v, value_type_tag,
+                  SELECT e, a, v, ?, 0, value_type_tag, v, value_type_tag,
                   rowid, e, a, v, ?, value_type_tag
                   FROM datoms
                   WHERE "
@@ -211,7 +211,7 @@
           (apply str
                  "INSERT INTO temp.tx_lookup_after (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag,
                   rid, e, a, v, tx, value_type_tag)
-                  SELECT e, a, v, ?, 0 + 2, value_type_tag, v, value_type_tag,
+                  SELECT e, a, v, ?, 0, value_type_tag, v, value_type_tag,
                   rowid, e, a, v, ?, value_type_tag
                   FROM datoms
                   WHERE "
@@ -429,7 +429,7 @@
         ;; Second is slower, but still only one table walk: lookup old value by ea.
         insert-into-tx-lookup
         ["INSERT INTO temp.tx_lookup_after
-          SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
+          SELECT t.e0, t.a0, t.v0, t.tx0, t.added0, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
           FROM temp.tx_lookup_before AS t
           LEFT JOIN datoms AS d
           ON t.e0 = d.e AND
@@ -439,7 +439,7 @@
              t.sv IS NOT NULL
 
           UNION ALL
-          SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
+          SELECT t.e0, t.a0, t.v0, t.tx0, t.added0, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
           FROM temp.tx_lookup_before AS t,
                datoms AS d
           WHERE t.sv IS NULL AND
@@ -450,13 +450,13 @@
         ["INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
           SELECT e0, a0, v0, ?, 1, value_type_tag0
           FROM temp.tx_lookup_after
-          WHERE added0 IS 3 AND e IS NULL" tx] ;; TODO: get rid of magic value 3. XXX
+          WHERE added0 IS 1 AND e IS NULL" tx]
 
         t-retract-datoms-carefully
         ["INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
           SELECT e, a, v, ?, 0, value_type_tag
           FROM temp.tx_lookup_after
-          WHERE added0 IS 2 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL" tx] ;; TODO: get rid of magic value 2. XXX
+          WHERE added0 IS 0 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL" tx]
         ]
     (go-pair
       (doseq [q [build-indices insert-into-tx-lookup
@@ -470,12 +470,12 @@
           SELECT e0, a0, v0, ?, value_type_tag0,
           index_avet0, index_vaet0, index_fulltext0, unique_value0
           FROM temp.tx_lookup_after
-          WHERE added0 IS 3 AND e IS NULL" tx] ;; TODO: get rid of magic value 3. XXX
+          WHERE added0 IS 1 AND e IS NULL" tx]
 
         ;; TODO: retract fulltext datoms correctly.
         d-retract-datoms-carefully
-        ["WITH ids AS (SELECT l.rid FROM temp.tx_lookup_after AS l WHERE l.added0 IS 2 AND ((l.sv IS NOT NULL) OR (l.sv IS NULL AND l.v0 IS NOT l.v)))
-         DELETE FROM datoms WHERE rowid IN ids" ;; TODO: get rid of magic value 2. XXX
+        ["WITH ids AS (SELECT l.rid FROM temp.tx_lookup_after AS l WHERE l.added0 IS 0 AND ((l.sv IS NOT NULL) OR (l.sv IS NULL AND l.v0 IS NOT l.v)))
+         DELETE FROM datoms WHERE rowid IN ids"
          ]]
     (-run-queries conn [d-datoms-not-already-present d-retract-datoms-carefully]
                   "Transaction violates unique constraint")))
