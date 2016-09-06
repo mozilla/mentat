@@ -172,9 +172,7 @@
      :table-alias source/gensym-table-alias
      :make-constraints nil}))
 
-;; TODO: make this not do the tx_lookup.  We could achieve this by having additional special values
-;; of added0, or by separating the tx_lookup table into before and after tables.
-(defn- retractAttributes->queries [eas tx]
+(defn- retractAttributes->queries [oeas tx]
   (let [where-part
         "(e = ? AND a = ?)"
 
@@ -183,21 +181,23 @@
       (fn [chunk]
         (cons
           (apply str
-                 "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
-                SELECT e, a, v, ?, 0, value_type_tag, v, value_type_tag
-                FROM datoms
-                WHERE "
+                 "INSERT INTO temp.tx_lookup_after (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag,
+                  rid, e, a, v, tx, value_type_tag)
+                  SELECT e, a, v, ?, 0 + 2, value_type_tag, v, value_type_tag,
+                  rowid, e, a, v, ?, value_type_tag
+                  FROM datoms
+                  WHERE "
                  (repeater (count chunk)))
           (cons
             tx
-            (mapcat (fn [[_ e a]]
-                      [e a])
-                    chunk))))
-      (partition-all (quot (dec max-sql-vars) 2) eas))))
+            (cons
+              tx
+              (mapcat (fn [[_ e a]]
+                        [e a])
+                      chunk)))))
+      (partition-all (quot (- max-sql-vars 2) 2) oeas))))
 
-;; TODO: make this not do the tx_lookup.  We could achieve this by having additional special values
-;; of added0, or by separating the tx_lookup table into before and after tables.
-(defn- retractEntities->queries [es tx]
+(defn- retractEntities->queries [oes tx]
   (let [ref-tag (sqlite-schema/->tag :db.type/ref)
 
         ;; TODO: include index_vaet flag here, so we can use that index to speed up the deletion.
@@ -209,27 +209,31 @@
       (fn [chunk]
         (cons
           (apply str
-                 "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
-                SELECT e, a, v, ?, 0, value_type_tag, v, value_type_tag
-                FROM datoms
-                WHERE "
+                 "INSERT INTO temp.tx_lookup_after (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag,
+                  rid, e, a, v, tx, value_type_tag)
+                  SELECT e, a, v, ?, 0 + 2, value_type_tag, v, value_type_tag,
+                  rowid, e, a, v, ?, value_type_tag
+                  FROM datoms
+                  WHERE "
                  (repeater (count chunk)))
           (cons
             tx
-            (mapcat (fn [[_ e]]
-                      [e e])
-                    chunk))))
-      (partition-all (quot (dec max-sql-vars) 2) es))))
+            (cons
+              tx
+              (mapcat (fn [[_ e]]
+                        [e e])
+                      chunk)))))
+      (partition-all (quot (- max-sql-vars 2) 2) oes))))
 
 (defn- retractions->queries [retractions tx fulltext? ->SQLite]
   (let
       [f-q
        "WITH vv AS (SELECT rowid FROM fulltext_values WHERE text = ?)
-     INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
+     INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
      VALUES (?, ?, (SELECT rowid FROM vv), ?, 0, ?, (SELECT rowid FROM vv), ?)"
 
        non-f-q
-       "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
+       "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0, sv, svalue_type_tag)
      VALUES (?, ?, ?, ?, 0, ?, ?, ?)"]
     (map
       (fn [[_ e a v]]
@@ -242,7 +246,7 @@
       retractions)))
 
 (defn- non-fts-many->queries [ops tx ->SQLite indexing? ref? unique?]
-  (let [q "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
+  (let [q "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
 
         values-part
         ;; e0, a0, v0, tx0, added0, value_type_tag0
@@ -290,7 +294,7 @@
         [(cons
            (apply
              str
-             "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
+             "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
              (first-repeater (count chunk)))
            (mapcat (fn [[_ e a v]]
                      (let [[v tag] (->SQLite a v)]
@@ -304,7 +308,7 @@
          (cons
            (apply
              str
-             "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0) VALUES "
+             "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0) VALUES "
              (second-repeater (count chunk)))
            (mapcat (fn [[_ e a v]]
                      (let [[v tag] (->SQLite a v)]
@@ -341,10 +345,10 @@
           [["INSERT INTO fulltext_values_view (text, searchid) VALUES (?, ?)"
             v searchid]
 
-           ;; Second query: tx_lookup.
+           ;; Second query: lookup.
            [(str
               "WITH vv(rowid) AS (SELECT rowid FROM fulltext_values WHERE searchid = ?) "
-              "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
+              "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
               "(?, ?, (SELECT rowid FROM vv), ?, 1, ?, ?, ?, 1, ?, (SELECT rowid FROM vv), ?)")
             searchid
             e a tx tag
@@ -365,10 +369,10 @@
           [["INSERT INTO fulltext_values_view (text, searchid) VALUES (?, ?)"
             v searchid]
 
-           ;; Second and third queries: tx_lookup.
+           ;; Second and third queries: lookup.
            [(str
               "WITH vv(rowid) AS (SELECT rowid FROM fulltext_values WHERE searchid = ?) "
-              "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
+              "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0, index_avet0, index_vaet0, index_fulltext0, unique_value0, sv, svalue_type_tag) VALUES "
               "(?, ?, (SELECT rowid FROM vv), ?, 1, ?, ?, ?, 1, ?, (SELECT rowid FROM vv), ?)")
             searchid
             e a tx tag
@@ -378,7 +382,7 @@
             tag]
 
            [(str
-              "INSERT INTO tx_lookup (e0, a0, v0, tx0, added0, value_type_tag0) VALUES "
+              "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0) VALUES "
               "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, 0, ?)")
             e a searchid tx tag]]))
       ops
@@ -390,33 +394,43 @@
     (try
       (doseq [q queries]
         (<? (s/execute! conn q)))
-      (catch #?(:clj java.sql.SQLException :cljs js/Error) e
+      (catch #?(:clj java.lang.Exception :cljs js/Error) e
         (throw (ex-info exception-message {} e))))))
 
 (defn- -preamble-drop [conn]
-  (let [preamble-drop-index ["DROP INDEX IF EXISTS id_tx_lookup_added"]
-        preamble-delete-tx-lookup ["DELETE FROM tx_lookup"]]
-    (go-pair
-      (p :preamble
-         (doseq [q [preamble-drop-index preamble-delete-tx-lookup]]
-           (<? (s/execute! conn q)))))))
+  (go-pair
+    (p :preamble
+       (doseq [q [;; XXX ["DROP INDEX IF EXISTS temp.idx_tx_lookup_before_added"]
+                  (sqlite-schema/create-temp-tx-lookup-statement "temp.tx_lookup_before")
+                  (sqlite-schema/create-temp-tx-lookup-statement "temp.tx_lookup_after")
+                  ;; TODO: move later, into -build-transaction.
+                  ;; temp goes on index name, not table name.  See http://stackoverflow.com/a/22308016.
+                  (sqlite-schema/create-temp-tx-lookup-eavt-statement "temp.idx_tx_lookup_before_eavt" "tx_lookup_before")
+                  (sqlite-schema/create-temp-tx-lookup-eavt-statement "temp.idx_tx_lookup_after_eavt" "tx_lookup_after")
+                  ["DELETE FROM temp.tx_lookup_before"]
+                  ["DELETE FROM temp.tx_lookup_after"]]]
+         (<? (s/execute! conn q))))))
 
 (defn- -after-drop [conn]
   (go-pair
-    (doseq [q [;; The lookup table takes space on disk, so we purge it aggressively.
-               ["DROP INDEX IF EXISTS id_tx_lookup_added"]
-               ["DELETE FROM tx_lookup"]]]
-      (<? (s/execute! conn q)))))
+    (p :postamble
+       ;; TODO: delete tx_lookup_before after filling tx_lookup_after.
+       (doseq [q [;; XXX ["DROP INDEX IF EXISTS temp.idx_tx_lookup_before_added"]
+                  ["DROP INDEX IF EXISTS temp.idx_tx_lookup_before_eavt"]
+                  ["DROP INDEX IF EXISTS temp.idx_tx_lookup_after_eavt"]
+                  ["DELETE FROM temp.tx_lookup_before"]
+                  ["DELETE FROM temp.tx_lookup_after"]]]
+         (<? (s/execute! conn q))))))
 
 (defn- -build-transaction [conn tx]
-  (let [build-indices ["CREATE INDEX IF NOT EXISTS idx_tx_lookup_added ON tx_lookup (added0)"]
+  (let [build-indices ["CREATE INDEX IF NOT EXISTS temp.idx_tx_lookup_added ON tx_lookup_before (added0)"]
 
         ;; First is fast, only one table walk: lookup by exact eav.
         ;; Second is slower, but still only one table walk: lookup old value by ea.
         insert-into-tx-lookup
-        ["INSERT INTO tx_lookup
+        ["INSERT INTO temp.tx_lookup_after
           SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
-          FROM tx_lookup AS t
+          FROM temp.tx_lookup_before AS t
           LEFT JOIN datoms AS d
           ON t.e0 = d.e AND
              t.a0 = d.a AND
@@ -426,7 +440,7 @@
 
           UNION ALL
           SELECT t.e0, t.a0, t.v0, t.tx0, t.added0 + 2, t.value_type_tag0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, t.sv, t.svalue_type_tag, d.rowid, d.e, d.a, d.v, d.tx, d.value_type_tag
-          FROM tx_lookup AS t,
+          FROM temp.tx_lookup_before AS t,
                datoms AS d
           WHERE t.sv IS NULL AND
                 t.e0 = d.e AND
@@ -435,14 +449,14 @@
         t-datoms-not-already-present
         ["INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
           SELECT e0, a0, v0, ?, 1, value_type_tag0
-          FROM tx_lookup
-          WHERE added0 IS 3 AND e IS NULL" tx] ;; TODO: get rid of magic value 3.
+          FROM temp.tx_lookup_after
+          WHERE added0 IS 3 AND e IS NULL" tx] ;; TODO: get rid of magic value 3. XXX
 
         t-retract-datoms-carefully
         ["INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
           SELECT e, a, v, ?, 0, value_type_tag
-          FROM tx_lookup
-          WHERE added0 IS 2 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL" tx] ;; TODO: get rid of magic value 2.
+          FROM temp.tx_lookup_after
+          WHERE added0 IS 2 AND ((sv IS NOT NULL) OR (sv IS NULL AND v0 IS NOT v)) AND v IS NOT NULL" tx] ;; TODO: get rid of magic value 2. XXX
         ]
     (go-pair
       (doseq [q [build-indices insert-into-tx-lookup
@@ -455,13 +469,13 @@
         ["INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
           SELECT e0, a0, v0, ?, value_type_tag0,
           index_avet0, index_vaet0, index_fulltext0, unique_value0
-          FROM tx_lookup
-          WHERE added0 IS 3 AND e IS NULL" tx] ;; TODO: get rid of magic value 3.
+          FROM temp.tx_lookup_after
+          WHERE added0 IS 3 AND e IS NULL" tx] ;; TODO: get rid of magic value 3. XXX
 
         ;; TODO: retract fulltext datoms correctly.
         d-retract-datoms-carefully
-        ["WITH ids AS (SELECT l.rid FROM tx_lookup AS l WHERE l.added0 IS 2 AND ((l.sv IS NOT NULL) OR (l.sv IS NULL AND l.v0 IS NOT l.v)))
-         DELETE FROM datoms WHERE rowid IN ids" ;; TODO: get rid of magic value 2.
+        ["WITH ids AS (SELECT l.rid FROM temp.tx_lookup_after AS l WHERE l.added0 IS 2 AND ((l.sv IS NOT NULL) OR (l.sv IS NULL AND l.v0 IS NOT l.v)))
+         DELETE FROM datoms WHERE rowid IN ids" ;; TODO: get rid of magic value 2. XXX
          ]]
     (-run-queries conn [d-datoms-not-already-present d-retract-datoms-carefully]
                   "Transaction violates unique constraint")))
