@@ -781,4 +781,39 @@
                    ;; [eid2 :test/ref eid1] is gone, since the ref eid1 is gone.
                    #{}))))))))
 
+;; We don't use deftest-db in order to be able to re-open an on disk file.
+(deftest-async test-reopen-schema
+  (with-tempfile [t (tempfile)]
+    (let [conn        (<? (d/<connect t))
+          test-schema [{:db/id                 (d/id-literal :db.part/user -1)
+                        :db/ident              :test/fulltext
+                        :db/cardinality        :db.cardinality/many
+                        :db/valueType          :db.type/string
+                        :db/fulltext           true
+                        :db/doc                "Documentation string"
+                        :db.install/_attribute :db.part/db}]
+          {tx0 :tx}   (<? (d/<transact! conn test-schema))]
+      (testing "Values in schema are correct initially"
+        (let [db     (d/db conn)
+              schema (d/schema db)]
+          (is (= true (ds/indexing? schema (d/entid db :db/txInstant))))
+          (is (= true (ds/fulltext? schema (d/entid db :test/fulltext))))
+          (is (= "Documentation string" (ds/doc schema (d/entid db :test/fulltext))))
+          (is (= :db.type/string (ds/valueType schema (d/entid db :test/fulltext))))))
+
+      ;; Close and re-open same DB.
+      (<? (d/<close conn))
+      (let [conn (<? (d/<connect t))]
+        (try
+          (testing "Boolean values in schema are correct after re-opening"
+            (let [db     (d/db conn)
+                  schema (d/schema db)]
+              (is (= true (ds/indexing? schema (d/entid db :db/txInstant))))
+              (is (= true (ds/fulltext? schema (d/entid db :test/fulltext))))
+              (is (= "Documentation string" (ds/doc schema (d/entid db :test/fulltext))))
+              (is (= :db.type/string (ds/valueType schema (d/entid db :test/fulltext))))))
+
+          (finally
+            (<? (d/<close conn))))))))
+
 #_ (time (t/run-tests))

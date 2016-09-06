@@ -28,10 +28,7 @@
   Returns a map (keyword ident) -> (integer entid), like {:db/ident 0}."
 
   (go-pair
-    (let [rows (<? (->>
-                     {:select [:ident :entid] :from [:idents]}
-                     (s/format)
-                     (s/all-rows sqlite-connection)))]
+    (let [rows (<? (s/all-rows sqlite-connection ["SELECT ident, entid FROM idents"]))]
       (into {} (map (fn [row] [(sqlite-schema/<-SQLite :db.type/keyword (:ident row)) (:entid row)])) rows))))
 
 (defn <parts [sqlite-connection]
@@ -39,32 +36,35 @@
   Returns a map (keyword part) -> {:start integer :idx integer}, like {:db.part/user {start: 0x100 idx: 0x101}}."
 
   (go-pair
-    (let [rows (<? (->>
-                     {:select [:part :start :idx] :from [:parts]}
-                     (s/format)
-                     (s/all-rows sqlite-connection)))]
+    (let [rows (<? (s/all-rows sqlite-connection ["SELECT part, start, idx FROM parts"]))]
       (into {} (map (fn [row] [(sqlite-schema/<-SQLite :db.type/keyword (:part row)) (select-keys row [:start :idx])])) rows))))
 
-(defn <symbolic-schema [sqlite-connection]
+(defn <symbolic-schema [sqlite-connection idents]
   "Read the schema map materialized view from the given SQLite store.
   Returns a map (keyword ident) -> (map (keyword attribute -> keyword value)), like
   {:db/ident {:db/cardinality :db.cardinality/one}}."
 
   (go-pair
-    (->>
+    (let [ident-map  (clojure.set/map-invert idents)
+          ref-tag    (sqlite-schema/->tag :db.type/ref)
+          kw<-SQLite (partial sqlite-schema/<-SQLite :db.type/keyword)]
       (->>
-        {:select [:ident :attr :value] :from [:schema]}
-        (s/format)
-        (s/all-rows sqlite-connection))
-      (<?)
+        (s/all-rows sqlite-connection ["SELECT ident, attr, value, value_type_tag FROM schema"])
+        (<?)
 
-      (group-by (comp (partial sqlite-schema/<-SQLite :db.type/keyword) :ident))
-      (map (fn [[ident rows]]
-             [ident
-              (into {} (map (fn [row]
-                              [(sqlite-schema/<-SQLite :db.type/keyword (:attr row))
-                               (sqlite-schema/<-SQLite :db.type/keyword (:value row))]) rows))])) ;; TODO: this is wrong, it doesn't handle true.
-      (into {}))))
+        (group-by (comp kw<-SQLite :ident))
+        (map (fn [[ident rows]]
+               [ident
+                (into {} (map (fn [row]
+                                (let [tag (:value_type_tag row)
+                                      ;; We want a symbolic schema, but most of our values are
+                                      ;; :db.type/ref attributes.  Map those entids back to idents.
+                                      ;; This is ad-hoc since we haven't built a functional DB
+                                      ;; instance yet.
+                                      v   (if (= tag ref-tag) (get ident-map (:value row)) (:value row))]
+                                  [(kw<-SQLite (:attr row))
+                                   (sqlite-schema/<-tagged-SQLite tag v)])) rows))]))
+        (into {})))))
 
 (defn <initialize-connection [sqlite-connection]
   (go-pair
@@ -121,7 +121,7 @@
       ;; We just bootstrapped, or we are returning to an already bootstrapped DB.
       (let [idents          (<? (<idents sqlite-connection))
             parts           (<? (<parts sqlite-connection))
-            symbolic-schema (<? (<symbolic-schema sqlite-connection))]
+            symbolic-schema (<? (<symbolic-schema sqlite-connection idents))]
         (when-not bootstrapped?
           (when (not (= idents bootstrap/idents))
             (raise "After bootstrapping database, expected new materialized idents and old bootstrapped idents to be identical"

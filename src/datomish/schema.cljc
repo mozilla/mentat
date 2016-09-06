@@ -57,6 +57,13 @@
           :cljs [^boolean unique-value?]) [schema attr]
   (is-attr? schema attr :db.unique/value))
 
+(defn doc [schema attr]
+  (get-in (.-schema schema) [attr :db/doc]))
+
+(defn valueType [schema attr]
+  (let [schema (.-schema schema)]
+    (get-in schema [attr :db/valueType])))
+
 (defn schema? [x]
   (satisfies? ISchema x))
 

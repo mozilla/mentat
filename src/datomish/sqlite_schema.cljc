@@ -109,9 +109,9 @@
 
    ;; Materialized views of the schema.
    "CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"
-   ;; TODO: allow arbitrary schema values (true/false) and tag the resulting values.
-   "CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value TEXT NOT NULL, FOREIGN KEY (ident) REFERENCES idents (ident))"
-   "CREATE INDEX idx_schema_unique ON schema (ident, attr, value)"
+   "CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value BLOB NOT NULL, value_type_tag SMALLINT NOT NULL,
+   FOREIGN KEY (ident) REFERENCES idents (ident))"
+   "CREATE INDEX idx_schema_unique ON schema (ident, attr, value, value_type_tag)"
    "CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"
    ])
 
