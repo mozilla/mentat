@@ -3,7 +3,7 @@
   :url "https://github.com/mozilla/datomish"
   :license {:name "Mozilla Public License Version 2.0"
             :url  "https://github.com/mozilla/datomish/blob/master/LICENSE"}
-  :dependencies [[org.clojure/clojurescript "1.9.89"]
+  :dependencies [[org.clojure/clojurescript "1.9.229"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
                  [datascript "0.15.1"]
