@@ -22,7 +22,7 @@
             [tempfile.core :refer [tempfile with-tempfile]]
             [clojure.test :as t :refer [is are deftest testing]]])
      #?@(:cljs
-           [[datomish.promise-sqlite]
+           [[datomish.js-sqlite]
             [datomish.test-macros :refer-macros [deftest-db]]
             [honeysql.core :as sql :refer-macros [param]]
             [datomish.node-tempfile :refer [tempfile]]
