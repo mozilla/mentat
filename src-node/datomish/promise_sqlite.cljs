@@ -35,12 +35,3 @@
     (->
       (.open sqlite.DB path (clj->js {:mode mode}))
       (.then ->SQLite3Connection))))
-
-(extend-protocol s/ISQLiteConnectionFactory
-  string
-  (<sqlite-connection [path]
-    (open path))
-
-  object ;; TODO: narrow this to the result of node-tempfile/tempfile.
-  (<sqlite-connection [tempfile]
-    (open (.-name tempfile))))
