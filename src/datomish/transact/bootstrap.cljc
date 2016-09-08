@@ -19,7 +19,7 @@
    ;;                       :db/cardinality :db.cardinality/many}
    :db/txInstant         {:db/valueType   :db.type/long
                           :db/cardinality :db.cardinality/one
-                          } ;; :db/index       true} TODO: Handle this using SQLite protocol.
+                          :db/index       true}
    :db/valueType         {:db/valueType   :db.type/ref
                           :db/cardinality :db.cardinality/one}
    :db/cardinality       {:db/valueType   :db.type/ref

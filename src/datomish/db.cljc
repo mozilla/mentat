@@ -656,12 +656,21 @@
 
   (<apply-db-install-assertions [db fragment merge]
     (go-pair
-      (let [exec (partial s/execute! (:sqlite-connection db))]
+      (let [schema         (.-schema db)
+            ->SQLite       (partial ds/->SQLite schema)
+            exec (partial s/execute! (:sqlite-connection db))]
         ;; TODO: batch insert.
         (doseq [[ident attr-map] fragment]
           (doseq [[attr value] attr-map]
-            (<? (exec
-                  ["INSERT INTO schema VALUES (?, ?, ?)" (sqlite-schema/->SQLite ident) (sqlite-schema/->SQLite attr) (sqlite-schema/->SQLite value)])))))
+            ;; This is a little sloppy.  We need to store idents as entids, since they're (mostly)
+            ;; :db.type/ref attributes.  So we use that entid passes through idents it doesn't
+            ;; recognize, and assuming that we have no :db.type/keyword values that match idents.
+            ;; This is safe for now.
+            (let [[v tag] (->SQLite (entid db attr) (entid db value))]
+              (<? (exec
+                    ["INSERT INTO schema VALUES (?, ?, ?, ?)"
+                     (sqlite-schema/->SQLite ident) (sqlite-schema/->SQLite attr)
+                     v tag]))))))
 
       (let [symbolic-schema (merge-with merge (:symbolic-schema db) fragment)
             schema          (ds/schema (into {} (map (fn [[k v]] [(entid db k) v]) symbolic-schema)))]
