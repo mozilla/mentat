@@ -14,7 +14,7 @@
    [cljs.test :refer-macros [is are deftest testing async]]
    [datomish.pair-chan]
    [datomish.sqlite :as s]
-   [datomish.promise-sqlite :as ps]))
+   [datomish.js-sqlite :as ps]))
 
 (deftest-async test-all-rows
   (with-tempfile [t (tempfile)]

@@ -126,8 +126,8 @@
   "Transform a DataScript Pattern instance into the parts needed
    to build a SQL expression.
 
-  @arg cc A CC instance.
-  @arg pattern The pattern instance.
+  @param cc A CC instance.
+  @param pattern The pattern instance.
   @return an augmented CC"
   [cc pattern]
   (when-not (instance? Pattern pattern)

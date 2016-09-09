@@ -16,7 +16,7 @@
              [datomish.test-macros :refer [deftest-async]]
              [clojure.test :as t :refer [is are deftest testing]]
              [clojure.core.async :refer [go <! >!]]])
-   #?@(:cljs [[datomish.promise-sqlite]
+   #?@(:cljs [[datomish.js-sqlite]
               [datomish.pair-chan]
               [datomish.test-macros :refer-macros [deftest-async]]
               [datomish.node-tempfile :refer [tempfile]]

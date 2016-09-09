@@ -3,7 +3,7 @@
   :url "https://github.com/mozilla/datomish"
   :license {:name "Mozilla Public License Version 2.0"
             :url  "https://github.com/mozilla/datomish/blob/master/LICENSE"}
-  :dependencies [[org.clojure/clojurescript "1.9.89"]
+  :dependencies [[org.clojure/clojurescript "1.9.229"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
                  [datascript "0.15.1"]
@@ -11,37 +11,89 @@
                  [com.taoensso/tufte "1.0.2"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
-  :cljsbuild {:builds {:release {
-                                 :source-paths   ["src"]
-                                 :assert         false
-                                 :compiler       {:output-to      "release-js/datomish.bare.js"
-                                                  :optimizations  :advanced
-                                                  :pretty-print   false
-                                                  :elide-asserts  true
-                                                  :output-wrapper false
-                                                  :parallel-build true}
-                                 :notify-command ["release-js/wrap_bare.sh"]}
-                       :advanced {:source-paths ["src"]
-                                  :compiler     {:output-to            "target/advanced/datomish.js"
-                                                 :optimizations        :advanced
-                                                 :source-map           "target/advanced/datomish.js.map"
-                                                 :pretty-print         true
-                                                 :recompile-dependents true
-                                                 :parallel-build       true
-                                                 }}
-                       :test {
-                              :source-paths ["src" "test"]
-                              :compiler     {:output-to            "target/test/datomish.js"
-                                             :output-dir           "target/test"
-                                             :main                 datomish.test
-                                             :optimizations        :none
-                                             :source-map           true
-                                             :recompile-dependents true
-                                             :parallel-build       true
-                                             :target               :nodejs
-                                             }}
-                       }
-              }
+  :cljsbuild {:builds
+              {
+               :release-node
+               {
+                :source-paths   ["src-node" "src"]
+                :assert         false
+                :compiler
+                {
+                 :elide-asserts  true
+                 :hashbang       false
+                 :language-in    :ecmascript5
+                 :language-out   :ecmascript5
+                 :optimizations  :advanced
+                 :output-dir     "release-node"
+                 :output-to      "release-node/datomish.bare.js"
+                 :output-wrapper false
+                 :parallel-build true
+                 :pretty-print   false
+                 :target         :nodejs
+                 }
+                :notify-command ["release-node/wrap_bare.sh"]}
+
+               :release-browser
+               ;; Release builds for use in Firefox must:
+               ;; * Use :optimizations > :none, so that a single file is generated
+               ;;   without a need to import Closure's own libs.
+               ;; * Be wrapped, so that a CommonJS module is produced.
+               ;; * Have a preload script that defines what `println` does.
+               ;;
+               ;; There's no point in generating a source map -- it'll be wrong
+               ;; due to wrapping.
+               {
+                :source-paths   ["src-browser" "src"]
+                :assert         false
+                :compiler
+                {
+                 :elide-asserts  true
+                 :externs        ["src-browser/externs.js"]
+                 :language-in    :ecmascript5
+                 :language-out   :ecmascript5
+                 :optimizations  :advanced
+                 :output-dir     "release-browser"
+                 :output-to      "release-browser/datomish.bare.js"
+                 :output-wrapper false
+                 :parallel-build true
+                 :preloads       [datomish.preload]
+                 :pretty-print   true
+                 :pseudo-names   true
+                 :static-fns     true
+                 }
+                :notify-command ["release-browser/wrap_bare.sh"]}
+
+               :advanced
+               {:source-paths ["src-node" "src"]
+                :compiler
+                {
+                 :language-in    :ecmascript5
+                 :language-out   :ecmascript5
+                 :output-dir     "target/advanced"
+                 :output-to      "target/advanced/datomish.js"
+                 :optimizations  :advanced
+                 :parallel-build true
+                 :pretty-print   true
+                 :source-map     "target/advanced/datomish.js.map"
+                 :target         :nodejs
+                 }}
+
+               :test
+               {
+                :source-paths ["src-node" "src" "test"]
+                :compiler
+                {
+                 :language-in    :ecmascript5
+                 :language-out   :ecmascript5
+                 :main           datomish.test
+                 :optimizations  :none
+                 :output-dir     "target/test"
+                 :output-to      "target/test/datomish.js"
+                 :parallel-build true
+                 :source-map     true
+                 :target         :nodejs
+                 }}
+               }}
 
   :profiles {:dev {:dependencies [[cljsbuild "1.1.3"]
                                   [tempfile "0.2.0"]
@@ -59,7 +111,26 @@
 
   :doo {:build "test"}
 
-  :clean-targets ^{:protect false} ["target"
-                                    "release-js/datomish.bare.js"
-                                    "release-js/datomish.js"]
+  :clean-targets ^{:protect false}
+            [
+             "target"
+             "release-node/cljs/"
+             "release-node/cljs_promises/"
+             "release-node/clojure/"
+             "release-node/datascript/"
+             "release-node/datomish/"
+             "release-node/honeysql/"
+             "release-node/taoensso/"
+             "release-node/datomish.bare.js"
+             "release-node/datomish.js"
+             "release-browser/cljs/"
+             "release-browser/cljs_promises/"
+             "release-browser/clojure/"
+             "release-browser/datascript/"
+             "release-browser/datomish/"
+             "release-browser/honeysql/"
+             "release-browser/taoensso/"
+             "release-browser/datomish.bare.js"
+             "release-browser/datomish.js"
+             ]
   )
