@@ -63,6 +63,23 @@
 (defn id-literal? [x]
   (instance? TempId x))
 
+(defrecord LookupRef [a v])
+
+(defn lookup-ref
+  [a v]
+  (if (and
+        (or (keyword? a)
+            (integer? a))
+        v)
+    (->LookupRef a v)
+    (raise (str "Lookup-ref with bad attribute " a " or value " v
+                {:error :transact/bad-lookup-ref, :a a, :v v}))))
+
+(defn lookup-ref? [x]
+  "Return `x` if `x` is like [:attr value], nil otherwise."
+  (when (instance? LookupRef x)
+    x))
+
 (defprotocol IClock
   (now
     [clock]
@@ -104,6 +121,13 @@
   (<av
     [db a v]
     "Search for a single matching datom using the AVET index.")
+
+  (<avs
+    [db avs]
+    "Search for many matching datoms using the AVET index.
+
+    Take [[a0 v0] [a1 v1] ...] and return a map {[a0 v0] e0}.  If no datom [e1 a1 v1] exists, the
+    key [a1 v1] is not present in the returned map.")
 
   (<apply-entities
     [db tx entities]
@@ -633,6 +657,61 @@
           (s/all-rows (:sqlite-connection db))
           <?
           yield-datom))))
+
+  (<avs
+    [db avs]
+    {:pre [(sequential? avs)]}
+
+    (go-pair
+      (let [schema
+            (.-schema db)
+
+            values-part
+            "(?, ?, ?, ?)"
+
+            repeater
+            (memoize (fn [n] (interpose ", " (repeat n values-part))))
+
+            exec
+            (partial s/execute! (:sqlite-connection db))
+
+            ;; Map [a v] -> searchid.
+            av->searchid
+            (into {} (map vector avs (range)))
+
+            ;; Each query takes 4 variables per item. So we partition into max-sql-vars / 4.
+            qs
+            (map
+              (fn [chunk]
+                (cons
+                  ;; Query string.
+                  (apply str "WITH t(searchid, a, v, value_type_tag) AS (VALUES "
+                         (apply str (repeater (count chunk))) ;; TODO: join?
+                         ") SELECT t.searchid, d.e
+                           FROM t, datoms AS d
+                           WHERE d.index_avet IS NOT 0 AND d.a = t.a AND d.value_type_tag = t.value_type_tag AND d.v = t.v")
+
+                  ;; Bindings.
+                  (mapcat (fn [[[a v] searchid]]
+                            (let [a (entid db a)
+                                  [v tag] (ds/->SQLite schema a v)]
+                              [searchid a v tag]))
+                          chunk)))
+
+              (partition-all (quot max-sql-vars 4) av->searchid))
+
+            ;; Map searchid -> e.  There's a generic reduce that takes [pair-chan] lurking in here.
+            searchid->e
+            (loop [coll {}
+                   qs qs]
+              (let [[q & qs] qs]
+                (if q
+                  (let [rs (<? (s/all-rows (:sqlite-connection db) q))
+                        coll* (into coll (map (juxt :searchid :e)) rs)]
+                    (recur coll* qs))
+                  coll)))
+            ]
+        (util/mapvals (partial get searchid->e) av->searchid))))
 
   (<apply-entities [db tx entities]
     {:pre [(db? db) (sequential? entities)]}

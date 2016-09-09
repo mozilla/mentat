@@ -127,7 +127,7 @@
             (db/entid db v))]
     (when (and a (not (integer? a)))
       (raise "Unknown attribute " a
-             {:form orig :attribute a}))
+             {:form orig :attribute a :entity orig}))
     [op e a v]))
 
 (defrecord Transaction [db tempids entities])
@@ -250,49 +250,40 @@
       ;; Extract the current txInstant for the report.
       (->> (update-txInstant db*)))))
 
-(defn- lookup-ref? [x]
-  "Return `x` if `x` is like [:attr value], false otherwise."
-  (and (sequential? x)
-       (= (count x) 2)
-       (or (keyword? (first x))
-           (integer? (first x)))
-       x))
-
 (defn <resolve-lookup-refs [db report]
   {:pre [(db/db? db) (report? report)]}
 
-  (let [entities (:entities report)]
-    ;; TODO: meta.
+  (let [unique-identity? (memoize (partial ds/unique-identity? (db/schema db)))
+        groups           (group-by (partial keep db/lookup-ref?) (:entities report))
+        entities         (get groups (lazy-seq)) ;; No lookup-refs? Pass through.
+        to-resolve       (dissoc groups (lazy-seq)) ;; The ones with lookup-refs.
+        avs              (set (map (juxt :a :v) (apply concat (keys to-resolve))))
+        ->av             (fn [r] ;; Conditional (juxt :a :v) that passes through nil.
+                           (when r [(:a r) (:v r)]))]
     (go-pair
-      (if (empty? entities)
-        report
-        (assoc-in
-          report [:entities]
-          ;; We can't use `for` because go-pair doesn't traverse function boundaries.
-          ;; Apologies for the tortured nested loop.
-          (loop [[op & entity] (first entities)
-                 next (rest entities)
-                 acc []]
-            (if (nil? op)
-              acc
-              (recur (first next)
-                     (rest next)
-                     (conj acc
-                           (loop [field (first entity)
-                                  rem (rest entity)
-                                  acc [op]]
-                             (if (nil? field)
-                               acc
-                               (recur (first rem)
-                                      (rest rem)
-                                      (conj acc
-                                            (if-let [[a v] (lookup-ref? field)]
-                                              (or
-                                                ;; The lookup might fail! If so, throw.
-                                                (:e (<? (db/<av db a v)))
-                                                (raise "No entity found with attr " a " and val " v "."
-                                                       {:a a :v v}))
-                                              field))))))))))))))
+      (let [av->e    (<? (db/<avs db avs))
+            resolve1 (fn [field]
+                       (if-let [[a v] (->av (db/lookup-ref? field))]
+                         (if-not (unique-identity? (db/entid db a))
+                           (raise "Lookup-ref found with non-unique-identity attribute " a " and value " v
+                                  {:error :transact/lookup-ref-with-non-unique-identity-attribute
+                                   :a     a
+                                   :v     v})
+                           (or
+                             (get av->e [a v])
+                             (raise "No entity found for lookup-ref with attribute " a " and value " v
+                                    {:error :transact/lookup-ref-not-found
+                                     :a     a
+                                     :v     v})))
+                         field))
+            resolve  (fn [entity]
+                       (mapv resolve1 entity))]
+        (assoc
+          report
+          :entities
+          (concat
+            entities
+            (map resolve (apply concat (vals to-resolve)))))))))
 
 (declare <resolve-id-literals)
 

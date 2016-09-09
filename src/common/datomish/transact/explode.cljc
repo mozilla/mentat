@@ -47,6 +47,7 @@
       (explode-entity-a-v db entity v straight-a eid)
 
       (and (map? v)
+           (not (db/lookup-ref? v))
            (not (db/id-literal? v)))
       ;; Another entity is given as a nested map.
       (if (ds/ref? (db/schema db) straight-a*)

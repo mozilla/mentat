@@ -32,6 +32,8 @@
 
 (def id-literal db/id-literal)
 
+(def lookup-ref db/lookup-ref)
+
 (def db transact/db)
 
 (def entid db/entid)

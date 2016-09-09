@@ -10,7 +10,7 @@
       [cljs.core.async.macros :as a :refer [go]]))
   (:require
    [datomish.api :as d]
-   [datomish.db.debug :refer [<datoms-after <transactions-after <shallow-entity <fulltext-values]]
+   [datomish.db.debug :refer [<datoms-after <datoms>= <transactions-after <shallow-entity <fulltext-values]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.schema :as ds]
    [datomish.simple-schema]
@@ -846,8 +846,61 @@
                    :db.install/_attribute :db.part/db}]]
 
     (testing "Simple schemas are expanded."
-             (is (= (map #(dissoc %1 :db/id) (datomish.simple-schema/simple-schema->schema in))
-                    expected)))))
+      (is (= (map #(dissoc %1 :db/id) (datomish.simple-schema/simple-schema->schema in))
+             expected)))))
 
+(deftest-db test-lookup-refs conn
+  (let [{tx0 :tx} (<? (d/<transact! conn test-schema))
+        {tx1 :tx} (<? (d/<transact! conn [[:db/add 1 :name "Ivan"]
+                                          [:db/add 2 :name "Phil"]
+                                          [:db/add 3 :name "Petr"]]))]
+    (testing "Looks up entity refs"
+      (let [{tx :tx} (<? (d/<transact! conn [[:db/add (d/lookup-ref :name "Ivan") :aka "Devil"]
+                                             [:db/add (d/lookup-ref :name "Phil") :email "@1"]]))]
+        (is (= #{[1 :name "Ivan"]
+                 [2 :name "Phil"]
+                 [3 :name "Petr"]
+                 [1 :aka "Devil"]
+                 [2 :email "@1"]}
+               (<? (<datoms>= (d/db conn) tx1))))))
+
+    (testing "Looks up value refs"
+      (let [{tx :tx} (<? (d/<transact! conn [[:db/add 1 :friends (d/lookup-ref :name "Petr")]
+                                             [:db/add 3 :friends (d/lookup-ref :name "Ivan")]]))]
+        (is (= #{[1 :friends 3]
+                 [3 :friends 1]}
+               (<? (<datoms>= (d/db conn) tx))))))
+
+    (testing "Looks up entity refs in maps"
+      (let [{tx :tx} (<? (d/<transact! conn [{:db/id (d/lookup-ref :name "Phil") :friends 1}]))]
+        (is (= #{[2 :friends 1]}
+               (<? (<datoms>= (d/db conn) tx))))))
+
+    (testing "Looks up value refs in maps"
+      (let [{tx :tx} (<? (d/<transact! conn [{:db/id 2 :friends (d/lookup-ref :name "Petr")}]))]
+        (is (=  #{[2 :friends 3]}
+                (<? (<datoms>= (d/db conn) tx))))))
+
+    (testing "Looks up value refs in sequences in maps"
+      (let [{tx :tx} (<? (d/<transact! conn [{:db/id 1 :friends [(d/lookup-ref :name "Ivan") (d/lookup-ref :name "Phil")]}]))]
+        (is (= #{[1 :friends 1]
+                 [1 :friends 2]}
+               (<? (<datoms>= (d/db conn) tx))))))
+
+    (testing "Fails for missing entities"
+      (is (thrown-with-msg?
+            ExceptionInfo #"No entity found for lookup-ref"
+            (<? (d/<transact! conn [[:db/add (d/lookup-ref :name "Mysterioso") :aka "The Magician"]]))))
+      (is (thrown-with-msg?
+            ExceptionInfo #"No entity found for lookup-ref"
+            (<? (d/<transact! conn [[:db/add 1 :friends (d/lookup-ref :name "Mysterioso")]])))))
+
+    (testing "Fails for non-identity attributes"
+      (is (thrown-with-msg?
+            ExceptionInfo #"Lookup-ref found with non-unique-identity attribute"
+            (<? (d/<transact! conn [[:db/add (d/lookup-ref :aka "The Magician") :email "@2"]]))))
+      (is (thrown-with-msg?
+            ExceptionInfo #"Lookup-ref found with non-unique-identity attribute"
+            (<? (d/<transact! conn [[:db/add 1 :friends (d/lookup-ref :aka "The Magician")]])))))))
 
 #_ (time (t/run-tests))
