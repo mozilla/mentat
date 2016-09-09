@@ -11,11 +11,12 @@
                  [com.taoensso/tufte "1.0.2"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
+  :source-paths ["src/common"]
   :cljsbuild {:builds
               {
                :release-node
                {
-                :source-paths   ["src-node" "src"]
+                :source-paths   ["src/node" "src/common"]
                 :assert         false
                 :compiler
                 {
@@ -43,12 +44,12 @@
                ;; There's no point in generating a source map -- it'll be wrong
                ;; due to wrapping.
                {
-                :source-paths   ["src-browser" "src"]
+                :source-paths   ["src/browser" "src/common"]
                 :assert         false
                 :compiler
                 {
                  :elide-asserts  true
-                 :externs        ["src-browser/externs.js"]
+                 :externs        ["src/browser/externs.js"]
                  :language-in    :ecmascript5
                  :language-out   :ecmascript5
                  :optimizations  :advanced
@@ -64,7 +65,7 @@
                 :notify-command ["release-browser/wrap_bare.sh"]}
 
                :advanced
-               {:source-paths ["src-node" "src"]
+               {:source-paths ["src/node" "src/common"]
                 :compiler
                 {
                  :language-in    :ecmascript5
@@ -80,7 +81,7 @@
 
                :test
                {
-                :source-paths ["src-node" "src" "test"]
+                :source-paths ["src/node" "src/common" "test"]
                 :compiler
                 {
                  :language-in    :ecmascript5
