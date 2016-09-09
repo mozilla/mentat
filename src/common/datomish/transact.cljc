@@ -61,7 +61,7 @@
                      db-after  ;; The DB after the transaction.
                      tx        ;; The tx ID represented by the transaction in this report; refer :db/tx.
                      txInstant ;; The timestamp instant when the the transaction was processed/committed in this report; refer :db/txInstant.
-                     entities  ;; The set of entities (like [:db/add e a v tx]) processed.
+                     entities  ;; The set of entities (like [:db/add e a v]) processed.
                      tx-data   ;; The set of datoms applied to the database, like (Datom. e a v tx added).
                      tempids   ;; The map from id-literal -> numeric entid.
                      part-map  ;; Map {:db.part/user {:start 0x10000 :idx 0x10000}, ...}.
@@ -118,7 +118,7 @@
     true
     entity))
 
-(defn maybe-ident->entid [db [op e a v tx :as orig]]
+(defn maybe-ident->entid [db [op e a v :as orig]]
   ;; We have to handle all ops, including those when a or v are not defined.
   (let [e (db/entid db e)
         a (db/entid db a)
@@ -128,7 +128,7 @@
     (when (and a (not (integer? a)))
       (raise "Unknown attribute " a
              {:form orig :attribute a}))
-    [op e a v tx]))
+    [op e a v]))
 
 (defrecord Transaction [db tempids entities])
 
