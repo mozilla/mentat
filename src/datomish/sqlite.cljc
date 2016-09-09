@@ -101,7 +101,9 @@
 (defn get-user-version [db]
   (go-pair
     (let [row (first (<? (all-rows db ["PRAGMA user_version"])))]
-      (:user_version row))))
+      (or
+        (:user_version row)
+        0))))
 
 (defn set-user-version [db version]
   (execute! db [(str "PRAGMA user_version = " version)]))
