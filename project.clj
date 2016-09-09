@@ -48,6 +48,7 @@
                 :compiler
                 {
                  :elide-asserts  true
+                 :externs        ["src-browser/externs.js"]
                  :language-in    :ecmascript5
                  :language-out   :ecmascript5
                  :optimizations  :advanced
