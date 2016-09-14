@@ -5,9 +5,6 @@
 (ns datomish.core
   (:require [cljs.nodejs :as nodejs]))
 
-(nodejs/enable-util-print!)
-
-(defn -main [& args]
-  (println "Hello world!"))
-
+(defn -main [& args])
 (set! *main-cli-fn* -main)
+(nodejs/enable-util-print!)

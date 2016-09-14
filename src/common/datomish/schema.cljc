@@ -208,3 +208,4 @@
   {:pre [(or (nil? schema) (map? schema))]}
   (map->Schema {:schema  (validate-schema schema)
                 :rschema (rschema schema)}))
+

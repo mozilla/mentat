@@ -713,6 +713,10 @@
    Returns a transduced channel of [result err] pairs.
    Closes the channel when fully consumed."
   [db find options]
+  (let [unexpected (seq (clojure.set/difference (set (keys options)) #{:limit :order-by :inputs}))]
+    (when unexpected
+      (raise "Unexpected options: " unexpected {:bad-options unexpected})))
+
   (let [{:keys [limit order-by inputs]} options
         parsed (query/parse find)
         context (-> db
