@@ -7,9 +7,9 @@
   "version": "0.1.0-SNAPSHOT",
   "description": "A persistent, embedded knowledge base inspired by Datomic and DataScript.",
   "dependencies": {
-    "promise-sqlite": "1.2.1",
+    "promise-sqlite": "1.3.0",
     "source-map-support": "ncalexan/node-source-map-support#fileUrls-plus",
-    "sqlite3": "mossop/node-sqlite3#v3.1.4.1",
+    "sqlite3": "3.1.4",
     "thenify-all": "^1.6.0",
     "ws": "1.1.1"
   },
