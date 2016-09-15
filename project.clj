@@ -38,7 +38,9 @@
                  :output-to      "release-node/datomish.bare.js"
                  :output-wrapper false
                  :parallel-build true
-                 :pretty-print   false
+                 :pretty-print   true
+                 :pseudo-names   true
+                 :static-fns     true
                  :target         :nodejs
                  }
                 :notify-command ["release-node/wrap_bare.sh"]}
