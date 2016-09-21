@@ -1,15 +1,23 @@
 {
-  "title": "Datomish Test",
-  "name": "datomish-test",
-  "version": "0.0.1",
-  "description": "An example add-on that loads Datomish on top of Sqlite.jsm.",
+  "name": "datomish-example",
+  "version": "1.0.0",
+  "description": "A test add-on for Datomish and Firefox.",
   "main": "index.js",
-  "author": "Richard Newman <rnewman@mozilla.com>",
-  "engines": {
-    "firefox": ">=48.0a1"
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "author": "",
   "license": "MPL-2.0",
-  "keywords": [
-    "jetpack"
-  ]
+  "devDependencies": {
+    "babel": "^6.5.2",
+    "babel-cli": "^6.14.0",
+    "babel-core": "^6.14.0",
+    "babel-loader": "^6.2.5",
+    "babel-plugin-transform-async-to-generator": "^6.8.0",
+    "babel-preset-es2015": "^6.14.0",
+    "webpack": "^1.13.2"
+  },
+  "dependencies": {
+    "babel-polyfill": "^6.13.0"
+  }
 }

@@ -13,7 +13,26 @@
     "thenify-all": "^1.6.0",
     "ws": "1.1.1"
   },
+  "scripts": {
+    "test": "babel-node test/js/tests.js"
+  },
   "devDependencies": {
+    "babel-cli": "^6.14.0",
+    "babel-core": "6.14.0",
+    "babel-eslint": "6.1.2",
+    "babel-loader": "6.2.5",
+    "babel-plugin-transform-async-to-generator": "6.8.0",
+    "babel-plugin-transform-class-properties": "6.11.5",
+    "babel-plugin-transform-es2015-destructuring": "6.9.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "6.11.5",
+    "babel-plugin-transform-es2015-parameters": "6.11.4",
+    "babel-plugin-transform-object-rest-spread": "6.8.0",
+    "babel-plugin-transform-runtime": "6.12.0",
+    "babel-polyfill": "6.13.0",
+    "babel-preset-react": "6.11.1",
+    "babel-preset-react-optimize": "1.0.1",
+    "babel-register": "6.14.0",
+    "babel-runtime": "6.11.6",
     "tmp": "0.0.28"
   },
   "repository": {
@@ -27,5 +46,7 @@
   },
   "homepage": "https://github.com/mozilla/datomish#readme",
   "main": "./datomish.js",
-  "files": ["datomish.js"]
+  "files": [
+    "datomish.js"
+  ]
 }

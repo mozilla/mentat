@@ -10,6 +10,7 @@
      [cljs.core.async :as a :refer [take! <! >!]]
      [cljs.reader]
      [cljs-promises.core :refer [promise]]
+     [datomish.cljify :refer [cljify]]
      [datomish.db :as db]
      [datomish.db-factory :as db-factory]
      [datomish.pair-chan]
@@ -18,14 +19,17 @@
      [datomish.js-sqlite :as js-sqlite]
      [datomish.transact :as transact]))
 
-(defn- take-pair-as-promise! [ch]
+(defn- take-pair-as-promise! [ch f]
   ;; Just like take-as-promise!, but aware that it's handling a pair channel.
+  ;; Also converts values, if desired.
   (promise
     (fn [resolve reject]
       (letfn [(split-pair [[v e]]
                 (if e
-                  (reject e)
-                  (resolve v)))]
+                  (do
+                    (println "Got error:" e)
+                    (reject e))
+                  (resolve (f v))))]
         (cljs.core.async/take! ch split-pair)))))
 
 ;; Public API.
@@ -35,32 +39,46 @@
 
 (defn ^:export q [db find options]
   (let [find (cljs.reader/read-string find)
-        options (js->clj options)]
+        opts (cljify options)]
+    (println "Running query " (pr-str find) (pr-str {:foo find}) (pr-str opts))
     (take-pair-as-promise!
-      (db/<?q db find options))))
+      (go-pair
+        (let [res (<? (db/<?q db find opts))]
+          (println "Got results: " (pr-str res))
+          (clj->js res)))
+      identity)))
 
 (defn ^:export ensure-schema [conn simple-schema]
-  (let [simple-schema (js->clj simple-schema)]
-    (println "simple-schema: " (pr-str simple-schema))
+  (let [simple-schema (cljify simple-schema)
+        datoms (simple-schema/simple-schema->schema simple-schema)]
+    (println "Transacting schema datoms" (pr-str datoms))
     (take-pair-as-promise!
       (transact/<transact!
         conn
-        (simple-schema/simple-schema->schema simple-schema)))))
+        datoms)
+      clj->js)))
 
-(defn js->tx-data [tx-data]
-  ;; Objects to maps.
-  ;; Arrays to arrays.
-  ;; RHS strings… well, some of them will be richer types.
-  ;; TODO
-  (println "Converting" (pr-str tx-data) "to" (pr-str (js->clj tx-data :keywordize-keys true)))
-  (println "Converting" (pr-str tx-data) "to" (pr-str (js->clj tx-data :keywordize-keys true)))
-  (js->clj tx-data))
+(def js->tx-data cljify)
+
+(def ^:export tempid (partial db/id-literal :db.part/user))
 
 (defn ^:export transact [conn tx-data]
   ;; Expects a JS array as input.
-  (let [tx-data (js->tx-data tx-data)]
-    (take-pair-as-promise!
-      (transact/<transact! conn tx-data))))
+  (try
+    (let [tx-data (js->tx-data tx-data)]
+      (println "Transacting:" (pr-str tx-data))
+      (take-pair-as-promise!
+        (go-pair
+          (let [tx-result (<? (transact/<transact! conn tx-data))]
+            (select-keys tx-result
+                         [:tempids
+                          :added-idents
+                          :added-attributes
+                          :tx
+                          :txInstant])))
+        clj->js))
+    (catch js/Error e
+      (println "Error in transact:" e))))
 
 (defn ^:export open [path]
   ;; Eventually, URI.  For now, just a plain path (no file://).
@@ -69,11 +87,15 @@
       (let [conn (<? (sqlite/<sqlite-connection path))
             db (<? (db-factory/<db-with-sqlite-connection conn))]
         (let [c (transact/connection-with-db db)]
-        (clj->js
-          {:conn c
-           :ensureSchema (fn [simple-schema] (ensure-schema c simple-schema))
-           :transact (fn [tx-data] (transact c tx-data))
-           :q (fn [find options] (q (transact/db c) find options))
-           :close (fn [] (db/close-db db))
-           :toString (fn [] (str "#<DB " path ">"))
-           :path path}))))))
+          (clj->js
+            ;; We pickle the connection as a thunk here so it roundtrips through JS
+            ;; without incident.
+            {:conn (fn [] c)
+             :roundtrip (fn [x] (clj->js (cljify x)))
+             :db (fn [] (transact/db c))
+             :ensureSchema (fn [simple-schema] (ensure-schema c simple-schema))
+             :transact (fn [tx-data] (transact c tx-data))
+             :close (fn [] (db/close-db db))
+             :toString (fn [] (str "#<DB " path ">"))
+             :path path}))))
+    identity))

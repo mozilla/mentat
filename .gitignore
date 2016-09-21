@@ -28,5 +28,8 @@ pom.xml.asc
 /release-node
 /release-node/datomish.js
 /release-node/datomish.bare.js
-/addon/datomish-test.xpi
-/addon/datomish.js
+/addon/built/index.js
+/addon/node_modules/
+/addon/release/datomish-test.xpi
+/addon/release/datomish.js
+/addon/release/index.js
