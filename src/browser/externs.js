@@ -1,3 +1,11 @@
+var Object = {};
+Object.keys = function (object) {};
+Object.__proto__ = {};
+Object.hasOwnProperty = function () {};
+var Array = {};
+Array.length = 0;
+Array.isArray = function () {};
+
 var SqliteStatic = {};
 
 /**
