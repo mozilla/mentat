@@ -11,7 +11,9 @@
                  [com.taoensso/tufte "1.0.2"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
-  :source-paths ["src/common"]
+  ;; The browser will never require from the .JAR anyway.
+  :source-paths ["src/common" "src/node"]
+
   :cljsbuild {:builds
               {
                :release-node
@@ -113,25 +115,25 @@
   :doo {:build "test"}
 
   :clean-targets ^{:protect false}
-            [
-             "target"
-             "release-node/cljs/"
-             "release-node/cljs_promises/"
-             "release-node/clojure/"
-             "release-node/datascript/"
-             "release-node/datomish/"
-             "release-node/honeysql/"
-             "release-node/taoensso/"
-             "release-node/datomish.bare.js"
-             "release-node/datomish.js"
-             "release-browser/cljs/"
-             "release-browser/cljs_promises/"
-             "release-browser/clojure/"
-             "release-browser/datascript/"
-             "release-browser/datomish/"
-             "release-browser/honeysql/"
-             "release-browser/taoensso/"
-             "release-browser/datomish.bare.js"
-             "release-browser/datomish.js"
-             ]
+  [
+   "target"
+   "release-node/cljs/"
+   "release-node/cljs_promises/"
+   "release-node/clojure/"
+   "release-node/datascript/"
+   "release-node/datomish/"
+   "release-node/honeysql/"
+   "release-node/taoensso/"
+   "release-node/datomish.bare.js"
+   "release-node/datomish.js"
+   "release-browser/cljs/"
+   "release-browser/cljs_promises/"
+   "release-browser/clojure/"
+   "release-browser/datascript/"
+   "release-browser/datomish/"
+   "release-browser/honeysql/"
+   "release-browser/taoensso/"
+   "release-browser/datomish.bare.js"
+   "release-browser/datomish.js"
+   ]
   )
