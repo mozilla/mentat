@@ -138,10 +138,21 @@ Now you can use `:Eval`, `cqc`, and friends to evaluate code. Fireplace should c
 :Connect nrepl://localhost:62385
 ```
 
-## To run the ClojureScript tests
+## To run tests in ClojureScript
 
 Run `lein doo node test once`, or `lein doo node` to re-run on file changes.
 
+## To run tests in Clojure
+
+Run `lein test`.
+
+## To run smoketests with the built release library in a Node environment
+
+```
+# Build.
+lein cljsbuild once release-node
+npm run test
+```
 
 ## To build for Firefox
 
@@ -149,7 +160,7 @@ Run `lein doo node test once`, or `lein doo node` to re-run on file changes.
 lein cljsbuild once release-browser
 ```
 
-### To build and run the example add-on:
+### To build and run the example Firefox add-on:
 
 ```
 cd addon
