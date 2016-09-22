@@ -1,4 +1,4 @@
-(defproject datomish "0.1.0-SNAPSHOT"
+(defproject datomish "0.1.1-SNAPSHOT"
   :description "A persistent, embedded knowledge base inspired by Datomic and DataScript."
   :url "https://github.com/mozilla/datomish"
   :license {:name "Mozilla Public License Version 2.0"
@@ -24,18 +24,18 @@
               {
                :release-node
                {
-                :source-paths   ["src/node"]
+                :source-paths   ["src/common" "src/node"]
                 :assert         false
                 :compiler
                 {
+                 ;; :externs specified in deps.cljs.
                  :elide-asserts  true
-                 :externs        ["src/node/externs.js"]
                  :hashbang       false
                  :language-in    :ecmascript5
                  :language-out   :ecmascript5
                  :optimizations  :advanced
-                 :output-dir     "release-node"
-                 :output-to      "release-node/datomish.bare.js"
+                 :output-dir     "target/release-node"
+                 :output-to      "target/release-node/datomish.bare.js"
                  :output-wrapper false
                  :parallel-build true
                  :pretty-print   true
@@ -60,12 +60,12 @@
                 :compiler
                 {
                  :elide-asserts  true
-                 :externs        ["src/browser/externs.js"]
+                 :externs        ["src/browser/externs/datomish.js"]
                  :language-in    :ecmascript5
                  :language-out   :ecmascript5
                  :optimizations  :advanced
-                 :output-dir     "release-browser"
-                 :output-to      "release-browser/datomish.bare.js"
+                 :output-dir     "target/release-browser"
+                 :output-to      "target/release-browser/datomish.bare.js"
                  :output-wrapper false
                  :parallel-build true
                  :preloads       [datomish.preload]
@@ -75,25 +75,9 @@
                  }
                 :notify-command ["release-browser/wrap_bare.sh"]}
 
-               :advanced
-               {:source-paths ["src/node"]
-                :compiler
-                {
-                 :externs        ["src/node/externs.js"]
-                 :language-in    :ecmascript5
-                 :language-out   :ecmascript5
-                 :output-dir     "target/advanced"
-                 :output-to      "target/advanced/datomish.js"
-                 :optimizations  :advanced
-                 :parallel-build true
-                 :pretty-print   true
-                 :source-map     "target/advanced/datomish.js.map"
-                 :target         :nodejs
-                 }}
-
                :test
                {
-                :source-paths ["src/node" "test"]
+                :source-paths ["src/common" "src/node" "test"]
                 :compiler
                 {
                  :language-in    :ecmascript5
@@ -125,26 +109,5 @@
 
   :doo {:build "test"}
 
-  :clean-targets ^{:protect false}
-  [
-   "target"
-   "release-node/cljs/"
-   "release-node/cljs_promises/"
-   "release-node/clojure/"
-   "release-node/datascript/"
-   "release-node/datomish/"
-   "release-node/honeysql/"
-   "release-node/taoensso/"
-   "release-node/datomish.bare.js"
-   "release-node/datomish.js"
-   "release-browser/cljs/"
-   "release-browser/cljs_promises/"
-   "release-browser/clojure/"
-   "release-browser/datascript/"
-   "release-browser/datomish/"
-   "release-browser/honeysql/"
-   "release-browser/taoensso/"
-   "release-browser/datomish.bare.js"
-   "release-browser/datomish.js"
-   ]
+  :clean-targets ^{:protect false} ["target"]
   )

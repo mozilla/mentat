@@ -22,12 +22,6 @@ pom.xml
 pom.xml.asc
 /.cljs_node_repl/
 /.cljs_rhino_repl/
-/release-browser
-/release-browser/datomish.js
-/release-browser/datomish.bare.js
-/release-node
-/release-node/datomish.js
-/release-node/datomish.bare.js
 /addon/built/index.js
 /addon/node_modules/
 /addon/release/datomish-test.xpi
