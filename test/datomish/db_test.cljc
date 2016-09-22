@@ -13,6 +13,7 @@
    [datomish.db.debug :refer [<datoms-after <transactions-after <shallow-entity <fulltext-values]]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.schema :as ds]
+   [datomish.simple-schema]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema]
    [datomish.datom]
@@ -815,5 +816,38 @@
 
           (finally
             (<? (d/<close conn))))))))
+
+(deftest-db test-simple-schema conn
+  (let [in {:name "mystuff"
+            :attributes [{:name "foo/age"
+                          :type "long"
+                          :cardinality "one"}
+                         {:name "foo/name"
+                          :type "string"
+                          :cardinality "many"
+                          :doc "People can have many names."}
+                         {:name "foo/id"
+                          :type "string"
+                          :cardinality "one"
+                          :unique "value"}]}
+        expected [{:db/ident :foo/age
+                   :db/valueType :db.type/long
+                   :db/cardinality :db.cardinality/one
+                   :db.install/_attribute :db.part/db}
+                  {:db/ident :foo/name
+                   :db/valueType :db.type/string
+                   :db/cardinality :db.cardinality/many
+                   :db/doc "People can have many names."
+                   :db.install/_attribute :db.part/db}
+                  {:db/ident :foo/id
+                   :db/valueType :db.type/string
+                   :db/cardinality :db.cardinality/one
+                   :db/unique :db.unique/value
+                   :db.install/_attribute :db.part/db}]]
+
+    (testing "Simple schemas are expanded."
+             (is (= (map #(dissoc %1 :db/id) (datomish.simple-schema/simple-schema->schema in))
+                    expected)))))
+
 
 #_ (time (t/run-tests))

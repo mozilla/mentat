@@ -88,6 +88,24 @@ brew install rlwrap
 
 Run `lein cljsbuild auto advanced` to generate JavaScript into `target/`.
 
+To build for a browser, into `release-browser`:
+
+```
+lein cljsbuild once release-browser
+```
+
+To build for node, into `release-node`:
+
+```
+lein cljsbuild once release-node
+```
+
+To package or install a JAR for node, modifying the source path appropriately (make sure you clean up swap or temp files in `src`!):
+
+```
+lein with-profile node jar
+```
+
 ### Starting a ClojureScript REPL from the terminal
 
 ```

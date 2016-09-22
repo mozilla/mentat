@@ -5,6 +5,7 @@
 (ns datomish.promise-sqlite
   (:require
    [datomish.sqlite :as s]
+   [datomish.cljify :refer [cljify]]
    [cljs-promises.async]
    [cljs.nodejs :as nodejs]))
 
@@ -20,7 +21,7 @@
   (-each
     [db sql bindings row-cb]
     (let [cb (fn [row]
-               (row-cb (js->clj row :keywordize-keys true)))]
+               (row-cb (cljify row)))]
       (cljs-promises.async/pair-port
         (.each (.-db db) sql (or (clj->js bindings) #js []) (when row-cb cb)))))
 

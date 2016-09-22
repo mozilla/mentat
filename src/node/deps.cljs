@@ -1,0 +1,1 @@
+{:externs ["externs/datomish.js"]}
