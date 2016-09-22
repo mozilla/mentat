@@ -1,3 +1,6 @@
+/* Any copyright is dedicated to the Public Domain.
+   http://creativecommons.org/publicdomain/zero/1.0/ */
+
 var self = require("sdk/self");
 var buttons = require('sdk/ui/button/action');
 var tabs = require('sdk/tabs');
