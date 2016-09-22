@@ -53,48 +53,36 @@ async function findPagesMatching(db, string) {
 }
 
 async function savePage(db, url, title, content) {
-  let txResult = await db.transact([{"db/id": 55,
-                                     "page/title": title,
-                                     "page/url": url
-                                     //                                    "page/starred": true
-  }]);
+  let datom = {"db/id": 55, "page/url": url};
+  if (title) {
+    datom["page/title"] = title;
+  }
+  if (content) {
+    datom["page/content"] = content;
+  }
+  let txResult = await db.transact([datom]);
   return txResult;
 }
 
 async function handleClick(state) {
   let db = await datomish.open("/tmp/testing.db");
   await db.ensureSchema(schema);
+
   let txResult = await savePage(db, tabs.activeTab.url, tabs.activeTab.title, "Content goes here");
+
   console.log("Transaction returned " + JSON.stringify(txResult));
   console.log("Transaction instant: " + txResult.txInstant);
-  let results = await findURLs(db); //datomish.q(db.db(), "[:find ?url :in $ :where [?e :page/url ?url]]");
+
+  let results = await findURLs(db);
   results = results.map(r => r[1]);
+
   console.log("Query results: " + JSON.stringify(results));
+
   let pages = await findPagesMatching(db, "goes");
+
   console.log("Pages: " + JSON.stringify(pages));
   await db.close();
 }
-
-/*
-async function handleClick(state) {
-  console.log("Handling click: " + state);
-  let tab = tabs.activeTab;
-  console.log("Active tab: " + tab);
-  console.log("Active tab: " + tab.url);
-  console.log("Active tab: " + tab.title);
-  let db = await initDB("/tmp/datomish.db");
-  console.log("Opened DB: " + db);
-  await savePage(db, tab.url, tab.title, "Content goes here.");
-  console.log("Saved page.");
-
-  let urls = await findURLs(db);
-  console.log("URLs: " + JSON.stringify(urls));
-
-  let results = await findPagesMatching(db, "goes");
-  console.log("Pages: " + JSON.stringify(results));
-  await db.close();
-}
-*/
 
 var button = buttons.ActionButton({
   id: "datomish-save",
