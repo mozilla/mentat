@@ -127,7 +127,13 @@
     :db/cardinality :db.cardinality/one
     :db/valueType :db.type/string
     :db/fulltext true
-    :db/ident :save/content}])
+    :db/ident :save/content}
+   {:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/cardinality :db.cardinality/many
+    :db/valueType :db.type/string
+    :db/fulltext false
+    :db/ident :save/unindexed}])
 
 (def tofino-schema (concat page-schema visit-schema session-schema save-schema))
 
@@ -460,3 +466,24 @@
         (is (= apricot-url "http://example.com/apricots/1"))
         (is (= apricot-title "A page about apricots."))
         (is (= apricot-excerpt "")))))))
+
+(deftest-db test-fulltext-set-attribute conn
+  (<? (d/<transact! conn tofino-schema))
+  (<? (d/<transact! conn
+                    [{:db/id             999
+                      :save/title "Whenever you want something"}
+                     {:db/id             998
+                      :save/excerpt "If there is something…"}
+                     {:db/id             997
+                      :save/unindexed "What something means…"}
+                     {:db/id             996
+                      :save/title "This is anything but."}]))
+  (let [results
+        (<?
+          (d/<q (d/db conn)
+                {:find '[?save]
+                 :in '[$]
+                 :where [[(list 'fulltext '$ #{:save/title :save/excerpt} "something")
+                          '[[?save]]]]}))]
+    (is (= (set (map first results))
+           #{999 998}))))
