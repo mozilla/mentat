@@ -109,6 +109,26 @@
     :db/valueType :db.type/instant
     :db/cardinality :db.cardinality/many}])
 
+(def save-schema
+  [{:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/cardinality :db.cardinality/one
+    :db/valueType :db.type/string
+    :db/fulltext true
+    :db/ident :save/title}
+   {:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/cardinality :db.cardinality/one
+    :db/valueType :db.type/string
+    :db/fulltext true
+    :db/ident :save/excerpt}
+   {:db/id (d/id-literal :db.part/user)
+    :db.install/_attribute :db.part/db
+    :db/cardinality :db.cardinality/one
+    :db/valueType :db.type/string
+    :db/fulltext true
+    :db/ident :save/content}])
+
 (def schema-with-page
   (concat
     simple-schema
@@ -567,3 +587,40 @@
             (query/options-into-context context 10 [[:date :asc]]))
           [:order-by :limit]
           )))))
+
+(deftest-db test-parsing-fulltext conn
+  (let [attrs (<? (<initialize-with-schema conn save-schema))]
+    (is (= {:select (list [:datoms1.e :save]),
+            :modifiers [:distinct],
+            :from (list [:fulltext_values 'fulltext_values0]
+                        [:datoms 'datoms1]),
+            :where (list :and
+                         [:match :fulltext_values0.fulltext_values "something"]
+                         [:= :datoms1.v :fulltext_values0.rowid]
+                         [:= :datoms1.a (:save/title attrs)])}
+           (expand {:find '[?save]
+                    :in '[$]
+                    :where [[(list 'fulltext
+                                   '$
+                                   :save/title
+                                   "something")
+                             '[[?save]]]]}
+                  conn)))
+    (is (= {:select (list [:datoms1.e :save]),
+            :modifiers [:distinct],
+            :from (list [:fulltext_values 'fulltext_values0]
+                        [:datoms 'datoms1]),
+            :where (list :and
+                         [:match :fulltext_values0.fulltext_values "something"]
+                         [:= :datoms1.v :fulltext_values0.rowid]
+                         (list :or
+                               [:= :datoms1.a (:save/title attrs)]
+                               [:= :datoms1.a (:save/excerpt attrs)]))}
+           (expand {:find '[?save]
+                    :in '[$]
+                    :where [[(list 'fulltext
+                                   '$
+                                   #{:save/title :save/excerpt}
+                                   "something")
+                             '[[?save]]]]}
+                  conn)))))

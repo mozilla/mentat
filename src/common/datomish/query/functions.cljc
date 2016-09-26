@@ -97,12 +97,36 @@
         ;;   [(fulltext $ _ "foo") [[?x]]]
         ;;
         ;; so we instead have a placeholder attribute. Sigh.
-        attr-constant (or
-                        (and (instance? Constant attr)
-                             (not (= :any (:value attr)))
-                             (source/attribute-in-source (:source cc) (:value attr)))
-                        (and (instance? Variable attr)
-                             (cc/binding-for-symbol-or-throw cc (:symbol attr))))
+        ;; We also support sets of attributes, so you can write
+        ;;
+        ;;   [(fulltext $ #{:foo/bar :foo/baz} "Noo") [[?x]]]
+        ;;
+        ;; which involves some tomfoolery here.
+        ;;
+        ;; TODO: exclude any non-fulltext attributes. If the set shrinks to nothing,
+        ;; fail the entire pattern.
+        ;; https://github.com/mozilla/datomish/issues/56
+        attr-constants (or
+                         (and (instance? Constant attr)
+                              (let [attr (:value attr)
+                                    intern (partial source/attribute-in-source (:source cc))]
+                                (when-not (= :any attr)
+                                  (cond
+                                    (set? attr)
+                                    (map intern attr)
+
+                                    (or (keyword? attr)
+                                        (integer? attr))
+                                    (list (intern attr))
+
+                                    :else
+                                    (raise-str "Unknown fulltext attribute " attr {:attr attr})))))
+
+                         (and (instance? Variable attr)
+                              (cc/binding-for-symbol-or-throw cc (:symbol attr)))
+
+                         ;; nil, so it's seqable.
+                         nil)
 
         ;; Pull out the symbols for the binding array.
         [entity value tx score]
@@ -127,16 +151,19 @@
         wheres (concat
                  [[:match match-column match-value]      ; The FTS match.
 
-                ;; The fulltext rowid-to-datom correspondence.
-                [:=
-                 (sql/qualify datom-alias :v)
-                 (sql/qualify fulltext-alias :rowid)]]
+                  ;; The fulltext rowid-to-datom correspondence.
+                  [:=
+                   (sql/qualify datom-alias :v)
+                   (sql/qualify fulltext-alias :rowid)]]
 
-                 (when attr-constant
-                   ;; If known, the attribute itself must match.
-                   [[:=
-                     (sql/qualify datom-alias :a)
-                     attr-constant]]))
+                 ;; If known, the attribute itself must match.
+                 (when (seq attr-constants)
+                   (let [a (sql/qualify datom-alias :a)
+                         fragments (map (fn [v] [:= a v])
+                                        attr-constants)]
+                     (if (seq (rest fragments))
+                       [(cons :or fragments)]
+                       fragments))))
 
         ;; Now compose any bindings for entity, value, tx, and score.
         ;; TODO: do we need to examine existing bindings to capture
