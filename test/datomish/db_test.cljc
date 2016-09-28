@@ -887,6 +887,17 @@
                  [1 :friends 2]}
                (<? (<datoms>= (d/db conn) tx))))))
 
+    (testing "Looks up refs when there are more than 999 refs (all present)"
+      (let
+          [bound (* 999 2)
+           make-add #(vector :db/add (+ 1000 %) :name (str "Ivan-" %))
+           make-ref #(-> {:db/id (d/lookup-ref :name (str "Ivan-" %)) :email (str "Ivan-" % "@" %)})
+           {tx-data1 :tx-data} (<? (d/<transact! conn (map make-add (range bound))))
+           {tx-data2 :tx-data} (<? (d/<transact! conn (map make-ref (range bound))))]
+        (is (= bound (dec (count tx-data1)))) ;; Each :name is new; dec to account for :db/tx.
+        (is (= bound (dec (count tx-data2)))) ;; Each lookup-ref exists, each :email is new; dec for :db/tx.
+        ))
+
     (testing "Fails for missing entities"
       (is (thrown-with-msg?
             ExceptionInfo #"No entity found for lookup-ref"
@@ -904,3 +915,5 @@
             (<? (d/<transact! conn [[:db/add 1 :friends (d/lookup-ref :aka "The Magician")]])))))))
 
 #_ (time (t/run-tests))
+
+#_ (time (clojure.test/test-vars [#'test-lookup-refs]))

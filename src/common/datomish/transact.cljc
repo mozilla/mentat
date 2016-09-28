@@ -254,9 +254,12 @@
   {:pre [(db/db? db) (report? report)]}
 
   (let [unique-identity? (memoize (partial ds/unique-identity? (db/schema db)))
+        ;; Map lookup-ref -> entities containing lookup-ref, like {[[:a :v] [[[:a :v] :b :w] ...]] ...}.
         groups           (group-by (partial keep db/lookup-ref?) (:entities report))
+        ;; Entities with no lookup-ref are grouped under the key (lazy-seq).
         entities         (get groups (lazy-seq)) ;; No lookup-refs? Pass through.
         to-resolve       (dissoc groups (lazy-seq)) ;; The ones with lookup-refs.
+        ;; List [[:a :v] ...] to lookup.
         avs              (set (map (juxt :a :v) (apply concat (keys to-resolve))))
         ->av             (fn [r] ;; Conditional (juxt :a :v) that passes through nil.
                            (when r [(:a r) (:v r)]))]

@@ -702,14 +702,14 @@
 
             ;; Map searchid -> e.  There's a generic reduce that takes [pair-chan] lurking in here.
             searchid->e
-            (loop [coll {}
+            (loop [coll (transient {})
                    qs qs]
               (let [[q & qs] qs]
                 (if q
                   (let [rs (<? (s/all-rows (:sqlite-connection db) q))
-                        coll* (into coll (map (juxt :searchid :e)) rs)]
+                        coll* (reduce conj! coll (map (juxt :searchid :e) rs))]
                     (recur coll* qs))
-                  coll)))
+                  (persistent! coll))))
             ]
         (util/mapvals (partial get searchid->e) av->searchid))))
 

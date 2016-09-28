@@ -100,6 +100,7 @@
 (defn create-temp-tx-lookup-statement [table-name]
   ;; n.b., v0/value_type_tag0 can be NULL, in which case we look up v from datoms;
   ;; and the datom columns are NULL into the LEFT JOIN fills them in.
+  ;; The table-name is not escaped in any way, in order to allow "temp.dotted" names.
   ;; TODO: update comment about sv.
   [(str "CREATE TABLE IF NOT EXISTS " table-name
         " (e0 INTEGER NOT NULL, a0 SMALLINT NOT NULL, v0 BLOB NOT NULL, tx0 INTEGER NOT NULL, added0 TINYINT NOT NULL,
@@ -113,9 +114,12 @@
            e INTEGER, a SMALLINT, v BLOB, tx INTEGER, value_type_tag SMALLINT)")])
 
 (defn create-temp-tx-lookup-eavt-statement [idx-name table-name]
-  ;; Note that `id_tx_lookup_added` is created and dropped
-  ;; after insertion, which makes insertion slightly faster.
-  ;; Prevent overlapping transactions.  TODO: drop added0?
+  ;; Note that the consuming code creates and drops the indexes
+  ;; manually, which makes insertion slightly faster.
+  ;; This index prevents overlapping transactions.
+  ;; The idx-name and table-name are not escaped in any way, in order
+  ;; to allow "temp.dotted" names.
+  ;; TODO: drop added0?
   [(str "CREATE UNIQUE INDEX IF NOT EXISTS "
         idx-name
         " ON "
