@@ -6,6 +6,7 @@
   (:require
    [datomish.query.cc :as cc]
    [datomish.query.functions :as functions]
+   [datomish.query.projection :refer [sql-projection-for-simple-variable-list]]
    [datomish.query.source
     :refer [pattern->schema-value-type
             attribute-in-source
@@ -18,6 +19,7 @@
     #?@(:cljs
         [:refer
          [
+          And
           Constant
           DefaultSrc
           Function
@@ -35,6 +37,7 @@
   #?(:clj
      (:import
       [datascript.parser
+       And
        Constant
        DefaultSrc
        Function
@@ -50,6 +53,8 @@
 ;; Pattern building is recursive, so we need forward declarations.
 (declare
   Not->NotJoinClause not-join->where-fragment
+  expand-pattern-clauses
+  complex-or->cc
   simple-or? simple-or->cc)
 
 (defn- check-or-apply-value-type [cc value-type pattern-part]
@@ -202,19 +207,19 @@
   ;; This can be converted into a single join and an `or` :where expression.
   ;;
   ;; Otherwise -- perhaps each leg of the `or` binds different variables, which
-  ;; is acceptable for an `or-join` form -- we need to turn this into a joined
-  ;; subquery.
+  ;; is acceptable for an `or-join` form -- we call this a complex `or`. To
+  ;; execute those, we need to turn them into a joined subquery composed of
+  ;; `UNION`ed queries.
+  (let [f (if (simple-or? orc) simple-or->cc complex-or->cc)]
+    (cc/merge-ccs
+      cc
+      (f (:source cc)
+         (:known-types cc)
+         (merge-with concat
+                     (:external-bindings cc)
+                     (:bindings cc))
+         orc))))
 
-  (if (simple-or? orc)
-    (cc/merge-ccs cc (simple-or->cc (:source cc)
-                                    (:known-types cc)
-                                    (merge-with concat
-                                                (:external-bindings cc)
-                                                (:bindings cc))
-                                    orc))
-
-    ;; TODO: handle And within the Or patterns.
-    (raise "Non-simple `or` clauses not yet supported." {:clause orc})))
 
 (defn apply-function-clause [cc function]
   (or (functions/apply-sql-function cc function)
@@ -225,6 +230,9 @@
   (condp instance? it
     Or
     (apply-or-clause cc it)
+
+    And
+    (expand-pattern-clauses cc (:clauses it))
 
     Not
     (apply-not-clause cc it)
@@ -354,14 +362,7 @@
   ;; We 'fork' a CC for each pattern, then union them together.
   ;; We need to build the first in order that the others use the same
   ;; column names and known types.
-  (let [cc (cc/map->ConjoiningClauses
-             {:source source
-              :from []
-              :known-types (or known-types {})
-              :extracted-types {}
-              :external-bindings (or external-bindings {})
-              :bindings {}
-              :wheres []})
+  (let [cc (make-cc source known-types external-bindings)
         primary (apply-pattern-clause cc (first (:clauses orc)))
         remainder (rest (:clauses orc))]
 
@@ -392,3 +393,90 @@
                                        (conj acc (cons :and w)))))
                              []
                              (cons primary ccs)))])))))
+
+(defn complex-or->cc
+  [source known-types external-bindings orc]
+  (validate-or-clause orc)
+
+  ;; Step one: any clauses that are standalone patterns might differ only in
+  ;; attribute. In that case, we can treat them as a 'simple or' -- a single
+  ;; pattern with a WHERE clause that alternates on the attribute.
+  ;; Pull those out first.
+  ;;
+  ;; Step two: for each cluster of patterns, and for each `and`, recursively
+  ;; build a CC and simple projection. The projection must be the same for each
+  ;; CC, because we will concatenate these with a `UNION`.
+  ;;
+  ;; Finally, we alias this entire UNION block as a FROM; it can be stitched into
+  ;; the outer query by looking at the projection.
+  ;;
+  ;; For example,
+  ;;
+  ;;   [:find ?page :in $ ?string :where
+  ;;    (or [?page :page/title ?string]
+  ;;        [?page :page/excerpt ?string]
+  ;;        (and [?save :save/string ?string]
+  ;;             [?page :page/save ?save]))]
+  ;;
+  ;; would expand to
+  ;;
+  ;; SELECT or123.page AS page FROM
+  ;;  (SELECT datoms124.e AS page FROM datoms AS datoms124
+  ;;   WHERE datoms124.v = ? AND
+  ;;         (datoms124.a = :page/title OR
+  ;;          datoms124.a = :page/excerpt)
+  ;;   UNION
+  ;;   SELECT datoms126.e AS page FROM datoms AS datoms125, datoms AS datoms126
+  ;;   WHERE datoms125.a = :save/string AND
+  ;;         datoms125.v = ? AND
+  ;;         datoms126.v = datoms125.e AND
+  ;;         datoms126.a = :page/save)
+  ;;  AS or123
+  ;;
+  ;; Note that a top-level standalone `or` doesn't really need to be aliased, but
+  ;; it shouldn't do any harm.
+
+  (if (= 1 (count (:clauses orc)))
+    ;; Well, this is silly.
+    (pattern->cc source (first (:clauses orc)) known-types external-bindings)
+
+    ;; TODO: pull out simple patterns. Issue #62.
+    (let [
+          ;; First: turn each arm of the `or` into a CC. We can easily turn this
+          ;; into SQL.
+          ccs (map (fn [p] (pattern->cc source p known-types external-bindings))
+                   (:clauses orc))
+
+          free-vars (:free (:rule-vars orc))
+
+          ;; Second: wrap an equivalent projection around each. The Or knows which
+          ;; variables to use.
+          projection-list-fn
+          (partial sql-projection-for-simple-variable-list
+                   free-vars)
+
+          ;; Third: turn each CC and projection into an arm of a UNION.
+          subqueries {:union (map (fn [cc]
+                                    (cc->partial-subquery (projection-list-fn cc)
+                                                          cc))
+                                  ccs)}
+
+
+          ;; Fourth: map this query to an alias in `:from`, and establish bindings
+          ;; so that the enclosing query and projection know which names to use.
+          ;; Finally, return a CC that can be merged.
+          alias ((:table-alias source) :orjoin)
+          bindings (into {} (map (fn [var]
+                                   (let [sym (:symbol var)]
+                                     [sym [(sql/qualify alias (util/var->sql-var sym))]]))
+                                 free-vars))]
+
+      (cc/map->ConjoiningClauses
+        {:source source
+         :from [[subqueries alias]]
+         :known-types (apply merge (map :known-types ccs))
+         :extracted-types (apply merge (map :extracted-types ccs))
+         :external-bindings {}       ; No need: caller will merge.
+         :bindings bindings
+         :ctes {}
+         :wheres []}))))
