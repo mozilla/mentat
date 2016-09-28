@@ -245,27 +245,38 @@
   [cc patterns]
   (reduce apply-clause cc patterns))
 
+(defn- make-cc [source known-types external-bindings]
+  (cc/map->ConjoiningClauses
+    {:source source
+     :from []
+     :known-types (or known-types {})
+     :extracted-types {}
+     :external-bindings (or external-bindings {})
+     :bindings {}
+     :ctes {}
+     :wheres []}))
+
+(defn pattern->cc [source pattern known-types external-bindings]
+  (cc/expand-where-from-bindings
+    (apply-clause
+      (make-cc source known-types external-bindings)
+      pattern)))
+
 (defn patterns->cc [source patterns known-types external-bindings]
   (cc/expand-where-from-bindings
     (expand-pattern-clauses
-      (cc/map->ConjoiningClauses
-        {:source source
-         :from []
-         :known-types (or known-types {})
-         :extracted-types {}
-         :external-bindings (or external-bindings {})
-         :bindings {}
-         :ctes {}
-         :wheres []})
+      (make-cc source known-types external-bindings)
       patterns)))
 
 (defn cc->partial-subquery
-  "Build part of a honeysql query map from a CC: the `:from` and `:where` parts.
+  "Build part of a honeysql query map from a CC: the `:select`, `:from`, and
+  `:where` parts.
   This allows for reuse both in top-level query generation and also for
   subqueries and NOT EXISTS clauses."
-  [cc]
+  [select cc]
   (merge
-    {:from (:from cc)}
+    {:select select
+     :from (:from cc)}
     (when-not (empty? (:ctes cc))
       {:with (:ctes cc)})
     (when-not (empty? (:wheres cc))
@@ -296,7 +307,7 @@
      (cons :and (:wheres (:cc not-join)))
 
      ;; If it does establish bindings, then it has to be a subquery.
-     [:exists (merge {:select [1]} (cc->partial-subquery (:cc not-join)))])])
+     [:exists (cc->partial-subquery [1] (:cc not-join))])])
 
 
 ;; A simple Or clause is one in which each branch can be evaluated against
