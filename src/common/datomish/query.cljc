@@ -63,13 +63,11 @@
   (let [inner-projection (projection/sql-projection-for-relation context)
         inner
         (merge
-          {:select inner-projection
-
-           ;; Always SELECT DISTINCT, because Datalog is set-based.
-           ;; TODO: determine from schema analysis whether we can avoid
-           ;; the need to do this.
-           :modifiers [:distinct]}
-          (clauses/cc->partial-subquery (:cc context)))
+          ;; Always SELECT DISTINCT, because Datalog is set-based.
+          ;; TODO: determine from schema analysis whether we can avoid
+          ;; the need to do this.
+          {:modifiers [:distinct]}
+          (clauses/cc->partial-subquery inner-projection (:cc context)))
 
         limit (:limit context)
         order-by (:order-by-vars context)]

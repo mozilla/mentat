@@ -170,6 +170,25 @@
                 (symbol->projection var lookup-fn known-types type-proj-fn))
               full-var-list))))
 
+;; Like sql-projection-for-relation, but exposed for simpler
+;; use (e.g., in handling complex `or` patterns).
+(defn sql-projection-for-simple-variable-list [elements cc]
+  {:pre [(every? (partial instance? Variable) elements)]}
+  (let [{:keys [known-types extracted-types]} cc
+
+        projected-vars
+        (map variable->var elements)
+
+        type-proj-fn
+        (partial type-projection extracted-types)
+
+        lookup-fn
+        (partial lookup-variable cc)]
+
+    (mapcat (fn [var]
+              (symbol->projection var lookup-fn known-types type-proj-fn))
+            projected-vars)))
+
 (defn sql-projection-for-aggregation
   "Project an element list that contains aggregates. This expects a subquery
    aliased to `inner-table` which itself will project each var with the
