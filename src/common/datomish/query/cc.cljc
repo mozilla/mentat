@@ -37,18 +37,19 @@
 ;;   bind it to the outer variables, or adds simple WHERE clauses to the outer
 ;;   clause.
 ;; - `not-join` is similar, but with explicit binding.
+;; - `or` turns into a collection of UNIONs inside a subquery, or a simple
+;;   alternation.
+;;   `or`'s documentation states that all clauses must include the same vars,
+;;   but that's an over-simplification: all clauses must refer to the external
+;;   unification vars.
+;;   The entire UNION-set is JOINed to any surrounding expressions per the `rule-vars`
+;;   clause, or the intersection of the vars in the two sides of the JOIN.
 ;;
 ;; Not yet done:
 ;; - Function clauses with bindings turn into:
 ;;   * Subqueries. Perhaps less efficient? Certainly clearer.
 ;;   * Projection expressions, if only used for output.
 ;;   * Inline expressions?
-;; - `or` turns into a collection of UNIONs inside a subquery.
-;;   `or`'s documentation states that all clauses must include the same vars,
-;;   but that's an over-simplification: all clauses must refer to the external
-;;   unification vars.
-;;   The entire UNION-set is JOINed to any surrounding expressions per the `rule-vars`
-;;   clause, or the intersection of the vars in the two sides of the JOIN.
 ;;---------------------------------------------------------------------------------------
 ;;
 ;; `from` is a list of [source alias] pairs, suitable for passing to honeysql.
