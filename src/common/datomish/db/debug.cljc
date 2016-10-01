@@ -29,6 +29,15 @@
       (filter #(not (= :db/txInstant (second %))))
       (set))))
 
+(defn <datoms>= [db tx]
+  (go-pair
+    (->>
+      (s/all-rows (:sqlite-connection db) ["SELECT e, a, v, tx FROM datoms WHERE tx >= ?" tx])
+      (<?)
+      (mapv #(vector (:e %) (db/ident db (:a %)) (:v %)))
+      (filter #(not (= :db/txInstant (second %))))
+      (set))))
+
 (defn <datoms [db]
   (<datoms-after db 0))
 

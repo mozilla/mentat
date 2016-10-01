@@ -26,24 +26,6 @@
    "CREATE UNIQUE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"
    "CREATE UNIQUE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"
 
-   ;; n.b., v0/value_type_tag0 can be NULL, in which case we look up v from datoms;
-   ;; and the datom columns are NULL into the LEFT JOIN fills them in.
-   ;; TODO: update comment about sv.
-   "CREATE TABLE tx_lookup (e0 INTEGER NOT NULL, a0 SMALLINT NOT NULL, v0 BLOB NOT NULL, tx0 INTEGER NOT NULL, added0 TINYINT NOT NULL,
-                         value_type_tag0 SMALLINT NOT NULL,
-                         index_avet0 TINYINT, index_vaet0 TINYINT,
-                         index_fulltext0 TINYINT,
-                         unique_value0 TINYINT,
-                         sv BLOB,
-                         svalue_type_tag SMALLINT,
-                         rid INTEGER,
-                         e INTEGER, a SMALLINT, v BLOB, tx INTEGER, value_type_tag SMALLINT)"
-
-   ;; Note that `id_tx_lookup_added` is created and dropped
-   ;; after insertion, which makes insertion slightly faster.
-   ;; Prevent overlapping transactions.  TODO: drop added0?
-   "CREATE UNIQUE INDEX idx_tx_lookup_eavt ON tx_lookup (e0, a0, v0, added0, value_type_tag0) WHERE sv IS NOT NULL"
-
    ;; Opt-in index: only if a has :db/index true.
    "CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, value_type_tag, v, e) WHERE index_avet IS NOT 0"
 
@@ -114,6 +96,35 @@
    "CREATE INDEX idx_schema_unique ON schema (ident, attr, value, value_type_tag)"
    "CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"
    ])
+
+(defn create-temp-tx-lookup-statement [table-name]
+  ;; n.b., v0/value_type_tag0 can be NULL, in which case we look up v from datoms;
+  ;; and the datom columns are NULL into the LEFT JOIN fills them in.
+  ;; The table-name is not escaped in any way, in order to allow "temp.dotted" names.
+  ;; TODO: update comment about sv.
+  [(str "CREATE TABLE IF NOT EXISTS " table-name
+        " (e0 INTEGER NOT NULL, a0 SMALLINT NOT NULL, v0 BLOB NOT NULL, tx0 INTEGER NOT NULL, added0 TINYINT NOT NULL,
+           value_type_tag0 SMALLINT NOT NULL,
+           index_avet0 TINYINT, index_vaet0 TINYINT,
+           index_fulltext0 TINYINT,
+           unique_value0 TINYINT,
+           sv BLOB,
+           svalue_type_tag SMALLINT,
+           rid INTEGER,
+           e INTEGER, a SMALLINT, v BLOB, tx INTEGER, value_type_tag SMALLINT)")])
+
+(defn create-temp-tx-lookup-eavt-statement [idx-name table-name]
+  ;; Note that the consuming code creates and drops the indexes
+  ;; manually, which makes insertion slightly faster.
+  ;; This index prevents overlapping transactions.
+  ;; The idx-name and table-name are not escaped in any way, in order
+  ;; to allow "temp.dotted" names.
+  ;; TODO: drop added0?
+  [(str "CREATE UNIQUE INDEX IF NOT EXISTS "
+        idx-name
+        " ON "
+        table-name
+        " (e0, a0, v0, added0, value_type_tag0) WHERE sv IS NOT NULL")])
 
 (defn <create-current-version
   [db]
