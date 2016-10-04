@@ -62,7 +62,7 @@
            [source
             from              ; [[:datoms 'datoms123]]
             external-bindings ; {?var0 (sql/param :foobar)}
-            bindings          ; {?var1 :datoms123.v}
+            bindings          ; {?var1 [:datoms123.v]}
             known-types       ; {?var1 :db.type/integer}
             extracted-types   ; {?var2 :datoms123.value_type_tag}
             wheres            ; [[:= :datoms123.v 15]]
@@ -162,6 +162,8 @@
           bindings))
 
 ;; This is so we can link clauses to the outside world.
+;; Note that we sort the variable list to achieve consistent ordering between
+;; Clojure and ClojureScript, yielding sane tests.
 (defn- impose-external-bindings [cc]
   (if (empty? (:external-bindings cc))
     cc
@@ -177,7 +179,7 @@
               (assert external)
               (assert internal)
               [:= external internal]))
-          vars)))))
+          (sort vars))))))
 
 (defn expand-where-from-bindings
   "Take the bindings in the CC and contribute
@@ -187,7 +189,7 @@
   (impose-external-bindings
     (assoc cc :wheres
            ;; Note that the order of clauses here means that cross-pattern var bindings
-           ;; come last That's OK: the SQL engine considers these altogether.
+           ;; come last. That's OK: the SQL engine considers these altogether.
            (concat (:wheres cc)
                    (bindings->where (:bindings cc))))))
 
