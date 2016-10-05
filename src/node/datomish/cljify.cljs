@@ -5,6 +5,9 @@
   but successfully passes Clojure Records through. This allows JS API
   callers to round-trip values they receive from ClojureScript APIs."
   [x]
+  ;; This implementation is almost identical to js->clj, but it allows
+  ;; us to hook into the recursion into sequences and objects, and it
+  ;; passes through records.
   (if (record? x)
     x
     (cond
