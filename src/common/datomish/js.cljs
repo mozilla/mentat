@@ -73,10 +73,20 @@
         ;; We pickle the connection as a thunk here so it roundtrips through JS
         ;; without incident.
         {:conn (fn [] c)
-         :roundtrip (fn [x] (clj->js (cljify x)))
          :db (fn [] (transact/db c))
+         :path path
+
+         ;; Primary API.
          :ensureSchema (fn [simple-schema] (ensure-schema c simple-schema))
          :transact (fn [tx-data] (transact c tx-data))
+         :q (fn [find opts] (q (transact/db c) find opts))
          :close (fn [] (db/close-db db))
+
+         ;; Some helpers for testing the bridge.
+         :equal =
+         :idx (fn [tempid] (:idx tempid))
+         :cljify cljify
+         :roundtrip (fn [x] (clj->js (cljify x)))
+
          :toString (fn [] (str "#<DB " path ">"))
-         :path path}))))
+         }))))
