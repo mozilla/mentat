@@ -644,11 +644,11 @@
   (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
 
     (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/long [12345 123456]}
-                                         {:db/id (d/id-literal :db.part/user -1) :test/fulltext ["first fulltext value" "second fulltext value"]}]))
+                                         {:db/id (d/id-literal :db.part/user -1) :test/fulltext ["1 fulltext value" "2 fulltext value"]}]))
           eid1   (get-in report [:tempids (d/id-literal :db.part/user -1)])]
       (is (= (<? (<fulltext-values (d/db conn)))
-             [[1 "first fulltext value"]
-              [2 "second fulltext value"]]))
+             [[1 "1 fulltext value"]
+              [2 "2 fulltext value"]]))
       (is (= (<? (<datoms-after (d/db conn) tx0))
              #{[eid1 :test/fulltext 1]
                [eid1 :test/fulltext 2]
@@ -665,13 +665,13 @@
   (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
 
     (testing "retractAttribute, fulltext"
-      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/fulltext ["first fulltext value" "second fulltext value"]}
+      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/fulltext ["1 fulltext value" "2 fulltext value"]}
                                            {:db/id (d/id-literal :db.part/user -2) :test/ref (d/id-literal :db.part/user -1)}]))
             eid1    (get-in report [:tempids (d/id-literal :db.part/user -1)])
             eid2    (get-in report [:tempids (d/id-literal :db.part/user -2)])]
         (is (= (<? (<fulltext-values (d/db conn)))
-               [[1 "first fulltext value"]
-                [2 "second fulltext value"]]))
+               [[1 "1 fulltext value"]
+                [2 "2 fulltext value"]]))
         (is (= (<? (<datoms-after (d/db conn) tx0))
                #{[eid1 :test/fulltext 1]
                  [eid1 :test/fulltext 2]
@@ -681,8 +681,8 @@
           (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid2 :test/ref]]))]
             ;; fulltext values are not purged.
             (is (= (<? (<fulltext-values (d/db conn)))
-                   [[1 "first fulltext value"]
-                    [2 "second fulltext value"]]))
+                   [[1 "1 fulltext value"]
+                    [2 "2 fulltext value"]]))
             (is (= (<? (<datoms-after (d/db conn) tx0))
                    #{[eid1 :test/fulltext 1]
                      [eid1 :test/fulltext 2]})))
@@ -690,8 +690,8 @@
           (let [{tx2 :tx} (<? (d/<transact! conn [[:db.fn/retractAttribute eid1 :test/fulltext]]))]
             ;; fulltext values are not purged.
             (is (= (<? (<fulltext-values (d/db conn)))
-                   [[1 "first fulltext value"]
-                    [2 "second fulltext value"]]))
+                   [[1 "1 fulltext value"]
+                    [2 "2 fulltext value"]]))
             (is (= (<? (<datoms-after (d/db conn) tx0))
                    #{}))))))))
 
@@ -736,12 +736,12 @@
   (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
 
     (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/long [12345 123456]}
-                                         {:db/id (d/id-literal :db.part/user -2) :test/fulltext ["first fulltext value" "second fulltext value"]}]))
+                                         {:db/id (d/id-literal :db.part/user -2) :test/fulltext ["1 fulltext value" "2 fulltext value"]}]))
           eid1   (get-in report [:tempids (d/id-literal :db.part/user -1)])
           eid2   (get-in report [:tempids (d/id-literal :db.part/user -2)])]
       (is (= (<? (<fulltext-values (d/db conn)))
-             [[1 "first fulltext value"]
-              [2 "second fulltext value"]]))
+             [[1 "1 fulltext value"]
+              [2 "2 fulltext value"]]))
       (is (= (<? (<datoms-after (d/db conn) tx0))
              #{[eid2 :test/fulltext 1]
                [eid2 :test/fulltext 2]
@@ -758,16 +758,16 @@
   (let [tx0 (:tx (<? (d/<transact! conn retract-schema)))]
 
     (testing "retractEntity, fulltext"
-      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/fulltext ["first fulltext value" "second fulltext value"]}
+      (let [report (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :test/fulltext ["1 fulltext value" "2 fulltext value"]}
                                            {:db/id (d/id-literal :db.part/user -2) :test/ref (d/id-literal :db.part/user -1)}
-                                           {:db/id (d/id-literal :db.part/user -3) :test/fulltext "other fulltext value"}]))
+                                           {:db/id (d/id-literal :db.part/user -3) :test/fulltext "3 fulltext value"}]))
             eid1    (get-in report [:tempids (d/id-literal :db.part/user -1)])
             eid2    (get-in report [:tempids (d/id-literal :db.part/user -2)])
             eid3    (get-in report [:tempids (d/id-literal :db.part/user -3)])]
         (is (= (<? (<fulltext-values (d/db conn)))
-               [[1 "first fulltext value"]
-                [2 "second fulltext value"]
-                [3 "other fulltext value"]]))
+               [[1 "1 fulltext value"]
+                [2 "2 fulltext value"]
+                [3 "3 fulltext value"]]))
         (is (= (<? (<datoms-after (d/db conn) tx0))
                #{[eid1 :test/fulltext 1]
                  [eid1 :test/fulltext 2]
@@ -786,9 +786,9 @@
           (let [{tx1 :tx} (<? (d/<transact! conn [[:db.fn/retractEntity eid3]]))]
             ;; fulltext values are not purged.
             (is (= (<? (<fulltext-values (d/db conn)))
-                   [[1 "first fulltext value"]
-                    [2 "second fulltext value"]
-                    [3 "other fulltext value"]]))
+                   [[1 "1 fulltext value"]
+                    [2 "2 fulltext value"]
+                    [3 "3 fulltext value"]]))
             (is (= (<? (<datoms-after (d/db conn) tx0))
                    #{[eid1 :test/fulltext 1]
                      [eid1 :test/fulltext 2]

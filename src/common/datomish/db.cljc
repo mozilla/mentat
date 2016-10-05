@@ -383,7 +383,7 @@
             (ref? a)           ; index_vaet
             (unique? a)        ; unique_value
             tag]]))
-      ops
+      (sort-by (fn [[_ _ _ v]] v) ops) ;; Make testing easier by sorting by string values.  TODO: discuss expense.
       (range initial-many-searchid 999999999))
     ["UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL"]))
 
@@ -412,7 +412,7 @@
               "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0) VALUES "
               "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, 0, ?)")
             e a searchid tx tag]]))
-      ops
+      (sort-by (fn [[_ _ _ v]] v) ops) ;; Make testing easier by sorting by string values.  TODO: discuss expense.
       (range initial-one-searchid 999999999))
     ["UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL"]))
 
