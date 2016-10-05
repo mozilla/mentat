@@ -15,29 +15,63 @@ var schema = {
     {"name":         "page/title",
      "type":         "string",
      "cardinality":  "one",
-     "doc":          "A page's title."},
-    {"name":         "page/starred",
-     "type":         "boolean",
-     "cardinality":  "one",
-     "doc":          "Whether the page is starred."},
-    {"name":         "page/visit",
-     "type":         "ref",
-     "cardinality":  "many",
-     "doc":          "A visit to the page."}
+     "doc":          "A page's title."}
   ]
 };
 
 async function testOpen() {
+  // Open a database.
   let db = await datomish.open("/tmp/testing.db");
+
+  // Make sure we have our current schema.
   await db.ensureSchema(schema);
-  let txResult = await db.transact([{"db/id": 55,
-                                     "page/url": "http://foo.com/bar",
-                                     "page/starred": true}]);
+
+  // Add some data. Note that we use a temporary ID (the real ID
+  // will be assigned by Datomish).
+  let txResult = await db.transact([
+    {"db/id": datomish.tempid(),
+     "page/url": "https://mozilla.org/",
+     "page/title": "Mozilla"}
+  ]);
+
   console.log("Transaction returned " + JSON.stringify(txResult));
   console.log("Transaction instant: " + txResult.txInstant);
-  let results = await datomish.q(db.db(), "[:find ?url :in $ :where [?e :page/url ?url]]")
+
+  // A simple query.
+  let results = await db.q("[:find ?url :in $ :where [?e :page/url ?url]]");
   results = results.map(r => r[0]);
+
   console.log("Query results: " + JSON.stringify(results));
+
+  // Let's extend our schema. In the real world this would typically happen
+  // across releases.
+  schema.attributes.push({"name":        "page/visitedAt",
+                          "type":        "instant",
+                          "cardinality": "many",
+                          "doc":         "A visit to the page."});
+  await db.ensureSchema(schema);
+
+  // Now we can make assertions with the new vocabulary about existing
+  // entities.
+  // Note that we simply let Datomish find which page we're talking about by
+  // URL -- the URL is a unique property -- so we just use a tempid again.
+  await db.transact([
+    {"db/id": datomish.tempid(),
+     "page/url": "https://mozilla.org/",
+     "page/visitedAt": (new Date())}
+  ]);
+
+  // When did we most recently visit this page?
+  let date = (await db.q(
+    `[:find (max ?date)
+      :in $ ?url
+      :where
+      [?page :page/url ?url]
+      [?page :page/visitedAt ?date]]`,
+    {"inputs": {"url": "https://mozilla.org/"}}))[0][0];
+  console.log("Most recent visit: " + date);
+
+  // Close: we're done!
   await db.close();
 }
 
