@@ -55,3 +55,32 @@
           (is (= rows [{:b 2}])))
         (finally
           (<? (s/close db)))))))
+
+(deftest-async test-long-strings
+  ;; Make a string that's nicely over the 32K limit in node-sqlite3/#668.
+  (let [s (str "be" (apply str (repeat 330000 "la")) "st")]
+    (with-tempfile [t (tempfile)]
+      (let [db (<? (ps/open (.-name t)))]
+        (try
+          (<? (s/execute! db ["CREATE TABLE strs (x INTEGER, a TEXT)"]))
+          (<? (s/execute! db ["INSERT INTO strs VALUES (42, ?)" s]))
+
+          ;; Test retrieval via binding comparison.
+          (is (= (<? (s/all-rows db ["SELECT x FROM strs WHERE a = ?" s]))
+                 [{:x 42}]))
+
+          ;; Test computation.
+          (is (= (<? (s/all-rows db ["SELECT length(a) AS yvr FROM strs"]))
+                 [{:yvr 660004}]))
+          (is (= (<? (s/all-rows db ["SELECT length(?) AS yvr FROM strs" s]))
+                 [{:yvr 660004}]))
+
+          ;; Test round-tripping.
+          (is (= (<? (s/all-rows db ["SELECT x, a FROM strs"]))
+                 [{:x 42, :a s}]))
+          (is (= (<? (s/all-rows db ["SELECT ? AS yyz FROM strs" s]))
+                 [{:yyz s}]))
+
+          (finally
+            (<? (s/close db))))
+        ))))
