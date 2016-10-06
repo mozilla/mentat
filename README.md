@@ -4,6 +4,8 @@ Datomish is a persistent, embedded knowledge base. It's written in ClojureScript
 
 Datomish compiles into a single JavaScript file, and is usable both in Node (on top of `promise_sqlite`) and in Firefox (on top of `Sqlite.jsm`). It also works in pure Clojure on the JVM on top of `jdbc-sqlite`.
 
+There's an example Firefox restartless add-on in the [`addon`](https://github.com/mozilla/datomish/tree/master/addon) directory; build instructions are below.
+
 
 ## Motivation
 
@@ -161,6 +163,10 @@ lein cljsbuild once release-browser
 ```
 
 ### To build and run the example Firefox add-on:
+
+First build for Firefox, so that `datomish.js` exists.
+
+Then:
 
 ```
 cd addon
