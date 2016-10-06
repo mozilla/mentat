@@ -214,6 +214,24 @@
                                                     [:db/add (d/id-literal :db.part/user -1) :name "Petr"]
                                                     [:db/add (d/id-literal :db.part/user -1) :age 36]])))))))
 
+(deftest-db test-multistep-upsert conn
+  (<? (d/<transact! conn test-schema))
+  ;; The upsert algorithm will first try to resolve -1, fail, and then allocate both -1 and -2.
+  (let [tx0 (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :name "Ivan" :email "@1"}
+                                    {:db/id (d/id-literal :db.part/user -2) :name "Petr" :friends (d/id-literal :db.part/user -1)}]))]
+
+    ;; Sanity checks that these are freshly allocated, not resolved.
+    (is (> (get (tempids tx0) -1) 1000))
+    (is (> (get (tempids tx0) -1) 1000))
+
+    ;; This time, we can resolve both, but we have to try -1, succeed, and then resolve -2.
+    (let [tx1 (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :name "Ivan" :email "@1"}
+                                      {:db/id (d/id-literal :db.part/user -2) :name "Petr" :friends (d/id-literal :db.part/user -1)}]))]
+
+      ;; Ensure these are resolved, not freshly allocated.
+      (is (= (tempids tx0)
+             (tempids tx1))))))
+
 (deftest-db test-map-upsert conn
   ;; Not having DB-as-value really hurts us here.  This test only works because all upserts
   ;; succeed on top of each other, so we never need to reset the underlying store.
