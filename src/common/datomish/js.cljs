@@ -75,13 +75,20 @@
   (try
     (let [tx-data (js->tx-data tx-data)]
       (go-promise clj->js
-        (let [tx-result (<? (d/<transact! conn tx-data))]
-          (select-keys tx-result
-                       [:tempids
-                        :added-idents
-                        :added-attributes
-                        :tx
-                        :txInstant]))))
+        (let [tx-result (<? (d/<transact! conn tx-data))
+              tempids (:tempids tx-result)
+              to-return (select-keys tx-result
+                                     [:tempids
+                                      :added-idents
+                                      :added-attributes
+                                      :tx
+                                      :txInstant])
+              jsified (clj->js to-return)]
+
+          ;; The tempids map isn't enough for a JS caller to look up one of
+          ;; these objects, so we need a lookup function.
+          (aset jsified "tempid" (fn [t] (get tempids t)))
+          jsified)))
     (catch js/Error e
       (println "Error in transact:" e))))
 
@@ -103,7 +110,11 @@
          :q (fn [find opts] (q (d/db c) find opts))
          :close (fn [] (db/close-db db))
 
+         ;; So you can generate keywords for binding in `:inputs`.
+         :keyword keyword
+
          ;; Some helpers for testing the bridge.
+         :println (fn [& xs] (apply println xs))
          :equal =
          :idx (fn [tempid] (:idx tempid))
          :cljify cljify
