@@ -735,6 +735,34 @@
   [a b]
   (= (set a) (set b)))
 
+(deftest-db test-find-specs-empty-results conn
+  (let [attrs (<? (<initialize-with-schema conn save-schema))]
+    ;; Relation.
+    (is (= []
+           (<? (d/<q (d/db conn)
+                     [:find '?title
+                      :in '$
+                      :where '[?save :save/title ?title]]))))
+
+    ;; Tuple.
+    (is (nil? (<? (d/<q (d/db conn)
+                        [:find '[?title]
+                         :in '$
+                         :where '[?save :save/title ?title]]))))
+
+    ;; Scalar.
+    (is (nil? (<? (d/<q (d/db conn)
+                        [:find '?title '.
+                         :in '$
+                         :where '[?save :save/title ?title]]))))
+
+    ;; Collection.
+    (is (= []
+           (<? (d/<q (d/db conn)
+                     [:find '[?title ...]
+                      :in '$
+                      :where '[?save :save/title ?title]]))))))
+
 (deftest-db test-find-specs-result-shape conn
   (let [attrs (<? (<initialize-with-schema conn save-schema))]
     ;; Add some data.
