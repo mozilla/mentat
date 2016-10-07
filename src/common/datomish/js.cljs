@@ -8,6 +8,9 @@
      [datomish.pair-chan :refer [go-pair <?]]
      [datomish.promises :refer [go-promise]])
   (:require
+     [datomish.util
+      :as util
+      :refer-macros [raise raise-str cond-let]]
      [cljs.core.async :as a :refer [take! <! >!]]
      [cljs.reader]
      [cljs-promises.core :refer [promise]]
@@ -27,9 +30,29 @@
 
 (def ^:export db d/db)
 
+(defn- cljify-options [options]
+  ;; Step one: basic parsing.
+  (let [o (cljify options)]
+    ;; Step two: convert `order-by` into keywords.
+    (if-let [ord (:order-by o)]
+      (assoc o
+             :order-by
+             (map
+               (fn [[var dir]]
+                 [(keyword var)
+                  (case dir
+                        "asc"  :asc
+                        "desc" :desc
+                        nil    :asc
+                        :default
+                        (raise "Unexpected order-by direction " dir
+                               {:direction dir}))])
+               ord))
+      o)))
+
 (defn ^:export q [db find options]
   (let [find (cljs.reader/read-string find)
-        opts (cljify options)]
+        opts (cljify-options options)]
     (take-pair-as-promise!
       (d/<q db find opts)
       clj->js)))
@@ -37,7 +60,6 @@
 (defn ^:export ensure-schema [conn simple-schema]
   (let [simple-schema (cljify simple-schema)
         datoms (simple-schema/simple-schema->schema simple-schema)]
-    (println "Transacting schema datoms" (pr-str datoms))
     (take-pair-as-promise!
       (d/<transact!
         conn
