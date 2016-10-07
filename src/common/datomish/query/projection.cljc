@@ -9,10 +9,28 @@
    [datomish.sqlite-schema :as ss]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise raise-str cond-let]]
    [datascript.parser :as dp
-    #?@(:cljs [:refer [Aggregate Pattern DefaultSrc Variable Constant Placeholder PlainSymbol]])]
+    #?@(:cljs [:refer
+               [Aggregate
+                Constant
+                DefaultSrc
+                FindRel FindColl FindTuple FindScalar
+                Pattern
+                Placeholder
+                PlainSymbol
+                Variable
+                ]])]
    )
-  #?(:clj (:import [datascript.parser Aggregate Pattern DefaultSrc Variable Constant Placeholder PlainSymbol]))
-  )
+  #?(:clj (:import
+             [datascript.parser
+              Aggregate
+              Constant
+              DefaultSrc
+              FindRel FindColl FindTuple FindScalar
+              Pattern
+              Placeholder
+              PlainSymbol
+              Variable
+              ])))
 
 (defn lookup-variable [cc variable]
   (or (-> cc :bindings variable first)
@@ -251,18 +269,31 @@
            elements))))
 
 (defn row-pair-transducer [context]
-  (let [{:keys [elements cc]} context
+  (let [{:keys [find-spec elements cc]} context
         {:keys [source known-types extracted-types]} cc
 
         ;; We know the projection will fail above if these aren't simple variables or aggregates.
         projectors
-        (make-projectors-for-columns elements known-types extracted-types)]
+        (make-projectors-for-columns elements known-types extracted-types)
+
+        single-column-find-spec?
+        (or (instance? FindScalar find-spec)
+            (instance? FindColl find-spec))]
 
     (map
-      (fn [[row err]]
-        (if err
-          [row err]
-          [(map (fn [projector] (projector row)) projectors) nil])))))
+      (if single-column-find-spec?
+        ;; We're only grabbing one result from each row.
+        (let [projector (first projectors)]
+          (fn [[row err]]
+            (if err
+              [row err]
+              [(projector row) nil])))
+
+        ;; Otherwise, collect each column into a sequence.
+        (fn [[row err]]
+          (if err
+            [row err]
+            [(map (fn [projector] (projector row)) projectors) nil]))))))
 
 (defn extract-group-by-vars
   "Take inputs to :find and, if any aggregates exist in `elements`,

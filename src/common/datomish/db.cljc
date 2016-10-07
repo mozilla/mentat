@@ -800,29 +800,6 @@
        :schema            entid-schema
        })))
 
-;; TODO: factor this into the overall design.
-(defn <?run
-  "Execute the provided query on the provided DB.
-   Returns a transduced channel of [result err] pairs.
-   Closes the channel when fully consumed."
-  [db find options]
-  (let [unexpected (seq (clojure.set/difference (set (keys options)) #{:limit :order-by :inputs}))]
-    (when unexpected
-      (raise "Unexpected options: " unexpected {:bad-options unexpected})))
-
-  (let [{:keys [limit order-by inputs]} options
-        parsed (query/parse find)
-        context (-> db
-                    query-context
-                    (query/options-into-context limit order-by)
-                    (query/find-into-context parsed))
-        row-pair-transducer (projection/row-pair-transducer context)
-        sql (query/context->sql-string context inputs)
-        chan (chan 50 row-pair-transducer)]
-
-    (s/<?all-rows (.-sqlite-connection db) sql chan)
-    chan))
-
 (defn reduce-error-pair [f [rv re] [v e]]
   (if re
     [nil re]
@@ -832,9 +809,39 @@
 
 (defn <?q
   "Execute the provided query on the provided DB.
-   Returns a transduced pair-chan with one [[results] err] item."
+   Returns a transduced pair-chan with either:
+   * One [[results] err] item (for relation and collection find specs), or
+   * One [value err] item (for tuple and scalar find specs)."
   ([db find]
    (<?q db find {}))
   ([db find options]
-   (a/reduce (partial reduce-error-pair conj) [[] nil]
-             (<?run db find options))))
+   (let [unexpected (seq (clojure.set/difference (set (keys options)) #{:limit :order-by :inputs}))]
+    (when unexpected
+      (raise "Unexpected options: " unexpected {:bad-options unexpected})))
+   (let [{:keys [limit order-by inputs]} options
+         parsed (query/parse find)
+         context (-> db
+                   query-context
+                   (query/options-into-context limit order-by)
+                   (query/find-into-context parsed))
+
+         ;; We turn each row into either an array of values or an unadorned
+         ;; value. The row-pair-transducer does this work.
+         ;; The only thing to do to handle the full suite of find specs
+         ;; is to decide if we're then returning an array of transduced rows
+         ;; or just the first result.
+         row-pair-transducer (projection/row-pair-transducer context)
+         sql (query/context->sql-string context inputs)
+
+         first-only (context/scalar-or-tuple-query? context)
+         chan (chan (if first-only 1 50) row-pair-transducer)]
+
+     ;; Fill the channel.
+     (s/<?all-rows (.-sqlite-connection db) sql chan)
+
+     ;; If we only want the first result, great!
+     ;; Otherwise, reduce it down.
+     (if first-only
+       chan
+       (a/reduce (partial reduce-error-pair conj) [[] nil]
+                 chan)))))
