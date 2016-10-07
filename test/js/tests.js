@@ -21,7 +21,9 @@ var schema = {
 
 async function testOpen() {
   // Open a database.
-  let db = await datomish.open("/tmp/testing.db");
+  let path = "/tmp/testing" + Date.now() + ".db";
+  console.log("Opening " + path);
+  let db = await datomish.open(path);
 
   // Make sure we have our current schema.
   await db.ensureSchema(schema);
@@ -39,7 +41,7 @@ async function testOpen() {
 
   // A simple query.
   let results = await db.q("[:find [?url ...] :in $ :where [?e :page/url ?url]]");
-  console.log("Query results: " + JSON.stringify(results));
+  console.log("Known URLs: " + JSON.stringify(results));
 
   // Let's extend our schema. In the real world this would typically happen
   // across releases.
@@ -56,7 +58,7 @@ async function testOpen() {
   await db.transact([
     {"db/id": datomish.tempid(),
      "page/url": "https://mozilla.org/",
-     "page/visitedAt": (new Date())}
+     "page/visitedAt": new Date()}
   ]);
 
   // When did we most recently visit this page?
@@ -68,6 +70,45 @@ async function testOpen() {
       [?page :page/visitedAt ?date]]`,
     {"inputs": {"url": "https://mozilla.org/"}}));
   console.log("Most recent visit: " + date);
+
+  // Add some more data about a couple of pages.
+  let start = Date.now();
+  let lr = datomish.tempid();
+  let reddit = datomish.tempid();
+  let res = await db.transact([
+    {"db/id": reddit,
+     "page/url": "http://reddit.com/",
+     "page/title": "Reddit",
+     "page/visitedAt": new Date(start)},
+    {"db/id": lr,
+     "page/url": "https://longreads.com/",
+     "page/title": "Longreads: The best longform stories on the web",
+     "page/visitedAt": (new Date(start + 100))},
+
+    // Two visits each.
+    {"db/id": lr,
+     "page/visitedAt": (new Date(start + 200))},
+    {"db/id": reddit,
+     "page/visitedAt": (new Date(start + 300))}
+  ]);
+
+  // These are our new persistent IDs. We can use these directly in later
+  // queries or transactions
+  lr = res.tempid(lr);
+  reddit = res.tempid(reddit);
+  console.log("Persistent IDs are " + lr + ", " + reddit + ".");
+
+  // A query with a limit and order-by. Because we limit to 2, and order
+  // by most recent visit date first, we won't get mozilla.org in our results.
+  let recent = await db.q(
+    `[:find ?url (max ?date)
+      :in $
+      :where
+      [?page :page/url ?url]
+      [?page :page/visitedAt ?date]]`,
+    {"limit": 2, "order-by": [["_max_date", "desc"]]});
+
+  console.log("Recently visited: " + JSON.stringify(recent));
 
   // Close: we're done!
   await db.close();
