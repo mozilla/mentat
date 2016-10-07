@@ -38,9 +38,7 @@ async function testOpen() {
   console.log("Transaction instant: " + txResult.txInstant);
 
   // A simple query.
-  let results = await db.q("[:find ?url :in $ :where [?e :page/url ?url]]");
-  results = results.map(r => r[0]);
-
+  let results = await db.q("[:find [?url ...] :in $ :where [?e :page/url ?url]]");
   console.log("Query results: " + JSON.stringify(results));
 
   // Let's extend our schema. In the real world this would typically happen
@@ -63,12 +61,12 @@ async function testOpen() {
 
   // When did we most recently visit this page?
   let date = (await db.q(
-    `[:find (max ?date)
+    `[:find (max ?date) .
       :in $ ?url
       :where
       [?page :page/url ?url]
       [?page :page/visitedAt ?date]]`,
-    {"inputs": {"url": "https://mozilla.org/"}}))[0][0];
+    {"inputs": {"url": "https://mozilla.org/"}}));
   console.log("Most recent visit: " + date);
 
   // Close: we're done!
