@@ -684,3 +684,143 @@
                                    "something")
                              '[[?save]]]]}
                   conn)))))
+
+(deftest-db test-find-specs-expansion conn
+  (let [attrs (<? (<initialize-with-schema conn save-schema))]
+    ;; Relation.
+    (is (= {:select (list [:fulltext_datoms0.v :title])
+            :modifiers [:distinct]
+            :from (list [:fulltext_datoms 'fulltext_datoms0])
+            :where (list :and [:= :fulltext_datoms0.a (:save/title attrs)])}
+           (expand [:find '?title
+                    :in '$
+                    :where '[?save :save/title ?title]]
+                   conn)))
+
+    ;; Tuple. We expect only one result, and indeed we only take one.
+    ;; No need for :distinct in this case!
+    (is (= {:select (list [:fulltext_datoms0.v :title])
+            :modifiers []
+            :limit 1
+            :from (list [:fulltext_datoms 'fulltext_datoms0])
+            :where (list :and [:= :fulltext_datoms0.a (:save/title attrs)])}
+           (expand [:find '[?title]
+                    :in '$
+                    :where '[?save :save/title ?title]]
+                   conn)))
+
+    ;; Scalar. As with the tuple form, we expect only one result.
+    (is (= {:select (list [:fulltext_datoms0.v :title])
+            :modifiers []
+            :limit 1
+            :from (list [:fulltext_datoms 'fulltext_datoms0])
+            :where (list :and [:= :fulltext_datoms0.a (:save/title attrs)])}
+           (expand [:find '?title '.
+                    :in '$
+                    :where '[?save :save/title ?title]]
+                   conn)))
+
+    ;; Collection.
+    (is (= {:select (list [:fulltext_datoms0.v :title])
+            :modifiers [:distinct]
+            :from (list [:fulltext_datoms 'fulltext_datoms0])
+            :where (list :and [:= :fulltext_datoms0.a (:save/title attrs)])}
+           (expand [:find '[?title ...]
+                    :in '$
+                    :where '[?save :save/title ?title]]
+                   conn)))))
+
+(defn orderless=
+  "Compare two arrays regardless of order."
+  [a b]
+  (= (set a) (set b)))
+
+(deftest-db test-find-specs-empty-results conn
+  (let [attrs (<? (<initialize-with-schema conn save-schema))]
+    ;; Relation.
+    (is (= []
+           (<? (d/<q (d/db conn)
+                     [:find '?title
+                      :in '$
+                      :where '[?save :save/title ?title]]))))
+
+    ;; Tuple.
+    (is (nil? (<? (d/<q (d/db conn)
+                        [:find '[?title]
+                         :in '$
+                         :where '[?save :save/title ?title]]))))
+
+    ;; Scalar.
+    (is (nil? (<? (d/<q (d/db conn)
+                        [:find '?title '.
+                         :in '$
+                         :where '[?save :save/title ?title]]))))
+
+    ;; Collection.
+    (is (= []
+           (<? (d/<q (d/db conn)
+                     [:find '[?title ...]
+                      :in '$
+                      :where '[?save :save/title ?title]]))))))
+
+(deftest-db test-find-specs-result-shape conn
+  (let [attrs (<? (<initialize-with-schema conn save-schema))]
+    ;; Add some data.
+    (<? (d/<transact! conn
+                      [{:db/id (d/id-literal :db.part/user -1)
+                        :save/title "Some page title"}
+                       {:db/id (d/id-literal :db.part/user -2)
+                        :save/title "A different page"}]))
+
+    ;; Relation.
+    (is (orderless=
+          [["A different page"]["Some page title"]]
+          (<? (d/<q (d/db conn)
+                    [:find '?title
+                     :in '$
+                     :where '[?save :save/title ?title]]
+                    {:order-by [[:title :asc]]}))))
+
+    ;; Tuple. We expect only one result, and indeed we only take one.
+    ;; No need for :distinct in this case!
+    (let [result (<? (d/<q (d/db conn)
+                           [:find '[?title]
+                            :in '$
+                            :where '[?save :save/title ?title]]
+                           {:order-by [[:title :asc]]}))]
+      (is (= ["A different page"] result)))
+
+    ;; Scalar. As with the tuple form, we expect only one result.
+    (let [result (<? (d/<q (d/db conn)
+                           [:find '?title '.
+                            :in '$
+                            :where '[?save :save/title ?title]]
+                           {:order-by [[:title :asc]]}))]
+      (is (= "A different page" result)))
+
+    ;; Collection.
+    (is (orderless=
+          ["Some page title" "A different page"]
+          (<? (d/<q (d/db conn)
+                    [:find '[?title ...]
+                     :in '$
+                     :where '[?save :save/title ?title]]
+                    {:order-by [[:title :desc]]}))))))
+
+(deftest-db test-tuple conn
+  (let [attrs (<? (<initialize-with-schema conn save-schema))]
+    (<? (d/<transact! conn
+                      [{:db/id (d/id-literal :db.part/user -1)
+                        :save/title "Some page title"
+                        :save/excerpt "Some page excerpt"}
+                       {:db/id (d/id-literal :db.part/user -2)
+                        :save/title "A different page"
+                        :save/excerpt "A different excerpt"}]))
+    (let [result (<? (d/<q (d/db conn)
+                           [:find '[?title ?excerpt]
+                            :in '$
+                            :where
+                            '[?save :save/title ?title]
+                            '[?save :save/excerpt ?excerpt]]))]
+      (is (or (= ["Some page title" "Some page excerpt"] result)
+              (= ["A different page" "A different excerpt"] result))))))

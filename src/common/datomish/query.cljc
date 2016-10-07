@@ -15,6 +15,7 @@
             BindScalar
             Constant
             DefaultSrc
+            FindRel FindColl FindTuple FindScalar
             Pattern
             Placeholder
             SrcVar
@@ -29,6 +30,7 @@
             BindScalar
             Constant
             DefaultSrc
+            FindRel FindColl FindTuple FindScalar
             Pattern
             Placeholder
             SrcVar
@@ -63,10 +65,17 @@
   (let [inner-projection (projection/sql-projection-for-relation context)
         inner
         (merge
-          ;; Always SELECT DISTINCT, because Datalog is set-based.
+          ;; If we're finding a collection or relations, we specify
+          ;; SELECT DISTINCT, because Datalog is set-based.
+          ;; If we're only selecting one result — a scalar or a tuple —
+          ;; then we don't bother.
+          ;;
           ;; TODO: determine from schema analysis whether we can avoid
-          ;; the need to do this.
-          {:modifiers [:distinct]}
+          ;; the need to do this even in the collection/relation case.
+          {:modifiers
+           (if (= 1 (:limit context))
+             []
+             [:distinct])}
           (clauses/cc->partial-subquery inner-projection (:cc context)))
 
         limit (:limit context)
@@ -134,6 +143,19 @@
     (raise "Invalid limit " limit {:limit limit}))
   (assoc context :limit limit :order-by-vars order-by))
 
+(defn find-spec->elements [find-spec]
+  (condp instance? find-spec
+    FindRel (:elements find-spec)
+    FindTuple (:elements find-spec)
+    FindScalar [(:element find-spec)]
+    FindColl [(:element find-spec)]
+    (raise "Unable to handle find spec." {:find-spec find-spec})))
+
+(defn find-spec->limit [find-spec]
+  (when (or (instance? FindScalar find-spec)
+            (instance? FindTuple find-spec))
+    1))
+
 (defn find-into-context
   "Take a parsed `find` expression and return a fully populated
   Context. You'll want this so you can get access to the
@@ -142,15 +164,37 @@
   (let [{:keys [find in with where]} find]  ; Destructure the Datalog query.
     (validate-with with)
     (validate-in in)
+
+    ;; A find spec can be:
+    ;;
+    ;;   * FindRel containing :elements. Returns an array of arrays.
+    ;;   * FindColl containing :element. This is like mapping (fn [row] (aget row 0))
+    ;;     over the result set. Returns an array of homogeneous values.
+    ;;   * FindScalar containing :element. Returns a single value.
+    ;;   * FindTuple containing :elements. This is just like :limit 1
+    ;;     on FindColl, returning the first item of the result array. Returns an
+    ;;     array of heterogeneous values.
+    ;;
+    ;; The code to handle these is:
+    ;;   - Just above, unifying a variable list in find-spec->elements.
+    ;;   - In context.cljc, checking whether a single value or collection is returned.
+    ;;   - In projection.cljc, transducing according to whether a single column or
+    ;;     multiple columns are assembled into the output.
+    ;;   - In db.cljc, where we finally take rows and decide what to push into an
+    ;;     output channel.
+
     (let [external-bindings (in->bindings in)
-          elements (:elements find)
+          elements (find-spec->elements find)
           known-types {}
           group-by-vars (projection/extract-group-by-vars elements with)]
-      (assoc context
-             :elements elements
-             :group-by-vars group-by-vars
-             :has-aggregates? (not (nil? group-by-vars))
-             :cc (clauses/patterns->cc (:default-source context) where known-types external-bindings)))))
+      (util/assoc-if
+        (assoc context
+               :find-spec find
+               :elements elements
+               :group-by-vars group-by-vars
+               :has-aggregates? (not (nil? group-by-vars))
+               :cc (clauses/patterns->cc (:default-source context) where known-types external-bindings))
+        :limit (find-spec->limit find)))))
 
 (defn find->sql-clause
   "Take a parsed `find` expression and turn it into a structured SQL

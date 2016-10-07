@@ -314,17 +314,12 @@
              rows)))))
 
 (defn <find-title [db url]
-  ;; Until we support [:find ?title . :in…] we crunch this by hand.
-  (go-pair
-    (first
-      (first
-        (<?
-          (d/<q db
-                '[:find ?title :in $ ?url
-                  :where
-                  [?page :page/url ?url]
-                  [(get-else $ ?page :page/title "") ?title]]
-                {:inputs {:url url}}))))))
+  (d/<q db
+        '[:find ?title . :in $ ?url
+          :where
+          [?page :page/url ?url]
+          [?page :page/title ?title]]
+        {:inputs {:url url}}))
 
 ;; Ensure that we can grow the schema over time.
 (deftest-db test-schema-evolution conn
@@ -384,7 +379,7 @@
     ;; Add a page with no title.
     (<? (<add-visit conn {:uri "http://notitle.example.org/"
                           :session session}))
-    (is (= "" (<? (<find-title (d/db conn) "http://notitle.example.org/"))))
+    (is (nil? (<? (<find-title (d/db conn) "http://notitle.example.org/"))))
     (let [only-one (<? (<visited (d/db conn) {:limit 1}))]
       (is (= 1 (count only-one)))
       (is (= (select-keys (first only-one)
@@ -483,9 +478,9 @@
   (let [results
         (<?
           (d/<q (d/db conn)
-                {:find '[?save]
-                 :in '[$]
-                 :where [[(list 'fulltext '$ #{:save/title :save/excerpt} "something")
-                          '[[?save]]]]}))]
-    (is (= (set (map first results))
+                [:find '[?save ...]
+                 :in '$
+                 :where [(list 'fulltext '$ #{:save/title :save/excerpt} "something")
+                         '[[?save]]]]))]
+    (is (= (set results)
            #{999 998}))))
