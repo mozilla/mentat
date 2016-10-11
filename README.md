@@ -188,4 +188,10 @@ To verify that importing into Node.js succeeds, run
 npm run test
 ```
 
+## To locally install for ClojureScript use
+
+```
+lein with-profile node install
+```
+
 Many thanks to ([David Nolen](https://github.com/swannodette)) and ([Nikita Prokopov](https://github.com/tonsky)) for demonstrating how to package ClojureScript for distribution via npm.
