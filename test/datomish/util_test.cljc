@@ -58,3 +58,20 @@
     (is (= 2 (deque/dequeue! d)))
     (is (= [] @d))
     (is (= nil (deque/dequeue! d)))))
+
+(deftest-async test-bottleneck
+  (let [xs (atom [])
+        ;; Synchronously record order to verify in-order invocation.
+        af (fn [x]
+             (swap! xs conj x)
+             (go (<! (a/timeout 20)) x))
+        ag (util/bottleneck af)
+        n  10]
+
+    ;; This waits for all the results but returns them in an undefined order:
+    ;; internally, merge uses alts!, which is non-deterministic.
+    (<! (a/into []
+                (a/merge
+                  (map ag (range n)))))
+    ;; Verify invocation order.
+    (is (= (range n) @xs))))

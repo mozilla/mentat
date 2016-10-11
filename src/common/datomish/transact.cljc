@@ -551,7 +551,7 @@
   (go-pair
     (:db-after (<? (<with db tx-data)))))
 
-(defn <transact!
+(defn -<transact!
   [conn tx-data]
   {:pre [(conn? conn)]}
   (let [db (db conn)] ;; TODO: be careful with swapping atoms.
@@ -561,3 +561,6 @@
          (let [report (<? (<with db tx-data))]
            (reset! (:current-db conn) (:db-after report))
            report)))))
+
+;; <transact! is its own critical section.
+(def <transact! (datomish.util/bottleneck -<transact!))
