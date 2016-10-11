@@ -3,9 +3,15 @@
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 (ns datomish.util
-  #?(:cljs (:require-macros datomish.util))
+  #?(:cljs
+     (:require-macros
+      [datomish.util]
+      [cljs.core.async.macros :refer [go go-loop]]))
   (:require
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [datomish.util.deque :as deque]
+   #?@(:clj [[clojure.core.async :as a :refer [go go-loop <! >!]]])
+   #?@(:cljs [[cljs.core.async :as a :refer [<! >!]]])))
 
 #?(:clj
    (defmacro raise-str
@@ -101,3 +107,35 @@
 
 (defn mapvals [f m]
   (into (empty m) (map #(vector (first %) (f (second %))) m)))
+
+(defn bottleneck
+  "Combinator to limit an async function `af`'s concurrency to no more
+  than one simultaneous evaluations.
+
+  Similar to https://github.com/edw/async.combinators/blob/d50c213f5588b4ebc809942f22c8e03f0014dc83/src/async/combinators.clj#L4."
+  [af]
+  (let [inited     (atom false)
+        token-chan (a/chan 1)
+        ;; We need to maintain invocation argument order manually because the take! from token-chan
+        ;; is non-deterministic.  That is, if multiple invocations are parked on take!, we have no
+        ;; guarantee that the chronologically first invocation unparks first.
+        ;;
+        ;; We really want an unbounded buffer here, but that's deliberately hard to arrange using
+        ;; core.async.  So we grow an unbounded deque instead.
+        args-deque (deque/deque)]
+    (fn [& args]
+      (deque/enqueue! args-deque args)
+      (go
+        ;; Populate token pool; don't close channel after population.
+        (when (compare-and-set! inited false true)
+          (>! token-chan (gensym "bottleneck-token")))
+        (let [token (<! token-chan)
+              ;; There's a core.async bug requiring this atom.
+              ;; See http://dev.clojure.org/jira/browse/ASYNC-180.
+              result (atom :invalid)]
+          (try
+            (when-let [args (deque/dequeue! args-deque)]
+              (reset! result (<! (apply af args))))
+            (finally
+              (>! token-chan token)))
+          @result)))))
