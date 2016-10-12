@@ -824,3 +824,78 @@
                             '[?save :save/excerpt ?excerpt]]))]
       (is (or (= ["Some page title" "Some page excerpt"] result)
               (= ["A different page" "A different excerpt"] result))))))
+
+(deftest-db test-or-join-real-world conn
+  ;; This tests the simplest cause of https://github.com/mozilla/datomish/issues/84.
+  (testing "or-join with fulltext expressions doesn't leak type_tag columns."
+    (let [attrs (<? (<initialize-with-schema
+                      conn
+                      (concat save-schema schema-with-page)))]
+      (is
+        (=
+          {:select (list
+                     [:datoms6.v :url]
+                     [{:select [(sql/call :coalesce
+                                          {:select [:v]
+                                           :from [:datoms]
+                                           :where [:and
+                                                   [:= 'a 65546]
+                                                   [:= 'e :orjoin0.page]]
+                                           :limit 1}
+                                          "")]
+                       :limit 1}
+                      :title])
+           :modifiers []
+           :from (list
+                   [{:union (list
+                              {:select '([:datoms2.e :page])
+                               :from '([:fulltext_values fulltext_values1] [:datoms datoms2])
+                               :where (list :and
+                                            [:match :fulltext_values1.fulltext_values (sql/param :str)]
+                                            [:= :datoms2.v :fulltext_values1.rowid]
+                                            (list :or [:= :datoms2.a (:page/url attrs)] [:= :datoms2.a (:page/title attrs)]))}
+                              {:select '([:datoms5.e :page])
+                               :from '([:fulltext_values fulltext_values3] [:datoms datoms4] [:datoms datoms5])
+                               :where (list :and
+                                            [:match :fulltext_values3.fulltext_values (sql/param :str)]
+                                            [:= :datoms4.v :fulltext_values3.rowid]
+                                            (list :or
+                                                  [:= :datoms4.a (:save/title attrs)]
+                                                  [:= :datoms4.a (:save/content attrs)]
+                                                  [:= :datoms4.a (:save/excerpt attrs)]
+                                                  )
+                                            [:= :datoms5.a (:page/save attrs)]
+                                            [:= :datoms4.e :datoms5.v])})}
+                    'orjoin0]
+                   '[:datoms datoms6])
+           :where (list :and
+                        [:= :datoms6.a (:page/url attrs)]
+                        [:= :orjoin0.page :datoms6.e])
+           :limit 1}
+
+          (expand
+            '[:find [?url ?title]
+              :in $ ?str
+              :where
+              (or-join [?page]
+                [(fulltext $ #{:page/url :page/title} ?str) [[?page]]]
+                (and
+                  [(fulltext $ #{:save/title :save/excerpt :save/content} ?str) [[?save]]]
+                  [?page :page/save ?save]))
+              [?page :page/url ?url]
+              [(get-else $ ?page :page/title "") ?title]]
+            conn))))))
+
+;; honeysql up to 0.8.2 includes parentheses around the arms of a
+;; UNION. This isn't acceptable to SQLite.
+;; See https://github.com/jkk/honeysql/pull/142.
+(deftest test-honeysql-union
+  (testing "UNION doesn't include surplus parentheses."
+    (is (= ["SELECT x FROM (SELECT x FROM abc UNION SELECT x FROM def) foo"]
+           (sql/format {:select ['x]
+                        :from (list [{:union (list
+                                               {:select ['x]
+                                                :from [:abc]}
+                                               {:select ['x]
+                                                :from [:def]})}
+                                     :foo])})))))
