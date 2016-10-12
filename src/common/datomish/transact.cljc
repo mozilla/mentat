@@ -103,8 +103,18 @@
 (declare start-transactor)
 
 (defn connection-with-db [db]
-  (let [connection
+  ;; Puts to listener-source may park if listener-mult can't distribute them fast enough.  Since the
+  ;; underlying taps are asserted to be be unblocking, the parking time should be very short.
+  (let [listener-source
+        (a/chan 1)
+
+        listener-mult
+        (a/mult listener-source) ;; Just for tapping.
+
+        connection
         (map->Connection {:current-db       (atom db)
+                          :listener-source  listener-source
+                          :listener-mult    listener-mult
                           :transact-chan    (a/chan (util/unlimited-buffer))
                           })]
     (start-transactor connection)
@@ -583,8 +593,49 @@
                                            #(-> (<with db tx-data))))]
                           ;; We only get here if the transaction is committed.
                           (reset! (:current-db conn) (:db-after report))
+                          (>! (:listener-source conn) report)
                           report)))]
               (>! result pair))
             (a/close! result)
             (>! token-chan token)
             (recur)))))))
+
+(defn listen-chan!
+  "Put reports successfully transacted against the given connection onto the given channel.
+
+  The listener sink channel must be unblocking.
+
+  Returns the channel listened to, for future unlistening."
+  [conn listener-sink]
+  {:pre [(conn? conn)]}
+  (when-not (util/unblocking-chan? listener-sink)
+    (raise "Listener sinks must be channels backed by unblocking buffers"
+           {:error :transact/bad-listener :listener-sink listener-sink}))
+  ;; Tapping an already registered sink is a no-op.
+  (a/tap (:listener-mult conn) listener-sink)
+  listener-sink)
+
+(defn- -listen-chan [f]
+  (let [c (a/chan (a/sliding-buffer 10))]
+    (go-loop []
+      (when-let [v (<! c)]
+        (do
+          (f v)
+          (recur))))
+    c))
+
+(defn listen!
+  "Evaluate the given function with reports successfully transacted against the given connection.
+
+  `f` should be a function of one argument, the transaction report.
+
+  Returns the channel listened to, for future calls to `unlisten-chan!`."
+  ([conn f]
+   {:pre [(fn? f)]}
+   (listen-chan! conn (-listen-chan f))))
+
+(defn unlisten-chan! [conn listener-sink]
+  "Stop putting reports successfully transacted against the given connection onto the given channel."
+  {:pre [(conn? conn)]}
+  ;; Untapping an un-registered sink is a no-op.
+  (a/untap (:listener-mult conn) listener-sink))
