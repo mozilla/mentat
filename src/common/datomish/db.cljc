@@ -691,7 +691,7 @@
                   (apply str "WITH t(searchid, a, v, value_type_tag) AS (VALUES "
                          (apply str (repeater (count chunk))) ;; TODO: join?
                          ") SELECT t.searchid, d.e
-                           FROM t, datoms AS d
+                           FROM t, all_datoms AS d
                            WHERE d.index_avet IS NOT 0 AND d.a = t.a AND d.value_type_tag = t.value_type_tag AND d.v = t.v")
 
                   ;; Bindings.

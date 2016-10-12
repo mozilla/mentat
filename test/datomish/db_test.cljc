@@ -932,6 +932,37 @@
             ExceptionInfo #"Lookup-ref found with non-unique-identity attribute"
             (<? (d/<transact! conn [[:db/add 1 :friends (d/lookup-ref :aka "The Magician")]])))))))
 
+(deftest-db test-fulltext-lookup-refs conn
+  (let [schema [{:db/id (d/id-literal :db.part/db -1)
+                 :db/ident :test/fulltext
+                 :db/valueType :db.type/string
+                 :db/fulltext true
+                 :db/unique :db.unique/identity}
+                {:db/id :db.part/db :db.install/attribute (d/id-literal :db.part/db -1)}
+                {:db/id (d/id-literal :db.part/db -2)
+                 :db/ident :test/other
+                 :db/valueType :db.type/string
+                 :db/fulltext true
+                 :db/cardinality :db.cardinality/one}
+                {:db/id :db.part/db :db.install/attribute (d/id-literal :db.part/db -2)}
+                ]
+        tx0 (:tx (<? (d/<transact! conn schema)))]
+
+    (testing "Can look up fulltext refs"
+      (<? (d/<transact! conn [[:db/add 101 :test/fulltext "test this"]]))
+
+      (let [{tx :tx} (<? (d/<transact! conn [{:db/id (d/lookup-ref :test/fulltext "test this") :test/other "test other"}]))]
+        (is (= (<? (<fulltext-values (d/db conn)))
+               [[1 "test this"]
+                [2 "test other"]]))
+        (is (= #{[101 :test/other 2]} ;; Values are raw; 2 is the rowid into fulltext_values.
+               (<? (<datoms>= (d/db conn) tx))))))
+
+    (testing "Fails for missing fulltext entities"
+      (is (thrown-with-msg?
+            ExceptionInfo #"No entity found for lookup-ref"
+            (<? (d/<transact! conn [[:db/add (d/lookup-ref :test/fulltext "not found") :test/other "test random"]])))))))
+
 #_ (time (t/run-tests))
 
 #_ (time (clojure.test/test-vars [#'test-lookup-refs]))
