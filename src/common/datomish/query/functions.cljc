@@ -146,7 +146,8 @@
         from [[fulltext-table fulltext-alias]
               [datom-table datom-alias]]
 
-        extracted-types {}    ; TODO
+        extracted-types {}                               ; TODO
+        known-types     {entity :db.type/ref}            ; All entities are refs.
 
         wheres (concat
                  [[:match match-column match-value]      ; The FTS match.
@@ -181,7 +182,7 @@
                           ;; if this is a variable rather than a placeholder.
                           [score [0]]]))]
 
-    (cc/augment-cc cc from bindings extracted-types wheres)))
+    (cc/augment-cc cc from bindings known-types extracted-types wheres)))
 
 ;; get-else is how Datalog handles optional attributes.
 ;;
