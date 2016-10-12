@@ -6,7 +6,7 @@
   #?(:cljs
      (:require-macros
       [datomish.pair-chan :refer [go-pair <?]]
-      [cljs.core.async.macros :refer [go]]))
+      [cljs.core.async.macros :refer [go go-loop]]))
   (:require
    [datomish.query.context :as context]
    [datomish.query.projection :as projection]
@@ -25,7 +25,7 @@
    [taoensso.tufte :as tufte
     #?(:cljs :refer-macros :clj :refer) [defnp p profiled profile]]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
-             [clojure.core.async :as a :refer [chan go <! >!]]])
+             [clojure.core.async :as a :refer [chan go go-loop <! >!]]])
    #?@(:cljs [[datomish.pair-chan]
               [cljs.core.async :as a :refer [chan <! >!]]]))
   #?(:clj
@@ -45,9 +45,11 @@
     [conn]
     "Get the full transaction history DB associated with this connection."))
 
-(defrecord Connection [current-db]
+(defrecord Connection [current-db transact-chan]
   IConnection
-  (close [conn] (db/close-db @(:current-db conn)))
+  (close [conn]
+    (a/close! (:transact-chan conn))
+    (db/close-db @(:current-db conn)))
 
   (db [conn] @(:current-db conn))
 
@@ -98,12 +100,15 @@
 ;; #?(:cljs
 ;;    (doseq [[tag cb] data-readers] (cljs.reader/register-tag-parser! tag cb)))
 
-;; TODO: implement support for DB parts?
+(declare start-transactor)
 
 (defn connection-with-db [db]
-  (map->Connection {:current-db (atom db)}))
-
-;; ;; TODO: persist max-tx and max-eid in SQLite.
+  (let [connection
+        (map->Connection {:current-db       (atom db)
+                          :transact-chan    (a/chan (util/unlimited-buffer))
+                          })]
+    (start-transactor connection)
+    connection))
 
 (defn maybe-datom->entity [entity]
   (cond
@@ -552,12 +557,34 @@
     (:db-after (<? (<with db tx-data)))))
 
 (defn <transact!
+  "Submits a transaction to the database for writing.
+
+  Returns a pair-chan resolving to `[result error]`."
   [conn tx-data]
   {:pre [(conn? conn)]}
-  (let [db (db conn)] ;; TODO: be careful with swapping atoms.
-    (db/in-transaction!
-      db
-      #(go-pair
-         (let [report (<? (<with db tx-data))]
-           (reset! (:current-db conn) (:db-after report))
-           report)))))
+  (let [result (a/chan 1)]
+    ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
+    ;; because the parked putter that is woken is non-deterministic.
+    (a/put! (:transact-chan conn) [tx-data result])
+    result))
+
+(defn- start-transactor [conn]
+  (let [token-chan (a/chan 1)]
+    (go
+      (>! token-chan (gensym "transactor-token"))
+      (loop []
+        (let [token (<! token-chan)]
+          (when-let [[tx-data result] (<! (:transact-chan conn))]
+            (let [pair
+                  (<! (go-pair ;; Catch exceptions, return the pair.
+                        (let [db (db conn)
+                              report (<? (db/in-transaction!
+                                           db
+                                           #(-> (<with db tx-data))))]
+                          ;; We only get here if the transaction is committed.
+                          (reset! (:current-db conn) (:db-after report))
+                          report)))]
+              (>! result pair))
+            (a/close! result)
+            (>! token-chan token)
+            (recur)))))))
