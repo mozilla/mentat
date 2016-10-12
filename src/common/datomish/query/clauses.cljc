@@ -469,12 +469,15 @@
           bindings (into {} (map (fn [var]
                                    (let [sym (:symbol var)]
                                      [sym [(sql/qualify alias (util/var->sql-var sym))]]))
-                                 free-vars))]
+                                 free-vars))
+
+          known-types
+          (reduce cc/combine-known-types {} (map :known-types ccs))]
 
       (cc/map->ConjoiningClauses
         {:source source
          :from [[subqueries alias]]
-         :known-types (apply merge (map :known-types ccs))
+         :known-types known-types
          :extracted-types (apply merge (map :extracted-types ccs))
          :external-bindings {}       ; No need: caller will merge.
          :bindings bindings

@@ -132,10 +132,18 @@
                      [:= (sql/qualify table-alias (name :v))
                          (constant-in-source (:source cc) value)]])))
 
-(defn augment-cc [cc from bindings extracted-types wheres]
+(defn combine-known-types [left right]
+  (merge-with (fn [lt rt]
+                (if (= lt rt)
+                  lt
+                  (raise "Incompatible types: " lt " != " rt {:types [lt rt]})))
+              left right))
+
+(defn augment-cc [cc from bindings known-types extracted-types wheres]
   (assoc cc
          :from (concat (:from cc) from)
          :bindings (merge-with concat (:bindings cc) bindings)
+         :known-types (combine-known-types (:known-types cc) known-types)
          :extracted-types (merge (:extracted-types cc) extracted-types)
          :wheres (concat (:wheres cc) wheres)))
 
@@ -143,6 +151,7 @@
   (augment-cc left
               (:from right)
               (:bindings right)
+              (:known-types right)
               (:extracted-types right)
               (:wheres right)))
 
