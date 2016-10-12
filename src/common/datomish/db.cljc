@@ -121,10 +121,6 @@
   (<bootstrapped? [db]
     "Return true if this database has no transactions yet committed.")
 
-  (<av
-    [db a v]
-    "Search for a single matching datom using the AVET index.")
-
   (<avs
     [db avs]
     "Search for many matching datoms using the AVET index.
@@ -641,25 +637,6 @@
         (first)
         (:bootstrapped)
         (not= 0))))
-
-  (<av [db a v]
-    (let [schema (.-schema db) ;; TODO: understand why (schema db) fails.
-          a (entid db a)
-          [v tag] (ds/->SQLite schema a v)
-          yield-datom
-          (fn [rows]
-            (when-let [row (first rows)]
-              (row->Datom schema row)))]
-      (go-pair
-        (->>
-          ;; TODO: generalize columns.
-          ["SELECT e, a, v, tx, 1 AS added FROM all_datoms
-           WHERE index_avet = 1 AND a = ? AND value_type_tag = ? AND v = ?
-           LIMIT 1" a tag v]
-
-          (s/all-rows (:sqlite-connection db))
-          <?
-          yield-datom))))
 
   (<avs
     [db avs]
