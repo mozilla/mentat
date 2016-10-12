@@ -9,7 +9,7 @@
    datomish.schema-test
    datomish.sqlite-user-version-test
    datomish.tofinoish-test
-   datomish.test.util
+   datomish.util-test
    datomish.test.transforms
    datomish.test.query
    datomish.test-macros-test
@@ -23,7 +23,7 @@
   'datomish.schema-test
   'datomish.sqlite-user-version-test
   'datomish.tofinoish-test
-  'datomish.test.util
+  'datomish.util-test
   'datomish.test.transforms
   'datomish.test.query
   'datomish.test-macros-test)

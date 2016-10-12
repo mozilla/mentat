@@ -1,9 +1,9 @@
-(ns datomish.test.util
+(ns datomish.util-test
   (:require
-     [datomish.util :as util]
-     #?(:clj  [clojure.test :as t :refer [is are deftest testing]])
-     #?(:cljs [cljs.test :as t :refer-macros [is are deftest testing]])
-     ))
+   [datomish.util :as util]
+   #?(:clj  [clojure.test :as t :refer [is are deftest testing]])
+   #?(:cljs [cljs.test :as t :refer-macros [is are deftest testing]])
+   ))
 
 (deftest test-var-translation
   (is (= :x (util/var->sql-var '?x)))
