@@ -242,4 +242,40 @@
       ;; Closing a closed connection is a no-op.
       (<? (d/<close conn)))))
 
+;; We don't use deftest-db in order to be able to close the connection ourselves.
+(deftest-async test-transact-queued-before-close
+  (with-tempfile [t (tempfile)]
+    (let [conn      (<? (d/<connect t))
+          {tx0 :tx} (<? (d/<transact! conn test-schema))
+
+          n      100
+          make-t (fn [i]
+                   (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1)
+                                        :name  "Petr"
+                                        :email (str "@" i)}]))]
+      (try
+        (testing "close while outstanding transactions are pending"
+          ;; It's not really possible to ensure that at least one of the transactions is not
+          ;; serviced before we close, so we just start "a lot" and wait for them all to resolve.
+          (let [ts (mapv make-t (range n))]
+            ;; Give a little time for some to succeed, and then wait for one, non-deterministically.
+            (<! (a/timeout 10))
+            (a/alts! ts)
+            (<? (d/<close conn))
+
+            ;; We should have some successes and some failures.
+            (let [ps    (a/into []
+                                (a/merge ;; pair-chan's never stop providing values; use take to force close.
+                                  (map (partial a/take 1) ts)))
+                  rs    (group-by (comp some? second) (<! ps))
+                  xs    (get rs false)
+                  es    (get rs true)
+                  [v e] (first es)]
+              (is (> (count xs) 0))
+              (is (> (count es) 0))
+              (is (= {:error :transact/connection-closed} (ex-data e))))))
+        (finally
+          ;; Closing a closed connection is a no-op.
+          (<? (d/<close conn)))))))
+
 #_ (time (t/run-tests))
