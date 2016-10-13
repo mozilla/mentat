@@ -221,4 +221,25 @@
       (is (= (<? (<datoms-after (d/db conn) tx0))
              #{[101 :name "Petr"]})))))
 
+;; We don't use deftest-db in order to be able to close the connection ourselves.
+(deftest-async test-transact-after-close
+  (with-tempfile [t (tempfile)]
+    (let [conn (<? (d/<connect t))
+          {tx0 :tx} (<? (d/<transact! conn test-schema))]
+      (try
+        (testing "transaction before close is applied"
+          (<? (d/<transact! conn [{:db/id 101 :name "Petr"}]))
+          (is (= (<? (<datoms-after (d/db conn) tx0))
+                 #{[101 :name "Petr"]})))
+        (finally
+          (<? (d/<close conn))))
+
+      (testing "transact after close throws"
+        (is (thrown-with-msg?
+              ExceptionInfo #"Connection is closed"
+              (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :name "Petr"}])))))
+
+      ;; Closing a closed connection is a no-op.
+      (<? (d/<close conn)))))
+
 #_ (time (t/run-tests))
