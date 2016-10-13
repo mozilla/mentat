@@ -1,9 +1,14 @@
-(ns datomish.test.util
+(ns datomish.util-test
+  #?(:cljs
+     (:require-macros
+      [cljs.core.async.macros :as a :refer [go go-loop]]))
   (:require
-     [datomish.util :as util]
-     #?(:clj  [clojure.test :as t :refer [is are deftest testing]])
-     #?(:cljs [cljs.test :as t :refer-macros [is are deftest testing]])
-     ))
+   [datomish.util :as util]
+   #?@(:clj [[clojure.test :as t :refer [is are deftest testing]]
+             [clojure.core.async :as a :refer [go go-loop <! >!]]])
+
+   #?@(:cljs [[cljs.test :as t :refer-macros [is are deftest testing]]
+              [cljs.core.async :as a :refer [<! >!]]])))
 
 (deftest test-var-translation
   (is (= :x (util/var->sql-var '?x)))
@@ -35,3 +40,9 @@
              (catch :default e e))]
        (is (= "succeed" (aget caught "message")))
        (is (= {:foo 1} (aget caught "data"))))))
+
+(deftest test-unblocking-chan?
+  (is (util/unblocking-chan? (a/chan (a/dropping-buffer 10))))
+  (is (util/unblocking-chan? (a/chan (a/sliding-buffer 10))))
+  (is (util/unblocking-chan? (a/chan (util/unlimited-buffer))))
+  (is (not (util/unblocking-chan? (a/chan (a/buffer 10))))))

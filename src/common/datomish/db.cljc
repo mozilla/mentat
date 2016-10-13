@@ -111,9 +111,12 @@
 
   (in-transaction!
     [db chan-fn]
-    "Evaluate the given pair-chan `chan-fn` in an exclusive transaction. If it returns non-nil,
-    commit the transaction; otherwise, rollback the transaction.  Returns a pair-chan resolving to
-    the pair-chan returned by `chan-fn`.")
+    "Evaluate the given `chan-fn` in an exclusive transaction. If it returns non-nil,
+    commit the transaction; otherwise, rollback the transaction.
+
+    `chan-fn` should be a function of no arguments returning a pair-chan.
+
+    Returns a pair-chan resolving to the same pair as the pair-chan returned by `chan-fn`.")
 
   (<bootstrapped? [db]
     "Return true if this database has no transactions yet committed.")
@@ -818,14 +821,14 @@
    (<?q db find {}))
   ([db find options]
    (let [unexpected (seq (clojure.set/difference (set (keys options)) #{:limit :order-by :inputs}))]
-    (when unexpected
-      (raise "Unexpected options: " unexpected {:bad-options unexpected})))
+     (when unexpected
+       (raise "Unexpected options: " unexpected {:bad-options unexpected})))
    (let [{:keys [limit order-by inputs]} options
          parsed (query/parse find)
          context (-> db
-                   query-context
-                   (query/options-into-context limit order-by)
-                   (query/find-into-context parsed))
+                     query-context
+                     (query/options-into-context limit order-by)
+                     (query/find-into-context parsed))
 
          ;; We turn each row into either an array of values or an unadorned
          ;; value. The row-pair-transducer does this work.
