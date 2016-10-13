@@ -1,4 +1,4 @@
-(defproject datomish "0.1.1-SNAPSHOT"
+(defproject datomish "0.1.2-SNAPSHOT"
   :description "A persistent, embedded knowledge base inspired by Datomic and DataScript."
   :url "https://github.com/mozilla/datomish"
   :license {:name "Mozilla Public License Version 2.0"
@@ -17,7 +17,7 @@
                  ;; Can't be enabled by default: layers on top of cljsbuild!
                  ;; Instead, add the :node profile:
                  ;;   lein with-profile node install
-                 ;"src/node"
+                 ;; "src/node"
                  ]
 
   :cljsbuild {:builds
