@@ -35,7 +35,9 @@
 (defprotocol IConnection
   (close
     [conn]
-    "Close this connection. Returns a pair channel of [nil error].")
+    "Close this connection. Returns a pair channel of [nil error].
+
+    Closing a closed connection is a no-op.")
 
   (db
     [conn]
@@ -45,11 +47,15 @@
     [conn]
     "Get the full transaction history DB associated with this connection."))
 
-(defrecord Connection [current-db transact-chan]
+(defrecord Connection [closed? current-db transact-chan]
   IConnection
   (close [conn]
-    (a/close! (:transact-chan conn))
-    (db/close-db @(:current-db conn)))
+    (if (compare-and-set! (:closed? conn) false true)
+      (do
+        ;; This immediately stops <transact! enqueueing new work.
+        (a/close! (:transact-chan conn))
+        (db/close-db @(:current-db conn)))
+      (go [nil nil])))
 
   (db [conn] @(:current-db conn))
 
@@ -112,7 +118,8 @@
         (a/mult listener-source) ;; Just for tapping.
 
         connection
-        (map->Connection {:current-db       (atom db)
+        (map->Connection {:closed?          (atom false)
+                          :current-db       (atom db)
                           :listener-source  listener-source
                           :listener-mult    listener-mult
                           :transact-chan    (a/chan (util/unlimited-buffer))
@@ -576,10 +583,12 @@
    {:pre [(conn? conn)]}
    ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
    ;; because the parked putter that is woken is non-deterministic.
-   (a/put! (:transact-chan conn) [tx-data result close?])
-   (go-pair
-     ;; We want to return a pair-chan, no matter what kind of channel result is.
-     (<? result))))
+   (let [closed? (not (a/put! (:transact-chan conn) [tx-data result close?]))]
+     (go-pair
+       ;; We want to return a pair-chan, no matter what kind of channel result is.
+       (if closed?
+         (raise "Connection is closed" {:error :transact/connection-closed})
+         (<? result))))))
 
 (defn- start-transactor [conn]
   (let [token-chan (a/chan 1)]
