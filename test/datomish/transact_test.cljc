@@ -98,8 +98,8 @@
 
     ;; Wait for all transactions to complete.
     (<! (a/into []
-                (a/merge
-                  (map make-t (range n)))))
+                (a/merge ;; pair-chan's never stop providing values; use take to force close.
+                  (map #(a/take 1 (make-t %)) (range n)))))
 
     ;; Transactions should be processed in order.  This is an awkward way to
     ;; express the expected data, but it's robust in the face of changing default

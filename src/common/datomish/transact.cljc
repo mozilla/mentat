@@ -570,13 +570,16 @@
   "Submits a transaction to the database for writing.
 
   Returns a pair-chan resolving to `[result error]`."
-  [conn tx-data]
-  {:pre [(conn? conn)]}
-  (let [result (a/chan 1)]
-    ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
-    ;; because the parked putter that is woken is non-deterministic.
-    (a/put! (:transact-chan conn) [tx-data result])
-    result))
+  ([conn tx-data]
+   (<transact! conn tx-data (a/chan 1) true))
+  ([conn tx-data result close?]
+   {:pre [(conn? conn)]}
+   ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
+   ;; because the parked putter that is woken is non-deterministic.
+   (a/put! (:transact-chan conn) [tx-data result close?])
+   (go-pair
+     ;; We want to return a pair-chan, no matter what kind of channel result is.
+     (<? result))))
 
 (defn- start-transactor [conn]
   (let [token-chan (a/chan 1)]
@@ -584,7 +587,7 @@
       (>! token-chan (gensym "transactor-token"))
       (loop []
         (let [token (<! token-chan)]
-          (when-let [[tx-data result] (<! (:transact-chan conn))]
+          (when-let [[tx-data result close?] (<! (:transact-chan conn))]
             (let [pair
                   (<! (go-pair ;; Catch exceptions, return the pair.
                         (let [db (db conn)
@@ -596,8 +599,9 @@
                           (>! (:listener-source conn) report)
                           report)))]
               (>! result pair))
-            (a/close! result)
             (>! token-chan token)
+            (when close?
+              (a/close! result))
             (recur)))))))
 
 (defn listen-chan!
