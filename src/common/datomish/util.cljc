@@ -3,9 +3,16 @@
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 (ns datomish.util
-  #?(:cljs (:require-macros datomish.util))
+  #?(:cljs
+     (:require-macros
+      [datomish.util]
+      [cljs.core.async.macros :refer [go go-loop]]))
   (:require
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   #?@(:clj [[clojure.core.async :as a :refer [go go-loop <! >!]]
+             [clojure.core.async.impl.protocols]])
+   #?@(:cljs [[cljs.core.async :as a :refer [<! >!]]
+              [cljs.core.async.impl.protocols]])))
 
 #?(:clj
    (defmacro raise-str
@@ -101,3 +108,49 @@
 
 (defn mapvals [f m]
   (into (empty m) (map #(vector (first %) (f (second %))) m)))
+
+(defn unblocking-chan?
+  "Returns true if the channel will never block. That is to say, puts
+  into this channel will never cause the buffer to be full."
+  [chan]
+  (a/unblocking-buffer?
+    ;; See http://dev.clojure.org/jira/browse/ASYNC-181.
+    (#?(:cljs .-buf :clj .buf) chan)))
+
+;; Modified from http://dev.clojure.org/jira/browse/ASYNC-23.
+#?(:cljs
+   (deftype UnlimitedBuffer [buf]
+     cljs.core.async.impl.protocols/UnblockingBuffer
+
+     cljs.core.async.impl.protocols/Buffer
+     (full? [this]
+       false)
+     (remove! [this]
+       (.pop buf))
+     (add!* [this itm]
+       (.unshift buf itm))
+     (close-buf! [this])
+
+     cljs.core/ICounted
+     (-count [this]
+       (.-length buf))))
+
+#?(:clj
+   (deftype UnlimitedBuffer [^java.util.LinkedList buf]
+     clojure.core.async.impl.protocols/UnblockingBuffer
+
+     clojure.core.async.impl.protocols/Buffer
+     (full? [this]
+       false)
+     (remove! [this]
+       (.removeLast buf))
+     (add!* [this itm]
+       (.addFirst buf itm))
+     (close-buf! [this])
+
+     clojure.lang.Counted
+     (count [this]
+       (.size buf))))
+
+(defn unlimited-buffer []
+  (UnlimitedBuffer. #?(:cljs (array) :clj (java.util.LinkedList.))))

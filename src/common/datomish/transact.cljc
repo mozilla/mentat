@@ -6,7 +6,7 @@
   #?(:cljs
      (:require-macros
       [datomish.pair-chan :refer [go-pair <?]]
-      [cljs.core.async.macros :refer [go]]))
+      [cljs.core.async.macros :refer [go go-loop]]))
   (:require
    [datomish.query.context :as context]
    [datomish.query.projection :as projection]
@@ -25,7 +25,7 @@
    [taoensso.tufte :as tufte
     #?(:cljs :refer-macros :clj :refer) [defnp p profiled profile]]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
-             [clojure.core.async :as a :refer [chan go <! >!]]])
+             [clojure.core.async :as a :refer [chan go go-loop <! >!]]])
    #?@(:cljs [[datomish.pair-chan]
               [cljs.core.async :as a :refer [chan <! >!]]]))
   #?(:clj
@@ -35,7 +35,9 @@
 (defprotocol IConnection
   (close
     [conn]
-    "Close this connection. Returns a pair channel of [nil error].")
+    "Close this connection. Returns a pair channel of [nil error].
+
+    Closing a closed connection is a no-op.")
 
   (db
     [conn]
@@ -45,9 +47,21 @@
     [conn]
     "Get the full transaction history DB associated with this connection."))
 
-(defrecord Connection [current-db]
+(defrecord Connection [closed? current-db transact-chan]
   IConnection
-  (close [conn] (db/close-db @(:current-db conn)))
+  (close [conn]
+    (go-pair ;; Always want to return a pair-chan.
+      (when (compare-and-set! (:closed? conn) false true)
+        (let [result (a/chan 1)]
+          ;; Ask for the underlying database to be closed while (usually, after) draining the queue.
+          ;; Invariant: we see :sentinel-close in the transactor queue at most once.
+          (a/put! (:transact-chan conn) [:sentinel-close nil result true])
+          ;; This immediately stops <transact! enqueueing new transactions.
+          (a/close! (:transact-chan conn))
+          ;; The transactor will close the underlying DB after draining the queue; by waiting for
+          ;; result, we can raise any error from closing the DB and ensure that the DB is really
+          ;; closed after waiting for the connection to close.
+          (<? result)))))
 
   (db [conn] @(:current-db conn))
 
@@ -98,12 +112,26 @@
 ;; #?(:cljs
 ;;    (doseq [[tag cb] data-readers] (cljs.reader/register-tag-parser! tag cb)))
 
-;; TODO: implement support for DB parts?
+(declare start-transactor)
 
 (defn connection-with-db [db]
-  (map->Connection {:current-db (atom db)}))
+  ;; Puts to listener-source may park if listener-mult can't distribute them fast enough.  Since the
+  ;; underlying taps are asserted to be be unblocking, the parking time should be very short.
+  (let [listener-source
+        (a/chan 1)
 
-;; ;; TODO: persist max-tx and max-eid in SQLite.
+        listener-mult
+        (a/mult listener-source) ;; Just for tapping.
+
+        connection
+        (map->Connection {:closed?          (atom false)
+                          :current-db       (atom db)
+                          :listener-source  listener-source
+                          :listener-mult    listener-mult
+                          :transact-chan    (a/chan (util/unlimited-buffer))
+                          })]
+    (start-transactor connection)
+    connection))
 
 (defn maybe-datom->entity [entity]
   (cond
@@ -552,12 +580,99 @@
     (:db-after (<? (<with db tx-data)))))
 
 (defn <transact!
-  [conn tx-data]
+  "Submits a transaction to the database for writing.
+
+  Returns a pair-chan resolving to `[result error]`."
+  ([conn tx-data]
+   (<transact! conn tx-data (a/chan 1) true))
+  ([conn tx-data result close?]
+   {:pre [(conn? conn)]}
+   ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
+   ;; because the parked putter that is woken is non-deterministic.
+   (let [closed? (not (a/put! (:transact-chan conn) [:sentinel-transact tx-data result close?]))]
+     (go-pair
+       ;; We want to return a pair-chan, no matter what kind of channel result is.
+       (if closed?
+         (raise "Connection is closed" {:error :transact/connection-closed})
+         (<? result))))))
+
+(defn- start-transactor [conn]
+  (let [token-chan (a/chan 1)]
+    (go
+      (>! token-chan (gensym "transactor-token"))
+      (loop []
+        (when-let [token (<! token-chan)]
+          (when-let [[sentinel tx-data result close?] (<! (:transact-chan conn))]
+            (let [pair
+                  (<! (go-pair ;; Catch exceptions, return the pair.
+                        (case sentinel
+                          :sentinel-close
+                          ;; Time to close the underlying DB.
+                          (<? (db/close-db @(:current-db conn)))
+
+                          ;; Default: process the transaction.
+                          (do
+                            (when @(:closed? conn)
+                              ;; Drain enqueued transactions.
+                              (raise "Connection is closed" {:error :transact/connection-closed}))
+                            (let [db (db conn)
+                                  report (<? (db/in-transaction!
+                                               db
+                                               #(-> (<with db tx-data))))]
+                              (when report
+                                ;; <with returns non-nil or throws, but we still check report just in
+                                ;; case.  Here, in-transaction! function completed and returned non-nil,
+                                ;; so the transaction has committed.
+                                (reset! (:current-db conn) (:db-after report))
+                                (>! (:listener-source conn) report))
+                              report)))))]
+              ;; Even when report is nil (transaction not committed), pair is non-nil.
+              (>! result pair))
+            (>! token-chan token)
+            (when close?
+              (a/close! result))
+            (recur)))))))
+
+(defn listen-chan!
+  "Put reports successfully transacted against the given connection onto the given channel.
+
+  The listener sink channel must be unblocking.
+
+  Returns the channel listened to, for future unlistening."
+  [conn listener-sink]
   {:pre [(conn? conn)]}
-  (let [db (db conn)] ;; TODO: be careful with swapping atoms.
-    (db/in-transaction!
-      db
-      #(go-pair
-         (let [report (<? (<with db tx-data))]
-           (reset! (:current-db conn) (:db-after report))
-           report)))))
+  (when-not (util/unblocking-chan? listener-sink)
+    (raise "Listener sinks must be channels backed by unblocking buffers"
+           {:error :transact/bad-listener :listener-sink listener-sink}))
+  ;; Tapping an already registered sink is a no-op.
+  (a/tap (:listener-mult conn) listener-sink)
+  listener-sink)
+
+(defn- -listen-chan
+  [f n]
+  (let [c (a/chan (a/dropping-buffer n))]
+    (go-loop []
+      (when-let [v (<! c)]
+        (do
+          (f v)
+          (recur))))
+    c))
+
+(defn listen!
+  "Evaluate the given function with reports successfully transacted against the given connection.
+
+  `f` should be a function of one argument, the transaction report.
+
+  Returns the channel listened to, for future calls to `unlisten-chan!`."
+  ([conn f]
+   ;; Decently large buffer before dropping, for JS consumers.
+   (listen! conn f 1024))
+  ([conn f n]
+   {:pre [(fn? f) (pos? n)]}
+   (listen-chan! conn (-listen-chan f n))))
+
+(defn unlisten-chan! [conn listener-sink]
+  "Stop putting reports successfully transacted against the given connection onto the given channel."
+  {:pre [(conn? conn)]}
+  ;; Untapping an un-registered sink is a no-op.
+  (a/untap (:listener-mult conn) listener-sink))

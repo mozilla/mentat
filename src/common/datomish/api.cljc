@@ -26,6 +26,10 @@
 
 (def <transact! transact/<transact!)
 
+(def listen! transact/listen!)
+(def listen-chan! transact/listen-chan!)
+(def unlisten-chan! transact/unlisten-chan!)
+
 ;; TODO: use Potemkin, or a subset of Potemkin that is CLJS friendly (like
 ;; https://github.com/ztellman/potemkin/issues/31) to improve this re-exporting process.
 (def <close transact/close)
