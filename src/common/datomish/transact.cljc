@@ -50,12 +50,18 @@
 (defrecord Connection [closed? current-db transact-chan]
   IConnection
   (close [conn]
-    (if (compare-and-set! (:closed? conn) false true)
-      (do
-        ;; This immediately stops <transact! enqueueing new work.
-        (a/close! (:transact-chan conn))
-        (db/close-db @(:current-db conn)))
-      (go [nil nil])))
+    (go-pair ;; Always want to return a pair-chan.
+      (when (compare-and-set! (:closed? conn) false true)
+        (let [result (a/chan 1)]
+          ;; Ask for the underlying database to be closed while (usually, after) draining the queue.
+          ;; Invariant: we see :sentinel-close in the transactor queue at most once.
+          (a/put! (:transact-chan conn) [:sentinel-close nil result true])
+          ;; This immediately stops <transact! enqueueing new transactions.
+          (a/close! (:transact-chan conn))
+          ;; The transactor will close the underlying DB after draining the queue; by waiting for
+          ;; result, we can raise any error from closing the DB and ensure that the DB is really
+          ;; closed after waiting for the connection to close.
+          (<? result)))))
 
   (db [conn] @(:current-db conn))
 
@@ -583,7 +589,7 @@
    {:pre [(conn? conn)]}
    ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
    ;; because the parked putter that is woken is non-deterministic.
-   (let [closed? (not (a/put! (:transact-chan conn) [tx-data result close?]))]
+   (let [closed? (not (a/put! (:transact-chan conn) [:sentinel-transact tx-data result close?]))]
      (go-pair
        ;; We want to return a pair-chan, no matter what kind of channel result is.
        (if closed?
@@ -596,20 +602,30 @@
       (>! token-chan (gensym "transactor-token"))
       (loop []
         (when-let [token (<! token-chan)]
-          (when-let [[tx-data result close?] (<! (:transact-chan conn))]
+          (when-let [[sentinel tx-data result close?] (<! (:transact-chan conn))]
             (let [pair
                   (<! (go-pair ;; Catch exceptions, return the pair.
-                        (let [db (db conn)
-                              report (<? (db/in-transaction!
-                                           db
-                                           #(-> (<with db tx-data))))]
-                          (when report
-                            ;; <with returns non-nil or throws, but we still check report just in
-                            ;; case.  Here, in-transaction! function completed and returned non-nil,
-                            ;; so the transaction has committed.
-                            (reset! (:current-db conn) (:db-after report))
-                            (>! (:listener-source conn) report))
-                          report)))]
+                        (case sentinel
+                          :sentinel-close
+                          ;; Time to close the underlying DB.
+                          (<? (db/close-db @(:current-db conn)))
+
+                          ;; Default: process the transaction.
+                          (do
+                            (when @(:closed? conn)
+                              ;; Drain enqueued transactions.
+                              (raise "Connection is closed" {:error :transact/connection-closed}))
+                            (let [db (db conn)
+                                  report (<? (db/in-transaction!
+                                               db
+                                               #(-> (<with db tx-data))))]
+                              (when report
+                                ;; <with returns non-nil or throws, but we still check report just in
+                                ;; case.  Here, in-transaction! function completed and returned non-nil,
+                                ;; so the transaction has committed.
+                                (reset! (:current-db conn) (:db-after report))
+                                (>! (:listener-source conn) report))
+                              report)))))]
               ;; Even when report is nil (transaction not committed), pair is non-nil.
               (>! result pair))
             (>! token-chan token)
