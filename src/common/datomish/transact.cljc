@@ -586,7 +586,7 @@
     (go
       (>! token-chan (gensym "transactor-token"))
       (loop []
-        (let [token (<! token-chan)]
+        (when-let [token (<! token-chan)]
           (when-let [[tx-data result close?] (<! (:transact-chan conn))]
             (let [pair
                   (<! (go-pair ;; Catch exceptions, return the pair.
@@ -594,10 +594,14 @@
                               report (<? (db/in-transaction!
                                            db
                                            #(-> (<with db tx-data))))]
-                          ;; We only get here if the transaction is committed.
-                          (reset! (:current-db conn) (:db-after report))
-                          (>! (:listener-source conn) report)
+                          (when report
+                            ;; <with returns non-nil or throws, but we still check report just in
+                            ;; case.  Here, in-transaction! function completed and returned non-nil,
+                            ;; so the transaction has committed.
+                            (reset! (:current-db conn) (:db-after report))
+                            (>! (:listener-source conn) report))
                           report)))]
+              ;; Even when report is nil (transaction not committed), pair is non-nil.
               (>! result pair))
             (>! token-chan token)
             (when close?

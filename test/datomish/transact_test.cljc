@@ -209,4 +209,16 @@
                (tempids r)))
         (is (= nil (a/poll! lc)))))))
 
+(deftest-db test-failing-transacts conn
+  (let [{tx0 :tx} (<? (d/<transact! conn test-schema))]
+    (testing "failing transact throws"
+      (is (thrown-with-msg?
+            ExceptionInfo #"expected :db.type/string"
+            (<? (d/<transact! conn [{:db/id (d/id-literal :db.part/user -1) :name 1}])))))
+
+    (testing "transaction after bad transaction is applied"
+      (<? (d/<transact! conn [{:db/id 101 :name "Petr"}]))
+      (is (= (<? (<datoms-after (d/db conn) tx0))
+             #{[101 :name "Petr"]})))))
+
 #_ (time (t/run-tests))
