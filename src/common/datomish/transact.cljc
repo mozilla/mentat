@@ -648,8 +648,9 @@
   (a/tap (:listener-mult conn) listener-sink)
   listener-sink)
 
-(defn- -listen-chan [f]
-  (let [c (a/chan (a/sliding-buffer 10))]
+(defn- -listen-chan
+  [f n]
+  (let [c (a/chan (a/dropping-buffer n))]
     (go-loop []
       (when-let [v (<! c)]
         (do
@@ -664,8 +665,11 @@
 
   Returns the channel listened to, for future calls to `unlisten-chan!`."
   ([conn f]
-   {:pre [(fn? f)]}
-   (listen-chan! conn (-listen-chan f))))
+   ;; Decently large buffer before dropping, for JS consumers.
+   (listen! conn f 1024))
+  ([conn f n]
+   {:pre [(fn? f) (pos? n)]}
+   (listen-chan! conn (-listen-chan f n))))
 
 (defn unlisten-chan! [conn listener-sink]
   "Stop putting reports successfully transacted against the given connection onto the given channel."
