@@ -474,7 +474,8 @@
 
   First, resolve :upserts-e against the database.  Some [a v] -> e will upsert; some will not.
   Some :upserts-e evolve to become actual :upserts (they upserted!); any other :upserts-e evolve to
-  become :allocations-e (they did not upsert, and will not upsert this transaction).
+  become :allocations-e (they did not upsert, and will not upsert this transaction).  All :upserts-e
+  will evolve out of the :upserts-e generation: each one upserts or does not.
 
   Using the newly upserted id-literals, some :upserts-ev evolve to become :resolved;
   some :upserts-ev evolve to become :upserts-e; and some :upserts-ev remain :upserts-ev.
@@ -490,20 +491,19 @@
 
   As a future optimization, :upserts do not need to be inserted; they upserted, so they already
   exist in the DB.  (We still need to verify uniqueness and ensure no overlapping can occur.)
-  Similary, :allocations-* do not need to be checked for existence, so they can be written to the DB
+  Similarly, :allocations-* do not need to be checked for existence, so they can be written to the DB
   faster."
   (go-pair
-    (let [{:keys [upserted resolved upserts-ev upserts-e allocations-ev allocations-e allocations-v entities]} evolution]
-      (if-not upserts-e
+    (let [upserts-e (seq (:upserts-e evolution))
+          id->e     (and upserts-e
+                         (<? (<resolve-upserts-e db upserts-e)))]
+      (if-not id->e
         ;; No more progress to be made.  Any upserts-ev must just be allocations.
-        {:allocations-ev (concat upserts-ev allocations-ev)
-         :allocations-e allocations-e
-         :allocations-v allocations-v
-         :upserted upserted
-         :resolved resolved
-         :entities entities}
+        (update
+          (dissoc evolution :upserts-ev :upserts-e)
+          :allocations-ev concat (:upserts-ev evolution))
         ;; Progress can be made.  Try to evolve further.
-        (let [id->e (<? (<resolve-upserts-e db upserts-e))]
+        (let [{:keys [upserted resolved upserts-ev allocations-ev allocations-e allocations-v entities]} evolution]
           (merge-with
             concat
             {:tempids  id->e ;; TODO: ensure we handle conflicting upserts across generations correctly here.
