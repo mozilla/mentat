@@ -406,18 +406,17 @@
 
 (defn evolve-upserts-e [id->e upserts-e]
   (let [evolve1
-        (fn [[op id-e a v]]
-          (let [e* (get id->e id-e)]
-            (if e*
-              [:upserted [op e* a v]]
-              [:allocations-e [op id-e a v]])))]
+        (fn [[op id-e a v :as entity]]
+          (if-let [e* (get id->e id-e)]
+            [:upserted [op e* a v]]
+            [:allocations-e entity]))]
     (util/group-by-kv evolve1 upserts-e)))
 
 (defn evolve-upserts-ev [id->e upserts-ev]
   "Given a map id->e of id-literals to integer entids, evolve the given entities.  Returns a map
   whose keys are generations and whose values are vectors of entities in those generations."
   (let [evolve1
-        (fn [[op id-e a id-v]]
+        (fn [[op id-e a id-v :as entity]]
           (let [e* (get id->e id-e)
                 v* (get id->e id-v)]
             (if e*
@@ -426,36 +425,34 @@
                 [:allocations-v [op e* a id-v]])
               (if v*
                 [:upserts-e [op id-e a v*]]
-                [:upserts-ev [op id-e a id-v]]))))]
+                [:upserts-ev entity]))))]
     (util/group-by-kv evolve1 upserts-ev)))
 
 (defn evolve-allocations-e [id->e allocations-e]
   "Given a map id->e of id-literals to integer entids, evolve the given entities.  Returns a map
   whose keys are generations and whose values are vectors of entities in those generations."
   (let [evolve1
-        (fn [[op id-e a v]]
-          (let [e* (get id->e id-e)]
-            (if e*
-              [:resolved [op e* a v]]
-              [:allocations-e [op id-e a v]])))]
+        (fn [[op id-e a v :as entity]]
+          (if-let [e* (get id->e id-e)]
+            [:resolved [op e* a v]]
+            [:allocations-e entity]))]
     (util/group-by-kv evolve1 allocations-e)))
 
 (defn evolve-allocations-v [id->e allocations-v]
   "Given a map id->e of id-literals to integer entids, evolve the given entities.  Returns a map
   whose keys are generations and whose values are vectors of entities in those generations."
   (let [evolve1
-        (fn [[op e a id-v]]
-          (let [v* (get id->e id-v)]
-            (if v*
-              [:resolved [op e a v*]]
-              [:allocations-v [op e a id-v]])))]
+        (fn [[op e a id-v :as entity]]
+          (if-let [v* (get id->e id-v)]
+            [:resolved [op e a v*]]
+            [:allocations-v entity]))]
     (util/group-by-kv evolve1 allocations-v)))
 
 (defn evolve-allocations-ev [id->e allocations-ev]
   "Given a map id->e of id-literals to integer entids, evolve the entities in allocations-ev.  Returns a
   map whose keys are generations and whose values are vectors of entities in those generations."
   (let [evolve1
-        (fn [[op id-e a id-v]]
+        (fn [[op id-e a id-v :as entity]]
           (let [e* (get id->e id-e)
                 v* (get id->e id-v)]
             (if e*
@@ -464,7 +461,7 @@
                 [:allocations-v [op e* a id-v]])
               (if v*
                 [:allocations-e [op id-e a v*]]
-                [:allocations-ev [op id-e a id-v]]))))]
+                [:allocations-ev entity]))))]
     (util/group-by-kv evolve1 allocations-ev)))
 
 (defn <evolve [db evolution]
