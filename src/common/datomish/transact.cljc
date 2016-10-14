@@ -282,7 +282,7 @@
   {:pre [(db/db? db) (report? report)]}
 
   (let [unique-identity? (memoize (partial ds/unique-identity? (db/schema db)))
-        ;; Map lookup-ref -> entities containing lookup-ref, like {[[:a :v] [[[:a :v] :b :w] ...]] ...}.
+        ;; Map lookup-ref -> entities containing lookup-ref, like {[:a :v] [[(lookup-ref :a :v) :b :w] ...], ...}.
         groups           (group-by (partial keep db/lookup-ref?) (:entities report))
         ;; Entities with no lookup-ref are grouped under the key (lazy-seq).
         entities         (get groups (lazy-seq)) ;; No lookup-refs? Pass through.
@@ -382,11 +382,11 @@
   (go-pair
     (when (seq upserts-e)
       (let [->id-av (fn [[op id-literal a v]] [id-literal [a v]])
-            ;; Like {[id-literal [[:a1 :v1] [:a2 :v2] ...]] ...}.
+            ;; Like {id-literal [[:a1 :v1] [:a2 :v2] ...], ...}.
             id->avs (util/group-by-kv ->id-av upserts-e)
             ;; Like [[:a1 :v1] [:a2 v2] ...].
             avs     (apply concat (vals id->avs))
-            ;; Like {[[:a1 :v1] e1] ...}.
+            ;; Like {[:a1 :v1] e1, ...}.
             av->e   (<? (db/<avs db avs))
 
             avs->es (fn [avs] (set (keep (partial get av->e) avs)))
