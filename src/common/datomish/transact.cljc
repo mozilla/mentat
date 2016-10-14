@@ -506,10 +506,19 @@
         (let [{:keys [upserted resolved upserts-ev allocations-ev allocations-e allocations-v entities]} evolution]
           (merge-with
             concat
-            {:tempids  id->e ;; TODO: ensure we handle conflicting upserts across generations correctly here.
-             :upserted upserted
+            {:upserted upserted
              :resolved resolved
-             :entities entities}
+             :entities entities
+             ;; The keys of the id->e map are unique between generation steps, so we can simply
+             ;; concat tempids.  Suppose that id->e and id->e* are two such mappings, resolved on
+             ;; subsequent evolutionary steps, and that id is a key in the intersection of the two
+             ;; key sets. This can't happen: if id maps to e via id->e, all instances of id have
+             ;; been evolved forward (replaced with e) before we try to resolve the next set of
+             ;; :upserts-e.  That is, we'll never successfully upsert the same id-literal in more
+             ;; than one generation step.  (We might upsert the same id-literal to multiple entids
+             ;; via distinct [a v] pairs in a single generation step; in this case,
+             ;; <resolve-upserts-e will throw.)
+             :tempids  id->e}
             (evolve-upserts-ev id->e upserts-ev)
             (evolve-upserts-e  id->e upserts-e)
             (evolve-allocations-ev id->e allocations-ev)
