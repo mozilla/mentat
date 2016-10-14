@@ -350,19 +350,16 @@
   :entities - not :db/add, or no id-literals."
   {:pre [(sequential? entity)]}
   (let [[op e a v] entity
-        e?         (id-literal? e)
-        a?         (id-literal? a)
         v?         (id-literal? v)]
-    (cond
-      (not= (first entity) :db/add) ;; TODO: verify no id-literals appear.
-      :entities
-
-      a?
+    (when (id-literal? a)
       (raise "id-literal attributes are not yet supported: " entity
              {:error  :transact/no-id-literal-attributes
-              :entity entity })
+              :entity entity }))
+    (cond
+      (not= op :db/add) ;; TODO: verify no id-literals appear.
+      :entities
 
-      e?
+      (id-literal? e)
       (if (unique-identity? a)
         (if v?
           :upserts-ev
@@ -383,7 +380,7 @@
   Returns a map of id-literals to integer entids, with keys only those id-literals that mapped to
   existing entities."
   (go-pair
-    (if (seq upserts-e)
+    (when (seq upserts-e)
       (let [->id-av (fn [[op id-literal a v]] [id-literal [a v]])
             ;; Like {[id-literal [[:a1 :v1] [:a2 :v2] ...]] ...}.
             id->avs (util/group-by-kv ->id-av upserts-e)
