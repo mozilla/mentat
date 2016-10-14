@@ -121,10 +121,6 @@
   (<bootstrapped? [db]
     "Return true if this database has no transactions yet committed.")
 
-  (<av
-    [db a v]
-    "Search for a single matching datom using the AVET index.")
-
   (<avs
     [db avs]
     "Search for many matching datoms using the AVET index.
@@ -383,7 +379,7 @@
             (ref? a)           ; index_vaet
             (unique? a)        ; unique_value
             tag]]))
-      ops
+      (sort-by (fn [[_ _ _ v]] v) ops) ;; Make testing easier by sorting by string values.  TODO: discuss expense.
       (range initial-many-searchid 999999999))
     ["UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL"]))
 
@@ -412,7 +408,7 @@
               "INSERT INTO temp.tx_lookup_before (e0, a0, v0, tx0, added0, value_type_tag0) VALUES "
               "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, 0, ?)")
             e a searchid tx tag]]))
-      ops
+      (sort-by (fn [[_ _ _ v]] v) ops) ;; Make testing easier by sorting by string values.  TODO: discuss expense.
       (range initial-one-searchid 999999999))
     ["UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL"]))
 
@@ -642,25 +638,6 @@
         (:bootstrapped)
         (not= 0))))
 
-  (<av [db a v]
-    (let [schema (.-schema db) ;; TODO: understand why (schema db) fails.
-          a (entid db a)
-          [v tag] (ds/->SQLite schema a v)
-          yield-datom
-          (fn [rows]
-            (when-let [row (first rows)]
-              (row->Datom schema row)))]
-      (go-pair
-        (->>
-          ;; TODO: generalize columns.
-          ["SELECT e, a, v, tx, 1 AS added FROM all_datoms
-           WHERE index_avet = 1 AND a = ? AND value_type_tag = ? AND v = ?
-           LIMIT 1" a tag v]
-
-          (s/all-rows (:sqlite-connection db))
-          <?
-          yield-datom))))
-
   (<avs
     [db avs]
     {:pre [(sequential? avs)]}
@@ -691,7 +668,7 @@
                   (apply str "WITH t(searchid, a, v, value_type_tag) AS (VALUES "
                          (apply str (repeater (count chunk))) ;; TODO: join?
                          ") SELECT t.searchid, d.e
-                           FROM t, datoms AS d
+                           FROM t, all_datoms AS d
                            WHERE d.index_avet IS NOT 0 AND d.a = t.a AND d.value_type_tag = t.value_type_tag AND d.v = t.v")
 
                   ;; Bindings.

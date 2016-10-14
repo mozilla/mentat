@@ -46,3 +46,8 @@
   (is (util/unblocking-chan? (a/chan (a/sliding-buffer 10))))
   (is (util/unblocking-chan? (a/chan (util/unlimited-buffer))))
   (is (not (util/unblocking-chan? (a/chan (a/buffer 10))))))
+
+(deftest test-group-by-kvs
+  (are [m xs] (= m (util/group-by-kv identity xs))
+    {:a [1 2] :b [3]}
+    [[:a 1] [:a 2] [:b 3]]))

@@ -282,7 +282,7 @@
   {:pre [(db/db? db) (report? report)]}
 
   (let [unique-identity? (memoize (partial ds/unique-identity? (db/schema db)))
-        ;; Map lookup-ref -> entities containing lookup-ref, like {[[:a :v] [[[:a :v] :b :w] ...]] ...}.
+        ;; Map lookup-ref -> entities containing lookup-ref, like {[:a :v] [[(lookup-ref :a :v) :b :w] ...], ...}.
         groups           (group-by (partial keep db/lookup-ref?) (:entities report))
         ;; Entities with no lookup-ref are grouped under the key (lazy-seq).
         entities         (get groups (lazy-seq)) ;; No lookup-refs? Pass through.
@@ -335,6 +335,224 @@
 (defn- transact-entity [report entity]
   (update-in report [:entities] conj entity))
 
+(defn id-literal-generation [unique-identity? entity]
+  "Group entities possibly containing id-literals into 'generations'.
+
+  Entities are grouped into one of the following generations:
+
+  :upserts-ev - 'complex upserts' that look like [:db/add -1 a -2] where a is :db.unique/identity;
+
+  :upserts-e - 'simple upserts' that look like [:db/add -1 a v] where a is :db.unique/identity;
+
+  :allocations-{e,v,ev} - things like [:db/add -1 b v], [:db/add e b -2], or [:db/add -3 b -4] where
+  b is *not* :db.unique/identity, or like [:db/add e a -5] where a is :db.unique/identity;
+
+  :entities - not :db/add, or no id-literals."
+  {:pre [(sequential? entity)]}
+  (let [[op e a v] entity
+        v?         (id-literal? v)]
+    (when (id-literal? a)
+      (raise "id-literal attributes are not yet supported: " entity
+             {:error  :transact/no-id-literal-attributes
+              :entity entity }))
+    (cond
+      (not= op :db/add) ;; TODO: verify no id-literals appear.
+      :entities
+
+      (id-literal? e)
+      (if (unique-identity? a)
+        (if v?
+          :upserts-ev
+          :upserts-e)
+        (if v?
+          :allocations-ev
+          :allocations-e))
+
+      v?
+      :allocations-v
+
+      true
+      :entities)))
+
+(defn <resolve-upserts-e [db upserts-e]
+  "Given a sequence of :upserts-e, query the database to try to map them to existing entities.
+
+  Returns a map of id-literals to integer entids, with keys only those id-literals that mapped to
+  existing entities."
+  (go-pair
+    (when (seq upserts-e)
+      (let [->id-av (fn [[op id-literal a v]] [id-literal [a v]])
+            ;; Like {id-literal [[:a1 :v1] [:a2 :v2] ...], ...}.
+            id->avs (util/group-by-kv ->id-av upserts-e)
+            ;; Like [[:a1 :v1] [:a2 v2] ...].
+            avs     (apply concat (vals id->avs))
+            ;; Like {[:a1 :v1] e1, ...}.
+            av->e   (<? (db/<avs db avs))
+
+            avs->es (fn [avs] (set (keep (partial get av->e) avs)))
+
+            id->es  (util/mapvals avs->es id->avs)]
+
+        (into {}
+              ;; nil is dropped.
+              (map (fn [[id es]]
+                     (when-let [e (first es)]
+                       (when (second es)
+                         (raise "Conflicting upsert: " id " resolves"
+                                " to more than one entid " es
+                                {:error :transact/upsert :tempid id :entids es}))
+                       [id e])))
+              id->es)))))
+
+(defn evolve-upserts-e [id->e upserts-e]
+  (let [evolve1
+        (fn [[op id-e a v :as entity]]
+          (if-let [e* (get id->e id-e)]
+            [:upserted [op e* a v]]
+            [:allocations-e entity]))]
+    (util/group-by-kv evolve1 upserts-e)))
+
+(defn evolve-upserts-ev [id->e upserts-ev]
+  "Given a map id->e of id-literals to integer entids, evolve the given entities.  Returns a map
+  whose keys are generations and whose values are vectors of entities in those generations."
+  (let [evolve1
+        (fn [[op id-e a id-v :as entity]]
+          (let [e* (get id->e id-e)
+                v* (get id->e id-v)]
+            (if e*
+              (if v*
+                [:resolved [op e* a v*]]
+                [:allocations-v [op e* a id-v]])
+              (if v*
+                [:upserts-e [op id-e a v*]]
+                [:upserts-ev entity]))))]
+    (util/group-by-kv evolve1 upserts-ev)))
+
+(defn evolve-allocations-e [id->e allocations-e]
+  "Given a map id->e of id-literals to integer entids, evolve the given entities.  Returns a map
+  whose keys are generations and whose values are vectors of entities in those generations."
+  (let [evolve1
+        (fn [[op id-e a v :as entity]]
+          (if-let [e* (get id->e id-e)]
+            [:resolved [op e* a v]]
+            [:allocations-e entity]))]
+    (util/group-by-kv evolve1 allocations-e)))
+
+(defn evolve-allocations-v [id->e allocations-v]
+  "Given a map id->e of id-literals to integer entids, evolve the given entities.  Returns a map
+  whose keys are generations and whose values are vectors of entities in those generations."
+  (let [evolve1
+        (fn [[op e a id-v :as entity]]
+          (if-let [v* (get id->e id-v)]
+            [:resolved [op e a v*]]
+            [:allocations-v entity]))]
+    (util/group-by-kv evolve1 allocations-v)))
+
+(defn evolve-allocations-ev [id->e allocations-ev]
+  "Given a map id->e of id-literals to integer entids, evolve the entities in allocations-ev.  Returns a
+  map whose keys are generations and whose values are vectors of entities in those generations."
+  (let [evolve1
+        (fn [[op id-e a id-v :as entity]]
+          (let [e* (get id->e id-e)
+                v* (get id->e id-v)]
+            (if e*
+              (if v*
+                [:resolved [op e* a v*]]
+                [:allocations-v [op e* a id-v]])
+              (if v*
+                [:allocations-e [op id-e a v*]]
+                [:allocations-ev entity]))))]
+    (util/group-by-kv evolve1 allocations-ev)))
+
+(defn <evolve [db evolution]
+  "Evolve a map of generations {:upserts-e [...], :upserts-ev [...], ...} as much as possible.
+
+  The algorithm is as follows.
+
+  First, resolve :upserts-e against the database.  Some [a v] -> e will upsert; some will not.
+  Some :upserts-e evolve to become actual :upserts (they upserted!); any other :upserts-e evolve to
+  become :allocations-e (they did not upsert, and will not upsert this transaction).  All :upserts-e
+  will evolve out of the :upserts-e generation: each one upserts or does not.
+
+  Using the newly upserted id-literals, some :upserts-ev evolve to become :resolved;
+  some :upserts-ev evolve to become :upserts-e; and some :upserts-ev remain :upserts-ev.
+
+  Likewise, some :allocations-ev evolve to become :allocations-e, :allocations-v, or :resolved; some
+  :allocations-e evolve to become :resolved; and some :allocations-v evolve to become :resolved.
+
+  If we have *new* :upserts-e (i.e., some :upserts-ev become :upserts-e), then we may be able to
+  make more progress.  We recurse, trying to resolve these new :upserts-e.
+
+  Eventually we will have no :upserts-e.  At this point, :upserts-ev become :allocations-ev, and now
+  we have :entities, :upserted, :resolved, and various :allocations-*.
+
+  As a future optimization, :upserts do not need to be inserted; they upserted, so they already
+  exist in the DB.  (We still need to verify uniqueness and ensure no overlapping can occur.)
+  Similarly, :allocations-* do not need to be checked for existence, so they can be written to the DB
+  faster."
+  (go-pair
+    (let [upserts-e (seq (:upserts-e evolution))
+          id->e     (and upserts-e
+                         (<? (<resolve-upserts-e db upserts-e)))]
+      (if-not id->e
+        ;; No more progress to be made.  Any upserts-ev must just be allocations.
+        (update
+          (dissoc evolution :upserts-ev :upserts-e)
+          :allocations-ev concat (:upserts-ev evolution))
+        ;; Progress can be made.  Try to evolve further.
+        (let [{:keys [upserted resolved upserts-ev allocations-ev allocations-e allocations-v entities]} evolution]
+          (merge-with
+            concat
+            {:upserted upserted
+             :resolved resolved
+             :entities entities
+             ;; The keys of the id->e map are unique between generation steps, so we can simply
+             ;; concat tempids.  Suppose that id->e and id->e* are two such mappings, resolved on
+             ;; subsequent evolutionary steps, and that id is a key in the intersection of the two
+             ;; key sets. This can't happen: if id maps to e via id->e, all instances of id have
+             ;; been evolved forward (replaced with e) before we try to resolve the next set of
+             ;; :upserts-e.  That is, we'll never successfully upsert the same id-literal in more
+             ;; than one generation step.  (We might upsert the same id-literal to multiple entids
+             ;; via distinct [a v] pairs in a single generation step; in this case,
+             ;; <resolve-upserts-e will throw.)
+             :tempids  id->e}
+            (evolve-upserts-ev id->e upserts-ev)
+            (evolve-upserts-e  id->e upserts-e)
+            (evolve-allocations-ev id->e allocations-ev)
+            (evolve-allocations-e  id->e allocations-e)
+            (evolve-allocations-v  id->e allocations-v)))))))
+
+;; TODO: do this in one step, rather than iterating.
+(defn allocate [report evolution]
+  "Given a maximally evolved map of generations, allocate entids for all id-literals that did not
+  get upserted."
+  (let [{:keys [tempids upserted resolved allocations-ev allocations-e allocations-v entities]} evolution
+        initial-report (assoc report :tempids tempids)]
+    (loop [report
+           (assoc initial-report
+                  ;; TODO: drop :upserted, they already exist in the DB; and don't search for
+                  ;; :allocations-*, they definitely don't already exist in the DB.
+                  :entities (concat upserted resolved entities))
+
+           es
+           (concat allocations-ev allocations-e allocations-v)]
+      (let [[[op e a v :as entity] & entities] es]
+        (cond
+          (nil? entity)
+          report
+
+          (id-literal? e)
+          (let [eid (or (get-in report [:tempids e]) (-next-eid! (:part-map-atom report) e))]
+            (recur (allocate-eid report e eid) (cons [op eid a v] entities)))
+
+          (id-literal? v)
+          (let [eid (or (get-in report [:tempids v]) (-next-eid! (:part-map-atom report) v))]
+            (recur (allocate-eid report v eid) (cons [op e a eid] entities)))
+
+          true
+          (recur (transact-entity report entity) entities)
+          )))))
+
 (defn <resolve-id-literals
   "Upsert uniquely identified literals when possible and allocate new entids for all other id literals.
 
@@ -358,57 +576,16 @@
   {:pre [(db/db? db) (report? report)]}
 
   (go-pair
-    (let [keyfn (fn [[op e a v]]
-                  (if (and (id-literal? e)
-                           (not-any? id-literal? [a v]))
-                    (- 5)
-                    (- (count (filter id-literal? [e a v])))))
-          initial-report (assoc report :entities []) ;; TODO.
-          initial-entities (sort-by keyfn (:entities report))]
-      (loop [report initial-report
-             es initial-entities]
-        (let [[[op e a v :as entity] & entities] es]
-          (cond
-            (nil? entity)
-            report
+    (let [schema (db/schema db)
+          unique-identity? (memoize (partial ds/unique-identity? schema))
 
-            (and (not= op :db/add)
-                 (or (id-literal? e)
-                     (id-literal? a)
-                     (id-literal? v)))
-            (raise "id-literals are resolved for :db/add only"
-                   {:error :transact/syntax
-                    :op    entity })
+          generations
+          (group-by (partial id-literal-generation unique-identity?) (:entities report))
 
-            ;; Upsert!
-            (and (id-literal? e)
-                 (ds/unique-identity? (db/schema db) a)
-                 (not-any? id-literal? [a v]))
-            (let [upserted-eid (:e (<? (db/<av db a v)))
-                  allocated-eid (get-in report [:tempids e])]
-              (if (and upserted-eid allocated-eid (not= upserted-eid allocated-eid))
-                (<? (<retry-with-tempid db initial-report initial-entities e upserted-eid)) ;; TODO: not initial report, just the sorted entities here.
-                (let [eid (or upserted-eid allocated-eid (-next-eid! (:part-map-atom report) e))]
-                  (recur (allocate-eid report e eid) (cons [op eid a v] entities)))))
-
-            ;; Start allocating and retrying.  We try with e last, so as to eventually upsert it.
-            (id-literal? v)
-            ;; We can't fail with unbound literals here, since we could have multiple.
-            (let [eid (or (get-in report [:tempids v]) (-next-eid! (:part-map-atom report) e))]
-              (recur (allocate-eid report v eid) (cons [op e a eid] entities)))
-
-            (id-literal? a)
-            ;; TODO: should we even allow id-literal attributes?  Datomic fails in some cases here.
-            (let [eid (or (get-in report [:tempids a]) (-next-eid! (:part-map-atom report) e))]
-              (recur (allocate-eid report a eid) (cons [op e eid v] entities)))
-
-            (id-literal? e)
-            (let [eid (or (get-in report [:tempids e]) (-next-eid! (:part-map-atom report) e))]
-              (recur (allocate-eid report e eid) (cons [op eid a v] entities)))
-
-            true
-            (recur (transact-entity report entity) entities)
-            ))))))
+          evolution
+          (<? (<evolve db generations))
+          ]
+      (allocate report evolution))))
 
 (defn- transact-report [report datom]
   (update-in report [:tx-data] conj datom))
