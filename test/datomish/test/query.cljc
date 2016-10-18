@@ -598,6 +598,32 @@
                      [(get-else $ ?page :page/title "No title") ?title]]
                    conn)))))
 
+(deftest-db test-ground conn
+  (let [attrs (<? (<initialize-with-schema conn page-schema))]
+    (is (= {:select (list
+                      [:datoms0.e :page]
+                      [(sql/param :xyz) :foo]),
+            :modifiers [:distinct],
+            :from '([:datoms datoms0]),
+            :where (list :and [:= :datoms0.a (:page/url attrs)])}
+           (expand '[:find ?page ?foo :in
+                     $ ?xyz      ; Bound param.
+                     :where
+                     [(ground ?xyz) ?foo]
+                     [?page :page/url _]]
+                   conn)))
+    (is (= {:select (list
+                      [:datoms0.e :page]
+                      [452 :foo]),
+            :modifiers [:distinct],
+            :from '([:datoms datoms0]),
+            :where (list :and [:= :datoms0.a (:page/url attrs)])}
+           (expand '[:find ?page ?foo :in $
+                     :where
+                     [(ground 452) ?foo]
+                     [?page :page/url _]]
+                   conn)))))
+
 (deftest-db test-limit-order conn
   (let [attrs (<? (<initialize-with-schema conn aggregate-schema))
         context

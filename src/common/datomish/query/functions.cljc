@@ -269,10 +269,38 @@
 
         (raise-str "Can't handle entity" e)))))
 
+(defn apply-ground-clause [cc function]
+  (let [{:keys [args binding]} function]
+    (when-not (= (count args) 1)
+      (raise-str "Too many args to ground."))
+
+    (when-not (and (instance? BindScalar binding)
+                   (instance? Variable (:variable binding)))
+      (raise-str "ground only binds scalars."))
+
+    (let [var (:variable binding)
+          val (first args)
+          constant? (instance? Constant val)
+          external (when (instance? Variable val)
+                     (first (get (:external-bindings cc) (:symbol val))))]
+
+      (when-not (or constant? external)
+        (raise-str "ground argument must be constant or externally bound."))
+
+      (-> cc
+        ;; TODO: figure out if we can conclusively know the type of the var.
+        ; (assoc-in [:known-types (:symbol var)] nil)
+
+        (util/append-in [:bindings (:symbol var)]
+                        (if constant?
+                          (:value val)
+                          external))))))
+
 (def sql-functions
   ;; Future: versions of this that uses snippet() or matchinfo().
   {"fulltext" apply-fulltext-clause
-   "get-else" apply-get-else-clause})
+   "get-else" apply-get-else-clause
+   "ground"   apply-ground-clause})
 
 (defn apply-sql-function
   "Either returns an application of `function` to `cc`, or nil to
