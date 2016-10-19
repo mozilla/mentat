@@ -2,6 +2,7 @@
 *.jar
 *jar
 *~
+.s*
 .*.sw*
 .hg/
 .hgignore
@@ -10,7 +11,6 @@
 .lein-plugins/
 .lein-repl-history
 .nrepl-port
-.sw*
 /.lein-*
 /.nrepl-port
 /checkouts/
@@ -27,3 +27,21 @@ pom.xml.asc
 /addon/release/datomish-test.xpi
 /addon/release/datomish.js
 /addon/release/index.js
+/release-browser/cljs/
+/release-browser/cljs_promises/
+/release-browser/clojure/
+/release-browser/constants_table.js
+/release-browser/datomish.bare.js
+/release-browser/datomish.js
+/release-browser/datomish/
+/release-browser/goog/
+/release-browser/honeysql/
+/release-node/cljs/
+/release-node/cljs_promises/
+/release-node/clojure/
+/release-node/constants_table.js
+/release-node/datomish.bare.js
+/release-node/datomish.js
+/release-node/datomish/
+/release-node/goog/
+/release-node/honeysql/
