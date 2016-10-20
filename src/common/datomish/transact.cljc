@@ -81,6 +81,7 @@
                      part-map  ;; Map {:db.part/user {:start 0x10000 :idx 0x10000}, ...}.
                      added-parts ;; The set of parts added during the transaction via :db.part/db :db.install/part.
                      added-idents ;; The map of idents -> entid added during the transaction, via e :db/ident ident.
+                     retracted-idents    ;; The map of idents -> entid removed during the transaction.
                      added-attributes ;; The map of schema attributes (ident -> schema fragment) added during the transaction, via :db.part/db :db.install/attribute.
                      ])
 
@@ -641,7 +642,7 @@
 
 (defn collect-db-ident-assertions
   "Transactions may add idents, install new partitions, and install new schema attributes.
-  Collect :db/ident assertions into :added-idents here."
+  Collect :db/ident assertions into :added-idents and :retracted-idents here."
   [db report]
   {:pre [(db/db? db) (report? report)]}
 
@@ -656,17 +657,14 @@
           (nil? ia)
           report
 
-          (not (:added ia))
-          (raise "Retracting a :db/ident is not yet supported, got " ia
-                 {:error :schema/idents
-                  :op    ia })
-
           :else
-          ;; Added.
           (let [ident (:v ia)]
             (if (keyword? ident)
-              (recur (assoc-in report [:added-idents ident] (:e ia)) ias)
-              (raise "Cannot assert a :db/ident with a non-keyword value, got " ia
+              (recur (assoc-in report [(if (:added ia)
+                                         :added-idents
+                                         :retracted-idents)
+                                       ident] (:e ia)) ias)
+              (raise "Cannot add or retract a :db/ident with a non-keyword value, got " ia
                      {:error :schema/idents
                       :op    ia }))))))))
 
@@ -690,7 +688,7 @@
     (assoc-in report [:added-attributes] schema-fragment)))
 
 ;; TODO: expose this in a more appropriate way.
-(defn <with-internal [db tx-data merge-ident merge-attr]
+(defn <with-internal [db tx-data merge-attr]
   (go-pair
     (let [part-map-atom
           (atom (db/part-map db))
@@ -714,6 +712,7 @@
                       :tempids          {}
                       :added-parts      {}
                       :added-idents     {}
+                      :retracted-idents {}
                       :added-attributes {}
                       })
 
@@ -734,7 +733,8 @@
                      (<?)
                      (->> (p :apply-db-part-changes))
 
-                     (db/<apply-db-ident-assertions (:added-idents report) merge-ident)
+                     (db/<apply-db-ident-assertions (:added-idents report)
+                                                    (:retracted-idents report))
                      (<?)
                      (->> (p :apply-db-ident-assertions))
 
@@ -746,11 +746,9 @@
           (assoc-in [:db-after] db-after)))))
 
 (defn- <with [db tx-data]
-  (let [fail-touch-ident (fn [old new] (raise "Altering idents is not yet supported, got " new " altering existing ident " old
-                                              {:error :schema/alter-idents :old old :new new}))
-        fail-touch-attr  (fn [old new] (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
+  (let [fail-touch-attr  (fn [old new] (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
                                               {:error :schema/alter-schema :old old :new new}))]
-    (<with-internal db tx-data fail-touch-ident fail-touch-attr)))
+    (<with-internal db tx-data fail-touch-attr)))
 
 (defn <db-with [db tx-data]
   (go-pair

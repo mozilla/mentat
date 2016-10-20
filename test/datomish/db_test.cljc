@@ -306,29 +306,6 @@
         (is (= (tempids report)
                {-1 101}))))))
 
-(deftest-db test-add-ident conn
-  (is (= :test/ident (d/entid (d/db conn) :test/ident)))
-
-  (let [report   (<? (d/<transact! conn [[:db/add (d/id-literal :db.part/db -1) :db/ident :test/ident]]))
-        eid      (get-in report [:tempids (d/id-literal :db.part/db -1)])]
-    (is (= eid (d/entid (d/db conn) :test/ident)))
-    (is (= :test/ident (d/ident (d/db conn) eid))))
-
-  ;; TODO: This should fail, but doesn't, due to stringification of :test/ident.
-  ;; (is (thrown-with-msg?
-  ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got "
-  ;;       (<? (d/<transact! conn [[:db/retract 44 :db/ident :test/ident]]))))
-
-  ;; ;; Renaming looks like retraction and then assertion.
-  ;; (is (thrown-with-msg?
-  ;;       ExceptionInfo #"Retracting a :db/ident is not yet supported, got"
-  ;;       (<? (d/<transact! conn [[:db/add 44 :db/ident :other-name]]))))
-
-  ;; (is (thrown-with-msg?
-  ;;       ExceptionInfo #"Re-asserting a :db/ident is not yet supported, got"
-  ;;       (<? (d/<transact! conn [[:db/add 55 :db/ident :test/ident]]))))
-  )
-
 (deftest-db test-add-schema conn
   (let [es       [[:db/add :db.part/db :db.install/attribute (d/id-literal :db.part/db -1)]
                   {:db/id (d/id-literal :db.part/db -1)

@@ -87,11 +87,7 @@
           bootstrapped? (<? (db/<bootstrapped? db))]
       (when-not bootstrapped?
         ;; We need to bootstrap the DB.
-        (let [fail-alter-ident (fn [old new] (if-not (= old new)
-                                               (raise "Altering idents is not yet supported, got " new " altering existing ident " old
-                                                      {:error :schema/alter-idents :old old :new new})
-                                               new))
-              fail-alter-attr  (fn [old new] (if-not (= old new)
+        (let [fail-alter-attr  (fn [old new] (if-not (= old new)
                                                (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
                                                       {:error :schema/alter-schema :old old :new new})
                                                new))]
@@ -115,7 +111,7 @@
               ;; write to the database conveniently; without them, we'd have to manually write
               ;; datoms to the store.  It's feasible but awkward.)  After bootstrapping, we read
               ;; back the idents and schema, just like when we re-open.
-              (transact/<with-internal (bootstrap/tx-data) fail-alter-ident fail-alter-attr)
+              (transact/<with-internal (bootstrap/tx-data) fail-alter-attr)
               (<?))))
 
       ;; We just bootstrapped, or we are returning to an already bootstrapped DB.

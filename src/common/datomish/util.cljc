@@ -62,6 +62,12 @@
   [fn-kw x]
   (keyword (str "%" (name fn-kw) "." (name x))))
 
+(defn dissoc-from
+  "Given a map `m` and a key `k`, find the sub-map named by `k`
+   and remove all of its keys in `vs`."
+  [m k vs]
+  (assoc m k (apply dissoc (get m k) vs)))
+
 (defn concat-in
   {:static true}
   [m [k & ks] vs]

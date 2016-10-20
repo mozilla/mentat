@@ -133,8 +133,8 @@
     "Apply entities to the store, returning sequence of datoms transacted.")
 
   (<apply-db-ident-assertions
-    [db added-idents merge]
-    "Apply added idents to the store, using `merge` as a `merge-with` function.")
+    [db added-idents retracted-idents]
+    "Apply added and retracted idents to the store, using `merge` as a `merge-with` function for additions.")
 
   (<apply-db-install-assertions
     [db fragment merge]
@@ -715,17 +715,78 @@
                       pairs))))))
       (assoc db :part-map part-map)))
 
-  (<apply-db-ident-assertions [db added-idents merge]
+  (<apply-db-ident-assertions [db added-idents retracted-idents]
     (go-pair
-      (let [exec (partial s/execute! (:sqlite-connection db))]
-        ;; TODO: batch insert.
-        (doseq [[ident entid] added-idents]
-          (<? (exec
-                ["INSERT INTO idents VALUES (?, ?)" (sqlite-schema/->SQLite ident) entid]))))
+      (if (and (empty? added-idents)
+               (empty? retracted-idents))
+        db
 
-      (let [db (update db :ident-map #(merge-with merge % added-idents))
-            db (update db :ident-map #(merge-with merge % (clojure.set/map-invert added-idents)))]
-        db)))
+        ;; We have a bunch of additions and a bunch of retractions.
+        ;; Some of these will pair up, indicating a rename.
+        ;;
+        ;; We flip the incoming maps to get eid->ident, then we find
+        ;; the renames, pure additions, and pure retractions.
+        ;;
+        ;; We delete the retracted idents, insert the added idents,
+        ;; and update the renames.
+        ;;
+        ;; Finally, we update the :ident-map and :symbolic-schema
+        ;; accordingly.
+        (let [inverted-additions (clojure.set/map-invert added-idents)
+              inverted-retractions (clojure.set/map-invert retracted-idents)
+              renamed-eids (clojure.set/intersection (set (keys inverted-retractions))
+                                                     (set (keys inverted-additions)))
+              pure-additions (apply dissoc inverted-additions renamed-eids)
+              pure-retractions (apply dissoc inverted-retractions renamed-eids)]
+
+          (let [exec (partial s/execute! (:sqlite-connection db))]
+            ;; We're about to delete then recreate an ident.
+            ;; That might violate foreign key constraints, so we defer constraint
+            ;; checking for the duration of this transaction.
+            (when-not (empty? renamed-eids)
+              (<? (exec ["PRAGMA defer_foreign_keys = 1"])))
+
+            ;; TODO: batch insert and delete.
+            (doseq [[entid ident] pure-retractions]
+              (when-not (contains? renamed-eids entid)
+                (<? (exec
+                      ["DELETE FROM idents WHERE ident = ? AND entid = ?" (sqlite-schema/->SQLite ident) entid]))))
+
+            (doseq [[entid ident] pure-additions]
+              (when-not (contains? renamed-eids entid)
+                (<? (exec
+                      ["INSERT INTO idents VALUES (?, ?)" (sqlite-schema/->SQLite ident) entid]))))
+
+            ;; Renames.
+            (let [renames
+                  (into (sorted-map)
+                        (map (fn [eid] [(get inverted-retractions eid)
+                                        (get inverted-additions eid)])
+                             renamed-eids))]
+              (doseq [[from to] renames]
+                (let [from (sqlite-schema/->SQLite from)
+                      to (sqlite-schema/->SQLite to)]
+                  (<? (exec ["UPDATE schema SET ident = ? WHERE ident = ?"
+                             to from]))
+                  (<? (exec ["UPDATE idents SET ident = ? WHERE ident = ?"
+                             to from]))))
+
+              (-> db
+                ;; Remove retractions -- eid and ident -- from the ident map.
+                (util/dissoc-from :ident-map (concat (vals pure-retractions)
+                                                     (keys pure-retractions)))
+                ;; Remove idents from the schema.
+                (util/dissoc-from :symbolic-schema (vals pure-retractions))
+
+                ;; Rename renamed attributes in the schema.
+                (update :symbolic-schema clojure.set/rename-keys renames)
+
+                ;; Remove old idents (and, coincidentally, 'from' idents for renames).
+                (update :ident-map (fn [m] (apply dissoc m (keys renames))))
+
+                ;; Add new ones, and the results of renames.
+                (update :ident-map (fn [m] (merge m added-idents)))
+                (update :ident-map (fn [m] (merge m (clojure.set/map-invert added-idents)))))))))))
 
   (<apply-db-install-assertions [db fragment merge]
     (go-pair
