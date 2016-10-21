@@ -36,6 +36,8 @@
                           :db/cardinality :db.cardinality/one}
    :db/noHistory         {:db/valueType   :db.type/boolean
                           :db/cardinality :db.cardinality/one}
+   :db.alter/attribute   {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/many}
    })
 
 (def idents
