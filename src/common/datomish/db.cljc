@@ -140,6 +140,9 @@
     [db fragment merge]
     "Apply added schema fragment to the store, using `merge` as a `merge-with` function.")
 
+  (<apply-db-alter-assertions
+    [db altered-attributes])
+
   (<apply-db-part-map
     [db part-map]
     "Apply updated partition map."))
@@ -595,6 +598,9 @@
                    ;; We index on tx, so the following is fast.
                    ["SELECT * FROM transactions WHERE tx = ?" tx])))))))
 
+(defn symbolic-schema->schema [db symbolic-schema]
+  (ds/schema (into {} (map (fn [[k v]] [(entid db k) v]) symbolic-schema))))
+
 (defrecord DB [sqlite-connection schema ident-map part-map]
   ;; ident-map maps between keyword idents and integer entids.  The set of idents and entids is
   ;; disjoint, so we represent both directions of the mapping in the same map for simplicity.  Also
@@ -807,10 +813,162 @@
                      v tag]))))))
 
       (let [symbolic-schema (merge-with merge (:symbolic-schema db) fragment)
-            schema          (ds/schema (into {} (map (fn [[k v]] [(entid db k) v]) symbolic-schema)))]
+            schema          (symbolic-schema->schema db symbolic-schema)]
         (assoc db
                :symbolic-schema symbolic-schema
                :schema schema))))
+
+  (<apply-db-alter-assertions [db altered-attributes]
+    ;; altered-attributes is a sequence of [e a v].
+    ;; Note that the 'e' is the attribute being altered, and the 'a's
+    ;; are the attribute's attributes!
+    (if (empty? altered-attributes)
+      (go-pair db)
+      (let [schema (.-schema db)
+
+            exec (partial s/execute! (:sqlite-connection db))
+            run (partial s/all-rows (:sqlite-connection db))
+
+            update-schema
+            (fn [v ent attr]
+              ["UPDATE schema SET value = ? WHERE ident = ? AND attr = ?"
+               v
+               (sqlite-schema/->SQLite ent)
+               (sqlite-schema/->SQLite attr)])
+
+            alter-eav
+            (fn [{:keys [checks statements symbolic-schema :as acc]} [e a v]]
+              (let [ent (ident db e)
+                    attr (ident db a)
+
+                    new (if (= (ds/valueType schema a) :db.type/ref)
+                          (ident db v)
+                          (ds/<-SQLite schema a v))
+                    old (get-in symbolic-schema [ent attr])
+
+                    datoms-table (if (ds/fulltext? schema e)
+                                   "fulltext_datoms"
+                                   "datoms")]
+
+                ;; Future:
+                ;; :db/index => set index_avet.
+                ;; Change valueType to ref => set index_vaet.
+                ;; Add fulltext => set index_fulltext.
+                (if (= old new)
+                  acc
+                  (case attr
+
+                    (:db/noHistory :db/isComponent)
+                    ;; These values are booleans and don't affect the DB.
+                    {:checks checks
+                     :statements
+                     (conj statements (update-schema v ent attr))
+                     :symbolic-schema
+                     (assoc-in symbolic-schema [ent attr] (== 1 new))}
+
+                    :db/cardinality
+                    (cond
+                      (and (= old :db.cardinality/one)
+                           (= new :db.cardinality/many))
+
+                      ;; See the comment in <apply-db-install-assertions for how we're
+                      ;; passing through idents as strings here.
+                      ;; Note that we're also assuming that all values for a given schema
+                      ;; attribute have the same type tag.
+                      {:checks checks
+                       :statements
+                       (conj statements (update-schema v ent attr))
+                       :symbolic-schema
+                       (assoc-in symbolic-schema [ent attr] new)}
+
+                      (and (= old :db.cardinality/many)
+                           (= new :db.cardinality/one))
+
+                      ;; There is no SQLite consistency constraint that requires a single
+                      ;; value for a given (e, a) pair. So when we convert a multi-valued
+                      ;; attribute to a single-valued (cardinality one) attribute, we need
+                      ;; to run a query.
+                      ;; We collect these in 'checks', and see if they return any results
+                      ;; before we change any data.
+                      {:checks
+                       (conj checks
+                             ;; In this context we're looking for two datoms which
+                             ;; share an entity, both have the right attribute ('e',
+                             ;; which is a little confusing), but aren't the same row.
+                             [[ent :db/cardinality]
+                              [(str "SELECT EXISTS(SELECT y.v FROM "
+                                    datoms-table " x, "
+                                    datoms-table " y WHERE x.e = y.e AND x.a = ? AND y.a = ? AND x.rowid < y.rowid) AS yes") e e]])
+                       :statements
+                       (conj statements (update-schema v ent attr))
+                       :symbolic-schema
+                       (assoc-in symbolic-schema [ent attr] new)}
+
+                      :else
+                      (raise "Unknown cardinality" new {:error :transact/bad-cardinality :value new}))
+
+                    :db/unique
+                    (cond
+                      (nil? new)
+                      {:checks checks
+                       :statements
+                       (conj statements
+                             [(str "UPDATE " datoms-table
+                                   " SET unique_value = 0 WHERE a = ?") attr]
+                             (update-schema v ent attr))
+                       :symbolic-schema
+                       (update-in symbolic-schema [ent] dissoc attr)}
+
+                      (or
+                        (and (= old :db.unique/identity)
+                             (= new :db.unique/value))
+                        (and (= old :db.unique/value)
+                             (= new :db.unique/identity)))
+                      {:checks checks
+                       :statements
+                       (conj statements (update-schema v ent attr))
+
+                       :symbolic-schema
+                       (assoc-in symbolic-schema [ent attr] new)}
+
+                      ;; TODO: enabling uniqueness => set unique_value = 1,
+                      ;; with checks.
+                      :else
+                      (raise "Unknown or unsupported uniqueness constraint" new {:error :transact/bad-unique :value new}))
+
+                    :else
+                    (raise "Unsupported attribute to alter" attr {:error :transact/bad-alter-attribute :attr attr})))))
+
+            {:keys [checks statements symbolic-schema]}
+            (reduce alter-eav
+                    {:checks []
+                     :statements []
+                     :symbolic-schema (:symbolic-schema db)}
+                    altered-attributes)]
+        (go-pair
+          (doseq [[[ent prop] check] checks]
+            (let [r (<? (run check))]
+              (when (= 1 (:yes (first r)))
+                (raise "Can't alter " prop " for attribute " ent ": data not suitable."
+                       {:entity ent
+                        :property prop
+                        :query check}))))
+
+          (doseq [statement statements]
+            (<? (exec statement)))
+
+          ;; We need to rebuild the entid-based schema, then reverse that into
+          ;; the reverse schema, so that operations like `multival?` work.
+          ;; This is simpler than updating all three schema parts in place, but
+          ;; more expensive.
+          ;;
+          ;; TODO: refactor some of this out so we can make rschema private again.
+          (let [non-symbolic (symbolic-schema->schema db symbolic-schema)
+                rschema (ds/rschema non-symbolic)]
+            (assoc db
+                   :symbolic-schema symbolic-schema
+                   :schema non-symbolic
+                   :rschema rschema))))))
 
   (close-db [db] (s/close (.-sqlite-connection db)))
 

@@ -12,6 +12,7 @@
    [datomish.api :as d]
    [datomish.datom :refer [datom]]
    [datomish.schema-changes :refer [datoms->schema-fragment]]
+   [datomish.schema :as ds]
    [datomish.sqlite :as s]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
 
@@ -155,3 +156,116 @@
         (is (= (get-in db-after [:symbolic-schema :test/otherattr])
                {:db/valueType :db.type/string,
                 :db/cardinality :db.cardinality/one}))))))
+
+(deftest-db test-alter-schema-cardinality-one-to-many conn
+  (let [tempid (d/id-literal :db.part/db -1)
+        es [[:db/add :db.part/db :db.install/attribute tempid]
+            {:db/id tempid
+             :db/ident :test/attr
+             :db/valueType :db.type/long
+             :db/cardinality :db.cardinality/one}]
+        report (<? (d/<transact! conn es))
+        db-after (:db-after report)
+        eid (get-in report [:tempids tempid])]
+
+    (is (= (get-in db-after [:symbolic-schema :test/attr :db/cardinality])
+           :db.cardinality/one))
+
+    ;; Add two values for the property. Observe that only one is preserved.
+    (<? (d/<transact! conn [{:db/id 12345 :test/attr 111}]))
+    (<? (d/<transact! conn [{:db/id 12345 :test/attr 222}]))
+    (is (= [222]
+           (<? (d/<q (d/db conn)
+                     '[:find [?a ...] :in $ :where [12345 :test/attr ?a]]))))
+
+    ;; Change it to a multi-valued property.
+    (let [report (<? (d/<transact! conn [{:db/id eid
+                                          :db/cardinality :db.cardinality/many
+                                          :db.alter/_attribute :db.part/db}]))
+          db-after (:db-after report)]
+
+      (is (= eid (d/entid (d/db conn) :test/attr)))
+      (is (= (get-in db-after [:symbolic-schema :test/attr :db/cardinality])
+             :db.cardinality/many))
+
+      (is (ds/multival? (.-schema (d/db conn)) eid))
+
+      (is (= [222]
+             (<? (d/<q (d/db conn)
+                       '[:find [?a ...] :in $ :where [12345 :test/attr ?a]]))))
+      (<? (d/<transact! conn [{:db/id 12345 :test/attr 333}]))
+      (is (= [222 333]
+             (<? (d/<q (d/db conn)
+                       '[:find [?a ...] :in $ :where [12345 :test/attr ?a]]
+                       {:order-by [[:a :asc]]})))))))
+
+(deftest-db test-alter-schema-cardinality-many-to-one conn
+  (let [prop-a (d/id-literal :db.part/db -1)
+        prop-b (d/id-literal :db.part/db -2)
+        prop-c (d/id-literal :db.part/db -3)
+        es [[:db/add :db.part/db :db.install/attribute prop-a]
+            [:db/add :db.part/db :db.install/attribute prop-b]
+            [:db/add :db.part/db :db.install/attribute prop-c]
+            {:db/id prop-a
+             :db/ident :test/attra
+             :db/valueType :db.type/long
+             :db/cardinality :db.cardinality/many}
+            {:db/id prop-b
+             :db/ident :test/attrb
+             :db/valueType :db.type/string
+             :db/fulltext true
+             :db/cardinality :db.cardinality/many}
+            {:db/id prop-c
+             :db/ident :test/attrc
+             :db/valueType :db.type/long
+             :db/cardinality :db.cardinality/many}]
+        report (<? (d/<transact! conn es))
+        db-after (:db-after report)
+        e-a (get-in report [:tempids prop-a])
+        e-b (get-in report [:tempids prop-b])
+        e-c (get-in report [:tempids prop-c])]
+
+    (is (= (get-in db-after [:symbolic-schema :test/attra :db/cardinality])
+           :db.cardinality/many))
+    (is (= (get-in db-after [:symbolic-schema :test/attrb :db/cardinality])
+           :db.cardinality/many))
+
+    ;; Add two values for one property, one for another, and none for the last.
+    ;; Observe that only all are preserved.
+    (<? (d/<transact! conn [{:db/id 12345 :test/attrb "foobar"}]))
+    (<? (d/<transact! conn [{:db/id 12345 :test/attrc 222}]))
+    (<? (d/<transact! conn [{:db/id 12345 :test/attrc 333}]))
+    (is (= []
+           (<? (d/<q (d/db conn)
+                     '[:find [?a ...] :in $ :where [12345 :test/attra ?a]]))))
+    (is (= ["foobar"]
+           (<? (d/<q (d/db conn)
+                     '[:find [?b ...] :in $ :where [12345 :test/attrb ?b]]))))
+    (is (= [222 333]
+           (<? (d/<q (d/db conn)
+                     '[:find [?c ...] :in $ :where [12345 :test/attrc ?c]]))))
+
+    ;; Change each to a single-valued property.
+    ;; 'a' and 'b' should succeed, because they match the new cardinality
+    ;; constraint. 'c' should fail, because it already has two values for 12345.
+    (let [change
+          (fn [eid attr]
+            (go-pair
+              (let [report (<? (d/<transact!
+                                 conn
+                                 [{:db/id eid
+                                   :db/cardinality :db.cardinality/one
+                                   :db.alter/_attribute :db.part/db}]))
+                    db-after (:db-after report)]
+
+                (is (= eid (d/entid (d/db conn) attr)))
+                (is (= (get-in db-after [:symbolic-schema attr :db/cardinality])
+                       :db.cardinality/one))
+
+                (is (not (ds/multival? (.-schema (d/db conn)) eid))))))]
+
+      (<? (change e-a :test/attra))
+      (<? (change e-b :test/attrb))
+      (is (thrown-with-msg?
+            ExceptionInfo #"Can't alter :db/cardinality"
+            (<? (change e-c :test/attrc)))))))

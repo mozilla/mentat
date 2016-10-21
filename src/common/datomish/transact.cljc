@@ -83,6 +83,7 @@
                      added-idents ;; The map of idents -> entid added during the transaction, via e :db/ident ident.
                      retracted-idents    ;; The map of idents -> entid removed during the transaction.
                      added-attributes ;; The map of schema attributes (ident -> schema fragment) added during the transaction, via :db.part/db :db.install/attribute.
+                     altered-attributes  ;; TODO
                      ])
 
 (defn- report? [x]
@@ -687,6 +688,41 @@
         schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)]
     (assoc-in report [:added-attributes] schema-fragment)))
 
+(defn collect-db-alter-assertions
+  "Transactions may alter existing attributes."
+  [db report]
+  {:pre [(db/db? db) (report? report)]}
+
+  ;; We walk the tx-data once to find any altered attributes.
+  ;; We walk it again to collect the new properties of those
+  ;; attributes.
+  (let [tx-data (:tx-data report)
+
+        ;; This is what we're looking for.
+        alter-attribute (db/entid db :db.alter/attribute)
+
+        altered-attributes (reduce (fn [acc [_ a v & _]]
+                                     (if (= a alter-attribute)
+                                       (conj acc v)
+                                       acc))
+                                   #{}
+                                   tx-data)]
+    (if (empty? altered-attributes)
+      report
+
+      (assoc report
+             :altered-attributes
+             (reduce
+               (fn [acc [e a v _ added? :as datom]]
+                 ;; We ignore the retraction of the old value.
+                 ;; We already have it in our in-memory schema!
+                 (if (and added?
+                          (contains? altered-attributes e))
+                   (conj acc [e a v])
+                   acc))
+               []
+               tx-data)))))
+
 ;; TODO: expose this in a more appropriate way.
 (defn <with-internal [db tx-data merge-attr]
   (go-pair
@@ -714,6 +750,7 @@
                       :added-idents     {}
                       :retracted-idents {}
                       :added-attributes {}
+                      :altered-attributes {}
                       })
 
                    (<transact-tx-data db)
@@ -724,7 +761,11 @@
                    (p :collect-db-ident-assertions)
 
                    (collect-db-install-assertions db)
-                   (p :collect-db-install-assertions))
+                   (p :collect-db-install-assertions)
+
+                   (collect-db-alter-assertions db)
+                   (p :collect-db-alter-assertions)
+                   )
 
           db-after (->
                      db
@@ -740,7 +781,12 @@
 
                      (db/<apply-db-install-assertions (:added-attributes report) merge-attr)
                      (<?)
-                     (->> (p :apply-db-install-assertions)))
+                     (->> (p :apply-db-install-assertions))
+
+                     (db/<apply-db-alter-assertions (:altered-attributes report))
+                     (<?)
+                     (->> (p :apply-db-alter-assertions))
+                     )
           ]
       (-> report
           (assoc-in [:db-after] db-after)))))

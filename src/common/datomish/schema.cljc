@@ -89,7 +89,7 @@
       (update-in acc [k] (fnil conj e) v))
     {} m))
 
-(defn- rschema [schema]
+(defn rschema [schema]
   (->>
     (for [[a kv] schema
           [k v]  kv
