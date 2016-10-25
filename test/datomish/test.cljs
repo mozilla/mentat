@@ -2,11 +2,11 @@
   (:require
    [doo.runner :refer-macros [doo-tests doo-all-tests]]
    [cljs.test :as t :refer-macros [is are deftest testing]]
+   datomish.schema-changes-test
    datomish.places.import-test
    datomish.promise-sqlite-test
    datomish.db-test
    datomish.query-test
-   datomish.schema-changes-test
    datomish.schema-test
    datomish.sqlite-user-version-test
    datomish.tofinoish-test
@@ -18,11 +18,11 @@
    ))
 
 (doo-tests
+  'datomish.schema-changes-test
   'datomish.places.import-test
   'datomish.promise-sqlite-test
   'datomish.db-test
   'datomish.query-test
-  'datomish.schema-changes-test
   'datomish.schema-test
   'datomish.sqlite-user-version-test
   'datomish.tofinoish-test
