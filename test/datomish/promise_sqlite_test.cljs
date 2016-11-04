@@ -84,3 +84,15 @@
           (finally
             (<? (s/close db))))
         ))))
+
+(deftest test-tests-are-isolated
+  (go-pair
+    (let [conn-1 (<? (s/<sqlite-connection ""))
+          conn-2 (<? (s/<sqlite-connection ""))]
+      (is (not (= conn-1 conn-2)))
+      (<? (s/execute! conn-1 ["CREATE TABLE foo (x INTEGER)"]))
+      (<? (s/execute! conn-2 ["CREATE TABLE foo (x INTEGER)"]))
+      (<? (s/execute! conn-1 ["INSERT INTO foo (x) VALUES (5)"]))
+      (is (empty? (<? (s/all-rows conn-2 ["SELECT x FROM foo"]))))
+      (s/close conn-1)
+      (s/close conn-2))))
