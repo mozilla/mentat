@@ -178,7 +178,7 @@
       (raise "Unknown attribute " attr ", expected one of " (sorted-set (keys schema))
              {:error :schema/valueType, :attribute attr}))))
 
-(defn- validate-schema [schema]
+(defn validate-schema [schema]
   (doseq [[a kv] schema]
     (when-not (:db/valueType kv)
       (throw (ex-info (str "Bad attribute specification for " a ": should have {:db/valueType ...}")
