@@ -71,6 +71,13 @@
      (consume-pair (cljs.core.async/<! ~pc-chan))
      (consume-pair (clojure.core.async/<! ~pc-chan))))
 
+(defmacro <??
+  "Takes from the channel if it's non-nil."
+  [pc-chan]
+  `(let [c# ~pc-chan]
+     (when c#
+       (datomish.pair-chan/<? c#))))
+
 (defn consume-pair
   "When passed a [value nil] pair, returns value. When passed a [nil error] pair,
   throws error. See also `<?`."
