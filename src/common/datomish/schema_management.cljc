@@ -289,6 +289,18 @@
         ;; be inconsistent, but we can proceed to the next step.
         (<prepare-schema-application* db args)))))
 
+(defn- <schema-fragment-versions-match?
+  "Quickly return true if every provided fragment matches the
+   version in the store."
+  [db fragments]
+  (go-pair
+    (let [schema-fragment-versions (<? (<collect-schema-fragment-versions db))]
+      (every?
+        (fn [{:keys [name version]}]
+          (= (get schema-fragment-versions name)
+             version))
+        fragments))))
+
 (defn <apply-schema-alteration
   "Take a database and a sequence of managed schema fragments,
   along with migration tools, and transact a migration operation.
@@ -296,36 +308,41 @@
   nil if no work was done, or the last db-report otherwise."
   [conn args]
   (go-pair
-    (let [ops (<? (<prepare-schema-application (d/db conn) args))]
-      (if (empty? ops)
-        (log "No schema work to do.")
+    (if (or (empty? (:fragments args))
+            (<? (<schema-fragment-versions-match?
+                  (d/db conn)
+                  (:fragments args))))
+      (log "No schema work to do.")
 
-        (<?
-          (d/<transact!
-            conn
-            (fn [db do-transact]
-              (let [last-report (atom {:db-after db})]
-                (go-pair
-                  (doseq [[op op-arg] ops]
-                    (case op
-                          :transact
-                          (reset! last-report
-                                  (<? (do-transact
-                                        (:db-after @last-report)
-                                        op-arg)))
+      ;; Do the real fragment op computation inside the transaction.
+      ;; This avoids a check-then-write race.
+      (<?
+        (d/<transact!
+          conn
+          (fn [db do-transact]
+            (go-pair
+              (let [last-report (atom {:db-after db})
+                    ops (<? (<prepare-schema-application db args))]
+                (doseq [[op op-arg] ops]
+                  (case op
+                        :transact
+                        (reset! last-report
+                                (<? (do-transact
+                                      (:db-after @last-report)
+                                      op-arg)))
 
-                          :call
-                          ;; We use <?? so that callers don't accidentally
-                          ;; break us if they pass a function that returns
-                          ;; nil rather than a *channel* that returns nil.
-                          (when-let [new-report
-                                     (<?? (op-arg (:db-after @last-report)
-                                                  do-transact))]
-                            (when-not (:db-after new-report)
-                              (raise "Function didn't return a valid report."
-                                     {:error :schema/invalid-report
-                                      :function op-arg
-                                      :returned new-report}))
+                        :call
+                        ;; We use <?? so that callers don't accidentally
+                        ;; break us if they pass a function that returns
+                        ;; nil rather than a *channel* that returns nil.
+                        (when-let [new-report
+                                   (<?? (op-arg (:db-after @last-report)
+                                                do-transact))]
+                          (when-not (:db-after new-report)
+                            (raise "Function didn't return a valid report."
+                                   {:error :schema/invalid-report
+                                    :function op-arg
+                                    :returned new-report}))
 
-                            (reset! last-report new-report))))
-                  @last-report)))))))))
+                          (reset! last-report new-report))))
+                @last-report))))))))
