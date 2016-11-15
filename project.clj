@@ -45,6 +45,31 @@
                  }
                 :notify-command ["release-node/wrap_bare.sh"]}
 
+               :release-addon
+               ;; Release builds for use in Firefox add-ons are much like the ones
+               ;; for Firefox itself, but they can freely use `console` and must
+               ;; `require("chrome")` to get access to Components.
+               {
+                :source-paths   ["src/common" "src/browser-common" "src/addon"]
+                :assert         false
+                :compiler
+                {
+                 :elide-asserts  true
+                 :externs        ["src/browser-common/externs/datomish.js"]
+                 :language-in    :ecmascript5
+                 :language-out   :ecmascript5
+                 :optimizations  :advanced
+                 :output-dir     "target/release-addon"
+                 :output-to      "target/release-addon/datomish.bare.js"
+                 :output-wrapper false
+                 :parallel-build true
+                 :preloads       [datomish.preload]
+                 :pretty-print   true
+                 :pseudo-names   true
+                 :static-fns     true
+                 }
+                :notify-command ["release-addon/wrap_bare.sh"]}
+
                :release-browser
                ;; Release builds for use in Firefox must:
                ;; * Use :optimizations > :none, so that a single file is generated
@@ -55,15 +80,15 @@
                ;; There's no point in generating a source map -- it'll be wrong
                ;; due to wrapping.
                {
-                :source-paths   ["src/common" "src/browser"]
+                :source-paths   ["src/common" "src/browser-common" "src/browser"]
                 :assert         false
                 :compiler
                 {
                  :elide-asserts  true
-                 :externs        ["src/browser/externs/datomish.js"]
+                 :externs        ["src/browser-common/externs/datomish.js"]
                  :language-in    :ecmascript5
-                 :language-out   :ecmascript5
-                 :optimizations  :advanced
+                 :language-out   :ecmascript5-strict
+                 :optimizations  :simple
                  :output-dir     "target/release-browser"
                  :output-to      "target/release-browser/datomish.bare.js"
                  :output-wrapper false

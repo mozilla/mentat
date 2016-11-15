@@ -6,6 +6,10 @@ var Array = {};
 Array.length = 0;
 Array.isArray = function () {};
 
+var Components = {};
+Components.utils = {};
+Components.utils.import = function (name, scope) {};
+
 var SqliteStatic = {};
 
 /**

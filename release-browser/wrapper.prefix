@@ -2,33 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Datomish 0.1.0-SNAPSHOT
+this.EXPORTED_SYMBOLS = ["Datomish"];
 
-(function (definition) {
-    // This file will function properly as a <script> tag, or a module
-    // using CommonJS and NodeJS or RequireJS module formats.
+var console = {
+  log: function (s) {
+    dump(s);
+  }
+};
 
-    // Wrapper gratefully adapted from:
-    // https://github.com/kriskowal/q/blob/v1/q.js
-    // https://github.com/swannodette/mori/blob/master/support/wrapper.js
-    // https://github.com/tonsky/datascript/blob/master/release-js/wrapper.js
+this.Datomish = (function () {
 
-    // CommonJS
-    if (typeof exports === "object") {
-        module.exports = definition();
-
-    // RequireJS
-    } else if (typeof define === "function" && define.amd) {
-        define(definition);
-
-    // <script>
-    } else {
-        datomish = definition();
-    }
-})(function () {
-    return function () {
-
-// Monkeypatch setTimeout so that the Closure Compiler
-// output can use it in a Sandbox context.
-var { setTimeout } = require("sdk/timers");
-this.setTimeout = setTimeout;
