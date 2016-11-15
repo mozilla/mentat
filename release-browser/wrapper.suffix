@@ -1,6 +1,2 @@
-
-        ;return this.datomish.js;
-
-    }.call({});
-
-});
+return datomish.js;
+}).call(this);

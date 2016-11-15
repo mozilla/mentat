@@ -5,11 +5,8 @@
 (ns datomish.sqlitejsm-sqlite
   (:require
    [cljs-promises.async]
-   [datomish.sqlite :as s]))
-
-(def sqlite (.import (aget (js/require "chrome") "Cu") "resource://gre/modules/Sqlite.jsm"))
-
-(println "sqlite is" (pr-str sqlite))
+   [datomish.sqlite :as s]
+   [datomish.sqlite-module :refer [sqlite]]))
 
 ;; mozIStorageRow instances expose two methods: getResultByIndex and getResultByName.
 ;; Our code expects to treat rows as associative containers, from keyword to value.

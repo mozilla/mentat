@@ -10,4 +10,3 @@
      [datomish.js-sqlite :as js-sqlite]
      [datomish.sqlite :as sqlite]
      [datomish.transact :as transact]))
-
