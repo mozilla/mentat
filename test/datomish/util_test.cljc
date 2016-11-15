@@ -51,3 +51,18 @@
   (are [m xs] (= m (util/group-by-kv identity xs))
     {:a [1 2] :b [3]}
     [[:a 1] [:a 2] [:b 3]]))
+
+(deftest test-repeated-keys
+  (let [abc {:a 1 :b 2 :c 3}
+        def {:d 1 :e 2 :f 3}
+        bcd {:b 1 :c 2 :d 3}
+        efg {:e 1 :f 2 :g 3}
+        empty {}]
+    (is (= #{} (util/repeated-keys [])))
+    (is (= #{} (util/repeated-keys [empty])))
+    (is (= #{} (util/repeated-keys [empty empty])))
+    (is (= #{} (util/repeated-keys [abc empty empty])))
+    (is (= #{} (util/repeated-keys [abc def empty])))
+    (is (= #{:b :c} (util/repeated-keys [bcd abc])))
+    (is (= #{:b :c :d} (util/repeated-keys [abc def bcd])))
+    (is (= #{:b :c :d :e :f :g} (util/repeated-keys [abc efg def efg bcd])))))

@@ -3,6 +3,7 @@
    [doo.runner :refer-macros [doo-tests doo-all-tests]]
    [cljs.test :as t :refer-macros [is are deftest testing]]
    datomish.schema-changes-test
+   datomish.schema-management-test
    datomish.places.import-test
    datomish.promise-sqlite-test
    datomish.db-test
@@ -19,6 +20,7 @@
 
 (doo-tests
   'datomish.schema-changes-test
+  'datomish.schema-management-test
   'datomish.places.import-test
   'datomish.promise-sqlite-test
   'datomish.db-test

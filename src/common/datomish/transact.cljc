@@ -791,14 +791,14 @@
       (-> report
           (assoc-in [:db-after] db-after)))))
 
-(defn- <with [db tx-data]
+(defn <transact-tx-data-in-transaction! [db tx-data]
   (let [fail-touch-attr  (fn [old new] (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
                                               {:error :schema/alter-schema :old old :new new}))]
     (<with-internal db tx-data fail-touch-attr)))
 
-(defn <db-with [db tx-data]
+(defn <db-transact-tx-data! [db tx-data]
   (go-pair
-    (:db-after (<? (<with db tx-data)))))
+    (:db-after (<? (<transact-tx-data-in-transaction! db tx-data)))))
 
 (defn <transact!
   "Submits a transaction to the database for writing.
@@ -806,11 +806,15 @@
   Returns a pair-chan resolving to `[result error]`."
   ([conn tx-data]
    (<transact! conn tx-data (a/chan 1) true))
-  ([conn tx-data result close?]
+  ([conn tx-data-or-fn result close?]
    {:pre [(conn? conn)]}
    ;; Any race to put! is a real race between callers of <transact!.  We can't just park on put!,
    ;; because the parked putter that is woken is non-deterministic.
-   (let [closed? (not (a/put! (:transact-chan conn) [:sentinel-transact tx-data result close?]))]
+   (let [op (if (fn? tx-data-or-fn)
+              :sentinel-fn
+              :sentinel-transact)
+         closed? (not (a/put! (:transact-chan conn)
+                              [op tx-data-or-fn result close?]))]
      (go-pair
        ;; We want to return a pair-chan, no matter what kind of channel result is.
        (if closed?
@@ -823,30 +827,50 @@
       (>! token-chan (gensym "transactor-token"))
       (loop []
         (when-let [token (<! token-chan)]
-          (when-let [[sentinel tx-data result close?] (<! (:transact-chan conn))]
-            (let [pair
-                  (<! (go-pair ;; Catch exceptions, return the pair.
-                        (case sentinel
-                          :sentinel-close
-                          ;; Time to close the underlying DB.
-                          (<? (db/close-db @(:current-db conn)))
+          (when-let [[sentinel tx-data-or-fn result close?] (<! (:transact-chan conn))]
+            (let
+              [pair
+               (<!
+                 (go-pair ;; Catch exceptions, return the pair.
+                   (case sentinel
+                     :sentinel-close
+                     ;; Time to close the underlying DB.
+                     (<? (db/close-db @(:current-db conn)))
 
-                          ;; Default: process the transaction.
-                          (do
-                            (when @(:closed? conn)
-                              ;; Drain enqueued transactions.
-                              (raise "Connection is closed" {:error :transact/connection-closed}))
-                            (let [db (db conn)
-                                  report (<? (db/in-transaction!
-                                               db
-                                               #(-> (<with db tx-data))))]
-                              (when report
-                                ;; <with returns non-nil or throws, but we still check report just in
-                                ;; case.  Here, in-transaction! function completed and returned non-nil,
-                                ;; so the transaction has committed.
-                                (reset! (:current-db conn) (:db-after report))
-                                (>! (:listener-source conn) report))
-                              report)))))]
+                     ;; Default: process the transaction.
+                     (do
+                       (when @(:closed? conn)
+                         ;; Drain enqueued transactions.
+                         (raise "Connection is closed" {:error :transact/connection-closed}))
+
+                       (let [db (db conn)
+                             in-transaction-fn
+                             (case sentinel
+                               :sentinel-fn
+                               ;; This is a function that we'd like to run
+                               ;; within a database transaction. See
+                               ;; db/in-transaction! for details.
+                               ;; The function is invoked with two arguments:
+                               ;; the db and a function that takes (db,
+                               ;; tx-data) and transacts it to return a
+                               ;; TxReport.
+                               ;; The function must return a TxReport.
+                               ;; The function must not itself call
+                               ;; `in-transaction!` or `<transact!`.
+                               (partial tx-data-or-fn db <transact-tx-data-in-transaction!)
+
+                               :sentinel-transact
+                               ;; This is data. Apply it with `<transact-tx-data-in-transaction!`.
+                               (partial <transact-tx-data-in-transaction! db tx-data-or-fn))
+
+                               report (<? (db/in-transaction! db in-transaction-fn))]
+                         (when report
+                           ;; <r-t-t-d! returns non-nil or throws, but we still check report just in
+                           ;; case.  Here, in-transaction! function completed and returned non-nil,
+                           ;; so the transaction has committed.
+                           (reset! (:current-db conn) (:db-after report))
+                           (>! (:listener-source conn) report))
+                         report)))))]
               ;; Even when report is nil (transaction not committed), pair is non-nil.
               (>! result pair))
             (>! token-chan token)

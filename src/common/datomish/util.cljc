@@ -174,3 +174,22 @@
         (let [[k v] (f x)]
           (assoc! ret k (conj (get ret k []) v))))
       (transient {}) coll)))
+
+(defn repeated-keys
+  "Takes a seq of maps.
+   Returns the set of keys that appear in more than one map."
+  [maps]
+  (if (not (seq (rest maps)))
+    #{}
+    ;; This is a perfect use case for transients, except that
+    ;; you can't use them for intersection due to CLJ-700.
+    ;; http://dev.clojure.org/jira/browse/CLJ-700
+    (loop [overlapping #{}
+           seen #{}
+           key-sets (map (comp set keys) maps)]
+      (if-let [ks (first key-sets)]
+        (let [overlap (clojure.set/intersection seen ks)]
+          (recur (clojure.set/union overlapping overlap)
+                 (clojure.set/union seen ks)
+                 (rest key-sets)))
+        overlapping))))

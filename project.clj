@@ -3,7 +3,7 @@
   :url "https://github.com/mozilla/datomish"
   :license {:name "Mozilla Public License Version 2.0"
             :url  "https://github.com/mozilla/datomish/blob/master/LICENSE"}
-  :dependencies [[org.clojure/clojurescript "1.9.229"]
+  :dependencies [[org.clojure/clojurescript "1.9.293"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
                  [datascript "0.15.1"]
@@ -45,6 +45,31 @@
                  }
                 :notify-command ["release-node/wrap_bare.sh"]}
 
+               :release-addon
+               ;; Release builds for use in Firefox add-ons are much like the ones
+               ;; for Firefox itself, but they can freely use `console` and must
+               ;; `require("chrome")` to get access to Components.
+               {
+                :source-paths   ["src/common" "src/browser-common" "src/addon"]
+                :assert         false
+                :compiler
+                {
+                 :elide-asserts  true
+                 :externs        ["src/browser-common/externs/datomish.js"]
+                 :language-in    :ecmascript5
+                 :language-out   :ecmascript5
+                 :optimizations  :advanced
+                 :output-dir     "target/release-addon"
+                 :output-to      "target/release-addon/datomish.bare.js"
+                 :output-wrapper false
+                 :parallel-build true
+                 :preloads       [datomish.preload]
+                 :pretty-print   true
+                 :pseudo-names   true
+                 :static-fns     true
+                 }
+                :notify-command ["release-addon/wrap_bare.sh"]}
+
                :release-browser
                ;; Release builds for use in Firefox must:
                ;; * Use :optimizations > :none, so that a single file is generated
@@ -55,15 +80,15 @@
                ;; There's no point in generating a source map -- it'll be wrong
                ;; due to wrapping.
                {
-                :source-paths   ["src/common" "src/browser"]
+                :source-paths   ["src/common" "src/browser-common" "src/browser"]
                 :assert         false
                 :compiler
                 {
                  :elide-asserts  true
-                 :externs        ["src/browser/externs/datomish.js"]
+                 :externs        ["src/browser-common/externs/datomish.js"]
                  :language-in    :ecmascript5
-                 :language-out   :ecmascript5
-                 :optimizations  :advanced
+                 :language-out   :ecmascript5-strict
+                 :optimizations  :simple
                  :output-dir     "target/release-browser"
                  :output-to      "target/release-browser/datomish.bare.js"
                  :output-wrapper false
@@ -97,8 +122,8 @@
                                   [tempfile "0.2.0"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [org.clojure/tools.nrepl "0.2.10"]
-                                  [org.clojure/java.jdbc "0.6.2-alpha1"]
-                                  [org.xerial/sqlite-jdbc "3.8.11.2"]]
+                                  [org.clojure/java.jdbc "0.6.2-alpha3"]
+                                  [org.xerial/sqlite-jdbc "3.15.1"]]
                    :jvm-opts ["-Xss4m"]
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :plugins      [[lein-cljsbuild "1.1.3"]

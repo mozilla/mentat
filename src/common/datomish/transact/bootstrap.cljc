@@ -38,6 +38,15 @@
                           :db/cardinality :db.cardinality/one}
    :db.alter/attribute   {:db/valueType   :db.type/ref
                           :db/cardinality :db.cardinality/many}
+
+   :db.schema/version    {:db/valueType   :db.type/long
+                          :db/cardinality :db.cardinality/one}
+
+   ;; unique-value because an attribute can only belong to a single
+   ;; schema fragment.
+   :db.schema/attribute  {:db/valueType   :db.type/ref
+                          :db/unique      :db.unique/value
+                          :db/cardinality :db.cardinality/many}
    })
 
 (def idents
@@ -76,6 +85,8 @@
    :db.unique/value      33
    :db.unique/identity   34
    :db/doc               35
+   :db.schema/version    36    ; Fragment -> version.
+   :db.schema/attribute  37    ; Fragment -> attribute.
    })
 
 (def parts
