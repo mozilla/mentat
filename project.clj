@@ -8,7 +8,7 @@
                  [org.clojure/core.async "0.2.385"]
                  [datascript "0.15.4"]
                  [org.clojars.rnewman/honeysql "0.8.2"]
-                 [com.taoensso/tufte "1.0.2"]
+                 ;[com.taoensso/tufte "1.0.2"]
                  [jamesmacaulay/cljs-promises "0.1.0"]]
 
   ;; The browser will never require from the .JAR anyway.

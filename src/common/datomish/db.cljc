@@ -19,8 +19,8 @@
    [datomish.schema :as ds]
    [datomish.sqlite :as s]
    [datomish.sqlite-schema :as sqlite-schema]
-   [taoensso.tufte :as tufte
-    #?(:cljs :refer-macros :clj :refer) [defnp p profiled profile]]
+   [datomish.tufte-stub :as tufte
+    #?(:cljs :refer-macros :clj :refer) [p]]
    #?@(:clj [[datomish.pair-chan :refer [go-pair <?]]
              [clojure.core.async :as a :refer [chan go <! >!]]])
    #?@(:cljs [[datomish.pair-chan]

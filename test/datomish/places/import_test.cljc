@@ -9,8 +9,8 @@
       [datomish.node-tempfile-macros :refer [with-tempfile]]
       [cljs.core.async.macros :as a :refer [go]]))
   (:require
-   [taoensso.tufte :as tufte
-    #?(:cljs :refer-macros :clj :refer) [defnp p profiled profile]]
+   [datomish.tufte-stub :as tufte
+    #?(:cljs :refer-macros :clj :refer) [p profile]]
    [datomish.api :as d]
    [datomish.places.import :as pi]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
