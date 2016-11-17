@@ -20,6 +20,8 @@
                  ;; "src/node"
                  ]
 
+  :test-paths ["test" "src/helpers"]
+
   :cljsbuild {:builds
               {
                :release-node
@@ -77,7 +79,7 @@
 
                :test
                {
-                :source-paths ["src/common" "src/node" "test"]
+                :source-paths ["src/common" "src/node" "src/helpers" "test"]
                 :compiler
                 {
                  :language-in    :ecmascript5
