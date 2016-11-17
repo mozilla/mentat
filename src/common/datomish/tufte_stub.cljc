@@ -12,3 +12,5 @@
 
 (defmacro profile [options & forms]
   `(do ~@forms))
+
+(defn add-basic-println-handler! [args])
