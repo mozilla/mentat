@@ -35,6 +35,7 @@
 (def <close transact/close)
 
 (def id-literal db/id-literal)
+(def id-literal? db/id-literal?)
 
 (def lookup-ref db/lookup-ref)
 
