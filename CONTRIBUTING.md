@@ -32,7 +32,7 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 * Fork this repo at [github.com/mozilla/datomish](https://github.com/mozilla/datomish#fork-destination-box).
 * Clone your fork locally. Make sure you use the correct clone URL.
 ```
-git clone git@github.com:YOURNAME/tofino.git
+git clone git@github.com:YOURNAME/datomish.git
 ```
 Check your remotes:
 ```
