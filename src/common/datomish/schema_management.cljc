@@ -177,29 +177,36 @@
     [body
      (mapcat
        (fn [{:keys [name version attributes] :as fragment}]
-         (if-let [existing-version (get schema-fragment-versions name)]
-           ;; It's a change.
-           ;; Spit out any pre/post for this fragment, with a
-           ;; transact of the datoms to effect the change and
-           ;; bump the schema fragment version in the middle.
+         (let [existing-version (get schema-fragment-versions name)
+
+               datoms
+               [[:transact
+                 (if existing-version
+                   ;; It's a change.
+                   ;; Transact the datoms to effect the change and
+                   ;; bump the schema fragment version.
+                   (changed-schema-fragment->datoms
+                     (d/entid db name)
+                     symbolic-schema
+                     name
+                     attributes
+                     version)
+
+                   ;; It's new! Just do it.
+                   (managed-schema-fragment->datoms fragment))]]]
+
+           ;; We optionally allow you to provide a `:none` migration here, which
+           ;; is useful in the case where a vocabulary might have been added
+           ;; outside of the schema management system.
            (concat
              (when-let [fragment-pre-for-this
-                        (get-in fragment-pre [name existing-version])]
+                        (get-in fragment-pre [name (or existing-version :none)])]
                [[:call fragment-pre-for-this]])
-             [[:transact
-               (changed-schema-fragment->datoms (d/entid db name)
-                                                symbolic-schema
-                                                name
-                                                attributes
-                                                version)]]
+             datoms
              (when-let [fragment-post-for-this
-                        (get-in fragment-post [name existing-version])]
-               [[:call fragment-post-for-this]]))
+                        (get-in fragment-post [name (or existing-version :none)])]
+               [[:call fragment-post-for-this]]))))
 
-           ;; It's new! Just do it.
-           ;; There can't be any fragment pre/post, 'cos there's no previous
-           ;; version to come from.
-           [[:transact (managed-schema-fragment->datoms fragment)]]))
        fragments)]
 
     (concat

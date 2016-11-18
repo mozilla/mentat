@@ -336,6 +336,58 @@
                     :bar/noo :com.example.bar}
                    (<? (sm/<collect-schema-fragment-attributes db))))))))))
 
+(deftest-db test-none-migration conn
+  (testing "A fragment that's never existed in the DB triggers :none pre and post."
+    (let [db (atom (d/db conn))
+
+          v1-fragment
+          {:name :com.example.foo
+           :version 1
+           :attributes
+           {:foo/bar
+            {:db/valueType :db.type/long
+             :db/cardinality :db.cardinality/many}}}
+
+          fail-called (atom nil)
+          pre-called (atom nil)
+          post-called (atom nil)
+
+          v1-migration
+          {:fragments [v1-fragment]
+           :fragment-pre {:com.example.foo
+                          {:none (fn [db _]
+                                   (reset! pre-called true)
+                                   nil)
+                           1 (fn [db _]
+                               (reset! fail-called true)
+                               nil)}}
+           :fragment-post {:com.example.foo
+                           {:none (fn [db _]
+                                    (reset! post-called true)
+                                    nil)
+                            1 (fn [db _]
+                                (reset! fail-called true)
+                                nil)}}}]
+
+      (is (empty? (<? (sm/<collect-schema-fragment-versions @db))))
+
+      ;; Apply the v1 schema.
+      (reset!
+        db
+        (:db-after
+           (<? (sm/<apply-schema-alteration
+                 conn
+                 v1-migration))))
+
+      (is @pre-called)
+      (is @post-called)
+      (is (not @fail-called))
+
+      (is (= {:com.example.foo 1}
+             (<? (sm/<collect-schema-fragment-versions @db))))
+      (is (= {:foo/bar :com.example.foo}
+             (<? (sm/<collect-schema-fragment-attributes @db)))))))
+
 (deftest-db test-functions-can-do-work conn
   (let
     [;; Use an atom to keep this long test fairly flat.
