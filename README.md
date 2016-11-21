@@ -13,6 +13,8 @@ Datomish is intended to be a flexible relational (not key-value, not document-or
 
 Our short-term goal is to build a system that, as the basis for a User Agent Service, can support multiple [Tofino](https://github.com/mozilla/tofino) UX experiments without having a storage engineer do significant data migration, schema work, or revving of special-purpose endpoints.
 
+By abstracting away the storage schema, and by exposing change listeners outside the database (not via triggers), we hope to allow both the data store itself and embedding applications to use better architectures, meeting performance goals in a way that allows future evolution.
+
 
 ## Comparison to DataScript
 
@@ -57,7 +59,7 @@ By participating in this project you agree to abide by its terms.
 See [CONTRIBUTING.md](/CONTRIBUTING.md) for further notes.
 
 This project is very new, so we'll probably revise these guidelines. Please
-comment on a bug before putting significant effort in if you'd like to
+comment on an issue before putting significant effort in if you'd like to
 contribute.
 
 
@@ -142,7 +144,7 @@ Now you can use `:Eval`, `cqc`, and friends to evaluate code. Fireplace should c
 
 ## To run tests in ClojureScript
 
-Run `lein doo node test once`, or `lein doo node` to re-run on file changes.
+Run `lein doo node test once`, or `lein doo node test auto` to re-run on file changes.
 
 ## To run tests in Clojure
 
@@ -156,7 +158,7 @@ lein cljsbuild once release-node
 npm run test
 ```
 
-## To build for Firefox
+## To build for a Firefox add-on
 
 ```
 lein cljsbuild once release-browser
@@ -164,7 +166,7 @@ lein cljsbuild once release-browser
 
 ### To build and run the example Firefox add-on:
 
-First build for Firefox, so that `datomish.js` exists.
+First build as above, so that `datomish.js` exists.
 
 Then:
 
