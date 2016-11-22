@@ -4,7 +4,7 @@
   "engines": {
     "node": "6.x.x"
   },
-  "version": "0.2.0-SNAPSHOT",
+  "version": "0.3.0",
   "description": "A persistent, embedded knowledge base inspired by Datomic and DataScript.",
   "dependencies": {
     "promise-sqlite": "1.5.0",
