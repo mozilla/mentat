@@ -65,7 +65,7 @@ contribute.
 
 ## License
 
-At present this code is licensed under MPLv2.0. That license is subject to change prior to external contributions.
+Datomish is currently licensed under the Apache License v2.0. See the `LICENSE` file for details.
 
 Datomish includes some code from DataScript, kindly relicensed by Nikita Prokopov.
 
