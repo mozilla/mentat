@@ -1,8 +1,8 @@
 (defproject datomish "0.2.0-SNAPSHOT"
   :description "A persistent, embedded knowledge base inspired by Datomic and DataScript."
   :url "https://github.com/mozilla/datomish"
-  :license {:name "Mozilla Public License Version 2.0"
-            :url  "https://github.com/mozilla/datomish/blob/master/LICENSE"}
+  :license {:name "Apache License, Version 2.0"
+            :url "https://www.apache.org/licenses/LICENSE-2.0"}
   :dependencies [[org.clojure/clojurescript "1.9.293"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
