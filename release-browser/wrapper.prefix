@@ -9,7 +9,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-// Datomish 0.2.0
+// Datomish 0.3.0
 
 (function (definition) {
     // This file will function properly as a <script> tag, or a module
