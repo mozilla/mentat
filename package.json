@@ -4,12 +4,12 @@
   "engines": {
     "node": "6.x.x"
   },
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A persistent, embedded knowledge base inspired by Datomic and DataScript.",
   "dependencies": {
     "promise-sqlite": "1.5.0",
     "source-map-support": "ncalexan/node-source-map-support#fileUrls-plus",
-    "sqlite3": "3.1.7",
+    "sqlite3": "3.1.8",
     "thenify-all": "^1.6.0",
     "ws": "1.1.1"
   },
