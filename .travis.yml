@@ -9,5 +9,6 @@ env:
 install:
   - nvm install $TRAVIS_NODE_VERSION
   - nvm use $TRAVIS_NODE_VERSION
+  - lein deps
   - npm install
-script: lein doo node test once && lein test
+script: lein cljsbuild once release-node && lein with-profile node install && lein doo node test once && lein test
