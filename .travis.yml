@@ -10,4 +10,4 @@ install:
   - nvm install $TRAVIS_NODE_VERSION
   - nvm use $TRAVIS_NODE_VERSION
   - npm install
-script: lein test; lein doo node test once
+script: lein doo node test once && lein test
