@@ -11,6 +11,7 @@
     "source-map-support": "ncalexan/node-source-map-support#fileUrls-plus",
     "sqlite3": "3.1.8",
     "thenify-all": "^1.6.0",
+    "tmp": "0.0.28",
     "ws": "1.1.1"
   },
   "scripts": {
