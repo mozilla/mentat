@@ -40,7 +40,7 @@
     "url": "git+https://github.com/mozilla/datomish.git"
   },
   "author": "Mozilla Corporation",
-  "license": "MPL-2.0",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/mozilla/datomish/issues"
   },
