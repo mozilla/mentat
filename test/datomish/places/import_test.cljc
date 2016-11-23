@@ -8,6 +8,13 @@
 ;; CONDITIONS OF ANY KIND, either express or implied. See the License for the
 ;; specific language governing permissions and limitations under the License.
 
+;;
+;; These tests are disabled for the moment -- they depend on
+;; having a particular places.sqlite.
+;;
+;; Issue #108 tracks removing this code from Datomish itself.
+;;
+
 (ns datomish.places.import-test
   #?(:cljs
      (:require-macros
@@ -39,6 +46,7 @@
 
 (tufte/add-basic-println-handler! {})
 
+#_
 (deftest-async test-import
   (with-tempfile [t (tempfile)]
     (let [places (<? (s/<sqlite-connection "/tmp/places.sqlite"))
@@ -50,6 +58,7 @@
         (finally
           (<? (d/<close conn)))))))
 
+#_
 (deftest-async test-import-repeat
   ;; Repeated import is worst possible for the big joins to find datoms that already exist, because
   ;; *every* datom added in the first import will match in the second.
