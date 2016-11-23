@@ -11,4 +11,4 @@ install:
   - nvm use $TRAVIS_NODE_VERSION
   - lein deps
   - npm install
-script: lein cljsbuild once release-node && lein with-profile node install && lein doo node test once && lein test
+script: lein cljsbuild once release-node && lein with-profile node install && lein test
