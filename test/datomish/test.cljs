@@ -4,7 +4,7 @@
    [cljs.test :as t :refer-macros [is are deftest testing]]
    datomish.schema-changes-test
    datomish.schema-management-test
-   datomish.places.import-test
+   datomish.places.importer-test
    datomish.promise-sqlite-test
    datomish.db-test
    datomish.query-test
@@ -21,7 +21,7 @@
 (doo-tests
   'datomish.schema-changes-test
   'datomish.schema-management-test
-  'datomish.places.import-test
+  'datomish.places.importer-test
   'datomish.promise-sqlite-test
   'datomish.db-test
   'datomish.query-test

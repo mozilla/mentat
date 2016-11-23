@@ -15,7 +15,7 @@
 ;; Issue #108 tracks removing this code from Datomish itself.
 ;;
 
-(ns datomish.places.import-test
+(ns datomish.places.importer-test
   #?(:cljs
      (:require-macros
       [datomish.pair-chan :refer [go-pair <?]]
@@ -25,7 +25,7 @@
    [datomish.tufte-stub :as tufte
     #?(:cljs :refer-macros :clj :refer) [p profile]]
    [datomish.api :as d]
-   [datomish.places.import :as pi]
+   [datomish.places.importer :as pi]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
    [datomish.sqlite :as s]
    #?@(:clj [[datomish.jdbc-sqlite]
