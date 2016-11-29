@@ -1,4 +1,4 @@
-(defproject mozilla/datomish "0.3.3"
+(defproject mozilla/datomish "0.3.5"
   :description "A persistent, embedded knowledge base inspired by Datomic and DataScript."
   :url "https://github.com/mozilla/datomish"
   :license {:name "Apache License, Version 2.0"
