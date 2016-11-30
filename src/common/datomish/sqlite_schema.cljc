@@ -21,7 +21,13 @@
    #?@(:cljs [[datomish.pair-chan]
               [cljs.core.async :as a :refer [<! >!]]])))
 
-(def current-version 1)
+;; Version history:
+;; 1: initial schema.
+;; 2: added :db.schema/version and /attribute in bootstrap; assigned
+;;    idents 36 and 37, so we bump the part range here; tie bootstrapping
+;;    to the SQLite user_version.
+
+(def current-version 2)
 
 (def v1-statements
   ["CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
@@ -103,6 +109,8 @@
    "CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"
    ])
 
+(def v2-statements v1-statements)
+
 (defn create-temp-tx-lookup-statement [table-name]
   ;; n.b., v0/value_type_tag0 can be NULL, in which case we look up v from datoms;
   ;; and the datom columns are NULL into the LEFT JOIN fills them in.
@@ -133,40 +141,54 @@
         " (e0, a0, v0, added0, value_type_tag0) WHERE sv IS NOT NULL")])
 
 (defn <create-current-version
-  [db]
-  (->>
+  [db bootstrapper]
+  (println "Creating database at" current-version)
+  (s/in-transaction!
+    db
     #(go-pair
-       (doseq [statement v1-statements]
+       (doseq [statement v2-statements]
          (try
            (<? (s/execute! db [statement]))
            (catch #?(:clj Throwable :cljs js/Error) e
              (throw (ex-info "Failed to execute statement" {:statement statement} e)))))
+       (<? (bootstrapper db 0))
        (<? (s/set-user-version db current-version))
-       (<? (s/get-user-version db)))
-    (s/in-transaction! db)))
+       [0 (<? (s/get-user-version db))])))
 
 (defn <update-from-version
-  [db from-version]
+  [db from-version bootstrapper]
   {:pre [(> from-version 0)]} ;; Or we'd create-current-version instead.
   {:pre [(< from-version current-version)]} ;; Or we wouldn't need to update-from-version.
-  (go-pair
-    (raise-str "No migrations yet defined!")
-    (<? (s/set-user-version db current-version))
-    (<? (s/get-user-version db))))
+  (println "Upgrading database from" from-version "to" current-version)
+  (s/in-transaction!
+    db
+    #(go-pair
+       ;; We must only be migrating from v1 to v2.
+       (let [statement "UPDATE parts SET idx = idx + 2 WHERE part = ?"]
+         (try
+           (<? (s/execute!
+                 db
+                 [statement :db.part/db]))
+           (catch #?(:clj Throwable :cljs js/Error) e
+             (throw (ex-info "Failed to execute statement" {:statement statement} e)))))
+       (<? (bootstrapper db from-version))
+       (<? (s/set-user-version db current-version))
+       [from-version (<? (s/get-user-version db))])))
 
 (defn <ensure-current-version
-  [db]
+  "Returns a pair: [previous-version current-version]."
+  [db bootstrapper]
   (go-pair
     (let [v (<? (s/get-user-version db))]
       (cond
         (= v current-version)
-        v
+        [v v]
 
         (= v 0)
-        (<? (<create-current-version db))
+        (<? (<create-current-version db bootstrapper))
 
         (< v current-version)
-        (<? (<update-from-version db v))))))
+        (<? (<update-from-version db v bootstrapper))))))
 
 ;; This is close to the SQLite schema since it may impact the value tag bit.
 (defprotocol IEncodeSQLite

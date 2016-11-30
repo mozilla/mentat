@@ -45,6 +45,57 @@
     (let [rows (<? (s/all-rows sqlite-connection ["SELECT part, start, idx FROM parts"]))]
       (into {} (map (fn [row] [(sqlite-schema/<-SQLite :db.type/keyword (:part row)) (select-keys row [:start :idx])])) rows))))
 
+(defn <bootstrapper! [sqlite-connection from-version]
+  (let [exec (partial s/execute! sqlite-connection)
+        part->vector (fn [[part {:keys [start idx]}]]
+                       [(sqlite-schema/->SQLite part) start idx])
+        fail-alter-attr
+        (fn [old new]
+          (if-not (= old new)
+            (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
+                   {:error :schema/alter-schema :old old :new new})
+            new))]
+    (case from-version
+      0
+      (go-pair
+        ;; TODO: think more carefully about allocating new parts and bitmasking part ranges.
+        ;; TODO: install these using bootstrap assertions.  It's tricky because the part ranges are implicit.
+        ;; TODO: chunk into 999/3 sections, for safety.
+        (<? (exec
+              (cons (str "INSERT INTO parts VALUES "
+                         (apply str (interpose ", " (repeat (count bootstrap/parts) "(?, ?, ?)"))))
+                    (mapcat part->vector bootstrap/parts))))
+
+        ;; We use <with-internal rather than <transact! to apply the bootstrap transaction
+        ;; data but to not follow the regular schema application process.  We can't apply the
+        ;; schema changes, since the applied datoms would conflict with the bootstrapping
+        ;; idents and schema.  (The bootstrapping idents and schema are required to be able to
+        ;; write to the database conveniently; without them, we'd have to manually write
+        ;; datoms to the store.  It's feasible but awkward.)  After bootstrapping, we read
+        ;; back the idents and schema, just like when we re-open.
+        ;;
+        ;; Note that we use `bootstrap/parts` here to initialize our DB… and that means we
+        ;; have a fixed starting tx.
+        (<? (transact/<with-internal
+              (db/db sqlite-connection bootstrap/idents bootstrap/parts bootstrap/symbolic-schema)
+              (bootstrap/tx-data bootstrap/idents bootstrap/symbolic-schema)
+              fail-alter-attr)))
+
+      1
+      ;; We just need to add the new stuff.
+      (go-pair
+        (<?
+          (transact/<with-internal
+            ;; We read the parts out of the DB so we don't accidentally reuse a tx ID.
+            ;; We use the v1 symbolic schema so that the rest of the system doesn't
+            ;; get confused and think we're implicitly altering an existing schema.
+            (db/db sqlite-connection
+                   bootstrap/idents
+                   (<? (<parts sqlite-connection))
+                   bootstrap/v1-symbolic-schema)
+            (bootstrap/tx-data bootstrap/v2-idents bootstrap/v2-symbolic-schema)
+            fail-alter-attr))))))
+
 (defn <symbolic-schema [sqlite-connection idents]
   "Read the schema map materialized view from the given SQLite store.
   Returns a map (keyword ident) -> (map (keyword attribute -> keyword value)), like
@@ -81,63 +132,53 @@
     (<? (s/all-rows sqlite-connection ["PRAGMA journal_size_limit=3145728"]))
     (<? (s/execute! sqlite-connection ["PRAGMA foreign_keys=ON"]))))
 
+(defn- submap?
+  "Returns true if every key in m1 is present in m2 with the same value."
+  [m1 m2]
+  (every? (fn [[k v]]
+            (= v (get m2 k)))
+          m1))
+
 (defn <db-with-sqlite-connection
   [sqlite-connection]
   (go-pair
     (<? (<initialize-connection sqlite-connection))
 
-    (when-not (= sqlite-schema/current-version (<? (sqlite-schema/<ensure-current-version sqlite-connection)))
-      (raise "Could not ensure current SQLite schema version."))
-
-    (let [db            (db/db sqlite-connection bootstrap/idents bootstrap/parts bootstrap/symbolic-schema)
-          bootstrapped? (<? (db/<bootstrapped? db))]
-      (when-not bootstrapped?
-        ;; We need to bootstrap the DB.
-        (let [fail-alter-attr  (fn [old new] (if-not (= old new)
-                                               (raise "Altering schema attributes is not yet supported, got " new " altering existing schema attribute " old
-                                                      {:error :schema/alter-schema :old old :new new})
-                                               new))]
-          (let [exec (partial s/execute! (:sqlite-connection db))
-                part->vector (fn [[part {:keys [start idx]}]]
-                               [(sqlite-schema/->SQLite part) start idx])]
-            ;; TODO: allow inserting new parts.
-            ;; TODO: think more carefully about allocating new parts and bitmasking part ranges.
-            ;; TODO: install these using bootstrap assertions.  It's tricky because the part ranges are implicit.
-            ;; TODO: chunk into 999/3 sections, for safety.
-            (<? (exec
-                  (cons (str "INSERT INTO parts VALUES "
-                             (apply str (interpose ", " (repeat (count bootstrap/parts) "(?, ?, ?)"))))
-                        (mapcat part->vector bootstrap/parts)))))
-
-          (-> db
-              ;; We use <with-internal rather than <transact! to apply the bootstrap transaction
-              ;; data but to not follow the regular schema application process.  We can't apply the
-              ;; schema changes, since the applied datoms would conflict with the bootstrapping
-              ;; idents and schema.  (The bootstrapping idents and schema are required to be able to
-              ;; write to the database conveniently; without them, we'd have to manually write
-              ;; datoms to the store.  It's feasible but awkward.)  After bootstrapping, we read
-              ;; back the idents and schema, just like when we re-open.
-              (transact/<with-internal (bootstrap/tx-data) fail-alter-attr)
-              (<?))))
+    (let [[previous-version current-version]
+          (<? (sqlite-schema/<ensure-current-version
+                sqlite-connection
+                <bootstrapper!))]
+      (when-not (= sqlite-schema/current-version current-version)
+        (raise "Could not ensure current SQLite schema version."))
 
       ;; We just bootstrapped, or we are returning to an already bootstrapped DB.
       (let [idents          (<? (<idents sqlite-connection))
             parts           (<? (<parts sqlite-connection))
             symbolic-schema (<? (<symbolic-schema sqlite-connection idents))]
-        (when-not bootstrapped?
-          (when (not (= idents bootstrap/idents))
-            (raise "After bootstrapping database, expected new materialized idents and old bootstrapped idents to be identical"
+        (when-not (= previous-version current-version)
+          (when (not (submap? bootstrap/idents idents))
+            (raise "After bootstrapping database, expected new materialized idents to include all old bootstrapped idents"
                    {:error :bootstrap/bad-idents,
-                    :new   idents :old bootstrap/idents
-                    }))
-          (when (not (= (dissoc parts :db.part/tx) (dissoc bootstrap/parts :db.part/tx))) ;; TODO: work around tx allocation.
-            (raise "After bootstrapping database, expected new materialized parts and old bootstrapped parts to be identical (outside of db.part/tx)"
+                    :new   idents
+                    :old   bootstrap/idents}))
+
+          (when (not (every? (fn [[k {:keys [start idx]}]]
+                               (let [now (get parts k)]
+                                 (and now
+                                      (= start (:start now))
+                                      (<= idx (:idx now)))))
+                             bootstrap/parts))
+            (raise "After bootstrapping database, expected new materialized parts and old bootstrapped parts to be congruent."
                    {:error :bootstrap/bad-parts,
-                    :new   (dissoc parts :db.part/tx) :old (dissoc bootstrap/parts :db.part/tx)
-                    }))
-          (when (not (= symbolic-schema bootstrap/symbolic-schema))
-            (raise "After bootstrapping database, expected new materialized symbolic schema and old bootstrapped symbolic schema to be identical"
+                    :new   parts
+                    :old   bootstrap/parts}))
+
+          (when (not (submap? bootstrap/symbolic-schema symbolic-schema))
+            (raise "After bootstrapping database, expected new materialized symbolic schema to include bootstrapped symbolic schema"
                    {:error :bootstrap/bad-symbolic-schema,
-                    :new   symbolic-schema :old bootstrap/symbolic-schema
-                    })))
+                    :new   symbolic-schema
+                    :old   bootstrap/symbolic-schema})))
+
+        ;; Finally, return a usable DB instance with the metadata that we
+        ;; read from the SQLite database.
         (db/db sqlite-connection idents parts symbolic-schema)))))

@@ -29,6 +29,8 @@
 ;; but not automatically safe for use.
 (def sql-quoting-style :ansi)
 
+(def log-sql? false)
+
 (defn format [args]
   (honeysql.core/format args :quoting sql-quoting-style))
 
@@ -56,6 +58,8 @@
 
 (defn execute!
   [db [sql & bindings]]
+  (when log-sql?
+    (println "Running SQL:" sql (pr-str bindings)))
   (-execute! db sql bindings))
 
 (defn each-row

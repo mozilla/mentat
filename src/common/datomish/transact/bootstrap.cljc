@@ -10,7 +10,7 @@
 
 (ns datomish.transact.bootstrap)
 
-(def symbolic-schema
+(def v1-symbolic-schema
   {:db/ident             {:db/valueType   :db.type/keyword
                           :db/cardinality :db.cardinality/one
                           :db/unique      :db.unique/identity}
@@ -41,10 +41,11 @@
    :db/fulltext          {:db/valueType   :db.type/boolean
                           :db/cardinality :db.cardinality/one}
    :db/noHistory         {:db/valueType   :db.type/boolean
-                          :db/cardinality :db.cardinality/one}
-   :db.alter/attribute   {:db/valueType   :db.type/ref
-                          :db/cardinality :db.cardinality/many}
+                          :db/cardinality :db.cardinality/one}})
 
+(def v2-symbolic-schema
+  {:db.alter/attribute   {:db/valueType   :db.type/ref
+                          :db/cardinality :db.cardinality/many}
    :db.schema/version    {:db/valueType   :db.type/long
                           :db/cardinality :db.cardinality/one}
 
@@ -52,10 +53,11 @@
    ;; schema fragment.
    :db.schema/attribute  {:db/valueType   :db.type/ref
                           :db/unique      :db.unique/value
-                          :db/cardinality :db.cardinality/many}
-   })
+                          :db/cardinality :db.cardinality/many}})
 
-(def idents
+(def symbolic-schema (merge v1-symbolic-schema v2-symbolic-schema))
+
+(def v1-idents
   {:db/ident             1
    :db.part/db           2
    :db/txInstant         3
@@ -90,10 +92,14 @@
    :db.cardinality/many  32
    :db.unique/value      33
    :db.unique/identity   34
-   :db/doc               35
-   :db.schema/version    36    ; Fragment -> version.
+   :db/doc               35})
+
+(def v2-idents
+  {:db.schema/version    36    ; Fragment -> version.
    :db.schema/attribute  37    ; Fragment -> attribute.
    })
+
+(def idents (merge v1-idents v2-idents))
 
 (def parts
   {:db.part/db   {:start 0 :idx (inc (apply max (vals idents)))}
@@ -101,10 +107,10 @@
    :db.part/tx   {:start 0x10000000 :idx 0x10000000}
    })
 
-(defn tx-data []
+(defn tx-data [new-idents new-symbolic-schema]
   (concat
-    (map (fn [[ident entid]] [:db/add entid :db/ident ident]) idents)
+    (map (fn [[ident entid]] [:db/add entid :db/ident ident]) new-idents)
     ;; TODO: install partitions as well, like (map (fn [[ident entid]] [:db/add :db.part/db :db.install/partition ident])).
-    (map (fn [[ident attrs]] (assoc attrs :db/id ident)) symbolic-schema)
-    (map (fn [[ident attrs]] [:db/add :db.part/db :db.install/attribute (get idents ident)]) symbolic-schema) ;; TODO: fail if nil.
+    (map (fn [[ident attrs]] (assoc attrs :db/id ident)) new-symbolic-schema)
+    (map (fn [[ident attrs]] [:db/add :db.part/db :db.install/attribute (get idents ident)]) new-symbolic-schema) ;; TODO: fail if nil.
     ))
