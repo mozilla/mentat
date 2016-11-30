@@ -203,7 +203,7 @@
 
       :cljs
       [string
-       (->SQLite [x] x)
+       (->SQLite [x] (if (util/uuidish? x) (clojure.string/lower-case x) x))
 
        Keyword
        (->SQLite [x] (str x))

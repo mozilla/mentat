@@ -199,3 +199,12 @@
                  (clojure.set/union seen ks)
                  (rest key-sets)))
         overlapping))))
+
+#?(:clj
+     (defn uuidish? [x]
+       (instance? java.util.UUID x)))
+#?(:cljs
+     (let [uuid-re (js/RegExp. "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" "i")]
+       (defn uuidish? [x]
+         (and (string? x)
+              (re-find uuid-re x)))))
