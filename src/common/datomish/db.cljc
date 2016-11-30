@@ -124,9 +124,6 @@
 
     Returns a pair-chan resolving to the same pair as the pair-chan returned by `chan-fn`.")
 
-  (<bootstrapped? [db]
-    "Return true if this database has no transactions yet committed.")
-
   (<avs
     [db avs]
     "Search for many matching datoms using the AVET index.
@@ -639,16 +636,6 @@
   (in-transaction! [db chan-fn]
     (s/in-transaction!
       (:sqlite-connection db) chan-fn))
-
-  (<bootstrapped? [db]
-    (go-pair
-      (->
-        (:sqlite-connection db)
-        (s/all-rows ["SELECT EXISTS(SELECT 1 FROM transactions LIMIT 1) AS bootstrapped"])
-        (<?)
-        (first)
-        (:bootstrapped)
-        (not= 0))))
 
   (<avs
     [db avs]
