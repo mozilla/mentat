@@ -29,9 +29,14 @@
   4. Map e -> ident; fail if not possible.
   5. Return the map, with ident keys.
 
-  This would be more pleasant with `q` and pull expressions."
+  This would be more pleasant with `q` and pull expressions.
 
-  [datoms]
+  Note that this function takes as input an existing map of {entid ident}.
+  That's because it's possible for an ident to be established in a separate
+  set of datoms -- we can't re-insert it without uniqueness constraint
+  violations, so we just provide it here."
+
+  [datoms existing-idents]
   {:pre [(sequential? datoms)]}
 
   (let [db-install? (fn [datom]
@@ -57,8 +62,13 @@
                      (let [->av (juxt :a :v)
                            ;; TODO: transduce!
                            db-avs (into {} (map ->av (filter db-*? datoms)))]
-                       ;; TODO: get ident from existing datom, to allow [:db.part/db :db.install/attribute existing-id].
-                       (if-let [ident (:db/ident db-avs)]
+                       (if-let [ident (or (:db/ident db-avs)
+                                          ;; The schema table wants a keyword, not an entid, and
+                                          ;; we need to check the existing idents…
+                                          (when (contains? existing-idents e)
+                                            (if (keyword? e)
+                                              e
+                                              (get existing-idents e))))]
                          [ident (dissoc db-avs :db/ident)]
                          (raise ":db.install/attribute requires :db/ident, got " db-avs " for " e
                                 {:error :schema/db-install :op db-avs}))))))))))

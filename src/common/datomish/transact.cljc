@@ -691,7 +691,9 @@
             tx
             added))
         datoms (map symbolicate-install-datom (:tx-data report))
-        schema-fragment (datomish.schema-changes/datoms->schema-fragment datoms)]
+        schema-fragment (datomish.schema-changes/datoms->schema-fragment
+                          datoms
+                          (:ident-map db))]
     (assoc-in report [:added-attributes] schema-fragment)))
 
 (defn collect-db-alter-assertions

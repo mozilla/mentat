@@ -17,7 +17,7 @@
   (:require
    [datomish.api :as d]
    [datomish.datom :refer [datom]]
-   [datomish.schema-changes :refer [datoms->schema-fragment]]
+   [datomish.schema-changes]
    [datomish.schema :as ds]
    [datomish.sqlite :as s]
    [datomish.util :as util #?(:cljs :refer-macros :clj :refer) [raise cond-let]]
@@ -42,6 +42,10 @@
 
 #?(:cljs
    (def Throwable js/Error))
+
+;; Wrap this so that we can pass the empty second argument.
+(defn datoms->schema-fragment [x]
+  (datomish.schema-changes/datoms->schema-fragment x {}))
 
 (deftest test-datoms->schema-fragment
   (let [tx 10101
