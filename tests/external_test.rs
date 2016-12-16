@@ -8,16 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-pub fn add_two(a: i32) -> i32 {
-    a + 2
-}
+extern crate datomish;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(4, add_two(2));
-    }
+#[test]
+fn external_test() {
+    assert_eq!(4, datomish::add_two(2));
 }
