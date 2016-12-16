@@ -62,6 +62,21 @@ This project is very new, so we'll probably revise these guidelines. Please
 comment on an issue before putting significant effort in if you'd like to
 contribute.
 
+## Building
+
+Right now this code is located on a branch, so you first need to `git checkout rust`.  To build and test the project, we are using [Cargo](https://crates.io/install).
+
+To build use
+
+````
+cargo build
+````
+
+To run tests, use:
+
+````
+cargo test
+````
 
 ## License
 
