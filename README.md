@@ -78,6 +78,12 @@ To run tests use:
 cargo test
 ````
 
+To run the cli use:
+
+````
+cargo run
+````
+
 ## License
 
 Datomish is currently licensed under the Apache License v2.0. See the `LICENSE` file for details.

@@ -8,21 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::env;
+extern crate datomish;
 
-pub fn get_name() -> String {
-  return String::from("datomish");
-}
+// This is just a placeholder to get the project structure in place.
+fn main() {
+    println!("Loaded {}", datomish::get_name());
 
-pub fn add_two(a: i32) -> i32 {
-    a + 2
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(4, add_two(2));
-    }
+    let args: Vec<String> = env::args().collect();
+    println!("I got {:?} arguments: {:?}.", args.len() - 1, &args[1..]);
 }

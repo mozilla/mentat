@@ -1,1 +1,6 @@
 language: rust
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo build --verbose -p datomish-cli
+  - cargo test --verbose -p datomish-cli

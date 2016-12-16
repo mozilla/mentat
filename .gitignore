@@ -18,7 +18,7 @@ Cargo.lock
 /classes/
 /node_modules/
 /out/
-/target/
+target/
 pom.xml
 pom.xml.asc
 /.cljs_node_repl/
