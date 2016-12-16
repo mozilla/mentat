@@ -1,14 +1,1 @@
-language: clojure
-lein: lein2
-jdk:
-  - oraclejdk8
-lein: 2.7.0
-clojure: 1.8.0
-env:
-  - TRAVIS_NODE_VERSION="6.2.2"
-install:
-  - nvm install $TRAVIS_NODE_VERSION
-  - nvm use $TRAVIS_NODE_VERSION
-  - lein deps
-  - npm install
-script: lein cljsbuild once release-node && lein with-profile node install && lein test
+language: rust
