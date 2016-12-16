@@ -13,6 +13,7 @@
 .nrepl-port
 /.lein-*
 /.nrepl-port
+Cargo.lock
 /checkouts/
 /classes/
 /node_modules/
