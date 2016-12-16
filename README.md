@@ -6,6 +6,7 @@ Datomish compiles into a single JavaScript file, and is usable both in Node (on 
 
 There's an example Firefox restartless add-on in the [`addon`](https://github.com/mozilla/datomish/tree/master/addon) directory; build instructions are below.
 
+We are in the early stages of reimplementing Datomish in [Rust](https://www.rust-lang.org/). You can follow that work in [its long-lived branch](https://github.com/mozilla/datomish/tree/rust), and issue #133.
 
 ## Motivation
 
