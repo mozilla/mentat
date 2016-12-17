@@ -4,6 +4,8 @@ version = "0.4.0"
 authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexander@mozilla.com>"]
 
 [dependencies]
+[dependencies.datomish-parser]
+  path = "parser"
 
 [dev-dependencies]
 [dev-dependencies.datomish-cli]
