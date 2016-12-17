@@ -10,7 +10,7 @@
 
 // This file is just a stub
 pub fn get_name() -> String {
-  return String::from("datomish-parser");
+  return String::from("datomish-query-parser");
 }
 
 #[cfg(test)]
@@ -19,6 +19,6 @@ mod tests {
 
     #[test]
     fn it_works() {
-        assert_eq!(String::from("datomish-parser"), get_name());
+        assert_eq!(String::from("datomish-query-parser"), get_name());
     }
 }

@@ -8,7 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate datomish_parser;
+extern crate datomish_query_parser;
 
 pub fn get_name() -> String {
   return String::from("datomish");
@@ -16,7 +16,7 @@ pub fn get_name() -> String {
 
 // Just an example of using a dependency
 pub fn get_parser_name() -> String {
-  return datomish_parser::get_name();
+  return datomish_query_parser::get_name();
 }
 
 pub fn add_two(a: i32) -> i32 {
@@ -34,6 +34,6 @@ mod tests {
 
     #[test]
     fn can_import_parser() {
-        assert_eq!(String::from("datomish-parser"), get_parser_name());
+        assert_eq!(String::from("datomish-query-parser"), get_parser_name());
     }
 }
