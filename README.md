@@ -50,7 +50,6 @@ SQLite is a traditional SQL database in most respects: schemas conflate semantic
 
 Datomish aims to offer many of the advantages of SQLite — single-file use, embeddability, and good performance — while building a more relaxed and expressive data model on top.
 
-
 ## Contributing
 
 Please note that this project is released with a Contributor Code of Conduct.
@@ -66,7 +65,7 @@ contribute.
 
 Right now this code is located on a branch, so you first need to `git checkout rust`.  To build and test the project, we are using [Cargo](https://crates.io/install).
 
-To build use
+To build all of the crates in the project use:
 
 ````
 cargo build
@@ -75,14 +74,20 @@ cargo build
 To run tests use:
 
 ````
+# Run tests for the core code (src/)
 cargo test
+
+# Run tests for the query-parser folder
+cargo test -p datomish-query-parser
 ````
 
-To run the cli use:
+To start the cli use:
 
 ````
 cargo run
 ````
+
+For most `cargo` commands you can pass the `-p` argument to run the command just on that package.  By convention, the package name will be "datomish-directory-name".  So, `cargo build -p datomish-cli` will build just the "cli" folder.
 
 ## License
 
@@ -94,4 +99,3 @@ Datomish is currently licensed under the Apache License v2.0. See the `LICENSE` 
 Datomish uses partial indices, which are available in SQLite 3.8.0 and higher.
 
 It also uses FTS4, which is [a compile time option](http://www.sqlite.org/fts3.html#section_2).
-
