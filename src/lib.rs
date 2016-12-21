@@ -8,10 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate edn;
 extern crate mentat_query_parser;
 extern crate rusqlite;
 
 use rusqlite::Connection;
+
+pub mod ident;
 
 pub fn get_name() -> String {
   return String::from("mentat");
@@ -30,6 +33,12 @@ pub fn get_connection() -> Connection {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use edn::keyword::Keyword;
+
+    #[test]
+    fn can_import_edn() {
+        assert_eq!("foo", Keyword::new("foo").name);
+    }
 
     #[test]
     fn can_import_parser() {

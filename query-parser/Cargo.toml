@@ -1,3 +1,10 @@
 [package]
 name = "mentat_query_parser"
 version = "0.0.1"
+
+[dependencies]
+[dependencies.edn]
+  path = "../edn"
+
+[dependencies.mentat_query]
+  path = "../query"

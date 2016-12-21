@@ -6,6 +6,9 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 [dependencies]
 rusqlite = "0.8.0"
 
+[dependencies.edn]
+  path = "edn"
+
 [dependencies.mentat_query_parser]
   path = "query-parser"
 
