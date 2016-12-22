@@ -2,7 +2,7 @@
 
 Datomish is a persistent, embedded knowledge base. It draws heavily on [DataScript](https://github.com/tonsky/datascript) and [Datomic](http://datomic.com).
 
-The first version of Datomish was written in ClojureScript, targeting both Node (on top of `promise_sqlite`) and Firefox (on top of `Sqlite.jsm`). It also works in pure Clojure on the JVM on top of `jdbc-sqlite`.
+The first version of Datomish [was written in ClojureScript](https://github.com/mozilla/datomish/tree/master), targeting both Node (on top of `promise_sqlite`) and Firefox (on top of `Sqlite.jsm`). It also works in pure Clojure on the JVM on top of `jdbc-sqlite`.
 
 This branch is for rewriting Datomish in Rust, giving us a smaller compiled output, better performance, more type safety, better tooling, and easier deployment into Firefox and mobile platforms.
 
