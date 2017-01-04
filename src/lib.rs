@@ -9,6 +9,9 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate datomish_query_parser;
+extern crate rusqlite;
+
+use rusqlite::Connection;
 
 pub fn get_name() -> String {
   return String::from("datomish");
@@ -19,18 +22,14 @@ pub fn get_parser_name() -> String {
   return datomish_query_parser::get_name();
 }
 
-pub fn add_two(a: i32) -> i32 {
-    a + 2
+// Will ultimately not return the sqlite connection directly
+pub fn get_connection() -> Connection {
+    return Connection::open_in_memory().unwrap();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(4, add_two(2));
-    }
 
     #[test]
     fn can_import_parser() {
