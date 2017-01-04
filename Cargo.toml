@@ -11,6 +11,9 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 [dev-dependencies.datomish-cli]
   path = "cli"
 
+[dev-dependencies.datomish-explorer]
+  path = "explorer"
+
 [[bin]]
 name = "datomish-cli"
 path = "cli/src/main.rs"
