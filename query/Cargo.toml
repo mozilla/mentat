@@ -1,0 +1,7 @@
+[package]
+name = "mentat_query"
+version = "0.0.1"
+
+[dependencies]
+[dependencies.edn]
+  path = "../edn"

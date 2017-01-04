@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate edn;
+extern crate mentat_query;
 extern crate mentat_query_parser;
 extern crate rusqlite;
 
