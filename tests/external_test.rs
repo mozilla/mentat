@@ -11,6 +11,44 @@
 extern crate datomish;
 
 #[test]
-fn external_test() {
-    assert_eq!(4, datomish::add_two(2));
+fn can_import_sqlite() {
+    // From https://github.com/jgallagher/rusqlite#rusqlite.
+    #[derive(Debug)]
+    struct Person {
+        id: i32,
+        name: String,
+        data: Option<Vec<u8>>
+    }
+
+    let conn = datomish::get_connection();
+
+    conn.execute("CREATE TABLE person (
+                  id              INTEGER PRIMARY KEY,
+                  name            TEXT NOT NULL,
+                  data            BLOB
+                  )", &[]).unwrap();
+    let me = Person {
+        id: 1,
+        name: "Steven".to_string(),
+        data: None
+    };
+    conn.execute("INSERT INTO person (name, data)
+                  VALUES (?1, ?2)",
+                 &[&me.name, &me.data]).unwrap();
+
+    let mut stmt = conn.prepare("SELECT id, name, data FROM person").unwrap();
+    let person_iter = stmt.query_map(&[], |row| {
+        Person {
+            id: row.get(0),
+            name: row.get(1),
+            data: row.get(2)
+        }
+    }).unwrap();
+
+    for person in person_iter {
+        let p = person.unwrap();
+        assert_eq!(me.id, p.id);
+        assert_eq!(me.data, p.data);
+        assert_eq!(me.data, p.data);
+    }
 }
