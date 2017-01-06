@@ -1,3 +1,17 @@
 [package]
 name = "edn"
-version = "0.0.1"
+version = "0.1.0"
+authors = ["Joe Walker <jwalker@mozilla.com>"]
+
+license = "Apache-2.0"
+repository = "https://github.com/mozilla/mentat"
+description = "EDN parser for Project Mentat"
+build = "build.rs"
+readme = "./README.md"
+
+[dependencies]
+num = "0.1.35"
+ordered-float = "0.3.0"
+
+[build-dependencies]
+peg = "0.4"

@@ -47,3 +47,5 @@ pom.xml.asc
 /release-node/datomish/
 /release-node/goog/
 /release-node/honeysql/
+
+/edn/target/
