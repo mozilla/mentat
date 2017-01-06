@@ -81,13 +81,18 @@ cargo test
 cargo test -p datomish-query-parser
 ````
 
-To start the cli use:
+To start the server use:
 
 ````
-cargo run
+cargo run serve
 ````
 
-For most `cargo` commands you can pass the `-p` argument to run the command just on that package.  By convention, the package name will be "datomish-directory-name".  So, `cargo build -p datomish-cli` will build just the "cli" folder.
+To pass in custom arguments to the cli through Cargo, you'll need to pass `--` after the command to ensure they get passed properly.  For example:
+````
+cargo run serve -- --help
+````
+
+For most `cargo` commands you can pass the `-p` argument to run the command just on that package.  By convention, the package name will be "datomish-directory-name".  So, `cargo build -p datomish-query-parser` will build just the "query-parser" folder.
 
 ## License
 

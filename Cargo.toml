@@ -5,14 +5,7 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 
 [dependencies]
 rusqlite = "0.8.0"
+clap = "2.19.3"
 
 [dependencies.datomish-query-parser]
   path = "query-parser"
-
-[dev-dependencies]
-[dev-dependencies.datomish-cli]
-  path = "cli"
-
-[[bin]]
-name = "datomish-cli"
-path = "cli/src/main.rs"
