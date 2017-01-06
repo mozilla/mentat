@@ -1,4 +1,5 @@
 *.class
+*.DS_Store
 *.jar
 *jar
 *~
