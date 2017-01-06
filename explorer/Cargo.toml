@@ -1,0 +1,11 @@
+[package]
+name = "datomish-explorer"
+version = "0.0.1"
+
+[dependencies]
+iron = "0.4.x"
+toml = "0.2.1"
+clap = "2.19.3"
+
+[dependencies.datomish]
+  path = "../"
