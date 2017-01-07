@@ -78,7 +78,7 @@ To run tests use:
 cargo test
 
 # Run tests for the query-parser folder
-cargo test -p mentat-query-parser
+cargo test -p mentat_query_parser
 ````
 
 To start the cli use:
@@ -87,7 +87,7 @@ To start the cli use:
 cargo run
 ````
 
-For most `cargo` commands you can pass the `-p` argument to run the command just on that package.  By convention, the package name will be "mentat-directory-name".  So, `cargo build -p mentat-cli` will build just the "cli" folder.
+For most `cargo` commands you can pass the `-p` argument to run the command just on that package.  By convention, the package name will be "mentat_package_name".  So, `cargo build -p mentat_cli` will build just the "cli" folder.
 
 ## License
 

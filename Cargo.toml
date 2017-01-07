@@ -6,13 +6,13 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 [dependencies]
 rusqlite = "0.8.0"
 
-[dependencies.mentat-query-parser]
+[dependencies.mentat_query_parser]
   path = "query-parser"
 
 [dev-dependencies]
-[dev-dependencies.mentat-cli]
+[dev-dependencies.mentat_cli]
   path = "cli"
 
 [[bin]]
-name = "mentat-cli"
+name = "mentat_cli"
 path = "cli/src/main.rs"
