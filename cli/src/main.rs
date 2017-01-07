@@ -9,11 +9,11 @@
 // specific language governing permissions and limitations under the License.
 
 use std::env;
-extern crate datomish;
+extern crate mentat;
 
 // This is just a placeholder to get the project structure in place.
 fn main() {
-    println!("Loaded {}", datomish::get_name());
+    println!("Loaded {}", mentat::get_name());
 
     let args: Vec<String> = env::args().collect();
     println!("I got {:?} arguments: {:?}.", args.len() - 1, &args[1..]);
