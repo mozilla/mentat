@@ -3,4 +3,3 @@ script:
   - cargo build --verbose
   - cargo test --verbose
   - cargo test --verbose -p datomish-query-parser
-  - cargo test --verbose -p datomish-cli
