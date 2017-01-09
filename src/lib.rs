@@ -8,18 +8,18 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate datomish_query_parser;
+extern crate mentat_query_parser;
 extern crate rusqlite;
 
 use rusqlite::Connection;
 
 pub fn get_name() -> String {
-  return String::from("datomish");
+  return String::from("mentat");
 }
 
 // Just an example of using a dependency
 pub fn get_parser_name() -> String {
-  return datomish_query_parser::get_name();
+  return mentat_query_parser::get_name();
 }
 
 // Will ultimately not return the sqlite connection directly
@@ -33,6 +33,6 @@ mod tests {
 
     #[test]
     fn can_import_parser() {
-        assert_eq!(String::from("datomish-query-parser"), get_parser_name());
+        assert_eq!(String::from("mentat-query-parser"), get_parser_name());
     }
 }

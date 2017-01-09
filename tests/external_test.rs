@@ -8,7 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate datomish;
+extern crate mentat;
 
 #[test]
 fn can_import_sqlite() {
@@ -20,7 +20,7 @@ fn can_import_sqlite() {
         data: Option<Vec<u8>>
     }
 
-    let conn = datomish::get_connection();
+    let conn = mentat::get_connection();
 
     conn.execute("CREATE TABLE person (
                   id              INTEGER PRIMARY KEY,

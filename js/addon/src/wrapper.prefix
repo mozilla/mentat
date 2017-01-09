@@ -1,4 +1,0 @@
-// Monkeypatch.
-var { setTimeout } = require("sdk/timers");
-this.setTimeout = setTimeout;
-
