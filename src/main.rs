@@ -13,33 +13,33 @@ extern crate clap;
 use clap::{App, Arg, SubCommand, AppSettings};
 
 fn main() {
-    let app = App::new("Mentat")
-                .setting(AppSettings::ArgRequiredElseHelp);
+    let app = App::new("Mentat").setting(AppSettings::ArgRequiredElseHelp);
     let matches = app.subcommand(SubCommand::with_name("serve")
-                        .about("Starts a server")
-                        .arg(Arg::with_name("debug")
-                            .long("debug")
-                            .help("Print debugging info"))
-                        .arg(Arg::with_name("database")
-                             .short("d")
-                             .long("database")
-                             .value_name("FILE")
-                             .help("Path to the Mentat database to serve")
-                             .default_value("temp.db")
-                             .takes_value(true))
-                        .arg(Arg::with_name("port")
-                             .short("p")
-                             .long("port")
-                             .value_name("INTEGER")
-                             .help("Port to serve from, i.e. `localhost:PORT`")
-                             .default_value("3333")
-                             .takes_value(true)))
-                     .get_matches();
+            .about("Starts a server")
+            .arg(Arg::with_name("debug")
+                .long("debug")
+                .help("Print debugging info"))
+            .arg(Arg::with_name("database")
+                .short("d")
+                .long("database")
+                .value_name("FILE")
+                .help("Path to the Mentat database to serve")
+                .default_value("temp.db")
+                .takes_value(true))
+            .arg(Arg::with_name("port")
+                .short("p")
+                .long("port")
+                .value_name("INTEGER")
+                .help("Port to serve from, i.e. `localhost:PORT`")
+                .default_value("3333")
+                .takes_value(true)))
+        .get_matches();
     if let Some(ref matches) = matches.subcommand_matches("serve") {
         let debug = matches.is_present("debug");
-        println!("This doesn't work yet, but it will eventually serve the following database: {} on port: {}.  Debugging={}",
-                    matches.value_of("database").unwrap(),
-                    matches.value_of("port").unwrap(),
-                    debug);
+        println!("This doesn't work yet, but it will eventually serve the following database: {} \
+                  on port: {}.  Debugging={}",
+                 matches.value_of("database").unwrap(),
+                 matches.value_of("port").unwrap(),
+                 debug);
     }
 }
