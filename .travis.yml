@@ -3,4 +3,3 @@ script:
   - cargo build --verbose
   - cargo test --verbose
   - cargo test --verbose -p mentat_query_parser
-  - cargo test --verbose -p mentat_cli

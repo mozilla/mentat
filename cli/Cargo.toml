@@ -1,7 +1,0 @@
-[package]
-name = "mentat_cli"
-version = "0.0.1"
-
-[dependencies]
-[dependencies.mentat]
-  path = "../"
