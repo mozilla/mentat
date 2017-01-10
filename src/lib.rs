@@ -18,12 +18,12 @@ use rusqlite::Connection;
 pub mod ident;
 
 pub fn get_name() -> String {
-  return String::from("mentat");
+    return String::from("mentat");
 }
 
 // Just an example of using a dependency
 pub fn get_parser_name() -> String {
-  return mentat_query_parser::get_name();
+    return mentat_query_parser::get_name();
 }
 
 // Will ultimately not return the sqlite connection directly
