@@ -8,6 +8,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use]
+extern crate slog;
+#[macro_use]
+extern crate slog_scope;
+
 extern crate edn;
 extern crate mentat_query;
 extern crate mentat_query_parser;
@@ -18,6 +23,7 @@ use rusqlite::Connection;
 pub mod ident;
 
 pub fn get_name() -> String {
+    info!("Called into mentat library"; "fn" => "get_name");
     return String::from("mentat");
 }
 
