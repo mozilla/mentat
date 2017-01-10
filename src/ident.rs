@@ -8,17 +8,18 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-// This file is just a stub
-pub fn get_name() -> String {
-  return String::from("mentat-query-parser");
+extern crate edn;
+
+use edn::keyword::Keyword;
+
+pub type EntId = u32;            // TODO: u64? Not all DB values will be representable in a u32.
+
+/// The ability to transform entity identifiers (entids) into keyword names (idents).
+pub trait ToIdent {
+    fn ident(&self, entid: EntId) -> Option<Keyword>;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(String::from("mentat-query-parser"), get_name());
-    }
+/// The ability to transform idents into the corresponding entid.
+pub trait ToEntId {
+    fn entid(&self, ident: &Keyword) -> Option<EntId>;
 }

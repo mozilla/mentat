@@ -1,4 +1,4 @@
-# How to contribute to Datomish
+# How to contribute to Project Mentat
 
 This project is very new, so we'll probably revise these guidelines. Please
 comment on a bug before putting significant effort in, if you'd like to
@@ -29,10 +29,10 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 
 ## Example
 
-* Fork this repo at [github.com/mozilla/datomish](https://github.com/mozilla/datomish#fork-destination-box).
+* Fork this repo at [github.com/mozilla/mentat](https://github.com/mozilla/mentat#fork-destination-box).
 * Clone your fork locally. Make sure you use the correct clone URL.
 ```
-git clone git@github.com:YOURNAME/datomish.git
+git clone git@github.com:YOURNAME/mentat.git
 ```
 Check your remotes:
 ```
@@ -40,7 +40,7 @@ git remote --verbose
 ```
 Make sure you have an upstream remote defined:
 ```
-git remote add upstream https://github.com/mozilla/datomish
+git remote add upstream https://github.com/mozilla/mentat
 ```
 
 * Create a new branch to start working on a bug or feature:

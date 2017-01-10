@@ -1,5 +1,5 @@
 [package]
-name = "datomish"
+name = "mentat"
 version = "0.4.0"
 authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexander@mozilla.com>"]
 
@@ -7,5 +7,11 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 rusqlite = "0.8.0"
 clap = "2.19.3"
 
-[dependencies.datomish-query-parser]
+[dependencies.edn]
+  path = "edn"
+
+[dependencies.mentat_query]
+  path = "query"
+
+[dependencies.mentat_query_parser]
   path = "query-parser"
