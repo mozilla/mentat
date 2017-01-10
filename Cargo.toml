@@ -1,11 +1,14 @@
 [package]
+authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexander@mozilla.com>"]
 name = "mentat"
 version = "0.4.0"
-authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexander@mozilla.com>"]
 
 [dependencies]
 clap = "2.19.3"
 nickel = "0.9.0"
+slog = "1.4.0"
+slog-scope = "0.2.2"
+slog-term = "1.3.4"
 
 [dependencies.rusqlite]
 version = "0.9.3"
@@ -13,16 +16,16 @@ version = "0.9.3"
 features = ["bundled"]
 
 [dependencies.edn]
-  path = "edn"
+path = "edn"
 
 [dependencies.mentat_db]
-  path = "db"
+path = "db"
 
 [dependencies.mentat_query]
-  path = "query"
+path = "query"
 
 [dependencies.mentat_query_parser]
-  path = "query-parser"
+path = "query-parser"
 
 [dependencies.mentat_tx_parser]
-  path = "tx-parser"
+path = "tx-parser"
