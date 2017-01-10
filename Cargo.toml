@@ -4,8 +4,9 @@ version = "0.4.0"
 authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexander@mozilla.com>"]
 
 [dependencies]
-rusqlite = "0.8.0"
 clap = "2.19.3"
+nickel = "0.9.0"
+rusqlite = "0.8.0"
 
 [dependencies.edn]
   path = "edn"
