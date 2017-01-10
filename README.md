@@ -92,7 +92,7 @@ To pass in custom arguments to the cli through Cargo, you'll need to pass `--` a
 cargo run serve -- --help
 ````
 
-For most `cargo` commands you can pass the `-p` argument to run the command just on that package.  By convention, the package name will be "datomish-directory-name".  So, `cargo build -p datomish-query-parser` will build just the "query-parser" folder.
+For most `cargo` commands you can pass the `-p` argument to run the command just on that package. So, `cargo build -p mentat_query_parser` will build just the "query-parser" folder.
 
 ## License
 
