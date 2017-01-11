@@ -14,7 +14,7 @@ use num::BigInt;
 use ordered_float::OrderedFloat;
 
 /// Value represents one of the allowed values in an EDN string.
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Value {
     Nil,
     Boolean(bool),
