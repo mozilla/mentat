@@ -8,7 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate datomish_edn;
+extern crate edn;
 extern crate num;
 extern crate ordered_float;
 
@@ -17,8 +17,8 @@ use std::iter::FromIterator;
 use num::bigint::ToBigInt;
 use num::traits::{Zero, One};
 use ordered_float::OrderedFloat;
-use datomish_edn::types::Value::*;
-use datomish_edn::parse::*;
+use edn::types::Value::*;
+use edn::parse::*;
 
 #[test]
 fn test_nil() {
@@ -355,7 +355,7 @@ fn test_map() {
     assert!(map("#{1 #{2 nil} \"hi\"").is_err());
 }
 
-/// The test_query_* functions contain the queries taken from the old clojure datomish.
+/// The test_query_* functions contain the queries taken from the old Clojure implementation of Mentat.
 /// 2 changes have been applied, which should be checked and maybe fixed
 /// TODO: Decide if these queries should be placed in a vector wrapper. Is that implied?
 /// Secondly, see note in test_query_starred_pages on the use of '

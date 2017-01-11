@@ -13,12 +13,9 @@
 extern crate ordered_float;
 extern crate num;
 
+pub mod keyword;
 pub mod types;
 
 pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
-}
-
-fn main() {
-    println!("Use cargo test");
 }

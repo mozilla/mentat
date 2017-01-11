@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["Joe Walker <jwalker@mozilla.com>"]
 
 license = "Apache-2.0"
-repository = "https://github.com/mozilla/datomish"
-description = "EDN Parser for Datomish"
+repository = "https://github.com/mozilla/mentat"
+description = "EDN parser for Project Mentat"
 build = "build.rs"
 readme = "./README.md"
 
