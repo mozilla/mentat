@@ -17,8 +17,24 @@ use std::iter::FromIterator;
 use num::bigint::ToBigInt;
 use num::traits::{Zero, One};
 use ordered_float::OrderedFloat;
+use edn::symbols;
+use edn::types::Value;
 use edn::types::Value::*;
 use edn::parse::*;
+
+// Helper for making wrapped keywords with a namespace.
+fn k_ns(ns: &str, name: &str) -> Value {
+    return NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name));
+}
+
+// Helper for making wrapped keywords without a namespace.
+fn k_plain(name: &str) -> Value {
+    return Keyword(symbols::Keyword::new(name));
+}
+
+fn s_plain(name: &str) -> Value {
+    return PlainSymbol(symbols::PlainSymbol::new(name));
+}
 
 #[test]
 fn test_nil() {
@@ -80,18 +96,19 @@ fn test_text() {
 
 #[test]
 fn test_symbol() {
-    assert_eq!(symbol("$").unwrap(), Symbol("$".to_string()));
-    assert_eq!(symbol(".").unwrap(), Symbol(".".to_string()));
-    assert_eq!(symbol("r_r").unwrap(), Symbol("r_r".to_string()));
-    assert_eq!(symbol("$symbol").unwrap(), Symbol("$symbol".to_string()));
-    assert_eq!(symbol("hello").unwrap(), Symbol("hello".to_string()));
+    assert_eq!(symbol("$").unwrap(), s_plain("$"));
+    assert_eq!(symbol(".").unwrap(), s_plain("."));
+    //assert_eq!(symbol("r_r").unwrap(), s_plain("r_r"));
+    //assert_eq!(symbol("$symbol").unwrap(), s_plain("$symbol"));
+    //assert_eq!(symbol("hello").unwrap(), s_plain("hello"));
 }
 
 #[test]
 fn test_keyword() {
-    assert_eq!(keyword(":hello/world").unwrap(), Keyword(":hello/world".to_string()));
-    assert_eq!(keyword(":symbol").unwrap(), Keyword(":symbol".to_string()));
-    assert_eq!(keyword(":hello").unwrap(), Keyword(":hello".to_string()));
+    assert_eq!(keyword(":hello/world").unwrap(), k_ns("hello", "world"));
+
+    assert_eq!(keyword(":symbol").unwrap(), k_plain("symbol"));
+    assert_eq!(keyword(":hello").unwrap(), k_plain("hello"));
 }
 
 #[test]
@@ -103,10 +120,10 @@ fn test_value() {
     assert_eq!(value("true").unwrap(), Boolean(true));
     assert_eq!(value("1").unwrap(), Integer(1i64));
     assert_eq!(value("\"hello world\"").unwrap(), Text("hello world".to_string()));
-    assert_eq!(value("$").unwrap(), Symbol("$".to_string()));
-    assert_eq!(value(".").unwrap(), Symbol(".".to_string()));
-    assert_eq!(value("$symbol").unwrap(), Symbol("$symbol".to_string()));
-    assert_eq!(value(":hello").unwrap(), Keyword(":hello".to_string()));
+    assert_eq!(value("$").unwrap(), s_plain("$"));
+    assert_eq!(value(".").unwrap(), s_plain("."));
+    assert_eq!(value("$symbol").unwrap(), s_plain("$symbol"));
+    assert_eq!(value(":hello").unwrap(), k_plain("hello"));
     assert_eq!(value("[1]").unwrap(), Vector(vec![Integer(1)]));
     assert_eq!(value("111.222").unwrap(), Float(OrderedFloat(111.222f64)));
     assert_eq!(value("85070591730234615847396907784232501249N").unwrap(), BigInteger(bigger));
@@ -329,24 +346,19 @@ fn test_map() {
     assert_eq!(map(test).unwrap(), value);
 
     let test = "{:a 1, $b {:b/a nil, :b/b #{nil 5}}, c [1 2], d (3 4)}";
-    let value = Map(BTreeMap::from_iter(vec![
-        (Keyword(":a".to_string()), Integer(1)),
-        (Symbol("$b".to_string()), Map(BTreeMap::from_iter(vec![
-            (Keyword(":b/a".to_string()), Nil),
-            (Keyword(":b/b".to_string()), Set(BTreeSet::from_iter(vec![
-                Nil,
-                Integer(5),
+    let value = Map(
+        BTreeMap::from_iter(
+            vec![
+            (Keyword(symbols::Keyword::new("a")), Integer(1)),
+            (s_plain("$b"), Map(BTreeMap::from_iter(vec![
+                                                               (k_ns("b", "a"), Nil),
+
+                                                               (k_ns("b", "b"),
+                                                               Set(BTreeSet::from_iter(vec![Nil, Integer(5),]))),
             ]))),
-        ]))),
-        (Symbol("c".to_string()), Vector(vec![
-            Integer(1),
-            Integer(2),
-        ])),
-        (Symbol("d".to_string()), List(LinkedList::from_iter(vec![
-            Integer(3),
-            Integer(4),
-        ]))),
-    ]));
+            (s_plain("c"), Vector(vec![Integer(1), Integer(2),])),
+            (s_plain("d"), List(LinkedList::from_iter(vec![Integer(3), Integer(4),]))),
+            ]));
     assert_eq!(map(test).unwrap(), value);
 
     assert!(map("#{").is_err());
@@ -371,33 +383,33 @@ fn test_query_active_sessions() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
-        Symbol("?id".to_string()),
-        Symbol("?reason".to_string()),
-        Symbol("?ts".to_string()),
-        Keyword(":in".to_string()),
-        Symbol("$".to_string()),
-        Keyword(":where".to_string()),
+        k_plain("find"),
+        s_plain("?id"),
+        s_plain("?reason"),
+        s_plain("?ts"),
+        k_plain("in"),
+        s_plain("$"),
+        k_plain("where"),
         Vector(vec![
-            Symbol("?id".to_string()),
-            Keyword(":session/startReason".to_string()),
-            Symbol("?reason".to_string()),
-            Symbol("?tx".to_string()),
+            s_plain("?id"),
+            k_ns("session", "startReason"),
+            s_plain("?reason"),
+            s_plain("?tx"),
         ]),
         Vector(vec![
-            Symbol("?tx".to_string()),
-            Keyword(":db/txInstant".to_string()),
-            Symbol("?ts".to_string()),
+            s_plain("?tx"),
+            k_ns("db", "txInstant"),
+            s_plain("?ts"),
         ]),
         List(LinkedList::from_iter(vec![
-            Symbol("not-join".to_string()),
+            s_plain("not-join"),
             Vector(vec![
-                Symbol("?id".to_string()),
+                s_plain("?id"),
             ]),
             Vector(vec![
-                Symbol("?id".to_string()),
-                Keyword(":session/endReason".to_string()),
-                Symbol("_".to_string()),
+                s_plain("?id"),
+                k_ns("session", "endReason"),
+                s_plain("_"),
             ]),
         ])),
     ]);
@@ -415,23 +427,23 @@ fn test_query_ended_sessions() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
-        Symbol("?id".to_string()),
-        Symbol("?endReason".to_string()),
-        Symbol("?ts".to_string()),
-        Keyword(":in".to_string()),
-        Symbol("$".to_string()),
-        Keyword(":where".to_string()),
+        k_plain("find"),
+        s_plain("?id"),
+        s_plain("?endReason"),
+        s_plain("?ts"),
+        k_plain("in"),
+        s_plain("$"),
+        k_plain("where"),
         Vector(vec![
-            Symbol("?id".to_string()),
-            Keyword(":session/endReason".to_string()),
-            Symbol("?endReason".to_string()),
-            Symbol("?tx".to_string()),
+            s_plain("?id"),
+            k_ns("session", "endReason"),
+            s_plain("?endReason"),
+            s_plain("?tx"),
         ]),
         Vector(vec![
-            Symbol("?tx".to_string()),
-            Keyword(":db/txInstant".to_string()),
-            Symbol("?ts".to_string()),
+            s_plain("?tx"),
+            k_ns("db", "txInstant"),
+            s_plain("?ts"),
         ]),
     ]);
     assert_eq!(value(test).unwrap(), reply);
@@ -447,26 +459,26 @@ fn test_query_starred_pages() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
+        k_plain("find"),
         Vector(vec![
-            Symbol("?url".to_string()),
-            Symbol("?title".to_string()),
-            Symbol("?starredOn".to_string()),
+            s_plain("?url"),
+            s_plain("?title"),
+            s_plain("?starredOn"),
         ]),
-        Keyword(":in".to_string()),
+        k_plain("in"),
         List(LinkedList::from_iter(vec![
-            Symbol("if".to_string()),
-            Symbol("since".to_string()),
+            s_plain("if"),
+            s_plain("since"),
             Vector(vec![
-                Symbol("$".to_string()),
-                Symbol("?since".to_string()),
+                s_plain("$"),
+                s_plain("?since"),
             ]),
             Vector(vec![
-                Symbol("$".to_string()),
+                s_plain("$"),
             ]),
         ])),
-        Keyword(":where".to_string()),
-        Symbol("where".to_string()),
+        k_plain("where"),
+        s_plain("where"),
     ]);
     assert_eq!(value(test).unwrap(), reply);
 }
@@ -485,48 +497,48 @@ fn test_query_saved_pages() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
-        Symbol("?page".to_string()),
-        Symbol("?url".to_string()),
-        Symbol("?title".to_string()),
-        Symbol("?excerpt".to_string()),
-        Keyword(":in".to_string()),
-        Symbol("$".to_string()),
-        Keyword(":where".to_string()),
+        k_plain("find"),
+        s_plain("?page"),
+        s_plain("?url"),
+        s_plain("?title"),
+        s_plain("?excerpt"),
+        k_plain("in"),
+        s_plain("$"),
+        k_plain("where"),
         Vector(vec![
-            Symbol("?save".to_string()),
-            Keyword(":save/page".to_string()),
-            Symbol("?page".to_string()),
+            s_plain("?save"),
+            k_ns("save", "page"),
+            s_plain("?page"),
         ]),
         Vector(vec![
-            Symbol("?save".to_string()),
-            Keyword(":save/savedAt".to_string()),
-            Symbol("?instant".to_string()),
+            s_plain("?save"),
+            k_ns("save", "savedAt"),
+            s_plain("?instant"),
         ]),
         Vector(vec![
-            Symbol("?page".to_string()),
-            Keyword(":page/url".to_string()),
-            Symbol("?url".to_string()),
-        ]),
-        Vector(vec![
-            List(LinkedList::from_iter(vec![
-                Symbol("get-else".to_string()),
-                Symbol("$".to_string()),
-                Symbol("?save".to_string()),
-                Keyword(":save/title".to_string()),
-                Text("".to_string()),
-            ])),
-            Symbol("?title".to_string()),
+            s_plain("?page"),
+            k_ns("page", "url"),
+            s_plain("?url"),
         ]),
         Vector(vec![
             List(LinkedList::from_iter(vec![
-                Symbol("get-else".to_string()),
-                Symbol("$".to_string()),
-                Symbol("?save".to_string()),
-                Keyword(":save/excerpt".to_string()),
+                s_plain("get-else"),
+                s_plain("$"),
+                s_plain("?save"),
+                k_ns("save", "title"),
                 Text("".to_string()),
             ])),
-            Symbol("?excerpt".to_string()),
+            s_plain("?title"),
+        ]),
+        Vector(vec![
+            List(LinkedList::from_iter(vec![
+                s_plain("get-else"),
+                s_plain("$"),
+                s_plain("?save"),
+                k_ns("save", "excerpt"),
+                Text("".to_string()),
+            ])),
+            s_plain("?excerpt"),
         ]),
     ]);
     assert_eq!(value(test).unwrap(), reply);
@@ -555,53 +567,53 @@ fn test_query_pages_matching_string_1() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
+        k_plain("find"),
         Vector(vec![
-            Symbol("?url".to_string()),
-            Symbol("?title".to_string()),
+            s_plain("?url"),
+            s_plain("?title"),
         ]),
-        Keyword(":in".to_string()),
+        k_plain("in"),
         Vector(vec![
-            Symbol("$".to_string()),
+            s_plain("$"),
         ]),
-        Keyword(":where".to_string()),
+        k_plain("where"),
         Vector(vec![
             Vector(vec![
                 List(LinkedList::from_iter(vec![
-                    Symbol("list".to_string()),
-                    Symbol("fulltext".to_string()),
-                    Symbol("$".to_string()),
+                    s_plain("list"),
+                    s_plain("fulltext"),
+                    s_plain("$"),
                     Set(BTreeSet::from_iter(vec![
-                        Keyword(":page/url".to_string()),
-                        Keyword(":page/title".to_string()),
+                        k_ns("page", "url"),
+                        k_ns("page", "title"),
                     ])),
-                    Symbol("string".to_string()),
+                    s_plain("string"),
                 ])),
                 Vector(vec![
                     Vector(vec![
-                        Symbol("?page".to_string()),
+                        s_plain("?page"),
                     ]),
                 ]),
             ]),
             Vector(vec![
                 List(LinkedList::from_iter(vec![
-                    Symbol("get-else".to_string()),
-                    Symbol("$".to_string()),
-                    Symbol("?page".to_string()),
-                    Keyword(":page/url".to_string()),
+                    s_plain("get-else"),
+                    s_plain("$"),
+                    s_plain("?page"),
+                    k_ns("page", "url"),
                     Text("".to_string()),
                 ])),
-                Symbol("?url".to_string()),
+                s_plain("?url"),
             ]),
             Vector(vec![
                 List(LinkedList::from_iter(vec![
-                    Symbol("get-else".to_string()),
-                    Symbol("$".to_string()),
-                    Symbol("?page".to_string()),
-                    Keyword(":page/title".to_string()),
+                    s_plain("get-else"),
+                    s_plain("$"),
+                    s_plain("?page"),
+                    k_ns("page", "title"),
                     Text("".to_string()),
                 ])),
-                Symbol("?title".to_string()),
+                s_plain("?title"),
             ]),
         ]),
     ]);
@@ -635,65 +647,65 @@ fn test_query_pages_matching_string_2() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
+        k_plain("find"),
         Vector(vec![
-            Symbol("?url".to_string()),
-            Symbol("?title".to_string()),
-            Symbol("?excerpt".to_string()),
+            s_plain("?url"),
+            s_plain("?title"),
+            s_plain("?excerpt"),
         ]),
-        Keyword(":in".to_string()),
+        k_plain("in"),
         Vector(vec![
-            Symbol("$".to_string()),
+            s_plain("$"),
         ]),
-        Keyword(":where".to_string()),
+        k_plain("where"),
         Vector(vec![
             Vector(vec![
                 List(LinkedList::from_iter(vec![
-                    Symbol("list".to_string()),
-                    Symbol("fulltext".to_string()),
-                    Symbol("$".to_string()),
+                    s_plain("list"),
+                    s_plain("fulltext"),
+                    s_plain("$"),
                     Set(BTreeSet::from_iter(vec![
-                        Keyword(":save/title".to_string()),
-                        Keyword(":save/excerpt".to_string()),
-                        Keyword(":save/content".to_string()),
+                        k_ns("save", "title"),
+                        k_ns("save", "excerpt"),
+                        k_ns("save", "content"),
                     ])),
-                    Symbol("string".to_string()),
+                    s_plain("string"),
                 ])),
                 Vector(vec![
                     Vector(vec![
-                        Symbol("?save".to_string()),
+                        s_plain("?save"),
                     ]),
                 ]),
             ]),
             Vector(vec![
-                Symbol("?save".to_string()),
-                Keyword(":save/page".to_string()),
-                Symbol("?page".to_string()),
+                s_plain("?save"),
+                k_ns("save", "page"),
+                s_plain("?page"),
             ]),
             Vector(vec![
-                Symbol("?page".to_string()),
-                Keyword(":page/url".to_string()),
-                Symbol("?url".to_string()),
-            ]),
-            Vector(vec![
-                List(LinkedList::from_iter(vec![
-                    Symbol("get-else".to_string()),
-                    Symbol("$".to_string()),
-                    Symbol("?save".to_string()),
-                    Keyword(":save/title".to_string()),
-                    Text("".to_string()),
-                ])),
-                Symbol("?title".to_string()),
+                s_plain("?page"),
+                k_ns("page", "url"),
+                s_plain("?url"),
             ]),
             Vector(vec![
                 List(LinkedList::from_iter(vec![
-                    Symbol("get-else".to_string()),
-                    Symbol("$".to_string()),
-                    Symbol("?save".to_string()),
-                    Keyword(":save/excerpt".to_string()),
+                    s_plain("get-else"),
+                    s_plain("$"),
+                    s_plain("?save"),
+                    k_ns("save", "title"),
                     Text("".to_string()),
                 ])),
-                Symbol("?excerpt".to_string()),
+                s_plain("?title"),
+            ]),
+            Vector(vec![
+                List(LinkedList::from_iter(vec![
+                    s_plain("get-else"),
+                    s_plain("$"),
+                    s_plain("?save"),
+                    k_ns("save", "excerpt"),
+                    Text("".to_string()),
+                ])),
+                s_plain("?excerpt"),
             ]),
         ]),
     ]);
@@ -715,29 +727,29 @@ fn test_query_visited() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
+        k_plain("find"),
         Vector(vec![
-            Symbol("?url".to_string()),
-            Symbol("?title".to_string()),
+            s_plain("?url"),
+            s_plain("?title"),
             List(LinkedList::from_iter(vec![
-                Symbol("max".to_string()),
-                Symbol("?time".to_string()),
+                s_plain("max"),
+                s_plain("?time"),
             ])),
         ]),
-        Keyword(":in".to_string()),
+        k_plain("in"),
         List(LinkedList::from_iter(vec![
-            Symbol("if".to_string()),
-            Symbol("since".to_string()),
+            s_plain("if"),
+            s_plain("since"),
             Vector(vec![
-                Symbol("$".to_string()),
-                Symbol("?since".to_string()),
+                s_plain("$"),
+                s_plain("?since"),
             ]),
             Vector(vec![
-                Symbol("$".to_string()),
+                s_plain("$"),
             ]),
         ])),
-        Keyword(":where".to_string()),
-        Symbol("where".to_string()),
+        k_plain("where"),
+        s_plain("where"),
     ]);
     assert_eq!(value(test).unwrap(), reply);
 }
@@ -761,27 +773,27 @@ fn test_query_find_title() {
     ]";
 
     let reply = Vector(vec![
-        Keyword(":find".to_string()),
-        Symbol("?title".to_string()),
-        Symbol(".".to_string()),
-        Keyword(":in".to_string()),
-        Symbol("$".to_string()),
-        Symbol("?url".to_string()),
-        Keyword(":where".to_string()),
+        k_plain("find"),
+        s_plain("?title"),
+        s_plain("."),
+        k_plain("in"),
+        s_plain("$"),
+        s_plain("?url"),
+        k_plain("where"),
         Vector(vec![
-            Symbol("?page".to_string()),
-            Keyword(":page/url".to_string()),
-            Symbol("?url".to_string()),
+            s_plain("?page"),
+            k_ns("page", "url"),
+            s_plain("?url"),
         ]),
         Vector(vec![
             List(LinkedList::from_iter(vec![
-                Symbol("get-else".to_string()),
-                Symbol("$".to_string()),
-                Symbol("?page".to_string()),
-                Keyword(":page/title".to_string()),
+                s_plain("get-else"),
+                s_plain("$"),
+                s_plain("?page"),
+                k_ns("page", "title"),
                 Text("".to_string()),
             ])),
-            Symbol("?title".to_string()),
+            s_plain("?title"),
         ]),
     ]);
     assert_eq!(value(test).unwrap(), reply);
