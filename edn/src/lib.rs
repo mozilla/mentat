@@ -13,7 +13,7 @@
 extern crate ordered_float;
 extern crate num;
 
-pub mod keyword;
+pub mod symbols;
 pub mod types;
 
 pub mod parse {

@@ -10,7 +10,7 @@
 
 extern crate edn;
 
-use edn::keyword::Keyword;
+use edn::symbols::Keyword;
 
 pub type EntId = u32;            // TODO: u64? Not all DB values will be representable in a u32.
 
