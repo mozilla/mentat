@@ -2,4 +2,5 @@ language: rust
 script:
   - cargo build --verbose
   - cargo test --verbose
+  - cargo test --verbose -p edn
   - cargo test --verbose -p mentat_query_parser
