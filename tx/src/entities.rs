@@ -12,25 +12,25 @@
 
 extern crate edn;
 
-// TODO: understand why this is self::edn rather than just edn.
 use self::edn::types::Value;
+use self::edn::symbols::NamespacedKeyword;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum EntId {
-    EntId(i64),
-    Ident(String),
+pub enum Entid {
+    Entid(i64),
+    Ident(NamespacedKeyword),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LookupRef {
-    pub a: EntId,
+    pub a: Entid,
     // TODO: consider boxing to allow recursive lookup refs.
     pub v: Value,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum EntIdOrLookupRef {
-    EntId(EntId),
+pub enum EntidOrLookupRef {
+    Entid(Entid),
     LookupRef(LookupRef),
 }
 
@@ -43,16 +43,16 @@ pub enum ValueOrLookupRef {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Entity {
     Add {
-        e: EntIdOrLookupRef,
-        a: EntId,
+        e: EntidOrLookupRef,
+        a: Entid,
         v: ValueOrLookupRef,
-        tx: Option<EntId>,
+        tx: Option<Entid>,
     },
     Retract {
-        e: EntIdOrLookupRef,
-        a: EntId,
+        e: EntidOrLookupRef,
+        a: Entid,
         v: ValueOrLookupRef,
     },
-    RetractAttribute { e: EntIdOrLookupRef, a: EntId },
-    RetractEntity { e: EntIdOrLookupRef },
+    RetractAttribute { e: EntidOrLookupRef, a: Entid },
+    RetractEntity { e: EntidOrLookupRef },
 }

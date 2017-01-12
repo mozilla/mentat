@@ -16,36 +16,11 @@ extern crate mentat_tx;
 
 use combine::{any, eof, many, optional, parser, satisfy_map, token, Parser, ParseResult, Stream};
 use combine::combinator::{Expected, FnParser};
-// TODO: understand why this is self::edn rather than just edn.
-use self::edn::types::Value;
+use edn::symbols::NamespacedKeyword;
+use edn::types::Value;
 use mentat_tx::entities::*;
 
-// TODO: implement combine::Positioner on Value.  We can't do this
-// right now because Value is defined in edn and the trait is defined
-// in combine.
-
-// #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-// pub struct ValuePosition {
-//     pub position: usize,
-// }
-
-// impl fmt::Display for ValuePosition {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "value position: {}", self.position)
-//     }
-// }
-
-// impl combine::primitives::Positioner for Value {
-//     type Position = ValuePosition;
-//     fn start() -> ValuePosition {
-//         ValuePosition { position: 1 }
-//     }
-//     fn update(&self, position: &mut ValuePosition) {
-//         position.position += 1;
-//     }
-// }
-
-struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
+pub struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
 
 type TxParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
 
@@ -71,12 +46,12 @@ impl<I> Tx<I>
             .parse_stream(input);
     }
 
-    fn keyword() -> TxParser<String, I> {
+    fn keyword() -> TxParser<NamespacedKeyword, I> {
         fn_parser(Tx::<I>::keyword_, "keyword")
     }
 
-    fn keyword_(input: I) -> ParseResult<String, I> {
-        return satisfy_map(|x: Value| if let Value::Keyword(y) = x {
+    fn keyword_(input: I) -> ParseResult<NamespacedKeyword, I> {
+        return satisfy_map(|x: Value| if let Value::NamespacedKeyword(y) = x {
                 Some(y)
             } else {
                 None
@@ -84,14 +59,14 @@ impl<I> Tx<I>
             .parse_stream(input);
     }
 
-    fn entid() -> TxParser<EntId, I> {
+    fn entid() -> TxParser<Entid, I> {
         fn_parser(Tx::<I>::entid_, "entid")
     }
 
-    fn entid_(input: I) -> ParseResult<EntId, I> {
+    fn entid_(input: I) -> ParseResult<Entid, I> {
         let p = Tx::<I>::integer()
-            .map(|x| EntId::EntId(x))
-            .or(Tx::<I>::keyword().map(|x| EntId::Ident(x)))
+            .map(|x| Entid::Entid(x))
+            .or(Tx::<I>::keyword().map(|x| Entid::Ident(x)))
             .parse_lazy(input)
             .into();
         return p;
@@ -116,14 +91,14 @@ impl<I> Tx<I>
             .parse_stream(input);
     }
 
-    fn entid_or_lookup_ref() -> TxParser<EntIdOrLookupRef, I> {
+    fn entid_or_lookup_ref() -> TxParser<EntidOrLookupRef, I> {
         fn_parser(Tx::<I>::entid_or_lookup_ref_, "entid|lookup-ref")
     }
 
-    fn entid_or_lookup_ref_(input: I) -> ParseResult<EntIdOrLookupRef, I> {
+    fn entid_or_lookup_ref_(input: I) -> ParseResult<EntidOrLookupRef, I> {
         let p = Tx::<I>::entid()
-            .map(|x| EntIdOrLookupRef::EntId(x))
-            .or(Tx::<I>::lookup_ref().map(|x| EntIdOrLookupRef::LookupRef(x)))
+            .map(|x| EntidOrLookupRef::Entid(x))
+            .or(Tx::<I>::lookup_ref().map(|x| EntidOrLookupRef::LookupRef(x)))
             .parse_lazy(input)
             .into();
         return p;
@@ -133,7 +108,8 @@ impl<I> Tx<I>
     fn add_(input: I) -> ParseResult<Entity, I> {
         return satisfy_map(|x: Value| -> Option<Entity> {
                 if let Value::Vector(y) = x {
-                    let mut p = (token(Value::Keyword("db/add".into())),
+                    let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db",
+                                                                                       "add"))),
                                  Tx::<&[Value]>::entid_or_lookup_ref(),
                                  Tx::<&[Value]>::entid(),
                                  // TODO: handle lookup-ref.
@@ -168,7 +144,8 @@ impl<I> Tx<I>
     fn retract_(input: I) -> ParseResult<Entity, I> {
         return satisfy_map(|x: Value| -> Option<Entity> {
                 if let Value::Vector(y) = x {
-                    let mut p = (token(Value::Keyword("db/retract".into())),
+                    let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db",
+                                                                                       "retract"))),
                                  Tx::<&[Value]>::entid_or_lookup_ref(),
                                  Tx::<&[Value]>::entid(),
                                  // TODO: handle lookup-ref.
@@ -200,7 +177,7 @@ impl<I> Tx<I>
     fn retract_attribute_(input: I) -> ParseResult<Entity, I> {
         return satisfy_map(|x: Value| -> Option<Entity> {
                 if let Value::Vector(y) = x {
-                    let mut p = (token(Value::Keyword("db/retractAttribute".into())),
+                    let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "retractAttribute"))),
                                  Tx::<&[Value]>::entid_or_lookup_ref(),
                                  Tx::<&[Value]>::entid(),
                                  eof())
@@ -224,10 +201,12 @@ impl<I> Tx<I>
     fn retract_entity_(input: I) -> ParseResult<Entity, I> {
         return satisfy_map(|x: Value| -> Option<Entity> {
                 if let Value::Vector(y) = x {
-                    let mut p = (token(Value::Keyword("db/retractEntity".into())),
-                                 Tx::<&[Value]>::entid_or_lookup_ref(),
-                                 eof())
-                        .map(|(_, e, _)| Entity::RetractEntity { e: e });
+                    let mut p =
+                        (token(Value::NamespacedKeyword(NamespacedKeyword::new("db",
+                                                                               "retractEntity"))),
+                         Tx::<&[Value]>::entid_or_lookup_ref(),
+                         eof())
+                            .map(|(_, e, _)| Entity::RetractEntity { e: e });
                     // TODO: use ok() with a type annotation rather than explicit match.
                     match p.parse_lazy(&y[..]).into() {
                         Ok((r, _)) => Some(r),
@@ -260,8 +239,7 @@ impl<I> Tx<I>
     fn entities_(input: I) -> ParseResult<Vec<Entity>, I> {
         return satisfy_map(|x: Value| -> Option<Vec<Entity>> {
                 if let Value::Vector(y) = x {
-                    let mut p = (many(Tx::<&[Value]>::entity()), eof())
-                        .map(|(es, _)| es);
+                    let mut p = (many(Tx::<&[Value]>::entity()), eof()).map(|(es, _)| es);
                     // TODO: use ok() with a type annotation rather than explicit match.
                     match p.parse_lazy(&y[..]).into() {
                         Ok((r, _)) => Some(r),
@@ -278,24 +256,40 @@ impl<I> Tx<I>
         fn_parser(Tx::<I>::entities_,
                   "[[:db/add|:db/retract|:db/retractAttribute|:db/retractEntity ...]*]")
     }
+
+    pub fn parse(input: I) -> Result<Vec<Entity>, combine::ParseError<I>> {
+        (Tx::<I>::entities(), eof())
+            .map(|(es, _)| es)
+            .parse(input)
+            .map(|x| x.0)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use combine::Parser;
+    use edn::symbols::NamespacedKeyword;
+    use edn::types::Value;
+    use mentat_tx::entities::*;
+
+    fn kw(namespace: &str, name: &str) -> Value {
+        Value::NamespacedKeyword(NamespacedKeyword::new(namespace, name))
+    }
 
     #[test]
     fn test_add() {
-        let input = [Value::Vector(vec![Value::Keyword("db/add".into()),
-                                        Value::Keyword("ident".into()),
-                                        Value::Keyword("a".into()),
+        let input = [Value::Vector(vec![kw("db", "add"),
+                                        kw("test", "entid"),
+                                        kw("test", "a"),
                                         Value::Text("v".into())])];
         let mut parser = Tx::entity();
         let result = parser.parse(&input[..]);
         assert_eq!(result,
                    Ok((Entity::Add {
-                       e: EntIdOrLookupRef::EntId(EntId::Ident("ident".into())),
-                       a: EntId::Ident("a".into()),
+                       e: EntidOrLookupRef::Entid(Entid::Ident(NamespacedKeyword::new("test",
+                                                                                      "entid"))),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
                        tx: None,
                    },
@@ -304,75 +298,40 @@ mod tests {
 
     #[test]
     fn test_retract() {
-        let input = [Value::Vector(vec![Value::Keyword("db/retract".into()),
+        let input = [Value::Vector(vec![kw("db", "retract"),
                                         Value::Integer(101),
-                                        Value::Keyword("a".into()),
+                                        kw("test", "a"),
                                         Value::Text("v".into())])];
         let mut parser = Tx::entity();
         let result = parser.parse(&input[..]);
         assert_eq!(result,
                    Ok((Entity::Retract {
-                       e: EntIdOrLookupRef::EntId(EntId::EntId(101)),
-                       a: EntId::Ident("a".into()),
+                       e: EntidOrLookupRef::Entid(Entid::Entid(101)),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
                    },
-                       &[][..])));
-    }
-
-    #[test]
-    fn test_entities() {
-        let input = [Value::Vector(vec![
-            Value::Vector(vec![Value::Keyword("db/add".into()),
-                               Value::Integer(101),
-                               Value::Keyword("a".into()),
-                               Value::Text("v".into())]),
-            Value::Vector(vec![Value::Keyword("db/retract".into()),
-                               Value::Integer(102),
-                               Value::Keyword("b".into()),
-                               Value::Text("w".into())])])];
-
-        let mut parser = Tx::entities();
-        let result = parser.parse(&input[..]);
-        assert_eq!(result,
-                   Ok((vec![
-                       Entity::Add {
-                           e: EntIdOrLookupRef::EntId(EntId::EntId(101)),
-                           a: EntId::Ident("a".into()),
-                           v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                           tx: None,
-                       },
-                       Entity::Retract {
-                           e: EntIdOrLookupRef::EntId(EntId::EntId(102)),
-                           a: EntId::Ident("b".into()),
-                           v: ValueOrLookupRef::Value(Value::Text("w".into())),
-                       },
-                       ],
                        &[][..])));
     }
 
     #[test]
     fn test_lookup_ref() {
-        let input = [Value::Vector(vec![Value::Keyword("db/add".into()),
-                                        Value::Vector(vec![Value::Keyword("a1".into()),
+        let input = [Value::Vector(vec![kw("db", "add"),
+                                        Value::Vector(vec![kw("test", "a1"),
                                                            Value::Text("v1".into())]),
-                                        Value::Keyword("a".into()),
+                                        kw("test", "a"),
                                         Value::Text("v".into())])];
         let mut parser = Tx::entity();
         let result = parser.parse(&input[..]);
         assert_eq!(result,
                    Ok((Entity::Add {
-                       e: EntIdOrLookupRef::LookupRef(LookupRef {
-                           a: EntId::Ident("a1".into()),
+                       e: EntidOrLookupRef::LookupRef(LookupRef {
+                           a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
                            v: Value::Text("v1".into()),
                        }),
-                       a: EntId::Ident("a".into()),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
                        tx: None,
                    },
                        &[][..])));
     }
-
-    // TODO: test error handling in select cases.  It's tricky to do
-    // this without combine::Positioner; see the TODO at the top of
-    // the file.
 }
