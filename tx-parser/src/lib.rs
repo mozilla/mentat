@@ -16,8 +16,7 @@ extern crate mentat_tx;
 
 use combine::{any, eof, many, optional, parser, satisfy_map, token, Parser, ParseResult, Stream};
 use combine::combinator::{Expected, FnParser};
-// TODO: understand why this is self::edn rather than just edn.
-use self::edn::types::Value;
+use edn::types::Value;
 use mentat_tx::entities::*;
 
 // TODO: implement combine::Positioner on Value.  We can't do this
@@ -45,7 +44,7 @@ use mentat_tx::entities::*;
 //     }
 // }
 
-struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
+pub struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
 
 type TxParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
 
@@ -252,7 +251,7 @@ impl<I> Tx<I>
         p.parse_stream(input)
     }
 
-    fn entity() -> TxParser<Entity, I> {
+    pub fn entity() -> TxParser<Entity, I> {
         fn_parser(Tx::<I>::entity_,
                   "[:db/add|:db/retract|:db/retractAttribute|:db/retractEntity ...]")
     }
@@ -274,105 +273,8 @@ impl<I> Tx<I>
             .parse_stream(input);
     }
 
-    fn entities() -> TxParser<Vec<Entity>, I> {
+    pub fn entities() -> TxParser<Vec<Entity>, I> {
         fn_parser(Tx::<I>::entities_,
                   "[[:db/add|:db/retract|:db/retractAttribute|:db/retractEntity ...]*]")
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_add() {
-        let input = [Value::Vector(vec![Value::Keyword("db/add".into()),
-                                        Value::Keyword("ident".into()),
-                                        Value::Keyword("a".into()),
-                                        Value::Text("v".into())])];
-        let mut parser = Tx::entity();
-        let result = parser.parse(&input[..]);
-        assert_eq!(result,
-                   Ok((Entity::Add {
-                       e: EntIdOrLookupRef::EntId(EntId::Ident("ident".into())),
-                       a: EntId::Ident("a".into()),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                       tx: None,
-                   },
-                       &[][..])));
-    }
-
-    #[test]
-    fn test_retract() {
-        let input = [Value::Vector(vec![Value::Keyword("db/retract".into()),
-                                        Value::Integer(101),
-                                        Value::Keyword("a".into()),
-                                        Value::Text("v".into())])];
-        let mut parser = Tx::entity();
-        let result = parser.parse(&input[..]);
-        assert_eq!(result,
-                   Ok((Entity::Retract {
-                       e: EntIdOrLookupRef::EntId(EntId::EntId(101)),
-                       a: EntId::Ident("a".into()),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                   },
-                       &[][..])));
-    }
-
-    #[test]
-    fn test_entities() {
-        let input = [Value::Vector(vec![
-            Value::Vector(vec![Value::Keyword("db/add".into()),
-                               Value::Integer(101),
-                               Value::Keyword("a".into()),
-                               Value::Text("v".into())]),
-            Value::Vector(vec![Value::Keyword("db/retract".into()),
-                               Value::Integer(102),
-                               Value::Keyword("b".into()),
-                               Value::Text("w".into())])])];
-
-        let mut parser = Tx::entities();
-        let result = parser.parse(&input[..]);
-        assert_eq!(result,
-                   Ok((vec![
-                       Entity::Add {
-                           e: EntIdOrLookupRef::EntId(EntId::EntId(101)),
-                           a: EntId::Ident("a".into()),
-                           v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                           tx: None,
-                       },
-                       Entity::Retract {
-                           e: EntIdOrLookupRef::EntId(EntId::EntId(102)),
-                           a: EntId::Ident("b".into()),
-                           v: ValueOrLookupRef::Value(Value::Text("w".into())),
-                       },
-                       ],
-                       &[][..])));
-    }
-    
-    #[test]
-    fn test_lookup_ref() {
-        let input = [Value::Vector(vec![Value::Keyword("db/add".into()),
-                                        Value::Vector(vec![Value::Keyword("a1".into()),
-                                                           Value::Text("v1".into())]),
-                                        Value::Keyword("a".into()),
-                                        Value::Text("v".into())])];
-        let mut parser = Tx::entity();
-        let result = parser.parse(&input[..]);
-        assert_eq!(result,
-                   Ok((Entity::Add {
-                       e: EntIdOrLookupRef::LookupRef(LookupRef {
-                           a: EntId::Ident("a1".into()),
-                           v: Value::Text("v1".into()),
-                       }),
-                       a: EntId::Ident("a".into()),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                       tx: None,
-                   },
-                       &[][..])));
-    }
-
-    // TODO: test error handling in select cases.  It's tricky to do
-    // this without combine::Positioner; see the TODO at the top of
-    // the file.
 }
