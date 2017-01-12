@@ -10,7 +10,16 @@
 
 extern crate clap;
 
+#[macro_use]
+extern crate slog;
+#[macro_use]
+extern crate slog_scope;
+extern crate slog_term;
+
+extern crate mentat;
+
 use clap::{App, Arg, SubCommand, AppSettings};
+use slog::DrainExt;
 
 fn main() {
     let app = App::new("Mentat").setting(AppSettings::ArgRequiredElseHelp);
@@ -37,9 +46,25 @@ fn main() {
     if let Some(ref matches) = matches.subcommand_matches("serve") {
         let debug = matches.is_present("debug");
         println!("This doesn't work yet, but it will eventually serve the following database: {} \
-                  on port: {}.  Debugging={}",
+                  on port: {}.",
                  matches.value_of("database").unwrap(),
-                 matches.value_of("port").unwrap(),
-                 debug);
+                 matches.value_of("port").unwrap());
+
+        // set up logging
+        let log_level = if debug {
+            slog::Level::Debug
+        } else {
+            slog::Level::Warning
+        };
+        let term_logger = slog_term::streamer().build().fuse();
+        let log = slog::Logger::root(slog::LevelFilter::new(term_logger, log_level),
+                                     o!("version" => env!("CARGO_PKG_VERSION")));
+        slog_scope::set_global_logger(log);
+
+        info!("Serving database"; "database" => matches.value_of("database").unwrap(),
+                                  "port" => matches.value_of("port").unwrap(),
+                                  "debug mode" => true);
+
+        error!("Calling a function: {}", mentat::get_name());
     }
 }
