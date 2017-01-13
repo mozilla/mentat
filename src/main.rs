@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use] extern crate log;
+extern crate env_logger;
 extern crate clap;
 #[macro_use] extern crate nickel;
 
@@ -15,6 +17,7 @@ use nickel::{Nickel, HttpRouter};
 
 use clap::{App, Arg, SubCommand, AppSettings};
 
+use std::env;
 use std::u16;
 use std::str::FromStr;
 
@@ -42,14 +45,29 @@ fn main() {
         .get_matches();
     if let Some(ref matches) = matches.subcommand_matches("serve") {
         let debug = matches.is_present("debug");
+
+        init_logger(debug).unwrap();
+        info!("Starting Mentat ({})", env!("CARGO_PKG_VERSION"));
+
         let port = u16::from_str(matches.value_of("port").unwrap()).expect("Port must be an integer");
-        if debug {
-            println!("This doesn't do anything yet, but it will eventually serve up the following database: {}",
-                matches.value_of("database").unwrap());
-        }
+        info!("This doesn't do anything yet, but it will eventually serve up the following database: {}",
+              matches.value_of("database").unwrap());
 
         let mut server = Nickel::new();
         server.get("/", middleware!("This doesn't do anything yet"));
         server.listen(("127.0.0.1", port)).expect("Failed to launch server");
     }
+}
+
+fn init_logger(debug_mode: bool) -> Result<(), log::SetLoggerError> {
+    let mut builder = env_logger::LogBuilder::new();
+
+    let env_vars = env::var("MENTAT_LOG").or(env::var("RUST_LOG"));
+    if let Ok(s) = env_vars {
+        builder.parse(&s);
+    } else {
+        let log_level = if debug_mode {log::LogLevelFilter::Debug} else {log::LogLevelFilter::Warn};
+        builder.filter(None, log_level);
+    }
+    builder.init()
 }
