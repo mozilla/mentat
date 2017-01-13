@@ -9,8 +9,14 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate clap;
+#[macro_use] extern crate nickel;
+
+use nickel::{Nickel, HttpRouter};
 
 use clap::{App, Arg, SubCommand, AppSettings};
+
+use std::u16;
+use std::str::FromStr;
 
 fn main() {
     let app = App::new("Mentat").setting(AppSettings::ArgRequiredElseHelp);
@@ -24,7 +30,7 @@ fn main() {
                 .long("database")
                 .value_name("FILE")
                 .help("Path to the Mentat database to serve")
-                .default_value("temp.db")
+                .default_value("")
                 .takes_value(true))
             .arg(Arg::with_name("port")
                 .short("p")
@@ -36,10 +42,14 @@ fn main() {
         .get_matches();
     if let Some(ref matches) = matches.subcommand_matches("serve") {
         let debug = matches.is_present("debug");
-        println!("This doesn't work yet, but it will eventually serve the following database: {} \
-                  on port: {}.  Debugging={}",
-                 matches.value_of("database").unwrap(),
-                 matches.value_of("port").unwrap(),
-                 debug);
+        let port = u16::from_str(matches.value_of("port").unwrap()).expect("Port must be an integer");
+        if debug {
+            println!("This doesn't do anything yet, but it will eventually serve up the following database: {}",
+                matches.value_of("database").unwrap());
+        }
+
+        let mut server = Nickel::new();
+        server.get("/", middleware!("This doesn't do anything yet"));
+        server.listen(("127.0.0.1", port)).expect("Failed to launch server");
     }
 }
