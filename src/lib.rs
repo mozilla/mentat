@@ -34,11 +34,11 @@ pub fn get_connection() -> Connection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use edn::keyword::Keyword;
+    use edn::symbols::Keyword;
 
     #[test]
     fn can_import_edn() {
-        assert_eq!("foo", Keyword::new("foo").name);
+        assert_eq!("foo", Keyword::new("foo").0);
     }
 
     #[test]

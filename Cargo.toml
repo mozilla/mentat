@@ -16,3 +16,6 @@ rusqlite = "0.8.0"
 
 [dependencies.mentat_query_parser]
   path = "query-parser"
+
+[dependencies.mentat_tx_parser]
+  path = "tx-parser"

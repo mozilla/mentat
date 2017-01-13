@@ -1,0 +1,141 @@
+/* vim: set filetype=rust.rustpeg */
+
+// Copyright 2016 Mozilla
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+use std::collections::{BTreeSet, BTreeMap, LinkedList};
+use std::iter::FromIterator;
+
+use num::BigInt;
+use ordered_float::OrderedFloat;
+use types;
+use types::Value;
+
+// Goal: Be able to parse https://github.com/edn-format/edn
+// Also extensible to help parse http://docs.datomic.com/query.html
+
+// Debugging hint: test using `cargo test --features peg/trace -- --nocapture`
+// to trace where the parser is failing
+
+// TODO: Support tagged elements
+// TODO: Support comments
+// TODO: Support discard
+
+#[export]
+nil -> Value = "nil" {
+    Value::Nil
+}
+
+#[export]
+boolean -> Value =
+    "true" { Value::Boolean(true) } /
+    "false" { Value::Boolean(false) }
+
+digit = [0-9]
+sign = "-" / "+"
+
+#[export]
+bigint -> Value = b:$( sign? digit+ ) "N" {
+    Value::BigInteger(b.parse::<BigInt>().unwrap())
+}
+
+#[export]
+integer -> Value = i:$( sign? digit+ ) {
+    Value::Integer(i.parse::<i64>().unwrap())
+}
+
+frac =     sign? digit+ "." digit+
+exp =      sign? digit+            ("e" / "E") sign? digit+
+frac_exp = sign? digit+ "." digit+ ("e" / "E") sign? digit+
+
+// The order here is important - frac_exp must come before (exp / frac) or the
+// parser assumes exp or frac when the float is really a frac_exp and fails
+#[export]
+float -> Value = f:$( frac_exp / exp / frac ) {
+    Value::Float(OrderedFloat(f.parse::<f64>().unwrap()))
+}
+
+// TODO: \newline, \return, \space and \tab
+special_char = quote / tab
+quote = "\\\""
+tab = "\\tab"
+char = [^"] / special_char
+
+#[export]
+text -> Value = "\"" t:$(  char* ) "\"" {
+    Value::Text(t.to_string())
+}
+
+namespace_divider = "."
+namespace_separator = "/"
+
+// TODO: Be more picky here
+symbol_char_initial = [a-z] / [A-Z] / [0-9] / [*!_?$%&=<>]
+symbol_char_subsequent = [a-z] / [A-Z] / [0-9] / [-*!_?$%&=<>]
+
+symbol_namespace = symbol_char_initial+ (namespace_divider symbol_char_subsequent+)*
+symbol_name = ( symbol_char_initial+ / "." ) ( symbol_char_subsequent* / "." )
+
+keyword_prefix = ":"
+
+// TODO: More chars here?
+keyword_namespace_char = [a-z] / [A-Z] / [0-9]
+keyword_namespace = keyword_namespace_char+ (namespace_divider keyword_namespace_char+)*
+
+keyword_name_char = [a-z] / [A-Z] / [0-9] / "."
+keyword_name = keyword_name_char+
+
+#[export]
+symbol -> Value
+    = ns:( sns:$(symbol_namespace) namespace_separator { sns })? n:$(symbol_name) {
+        types::to_symbol(ns, n)
+    }
+
+#[export]
+keyword -> Value
+    = keyword_prefix ns:( kns:$(keyword_namespace) namespace_separator { kns })? n:$(keyword_name) {
+        types::to_keyword(ns, n)
+    }
+
+#[export]
+list -> Value = "(" __ v:(__ value)* __ ")" {
+    Value::List(LinkedList::from_iter(v))
+}
+
+#[export]
+vector -> Value = "[" __ v:(__ value)* __ "]" {
+    Value::Vector(v)
+}
+
+#[export]
+set -> Value = "#{" __ v:(__ value)* __ "}" {
+    Value::Set(BTreeSet::from_iter(v))
+}
+
+pair -> (Value, Value) = k:(value) " " v:(value) ", "? {
+    (k, v)
+}
+
+#[export]
+map -> Value = "{" __ v:(pair)* __ "}" {
+    Value::Map(BTreeMap::from_iter(v))
+}
+
+// It's important that float comes before integer or the parser assumes that
+// floats are integers and fails to parse
+#[export]
+value -> Value
+    = nil / boolean / float / bigint / integer / text /
+      keyword / symbol /
+      list / vector / map / set
+
+whitespace = (" " / "\r" / "\n" / "\t")
+
+__ = whitespace*

@@ -8,14 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(dead_code)]
+extern crate peg;
 
-extern crate ordered_float;
-extern crate num;
-
-pub mod symbols;
-pub mod types;
-
-pub mod parse {
-    include!(concat!(env!("OUT_DIR"), "/edn.rs"));
+fn main() {
+    peg::cargo_build("src/edn.rustpeg");
 }
