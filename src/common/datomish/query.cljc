@@ -110,7 +110,7 @@
   (->
     context
     context->sql-clause
-    (sql/format args :quoting sql-quoting-style)))
+    (sql/format :params args :quoting sql-quoting-style)))
 
 (defn- validate-with [with]
   (when-not (or (nil? with)
@@ -215,7 +215,7 @@
   [context find args]
   (->
     (find->sql-clause context find)
-    (sql/format args :quoting sql-quoting-style)))
+    (sql/format :params args :quoting sql-quoting-style)))
 
 (defn parse
   "Parse a Datalog query array into a structured `find` expression."

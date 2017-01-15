@@ -925,3 +925,15 @@
                                                {:select ['x]
                                                 :from [:def]})}
                                      :foo])})))))
+
+(deftest-db test-sql-quoting conn
+  (testing "ansi sql quoting applied when there are no inputs"
+    (is (= ["SELECT DISTINCT \"datoms0\".\"e\" AS \"order\" FROM \"datoms\" \"datoms0\" WHERE (\"datoms0\".\"a\" = \"order\") "]
+           (datomish.query/find->sql-string
+             (conn->context conn)
+             (datomish.query/parse
+               '[:find ?order
+                 :in $
+                 :where
+                 [?order :item/order]])
+             nil)))))
