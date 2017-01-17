@@ -25,7 +25,6 @@ use types::Value;
 // to trace where the parser is failing
 
 // TODO: Support tagged elements
-// TODO: Support comments
 // TODO: Support discard
 
 #[export]
@@ -137,5 +136,6 @@ value -> Value
       list / vector / map / set
 
 whitespace = (" " / "\r" / "\n" / "\t")
+comment = ";" [^\r\n]* ("\r" / "\n")?
 
-__ = whitespace*
+__ = (whitespace / comment)*
