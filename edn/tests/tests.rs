@@ -809,6 +809,47 @@ fn test_comments() {
     assert_eq!(value(";\n0"), result);
     assert_eq!(value(";\r0"), result);
 }
+
+#[test]
+fn test_whitespace() {
+    let result = Ok(Value::Vector(vec![Value::Integer(1)]));
+    assert_eq!(value(" [1]"), result);
+    assert_eq!(value("[1] "), result);
+    assert_eq!(value(" [ 1 ] "), result);
+}
+
+#[test]
+fn test_inner_whitespace() {
+    let result = Ok(Value::Vector(vec![Value::Vector(vec![Value::Integer(1)])]));
+    assert_eq!(value("[ [1]]"), result);
+    assert_eq!(value("[ [1] ]"), result);
+    assert_eq!(value("[[1] ]"), result);
+}
+
+#[test]
+fn test_commas() {
+    let result = Ok(Value::Vector(vec![Value::Integer(1), Value::Integer(2)]));
+    assert_eq!(value("[1,2]"), result);
+    assert_eq!(value("[1 ,2]"), result);
+    assert_eq!(value("[1 , 2]"), result);
+    assert_eq!(value("[1 ,2]"), result);
+    assert_eq!(value("[ 1,2]"), result);
+    assert_eq!(value("[1,2 ]"), result);
+}
+
+#[test]
+fn test_spurious_commas() {
+    let result = Ok(Value::Vector(vec![Value::Integer(3)]));
+    assert_eq!(value("[3,]"), result);
+    assert_eq!(value("[3 ,]"), result);
+    assert_eq!(value("[3 , ]"), result);
+    assert_eq!(value("[3, ]"), result);
+    assert_eq!(value("[,3]"), result);
+    assert_eq!(value("[,,3]"), result);
+    assert_eq!(value("[,3,]"), result);
+    assert_eq!(value("[3,,]"), result);
+}
+
 /*
 // Handy templates for creating test cases follow:
 
