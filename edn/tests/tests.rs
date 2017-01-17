@@ -799,6 +799,16 @@ fn test_query_find_title() {
     assert_eq!(value(test).unwrap(), reply);
 }
 
+#[test]
+fn test_comments() {
+    let result = Ok(Value::Integer(0));
+    assert_eq!(value("0;"), result);
+    assert_eq!(value("0;x"), result);
+    assert_eq!(value("0;\n"), result);
+    assert_eq!(value("0;x\n"), result);
+    assert_eq!(value(";\n0"), result);
+    assert_eq!(value(";\r0"), result);
+}
 /*
 // Handy templates for creating test cases follow:
 
