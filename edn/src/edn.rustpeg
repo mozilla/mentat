@@ -104,26 +104,26 @@ keyword -> Value
     }
 
 #[export]
-list -> Value = "(" __ v:(__ value)* __ ")" {
+list -> Value = "(" v:(value)* ")" {
     Value::List(LinkedList::from_iter(v))
 }
 
 #[export]
-vector -> Value = "[" __ v:(__ value)* __ "]" {
+vector -> Value = "[" v:(value)* "]" {
     Value::Vector(v)
 }
 
 #[export]
-set -> Value = "#{" __ v:(__ value)* __ "}" {
+set -> Value = "#{" v:(value)* "}" {
     Value::Set(BTreeSet::from_iter(v))
 }
 
-pair -> (Value, Value) = k:(value) " " v:(value) ", "? {
+pair -> (Value, Value) = k:(value) v:(value) {
     (k, v)
 }
 
 #[export]
-map -> Value = "{" __ v:(pair)* __ "}" {
+map -> Value = "{" v:(pair)* "}" {
     Value::Map(BTreeMap::from_iter(v))
 }
 
@@ -131,11 +131,16 @@ map -> Value = "{" __ v:(pair)* __ "}" {
 // floats are integers and fails to parse
 #[export]
 value -> Value
-    = nil / boolean / float / bigint / integer / text /
+    = __ v:(nil / boolean / float / bigint / integer / text /
       keyword / symbol /
-      list / vector / map / set
+      list / vector / map / set) __ {
+    v
+}
 
-whitespace = (" " / "\r" / "\n" / "\t")
+// Clojure (and thus EDN) regards commas as whitespace, and thus the two-element vectors [1 2] and
+// [1,,,,2] are equivalent, as are the maps {:a 1, :b 2} and {:a 1 :b 2}.
+whitespace = (" " / "\r" / "\n" / "\t" / ",")
+
 comment = ";" [^\r\n]* ("\r" / "\n")?
 
 __ = (whitespace / comment)*
