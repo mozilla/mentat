@@ -15,7 +15,7 @@ extern crate edn;
 use self::edn::types::Value;
 use self::edn::symbols::NamespacedKeyword;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum Entid {
     Entid(i64),
     Ident(NamespacedKeyword),

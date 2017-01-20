@@ -11,6 +11,9 @@ rusqlite = "0.8.0"
 [dependencies.edn]
   path = "edn"
 
+[dependencies.mentat_db]
+  path = "db"
+
 [dependencies.mentat_query]
   path = "query"
 

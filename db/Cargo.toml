@@ -1,0 +1,23 @@
+[package]
+name = "mentat_db"
+version = "0.0.1"
+
+[dependencies]
+
+[dependencies.edn]
+path = "../edn"
+
+[dependencies.mentat_tx]
+path = "../tx"
+
+[dependencies.mentat_tx_parser]
+path = "../tx-parser"
+
+[dependencies.error-chain]
+version = "0.8.0"
+
+[dependencies.rusqlite]
+version = "0.8.0"
+
+[dependencies.lazy_static]
+version = "0.2.2"
