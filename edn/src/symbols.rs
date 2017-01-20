@@ -69,10 +69,11 @@ pub struct NamespacedKeyword {
 }
 
 impl PlainSymbol {
-    pub fn new(name: &str) -> Self {
-        assert!(!name.is_empty(), "Symbols cannot be unnamed.");
+    pub fn new<T>(name: T) -> Self where T: Into<String> {
+        let n = name.into();
+        assert!(!n.is_empty(), "Symbols cannot be unnamed.");
 
-        return PlainSymbol(name.to_string());
+        return PlainSymbol(n);
     }
 }
 
@@ -86,10 +87,11 @@ impl NamespacedSymbol {
 }
 
 impl Keyword {
-    pub fn new(name: &str) -> Self {
-        assert!(!name.is_empty(), "Keywords cannot be unnamed.");
+    pub fn new<T>(name: T) -> Self where T: Into<String>{
+        let n = name.into();
+        assert!(!n.is_empty(), "Keywords cannot be unnamed.");
 
-        return Keyword(name.to_string());
+        return Keyword(n);
     }
 }
 
