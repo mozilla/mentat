@@ -41,6 +41,15 @@ pub enum Value {
 
 use self::Value::*;
 
+impl Value {
+    pub fn is_keyword(&self) -> bool {
+        match *self {
+            Keyword(_) => true,
+            _          => false,
+        }
+    }
+}
+
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
         Some(self.cmp(other))
