@@ -21,11 +21,6 @@ pub fn get_name() -> String {
     return String::from("mentat");
 }
 
-// Just an example of using a dependency
-pub fn get_parser_name() -> String {
-    return mentat_query_parser::get_name();
-}
-
 // Will ultimately not return the sqlite connection directly
 pub fn get_connection() -> Connection {
     return Connection::open_in_memory().unwrap();
@@ -39,10 +34,5 @@ mod tests {
     #[test]
     fn can_import_edn() {
         assert_eq!("foo", Keyword::new("foo").0);
-    }
-
-    #[test]
-    fn can_import_parser() {
-        assert_eq!(String::from("mentat-query-parser"), get_parser_name());
     }
 }
