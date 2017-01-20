@@ -49,3 +49,5 @@ pom.xml.asc
 /release-node/honeysql/
 
 /edn/target/
+/fixtures/*.db-shm
+/fixtures/*.db-wal
