@@ -8,8 +8,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-mod error;
-mod util;
-mod parse;
-pub mod find;
+extern crate combine;
+extern crate edn;
+extern crate mentat_query;
+
+use self::mentat_query::FindSpec;
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum FindParseError {
+    InvalidInput(edn::Value),
+    MissingField(edn::Keyword),
+    EdnParseError(edn::parse::ParseError),
+    FindParseError,         // TODO: figure out how to represent Combine's parse errors.
+}
+
+pub type FindParseResult = Result<FindSpec, FindParseError>;
 

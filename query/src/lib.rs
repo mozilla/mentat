@@ -40,6 +40,7 @@ use edn::{Keyword, NamespacedKeyword, PlainSymbol};
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Variable(pub PlainSymbol);
 
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -109,6 +110,7 @@ pub struct Aggregate {
 }
 */
 
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Element {
     Variable(Variable),
     // Aggregate(Aggregate),   // TODO
@@ -145,6 +147,7 @@ pub enum Element {
 /// # }
 /// ```
 ///
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub enum FindSpec {
     /// Returns an array of arrays.
     FindRel(Vec<Element>),
