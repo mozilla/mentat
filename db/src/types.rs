@@ -15,13 +15,13 @@ use std::collections::{BTreeMap};
 /// Core types defining a Mentat knowledge base.
 ///
 /// At its core, Mentat maintains a set of assertions of the form entity-attribute-value (EAV).  The
-/// assertions conform to a schema where-by the given attribute constrains the associated value/set
+/// assertions conform to a schema whereby the given attribute constrains the associated value/set
 /// of associated values.
 ///
 /// ## Assertions
 ///
 /// Mentat assertions are represented as rows in the `datoms` SQLite table, and each Mentat row
-/// representing an assertion are tagged with a numeric representation of :db/valueType.
+/// representing an assertion is with a numeric representation of :db/valueType.
 ///
 /// The tag is used to limit queries, and therefore is placed carefully in the relevant indices to
 /// allow searching numeric longs and doubles quickly.  The tag is also used to convert SQLite
@@ -45,7 +45,7 @@ use std::collections::{BTreeMap};
 ///
 /// The entid sequence in a given partition is monotonically increasing, although not necessarily
 /// contiguous.  That is, it is possible for a specific entid to have never been present in the
-/// system, even though its predecessor and successor is present.
+/// system, even though its predecessor and successor are present.
 
 // #[derive(Debug)]
 // pub enum Error {
@@ -67,8 +67,8 @@ use std::collections::{BTreeMap};
 /// use i64 rather than manually truncating u64 to u63 and casting to i64 throughout the codebase.
 pub type Entid = i64;
 
-/// The attribute of each Mentat assertion has an :db/valueType constraining the value to a
-/// particular domain.  Mentat recognizes the following :db/valueType values.
+/// The attribute of each Mentat assertion has a :db/valueType constraining the value to a
+/// particular set.  Mentat recognizes the following :db/valueType values.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum ValueType {
     Ref,
@@ -140,15 +140,18 @@ pub type PartitionMap = BTreeMap<String, Partition>;
 pub struct Attribute {
     /// The associated value type, i.e., `:db/valueType`?
     pub value_type: ValueType,
+
     /// `true` if this attribute is multi-valued, i.e., it is `:db/cardinality
     /// :db.cardinality/many`.  `false` if this attribute is single-valued (the default), i.e., it
     /// is `:db/cardinality :db.cardinality/one`.
     pub multival: bool,
+
     /// `true` if this attribute is unique-value, i.e., it is `:db/unique :db.unique/value`.
     ///
     /// *Unique-value* means that there is at most one assertion with the attribute and a
     /// particular value in the datom store.
     pub unique_value: bool,
+
     /// `true` if this attribute is unique-identity, i.e., it is `:db/unique :db.unique/identity`.
     ///
     /// Unique-identity attributes always have value type `Ref`.
@@ -156,12 +159,15 @@ pub struct Attribute {
     /// *Unique-identity* means that the attribute is *unique-value* and that they can be used in
     /// lookup-refs and will automatically upsert where appropriate.
     pub unique_identity: bool,
+
     /// `true` if this attribute is automatically indexed, i.e., it is `:db/indexing true`.
     pub index: bool,
+
     /// `true` if this attribute is automatically fulltext indexed, i.e., it is `:db/fulltext true`.
     ///
     /// Fulltext attributes always have string values.
     pub fulltext: bool,
+
     /// `true` if this attribute is a component, i.e., it is `:db/isComponent true`.
     ///
     /// Component attributes always have value type `Ref`.
@@ -208,10 +214,12 @@ pub struct Schema {
     ///
     /// Invariant: is the inverse map of `ident_map`.
     pub entid_map: EntidMap,
+
     /// Map ident->entid.
     ///
     /// Invariant: is the inverse map of `entid_map`.
     pub ident_map: IdentMap,
+
     /// Map entid->attribute flags.
     ///
     /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
@@ -231,12 +239,15 @@ impl Schema {
 }
 
 /// Represents the metadata required to query from, or apply transactions to, a Mentat store.
+///
+/// See https://github.com/mozilla/mentat/wiki/Thoughts:-modeling-db-conn-in-Rust.
 #[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct DB {
     /// Map partition name->`Partition`.
     ///
     /// TODO: represent partitions as entids.
     pub partition_map: PartitionMap,
+
     /// The schema of the store.
     pub schema: Schema,
 }

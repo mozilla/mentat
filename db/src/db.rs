@@ -433,6 +433,7 @@ impl DB {
                     v: entmod::ValueOrLookupRef::Value(ref v_),
                     tx: _ } => {
 
+                    // TODO: prepare and cache all these statements outside the transaction loop.
                     let mut stmt: rusqlite::Statement = conn.prepare("INSERT INTO datoms(e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")?;
                     let e: i64 = *self.schema.get_entid(&e_.to_string()).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", e_)))?;
                     let a: i64 = *self.schema.get_entid(&a_.to_string()).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", a_)))?;
