@@ -44,96 +44,90 @@ fn to_bool_ref(x: bool) -> &'static bool {
     if x { TRUE } else { FALSE }
 }
 
-// /// A typedef of the result returned by many methods.
-// pub type Result<T> = result::Result<T, rusqlite::Error>;
+lazy_static! {
+    /// SQL statements to be executed, in order, to create the Mentat SQL schema (version 2).
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    static ref V2_STATEMENTS: Vec<&'static str> = { vec![
+        r#"CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
+                                value_type_tag SMALLINT NOT NULL,
+                                index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
+                                index_fulltext TINYINT NOT NULL DEFAULT 0,
+                                unique_value TINYINT NOT NULL DEFAULT 0)"#,
+        r#"CREATE UNIQUE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"#,
+        r#"CREATE UNIQUE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"#,
 
-/// SQL statements to be executed, in order, to create the Mentat SQL schema (version 1).
-#[cfg_attr(rustfmt, rustfmt_skip)]
-const V1_STATEMENTS: [&'static str; 19] = [
-   r#"CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
-                         value_type_tag SMALLINT NOT NULL,
-                         index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
-                         index_fulltext TINYINT NOT NULL DEFAULT 0,
-                         unique_value TINYINT NOT NULL DEFAULT 0)"#,
-   r#"CREATE UNIQUE INDEX idx_datoms_eavt ON datoms (e, a, value_type_tag, v)"#,
-   r#"CREATE UNIQUE INDEX idx_datoms_aevt ON datoms (a, e, value_type_tag, v)"#,
+        // Opt-in index: only if a has :db/index true.
+        r#"CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, value_type_tag, v, e) WHERE index_avet IS NOT 0"#,
 
-   // Opt-in index: only if a has :db/index true.
-   r#"CREATE UNIQUE INDEX idx_datoms_avet ON datoms (a, value_type_tag, v, e) WHERE index_avet IS NOT 0"#,
+        // Opt-in index: only if a has :db/valueType :db.type/ref.  No need for tag here since all
+        // indexed elements are refs.
+        r#"CREATE UNIQUE INDEX idx_datoms_vaet ON datoms (v, a, e) WHERE index_vaet IS NOT 0"#,
 
-   // Opt-in index: only if a has :db/valueType :db.type/ref.  No need for tag here since all
-   // indexed elements are refs.
-   r#"CREATE UNIQUE INDEX idx_datoms_vaet ON datoms (v, a, e) WHERE index_vaet IS NOT 0"#,
+        // Opt-in index: only if a has :db/fulltext true; thus, it has :db/valueType :db.type/string,
+        // which is not :db/valueType :db.type/ref.  That is, index_vaet and index_fulltext are mutually
+        // exclusive.
+        r#"CREATE INDEX idx_datoms_fulltext ON datoms (value_type_tag, v, a, e) WHERE index_fulltext IS NOT 0"#,
 
-   // Opt-in index: only if a has :db/fulltext true; thus, it has :db/valueType :db.type/string,
-   // which is not :db/valueType :db.type/ref.  That is, index_vaet and index_fulltext are mutually
-   // exclusive.
-   r#"CREATE INDEX idx_datoms_fulltext ON datoms (value_type_tag, v, a, e) WHERE index_fulltext IS NOT 0"#,
+        // TODO: possibly remove this index.  :db.unique/{value,identity} should be asserted by the
+        // transactor in all cases, but the index may speed up some of SQLite's query planning.  For now,
+        // it serves to validate the transactor implementation.  Note that tag is needed here to
+        // differentiate, e.g., keywords and strings.
+        r#"CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"#,
 
-   // TODO: possibly remove this index.  :db.unique/{value,identity} should be asserted by the
-   // transactor in all cases, but the index may speed up some of SQLite's query planning.  For now,
-   // it serves to validate the transactor implementation.  Note that tag is needed here to
-   // differentiate, e.g., keywords and strings.
-   r#"CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"#,
+        r#"CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"#,
+        r#"CREATE INDEX idx_transactions_tx ON transactions (tx, added)"#,
 
-   r#"CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"#,
-   r#"CREATE INDEX idx_transactions_tx ON transactions (tx, added)"#,
+        // Fulltext indexing.
+        // A fulltext indexed value v is an integer rowid referencing fulltext_values.
 
-   // Fulltext indexing.
-   // A fulltext indexed value v is an integer rowid referencing fulltext_values.
+        // Optional settings:
+        // tokenize="porter"#,
+        // prefix='2,3'
+        // By default we use Unicode-aware tokenizing (particularly for case folding), but preserve
+        // diacritics.
+        r#"CREATE VIRTUAL TABLE fulltext_values
+             USING FTS4 (text NOT NULL, searchid INT, tokenize=unicode61 "remove_diacritics=0")"#,
 
-   // Optional settings:
-   // tokenize="porter"#,
-   // prefix='2,3'
-   // By default we use Unicode-aware tokenizing (particularly for case folding), but preserve
-   // diacritics.
-   r#"CREATE VIRTUAL TABLE fulltext_values
-        USING FTS4 (text NOT NULL, searchid INT, tokenize=unicode61 "remove_diacritics=0")"#,
+        // This combination of view and triggers allows you to transparently
+        // update-or-insert into FTS. Just INSERT INTO fulltext_values_view (text, searchid).
+        r#"CREATE VIEW fulltext_values_view AS SELECT * FROM fulltext_values"#,
+        r#"CREATE TRIGGER replace_fulltext_searchid
+             INSTEAD OF INSERT ON fulltext_values_view
+             WHEN EXISTS (SELECT 1 FROM fulltext_values WHERE text = new.text)
+             BEGIN
+               UPDATE fulltext_values SET searchid = new.searchid WHERE text = new.text;
+             END"#,
+        r#"CREATE TRIGGER insert_fulltext_searchid
+             INSTEAD OF INSERT ON fulltext_values_view
+             WHEN NOT EXISTS (SELECT 1 FROM fulltext_values WHERE text = new.text)
+             BEGIN
+               INSERT INTO fulltext_values (text, searchid) VALUES (new.text, new.searchid);
+             END"#,
 
-   // This combination of view and triggers allows you to transparently
-   // update-or-insert into FTS. Just INSERT INTO fulltext_values_view (text, searchid).
-   r#"CREATE VIEW fulltext_values_view AS SELECT * FROM fulltext_values"#,
-   r#"CREATE TRIGGER replace_fulltext_searchid
-        INSTEAD OF INSERT ON fulltext_values_view
-        WHEN EXISTS (SELECT 1 FROM fulltext_values WHERE text = new.text)
-        BEGIN
-          UPDATE fulltext_values SET searchid = new.searchid WHERE text = new.text;
-        END"#,
-   r#"CREATE TRIGGER insert_fulltext_searchid
-        INSTEAD OF INSERT ON fulltext_values_view
-        WHEN NOT EXISTS (SELECT 1 FROM fulltext_values WHERE text = new.text)
-        BEGIN
-          INSERT INTO fulltext_values (text, searchid) VALUES (new.text, new.searchid);
-        END"#,
+        // A view transparently interpolating fulltext indexed values into the datom structure.
+        r#"CREATE VIEW fulltext_datoms AS
+             SELECT e, a, fulltext_values.text AS v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
+               FROM datoms, fulltext_values
+               WHERE datoms.index_fulltext IS NOT 0 AND datoms.v = fulltext_values.rowid"#,
 
-   // A view transparently interpolating fulltext indexed values into the datom structure.
-   r#"CREATE VIEW fulltext_datoms AS
-        SELECT e, a, fulltext_values.text AS v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
-          FROM datoms, fulltext_values
-          WHERE datoms.index_fulltext IS NOT 0 AND datoms.v = fulltext_values.rowid"#,
+        // A view transparently interpolating all entities (fulltext and non-fulltext) into the datom structure.
+        r#"CREATE VIEW all_datoms AS
+             SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
+               FROM datoms
+               WHERE index_fulltext IS 0
+             UNION ALL
+             SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
+               FROM fulltext_datoms"#,
 
-   // A view transparently interpolating all entities (fulltext and non-fulltext) into the datom structure.
-   r#"CREATE VIEW all_datoms AS
-        SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
-          FROM datoms
-          WHERE index_fulltext IS 0
-        UNION ALL
-        SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
-          FROM fulltext_datoms"#,
-
-   // Materialized views of the schema.
-   r#"CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"#,
-   r#"CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value BLOB NOT NULL, value_type_tag SMALLINT NOT NULL,
-        FOREIGN KEY (ident) REFERENCES idents (ident))"#,
-   r#"CREATE INDEX idx_schema_unique ON schema (ident, attr, value, value_type_tag)"#,
-   r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"#,
-   ];
-
-/// Additional SQL statements to be executed, in order, to create the Mentat SQL schema (version 2).
-/// We assume that the `V1_STATEMENTS` have been successfully executed (in order) before these are
-/// executed.
-#[cfg_attr(rustfmt, rustfmt_skip)]
-const V2_STATEMENTS: [&'static str; 0] = [];
+        // Materialized views of the schema.
+        r#"CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"#,
+        r#"CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value BLOB NOT NULL, value_type_tag SMALLINT NOT NULL,
+             FOREIGN KEY (ident) REFERENCES idents (ident))"#,
+        r#"CREATE INDEX idx_schema_unique ON schema (ident, attr, value, value_type_tag)"#,
+        r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"#,
+        ]
+    };
+}
 
 /// Set the SQLite user version.
 ///
@@ -160,11 +154,7 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     let tx = conn.transaction()?;
 
-    for statement in &V1_STATEMENTS {
-        tx.execute(statement, &[])?;
-    }
-
-    for statement in &V2_STATEMENTS {
+    for statement in (&V2_STATEMENTS).iter() {
         try!(tx.execute(statement, &[]));
     }
 
