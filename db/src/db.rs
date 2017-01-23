@@ -155,7 +155,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     let tx = conn.transaction()?;
 
     for statement in (&V2_STATEMENTS).iter() {
-        try!(tx.execute(statement, &[]));
+        tx.execute(statement, &[])?;
     }
 
     let bootstrap_partition_map = bootstrap::bootstrap_partition_map();
@@ -164,14 +164,14 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     // TODO: one insert, chunk into 999/3 sections, for safety.
     for (part, partition) in bootstrap_partition_map.iter() {
         // TODO: Convert "keyword" part to SQL using Value conversion.
-        try!(tx.execute("INSERT INTO parts VALUES (?, ?, ?)", &[part, &partition.start, &partition.index]));
+        tx.execute("INSERT INTO parts VALUES (?, ?, ?)", &[part, &partition.start, &partition.index])?;
     }
 
     let bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
     bootstrap_db.transact_internal(&tx, &bootstrap::bootstrap_entities()[..])?;
 
-    try!(set_user_version(&tx, CURRENT_VERSION));
-    let user_version = try!(get_user_version(&tx));
+    set_user_version(&tx, CURRENT_VERSION)?;
+    let user_version = get_user_version(&tx)?;
 
     // TODO: use the drop semantics to do this automagically?
     tx.commit()?;
@@ -266,12 +266,12 @@ pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32
         bail!(ErrorKind::BadSQLiteStoreVersion(current_version))
     }
 
-    let tx = try!(conn.transaction());
+    let tx = conn.transaction()?;
     // TODO: actually implement upgrade.
-    try!(set_user_version(&tx, CURRENT_VERSION));
-    let user_version = try!(get_user_version(&tx));
+    set_user_version(&tx, CURRENT_VERSION)?;
+    let user_version = get_user_version(&tx)?;
     // TODO: use the drop semantics to do this automagically?
-    try!(tx.commit());
+    tx.commit()?;
 
     Ok(user_version)
 }
@@ -355,7 +355,7 @@ pub fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
 
 /// Read the partition map materialized view from the given SQL store.
 pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
-    let mut stmt: rusqlite::Statement = try!(conn.prepare("SELECT part, start, idx FROM parts"));
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT part, start, idx FROM parts")?;
     let m = stmt.query_and_then(&[], |row| -> Result<(String, Partition)> {
         Ok((row.get_checked(0)?, Partition::new(row.get_checked(1)?, row.get_checked(2)?)))
     })?.collect();
@@ -410,7 +410,7 @@ pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
 // pub fn bootstrap(conn: &mut rusqlite::Connection, from_version: i32) -> Result<()> {
 //     match from_version {
 //         0 => {
-//             try!(conn.execute(&format!("INSERT INTO parts VALUES = {}", "()"), &[][..]));
+//             conn.execute(&format!("INSERT INTO parts VALUES = {}", "()"), &[][..])?;
 //             Ok(())
 //         },
 //         // 1 => {
@@ -433,7 +433,7 @@ impl DB {
                     v: entmod::ValueOrLookupRef::Value(ref v_),
                     tx: _ } => {
 
-                    let mut stmt: rusqlite::Statement = try!(conn.prepare("INSERT INTO datoms(e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+                    let mut stmt: rusqlite::Statement = conn.prepare("INSERT INTO datoms(e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")?;
                     let e: i64 = *self.schema.get_entid(&e_.to_string()).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", e_)))?;
                     let a: i64 = *self.schema.get_entid(&a_.to_string()).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", a_)))?;
                     let attributes: &Attribute = self.schema.schema_map.get(&a).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find attributes for entid: {:?}", a)))?;

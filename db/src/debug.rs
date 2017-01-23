@@ -40,7 +40,7 @@ pub fn datoms(conn: &rusqlite::Connection, db: &DB) -> Result<Vec<Datom>> {
 /// Return the set of datoms in the store with transaction ID strictly
 /// greater than the given `tx`, ordered by (tx, e, a, v).
 pub fn datoms_after(conn: &rusqlite::Connection, db: &DB, tx: &i32) -> Result<Vec<Datom>> {
-    let mut stmt: rusqlite::Statement = try!(conn.prepare("SELECT e, a, v, value_type_tag FROM datoms WHERE tx > ? ORDER BY tx, e, a, v"));
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag FROM datoms WHERE tx > ? ORDER BY tx, e, a, v")?;
 
     // Convert numeric entid to entity Entid.
     let to_entid = |x| {
