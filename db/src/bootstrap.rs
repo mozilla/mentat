@@ -130,8 +130,11 @@ lazy_static! {
  :db.schema/attribute  {:db/valueType   :db.type/ref
                         :db/unique      :db.unique/value
                         :db/cardinality :db.cardinality/many}}"#;
-        edn::parse::value(s)
+        let right = edn::parse::value(s)
             .map_err(|_| ErrorKind::BadBootstrapDefinition("Unable to parse V2_SYMBOLIC_SCHEMA".into()))
+            .unwrap();
+        edn::utils::merge(&V1_SYMBOLIC_SCHEMA, &right)
+            .ok_or(ErrorKind::BadBootstrapDefinition("Unable to parse V2_SYMBOLIC_SCHEMA".into()))
             .unwrap()
     };
 }
@@ -190,16 +193,13 @@ pub fn bootstrap_ident_map() -> IdentMap {
 }
 
 pub fn bootstrap_schema() -> Schema {
-    let bootstrap_assertions: Value = Value::Vector([
-        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
-        symbolic_schema_to_assertions(&V2_SYMBOLIC_SCHEMA).unwrap()].concat());
+    let bootstrap_assertions: Value = Value::Vector(symbolic_schema_to_assertions(&V2_SYMBOLIC_SCHEMA).unwrap());
     Schema::from_ident_map_and_assertions(bootstrap_ident_map(), &bootstrap_assertions)
         .unwrap()
 }
 
 pub fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
-        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
         symbolic_schema_to_assertions(&V2_SYMBOLIC_SCHEMA).unwrap(),
         idents_to_assertions(&V2_IDENTS[..]),
     ].concat());
