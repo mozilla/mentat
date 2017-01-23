@@ -12,8 +12,30 @@
 
 use edn::types::Value;
 use errors::*;
-use types::{Attribute, Entid, IdentMap, Schema, SchemaMap, ValueType};
+use types::{Attribute, Entid, EntidMap, IdentMap, Schema, SchemaMap, ValueType};
 use values;
+
+/// Return `Ok(())` if `schema_map` defines a valid Mentat schema.
+fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<()> {
+    for (entid, attribute) in schema_map {
+        let ident = entid_map.get(entid).ok_or(ErrorKind::BadSchemaAssertion(format!("Could not get ident for entid: {}", entid)))?;
+
+        if attribute.unique_identity && !attribute.unique_value {
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/unique :db/unique_value for entid: {}", ident)))
+        }
+        if attribute.fulltext && attribute.value_type != ValueType::String {
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/valueType :db.type/string for entid: {}", ident)))
+        }
+        if attribute.component && attribute.value_type != ValueType::Ref {
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/isComponent true without :db/valueType :db.type/ref for entid: {}", ident)))
+        }
+        // TODO: consider warning if we have :db/index true for :db/valueType :db.type/string,
+        // since this may be inefficient.  More generally, we should try to drive complex
+        // :db/valueType (string, uri, json in the future) users to opt-in to some hash-indexing
+        // scheme, as discussed in https://github.com/mozilla/mentat/issues/69.
+    }
+    Ok(())
+}
 
 impl Schema {
     pub fn get_ident(&self, x: &Entid) -> Option<&String> {
@@ -26,6 +48,19 @@ impl Schema {
 
     pub fn attribute_for_entid(&self, x: &Entid) -> Option<&Attribute> {
         self.schema_map.get(x)
+    }
+
+    /// Create a valid `Schema` from the constituent maps.
+    pub fn from(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema> {
+        let entid_map: EntidMap = ident_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+
+        validate_schema_map(&entid_map, &schema_map)?;
+
+        Ok(Schema {
+            ident_map: ident_map,
+            entid_map: entid_map,
+            schema_map: schema_map,
+        })
     }
 
     /// Turn Value([[IDENT ATTR VALUE] ...]) into a Mentat `Schema`.
@@ -88,7 +123,6 @@ impl Schema {
                     }
                 },
                 ":db/unique" => {
-                    // TODO: assert that we're indexing?
                     if *value == *values::DB_UNIQUE_VALUE {
                         attributes.unique_value = true;
                     } else if *value == *values::DB_UNIQUE_IDENTITY {
@@ -108,7 +142,6 @@ impl Schema {
                     }
                 },
                 ":db/fulltext" => {
-                    // TODO: check valueType is :db.type/string.
                     if *value == Value::Boolean(true) {
                         attributes.index = true;
                         attributes.fulltext = true;
@@ -119,7 +152,6 @@ impl Schema {
                     }
                 },
                 ":db/isComponent" => {
-                    // TODO: check valueType is :db.type/ref.
                     if *value == Value::Boolean(true) {
                         attributes.component = true;
                     } else if *value == Value::Boolean(false) {
@@ -143,6 +175,6 @@ impl Schema {
             }
         };
 
-        Ok(Schema::new(ident_map.clone(), schema_map))
+        Schema::from(ident_map.clone(), schema_map)
     }
 }

@@ -365,7 +365,7 @@ pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
 /// Read the schema materialized view from the given SQL store.
 pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<Schema> {
     // TODO: consider a less expensive way to do this inversion.
-    let schema_for_idents = Schema::new(ident_map.clone(), SchemaMap::default());
+    let schema_for_idents = Schema::from(ident_map.clone(), SchemaMap::default())?;
 
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, attr, value, value_type_tag FROM schema")?;
     let r: Result<Vec<Value>> = stmt.query_and_then(&[], |row| {

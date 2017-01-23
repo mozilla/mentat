@@ -227,17 +227,6 @@ pub struct Schema {
     pub schema_map: SchemaMap,
 }
 
-impl Schema {
-    pub fn new(ident_map: IdentMap, schema_map: SchemaMap) -> Schema {
-        let entid_map: EntidMap = ident_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
-        Schema {
-            ident_map: ident_map,
-            entid_map: entid_map,
-            schema_map: schema_map,
-        }
-    }
-}
-
 /// Represents the metadata required to query from, or apply transactions to, a Mentat store.
 ///
 /// See https://github.com/mozilla/mentat/wiki/Thoughts:-modeling-db-conn-in-Rust.
