@@ -66,15 +66,18 @@ lazy_static! {
          ]].concat()
     };
 
-    static ref V1_PARTS: [(&'static str, i64, i64); 3] = {
-        [(":db.part/db", 0, (1 + V1_IDENTS.len() + V2_IDENTS.len()) as i64),
-         (":db.part/user", 0x10000, 0x10000),
-         (":db.part/tx", 0x10000000, 0x10000000),
-         ]
+    static ref V1_PARTS: Vec<(&'static str, i64, i64)> = {
+        vec![(":db.part/db", 0, (1 + V1_IDENTS.len()) as i64),
+             (":db.part/user", 0x10000, 0x10000),
+             (":db.part/tx", 0x10000000, 0x10000000),
+        ]
     };
 
-    static ref V2_PARTS: [(&'static str, i64, i64); 0] = {
-        []
+    static ref V2_PARTS: Vec<(&'static str, i64, i64)> = {
+        vec![(":db.part/db", 0, (1 + V2_IDENTS.len()) as i64),
+             (":db.part/user", 0x10000, 0x10000),
+             (":db.part/tx", 0x10000000, 0x10000000),
+        ]
     };
 
     static ref V1_SYMBOLIC_SCHEMA: Value = {
@@ -175,8 +178,7 @@ fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> 
 }
 
 pub fn bootstrap_partition_map() -> PartitionMap {
-    V1_PARTS[..].into_iter()
-        .chain(V2_PARTS[..].into_iter())
+    V2_PARTS[..].iter()
         .map(|&(part, start, index)| (part.to_string(), Partition::new(start, index)))
         .collect()
 }
