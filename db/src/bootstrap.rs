@@ -20,49 +20,50 @@ use types::{IdentMap, Partition, PartitionMap, Schema};
 use values;
 
 lazy_static! {
-    static ref V1_IDENTS: [(&'static str, i64); 35] = {
-        [(":db/ident",             1),
-         (":db.part/db",           2),
-         (":db/txInstant",         3),
-         (":db.install/partition", 4),
-         (":db.install/valueType", 5),
-         (":db.install/attribute", 6),
-         (":db/valueType",         7),
-         (":db/cardinality",       8),
-         (":db/unique",            9),
-         (":db/isComponent",       10),
-         (":db/index",             11),
-         (":db/fulltext",          12),
-         (":db/noHistory",         13),
-         (":db/add",               14),
-         (":db/retract",           15),
-         (":db.part/user",         16),
-         (":db.part/tx",           17),
-         (":db/excise",            18),
-         (":db.excise/attrs",      19),
-         (":db.excise/beforeT",    20),
-         (":db.excise/before",     21),
-         (":db.alter/attribute",   22),
-         (":db.type/ref",          23),
-         (":db.type/keyword",      24),
-         (":db.type/long",         25),
-         (":db.type/double",       26),
-         (":db.type/string",       27),
-         (":db.type/boolean",      28),
-         (":db.type/instant",      29),
-         (":db.type/bytes",        30),
-         (":db.cardinality/one",   31),
-         (":db.cardinality/many",  32),
-         (":db.unique/value",      33),
-         (":db.unique/identity",   34),
-         (":db/doc",               35),
+    static ref V1_IDENTS: Vec<(&'static str, i64)> = {
+        vec![(":db/ident",             1),
+             (":db.part/db",           2),
+             (":db/txInstant",         3),
+             (":db.install/partition", 4),
+             (":db.install/valueType", 5),
+             (":db.install/attribute", 6),
+             (":db/valueType",         7),
+             (":db/cardinality",       8),
+             (":db/unique",            9),
+             (":db/isComponent",       10),
+             (":db/index",             11),
+             (":db/fulltext",          12),
+             (":db/noHistory",         13),
+             (":db/add",               14),
+             (":db/retract",           15),
+             (":db.part/user",         16),
+             (":db.part/tx",           17),
+             (":db/excise",            18),
+             (":db.excise/attrs",      19),
+             (":db.excise/beforeT",    20),
+             (":db.excise/before",     21),
+             (":db.alter/attribute",   22),
+             (":db.type/ref",          23),
+             (":db.type/keyword",      24),
+             (":db.type/long",         25),
+             (":db.type/double",       26),
+             (":db.type/string",       27),
+             (":db.type/boolean",      28),
+             (":db.type/instant",      29),
+             (":db.type/bytes",        30),
+             (":db.cardinality/one",   31),
+             (":db.cardinality/many",  32),
+             (":db.unique/value",      33),
+             (":db.unique/identity",   34),
+             (":db/doc",               35),
         ]
     };
 
-    static ref V2_IDENTS: [(&'static str, i64); 2] = {
-        [(":db.schema/version",    36),
-         (":db.schema/attribute",  37),
-        ]
+    static ref V2_IDENTS: Vec<(&'static str, i64)> = {
+        [(*V1_IDENTS).clone(),
+         vec![(":db.schema/version",    36),
+              (":db.schema/attribute",  37),
+         ]].concat()
     };
 
     static ref V1_PARTS: [(&'static str, i64, i64); 3] = {
@@ -181,8 +182,7 @@ pub fn bootstrap_partition_map() -> PartitionMap {
 }
 
 pub fn bootstrap_ident_map() -> IdentMap {
-    V1_IDENTS[..].into_iter()
-        .chain(V2_IDENTS[..].into_iter())
+    V2_IDENTS[..].iter()
         .map(|&(ident, entid)| (ident.to_string(), entid))
         .collect()
 }
@@ -199,7 +199,6 @@ pub fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
         symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
         symbolic_schema_to_assertions(&V2_SYMBOLIC_SCHEMA).unwrap(),
-        idents_to_assertions(&V1_IDENTS[..]),
         idents_to_assertions(&V2_IDENTS[..]),
     ].concat());
 
