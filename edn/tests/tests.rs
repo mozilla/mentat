@@ -21,6 +21,7 @@ use edn::symbols;
 use edn::types::Value;
 use edn::types::Value::*;
 use edn::parse::*;
+use edn::utils;
 
 // Helper for making wrapped keywords with a namespace.
 fn k_ns(ns: &str, name: &str) -> Value {
@@ -848,6 +849,42 @@ fn test_spurious_commas() {
     assert_eq!(value("[,,3]"), result);
     assert_eq!(value("[,3,]"), result);
     assert_eq!(value("[3,,]"), result);
+}
+
+#[test]
+fn test_utils_merge() {
+    // Take BTreeMap instances, wrap into Value::Map instances.
+    let test = |left: &BTreeMap<Value, Value>, right: &BTreeMap<Value, Value>, expected: &BTreeMap<Value, Value>| {
+        let l = Value::Map(left.clone());
+        let r = Value::Map(right.clone());
+        let result = utils::merge(&l, &r).unwrap();
+        let e = Value::Map(expected.clone());
+        assert_eq!(result, e);
+    };
+
+    let mut left = BTreeMap::new();
+    left.insert(Value::Integer(1), Value::Integer(1));
+    left.insert(Value::Text("a".into()), Value::Text("a".into()));
+    let mut right = BTreeMap::new();
+    right.insert(Value::Integer(2), Value::Integer(2));
+    right.insert(Value::Text("a".into()), Value::Text("b".into()));
+
+    let mut expected = BTreeMap::new();
+    expected.insert(Value::Integer(1), Value::Integer(1));
+    expected.insert(Value::Integer(2), Value::Integer(2));
+    expected.insert(Value::Text("a".into()), Value::Text("b".into()));
+
+    let mut expected = BTreeMap::new();
+    expected.insert(Value::Integer(1), Value::Integer(1));
+    expected.insert(Value::Integer(2), Value::Integer(2));
+    expected.insert(Value::Text("a".into()), Value::Text("b".into()));
+    test(&left, &right, &expected);
+
+    let mut expected = BTreeMap::new();
+    expected.insert(Value::Integer(1), Value::Integer(1));
+    expected.insert(Value::Integer(2), Value::Integer(2));
+    expected.insert(Value::Text("a".into()), Value::Text("a".into()));
+    test(&right, &left, &expected);
 }
 
 /*

@@ -15,6 +15,7 @@ extern crate num;
 
 pub mod symbols;
 pub mod types;
+pub mod utils;
 
 pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
