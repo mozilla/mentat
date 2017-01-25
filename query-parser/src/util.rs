@@ -58,6 +58,10 @@ fn test_values_to_variables() {
 /// The values are accumulated into vectors.
 ///
 /// Invalid input causes this function to return `None`.
+///
+/// TODO: this function can be generalized to take an arbitrary
+/// destructuring/break function, yielding a map with a custom
+/// key type and splitting in the right places.
 pub fn vec_to_keyword_map(vec: &[edn::Value]) -> Option<BTreeMap<edn::Keyword, Vec<edn::Value>>> {
     let mut m = BTreeMap::new();
 
@@ -77,7 +81,7 @@ pub fn vec_to_keyword_map(vec: &[edn::Value]) -> Option<BTreeMap<edn::Keyword, V
     //
     //   `Some((:foo, [1 2 3]))`
     fn step(slice: &[edn::Value]) -> Option<(edn::Keyword, Vec<edn::Value>)> {
-        // This can't be right -- we can't handle [:foo 1 2 3 :bar].
+        // [:foo 1 2 3 :bar] is invalid: nothing follows `:bar`.
         if slice.len() < 2 {
             return None;
         }

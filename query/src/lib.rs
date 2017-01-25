@@ -75,7 +75,7 @@ pub enum FnArg {
 pub enum PatternNonValuePlace {
     Placeholder,
     Variable(Variable),
-    Entid(u64),                       // Note unsigned.
+    Entid(u64),                       // Note unsigned. See #190.
     Ident(NamespacedKeyword),
 }
 
@@ -184,6 +184,23 @@ pub fn is_unit_limited(spec: &FindSpec) -> bool {
 }
 
 /// Returns true if the provided `FindSpec` cares about distinct results.
+///
+/// I use the words "cares about" because find is generally defined in terms of producing distinct
+/// results at the Datalog level.
+///
+/// Two of the find specs (scalar and tuple) produce only a single result. Those don't need to be
+/// run with `SELECT DISTINCT`, because we're only consuming a single result. Those queries will be
+/// run with `LIMIT 1`.
+///
+/// Additionally, some projections cannot produce duplicate results: `[:find (max ?x) …]`, for
+/// example.
+///
+/// This function gives us the hook to add that logic when we're ready.
+///
+/// Beyond this, `DISTINCT` is not always needed. For example, in some kinds of accumulation or
+/// sampling projections we might not need to do it at the SQL level because we're consuming into
+/// a dupe-eliminating data structure like a Set, or we know that a particular query cannot produce
+/// duplicate results.
 pub fn requires_distinct(spec: &FindSpec) -> bool {
     return !is_unit_limited(spec);
 }
