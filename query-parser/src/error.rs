@@ -8,31 +8,28 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate combine;
 extern crate edn;
 extern crate mentat_query;
-extern crate mentat_query_parser;
-extern crate rusqlite;
 
-use rusqlite::Connection;
+use self::mentat_query::{FindSpec, FindQuery};
 
-pub mod ident;
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct NotAVariableError(pub edn::Value);
 
-pub fn get_name() -> String {
-    return String::from("mentat");
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum FindParseError {
+  Err,
 }
 
-// Will ultimately not return the sqlite connection directly
-pub fn get_connection() -> Connection {
-    return Connection::open_in_memory().unwrap();
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum QueryParseError {
+    InvalidInput(edn::Value),
+    EdnParseError(edn::parse::ParseError),
+    MissingField(edn::Keyword),
+    FindParseError(FindParseError),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use edn::symbols::Keyword;
+pub type FindParseResult = Result<FindSpec, FindParseError>;
+pub type QueryParseResult = Result<FindQuery, QueryParseError>;
 
-    #[test]
-    fn can_import_edn() {
-        assert_eq!("foo", Keyword::new("foo").0);
-    }
-}

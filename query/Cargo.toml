@@ -3,5 +3,8 @@ name = "mentat_query"
 version = "0.0.1"
 
 [dependencies]
+[dependencies.num]             # For EDN value usage.
+[dependencies.ordered-float]
+
 [dependencies.edn]
   path = "../edn"

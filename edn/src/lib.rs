@@ -19,3 +19,6 @@ pub mod types;
 pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
 }
+
+pub use self::types::Value;
+pub use self::symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};

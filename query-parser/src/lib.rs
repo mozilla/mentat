@@ -8,17 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-// This file is just a stub
-pub fn get_name() -> String {
-  return String::from("mentat-query-parser");
-}
+mod error;
+mod util;
+mod parse;
+pub mod find;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(String::from("mentat-query-parser"), get_name());
-    }
-}
