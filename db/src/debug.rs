@@ -52,7 +52,7 @@ pub fn datoms_after(conn: &rusqlite::Connection, db: &DB, tx: &i32) -> Result<Ve
         let v: rusqlite::types::Value = row.get_checked(2)?;
         let value_type_tag: i32 = row.get_checked(3)?;
 
-        let typed_value = TypedValue::from_sql_value_pair(&v, &value_type_tag)?;
+        let typed_value = TypedValue::from_sql_value_pair(v, &value_type_tag)?;
         let (value, _) = typed_value.to_edn_value_pair();
 
         Ok(Datom {

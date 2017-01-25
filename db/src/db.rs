@@ -285,17 +285,17 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
 
 impl TypedValue {
     /// Given a SQLite `value` and a `value_type_tag`, return the corresponding `TypedValue`.
-    pub fn from_sql_value_pair(value: &rusqlite::types::Value, value_type_tag: &i32) -> Result<TypedValue> {
+    pub fn from_sql_value_pair(value: rusqlite::types::Value, value_type_tag: &i32) -> Result<TypedValue> {
         match (*value_type_tag, value) {
-            (0, &rusqlite::types::Value::Integer(ref x)) => Ok(TypedValue::Ref(*x)),
-            (1, &rusqlite::types::Value::Integer(ref x)) => Ok(TypedValue::Boolean(0 != *x)),
+            (0, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Ref(x)),
+            (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
             // SQLite distinguishes integral from decimal types, allowing long and double to
             // share a tag.
-            (5, &rusqlite::types::Value::Integer(ref x)) => Ok(TypedValue::Long(*x)),
-            (5, &rusqlite::types::Value::Real(ref x)) => Ok(TypedValue::Double((*x).into())),
-            (10, &rusqlite::types::Value::Text(ref x)) => Ok(TypedValue::String(x.clone())),
-            (13, &rusqlite::types::Value::Text(ref x)) => Ok(TypedValue::Keyword(x.clone())),
-            (_, value) => bail!(ErrorKind::BadSQLValuePair(value.clone(), *value_type_tag)),
+            (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
+            (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
+            (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(x)),
+            (13, rusqlite::types::Value::Text(x)) => Ok(TypedValue::Keyword(x)),
+            (_, value) => bail!(ErrorKind::BadSQLValuePair(value, *value_type_tag)),
         }
     }
 
@@ -373,7 +373,7 @@ pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<
         let symbolic_attr: String = row.get_checked(1)?;
         let v: rusqlite::types::Value = row.get_checked(2)?;
         let value_type_tag: i32 = row.get_checked(3)?;
-        let typed_value = TypedValue::from_sql_value_pair(&v, &value_type_tag)?;
+        let typed_value = TypedValue::from_sql_value_pair(v, &value_type_tag)?;
 
         Ok((symbolic_ident, symbolic_attr, typed_value))
     })?.collect();
