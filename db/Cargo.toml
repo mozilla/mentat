@@ -3,6 +3,12 @@ name = "mentat_db"
 version = "0.0.1"
 
 [dependencies]
+error-chain = "0.8.0"
+lazy_static = "0.2.2"
+# TODO: don't depend on num and ordered-float; expose helpers in edn abstracting necessary constructors.
+num = "0.1.35"
+ordered-float = "0.3.0"
+rusqlite = "0.9.3"
 
 [dependencies.edn]
 path = "../edn"
@@ -12,12 +18,3 @@ path = "../tx"
 
 [dependencies.mentat_tx_parser]
 path = "../tx-parser"
-
-[dependencies.error-chain]
-version = "0.8.0"
-
-[dependencies.rusqlite]
-version = "0.8.0"
-
-[dependencies.lazy_static]
-version = "0.2.2"

@@ -10,10 +10,9 @@
 
 #![allow(dead_code)]
 
-use edn::types::Value;
+use entids;
 use errors::*;
-use types::{Attribute, Entid, EntidMap, IdentMap, Schema, SchemaMap, ValueType};
-use values;
+use types::{Attribute, Entid, EntidMap, IdentMap, Schema, SchemaMap, TypedValue, ValueType};
 
 /// Return `Ok(())` if `schema_map` defines a valid Mentat schema.
 fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<()> {
@@ -50,6 +49,18 @@ impl Schema {
         self.schema_map.get(x)
     }
 
+    pub fn require_ident(&self, entid: &Entid) -> Result<&String> {
+        self.get_ident(&entid).ok_or(ErrorKind::UnrecognizedEntid(*entid).into())
+    }
+
+    pub fn require_entid(&self, ident: &String) -> Result<&Entid> {
+        self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.clone()).into())
+    }
+
+    pub fn require_attribute_for_entid(&self, entid: &Entid) -> Result<&Attribute> {
+        self.attribute_for_entid(entid).ok_or(ErrorKind::UnrecognizedEntid(*entid).into())
+    }
+
     /// Create a valid `Schema` from the constituent maps.
     pub fn from(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema> {
         let entid_map: EntidMap = ident_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
@@ -63,112 +74,85 @@ impl Schema {
         })
     }
 
-    /// Turn Value([[IDENT ATTR VALUE] ...]) into a Mentat `Schema`.
-    pub fn from_ident_map_and_assertions(ident_map: IdentMap, assertions: &Value) -> Result<Schema> {
-        // Convert Value([[IDENT ATTR VALUE] ...]) to vec![(IDENT.to_string(), ATTR.to_string(), VALUE), ...].
-        let triples: Vec<(String, String, &Value)> = match *assertions {
-            Value::Vector(ref datoms) => {
-                datoms.into_iter().map(|datom| {
-                    match datom {
-                        &Value::Vector(ref values) => {
-                            let mut i = values.iter();
-                            match (i.next(), i.next(), i.next(), i.next(), i.next()) {
-                                (Some(add), Some(&Value::NamespacedKeyword(ref ident)), Some(&Value::NamespacedKeyword(ref attr)), Some(value), None) if *add == *values::DB_ADD =>
-                                    Ok((ident.to_string(), attr.to_string(), value)),
-                                _ => Err(ErrorKind::BadSchemaAssertion(format!("Expected [[:db/add IDENT ATTR VALUE] ...], got: {:?}", datom)))
+    /// Turn vec![(String(:ident), String(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
+    pub fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
+        where U: IntoIterator<Item=(String, String, TypedValue)>{
+        let mut schema_map = SchemaMap::new();
+        for (ref symbolic_ident, ref symbolic_attr, ref value) in assertions.into_iter() {
+            let ident: i64 = *ident_map.get(symbolic_ident).ok_or(ErrorKind::UnrecognizedIdent(symbolic_ident.clone()))?;
+            let attr: i64 = *ident_map.get(symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.clone()))?;
+            let attributes = schema_map.entry(ident).or_insert(Attribute::default());
+
+            // TODO: improve error messages throughout.
+            match attr {
+                entids::DB_VALUE_TYPE => {
+                    match *value {
+                        TypedValue::Ref(entids::DB_TYPE_REF) => { attributes.value_type = ValueType::Ref; },
+                        TypedValue::Ref(entids::DB_TYPE_BOOLEAN) => { attributes.value_type = ValueType::Boolean; },
+                        TypedValue::Ref(entids::DB_TYPE_LONG) => { attributes.value_type = ValueType::Long; },
+                        TypedValue::Ref(entids::DB_TYPE_STRING) => { attributes.value_type = ValueType::String; },
+                        TypedValue::Ref(entids::DB_TYPE_KEYWORD) => { attributes.value_type = ValueType::Keyword; },
+                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for ident '{}' and attribute '{}'", value, ident, attr)))
+                    }
+                },
+
+                entids::DB_CARDINALITY => {
+                    match *value {
+                        TypedValue::Ref(entids::DB_CARDINALITY_MANY) => { attributes.multival = true; },
+                        TypedValue::Ref(entids::DB_CARDINALITY_ONE) => { attributes.multival = false; },
+                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]", value)))
+                    }
+                },
+
+                entids::DB_UNIQUE => {
+                    match *value {
+                        TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { attributes.unique_value = true; },
+                        TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => {
+                            attributes.unique_value = true;
+                            attributes.unique_identity = true;
+                        },
+                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
+                    }
+                },
+
+                entids::DB_INDEX => {
+                    match *value {
+                        TypedValue::Boolean(x) => { attributes.index = x },
+                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/index true|false] but got [... :db/index {:?}]", value)))
+                    }
+                },
+
+                entids::DB_FULLTEXT => {
+                    match *value {
+                        TypedValue::Boolean(x) => {
+                            attributes.fulltext = x;
+                            if attributes.fulltext {
+                                attributes.index = true;
                             }
                         },
-                        _ => Err(ErrorKind::BadSchemaAssertion(format!("Expected [[...] ...], got: {:?}", datom)))
+                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]", value)))
                     }
-                }).collect()
-            },
-            _ => Err(ErrorKind::BadSchemaAssertion(format!("Expected [...], got: {:?}", assertions)))
-        }?;
+                },
 
-        let mut schema_map = SchemaMap::new();
-        for (ident, attr, value) in triples {
-            let entid: &i64 = ident_map.get(&ident).ok_or(ErrorKind::BadSchemaAssertion(format!("Could not get ")))?;
-            let attributes = schema_map.entry(*entid).or_insert(Attribute::default());
+                entids::DB_IS_COMPONENT => {
+                    match *value {
+                        TypedValue::Boolean(x) => { attributes.component = x },
+                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]", value)))
+                    }
+                },
 
-            // Yes, this is pretty bonkers.  Suggestions appreciated.
-            match attr.as_str() {
-                ":db/valueType" => {
-                    if *value == *values::DB_TYPE_REF {
-                        attributes.value_type = ValueType::Ref;
-                    } else if *value == *values::DB_TYPE_BOOLEAN {
-                        attributes.value_type = ValueType::Boolean;
-                    } else if *value == *values::DB_TYPE_INSTANT {
-                        attributes.value_type = ValueType::Instant;
-                    } else if *value == *values::DB_TYPE_LONG {
-                        attributes.value_type = ValueType::Long;
-                    } else if *value == *values::DB_TYPE_STRING {
-                        attributes.value_type = ValueType::String;
-                    } else if *value == *values::DB_TYPE_UUID {
-                        attributes.value_type = ValueType::UUID;
-                    } else if *value == *values::DB_TYPE_URI {
-                        attributes.value_type = ValueType::URI;
-                    } else if *value == *values::DB_TYPE_KEYWORD {
-                        attributes.value_type = ValueType::Keyword;
-                    } else {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}]", value)))
-                    }
-                },
-                ":db/cardinality" => {
-                    if *value == *values::DB_CARDINALITY_MANY {
-                        attributes.multival = true;
-                    } else if *value == *values::DB_CARDINALITY_ONE {
-                        attributes.multival = false;
-                    } else {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]", value)))
-                    }
-                },
-                ":db/unique" => {
-                    if *value == *values::DB_UNIQUE_VALUE {
-                        attributes.unique_value = true;
-                    } else if *value == *values::DB_UNIQUE_IDENTITY {
-                        attributes.unique_value = true;
-                        attributes.unique_identity = true;
-                    } else {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
-                    }
-                },
-                ":db/index" => {
-                    if *value == Value::Boolean(true) {
-                        attributes.index = true;
-                    } else if *value == Value::Boolean(false) {
-                        attributes.index = false;
-                    } else {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/index true|false] but got [... :db/index {:?}]", value)))
-                    }
-                },
-                ":db/fulltext" => {
-                    if *value == Value::Boolean(true) {
-                        attributes.index = true;
-                        attributes.fulltext = true;
-                    } else if *value == Value::Boolean(false) {
-                        attributes.fulltext = false;
-                    } else {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]", value)))
-                    }
-                },
-                ":db/isComponent" => {
-                    if *value == Value::Boolean(true) {
-                        attributes.component = true;
-                    } else if *value == Value::Boolean(false) {
-                        attributes.component = false;
-                    } else {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]", value)))
-                    }
-                },
-                ":db/doc" => {
+                entids::DB_DOC => {
                     // Nothing for now.
                 },
-                ":db/ident" => {
+
+                entids::DB_IDENT => {
                     // Nothing for now.
                 },
-                ":db.install/attribute" => {
+
+                entids::DB_INSTALL_ATTRIBUTE => {
                     // Nothing for now.
                 },
+
                 _ => {
                     bail!(ErrorKind::BadSchemaAssertion(format!("Do not recognize attribute '{}' for ident '{}'", attr, ident)))
                 }

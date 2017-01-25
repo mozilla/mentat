@@ -10,62 +10,21 @@
 
 #![allow(dead_code)]
 
+use edn;
 use rusqlite;
 
+use types::{Entid, ValueType};
+
 error_chain! {
-    // The type defined for this error. These are the conventional
-    // and recommended names, but they can be arbitrarily chosen.
-    //
-    // It is also possible to leave this section out entirely, or
-    // leave it empty, and these names will be used automatically.
     types {
         Error, ErrorKind, ResultExt, Result;
     }
 
-    // Without the `Result` wrapper:
-    //
-    // types {
-    //     Error, ErrorKind, ResultExt;
-    // }
-
-    // // Automatic conversions between this error chain and other
-    // // error chains. In this case, it will e.g. generate an
-    // // `ErrorKind` variant called `Another` which in turn contains
-    // // the `other_error::ErrorKind`, with conversions from
-    // // `other_error::Error`.
-    // //
-    // // Optionally, some attributes can be added to a variant.
-    // //
-    // // This section can be empty.
-    // links {
-    //     Another(other_error::Error, other_error::ErrorKind) #[cfg(unix)];
-    // }
-
-    // Automatic conversions between this error chain and other
-    // error types not defined by the `error_chain!`. These will be
-    // wrapped in a new error with, in the first case, the
-    // `ErrorKind::Fmt` variant. The description and cause will
-    // forward to the description and cause of the original error.
-    //
-    // Optionally, some attributes can be added to a variant.
-    //
-    // This section can be empty.
     foreign_links {
-        // Fmt(::std::fmt::Error);
-        // Io(::std::io::Error) #[cfg(unix)];
         Rusqlite(rusqlite::Error);
     }
 
-    // Define additional `ErrorKind` variants. The syntax here is
-    // the same as `quick_error!`, but the `from()` and `cause()`
-    // syntax is not supported.
     errors {
-        /// Something went wrong at the SQLite level.
-        RusqliteX { // (t: String) {
-            description("SQLite error")
-                // display("SQLite error: '{}'", t)
-        }
-
         /// We're just not done yet.  Message that the feature is recognized but not yet
         /// implemented.
         NotYetImplemented(t: String) {
@@ -73,16 +32,16 @@ error_chain! {
             display("not yet implemented: {}", t)
         }
 
-        /// We've got corrupt data in the SQL store: a value_type_tag isn't recognized!
-        BadValueTypeTag(value_type_tag: i32) {
-            description("bad value_type_tag")
-            display("bad value_type_tag: {}", value_type_tag)
+        /// We've been given an EDN value that isn't the correct Mentat type.
+        BadEDNValuePair(value: edn::types::Value, value_type: ValueType) {
+            description("EDN value is not the expected Mentat value type")
+            display("EDN value '{:?}' is not the expected Mentat value type {:?}", value, value_type)
         }
 
         /// We've got corrupt data in the SQL store: a value and value_type_tag don't line up.
-        BadValueAndTagPair(value: rusqlite::types::Value, value_type_tag: i32) {
-            description("bad (value, value_type_tag) pair")
-            display("bad (value_type_tag, value) pair: ({}, {:?})", value_type_tag, value.data_type())
+        BadSQLValuePair(value: rusqlite::types::Value, value_type_tag: i32) {
+            description("bad SQL (value_type_tag, value) pair")
+            display("bad SQL (value_type_tag, value) pair: ({}, {:?})", value_type_tag, value.data_type())
         }
 
         /// The SQLite store user_version isn't recognized.  This could be an old version of Mentat
@@ -103,6 +62,18 @@ error_chain! {
         BadSchemaAssertion(t: String) {
             description("bad schema assertion")
             display("bad schema assertion: '{}'", t)
+        }
+
+        /// An ident->entid mapping failed.
+        UnrecognizedIdent(ident: String) {
+            description("no entid found for ident")
+            display("no entid found for ident: '{}'", ident)
+        }
+
+        /// An entid->ident mapping failed.
+        UnrecognizedEntid(entid: Entid) {
+            description("no ident found for entid")
+            display("no ident found for entid: '{}'", entid)
         }
     }
 }

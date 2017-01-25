@@ -6,7 +6,7 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 [dependencies]
 clap = "2.19.3"
 nickel = "0.9.0"
-rusqlite = "0.8.0"
+rusqlite = "0.9.3"
 
 [dependencies.edn]
   path = "edn"

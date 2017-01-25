@@ -19,8 +19,6 @@ use errors::*;
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::Entity;
 use types::*;
-use values;
-use {to_namespaced_keyword};
 
 pub fn new_connection() -> rusqlite::Connection {
     return rusqlite::Connection::open_in_memory().unwrap();
@@ -285,60 +283,62 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     }
 }
 
-/// Given a SQLite `value` and a `value_type_tag`, return the corresponding EDN `Value`.
-pub fn to_edn(value: &rusqlite::types::Value, value_type_tag: &i32) -> Result<Value> {
-    ValueType::from_value_type_tag(value_type_tag)
-         .ok_or(ErrorKind::BadValueTypeTag(*value_type_tag).into())
-         .and_then(|value_type| -> Result<Value> {
-             match (value_type, value) {
-                 (ValueType::Ref, &rusqlite::types::Value::Integer(ref x)) => Ok(Value::Integer(*x)),
-                 (ValueType::Boolean, &rusqlite::types::Value::Integer(ref x)) => Ok(Value::Boolean(0 != *x)),
-                 (ValueType::Instant, &rusqlite::types::Value::Integer(_)) => bail!(ErrorKind::NotYetImplemented(":db.type/instant".into())),
-                 // SQLite distinguishes integral from decimal types, allowing long and double to
-                 // share a tag.  That means the `value_type` above might be incorrect: we could see
-                 // a `Long` tag and really have `Double` data.  We always trust the tag: Mentat
-                 // should be managing its metadata correctly.
-                 (ValueType::Long, &rusqlite::types::Value::Integer(ref x)) => Ok(Value::Integer(*x)),
-                 (ValueType::Long, &rusqlite::types::Value::Real(ref x)) if value_type_tag == &ValueType::Double.value_type_tag() => Ok(Value::Float((*x).into())),
-                 // This is spurious, since `value_type` never returns `Double`, but let's just
-                 // leave it in case we change things.
-                 (ValueType::Double, &rusqlite::types::Value::Real(ref x)) => Ok(Value::Float((*x).into())),
-                 (ValueType::String, &rusqlite::types::Value::Text(ref x)) => Ok(Value::Text(x.clone())),
-                 (ValueType::UUID, &rusqlite::types::Value::Text(_)) => bail!(ErrorKind::NotYetImplemented(":db.type/uuid".into())),
-                 (ValueType::URI, &rusqlite::types::Value::Text(_)) => bail!(ErrorKind::NotYetImplemented(":db.type/uri".into())),
-                 (ValueType::Keyword, &rusqlite::types::Value::Text(ref x)) => Ok(Value::Text(x.clone())),
-                 (_, value) => bail!(ErrorKind::BadValueAndTagPair(value.clone(), *value_type_tag)),
-             }
-         })
-}
+impl TypedValue {
+    /// Given a SQLite `value` and a `value_type_tag`, return the corresponding `TypedValue`.
+    pub fn from_sql_value_pair(value: &rusqlite::types::Value, value_type_tag: &i32) -> Result<TypedValue> {
+        match (*value_type_tag, value) {
+            (0, &rusqlite::types::Value::Integer(ref x)) => Ok(TypedValue::Ref(*x)),
+            (1, &rusqlite::types::Value::Integer(ref x)) => Ok(TypedValue::Boolean(0 != *x)),
+            // SQLite distinguishes integral from decimal types, allowing long and double to
+            // share a tag.
+            (5, &rusqlite::types::Value::Integer(ref x)) => Ok(TypedValue::Long(*x)),
+            (5, &rusqlite::types::Value::Real(ref x)) => Ok(TypedValue::Double((*x).into())),
+            (10, &rusqlite::types::Value::Text(ref x)) => Ok(TypedValue::String(x.clone())),
+            (13, &rusqlite::types::Value::Text(ref x)) => Ok(TypedValue::Keyword(x.clone())),
+            (_, value) => bail!(ErrorKind::BadSQLValuePair(value.clone(), *value_type_tag)),
+        }
+    }
 
-/// A `Value` that can be converted `ToSql`.
-///
-/// This is just working around Rust's refusal to allow us to implement a trait we don't originate
-/// for a type we don't originate.
-///
-/// TODO: &Value for efficiency.
-struct SqlValueWrapper(Value);
+    /// Given an EDN `value`, return a corresponding Mentat `TypedValue`.
+    ///
+    /// An EDN `Value` does not encode a unique Mentat `ValueType`, so the composition
+    /// `from_edn_value(first(to_edn_value_pair(...)))` loses information.  Additionally, there are
+    /// EDN values which are not Mentat typed values.
+    ///
+    /// This function is deterministic.
+    pub fn from_edn_value(value: &Value) -> Option<TypedValue> {
+        match value {
+            &Value::Boolean(x) => Some(TypedValue::Boolean(x)),
+            &Value::Integer(x) => Some(TypedValue::Long(x)),
+            &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
+            &Value::Text(ref x) => Some(TypedValue::String(x.clone())),
+            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(x.to_string())),
+            _ => None
+        }
+    }
 
-impl ToSql for SqlValueWrapper {
-    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput> {
-        match self.0 {
-            Value::Nil => Ok(ToSqlOutput::from(rusqlite::types::Value::Null)),
-            Value::Boolean(x) => Ok(ToSqlOutput::from(x)),
-            Value::Integer(x) => Ok(ToSqlOutput::from(x)),
-            // TODO: consider using a larger radix to save characters.
-            Value::BigInteger(ref x) => Ok(ToSqlOutput::from(x.to_str_radix(10))),
-            Value::Float(ref x) => Ok(ToSqlOutput::from(x.into_inner())),
-            // TODO: try to avoid this clone.
-            Value::Text(ref x) => Ok(ToSqlOutput::from(x.clone())),
-            Value::PlainSymbol(ref x) => Ok(ToSqlOutput::from(x.to_string())),
-            Value::NamespacedSymbol(ref x) => Ok(ToSqlOutput::from(x.to_string())),
-            Value::Keyword(ref x) => Ok(ToSqlOutput::from(x.to_string())),
-            Value::NamespacedKeyword(ref x) => Ok(ToSqlOutput::from(x.to_string())),
-            Value::Vector(_) => Err(rusqlite::Error::InvalidColumnName(format!("Cannot convert to_sql: {:?}", self.0))),
-            Value::List(_) => Err(rusqlite::Error::InvalidColumnName(format!("Cannot convert to_sql: {:?}", self.0))),
-            Value::Set(_) => Err(rusqlite::Error::InvalidColumnName(format!("Cannot convert to_sql: {:?}", self.0))),
-            Value::Map(_) => Err(rusqlite::Error::InvalidColumnName(format!("Cannot convert to_sql: {:?}", self.0))),
+    /// Return the corresponding SQLite `value` and `value_type_tag` pair.
+    pub fn to_sql_value_pair<'a>(&'a self) -> (ToSqlOutput<'a>, i32) {
+        match self {
+            &TypedValue::Ref(x) => (rusqlite::types::Value::Integer(x).into(), 0),
+            &TypedValue::Boolean(x) => (rusqlite::types::Value::Integer(if x { 1 } else { 0 }).into(), 1),
+            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+            &TypedValue::Long(x) => (rusqlite::types::Value::Integer(x).into(), 5),
+            &TypedValue::Double(x) => (rusqlite::types::Value::Real(x.into_inner()).into(), 5),
+            &TypedValue::String(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 10),
+            &TypedValue::Keyword(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 13),
+        }
+    }
+
+    /// Return the corresponding EDN `value` and `value_type` pair.
+    pub fn to_edn_value_pair(&self) -> (Value, ValueType) {
+        match self {
+            &TypedValue::Ref(x) => (Value::Integer(x), ValueType::Ref),
+            &TypedValue::Boolean(x) => (Value::Boolean(x), ValueType::Boolean),
+            &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
+            &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
+            &TypedValue::String(ref x) => (Value::Text(x.clone()), ValueType::String),
+            &TypedValue::Keyword(ref x) => (Value::Text(x.clone()), ValueType::Keyword),
         }
     }
 }
@@ -364,38 +364,21 @@ pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
 
 /// Read the schema materialized view from the given SQL store.
 pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<Schema> {
-    // TODO: consider a less expensive way to do this inversion.
-    let schema_for_idents = Schema::from(ident_map.clone(), SchemaMap::default())?;
-
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, attr, value, value_type_tag FROM schema")?;
-    let r: Result<Vec<Value>> = stmt.query_and_then(&[], |row| {
+    let r: Result<Vec<(String, String, TypedValue)>> = stmt.query_and_then(&[], |row| {
         // Each row looks like :db/index|:db/valueType|28|0.  Observe that 28|0 represents a
-        // :db.type/ref to entid 28, which needs to be converted to an ident.
+        // :db.type/ref to entid 28, which needs to be converted to a TypedValue.
+        // TODO: don't use textual ident and attr; just use entids directly.
         let symbolic_ident: String = row.get_checked(0)?;
-        let attr: String = row.get_checked(1)?;
+        let symbolic_attr: String = row.get_checked(1)?;
         let v: rusqlite::types::Value = row.get_checked(2)?;
-        let value_type_tag = row.get_checked(3)?;
+        let value_type_tag: i32 = row.get_checked(3)?;
+        let typed_value = TypedValue::from_sql_value_pair(&v, &value_type_tag)?;
 
-        // We want a symbolic schema, but most of our values are :db.type/ref attributes.  Map those
-        // entids back to idents.  This is ad-hoc since we haven't yet a functional DB instance.
-        let value = match to_edn(&v, &value_type_tag)? {
-            Value::Integer(entid) if value_type_tag == ValueType::Ref.value_type_tag() => {
-                schema_for_idents.get_ident(&entid)
-                    .and_then(|x| to_namespaced_keyword(&x))
-                    .map(Value::NamespacedKeyword)
-                    .ok_or(rusqlite::Error::InvalidColumnName(format!("Could not map :db.type/ref {} to ident!", entid)))?
-            },
-            value => value
-        };
-
-        Ok(Value::Vector(vec![
-            values::DB_ADD.clone(),
-            to_namespaced_keyword(&symbolic_ident).map(Value::NamespacedKeyword).ok_or(rusqlite::Error::InvalidColumnName(format!("XX1!")))?,
-            to_namespaced_keyword(&attr).map(Value::NamespacedKeyword).ok_or(rusqlite::Error::InvalidColumnName(format!("XX2!")))?,
-            value]))
+        Ok((symbolic_ident, symbolic_attr, typed_value))
     })?.collect();
 
-    r.and_then(|values| Schema::from_ident_map_and_assertions(ident_map.clone(), &Value::Vector(values)))
+    r.and_then(|triples| Schema::from_ident_map_and_triples(ident_map.clone(), triples))
 }
 
 /// Read the materialized views from the given SQL store and return a Mentat `DB` for querying and
@@ -407,20 +390,32 @@ pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
     Ok(DB::new(partition_map, schema))
 }
 
-// pub fn bootstrap(conn: &mut rusqlite::Connection, from_version: i32) -> Result<()> {
-//     match from_version {
-//         0 => {
-//             conn.execute(&format!("INSERT INTO parts VALUES = {}", "()"), &[][..])?;
-//             Ok(())
-//         },
-//         // 1 => {
-//         // },
-//         // TODO: find a better error type for this.
-//         _ => Err(rusqlite::Error::InvalidColumnName(format!("Cannot handle bootstrapping from version {}!", from_version)))
-//     }
-// }
-
 impl DB {
+    /// Do schema-aware typechecking and coercion.
+    ///
+    /// Either assert that the given value is in the attribute's value set, or (in limited cases)
+    /// coerce the given value into the attribute's value set.
+    pub fn to_typed_value(&self, value: &Value, attribute: &Attribute) -> Result<TypedValue> {
+        // TODO: encapsulate entid-ident-attribute for better error messages.
+        match TypedValue::from_edn_value(value) {
+            // We don't recognize this EDN at all.  Get out!
+            None => bail!(ErrorKind::BadEDNValuePair(value.clone(), attribute.value_type.clone())),
+            Some(typed_value) => match (&attribute.value_type, typed_value) {
+                // Most types don't coerce at all.
+                (&ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
+                (&ValueType::Long, tv @ TypedValue::Long(_)) => Ok(tv),
+                (&ValueType::Double, tv @ TypedValue::Double(_)) => Ok(tv),
+                (&ValueType::String, tv @ TypedValue::String(_)) => Ok(tv),
+                (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
+                // Ref coerces a little: we interpret some things depending on the schema as a Ref.
+                (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
+                (&ValueType::Ref, TypedValue::Keyword(ref x)) => self.schema.require_entid(&x.to_string()).map(|&entid| TypedValue::Ref(entid)),
+                // Otherwise, we have a type mismatch.
+                (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
+            }
+        }
+    }
+
     // TODO: move this to the transactor layer.
     pub fn transact_internal(&self, conn: &rusqlite::Connection, entities: &[Entity]) -> Result<()>{
         // TODO: manage :db/tx, write :db/txInstant.
@@ -434,35 +429,27 @@ impl DB {
                     tx: _ } => {
 
                     // TODO: prepare and cache all these statements outside the transaction loop.
+                    // XXX: Error types.
                     let mut stmt: rusqlite::Statement = conn.prepare("INSERT INTO datoms(e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")?;
-                    let e: i64 = *self.schema.get_entid(&e_.to_string()).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", e_)))?;
-                    let a: i64 = *self.schema.get_entid(&a_.to_string()).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", a_)))?;
-                    let attributes: &Attribute = self.schema.schema_map.get(&a).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find attributes for entid: {:?}", a)))?;
+                    let e: i64 = *self.schema.require_entid(&e_.to_string())?;
+                    let a: i64 = *self.schema.require_entid(&a_.to_string())?;
+                    let attribute: &Attribute = self.schema.require_attribute_for_entid(&a)?;
 
-                    let value_type_tag = attributes.value_type.value_type_tag();
+                    // This is our chance to do schema-aware typechecking: to either assert that the
+                    // given value is in the attribute's value set, or (in limited cases) to coerce
+                    // the value into the attribute's value set.
+                    let typed_value: TypedValue = self.to_typed_value(v_, &attribute)?;
 
-                    // We can have [:db/ident :db/ref-attr :db/kw] and need to convert the ident
-                    // :db/kw to an entid.  So we need some initial type-checking.
-                    // TODO: do the type-checking and value-mapping comprehensively.
-                    let mut v__ = v_.clone();
-                    if attributes.value_type == ValueType::Ref {
-                        match *v_ {
-                            Value::Integer(_) => (),
-                            Value::NamespacedKeyword(ref s) => { v__ = self.schema.get_entid(&s.to_string()).map(|&x| Value::Integer(x)).ok_or(rusqlite::Error::InvalidColumnName(format!("Could not find entid for ident: {:?}", e_)))? },
-                            _ => panic!("bad type"),
-                        }
-                    }
-
-                    // TODO: avoid spurious clone.
-                    let v = SqlValueWrapper(v__.clone());
+                    // Now we can represent the typed value as an SQL value.
+                    let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
 
                     // Fun times, type signatures.
-                    let values: [&ToSql; 9] = [&e, &a, &v, &tx, &value_type_tag, &attributes.index, to_bool_ref(attributes.value_type == ValueType::Ref), &attributes.fulltext, &attributes.unique_value];
+                    let values: [&ToSql; 9] = [&e, &a, &value, &tx, &value_type_tag, &attribute.index, to_bool_ref(attribute.value_type == ValueType::Ref), &attribute.fulltext, &attribute.unique_value];
                     stmt.insert(&values[..])?;
                     Ok(())
                 },
                 // TODO: find a better error type for this.
-                _ => panic!(format!("Transacting entity not yet supported: {:?}", entity)) // rusqlite::Error::InvalidColumnName(format!("Not yet implented: entities of form ...")))
+                _ => panic!(format!("Transacting entity not yet supported: {:?}", entity))
             }
         }).collect();
 
@@ -476,37 +463,34 @@ mod tests {
     use super::*;
     use bootstrap;
     use debug;
+    use rusqlite;
     use types::*;
 
-    // #[test]
-    // fn test_open_current_version() {
-    //     let mut conn = rusqlite::Connection::open("file:///Users/nalexander/Mozilla/mentat/fixtures/v2empty.db").unwrap();
-    //     // assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
+    #[test]
+    fn test_open_current_version() {
+        // TODO: figure out how to reference the fixtures directory for real.  For now, assume we're
+        // executing `cargo test` in `db/`.
+        let conn = rusqlite::Connection::open("../fixtures/v2empty.db").unwrap();
+        // assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
 
-    //     // let mut map = IdentMap::new();
-    //     // assert_eq!(map.insert("a".into(), 1), None);
+        // TODO: write :db/txInstant, bump :db.part/tx.
+        // let partition_map = read_partition_map(&conn).unwrap();
+        // assert_eq!(partition_map, bootstrap::bootstrap_partition_map());
 
-    //     let partition_map = read_partition_map(&conn).unwrap();
-    //     // assert_eq!(partition_map, bootstrap_partition_map());
+        let ident_map = read_ident_map(&conn).unwrap();
+        assert_eq!(ident_map, bootstrap::bootstrap_ident_map());
 
-    //     let ident_map = read_ident_map(&conn).unwrap();
-    //     assert_eq!(ident_map, bootstrap_ident_map());
+        let schema = read_schema(&conn, &ident_map).unwrap();
+        assert_eq!(schema, bootstrap::bootstrap_schema()); // Schema::default());
 
-    //     let schema = read_schema(&conn, &ident_map).unwrap();
-    //     assert_eq!(schema, Schema::default());
+        let db = read_db(&conn).unwrap();
 
-    //     let db = DB {
-    //         partition_map: partition_map,
-    //         schema: schema,
-    //     };
+        let datoms = debug::datoms_after(&conn, &db, &0).unwrap();
+        assert_eq!(datoms.len(), 89); // The 89th is the :db/txInstant value.
 
-    //     // assert_eq!(ident_map, IdentMap::new());
-    //     // assert_eq!(read_partition_map(&conn).unwrap(), PartitionMap::new());
-    //     // assert_eq!(read_schema(&conn, &ident_map).unwrap(), Schema::default());
-
-    //     // TODO: fewer magic numbers!
-    //     assert_eq!(datoms_after(&conn, &db, &0x10000000).unwrap(), vec![]);
-    // }
+        // // TODO: fewer magic numbers!
+        // assert_eq!(debug::datoms_after(&conn, &db, &0x10000001).unwrap(), vec![]);
+    }
 
     #[test]
     fn test_create_current_version() {

@@ -12,6 +12,8 @@
 extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
+extern crate num;
+extern crate ordered_float;
 extern crate rusqlite;
 
 extern crate edn;
@@ -25,6 +27,7 @@ pub use types::*;
 pub mod db;
 mod bootstrap;
 mod debug;
+mod entids;
 mod errors;
 mod schema;
 mod types;

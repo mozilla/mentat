@@ -13,56 +13,57 @@
 use {to_namespaced_keyword};
 use edn;
 use edn::types::Value;
+use entids;
 use errors::*;
 use mentat_tx::entities::Entity;
 use mentat_tx_parser;
-use types::{IdentMap, Partition, PartitionMap, Schema};
+use types::{IdentMap, Partition, PartitionMap, Schema, TypedValue};
 use values;
 
 lazy_static! {
     static ref V1_IDENTS: Vec<(&'static str, i64)> = {
-        vec![(":db/ident",             1),
-             (":db.part/db",           2),
-             (":db/txInstant",         3),
-             (":db.install/partition", 4),
-             (":db.install/valueType", 5),
-             (":db.install/attribute", 6),
-             (":db/valueType",         7),
-             (":db/cardinality",       8),
-             (":db/unique",            9),
-             (":db/isComponent",       10),
-             (":db/index",             11),
-             (":db/fulltext",          12),
-             (":db/noHistory",         13),
-             (":db/add",               14),
-             (":db/retract",           15),
-             (":db.part/user",         16),
-             (":db.part/tx",           17),
-             (":db/excise",            18),
-             (":db.excise/attrs",      19),
-             (":db.excise/beforeT",    20),
-             (":db.excise/before",     21),
-             (":db.alter/attribute",   22),
-             (":db.type/ref",          23),
-             (":db.type/keyword",      24),
-             (":db.type/long",         25),
-             (":db.type/double",       26),
-             (":db.type/string",       27),
-             (":db.type/boolean",      28),
-             (":db.type/instant",      29),
-             (":db.type/bytes",        30),
-             (":db.cardinality/one",   31),
-             (":db.cardinality/many",  32),
-             (":db.unique/value",      33),
-             (":db.unique/identity",   34),
-             (":db/doc",               35),
+        vec![(":db/ident",             entids::DB_IDENT),
+             (":db.part/db",           entids::DB_PART_DB),
+             (":db/txInstant",         entids::DB_TX_INSTANT),
+             (":db.install/partition", entids::DB_INSTALL_PARTITION),
+             (":db.install/valueType", entids::DB_INSTALL_VALUETYPE),
+             (":db.install/attribute", entids::DB_INSTALL_ATTRIBUTE),
+             (":db/valueType",         entids::DB_VALUE_TYPE),
+             (":db/cardinality",       entids::DB_CARDINALITY),
+             (":db/unique",            entids::DB_UNIQUE),
+             (":db/isComponent",       entids::DB_IS_COMPONENT),
+             (":db/index",             entids::DB_INDEX),
+             (":db/fulltext",          entids::DB_FULLTEXT),
+             (":db/noHistory",         entids::DB_NO_HISTORY),
+             (":db/add",               entids::DB_ADD),
+             (":db/retract",           entids::DB_RETRACT),
+             (":db.part/user",         entids::DB_PART_USER),
+             (":db.part/tx",           entids::DB_PART_TX),
+             (":db/excise",            entids::DB_EXCISE),
+             (":db.excise/attrs",      entids::DB_EXCISE_ATTRS),
+             (":db.excise/beforeT",    entids::DB_EXCISE_BEFORET),
+             (":db.excise/before",     entids::DB_EXCISE_BEFORE),
+             (":db.alter/attribute",   entids::DB_ALTER_ATTRIBUTE),
+             (":db.type/ref",          entids::DB_TYPE_REF),
+             (":db.type/keyword",      entids::DB_TYPE_KEYWORD),
+             (":db.type/long",         entids::DB_TYPE_LONG),
+             (":db.type/double",       entids::DB_TYPE_DOUBLE),
+             (":db.type/string",       entids::DB_TYPE_STRING),
+             (":db.type/boolean",      entids::DB_TYPE_BOOLEAN),
+             (":db.type/instant",      entids::DB_TYPE_INSTANT),
+             (":db.type/bytes",        entids::DB_TYPE_BYTES),
+             (":db.cardinality/one",   entids::DB_CARDINALITY_ONE),
+             (":db.cardinality/many",  entids::DB_CARDINALITY_MANY),
+             (":db.unique/value",      entids::DB_UNIQUE_VALUE),
+             (":db.unique/identity",   entids::DB_UNIQUE_IDENTITY),
+             (":db/doc",               entids::DB_DOC),
         ]
     };
 
     static ref V2_IDENTS: Vec<(&'static str, i64)> = {
         [(*V1_IDENTS).clone(),
-         vec![(":db.schema/version",    36),
-              (":db.schema/attribute",  37),
+         vec![(":db.schema/version",   entids::DB_SCHEMA_VERSION),
+              (":db.schema/attribute", entids::DB_SCHEMA_ATTRIBUTE),
          ]].concat()
     };
 
@@ -150,6 +151,57 @@ fn idents_to_assertions(idents: &[(&str, i64)]) -> Vec<Value> {
         .collect()
 }
 
+/// Convert {:ident {:key :value ...} ...} to vec![(String(:ident), String(:key), TypedValue(:value)), ...].
+///
+/// Such triples are closer to what the transactor will produce when processing
+/// :db.install/attribute assertions.
+fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(String, String, TypedValue)>> {
+    // Failure here is a coding error, not a runtime error.
+    let mut triples: Vec<(String, String, TypedValue)> = vec![];
+    // TODO: Consider `flat_map` and `map` rather than loop.
+    match *symbolic_schema {
+        Value::Map(ref m) => {
+            for (ident, mp) in m {
+                let ident = match ident {
+                    &Value::NamespacedKeyword(ref ident) => ident.to_string(),
+                    _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident)))
+                };
+                match *mp {
+                    Value::Map(ref mpp) => {
+                        for (attr, value) in mpp {
+                            let attr = match attr {
+                                &Value::NamespacedKeyword(ref attr) => attr.to_string(),
+                                _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for attr but got '{:?}'", attr)))
+                            };
+
+                            // We have symbolic idents but the transactor handles entids.  Ad-hoc
+                            // convert right here.  This is a fundamental limitation on the
+                            // bootstrap symbolic schema format; we can't represent "real" keywords
+                            // at this time.
+                            //
+                            // TODO: remove this limitation, perhaps by including a type tag in the
+                            // bootstrap symbolic schema, or by representing the initial bootstrap
+                            // schema directly as Rust data.
+                            let typed_value = match TypedValue::from_edn_value(value) {
+                                Some(TypedValue::Keyword(ref s)) => TypedValue::Ref(*ident_map.get(s).ok_or(ErrorKind::UnrecognizedIdent(s.clone()))?),
+                                Some(v) => v,
+                                _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected Mentat typed value for value but got '{:?}'", value)))
+                            };
+
+                            triples.push((ident.clone(),
+                                       attr.clone(),
+                                       typed_value));
+                        }
+                    },
+                    _ => bail!(ErrorKind::BadBootstrapDefinition("Expected {:db/ident {:db/attr value ...} ...}".into()))
+                }
+            }
+        },
+        _ => bail!(ErrorKind::BadBootstrapDefinition("Expected {...}".into()))
+    }
+    Ok(triples)
+}
+
 /// Convert {IDENT {:key :value ...} ...} to [[:db/add IDENT :key :value] ...].
 /// In addition, add [:db.add :db.part/db :db.install/attribute IDENT] installation assertions.
 fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> {
@@ -193,9 +245,9 @@ pub fn bootstrap_ident_map() -> IdentMap {
 }
 
 pub fn bootstrap_schema() -> Schema {
-    let bootstrap_assertions: Value = Value::Vector(symbolic_schema_to_assertions(&V2_SYMBOLIC_SCHEMA).unwrap());
-    Schema::from_ident_map_and_assertions(bootstrap_ident_map(), &bootstrap_assertions)
-        .unwrap()
+    let ident_map = bootstrap_ident_map();
+    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V2_SYMBOLIC_SCHEMA).unwrap();
+    Schema::from_ident_map_and_triples(ident_map, bootstrap_triples).unwrap()
 }
 
 pub fn bootstrap_entities() -> Vec<Entity> {

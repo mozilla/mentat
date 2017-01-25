@@ -12,6 +12,8 @@
 
 use std::collections::{BTreeMap};
 
+use ordered_float::{OrderedFloat};
+
 /// Core types defining a Mentat knowledge base.
 ///
 /// At its core, Mentat maintains a set of assertions of the form entity-attribute-value (EAV).  The
@@ -47,19 +49,6 @@ use std::collections::{BTreeMap};
 /// contiguous.  That is, it is possible for a specific entid to have never been present in the
 /// system, even though its predecessor and successor are present.
 
-// #[derive(Debug)]
-// pub enum Error {
-//     RusqliteError(rusqlite::Error),
-//     BadSchemaAssertion(String),
-//     BadBootstrapDefinition(String),
-// }
-
-// impl From<rusqlite::Error> for Error {
-//     fn from(e: rusqlite::Error) -> Error {
-//         Error::RusqliteError(e)
-//     }
-// }
-
 /// Represents one entid in the entid space.
 ///
 /// Per https://www.sqlite.org/datatype3.html (see also http://stackoverflow.com/a/8499544), SQLite
@@ -77,38 +66,31 @@ pub enum ValueType {
     Long,
     Double,
     String,
-    UUID,
-    URI,
     Keyword,
 }
 
-impl ValueType {
-    pub fn value_type_tag(&self) -> i32 {
-        match *self {
-            ValueType::Ref => 0,
-            ValueType::Boolean => 1,
-            ValueType::Instant => 4,
-            ValueType::Long => 5, // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-            ValueType::Double => 5, // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-            ValueType::String => 10,
-            ValueType::UUID => 11,
-            ValueType::URI => 12,
-            ValueType::Keyword => 13,
-        }
-    }
+/// Represents a Mentat value in a particular value set.
+// TODO: expand to include :db.type/{instant,url,uuid}.
+#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+pub enum TypedValue {
+    Ref(Entid),
+    Boolean(bool),
+    Long(i64),
+    Double(OrderedFloat<f64>),
+    // TODO: &str throughout?
+    String(String),
+    Keyword(String),
+}
 
-    pub fn from_value_type_tag(value_type_tag: &i32) -> Option<ValueType> {
-        match *value_type_tag {
-            0 => Some(ValueType::Ref),
-            1 => Some(ValueType::Boolean),
-            4 => Some(ValueType::Instant),
-            5 => Some(ValueType::Long), // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-            // 5 => Some(ValueType::Double),
-            10 => Some(ValueType::String),
-            11 => Some(ValueType::UUID),
-            12 => Some(ValueType::URI),
-            13 => Some(ValueType::Keyword),
-            _ => None
+impl TypedValue {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &TypedValue::Ref(_) => ValueType::Ref,
+            &TypedValue::Boolean(_) => ValueType::Boolean,
+            &TypedValue::Long(_) => ValueType::Long,
+            &TypedValue::Double(_) => ValueType::Double,
+            &TypedValue::String(_) => ValueType::String,
+            &TypedValue::Keyword(_) => ValueType::Keyword,
         }
     }
 }
