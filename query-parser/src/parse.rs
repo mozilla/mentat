@@ -99,7 +99,7 @@ impl<I> FindSp<I>
                 let mut p = (FindSp::variable(), FindSp::ellipsis(), eof())
                     .map(|(var, _, _)| FindSpec::FindColl(Element::Variable(var)));
                 let r: ParseResult<FindSpec, _> = p.parse_lazy(&y[..]).into();
-                FindSp::gimme(r)
+                FindSp::to_parsed_value(r)
             })
             .parse_stream(input)
     }
@@ -134,7 +134,7 @@ impl<I> FindSp<I>
         satisfy_unwrap!(edn::Value::Vector, y, {
                 let r: ParseResult<FindSpec, _> =
                     FindSp::elements().map(FindSpec::FindTuple).parse_lazy(&y[..]).into();
-                FindSp::gimme(r)
+                FindSp::to_parsed_value(r)
             })
             .parse_stream(input)
     }
@@ -155,7 +155,7 @@ impl<I> FindSp<I>
             .parse_stream(input)
     }
 
-    fn gimme<T>(r: ParseResult<T, I>) -> Option<T> {
+    fn to_parsed_value<T>(r: ParseResult<T, I>) -> Option<T> {
         r.ok().map(|x| x.0)
     }
 }
