@@ -15,6 +15,9 @@ extern crate mentat_query;
 use self::mentat_query::{FindSpec, FindQuery};
 
 #[derive(Clone,Debug,Eq,PartialEq)]
+pub struct NotAVariableError(pub edn::Value);
+
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub enum FindParseError {
   Err,
 }
