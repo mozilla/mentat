@@ -6,7 +6,11 @@ authors = ["Richard Newman <rnewman@twinql.com>", "Nicholas Alexander <nalexande
 [dependencies]
 clap = "2.19.3"
 nickel = "0.9.0"
-rusqlite = "0.9.3"
+
+[dependencies.rusqlite]
+version = "0.9.3"
+# System sqlite might be very old.
+features = ["bundled"]
 
 [dependencies.edn]
   path = "edn"
