@@ -36,7 +36,7 @@ extern crate ordered_float;
 
 use num::BigInt;
 use ordered_float::OrderedFloat;
-use edn::{Keyword, NamespacedKeyword, PlainSymbol};
+use edn::{NamespacedKeyword, PlainSymbol};
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
@@ -166,6 +166,13 @@ pub enum FindSpec {
     FindScalar(Element),
 }
 
+#[derive(Clone,Debug,Eq,PartialEq)]
+#[allow(dead_code)]
+pub struct FindQuery {
+    pub find_spec: FindSpec,
+    pub default_source: SrcVar,
+}
+
 /// Returns true if the provided `FindSpec` returns at most one result.
 pub fn is_unit_limited(spec: &FindSpec) -> bool {
     match spec {
@@ -185,6 +192,7 @@ pub fn requires_distinct(spec: &FindSpec) -> bool {
 // A pattern with a reversed attribute — :foo/_bar — is reversed
 // at the point of parsing. These `Pattern` instances only represent
 // one direction.
+#[allow(dead_code)]
 pub struct Pattern {
     source: Option<SrcVar>,
     entity: PatternNonValuePlace,
@@ -193,6 +201,7 @@ pub struct Pattern {
     tx: PatternNonValuePlace,
 }
 
+#[allow(dead_code)]
 pub enum WhereClause {
     /*
     Not,
@@ -206,6 +215,7 @@ pub enum WhereClause {
     Pattern,
 }
 
+#[allow(dead_code)]
 pub struct Query {
     find: FindSpec,
     with: Vec<Variable>,

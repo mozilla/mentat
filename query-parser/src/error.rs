@@ -12,15 +12,21 @@ extern crate combine;
 extern crate edn;
 extern crate mentat_query;
 
-use self::mentat_query::FindSpec;
+use self::mentat_query::{FindSpec, FindQuery};
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum FindParseError {
+  Err,
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum QueryParseError {
     InvalidInput(edn::Value),
-    MissingField(edn::Keyword),
     EdnParseError(edn::parse::ParseError),
-    FindParseError,         // TODO: figure out how to represent Combine's parse errors.
+    MissingField(edn::Keyword),
+    FindParseError(FindParseError),
 }
 
 pub type FindParseResult = Result<FindSpec, FindParseError>;
+pub type QueryParseResult = Result<FindQuery, QueryParseError>;
 

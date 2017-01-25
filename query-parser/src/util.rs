@@ -16,8 +16,6 @@ use std::collections::BTreeMap;
 use self::edn::Value::PlainSymbol;
 use self::mentat_query::Variable;
 
-use super::error::{FindParseError};
-
 /// If the provided EDN value is a PlainSymbol beginning with '?', return
 /// it wrapped in a Variable. If not, return None.
 pub fn value_to_variable(v: &edn::Value) -> Option<Variable> {
@@ -31,15 +29,15 @@ pub fn value_to_variable(v: &edn::Value) -> Option<Variable> {
 
 /// If the provided slice of EDN values are all variables as
 /// defined by `value_to_variable`, return a Vec of Variables.
-/// Otherwise, return an error.
-pub fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, FindParseError> {
+/// Otherwise, return the unrecognized Value.
+pub fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, edn::Value> {
     let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
     for v in vals {
         if let Some(var) = value_to_variable(v) {
             out.push(var);
             continue;
         }
-        return Err(FindParseError::InvalidInput(v.clone()));
+        return Err(v.clone());
     }
     return Ok(out);
 }

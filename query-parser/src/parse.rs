@@ -8,21 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-
 extern crate combine;
 extern crate edn;
 extern crate mentat_query;
 
-use std::collections::BTreeMap;
-
-use self::combine::{any, eof, many1, optional, parser, satisfy_map, token, Parser, ParseResult,
-                    Stream};
+use self::combine::{eof, many1, parser, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{Expected, FnParser, choice, try};
 use self::edn::Value::PlainSymbol;
-use self::mentat_query::{Element, FindSpec, SrcVar, Variable};
+use self::mentat_query::{Element, FindSpec, Variable};
 
 use super::error::{FindParseError, FindParseResult};
 
@@ -238,11 +231,11 @@ fn test_find_tuple() {
 //     `?x .      `     = FindScalar
 //     `[?x ?y ?z]`     = FindTuple
 //
-fn find_seq_to_find_spec(find: &[edn::Value]) -> FindParseResult {
+pub fn find_seq_to_find_spec(find: &[edn::Value]) -> FindParseResult {
     FindSp::find()
         .parse(find)
         .map(|x| x.0)
-        .map_err(|e| FindParseError::FindParseError)
+        .map_err(|_| FindParseError::Err)
 }
 
 #[test]

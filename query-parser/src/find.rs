@@ -8,49 +8,47 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-
-///! This module defines the interface and implementation for parsing an EDN
-///! input into a structured Datalog query.
-///!
-///! The query types are defined in the `query` crate, because they
-///! are shared between the parser (EDN -> query), the translator
-///! (query -> SQL), and the executor (query, SQL -> running code).
-///!
-///! The query input can be in two forms: a 'flat' human-oriented
-///! sequence:
-///!
-///! ```clojure
-///! [:find ?y :in $ ?x :where [?x :foaf/knows ?y]]
-///! ```
-///!
-///! or a more programmatically generable map:
-///!
-///! ```clojure
-///! {:find [?y]
-///!  :in [$]
-///!  :where [[?x :foaf/knows ?y]]}
-///! ```
-///!
-///! We parse by expanding the array format into four parts, treating them as the four
-///! parts of the map.
+/// ! This module defines the interface and implementation for parsing an EDN
+/// ! input into a structured Datalog query.
+/// !
+/// ! The query types are defined in the `query` crate, because they
+/// ! are shared between the parser (EDN -> query), the translator
+/// ! (query -> SQL), and the executor (query, SQL -> running code).
+/// !
+/// ! The query input can be in two forms: a 'flat' human-oriented
+/// ! sequence:
+/// !
+/// ! ```clojure
+/// ! [:find ?y :in $ ?x :where [?x :foaf/knows ?y]]
+/// ! ```
+/// !
+/// ! or a more programmatically generable map:
+/// !
+/// ! ```clojure
+/// ! {:find [?y]
+/// !  :in [$]
+/// !  :where [[?x :foaf/knows ?y]]}
+/// ! ```
+/// !
+/// ! We parse by expanding the array format into four parts, treating them as the four
+/// ! parts of the map.
 
 extern crate edn;
 extern crate mentat_query;
 
 use std::collections::BTreeMap;
 
-use self::edn::Value::PlainSymbol;
-use self::mentat_query::{FindSpec, SrcVar, Variable};
+use self::mentat_query::{FindQuery, SrcVar};
 
-use super::error::{FindParseError, FindParseResult};
+use super::error::{QueryParseError, QueryParseResult};
 use super::util::{values_to_variables, vec_to_keyword_map};
 
+#[allow(unused_variables)]
 fn parse_find_parts(find: &[edn::Value],
                     ins: Option<&[edn::Value]>,
                     with: Option<&[edn::Value]>,
-                    wheres: &[edn::Value]) -> FindParseResult {
+                    wheres: &[edn::Value])
+                    -> QueryParseResult {
     // :find must be an array of plain var symbols (?foo), pull expressions, and aggregates.
     // For now we only support variables and the annotations necessary to declare which
     // flavor of :find we want:
@@ -66,14 +64,21 @@ fn parse_find_parts(find: &[edn::Value],
 
     // :with is an array of variables. This is simple, so we don't use a parser.
     let with_vars = with.map(values_to_variables);
-
-    //
     // :wheres is a whole datastructure.
 
-    Ok(FindSpec::FindRel(vec!()))
+    super::parse::find_seq_to_find_spec(find)
+        .map(|spec| {
+            FindQuery {
+                find_spec: spec,
+                default_source: source,
+            }
+        })
+        .map_err(QueryParseError::FindParseError)
+
+
 }
 
-fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> FindParseResult {
+fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseResult {
     // Eagerly awaiting `const fn`.
     let kw_find = edn::Keyword::new("find");
     let kw_in = edn::Keyword::new("in");
@@ -88,14 +93,14 @@ fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> FindParseResu
                                     map.get(&kw_with).map(|x| x.as_slice()),
                                     wheres);
         } else {
-            return Err(FindParseError::MissingField(kw_where));
+            return Err(QueryParseError::MissingField(kw_where));
         }
     } else {
-        return Err(FindParseError::MissingField(kw_find));
+        return Err(QueryParseError::MissingField(kw_find));
     }
 }
 
-fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> FindParseResult {
+fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> QueryParseResult {
     // Every key must be a Keyword. Every value must be a Vec.
     let mut m = BTreeMap::new();
 
@@ -109,17 +114,17 @@ fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> FindParseResult 
                 m.insert(kw, vec);
                 continue;
             } else {
-                return Err(FindParseError::InvalidInput(v));
+                return Err(QueryParseError::InvalidInput(v));
             }
         } else {
-            return Err(FindParseError::InvalidInput(k));
+            return Err(QueryParseError::InvalidInput(k));
         }
     }
 
     parse_find_map(m)
 }
 
-pub fn parse_find(expr: edn::Value) -> FindParseResult {
+pub fn parse_find(expr: edn::Value) -> QueryParseResult {
     // No `match` because scoping and use of `expr` in error handling is nuts.
     if let edn::Value::Map(m) = expr {
         return parse_find_edn_map(m);
@@ -129,6 +134,5 @@ pub fn parse_find(expr: edn::Value) -> FindParseResult {
             return parse_find_map(m);
         }
     }
-    return Err(FindParseError::InvalidInput(expr));
+    return Err(QueryParseError::InvalidInput(expr));
 }
-
