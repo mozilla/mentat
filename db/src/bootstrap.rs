@@ -41,7 +41,7 @@ lazy_static! {
              (":db.part/tx",           entids::DB_PART_TX),
              (":db/excise",            entids::DB_EXCISE),
              (":db.excise/attrs",      entids::DB_EXCISE_ATTRS),
-             (":db.excise/beforeT",    entids::DB_EXCISE_BEFORET),
+             (":db.excise/beforeT",    entids::DB_EXCISE_BEFORE_T),
              (":db.excise/before",     entids::DB_EXCISE_BEFORE),
              (":db.alter/attribute",   entids::DB_ALTER_ATTRIBUTE),
              (":db.type/ref",          entids::DB_TYPE_REF),
