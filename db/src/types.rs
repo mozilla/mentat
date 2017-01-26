@@ -15,39 +15,6 @@ use std::collections::{BTreeMap};
 use ordered_float::{OrderedFloat};
 
 /// Core types defining a Mentat knowledge base.
-///
-/// At its core, Mentat maintains a set of assertions of the form entity-attribute-value (EAV).  The
-/// assertions conform to a schema whereby the given attribute constrains the associated value/set
-/// of associated values.
-///
-/// ## Assertions
-///
-/// Mentat assertions are represented as rows in the `datoms` SQLite table, and each Mentat row
-/// representing an assertion is with a numeric representation of :db/valueType.
-///
-/// The tag is used to limit queries, and therefore is placed carefully in the relevant indices to
-/// allow searching numeric longs and doubles quickly.  The tag is also used to convert SQLite
-/// values to the correct Mentat value type on query egress.
-///
-/// ## Entities and entids
-///
-/// A Mentat entity is represented by a *positive* integer.  (This agrees with Datomic.)  We call
-/// such a positive integer an *entid*.
-///
-/// ## Partitions
-///
-/// Datomic partitions the entid space in order to separate core knowledge base entities required
-/// for the healthy function of the system from user-defined entities.  Datomic also partitions in
-/// order to ensure that certain index walks of related entities are efficient.  Mentat follows
-/// suit, partitioning into the following partitions:
-/// * `:db.part/db`, for core knowledge base entities;
-/// * `:db.part/user`, for user-defined entities;
-/// * `:db.part/tx`, for transaction entities.
-/// You almost certainly want to add new entities in the `:db.part/user` partition.
-///
-/// The entid sequence in a given partition is monotonically increasing, although not necessarily
-/// contiguous.  That is, it is possible for a specific entid to have never been present in the
-/// system, even though its predecessor and successor are present.
 
 /// Represents one entid in the entid space.
 ///
