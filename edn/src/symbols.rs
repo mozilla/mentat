@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::fmt::{Display, Formatter};
+
 /// A simplification of Clojure's Symbol.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct PlainSymbol(pub String);
@@ -73,7 +75,7 @@ impl PlainSymbol {
         let n = name.into();
         assert!(!n.is_empty(), "Symbols cannot be unnamed.");
 
-        return PlainSymbol(n);
+        PlainSymbol(n)
     }
 }
 
@@ -82,7 +84,7 @@ impl NamespacedSymbol {
         assert!(!name.is_empty(), "Symbols cannot be unnamed.");
         assert!(!namespace.is_empty(), "Symbols cannot have an empty non-null namespace.");
 
-        return NamespacedSymbol { name: name.to_string(), namespace: namespace.to_string() };
+        NamespacedSymbol { name: name.to_string(), namespace: namespace.to_string() }
     }
 }
 
@@ -91,7 +93,7 @@ impl Keyword {
         let n = name.into();
         assert!(!n.is_empty(), "Keywords cannot be unnamed.");
 
-        return Keyword(n);
+        Keyword(n)
     }
 }
 
@@ -101,7 +103,7 @@ impl NamespacedKeyword {
         assert!(!namespace.is_empty(), "Keywords cannot have an empty non-null namespace.");
 
         // TODO: debug asserts to ensure that neither field matches [ :/].
-        return NamespacedKeyword { name: name.to_string(), namespace: namespace.to_string() };
+        NamespacedKeyword { name: name.to_string(), namespace: namespace.to_string() }
     }
 }
 
@@ -109,7 +111,7 @@ impl NamespacedKeyword {
 // Note that we don't currently do any escaping.
 //
 
-impl ToString for PlainSymbol {
+impl Display for PlainSymbol {
     /// Print the symbol in EDN format.
     ///
     /// # Examples
@@ -118,12 +120,12 @@ impl ToString for PlainSymbol {
     /// # use edn::symbols::PlainSymbol;
     /// assert_eq!("baz", PlainSymbol::new("baz").to_string());
     /// ```
-    fn to_string(&self) -> String {
-        return format!("{}", self.0);
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
-impl ToString for NamespacedSymbol {
+impl Display for NamespacedSymbol {
     /// Print the symbol in EDN format.
     ///
     /// # Examples
@@ -132,12 +134,12 @@ impl ToString for NamespacedSymbol {
     /// # use edn::symbols::NamespacedSymbol;
     /// assert_eq!("bar/baz", NamespacedSymbol::new("bar", "baz").to_string());
     /// ```
-    fn to_string(&self) -> String {
-        return format!("{}/{}", self.namespace, self.name);
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        write!(f, "{}/{}", self.namespace, self.name)
     }
 }
 
-impl ToString for Keyword {
+impl Display for Keyword {
     /// Print the keyword in EDN format.
     ///
     /// # Examples
@@ -146,12 +148,12 @@ impl ToString for Keyword {
     /// # use edn::symbols::Keyword;
     /// assert_eq!(":baz", Keyword::new("baz").to_string());
     /// ```
-    fn to_string(&self) -> String {
-        return format!(":{}", self.0);
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        write!(f, ":{}", self.0)
     }
 }
 
-impl ToString for NamespacedKeyword {
+impl Display for NamespacedKeyword {
     /// Print the keyword in EDN format.
     ///
     /// # Examples
@@ -160,7 +162,7 @@ impl ToString for NamespacedKeyword {
     /// # use edn::symbols::NamespacedKeyword;
     /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_string());
     /// ```
-    fn to_string(&self) -> String {
-        return format!(":{}/{}", self.namespace, self.name);
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        write!(f, ":{}/{}", self.namespace, self.name)
     }
 }
