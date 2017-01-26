@@ -5,6 +5,8 @@
 *~
 .s*
 .*.sw*
+*.rs.bak
+*.bak
 .hg/
 .hgignore
 .lein-deps-sum
