@@ -57,10 +57,11 @@
            (not (db/id-literal? v)))
       ;; Another entity is given as a nested map.
       (if (ds/ref? (db/schema db) straight-a*)
-        (let [other (assoc v (reverse-ref a) eid
-                           ;; TODO: make the new ID have the same part as the original eid.
-                           ;; TODO: make the new ID not show up in the tempids map.  (Does Datomic exposed the new ID this way?)
-                           :db/id (db/id-literal :db.part/user))]
+        (let [other (-> v
+                        (assoc (reverse-ref a) eid)
+                        ;; TODO: make the new ID have the same part as the original eid.
+                        ;; TODO: make the new ID not show up in the tempids map.  (Does Datomic exposed the new ID this way?)
+                        (update :db/id #(or %1 (db/id-literal :db.part/user))))]
           (explode-entity db other))
         (raise "Bad attribute " a ": nested map " v " given but attribute name requires {:db/valueType :db.type/ref} in schema"
                {:error :transact/entity-map-type-ref
