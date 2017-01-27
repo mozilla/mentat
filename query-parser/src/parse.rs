@@ -160,65 +160,6 @@ impl<I> FindSp<I>
     }
 }
 
-macro_rules! assert_parses_to {
-    ( $parser: path, $input: expr, $expected: expr ) => {{
-        let mut par = $parser();
-        let result = par.parse(&$input[..]);
-        assert_eq!(result, Ok(($expected, &[][..])));
-    }}
-}
-
-#[test]
-fn test_find_sp_variable() {
-    let sym = edn::PlainSymbol::new("?x");
-    let input = [edn::Value::PlainSymbol(sym.clone())];
-    assert_parses_to!(FindSp::variable, input, Variable(sym));
-}
-
-#[test]
-fn test_find_scalar() {
-    let sym = edn::PlainSymbol::new("?x");
-    let period = edn::PlainSymbol::new(".");
-    let input = [edn::Value::PlainSymbol(sym.clone()), edn::Value::PlainSymbol(period.clone())];
-    assert_parses_to!(FindSp::find_scalar,
-                      input,
-                      FindSpec::FindScalar(Element::Variable(Variable(sym))));
-}
-
-#[test]
-fn test_find_coll() {
-    let sym = edn::PlainSymbol::new("?x");
-    let period = edn::PlainSymbol::new("...");
-    let input = [edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone()),
-                                         edn::Value::PlainSymbol(period.clone())])];
-    assert_parses_to!(FindSp::find_coll,
-                      input,
-                      FindSpec::FindColl(Element::Variable(Variable(sym))));
-}
-
-#[test]
-fn test_find_rel() {
-    let vx = edn::PlainSymbol::new("?x");
-    let vy = edn::PlainSymbol::new("?y");
-    let input = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
-    assert_parses_to!(FindSp::find_rel,
-                      input,
-                      FindSpec::FindRel(vec![Element::Variable(Variable(vx)),
-                                             Element::Variable(Variable(vy))]));
-}
-
-#[test]
-fn test_find_tuple() {
-    let vx = edn::PlainSymbol::new("?x");
-    let vy = edn::PlainSymbol::new("?y");
-    let input = [edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
-                                         edn::Value::PlainSymbol(vy.clone())])];
-    assert_parses_to!(FindSp::find_tuple,
-                      input,
-                      FindSpec::FindTuple(vec![Element::Variable(Variable(vx)),
-                                               Element::Variable(Variable(vy))]));
-}
-
 // Parse a sequence of values into one of four find specs.
 //
 // `:find` must be an array of plain var symbols (?foo), pull expressions, and aggregates.
@@ -238,28 +179,99 @@ pub fn find_seq_to_find_spec(find: &[edn::Value]) -> FindParseResult {
         .map_err(|_| FindParseError::Err)
 }
 
-#[test]
-fn test_find_processing() {
-    let vx = edn::PlainSymbol::new("?x");
-    let vy = edn::PlainSymbol::new("?y");
-    let ellipsis = edn::PlainSymbol::new("...");
-    let period = edn::PlainSymbol::new(".");
+#[cfg(test)]
+mod test {
+    extern crate combine;
+    extern crate edn;
+    extern crate mentat_query;
 
-    let scalar = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(period.clone())];
-    let tuple = [edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
-                                         edn::Value::PlainSymbol(vy.clone())])];
-    let coll = [edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
-                                        edn::Value::PlainSymbol(ellipsis.clone())])];
-    let rel = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
+    use self::combine::Parser;
+    use self::mentat_query::{Element, FindSpec, Variable};
 
-    assert_eq!(Ok(FindSpec::FindScalar(Element::Variable(Variable(vx.clone())))),
-               find_seq_to_find_spec(&scalar));
-    assert_eq!(Ok(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
-                                           Element::Variable(Variable(vy.clone()))])),
-               find_seq_to_find_spec(&tuple));
-    assert_eq!(Ok(FindSpec::FindColl(Element::Variable(Variable(vx.clone())))),
-               find_seq_to_find_spec(&coll));
-    assert_eq!(Ok(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
-                                         Element::Variable(Variable(vy.clone()))])),
-               find_seq_to_find_spec(&rel));
+    use super::*;
+
+    macro_rules! assert_parses_to {
+        ( $parser: path, $input: expr, $expected: expr ) => {{
+            let mut par = $parser();
+            let result = par.parse(&$input[..]);
+            assert_eq!(result, Ok(($expected, &[][..])));
+        }}
+    }
+
+    #[test]
+    fn test_find_sp_variable() {
+        let sym = edn::PlainSymbol::new("?x");
+        let input = [edn::Value::PlainSymbol(sym.clone())];
+        assert_parses_to!(FindSp::variable, input, Variable(sym));
+    }
+
+    #[test]
+    fn test_find_scalar() {
+        let sym = edn::PlainSymbol::new("?x");
+        let period = edn::PlainSymbol::new(".");
+        let input = [edn::Value::PlainSymbol(sym.clone()), edn::Value::PlainSymbol(period.clone())];
+        assert_parses_to!(FindSp::find_scalar,
+                          input,
+                          FindSpec::FindScalar(Element::Variable(Variable(sym))));
+    }
+
+    #[test]
+    fn test_find_coll() {
+        let sym = edn::PlainSymbol::new("?x");
+        let period = edn::PlainSymbol::new("...");
+        let input = [edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone()),
+                                             edn::Value::PlainSymbol(period.clone())])];
+        assert_parses_to!(FindSp::find_coll,
+                          input,
+                          FindSpec::FindColl(Element::Variable(Variable(sym))));
+    }
+
+    #[test]
+    fn test_find_rel() {
+        let vx = edn::PlainSymbol::new("?x");
+        let vy = edn::PlainSymbol::new("?y");
+        let input = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
+        assert_parses_to!(FindSp::find_rel,
+                          input,
+                          FindSpec::FindRel(vec![Element::Variable(Variable(vx)),
+                                                 Element::Variable(Variable(vy))]));
+    }
+
+    #[test]
+    fn test_find_tuple() {
+        let vx = edn::PlainSymbol::new("?x");
+        let vy = edn::PlainSymbol::new("?y");
+        let input = [edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
+                                             edn::Value::PlainSymbol(vy.clone())])];
+        assert_parses_to!(FindSp::find_tuple,
+                          input,
+                          FindSpec::FindTuple(vec![Element::Variable(Variable(vx)),
+                                                   Element::Variable(Variable(vy))]));
+    }
+
+    #[test]
+    fn test_find_processing() {
+        let vx = edn::PlainSymbol::new("?x");
+        let vy = edn::PlainSymbol::new("?y");
+        let ellipsis = edn::PlainSymbol::new("...");
+        let period = edn::PlainSymbol::new(".");
+
+        let scalar = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(period.clone())];
+        let tuple = [edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
+                                             edn::Value::PlainSymbol(vy.clone())])];
+        let coll = [edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
+                                            edn::Value::PlainSymbol(ellipsis.clone())])];
+        let rel = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
+
+        assert_eq!(Ok(FindSpec::FindScalar(Element::Variable(Variable(vx.clone())))),
+                   find_seq_to_find_spec(&scalar));
+        assert_eq!(Ok(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
+                                               Element::Variable(Variable(vy.clone()))])),
+                   find_seq_to_find_spec(&tuple));
+        assert_eq!(Ok(FindSpec::FindColl(Element::Variable(Variable(vx.clone())))),
+                   find_seq_to_find_spec(&coll));
+        assert_eq!(Ok(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
+                                             Element::Variable(Variable(vy.clone()))])),
+                   find_seq_to_find_spec(&rel));
+    }
 }
