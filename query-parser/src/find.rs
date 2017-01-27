@@ -38,10 +38,30 @@ extern crate mentat_query;
 
 use std::collections::BTreeMap;
 
-use self::mentat_query::{FindQuery, SrcVar};
+use self::mentat_query::{
+    FindQuery,
+    FromValue,
+    SrcVar,
+    Variable,
+};
 
-use super::error::{QueryParseError, QueryParseResult};
-use super::util::{values_to_variables, vec_to_keyword_map};
+use super::parse::{NotAVariableError, QueryParseError, QueryParseResult};
+use super::util::vec_to_keyword_map;
+
+/// If the provided slice of EDN values are all variables as
+/// defined by `value_to_variable`, return a Vec of Variables.
+/// Otherwise, return the unrecognized Value.
+fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
+    let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
+    for v in vals {
+        if let Some(var) = Variable::from_value(v) {
+            out.push(var);
+            continue;
+        }
+        return Err(NotAVariableError(v.clone()));
+    }
+    return Ok(out);
+}
 
 #[allow(unused_variables)]
 fn parse_find_parts(find: &[edn::Value],
@@ -135,4 +155,50 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
         }
     }
     return Err(QueryParseError::InvalidInput(expr));
+}
+
+#[cfg(test)]
+mod test_parse {
+    extern crate edn;
+
+    use self::edn::types::{to_keyword, to_symbol};
+    use super::mentat_query::{
+        Element,
+        FindSpec,
+        SrcVar,
+        Variable,
+    };
+    use super::*;
+
+    // TODO: when #224 lands, fix to_keyword to be variadic.
+    #[test]
+    fn test_parse_find() {
+        let truncated_input = edn::Value::Vector(vec![to_keyword(None, "find")]);
+        assert!(parse_find(truncated_input).is_err());
+
+        let input = edn::Value::Vector(vec![
+                                       to_keyword(None, "find"),
+                                       to_symbol(None, "?x"),
+                                       to_symbol(None, "?y"),
+                                       to_keyword(None, "where"),
+                                       edn::Value::Vector(vec![
+                                                          to_symbol(None, "?x"),
+                                                          to_keyword("foo", "bar"),
+                                                          to_symbol(None, "?y"),
+                                       ]),
+        ]);
+
+        let parsed = parse_find(input).unwrap();
+        if let FindSpec::FindRel(elems) = parsed.find_spec {
+            assert_eq!(2, elems.len());
+            assert_eq!(vec![
+                       Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
+                       Element::Variable(Variable(edn::PlainSymbol::new("?y"))),
+            ], elems);
+        } else {
+            panic!("Expected FindRel.");
+        }
+
+        assert_eq!(SrcVar::DefaultSrc, parsed.default_source);
+    }
 }

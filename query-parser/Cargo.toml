@@ -4,6 +4,7 @@ version = "0.0.1"
 
 [dependencies]
 combine = "2.1.1"
+ordered-float = "0.3.0"
 
 [dependencies.edn]
   path = "../edn"

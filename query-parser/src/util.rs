@@ -9,32 +9,8 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate edn;
-extern crate mentat_query;
 
 use std::collections::BTreeMap;
-
-use self::mentat_query::{FromValue, Variable};
-use super::error::NotAVariableError;
-
-/// If the provided slice of EDN values are all variables as
-/// defined by `value_to_variable`, return a Vec of Variables.
-/// Otherwise, return the unrecognized Value.
-pub fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
-    let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
-    for v in vals {
-        if let Some(var) = Variable::from_value(v) {
-            out.push(var);
-            continue;
-        }
-        return Err(NotAVariableError(v.clone()));
-    }
-    return Ok(out);
-}
-
-#[test]
-fn test_values_to_variables() {
-    // TODO
-}
 
 /// Take a slice of EDN values, as would be extracted from an
 /// `edn::Value::Vector`, and turn it into a map.
