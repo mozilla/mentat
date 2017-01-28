@@ -10,6 +10,7 @@
 
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::cmp::{Ordering, Ord, PartialOrd};
+use std::fmt::{Display, Formatter};
 
 use symbols;
 use num::BigInt;
@@ -40,6 +41,51 @@ pub enum Value {
 }
 
 use self::Value::*;
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        match *self {
+            Keyword(ref v) => v.fmt(f),
+            NamespacedKeyword(ref v) => v.fmt(f),
+            PlainSymbol(ref v) => v.fmt(f),
+            NamespacedSymbol(ref v) => v.fmt(f),
+
+            Integer(v) => write!(f, "{}", v),
+            BigInteger(ref v) => write!(f, "{}N", v),
+            Float(OrderedFloat(v)) => write!(f, "{}", v),       // TODO: make sure float syntax is correct.
+                                                                // TODO: NaN.
+            Text(ref v) => write!(f, "{}", v),                  // TODO: EDN escaping.
+            Vector(ref v) => {
+                try!(write!(f, "["));
+                for x in v {
+                    try!(write!(f, " {}", x));
+                }
+                write!(f, " ]")
+            }
+            _ =>
+                write!(f, "{}",
+                       match *self {
+                           Nil => "null",
+                           Boolean(b) => if b { "true" } else { "false" },
+                           _ => unimplemented!(),
+                       }),
+        }
+    }
+}
+
+#[test]
+fn test_print_edn() {
+    assert_eq!("[ 1 2 [ 3.1 ] [ ] :five :six/seven eight nine/ten true ]",
+               Value::Vector(vec!(Value::Integer(1),
+               Value::Integer(2),
+               Value::Vector(vec!(Value::Float(OrderedFloat(3.1)))),
+               Value::Vector(vec!()),
+               Value::Keyword(symbols::Keyword::new("five")),
+               Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
+               Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
+               Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
+               Value::Boolean(true))).to_string());
+}
 
 impl Value {
     pub fn is_keyword(&self) -> bool {

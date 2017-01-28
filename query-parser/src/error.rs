@@ -30,6 +30,12 @@ pub enum QueryParseError {
     FindParseError(FindParseError),
 }
 
+impl From<edn::parse::ParseError> for QueryParseError {
+    fn from(err: edn::parse::ParseError) -> QueryParseError {
+        QueryParseError::EdnParseError(err)
+    }
+}
+
 pub type FindParseResult = Result<FindSpec, FindParseError>;
 pub type QueryParseResult = Result<FindQuery, QueryParseError>;
 
