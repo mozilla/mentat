@@ -101,6 +101,15 @@ impl Keyword {
 }
 
 impl NamespacedKeyword {
+    /// Creates a new `NamespacedKeyword`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use edn::symbols::NamespacedKeyword;
+    /// let keyword = NamespacedKeyword::new("foo", "bar");
+    /// assert_eq!(keyword.to_string(), ":foo/bar");
+    /// ```
     pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
         let n = name.into();
         let ns = namespace.into();
@@ -108,7 +117,73 @@ impl NamespacedKeyword {
         assert!(!ns.is_empty(), "Keywords cannot have an empty non-null namespace.");
 
         // TODO: debug asserts to ensure that neither field matches [ :/].
-        NamespacedKeyword { name: n, namespace: ns }
+        NamespacedKeyword {
+            name: n,
+            namespace: ns,
+        }
+    }
+
+    /// Whether this NamespacedKeyword should be interpreted in reverse order. For example,
+    /// the two following snippets are identical:
+    /// [?y :person/friend ?x]
+    /// [?x :person/hired ?y]
+    ///
+    /// [?y :person/friend ?x]
+    /// [?y :person/_hired ?x]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use edn::symbols::NamespacedKeyword;
+    /// assert!(!NamespacedKeyword::new("foo", "bar").is_backward());
+    /// assert!(NamespacedKeyword::new("foo", "_bar").is_backward());
+    /// ```
+    #[inline]
+    pub fn is_backward(&self) -> bool {
+        self.name.starts_with("_")
+    }
+
+    /// Whether this NamespacedKeyword should be interpreted in forward order.
+    /// See `symbols::NamespacedKeyword::is_backwards`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use edn::symbols::NamespacedKeyword;
+    /// assert!(NamespacedKeyword::new("foo", "bar").is_forward());
+    /// assert!(!NamespacedKeyword::new("foo", "_bar").is_forward());
+    /// ```
+    #[inline]
+    pub fn is_forward(&self) -> bool {
+        !self.is_backward()
+    }
+
+    /// Returns an Option<NamespacedKeyword> with the same name and namespace, but
+    /// considered reversed. See `symbols::NamespacedKeyword::is_backward`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use edn::symbols::NamespacedKeyword;
+    /// let nsk = NamespacedKeyword::new("foo", "bar");
+    /// assert!(!nsk.is_backward());
+    /// assert_eq!(":foo/bar", nsk.to_string());
+    ///
+    /// let reversed = nsk.to_reverse();
+    /// assert!(reversed.is_backward());
+    /// assert_eq!(":foo/_bar", reversed.to_string());
+    /// ```
+    pub fn to_reverse(&self) -> NamespacedKeyword {
+        let name = if self.is_backward() {
+            self.name[1..].to_string()
+        } else {
+            format!("{}{}", "_", self.name)
+        };
+
+        NamespacedKeyword {
+            name: name,
+            namespace: self.namespace.clone(),
+        }
     }
 }
 
@@ -166,6 +241,8 @@ impl Display for NamespacedKeyword {
     /// ```rust
     /// # use edn::symbols::NamespacedKeyword;
     /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_string());
+    /// assert_eq!(":bar/_baz", NamespacedKeyword::new("bar", "baz").to_reverse().to_string());
+    /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reverse().to_reverse().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, ":{}/{}", self.namespace, self.name)
