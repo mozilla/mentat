@@ -80,16 +80,19 @@ impl PlainSymbol {
 }
 
 impl NamespacedSymbol {
-    pub fn new(namespace: &str, name: &str) -> Self {
-        assert!(!name.is_empty(), "Symbols cannot be unnamed.");
-        assert!(!namespace.is_empty(), "Symbols cannot have an empty non-null namespace.");
+    pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
+        let n = name.into();
+        let ns = namespace.into();
 
-        NamespacedSymbol { name: name.to_string(), namespace: namespace.to_string() }
+        assert!(!n.is_empty(), "Symbols cannot be unnamed.");
+        assert!(!ns.is_empty(), "Symbols cannot have an empty non-null namespace.");
+
+        NamespacedSymbol { name: n, namespace: ns }
     }
 }
 
 impl Keyword {
-    pub fn new<T>(name: T) -> Self where T: Into<String>{
+    pub fn new<T>(name: T) -> Self where T: Into<String> {
         let n = name.into();
         assert!(!n.is_empty(), "Keywords cannot be unnamed.");
 
@@ -98,12 +101,14 @@ impl Keyword {
 }
 
 impl NamespacedKeyword {
-    pub fn new(namespace: &str, name: &str) -> Self {
-        assert!(!name.is_empty(), "Keywords cannot be unnamed.");
-        assert!(!namespace.is_empty(), "Keywords cannot have an empty non-null namespace.");
+    pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
+        let n = name.into();
+        let ns = namespace.into();
+        assert!(!n.is_empty(), "Keywords cannot be unnamed.");
+        assert!(!ns.is_empty(), "Keywords cannot have an empty non-null namespace.");
 
         // TODO: debug asserts to ensure that neither field matches [ :/].
-        NamespacedKeyword { name: name.to_string(), namespace: namespace.to_string() }
+        NamespacedKeyword { name: n, namespace: ns }
     }
 }
 
