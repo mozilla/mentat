@@ -77,6 +77,32 @@ impl PlainSymbol {
 
         PlainSymbol(n)
     }
+
+    /// Return the name of the symbol without any leading '?' or '$'.
+    ///
+    /// ```rust
+    /// # use edn::symbols::PlainSymbol;
+    /// assert_eq!("foo", PlainSymbol::new("?foo").plain_name());
+    /// assert_eq!("foo", PlainSymbol::new("$foo").plain_name());
+    /// assert_eq!("!foo", PlainSymbol::new("!foo").plain_name());
+    /// ```
+    pub fn plain_name(&self) -> &str {
+        if self.is_src_symbol() || self.is_var_symbol() {
+            &self.0[1..]
+        } else {
+            &self.0
+        }
+    }
+
+    #[inline]
+    pub fn is_var_symbol(&self) -> bool {
+        self.0.starts_with('?')
+    }
+
+    #[inline]
+    pub fn is_src_symbol(&self) -> bool {
+        self.0.starts_with('$')
+    }
 }
 
 impl NamespacedSymbol {
