@@ -87,13 +87,62 @@ fn test_print_edn() {
                Value::Boolean(true))).to_string());
 }
 
-impl Value {
-    pub fn is_keyword(&self) -> bool {
-        match *self {
-            Keyword(_) => true,
-            _          => false,
+/// Creates `is_$TYPE` helper functions for Value, like
+/// `is_big_integer()` or `is_text()`.
+macro_rules! def_is {
+    ($name: ident, $pat: pat) => {
+        pub fn $name(&self) -> bool {
+            match *self { $pat => true, _ => false }
         }
     }
+}
+
+/// Creates `as_$TYPE` helper functions for Value, like `as_big_integer()`,
+/// which returns the underlying value representing this Value wrapped
+/// in an Option, like `<Option<&BigInt>`.
+macro_rules! def_as {
+    ($name: ident, $kind: path, $t: ty) => {
+        pub fn $name(&self) -> Option<&$t> {
+            match *self { $kind(ref v) => Some(v), _ => None }
+        }
+    }
+}
+
+impl Value {
+    def_is!(is_nil, Nil);
+    def_is!(is_boolean, Boolean(_));
+    def_is!(is_integer, Integer(_));
+    def_is!(is_big_integer, BigInteger(_));
+    def_is!(is_float, Float(_));
+    def_is!(is_text, Text(_));
+    def_is!(is_symbol, PlainSymbol(_));
+    def_is!(is_namespaced_symbol, NamespacedSymbol(_));
+    def_is!(is_keyword, Keyword(_));
+    def_is!(is_namespaced_keyword, NamespacedKeyword(_));
+    def_is!(is_vector, Vector(_));
+    def_is!(is_list, List(_));
+    def_is!(is_set, Set(_));
+    def_is!(is_map, Map(_));
+
+    /// `as_nil` does not use the macro as it does not have an underlying
+    /// value, and returns `Option<()>`.
+    pub fn as_nil(&self) -> Option<()> {
+        match *self { Nil => Some(()), _ => None }
+    }
+
+    def_as!(as_boolean, Boolean, bool);
+    def_as!(as_integer, Integer, i64);
+    def_as!(as_big_integer, BigInteger, BigInt);
+    def_as!(as_float, Float, OrderedFloat<f64>);
+    def_as!(as_text, Text, String);
+    def_as!(as_symbol, PlainSymbol, symbols::PlainSymbol);
+    def_as!(as_namespaced_symbol, NamespacedSymbol, symbols::NamespacedSymbol);
+    def_as!(as_keyword, Keyword, symbols::Keyword);
+    def_as!(as_namespaced_keyword, NamespacedKeyword, symbols::NamespacedKeyword);
+    def_as!(as_vector, Vector, Vec<Value>);
+    def_as!(as_list, List, LinkedList<Value>);
+    def_as!(as_set, Set, BTreeSet<Value>);
+    def_as!(as_map, Map, BTreeMap<Value, Value>);
 }
 
 impl PartialOrd for Value {

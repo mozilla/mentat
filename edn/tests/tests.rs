@@ -33,6 +33,12 @@ fn k_plain(name: &str) -> Value {
     return Keyword(symbols::Keyword::new(name));
 }
 
+// Helper for making wrapped symbols with a namespace
+fn s_ns(ns: &str, name: &str) -> Value {
+    return NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name));
+}
+
+// Helper for making wrapped symbols without a namespace
 fn s_plain(name: &str) -> Value {
     return PlainSymbol(symbols::PlainSymbol::new(name));
 }
@@ -885,6 +891,86 @@ fn test_utils_merge() {
     expected.insert(Value::Integer(2), Value::Integer(2));
     expected.insert(Value::Text("a".into()), Value::Text("a".into()));
     test(&right, &left, &expected);
+}
+
+macro_rules! def_test_as_type {
+    ($value: ident, $method: ident, $is_some: expr, $expected: expr) => {
+        if $is_some {
+            assert_eq!(*$value.$method().unwrap(), $expected)
+        }
+        assert_eq!($value.$method().is_some(), $is_some);
+    }
+}
+
+#[test]
+fn test_is_and_as_type_helper_functions() {
+    let max_i64 = i64::max_value().to_bigint().unwrap();
+    let bigger = &max_i64 * &max_i64;
+
+    let values = [
+        Value::Nil,
+        Value::Boolean(false),
+        Value::Integer(1i64),
+        Value::BigInteger(bigger),
+        Value::Float(OrderedFloat(22.22f64)),
+        Value::Text("hello world".to_string()),
+        s_plain("$symbol"),
+        s_ns("$ns", "$symbol"),
+        k_plain("hello"),
+        k_ns("hello", "world"),
+        Value::Vector(vec![Integer(1)]),
+        Value::List(LinkedList::from_iter(vec![])),
+        Value::Set(BTreeSet::from_iter(vec![])),
+        Value::Map(BTreeMap::from_iter(vec![
+            (Value::Text("a".to_string()), Value::Integer(1)),
+        ])),
+    ];
+
+    for i in 0..values.len() {
+        let value = &values[i];
+
+        let is_result = [
+            value.is_nil(),
+            value.is_boolean(),
+            value.is_integer(),
+            value.is_big_integer(),
+            value.is_float(),
+            value.is_text(),
+            value.is_symbol(),
+            value.is_namespaced_symbol(),
+            value.is_keyword(),
+            value.is_namespaced_keyword(),
+            value.is_vector(),
+            value.is_list(),
+            value.is_set(),
+            value.is_map(),
+        ];
+
+        for j in 0..values.len() {
+            assert_eq!(j == i, is_result[j]);
+        }
+
+        if i == 0 { assert_eq!(value.as_nil().unwrap(), ()) }
+        else { assert!(!value.as_nil().is_some()) }
+
+        def_test_as_type!(value, as_boolean, i == 1, false);
+        def_test_as_type!(value, as_integer, i == 2, 1i64);
+        def_test_as_type!(value, as_big_integer, i == 3, &max_i64 * &max_i64);
+        def_test_as_type!(value, as_float, i == 4, OrderedFloat(22.22f64));
+        def_test_as_type!(value, as_text, i == 5, "hello world".to_string());
+        def_test_as_type!(value, as_symbol, i == 6, symbols::PlainSymbol::new("$symbol"));
+        def_test_as_type!(value, as_namespaced_symbol, i == 7,
+            symbols::NamespacedSymbol::new("$ns", "$symbol"));
+        def_test_as_type!(value, as_keyword, i == 8, symbols::Keyword::new("hello"));
+        def_test_as_type!(value, as_namespaced_keyword, i == 9,
+            symbols::NamespacedKeyword::new("hello", "world"));
+        def_test_as_type!(value, as_vector, i == 10, vec![Integer(1)]);
+        def_test_as_type!(value, as_list, i == 11, LinkedList::from_iter(vec![]));
+        def_test_as_type!(value, as_set, i == 12, BTreeSet::from_iter(vec![]));
+        def_test_as_type!(value, as_map, i == 13, BTreeMap::from_iter(vec![
+            (Value::Text("a".to_string()), Value::Integer(1)),
+        ]));
+    }
 }
 
 /*
