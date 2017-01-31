@@ -172,11 +172,11 @@ impl NamespacedKeyword {
     /// assert!(!nsk.is_backward());
     /// assert_eq!(":foo/bar", nsk.to_string());
     ///
-    /// let reversed = nsk.to_reverse();
+    /// let reversed = nsk.to_reversed();
     /// assert!(reversed.is_backward());
     /// assert_eq!(":foo/_bar", reversed.to_string());
     /// ```
-    pub fn to_reverse(&self) -> NamespacedKeyword {
+    pub fn to_reversed(&self) -> NamespacedKeyword {
         let name = if self.is_backward() {
             self.name[1..].to_string()
         } else {
@@ -244,8 +244,8 @@ impl Display for NamespacedKeyword {
     /// ```rust
     /// # use edn::symbols::NamespacedKeyword;
     /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_string());
-    /// assert_eq!(":bar/_baz", NamespacedKeyword::new("bar", "baz").to_reverse().to_string());
-    /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reverse().to_reverse().to_string());
+    /// assert_eq!(":bar/_baz", NamespacedKeyword::new("bar", "baz").to_reversed().to_string());
+    /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reversed().to_reversed().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, ":{}/{}", self.namespace, self.name)
