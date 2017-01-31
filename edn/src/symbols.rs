@@ -173,7 +173,7 @@ impl NamespacedKeyword {
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in forward order.
-    /// See `symbols::NamespacedKeyword::is_backwards`.
+    /// See `symbols::NamespacedKeyword::is_backward`.
     ///
     /// # Examples
     ///
