@@ -64,7 +64,7 @@ pub struct Keyword(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct NamespacedKeyword {
-    // We derive PartialOrd, which implements a lexicographic based
+    // We derive PartialOrd, which implements a lexicographic order based
     // on the order of members, so put namespace first.
     pub namespace: String,
     pub name: String,
@@ -123,13 +123,16 @@ impl NamespacedKeyword {
         }
     }
 
-    /// Whether this NamespacedKeyword should be interpreted in reverse order. For example,
+    /// Whether this `NamespacedKeyword` should be interpreted in reverse order. For example,
     /// the two following snippets are identical:
+    ///
+    /// ```edn
     /// [?y :person/friend ?x]
     /// [?x :person/hired ?y]
     ///
     /// [?y :person/friend ?x]
     /// [?y :person/_hired ?x]
+    /// ```
     ///
     /// # Examples
     ///
@@ -143,7 +146,7 @@ impl NamespacedKeyword {
         self.name.starts_with("_")
     }
 
-    /// Whether this NamespacedKeyword should be interpreted in forward order.
+    /// Whether this `NamespacedKeyword` should be interpreted in forward order.
     /// See `symbols::NamespacedKeyword::is_backwards`.
     ///
     /// # Examples
@@ -158,8 +161,8 @@ impl NamespacedKeyword {
         !self.is_backward()
     }
 
-    /// Returns an Option<NamespacedKeyword> with the same name and namespace, but
-    /// considered reversed. See `symbols::NamespacedKeyword::is_backward`.
+    /// Returns a `NamespacedKeyword` with the same namespace and a
+    /// 'backward' name. See `symbols::NamespacedKeyword::is_backward`.
     ///
     /// # Examples
     ///

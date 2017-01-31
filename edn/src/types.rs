@@ -33,8 +33,8 @@ pub enum Value {
     Vector(Vec<Value>),
     List(LinkedList<Value>),
     // We're using BTree{Set, Map} rather than Hash{Set, Map} because the BTree variants
-    // implement Hash (unlike the Hash variants which don't in order to preserve O(n) hashing
-    // time which is hard given recurrsive data structures)
+    // implement Hash. The Hash variants don't in order to preserve O(n) hashing
+    // time, which is hard given recursive data structures.
     // See https://internals.rust-lang.org/t/implementing-hash-for-hashset-hashmap/3817/1
     Set(BTreeSet<Value>),
     Map(BTreeMap<Value, Value>),
