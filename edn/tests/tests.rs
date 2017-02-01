@@ -25,22 +25,22 @@ use edn::utils;
 
 // Helper for making wrapped keywords with a namespace.
 fn k_ns(ns: &str, name: &str) -> Value {
-    return NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name));
+    NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name))
 }
 
 // Helper for making wrapped keywords without a namespace.
 fn k_plain(name: &str) -> Value {
-    return Keyword(symbols::Keyword::new(name));
+    Keyword(symbols::Keyword::new(name))
 }
 
 // Helper for making wrapped symbols with a namespace
 fn s_ns(ns: &str, name: &str) -> Value {
-    return NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name));
+    NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name))
 }
 
 // Helper for making wrapped symbols without a namespace
 fn s_plain(name: &str) -> Value {
-    return PlainSymbol(symbols::PlainSymbol::new(name));
+    PlainSymbol(symbols::PlainSymbol::new(name))
 }
 
 #[test]
