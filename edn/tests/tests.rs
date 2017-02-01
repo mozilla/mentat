@@ -926,9 +926,7 @@ fn test_is_and_as_type_helper_functions() {
         ])),
     ];
 
-    for i in 0..values.len() {
-        let value = &values[i];
-
+    for (i, value) in values.iter().enumerate() {
         let is_result = [
             value.is_nil(),
             value.is_boolean(),
@@ -946,12 +944,17 @@ fn test_is_and_as_type_helper_functions() {
             value.is_map(),
         ];
 
-        for j in 0..values.len() {
-            assert_eq!(j == i, is_result[j]);
+        assert_eq!(values.len(), is_result.len());
+
+        for (j, result) in is_result.iter().enumerate() {
+            assert_eq!(j == i, *result);
         }
 
-        if i == 0 { assert_eq!(value.as_nil().unwrap(), ()) }
-        else { assert!(!value.as_nil().is_some()) }
+        if i == 0 {
+            assert_eq!(value.as_nil().unwrap(), ())
+        } else {
+            assert!(!value.as_nil().is_some())
+        }
 
         def_test_as_type!(value, as_boolean, i == 1, false);
         def_test_as_type!(value, as_integer, i == 2, 1i64);
