@@ -217,15 +217,13 @@ fn to_ord(value: &Value) -> i32 {
 pub struct Pair(Value, Value);
 
 pub fn to_symbol<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
-    if let Some(ns) = namespace.into() {
-        return Value::NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name));
-    }
-    return Value::PlainSymbol(symbols::PlainSymbol::new(name));
+    namespace.into().map_or_else(
+        || Value::PlainSymbol(symbols::PlainSymbol::new(name)),
+        |ns| Value::NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name)))
 }
 
 pub fn to_keyword<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
-    if let Some(ns) = namespace.into() {
-        return Value::NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name));
-    }
-    return Value::Keyword(symbols::Keyword::new(name));
+    namespace.into().map_or_else(
+        || Value::Keyword(symbols::Keyword::new(name)),
+        |ns| Value::NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name)))
 }
