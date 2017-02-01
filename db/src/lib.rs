@@ -14,6 +14,7 @@ extern crate itertools;
 #[macro_use]
 extern crate lazy_static;
 extern crate rusqlite;
+extern crate time;
 
 extern crate tabwriter;
 
