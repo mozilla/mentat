@@ -13,20 +13,8 @@ extern crate mentat_query;
 
 use std::collections::BTreeMap;
 
-use self::edn::Value::PlainSymbol;
-use self::mentat_query::Variable;
+use self::mentat_query::{FromValue, Variable};
 use super::error::NotAVariableError;
-
-/// If the provided EDN value is a PlainSymbol beginning with '?', return
-/// it wrapped in a Variable. If not, return None.
-pub fn value_to_variable(v: &edn::Value) -> Option<Variable> {
-    if let PlainSymbol(ref sym) = *v {
-        if sym.0.starts_with('?') {
-            return Some(Variable(sym.clone()));
-        }
-    }
-    return None;
-}
 
 /// If the provided slice of EDN values are all variables as
 /// defined by `value_to_variable`, return a Vec of Variables.
@@ -34,7 +22,7 @@ pub fn value_to_variable(v: &edn::Value) -> Option<Variable> {
 pub fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
     let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
     for v in vals {
-        if let Some(var) = value_to_variable(v) {
+        if let Some(var) = Variable::from_value(v) {
             out.push(var);
             continue;
         }

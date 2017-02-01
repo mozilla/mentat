@@ -15,7 +15,7 @@ extern crate mentat_query;
 use self::combine::{eof, many1, parser, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{Expected, FnParser, choice, try};
 use self::edn::Value::PlainSymbol;
-use self::mentat_query::{Element, FindSpec, Variable};
+use self::mentat_query::{Element, FromValue, FindSpec, Variable};
 
 use super::error::{FindParseError, FindParseResult};
 
@@ -45,7 +45,7 @@ impl<I> FindSp<I>
     }
 
     fn variable_(input: I) -> ParseResult<Variable, I> {
-        satisfy_map(|x: edn::Value| super::util::value_to_variable(&x)).parse_stream(input)
+        satisfy_map(|x: edn::Value| Variable::from_value(&x)).parse_stream(input)
     }
 
     fn period() -> FindSpParser<(), I> {

@@ -43,10 +43,56 @@ pub type SrcVarName = String;          // Do not include the required syntactic 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Variable(pub PlainSymbol);
 
-#[derive(Clone,Debug,Eq,PartialEq)]
+pub trait FromValue<T> {
+    fn from_value(v: &edn::Value) -> Option<T>;
+}
+
+/// If the provided EDN value is a PlainSymbol beginning with '?', return
+/// it wrapped in a Variable. If not, return None.
+impl FromValue<Variable> for Variable {
+    fn from_value(v: &edn::Value) -> Option<Variable> {
+        if let edn::Value::PlainSymbol(ref s) = *v {
+            Variable::from_symbol(s)
+        } else {
+            None
+        }
+    }
+}
+
+impl Variable {
+    fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+        if sym.is_var_symbol() {
+            Some(Variable(sym.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SrcVar {
     DefaultSrc,
     NamedSrc(SrcVarName),
+}
+
+impl FromValue<SrcVar> for SrcVar {
+    fn from_value(v: &edn::Value) -> Option<SrcVar> {
+        if let edn::Value::PlainSymbol(ref s) = *v {
+            SrcVar::from_symbol(s)
+        } else {
+            None
+        }
+    }
+}
+
+impl SrcVar {
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<SrcVar> {
+        if sym.is_src_symbol() {
+            Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+        } else {
+            None
+        }
+    }
 }
 
 /// These are the scalar values representable in EDN.
