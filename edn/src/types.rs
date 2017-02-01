@@ -8,12 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#![allow(unused_imports)]
+
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt::{Display, Formatter};
 
 use symbols;
-use num::BigInt;
+use num::bigint::{BigInt, ToBigInt, ParseBigIntError};
 use ordered_float::OrderedFloat;
 
 /// Value represents one of the allowed values in an EDN string.
@@ -71,6 +73,12 @@ impl Display for Value {
                        }),
         }
     }
+}
+
+#[test]
+fn test_value_from() {
+    assert_eq!(Value::from(42f64), Value::Float(OrderedFloat::from(42f64)));
+    assert_eq!(Value::from_bigint("42").unwrap(), Value::BigInteger(42.to_bigint().unwrap()));
 }
 
 #[test]
@@ -143,6 +151,16 @@ impl Value {
     def_as!(as_list, List, LinkedList<Value>);
     def_as!(as_set, Set, BTreeSet<Value>);
     def_as!(as_map, Map, BTreeMap<Value, Value>);
+
+    pub fn from_bigint(src: &str) -> Option<Value> {
+        src.parse::<BigInt>().map(Value::BigInteger).ok()
+    }
+}
+
+impl From<f64> for Value {
+    fn from(src: f64) -> Value {
+        Value::Float(OrderedFloat::from(src))
+    }
 }
 
 impl PartialOrd for Value {
