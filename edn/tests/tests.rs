@@ -374,10 +374,10 @@ fn test_map() {
     assert!(map("#{1 #{2 nil} \"hi\"").is_err());
 }
 
-/// The test_query_* functions contain the queries taken from the old Clojure implementation of Mentat.
+/// The `test_query_*` functions contain the queries taken from the old Clojure implementation of Mentat.
 /// 2 changes have been applied, which should be checked and maybe fixed
 /// TODO: Decide if these queries should be placed in a vector wrapper. Is that implied?
-/// Secondly, see note in test_query_starred_pages on the use of '
+/// Secondly, see note in `test_query_starred_pages` on the use of '
 #[test]
 fn test_query_active_sessions() {
     let test = "[
