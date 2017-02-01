@@ -8,5 +8,8 @@ combine = "2.1.1"
 [dependencies.edn]
   path = "../edn"
 
+[dependencies.parser_utils]
+  path = "../parser-utils"
+
 [dependencies.mentat_query]
   path = "../query"

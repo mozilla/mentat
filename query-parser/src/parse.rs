@@ -190,14 +190,6 @@ mod test {
 
     use super::*;
 
-    macro_rules! assert_parses_to {
-        ( $parser: path, $input: expr, $expected: expr ) => {{
-            let mut par = $parser();
-            let result = par.parse(&$input[..]);
-            assert_eq!(result, Ok(($expected, &[][..])));
-        }}
-    }
-
     #[test]
     fn test_find_sp_variable() {
         let sym = edn::PlainSymbol::new("?x");

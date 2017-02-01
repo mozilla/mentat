@@ -18,6 +18,9 @@ features = ["bundled"]
 [dependencies.edn]
 path = "edn"
 
+[dependencies.parser_utils]
+path = "parser-utils"
+
 [dependencies.mentat_db]
 path = "db"
 
