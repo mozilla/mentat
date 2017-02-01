@@ -8,11 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(unused_imports)]
-#[macro_use]
-extern crate parser_utils;
-
-mod error;
-mod util;
-mod parse;
-pub mod find;
+/// `assert_parses_to!` simplifies some of the boilerplate around running a
+/// parser function against input and expecting a certain result.
+#[macro_export]
+macro_rules! assert_parses_to {
+    ( $parser: path, $input: expr, $expected: expr ) => {{
+        let mut par = $parser();
+        let result = par.parse(&$input[..]);
+        assert_eq!(result, Ok(($expected, &[][..])));
+    }}
+}
