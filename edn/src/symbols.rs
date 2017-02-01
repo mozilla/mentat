@@ -77,6 +77,32 @@ impl PlainSymbol {
 
         PlainSymbol(n)
     }
+
+    /// Return the name of the symbol without any leading '?' or '$'.
+    ///
+    /// ```rust
+    /// # use edn::symbols::PlainSymbol;
+    /// assert_eq!("foo", PlainSymbol::new("?foo").plain_name());
+    /// assert_eq!("foo", PlainSymbol::new("$foo").plain_name());
+    /// assert_eq!("!foo", PlainSymbol::new("!foo").plain_name());
+    /// ```
+    pub fn plain_name(&self) -> &str {
+        if self.is_src_symbol() || self.is_var_symbol() {
+            &self.0[1..]
+        } else {
+            &self.0
+        }
+    }
+
+    #[inline]
+    pub fn is_var_symbol(&self) -> bool {
+        self.0.starts_with('?')
+    }
+
+    #[inline]
+    pub fn is_src_symbol(&self) -> bool {
+        self.0.starts_with('$')
+    }
 }
 
 impl NamespacedSymbol {
@@ -147,7 +173,7 @@ impl NamespacedKeyword {
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in forward order.
-    /// See `symbols::NamespacedKeyword::is_backwards`.
+    /// See `symbols::NamespacedKeyword::is_backward`.
     ///
     /// # Examples
     ///
@@ -172,11 +198,11 @@ impl NamespacedKeyword {
     /// assert!(!nsk.is_backward());
     /// assert_eq!(":foo/bar", nsk.to_string());
     ///
-    /// let reversed = nsk.to_reverse();
+    /// let reversed = nsk.to_reversed();
     /// assert!(reversed.is_backward());
     /// assert_eq!(":foo/_bar", reversed.to_string());
     /// ```
-    pub fn to_reverse(&self) -> NamespacedKeyword {
+    pub fn to_reversed(&self) -> NamespacedKeyword {
         let name = if self.is_backward() {
             self.name[1..].to_string()
         } else {
@@ -244,8 +270,8 @@ impl Display for NamespacedKeyword {
     /// ```rust
     /// # use edn::symbols::NamespacedKeyword;
     /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_string());
-    /// assert_eq!(":bar/_baz", NamespacedKeyword::new("bar", "baz").to_reverse().to_string());
-    /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reverse().to_reverse().to_string());
+    /// assert_eq!(":bar/_baz", NamespacedKeyword::new("bar", "baz").to_reversed().to_string());
+    /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reversed().to_reversed().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, ":{}/{}", self.namespace, self.name)
