@@ -15,6 +15,8 @@ extern crate itertools;
 extern crate lazy_static;
 extern crate rusqlite;
 
+extern crate tabwriter;
+
 extern crate edn;
 extern crate mentat_tx;
 extern crate mentat_tx_parser;
