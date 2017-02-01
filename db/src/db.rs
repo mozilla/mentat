@@ -806,6 +806,9 @@ mod tests {
     use super::*;
     use bootstrap;
     use debug;
+    use edn;
+    use edn::symbols;
+    use mentat_tx_parser;
     use rusqlite;
     use types::*;
 
@@ -814,46 +817,110 @@ mod tests {
         // TODO: figure out how to reference the fixtures directory for real.  For now, assume we're
         // executing `cargo test` in `db/`.
         let conn = rusqlite::Connection::open("../fixtures/v2empty.db").unwrap();
-        // assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
-
-        // TODO: write :db/txInstant, bump :db.part/tx.
-        // let partition_map = read_partition_map(&conn).unwrap();
-        // assert_eq!(partition_map, bootstrap::bootstrap_partition_map());
 
         let ident_map = read_ident_map(&conn).unwrap();
         assert_eq!(ident_map, bootstrap::bootstrap_ident_map());
 
         let schema = read_schema(&conn, &ident_map).unwrap();
-        assert_eq!(schema, bootstrap::bootstrap_schema()); // Schema::default());
+        assert_eq!(schema, bootstrap::bootstrap_schema());
 
         let db = read_db(&conn).unwrap();
 
+        // Does not include :db/txInstant.
         let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
-        assert_eq!(datoms.0.len(), 89); // The 89th is the :db/txInstant value.
+        assert_eq!(datoms.0.len(), 88);
 
-        // // TODO: fewer magic numbers!
-        // assert_eq!(debug::datoms_after(&conn, &db, &0x10000001).unwrap(), vec![]);
+        // Includes :db/txInstant.
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        assert_eq!(transactions.0.len(), 1);
+        assert_eq!(transactions.0[0].0.len(), 89);
+    }
+
+    /// Assert that a sequence of transactions meets expectations.
+    ///
+    /// The transactions, expectations, and optional labels, are given in a simple EDN format; see
+    /// https://github.com/mozilla/mentat/wiki/Transacting:-EDN-test-format.
+    ///
+    /// There is some magic here about transaction numbering that I don't want to commit to or
+    /// document just yet.  The end state might be much more general pattern matching syntax, rather
+    /// than the targeted transaction ID and timestamp replacement we have right now.
+    fn assert_transactions(conn: &rusqlite::Connection, db: &DB, transactions: &Vec<edn::Value>) {
+        for (index, transaction) in transactions.into_iter().enumerate() {
+            let index = index as i64;
+            let transaction = transaction.as_map().unwrap();
+            let label: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "label"))).unwrap().clone();
+            let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
+            // TODO: use hyphenated keywords, like :test/expected-transaction -- when the EDN parser
+            // supports them!
+            let expected_transaction: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expectedtransaction")));
+            let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expecteddatoms")));
+
+            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
+            db.transact_internal(&conn, &entities[..], bootstrap::TX0 + index + 1).unwrap();
+
+            if let Some(expected_transaction) = expected_transaction {
+                let transactions = debug::transactions_after(&conn, &db, bootstrap::TX0 + index).unwrap();
+                assert_eq!(transactions.0[0].into_edn(),
+                           *expected_transaction,
+                           "\n{} - expected transaction:\n{}\n{}", label, transactions.0[0].into_edn(), *expected_transaction);
+            }
+
+            if let Some(expected_datoms) = expected_datoms {
+                let datoms = debug::datoms_after(&conn, &db, bootstrap::TX0).unwrap();
+                assert_eq!(datoms.into_edn(),
+                           *expected_datoms,
+                           "\n{} - expected datoms:\n{}\n{}", label, datoms.into_edn(), *expected_datoms);
+            }
+
+            // Don't allow empty tests.  This will need to change if we allow transacting schema
+            // fragments in a preamble, but for now it might catch malformed tests.
+            assert_ne!((expected_transaction, expected_datoms), (None, None),
+                       "Transaction test must include at least one of :test/expectedtransaction or :test/expecteddatoms");
+        }
     }
 
     #[test]
-    fn test_create_current_version() {
-        // // assert_eq!(bootstrap_schema().unwrap(), Schema::default());
-
-        // // Ignore result.
-        // use std::fs;
-        // let _ = fs::remove_file("/Users/nalexander/Mozilla/mentat/test.db");
-        // let mut conn = rusqlite::Connection::open("file:///Users/nalexander/Mozilla/mentat/test.db").unwrap();
-
+    fn test_add() {
         let mut conn = new_connection();
-
         assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
 
         let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
-        // TODO: write materialized view of bootstrapped schema to SQL store.
-        // let db = read_db(&conn).unwrap();
-        // assert_eq!(db, bootstrap_db);
 
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
-        assert_eq!(datoms.0.len(), 89); // The 89th is the :db/txInstant value.
+        // Does not include :db/txInstant.
+        let datoms = debug::datoms_after(&conn, &bootstrap_db, 0).unwrap();
+        assert_eq!(datoms.0.len(), 88);
+
+        // Includes :db/txInstant.
+        let transactions = debug::transactions_after(&conn, &bootstrap_db, 0).unwrap();
+        assert_eq!(transactions.0.len(), 1);
+        assert_eq!(transactions.0[0].0.len(), 89);
+
+        // TODO: extract a test macro simplifying this boilerplate yet further.
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap();
+
+        let transactions = value.as_vector().unwrap();
+        assert_transactions(&conn, &bootstrap_db, transactions);
+    }
+
+    #[test]
+    fn test_retract() {
+        let mut conn = new_connection();
+        assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
+
+        let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
+
+        // Does not include :db/txInstant.
+        let datoms = debug::datoms_after(&conn, &bootstrap_db, 0).unwrap();
+        assert_eq!(datoms.0.len(), 88);
+
+        // Includes :db/txInstant.
+        let transactions = debug::transactions_after(&conn, &bootstrap_db, 0).unwrap();
+        assert_eq!(transactions.0.len(), 1);
+        assert_eq!(transactions.0[0].0.len(), 89);
+
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap();
+
+        let transactions = value.as_vector().unwrap();
+        assert_transactions(&conn, &bootstrap_db, transactions);
     }
 }

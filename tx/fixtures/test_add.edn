@@ -1,0 +1,66 @@
+[{:test/label ":db.cardinality/one, insert"
+  :test/assertions
+  [[:db/add 100 :db/ident :keyword/value1]
+   [:db/add 101 :db/ident :keyword/value2]]
+  :test/expectedtransaction
+  #{[100 :db/ident :keyword/value1 ?tx1 true]
+    [101 :db/ident :keyword/value2 ?tx1 true]
+    [?tx1 :db/txInstant ?ms1 ?tx1 true]}
+  :test/expecteddatoms
+  #{[100 :db/ident :keyword/value1]
+    [101 :db/ident :keyword/value2]}}
+
+ {:test/label ":db.cardinality/many, insert"
+  :test/assertions
+  [[:db/add 200 :db.schema/attribute 100]
+   [:db/add 200 :db.schema/attribute 101]]
+  :test/expectedtransaction
+  #{[200 :db.schema/attribute 100 ?tx2 true]
+    [200 :db.schema/attribute 101 ?tx2 true]
+    [?tx2 :db/txInstant ?ms2 ?tx2 true]}
+  :test/expecteddatoms
+  #{[100 :db/ident :keyword/value1]
+    [101 :db/ident :keyword/value2]
+    [200 :db.schema/attribute 100]
+    [200 :db.schema/attribute 101]}}
+
+ {:test/label ":db.cardinality/one, replace"
+  :test/assertions
+  [[:db/add 100 :db/ident :keyword/value11]
+   [:db/add 101 :db/ident :keyword/value22]]
+  :test/expectedtransaction
+  #{[100 :db/ident :keyword/value1 ?tx3 false]
+    [100 :db/ident :keyword/value11 ?tx3 true]
+    [101 :db/ident :keyword/value2 ?tx3 false]
+    [101 :db/ident :keyword/value22 ?tx3 true]
+    [?tx3 :db/txInstant ?ms3 ?tx3 true]}
+  :test/expecteddatoms
+  #{[100 :db/ident :keyword/value11]
+    [101 :db/ident :keyword/value22]
+    [200 :db.schema/attribute 100]
+    [200 :db.schema/attribute 101]}}
+
+ {:test/label ":db.cardinality/one, already present"
+  :test/assertions
+  [[:db/add 100 :db/ident :keyword/value11]
+   [:db/add 101 :db/ident :keyword/value22]]
+  :test/expectedtransaction
+  #{[?tx4 :db/txInstant ?ms4 ?tx4 true]}
+  :test/expecteddatoms
+  #{[100 :db/ident :keyword/value11]
+    [101 :db/ident :keyword/value22]
+    [200 :db.schema/attribute 100]
+    [200 :db.schema/attribute 101]}}
+
+ {:test/label ":db.cardinality/many, already present"
+  :test/assertions
+  [[:db/add 200 :db.schema/attribute 100]
+   [:db/add 200 :db.schema/attribute 101]]
+  :test/expectedtransaction
+  #{[?tx5 :db/txInstant ?ms5 ?tx5 true]}
+  :test/expecteddatoms
+  #{[100 :db/ident :keyword/value11]
+    [101 :db/ident :keyword/value22]
+    [200 :db.schema/attribute 100]
+    [200 :db.schema/attribute 101]}}
+ ]
