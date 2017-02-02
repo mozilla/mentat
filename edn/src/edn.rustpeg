@@ -12,6 +12,7 @@
 
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::iter::FromIterator;
+use std::f64::{NAN, INFINITY, NEG_INFINITY};
 
 use num::BigInt;
 use ordered_float::OrderedFloat;
@@ -29,6 +30,14 @@ use types::Value;
 
 pub nil -> Value =
     "nil" { Value::Nil }
+
+pub nan -> Value =
+    "#f NaN" { Value::Float(OrderedFloat(NAN)) }
+
+pub infinity -> Value =
+    "#f" s:$(sign) "Infinity" {
+        Value::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY }))
+    }
 
 pub boolean -> Value =
     "true" { Value::Boolean(true) } /
@@ -125,7 +134,7 @@ pub map -> Value =
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
 pub value -> Value =
-    __ v:(nil / boolean / float / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
+    __ v:(nil / nan / infinity / boolean / float / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
         v
     }
 

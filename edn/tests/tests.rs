@@ -14,6 +14,7 @@ extern crate ordered_float;
 
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::iter::FromIterator;
+use std::f64;
 use num::bigint::ToBigInt;
 use num::traits::{Zero, One};
 use ordered_float::OrderedFloat;
@@ -48,6 +49,21 @@ fn test_nil() {
     assert_eq!(nil("nil").unwrap(), Nil);
 
     assert!(nil("true").is_err());
+}
+
+#[test]
+fn test_nan() {
+    assert_eq!(nan("#f NaN").unwrap(), Float(OrderedFloat(f64::NAN)));
+
+    assert!(nan("true").is_err());
+}
+
+#[test]
+fn test_infinity() {
+    assert_eq!(infinity("#f-Infinity").unwrap(), Float(OrderedFloat(f64::NEG_INFINITY)));
+    assert_eq!(infinity("#f+Infinity").unwrap(), Float(OrderedFloat(f64::INFINITY)));
+
+    assert!(infinity("true").is_err());
 }
 
 #[test]
