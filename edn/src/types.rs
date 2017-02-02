@@ -216,12 +216,42 @@ fn to_ord(value: &Value) -> i32 {
 
 pub struct Pair(Value, Value);
 
+/// Converts `name` into a plain or namespaced value symbol, depending on
+/// whether or not `namespace` is given.
+///
+/// # Examples
+///
+/// ```
+/// # use edn::types::to_symbol;
+/// # use edn::types::Value;
+/// # use edn::symbols;
+/// let value = to_symbol("foo", "bar");
+/// assert_eq!(value, Value::NamespacedSymbol(symbols::NamespacedSymbol::new("foo", "bar")));
+///
+/// let value = to_symbol(None, "baz");
+/// assert_eq!(value, Value::PlainSymbol(symbols::PlainSymbol::new("baz")));
+/// ```
 pub fn to_symbol<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
     namespace.into().map_or_else(
         || Value::PlainSymbol(symbols::PlainSymbol::new(name)),
         |ns| Value::NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name)))
 }
 
+/// Converts `name` into a plain or namespaced value keyword, depending on
+/// whether or not `namespace` is given.
+///
+/// # Examples
+///
+/// ```
+/// # use edn::types::to_keyword;
+/// # use edn::types::Value;
+/// # use edn::symbols;
+/// let value = to_keyword("foo", "bar");
+/// assert_eq!(value, Value::NamespacedKeyword(symbols::NamespacedKeyword::new("foo", "bar")));
+///
+/// let value = to_keyword(None, "baz");
+/// assert_eq!(value, Value::Keyword(symbols::Keyword::new("baz")));
+/// ```
 pub fn to_keyword<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
     namespace.into().map_or_else(
         || Value::Keyword(symbols::Keyword::new(name)),
