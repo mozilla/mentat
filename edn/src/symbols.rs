@@ -169,7 +169,7 @@ impl NamespacedKeyword {
     /// ```
     #[inline]
     pub fn is_backward(&self) -> bool {
-        self.name.starts_with("_")
+        self.name.starts_with('_')
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in forward order.
