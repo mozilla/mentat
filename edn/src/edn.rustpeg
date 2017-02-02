@@ -27,28 +27,25 @@ use types::Value;
 // TODO: Support tagged elements
 // TODO: Support discard
 
-#[export]
-nil -> Value = "nil" {
-    Value::Nil
-}
+pub nil -> Value =
+    "nil" { Value::Nil }
 
-#[export]
-boolean -> Value =
+pub boolean -> Value =
     "true" { Value::Boolean(true) } /
     "false" { Value::Boolean(false) }
 
 digit = [0-9]
 sign = "-" / "+"
 
-#[export]
-bigint -> Value = b:$( sign? digit+ ) "N" {
-    Value::BigInteger(b.parse::<BigInt>().unwrap())
-}
+pub bigint -> Value =
+    b:$( sign? digit+ ) "N" {
+        Value::BigInteger(b.parse::<BigInt>().unwrap())
+    }
 
-#[export]
-integer -> Value = i:$( sign? digit+ ) {
-    Value::Integer(i.parse::<i64>().unwrap())
-}
+pub integer -> Value =
+    i:$( sign? digit+ ) {
+        Value::Integer(i.parse::<i64>().unwrap())
+    }
 
 frac =     sign? digit+ "." digit+
 exp =      sign? digit+            ("e" / "E") sign? digit+
@@ -56,10 +53,10 @@ frac_exp = sign? digit+ "." digit+ ("e" / "E") sign? digit+
 
 // The order here is important - frac_exp must come before (exp / frac) or the
 // parser assumes exp or frac when the float is really a frac_exp and fails
-#[export]
-float -> Value = f:$( frac_exp / exp / frac ) {
-    Value::Float(OrderedFloat(f.parse::<f64>().unwrap()))
-}
+pub float -> Value =
+    f:$( frac_exp / exp / frac ) {
+        Value::Float(OrderedFloat(f.parse::<f64>().unwrap()))
+    }
 
 // TODO: \newline, \return, \space and \tab
 special_char = quote / tab
@@ -67,10 +64,10 @@ quote = "\\\""
 tab = "\\tab"
 char = [^"] / special_char
 
-#[export]
-text -> Value = "\"" t:$(  char* ) "\"" {
-    Value::Text(t.to_string())
-}
+pub text -> Value =
+    "\"" t:$( char* ) "\"" {
+        Value::Text(t.to_string())
+    }
 
 namespace_divider = "."
 namespace_separator = "/"
@@ -91,56 +88,51 @@ keyword_namespace = keyword_namespace_char+ (namespace_divider keyword_namespace
 keyword_name_char = [a-z] / [A-Z] / [0-9] / "."
 keyword_name = keyword_name_char+
 
-#[export]
-symbol -> Value
-    = ns:( sns:$(symbol_namespace) namespace_separator { sns })? n:$(symbol_name) {
+pub symbol -> Value =
+    ns:( sns:$(symbol_namespace) namespace_separator { sns })? n:$(symbol_name) {
         types::to_symbol(ns, n)
     }
 
-#[export]
-keyword -> Value
-    = keyword_prefix ns:( kns:$(keyword_namespace) namespace_separator { kns })? n:$(keyword_name) {
+pub keyword -> Value =
+    keyword_prefix ns:( kns:$(keyword_namespace) namespace_separator { kns })? n:$(keyword_name) {
         types::to_keyword(ns, n)
     }
 
-#[export]
-list -> Value = "(" v:(value)* ")" {
-    Value::List(LinkedList::from_iter(v))
-}
+pub list -> Value =
+    "(" v:(value)* ")" {
+        Value::List(LinkedList::from_iter(v))
+    }
 
-#[export]
-vector -> Value = "[" v:(value)* "]" {
-    Value::Vector(v)
-}
+pub vector -> Value =
+    "[" v:(value)* "]" {
+        Value::Vector(v)
+    }
 
-#[export]
-set -> Value = "#{" v:(value)* "}" {
-    Value::Set(BTreeSet::from_iter(v))
-}
+pub set -> Value =
+    "#{" v:(value)* "}" {
+        Value::Set(BTreeSet::from_iter(v))
+    }
 
-pair -> (Value, Value) = k:(value) v:(value) {
-    (k, v)
-}
+pair -> (Value, Value) =
+    k:(value) v:(value) {
+        (k, v)
+    }
 
-#[export]
-map -> Value = "{" v:(pair)* "}" {
-    Value::Map(BTreeMap::from_iter(v))
-}
+pub map -> Value =
+    "{" v:(pair)* "}" {
+        Value::Map(BTreeMap::from_iter(v))
+    }
 
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
-#[export]
-value -> Value
-    = __ v:(nil / boolean / float / bigint / integer / text /
-      keyword / symbol /
-      list / vector / map / set) __ {
-    v
-}
+pub value -> Value =
+    __ v:(nil / boolean / float / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
+        v
+    }
 
 // Clojure (and thus EDN) regards commas as whitespace, and thus the two-element vectors [1 2] and
 // [1,,,,2] are equivalent, as are the maps {:a 1, :b 2} and {:a 1 :b 2}.
 whitespace = (" " / "\r" / "\n" / "\t" / ",")
-
 comment = ";" [^\r\n]* ("\r" / "\n")?
 
 __ = (whitespace / comment)*
