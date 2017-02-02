@@ -9,7 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 #[macro_use]
-extern crate parser_utils;
+extern crate mentat_parser_utils;
 
 mod error;
 mod util;

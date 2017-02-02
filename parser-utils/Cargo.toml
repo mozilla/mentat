@@ -1,5 +1,5 @@
 [package]
-name = "parser_utils"
+name = "mentat_parser_utils"
 version = "0.1.0"
 authors = ["Victor Porof <vporof@mozilla.com>"]
 
