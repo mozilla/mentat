@@ -46,32 +46,48 @@ pub enum Value {
 use self::Value::*;
 
 impl Display for Value {
+    // TODO: Make sure float syntax is correct, handle NaN and escaping.
+    // See https://github.com/mozilla/mentat/issues/232
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         match *self {
-            Keyword(ref v) => v.fmt(f),
-            NamespacedKeyword(ref v) => v.fmt(f),
-            PlainSymbol(ref v) => v.fmt(f),
-            NamespacedSymbol(ref v) => v.fmt(f),
-
+            Nil => write!(f, "null"),
+            Boolean(v) => write!(f, "{}", v),
             Integer(v) => write!(f, "{}", v),
             BigInteger(ref v) => write!(f, "{}N", v),
-            Float(OrderedFloat(v)) => write!(f, "{}", v),       // TODO: make sure float syntax is correct.
-                                                                // TODO: NaN.
-            Text(ref v) => write!(f, "{}", v),                  // TODO: EDN escaping.
+            Float(OrderedFloat(v)) => write!(f, "{}", v),
+            Text(ref v) => write!(f, "{}", v),
+            PlainSymbol(ref v) => v.fmt(f),
+            NamespacedSymbol(ref v) => v.fmt(f),
+            Keyword(ref v) => v.fmt(f),
+            NamespacedKeyword(ref v) => v.fmt(f),
             Vector(ref v) => {
-                try!(write!(f, "["));
+                write!(f, "[")?;
                 for x in v {
-                    try!(write!(f, " {}", x));
+                    write!(f, " {}", x)?;
                 }
                 write!(f, " ]")
             }
-            _ =>
-                write!(f, "{}",
-                       match *self {
-                           Nil => "null",
-                           Boolean(b) => if b { "true" } else { "false" },
-                           _ => unimplemented!(),
-                       }),
+            List(ref v) => {
+                write!(f, "(")?;
+                for x in v {
+                    write!(f, " {}", x)?;
+                }
+                write!(f, " )")
+            }
+            Set(ref v) => {
+                write!(f, "#{{")?;
+                for x in v {
+                    write!(f, " {}", x)?;
+                }
+                write!(f, " }}")
+            }
+            Map(ref v) => {
+                write!(f, "{{")?;
+                for (key, val) in v {
+                    write!(f, " :{} {}", key, val)?;
+                }
+                write!(f, " }}")
+            }
         }
     }
 }
@@ -264,16 +280,29 @@ mod test {
 
     #[test]
     fn test_print_edn() {
-        assert_eq!("[ 1 2 [ 3.14 ] [ ] :five :six/seven eight nine/ten true ]",
-            Value::Vector(vec!(Value::Integer(1),
-            Value::Integer(2),
-            Value::Vector(vec!(Value::Float(OrderedFloat(3.14)))),
-            Value::Vector(vec!()),
-            Value::Keyword(symbols::Keyword::new("five")),
-            Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
-            Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
-            Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
-            Value::Boolean(true))).to_string());
+        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false null ]",
+            Value::Vector(vec![
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::List(LinkedList::from_iter(vec![
+                    Value::Float(OrderedFloat(3.14))
+                ])),
+                Value::Set(BTreeSet::from_iter(vec![
+                    Value::from_bigint("4").unwrap()
+                ])),
+                Value::Map(BTreeMap::from_iter(vec![
+                    (Value::from_symbol("foo", "bar"), Value::Integer(42))
+                ])),
+                Value::Vector(vec![]),
+                Value::Keyword(symbols::Keyword::new("five")),
+                Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
+                Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
+                Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
+                Value::Boolean(true),
+                Value::Boolean(false),
+                Value::Nil
+            ]
+        ).to_string());
     }
 
     #[test]
