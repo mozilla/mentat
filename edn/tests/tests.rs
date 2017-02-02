@@ -105,17 +105,36 @@ fn test_text() {
 fn test_symbol() {
     assert_eq!(symbol("$").unwrap(), s_plain("$"));
     assert_eq!(symbol(".").unwrap(), s_plain("."));
-    //assert_eq!(symbol("r_r").unwrap(), s_plain("r_r"));
-    //assert_eq!(symbol("$symbol").unwrap(), s_plain("$symbol"));
-    //assert_eq!(symbol("hello").unwrap(), s_plain("hello"));
+
+    assert_eq!(symbol("hello/world").unwrap(), s_ns("hello", "world"));
+    assert_eq!(symbol("foo-bar/baz-boz").unwrap(), s_ns("foo-bar", "baz-boz"));
+
+    assert_eq!(symbol("foo-bar/baz_boz").unwrap(), s_ns("foo-bar", "baz_boz"));
+    assert_eq!(symbol("foo_bar/baz-boz").unwrap(), s_ns("foo_bar", "baz-boz"));
+    assert_eq!(symbol("foo_bar/baz_boz").unwrap(), s_ns("foo_bar", "baz_boz"));
+
+    assert_eq!(symbol("symbol").unwrap(), s_plain("symbol"));
+    assert_eq!(symbol("hello").unwrap(), s_plain("hello"));
+    assert_eq!(symbol("foo-bar").unwrap(), s_plain("foo-bar"));
+    assert_eq!(symbol("foo_bar").unwrap(), s_plain("foo_bar"));
 }
 
 #[test]
 fn test_keyword() {
     assert_eq!(keyword(":hello/world").unwrap(), k_ns("hello", "world"));
+    assert_eq!(keyword(":foo-bar/baz-boz").unwrap(), k_ns("foo-bar", "baz-boz"));
+
+    assert_eq!(keyword(":foo-bar/baz_boz").unwrap(), k_ns("foo-bar", "baz_boz"));
+    assert_eq!(keyword(":foo_bar/baz-boz").unwrap(), k_ns("foo_bar", "baz-boz"));
+    assert_eq!(keyword(":foo_bar/baz_boz").unwrap(), k_ns("foo_bar", "baz_boz"));
 
     assert_eq!(keyword(":symbol").unwrap(), k_plain("symbol"));
     assert_eq!(keyword(":hello").unwrap(), k_plain("hello"));
+    assert_eq!(keyword(":foo-bar").unwrap(), k_plain("foo-bar"));
+    assert_eq!(keyword(":foo_bar").unwrap(), k_plain("foo_bar"));
+
+    assert!(keyword(":").is_err());
+    assert!(keyword(":foo/").is_err());
 }
 
 #[test]
