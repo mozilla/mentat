@@ -8,14 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(unused_imports)]
-
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt::{Display, Formatter};
 
 use symbols;
-use num::bigint::{BigInt, ToBigInt, ParseBigIntError};
+use num::BigInt;
 use ordered_float::OrderedFloat;
 
 /// Value represents one of the allowed values in an EDN string.
@@ -76,26 +74,6 @@ impl Display for Value {
                        }),
         }
     }
-}
-
-#[test]
-fn test_value_from() {
-    assert_eq!(Value::from(42f64), Value::Float(OrderedFloat::from(42f64)));
-    assert_eq!(Value::from_bigint("42").unwrap(), Value::BigInteger(42.to_bigint().unwrap()));
-}
-
-#[test]
-fn test_print_edn() {
-    assert_eq!("[ 1 2 [ 3.1 ] [ ] :five :six/seven eight nine/ten true ]",
-               Value::Vector(vec!(Value::Integer(1),
-               Value::Integer(2),
-               Value::Vector(vec!(Value::Float(OrderedFloat(3.1)))),
-               Value::Vector(vec!()),
-               Value::Keyword(symbols::Keyword::new("five")),
-               Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
-               Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
-               Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
-               Value::Boolean(true))).to_string());
 }
 
 /// Creates `is_$TYPE` helper functions for Value, like
@@ -257,4 +235,40 @@ pub fn to_keyword<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Val
     namespace.into().map_or_else(
         || Value::Keyword(symbols::Keyword::new(name)),
         |ns| Value::NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name)))
+}
+
+#[cfg(test)]
+mod test {
+    extern crate ordered_float;
+    extern crate num;
+
+    use super::*;
+
+    use std::collections::{BTreeSet, BTreeMap, LinkedList};
+    use std::cmp::{Ordering};
+
+    use symbols;
+    use num::BigInt;
+    use ordered_float::OrderedFloat;
+    use std::iter::FromIterator;
+
+    #[test]
+    fn test_value_from() {
+        assert_eq!(Value::from(42f64), Value::Float(OrderedFloat::from(42f64)));
+        assert_eq!(Value::from_bigint("42").unwrap(), Value::BigInteger(BigInt::from(42)));
+    }
+
+    #[test]
+    fn test_print_edn() {
+        assert_eq!("[ 1 2 [ 3.14 ] [ ] :five :six/seven eight nine/ten true ]",
+            Value::Vector(vec!(Value::Integer(1),
+            Value::Integer(2),
+            Value::Vector(vec!(Value::Float(OrderedFloat(3.14)))),
+            Value::Vector(vec!()),
+            Value::Keyword(symbols::Keyword::new("five")),
+            Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
+            Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
+            Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
+            Value::Boolean(true))).to_string());
+    }
 }
