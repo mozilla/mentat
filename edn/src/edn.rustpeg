@@ -73,28 +73,27 @@ namespace_divider = "."
 namespace_separator = "/"
 
 // TODO: Be more picky here
+// Keywords follow the rules of symbols, except they can (and must) begin with :
+// e.g. :fred or :my/fred. See https://github.com/edn-format/edn#keywords
 symbol_char_initial = [a-z] / [A-Z] / [0-9] / [*!_?$%&=<>]
 symbol_char_subsequent = [a-z] / [A-Z] / [0-9] / [-*!_?$%&=<>]
 
-symbol_namespace = symbol_char_initial+ (namespace_divider symbol_char_subsequent+)*
+symbol_namespace = symbol_char_initial symbol_char_subsequent* (namespace_divider symbol_char_subsequent+)*
 symbol_name = ( symbol_char_initial+ / "." ) ( symbol_char_subsequent* / "." )
 
 keyword_prefix = ":"
 
-// TODO: More chars here?
-keyword_namespace_char = [a-z] / [A-Z] / [0-9]
-keyword_namespace = keyword_namespace_char+ (namespace_divider keyword_namespace_char+)*
-
-keyword_name_char = [a-z] / [A-Z] / [0-9] / "."
-keyword_name = keyword_name_char+
-
 pub symbol -> Value =
-    ns:( sns:$(symbol_namespace) namespace_separator { sns })? n:$(symbol_name) {
+    ns:( sns:$(symbol_namespace) namespace_separator {
+        sns
+    })? n:$(symbol_name) {
         types::to_symbol(ns, n)
     }
 
 pub keyword -> Value =
-    keyword_prefix ns:( kns:$(keyword_namespace) namespace_separator { kns })? n:$(keyword_name) {
+    keyword_prefix ns:( sns:$(symbol_namespace) namespace_separator {
+        sns
+    })? n:$(symbol_name) {
         types::to_keyword(ns, n)
     }
 
