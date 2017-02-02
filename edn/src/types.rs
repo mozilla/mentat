@@ -214,8 +214,6 @@ fn to_ord(value: &Value) -> i32 {
     }
 }
 
-pub struct Pair(Value, Value);
-
 /// Converts `name` into a plain or namespaced value symbol, depending on
 /// whether or not `namespace` is given.
 ///
