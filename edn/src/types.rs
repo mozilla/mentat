@@ -8,14 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(unused_imports)]
-
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt::{Display, Formatter};
 
 use symbols;
-use num::bigint::{BigInt, ToBigInt, ParseBigIntError};
+use num::BigInt;
 use ordered_float::OrderedFloat;
 
 /// Value represents one of the allowed values in an EDN string.
@@ -33,6 +31,9 @@ pub enum Value {
     Keyword(symbols::Keyword),
     NamespacedKeyword(symbols::NamespacedKeyword),
     Vector(Vec<Value>),
+    // We're using a LinkedList here instead of a Vec or VecDeque because the
+    // LinkedList is faster for appending (which we do a lot of).
+    // See https://github.com/mozilla/mentat/issues/231
     List(LinkedList<Value>),
     // We're using BTree{Set, Map} rather than Hash{Set, Map} because the BTree variants
     // implement Hash. The Hash variants don't in order to preserve O(n) hashing
@@ -45,54 +46,50 @@ pub enum Value {
 use self::Value::*;
 
 impl Display for Value {
+    // TODO: Make sure float syntax is correct, handle NaN and escaping.
+    // See https://github.com/mozilla/mentat/issues/232
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         match *self {
-            Keyword(ref v) => v.fmt(f),
-            NamespacedKeyword(ref v) => v.fmt(f),
-            PlainSymbol(ref v) => v.fmt(f),
-            NamespacedSymbol(ref v) => v.fmt(f),
-
+            Nil => write!(f, "null"),
+            Boolean(v) => write!(f, "{}", v),
             Integer(v) => write!(f, "{}", v),
             BigInteger(ref v) => write!(f, "{}N", v),
-            Float(OrderedFloat(v)) => write!(f, "{}", v),       // TODO: make sure float syntax is correct.
-                                                                // TODO: NaN.
-            Text(ref v) => write!(f, "{}", v),                  // TODO: EDN escaping.
+            Float(OrderedFloat(v)) => write!(f, "{}", v),
+            Text(ref v) => write!(f, "{}", v),
+            PlainSymbol(ref v) => v.fmt(f),
+            NamespacedSymbol(ref v) => v.fmt(f),
+            Keyword(ref v) => v.fmt(f),
+            NamespacedKeyword(ref v) => v.fmt(f),
             Vector(ref v) => {
-                try!(write!(f, "["));
+                write!(f, "[")?;
                 for x in v {
-                    try!(write!(f, " {}", x));
+                    write!(f, " {}", x)?;
                 }
                 write!(f, " ]")
             }
-            _ =>
-                write!(f, "{}",
-                       match *self {
-                           Nil => "null",
-                           Boolean(b) => if b { "true" } else { "false" },
-                           _ => unimplemented!(),
-                       }),
+            List(ref v) => {
+                write!(f, "(")?;
+                for x in v {
+                    write!(f, " {}", x)?;
+                }
+                write!(f, " )")
+            }
+            Set(ref v) => {
+                write!(f, "#{{")?;
+                for x in v {
+                    write!(f, " {}", x)?;
+                }
+                write!(f, " }}")
+            }
+            Map(ref v) => {
+                write!(f, "{{")?;
+                for (key, val) in v {
+                    write!(f, " :{} {}", key, val)?;
+                }
+                write!(f, " }}")
+            }
         }
     }
-}
-
-#[test]
-fn test_value_from() {
-    assert_eq!(Value::from(42f64), Value::Float(OrderedFloat::from(42f64)));
-    assert_eq!(Value::from_bigint("42").unwrap(), Value::BigInteger(42.to_bigint().unwrap()));
-}
-
-#[test]
-fn test_print_edn() {
-    assert_eq!("[ 1 2 [ 3.1 ] [ ] :five :six/seven eight nine/ten true ]",
-               Value::Vector(vec!(Value::Integer(1),
-               Value::Integer(2),
-               Value::Vector(vec!(Value::Float(OrderedFloat(3.1)))),
-               Value::Vector(vec!()),
-               Value::Keyword(symbols::Keyword::new("five")),
-               Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
-               Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
-               Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
-               Value::Boolean(true))).to_string());
 }
 
 /// Creates `is_$TYPE` helper functions for Value, like
@@ -155,6 +152,14 @@ impl Value {
     pub fn from_bigint(src: &str) -> Option<Value> {
         src.parse::<BigInt>().map(Value::BigInteger).ok()
     }
+
+    pub fn from_symbol<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
+        to_symbol(namespace, name)
+    }
+
+    pub fn from_keyword<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
+        to_keyword(namespace, name)
+    }
 }
 
 impl From<f64> for Value {
@@ -169,28 +174,24 @@ impl PartialOrd for Value {
     }
 }
 
-// TODO: Check we follow the equality rules at the bottom of https://github.com/edn-format/edn
 impl Ord for Value {
     fn cmp(&self, other: &Value) -> Ordering {
-
-        let ord_order = to_ord(self).cmp(&to_ord(other));
-        match *self {
-            Nil             => match *other { Nil             => Ordering::Equal, _ => ord_order },
-            Boolean(bs)     => match *other { Boolean(bo)     => bo.cmp(&bs), _ => ord_order },
-            BigInteger(ref bs) => match *other { BigInteger(ref bo) => bo.cmp(&bs), _ => ord_order },
-            Integer(is)     => match *other { Integer(io)     => io.cmp(&is), _ => ord_order },
-            Float(ref fs)   => match *other { Float(ref fo)   => fo.cmp(&fs), _ => ord_order },
-            Text(ref ts)    => match *other { Text(ref to)    => to.cmp(&ts), _ => ord_order },
-            PlainSymbol(ref ss)  => match *other { PlainSymbol(ref so)  => so.cmp(&ss), _ => ord_order },
-            NamespacedSymbol(ref ss)
-                => match *other { NamespacedSymbol(ref so)    => so.cmp(&ss), _ => ord_order },
-            Keyword(ref ks) => match *other { Keyword(ref ko) => ko.cmp(&ks), _ => ord_order },
-            NamespacedKeyword(ref ks)
-                => match *other { NamespacedKeyword(ref ko)   => ko.cmp(&ks), _ => ord_order },
-            Vector(ref vs)  => match *other { Vector(ref vo)  => vo.cmp(&vs), _ => ord_order },
-            List(ref ls)    => match *other { List(ref lo)    => lo.cmp(&ls), _ => ord_order },
-            Set(ref ss)     => match *other { Set(ref so)     => so.cmp(&ss), _ => ord_order },
-            Map(ref ms)     => match *other { Map(ref mo)     => mo.cmp(&ms), _ => ord_order },
+        match (self, other) {
+            (&Nil, &Nil) => Ordering::Equal,
+            (&Boolean(a), &Boolean(b)) => b.cmp(&a),
+            (&Integer(a), &Integer(b)) => b.cmp(&a),
+            (&BigInteger(ref a), &BigInteger(ref b)) => b.cmp(a),
+            (&Float(ref a), &Float(ref b)) => b.cmp(a),
+            (&Text(ref a), &Text(ref b)) => b.cmp(a),
+            (&PlainSymbol(ref a), &PlainSymbol(ref b)) => b.cmp(a),
+            (&NamespacedSymbol(ref a), &NamespacedSymbol(ref b)) => b.cmp(a),
+            (&Keyword(ref a), &Keyword(ref b)) => b.cmp(a),
+            (&NamespacedKeyword(ref a), &NamespacedKeyword(ref b)) => b.cmp(a),
+            (&Vector(ref a), &Vector(ref b)) => b.cmp(a),
+            (&List(ref a), &List(ref b)) => b.cmp(a),
+            (&Set(ref a), &Set(ref b)) => b.cmp(a),
+            (&Map(ref a), &Map(ref b)) => b.cmp(a),
+            _ => to_ord(self).cmp(&to_ord(other))
         }
     }
 }
@@ -213,8 +214,6 @@ fn to_ord(value: &Value) -> i32 {
         Map(_) => 13,
     }
 }
-
-pub struct Pair(Value, Value);
 
 /// Converts `name` into a plain or namespaced value symbol, depending on
 /// whether or not `namespace` is given.
@@ -256,4 +255,72 @@ pub fn to_keyword<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Val
     namespace.into().map_or_else(
         || Value::Keyword(symbols::Keyword::new(name)),
         |ns| Value::NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name)))
+}
+
+#[cfg(test)]
+mod test {
+    extern crate ordered_float;
+    extern crate num;
+
+    use super::*;
+
+    use std::collections::{BTreeSet, BTreeMap, LinkedList};
+    use std::cmp::{Ordering};
+
+    use symbols;
+    use num::BigInt;
+    use ordered_float::OrderedFloat;
+    use std::iter::FromIterator;
+
+    #[test]
+    fn test_value_from() {
+        assert_eq!(Value::from(42f64), Value::Float(OrderedFloat::from(42f64)));
+        assert_eq!(Value::from_bigint("42").unwrap(), Value::BigInteger(BigInt::from(42)));
+    }
+
+    #[test]
+    fn test_print_edn() {
+        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false null ]",
+            Value::Vector(vec![
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::List(LinkedList::from_iter(vec![
+                    Value::Float(OrderedFloat(3.14))
+                ])),
+                Value::Set(BTreeSet::from_iter(vec![
+                    Value::from_bigint("4").unwrap()
+                ])),
+                Value::Map(BTreeMap::from_iter(vec![
+                    (Value::from_symbol("foo", "bar"), Value::Integer(42))
+                ])),
+                Value::Vector(vec![]),
+                Value::Keyword(symbols::Keyword::new("five")),
+                Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
+                Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
+                Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
+                Value::Boolean(true),
+                Value::Boolean(false),
+                Value::Nil
+            ]
+        ).to_string());
+    }
+
+    #[test]
+    fn test_ord() {
+        // TODO: Check we follow the equality rules at the bottom of https://github.com/edn-format/edn
+        assert_eq!(Value::Nil.cmp(&Value::Nil), Ordering::Equal);
+        assert_eq!(Value::Boolean(false).cmp(&Value::Boolean(true)), Ordering::Greater);
+        assert_eq!(Value::Integer(1).cmp(&Value::Integer(2)), Ordering::Greater);
+        assert_eq!(Value::from_bigint("1").cmp(&Value::from_bigint("2")), Ordering::Greater);
+        assert_eq!(Value::from(1f64).cmp(&Value::from(2f64)), Ordering::Greater);
+        assert_eq!(Value::Text("1".to_string()).cmp(&Value::Text("2".to_string())), Ordering::Greater);
+        assert_eq!(Value::from_symbol("a", "b").cmp(&Value::from_symbol("c", "d")), Ordering::Greater);
+        assert_eq!(Value::from_symbol(None, "a").cmp(&Value::from_symbol(None, "b")), Ordering::Greater);
+        assert_eq!(Value::from_keyword(":a", ":b").cmp(&Value::from_keyword(":c", ":d")), Ordering::Greater);
+        assert_eq!(Value::from_keyword(None, ":a").cmp(&Value::from_keyword(None, ":b")), Ordering::Greater);
+        assert_eq!(Value::Vector(vec![]).cmp(&Value::Vector(vec![])), Ordering::Equal);
+        assert_eq!(Value::List(LinkedList::new()).cmp(&Value::List(LinkedList::new())), Ordering::Equal);
+        assert_eq!(Value::Set(BTreeSet::new()).cmp(&Value::Set(BTreeSet::new())), Ordering::Equal);
+        assert_eq!(Value::Map(BTreeMap::new()).cmp(&Value::Map(BTreeMap::new())), Ordering::Equal);
+    }
 }
