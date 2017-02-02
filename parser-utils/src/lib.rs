@@ -13,11 +13,11 @@ extern crate combine;
 use combine::ParseResult;
 use combine::combinator::{Expected, FnParser};
 
-// A type definition for a function parser that either parses an `O` from an input stream of type
-// `I`, or fails with an "expected" failure.
-// See <https://docs.rs/combine/2.2.1/combine/trait.Parser.html#method.expected> for more
-// illumination.
-// Nothing about this is specific to the result type of the parser.
+/// A type definition for a function parser that either parses an `O` from an input stream of type
+/// `I`, or fails with an "expected" failure.
+/// See <https://docs.rs/combine/2.2.1/combine/trait.Parser.html#method.expected> for more
+/// illumination.
+/// Nothing about this is specific to the result type of the parser.
 pub type ResultParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
 
 /// `assert_parses_to!` simplifies some of the boilerplate around running a
