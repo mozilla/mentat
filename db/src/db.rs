@@ -804,9 +804,9 @@ impl DB {
             match *entity {
                 Entity::AddOrRetract {
                     op: OpType::Add,
-                    e: entmod::EntidOrLookupRef::Entid(ref e_),
+                    e: entmod::EntidOrLookupRefOrTempId::Entid(ref e_),
                     a: ref a_,
-                    v: entmod::ValueOrLookupRef::Value(ref v_)} => {
+                    v: ref v_ } => {
 
                     let e: i64 = match e_ {
                         &entmod::Entid::Entid(ref e__) => *e__,
@@ -839,9 +839,9 @@ impl DB {
 
                 Entity::AddOrRetract {
                     op: OpType::Retract,
-                    e: entmod::EntidOrLookupRef::Entid(ref e_),
+                    e: entmod::EntidOrLookupRefOrTempId::Entid(ref e_),
                     a: ref a_,
-                    v: entmod::ValueOrLookupRef::Value(ref v_) } => {
+                    v: ref v_ } => {
 
                     let e: i64 = match e_ {
                         &entmod::Entid::Entid(ref e__) => *e__,

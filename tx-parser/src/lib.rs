@@ -21,7 +21,7 @@ use combine::{any, eof, many, parser, satisfy_map, token, Parser, ParseResult, S
 use combine::combinator::{Expected, FnParser};
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
-use mentat_tx::entities::{Entid, EntidOrLookupRef, Entity, LookupRef, OpType, ValueOrLookupRef};
+use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, LookupRef, OpType};
 use mentat_parser_utils::ResultParser;
 
 pub struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
@@ -64,12 +64,17 @@ def_parser_fn!(Tx, lookup_ref, Value, LookupRef, input, {
         .parse_stream(input)
 });
 
-def_parser_fn!(Tx, entid_or_lookup_ref, Value, EntidOrLookupRef, input, {
-    Tx::<I>::entid()
-        .map(|x| EntidOrLookupRef::Entid(x))
-        .or(Tx::<I>::lookup_ref().map(|x| EntidOrLookupRef::LookupRef(x)))
+def_parser_fn!(Tx, entid_or_lookup_ref_or_temp_id, Value, EntidOrLookupRefOrTempId, input, {
+    Tx::<I>::entid().map(|x| EntidOrLookupRefOrTempId::Entid(x))
+        .or(Tx::<I>::lookup_ref().map(|x| EntidOrLookupRefOrTempId::LookupRef(x)))
+        .or(Tx::<I>::temp_id().map(|x| EntidOrLookupRefOrTempId::TempId(x)))
         .parse_lazy(input)
         .into()
+});
+
+def_parser_fn!(Tx, temp_id, Value, String, input, {
+    satisfy_map(|x: Value| x.into_text())
+        .parse_stream(input)
 });
 
 // TODO: abstract the "match Vector, parse internal stream" pattern to remove this boilerplate.
@@ -77,7 +82,7 @@ def_parser_fn!(Tx, add, Value, Entity, input, {
     satisfy_map(|x: Value| -> Option<Entity> {
             if let Value::Vector(y) = x {
                 let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "add"))),
-                             Tx::<&[Value]>::entid_or_lookup_ref(),
+                             Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
                              Tx::<&[Value]>::entid(),
                              // TODO: handle lookup-ref.
                              any(),
@@ -87,7 +92,7 @@ def_parser_fn!(Tx, add, Value, Entity, input, {
                             op: OpType::Add,
                             e: e,
                             a: a,
-                            v: ValueOrLookupRef::Value(v),
+                            v: v,
                         }
                     });
                 // TODO: use ok() with a type annotation rather than explicit match.
@@ -106,7 +111,7 @@ def_parser_fn!(Tx, retract, Value, Entity, input, {
     satisfy_map(|x: Value| -> Option<Entity> {
             if let Value::Vector(y) = x {
                 let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "retract"))),
-                             Tx::<&[Value]>::entid_or_lookup_ref(),
+                             Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
                              Tx::<&[Value]>::entid(),
                              // TODO: handle lookup-ref.
                              any(),
@@ -116,7 +121,7 @@ def_parser_fn!(Tx, retract, Value, Entity, input, {
                             op: OpType::Retract,
                             e: e,
                             a: a,
-                            v: ValueOrLookupRef::Value(v),
+                            v: v,
                         }
                     });
                 // TODO: use ok() with a type annotation rather than explicit match.
@@ -170,6 +175,7 @@ mod tests {
     use combine::Parser;
     use edn::symbols::NamespacedKeyword;
     use edn::types::Value;
+    use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, LookupRef, OpType};
 
     fn kw(namespace: &str, name: &str) -> Value {
         Value::NamespacedKeyword(NamespacedKeyword::new(namespace, name))
@@ -186,10 +192,10 @@ mod tests {
         assert_eq!(result,
                    Ok((Entity::AddOrRetract {
                        op: OpType::Add,
-                       e: EntidOrLookupRef::Entid(Entid::Ident(NamespacedKeyword::new("test",
-                                                                                      "entid"))),
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Ident(NamespacedKeyword::new("test",
+                                                                                              "entid"))),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
+                       v: Value::Text("v".into()),
                    },
                        &[][..])));
     }
@@ -205,9 +211,9 @@ mod tests {
         assert_eq!(result,
                    Ok((Entity::AddOrRetract {
                        op: OpType::Retract,
-                       e: EntidOrLookupRef::Entid(Entid::Entid(101)),
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
+                       v: Value::Text("v".into()),
                    },
                        &[][..])));
     }
@@ -224,12 +230,12 @@ mod tests {
         assert_eq!(result,
                    Ok((Entity::AddOrRetract {
                        op: OpType::Add,
-                       e: EntidOrLookupRef::LookupRef(LookupRef {
+                       e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
                            a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
                            v: Value::Text("v1".into()),
                        }),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
+                       v: Value::Text("v".into()),
                    },
                        &[][..])));
     }
