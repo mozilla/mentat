@@ -25,22 +25,22 @@ use edn::utils;
 
 // Helper for making wrapped keywords with a namespace.
 fn k_ns(ns: &str, name: &str) -> Value {
-    return NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name));
+    NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name))
 }
 
 // Helper for making wrapped keywords without a namespace.
 fn k_plain(name: &str) -> Value {
-    return Keyword(symbols::Keyword::new(name));
+    Keyword(symbols::Keyword::new(name))
 }
 
 // Helper for making wrapped symbols with a namespace
 fn s_ns(ns: &str, name: &str) -> Value {
-    return NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name));
+    NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name))
 }
 
 // Helper for making wrapped symbols without a namespace
 fn s_plain(name: &str) -> Value {
-    return PlainSymbol(symbols::PlainSymbol::new(name));
+    PlainSymbol(symbols::PlainSymbol::new(name))
 }
 
 #[test]
@@ -374,10 +374,10 @@ fn test_map() {
     assert!(map("#{1 #{2 nil} \"hi\"").is_err());
 }
 
-/// The test_query_* functions contain the queries taken from the old Clojure implementation of Mentat.
+/// The `test_query_*` functions contain the queries taken from the old Clojure implementation of Mentat.
 /// 2 changes have been applied, which should be checked and maybe fixed
 /// TODO: Decide if these queries should be placed in a vector wrapper. Is that implied?
-/// Secondly, see note in test_query_starred_pages on the use of '
+/// Secondly, see note in `test_query_starred_pages` on the use of '
 #[test]
 fn test_query_active_sessions() {
     let test = "[
@@ -926,9 +926,7 @@ fn test_is_and_as_type_helper_functions() {
         ])),
     ];
 
-    for i in 0..values.len() {
-        let value = &values[i];
-
+    for (i, value) in values.iter().enumerate() {
         let is_result = [
             value.is_nil(),
             value.is_boolean(),
@@ -946,12 +944,17 @@ fn test_is_and_as_type_helper_functions() {
             value.is_map(),
         ];
 
-        for j in 0..values.len() {
-            assert_eq!(j == i, is_result[j]);
+        assert_eq!(values.len(), is_result.len());
+
+        for (j, result) in is_result.iter().enumerate() {
+            assert_eq!(j == i, *result);
         }
 
-        if i == 0 { assert_eq!(value.as_nil().unwrap(), ()) }
-        else { assert!(!value.as_nil().is_some()) }
+        if i == 0 {
+            assert_eq!(value.as_nil().unwrap(), ())
+        } else {
+            assert!(!value.as_nil().is_some())
+        }
 
         def_test_as_type!(value, as_boolean, i == 1, false);
         def_test_as_type!(value, as_integer, i == 2, 1i64);
