@@ -18,9 +18,8 @@ use itertools;
 use itertools::Itertools;
 use rusqlite;
 use rusqlite::types::{ToSql, ToSqlOutput};
-use time;
 
-use ::{repeat_values, to_namespaced_keyword};
+use ::{now, repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use entids;
@@ -36,14 +35,15 @@ use mentat_core::{
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use errors::{ErrorKind, Result, ResultExt};
+use schema::SchemaBuilding;
 use types::{
     AVMap,
     AVPair,
     DB,
     Partition,
     PartitionMap,
+    TxReport,
 };
-use schema::SchemaBuilding;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -187,7 +187,7 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 }
 
 // TODO: rename "SQL" functions to align with "datoms" functions.
-pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
+pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     let tx = conn.transaction()?;
 
     for statement in (&V2_STATEMENTS).iter() {
@@ -204,14 +204,13 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     }
 
     let bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
-    bootstrap_db.transact_internal(&tx, &bootstrap::bootstrap_entities()[..], bootstrap::TX0)?;
+    bootstrap_db.transact_internal(&tx, &bootstrap::bootstrap_entities()[..], bootstrap::TX0, now())?;
 
     set_user_version(&tx, CURRENT_VERSION)?;
-    let user_version = get_user_version(&tx)?;
 
     // TODO: use the drop semantics to do this automagically?
     tx.commit()?;
-    Ok(user_version)
+    Ok(bootstrap_db)
 }
 
 // (def v2-statements v1-statements)
@@ -312,12 +311,12 @@ pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32
     Ok(user_version)
 }
 
-pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
+pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     let user_version = get_user_version(&conn)?;
     match user_version {
-        CURRENT_VERSION => Ok(user_version),
         0 => create_current_version(conn),
-        v => update_from_version(conn, v),
+        // TODO: support updating or re-opening an existing store.
+        v => bail!(ErrorKind::NotYetImplemented(format!("Opening databases with Mentat version: {}", v))),
     }
 }
 
@@ -782,7 +781,7 @@ impl DB {
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
-    pub fn transact_internal(&self, conn: &rusqlite::Connection, entities: &[Entity], tx: Entid) -> Result<()>{
+    pub fn transact_internal(&self, conn: &rusqlite::Connection, entities: &[Entity], tx_id: Entid, tx_instant: i64) -> Result<TxReport> {
         // TODO: push these into an internal transaction report?
 
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
@@ -793,9 +792,7 @@ impl DB {
 
         // Transact [:db/add :db/txInstant NOW :db/tx].
         // TODO: allow this to be present in the transaction data.
-        let now = time::get_time();
-        let tx_instant = (now.sec as i64 * 1_000) + (now.nsec as i64 / (1_000_000));
-        non_fts_one.push((tx,
+        non_fts_one.push((tx_id,
                           entids::DB_TX_INSTANT,
                           TypedValue::Long(tx_instant),
                           true));
@@ -886,27 +883,31 @@ impl DB {
         self.create_temp_tables(conn)?;
 
         if !non_fts_one.is_empty() {
-            self.insert_non_fts_searches(conn, &non_fts_one[..], tx, SearchType::Inexact)?;
+            self.insert_non_fts_searches(conn, &non_fts_one[..], tx_id, SearchType::Inexact)?;
         }
 
         if !non_fts_many.is_empty() {
-            self.insert_non_fts_searches(conn, &non_fts_many[..], tx, SearchType::Exact)?;
+            self.insert_non_fts_searches(conn, &non_fts_many[..], tx_id, SearchType::Exact)?;
         }
 
         self.search(conn)?;
 
-        self.insert_transaction(conn, tx)?;
-        self.update_datoms(conn, tx)?;
+        self.insert_transaction(conn, tx_id)?;
+        self.update_datoms(conn, tx_id)?;
 
         // TODO: update parts, idents, schema materialized views.
 
-        Ok(())
+        Ok(TxReport {
+            tx_id: tx_id,
+            tx_instant: tx_instant,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use {now};
     use bootstrap;
     use debug;
     use edn;
@@ -947,7 +948,7 @@ mod tests {
     /// There is some magic here about transaction numbering that I don't want to commit to or
     /// document just yet.  The end state might be much more general pattern matching syntax, rather
     /// than the targeted transaction ID and timestamp replacement we have right now.
-    fn assert_transactions(conn: &rusqlite::Connection, db: &DB, transactions: &Vec<edn::Value>) {
+    fn assert_transactions(conn: &rusqlite::Connection, db: &mut DB, transactions: &Vec<edn::Value>) {
         for (index, transaction) in transactions.into_iter().enumerate() {
             let index = index as i64;
             let transaction = transaction.as_map().unwrap();
@@ -957,10 +958,12 @@ mod tests {
             let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-datoms")));
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
-            db.transact_internal(&conn, &entities[..], bootstrap::TX0 + index + 1).unwrap();
+            let _report = db.transact_internal(&conn, &entities[..], bootstrap::TX0 + index + 1, now()).unwrap();
+
 
             if let Some(expected_transaction) = expected_transaction {
                 let transactions = debug::transactions_after(&conn, &db, bootstrap::TX0 + index).unwrap();
+                assert_eq!(transactions.0.len(), 1);
                 assert_eq!(transactions.0[0].into_edn(),
                            *expected_transaction,
                            "\n{} - expected transaction:\n{}\n{}", label, transactions.0[0].into_edn(), *expected_transaction);
@@ -983,16 +986,14 @@ mod tests {
     #[test]
     fn test_add() {
         let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
-
-        let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
+        let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &bootstrap_db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &bootstrap_db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
@@ -1000,28 +1001,26 @@ mod tests {
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &bootstrap_db, transactions);
+        assert_transactions(&conn, &mut db, transactions);
     }
 
     #[test]
     fn test_retract() {
         let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
-
-        let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
+        let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &bootstrap_db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &bootstrap_db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &bootstrap_db, transactions);
+        assert_transactions(&conn, &mut db, transactions);
     }
 }

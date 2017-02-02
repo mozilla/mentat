@@ -73,3 +73,11 @@ pub fn repeat_values(values_per_tuple: usize, tuples: usize) -> String {
     let values: String = repeat(inner).take(tuples).join(", ");
     values
 }
+
+/// Return the current time in milliseconds after the Unix epoch according to the local clock.
+///
+/// Compare `Date.now()` in JavaScript, `System.currentTimeMillis` in Java.
+pub fn now() -> i64 {
+    let now = time::get_time();
+    (now.sec as i64 * 1_000) + (now.nsec as i64 / (1_000_000))
+}
