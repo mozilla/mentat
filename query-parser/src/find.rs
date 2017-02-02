@@ -45,7 +45,13 @@ use self::mentat_query::{
     Variable,
 };
 
-use super::parse::{NotAVariableError, QueryParseError, QueryParseResult};
+use super::parse::{
+    NotAVariableError,
+    QueryParseError,
+    QueryParseResult,
+    clause_seq_to_patterns,
+};
+
 use super::util::vec_to_keyword_map;
 
 /// If the provided slice of EDN values are all variables as
@@ -83,19 +89,27 @@ fn parse_find_parts(find: &[edn::Value],
     let source = SrcVar::DefaultSrc;
 
     // :with is an array of variables. This is simple, so we don't use a parser.
-    let with_vars = with.map(values_to_variables);
+    let with_vars = if let Some(vals) = with {
+        values_to_variables(vals)?
+    } else {
+        vec![]
+    };
+
     // :wheres is a whole datastructure.
+    let where_clauses = clause_seq_to_patterns(wheres)?;
 
     super::parse::find_seq_to_find_spec(find)
         .map(|spec| {
             FindQuery {
                 find_spec: spec,
                 default_source: source,
+                with: with_vars,
+                in_vars: vec!(),       // TODO
+                in_sources: vec!(),    // TODO
+                where_clauses: where_clauses,
             }
         })
         .map_err(QueryParseError::FindParseError)
-
-
 }
 
 fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseResult {
@@ -161,12 +175,17 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
 mod test_parse {
     extern crate edn;
 
+    use self::edn::{NamespacedKeyword, PlainSymbol};
     use self::edn::types::{to_keyword, to_symbol};
     use super::mentat_query::{
         Element,
         FindSpec,
+        Pattern,
+        PatternNonValuePlace,
+        PatternValuePlace,
         SrcVar,
         Variable,
+        WhereClause,
     };
     use super::*;
 
@@ -200,5 +219,15 @@ mod test_parse {
         }
 
         assert_eq!(SrcVar::DefaultSrc, parsed.default_source);
+        assert_eq!(parsed.where_clauses,
+                   vec![
+                   WhereClause::Pattern(Pattern {
+                       source: None,
+                       entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                       attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+                       value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                       tx: PatternNonValuePlace::Placeholder,
+                   })]);
+
     }
 }

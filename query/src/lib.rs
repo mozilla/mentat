@@ -316,13 +316,6 @@ pub enum FindSpec {
     FindScalar(Element),
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-#[allow(dead_code)]
-pub struct FindQuery {
-    pub find_spec: FindSpec,
-    pub default_source: SrcVar,
-}
-
 /// Returns true if the provided `FindSpec` returns at most one result.
 pub fn is_unit_limited(spec: &FindSpec) -> bool {
     match spec {
@@ -406,6 +399,7 @@ impl Pattern {
 
 
 #[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
     Not,
     NotJoin,
@@ -418,11 +412,13 @@ pub enum WhereClause {
 }
 
 #[allow(dead_code)]
-pub struct Query {
-    find: FindSpec,
-    with: Vec<Variable>,
-    in_vars: Vec<Variable>,
-    in_sources: Vec<SrcVar>,
-    where_clauses: Vec<WhereClause>,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FindQuery {
+    pub find_spec: FindSpec,
+    pub default_source: SrcVar,
+    pub with: Vec<Variable>,
+    pub in_vars: Vec<Variable>,
+    pub in_sources: Vec<SrcVar>,
+    pub where_clauses: Vec<WhereClause>,
     // TODO: in_rules;
 }

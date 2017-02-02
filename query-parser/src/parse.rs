@@ -50,11 +50,25 @@ pub enum QueryParseError {
     EdnParseError(edn::parse::ParseError),
     MissingField(edn::Keyword),
     FindParseError(FindParseError),
+    WhereParseError(WhereParseError),
+    WithParseError(NotAVariableError),
 }
 
 impl From<edn::parse::ParseError> for QueryParseError {
     fn from(err: edn::parse::ParseError) -> QueryParseError {
         QueryParseError::EdnParseError(err)
+    }
+}
+
+impl From<WhereParseError> for QueryParseError {
+    fn from(err: WhereParseError) -> QueryParseError {
+        QueryParseError::WhereParseError(err)
+    }
+}
+
+impl From<NotAVariableError> for QueryParseError {
+    fn from(err: NotAVariableError) -> QueryParseError {
+        QueryParseError::WithParseError(err)
     }
 }
 
