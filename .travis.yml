@@ -3,6 +3,7 @@ script:
   - cargo build --verbose
   - cargo test --verbose
   - cargo test --verbose -p edn
+  - cargo test --verbose -p parser_utils
   - cargo test --verbose -p mentat_db
   - cargo test --verbose -p mentat_query
   - cargo test --verbose -p mentat_query_parser
