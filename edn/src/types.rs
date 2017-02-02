@@ -198,15 +198,15 @@ fn to_ord(value: &Value) -> i32 {
 
 pub struct Pair(Value, Value);
 
-pub fn to_symbol(namespace: Option<&str>, name: &str) -> Value {
-    if let Some(ns) = namespace {
+pub fn to_symbol<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
+    if let Some(ns) = namespace.into() {
         return Value::NamespacedSymbol(symbols::NamespacedSymbol::new(ns, name));
     }
     return Value::PlainSymbol(symbols::PlainSymbol::new(name));
 }
 
-pub fn to_keyword(namespace: Option<&str>, name: &str) -> Value {
-    if let Some(ns) = namespace {
+pub fn to_keyword<'a, T: Into<Option<&'a str>>>(namespace: T, name: &str) -> Value {
+    if let Some(ns) = namespace.into() {
         return Value::NamespacedKeyword(symbols::NamespacedKeyword::new(ns, name));
     }
     return Value::Keyword(symbols::Keyword::new(name));
