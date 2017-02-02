@@ -8,9 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(unused_imports)]
 #[macro_use]
-extern crate parser_utils;
+extern crate mentat_parser_utils;
 
 mod error;
 mod util;

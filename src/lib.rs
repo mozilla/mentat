@@ -34,7 +34,6 @@ pub fn get_connection() -> Connection {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use edn::symbols::Keyword;
 
     #[test]
