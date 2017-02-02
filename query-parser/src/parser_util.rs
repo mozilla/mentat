@@ -12,20 +12,6 @@ extern crate combine;
 extern crate edn;
 extern crate mentat_query;
 
-use self::combine::ParseResult;
-use self::combine::combinator::{Expected, FnParser};
-
-// Nothing about this is specific to the type of parser.
-pub type ResultParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
-
-/// `satisfy_unwrap!` makes it a little easier to implement a `satisfy_map`
-/// body that matches a particular `Value` enum case, otherwise returning `None`.
-macro_rules! satisfy_unwrap {
-    ( $cas: path, $var: ident, $body: block ) => {
-        satisfy_map(|x: edn::Value| if let $cas($var) = x $body else { None })
-    }
-}
-
 /// Generate a `satisfy_map` expression that matches a `PlainSymbol`
 /// value with the given name.
 ///
