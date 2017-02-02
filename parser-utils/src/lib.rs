@@ -10,8 +10,8 @@
 
 extern crate combine;
 
-use self::combine::ParseResult;
-use self::combine::combinator::{Expected, FnParser};
+use combine::ParseResult;
+use combine::combinator::{Expected, FnParser};
 
 // Nothing about this is specific to the type of parser.
 pub type ResultParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
