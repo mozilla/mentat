@@ -10,6 +10,8 @@
 
 extern crate combine;
 extern crate edn;
+
+extern crate mentat_parser_utils;
 extern crate mentat_query;
 
 /// Generate a `satisfy_map` expression that matches a `PlainSymbol`

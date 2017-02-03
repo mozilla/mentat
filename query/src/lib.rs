@@ -60,7 +60,7 @@ impl FromValue<Variable> for Variable {
 }
 
 impl Variable {
-    fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
         if sym.is_var_symbol() {
             Some(Variable(sym.clone()))
         } else {
@@ -96,7 +96,7 @@ impl SrcVar {
 }
 
 /// These are the scalar values representable in EDN.
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NonIntegerConstant {
     Boolean(bool),
     BigInteger(BigInt),
@@ -118,22 +118,126 @@ pub enum FnArg {
 /// This encoding allows us to represent integers that aren't
 /// entity IDs. That'll get filtered out in the context of the
 /// database.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PatternNonValuePlace {
     Placeholder,
     Variable(Variable),
-    Entid(u64),                       // Note unsigned. See #190.
+    Entid(i64),                       // Will always be +ve. See #190.
     Ident(NamespacedKeyword),
+}
+
+impl PatternNonValuePlace {
+    // I think we'll want move variants, so let's leave these here for now.
+    #[allow(dead_code)]
+    fn into_pattern_value_place(self) -> PatternValuePlace {
+        match self {
+            PatternNonValuePlace::Placeholder => PatternValuePlace::Placeholder,
+            PatternNonValuePlace::Variable(x) => PatternValuePlace::Variable(x),
+            PatternNonValuePlace::Entid(x)    => PatternValuePlace::EntidOrInteger(x),
+            PatternNonValuePlace::Ident(x)    => PatternValuePlace::IdentOrKeyword(x),
+        }
+    }
+
+    fn to_pattern_value_place(&self) -> PatternValuePlace {
+        match *self {
+            PatternNonValuePlace::Placeholder     => PatternValuePlace::Placeholder,
+            PatternNonValuePlace::Variable(ref x) => PatternValuePlace::Variable(x.clone()),
+            PatternNonValuePlace::Entid(x)        => PatternValuePlace::EntidOrInteger(x),
+            PatternNonValuePlace::Ident(ref x)    => PatternValuePlace::IdentOrKeyword(x.clone()),
+        }
+    }
+}
+
+impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
+    fn from_value(v: &edn::Value) -> Option<PatternNonValuePlace> {
+        match v {
+            &edn::Value::Integer(x) => if x >= 0 {
+                Some(PatternNonValuePlace::Entid(x))
+            } else {
+                None
+            },
+            &edn::Value::PlainSymbol(ref x) => if x.0.as_str() == "_" {
+                Some(PatternNonValuePlace::Placeholder)
+            } else {
+                if let Some(v) = Variable::from_symbol(x) {
+                    Some(PatternNonValuePlace::Variable(v))
+                } else {
+                    None
+                }
+            },
+            &edn::Value::NamespacedKeyword(ref x) =>
+                Some(PatternNonValuePlace::Ident(x.clone())),
+            _ => None,
+        }
+    }
 }
 
 /// The `v` part of a pattern can be much broader: it can represent
 /// integers that aren't entity IDs (particularly negative integers),
 /// strings, and all the rest. We group those under `Constant`.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PatternValuePlace {
     Placeholder,
     Variable(Variable),
     EntidOrInteger(i64),
-    Ident(NamespacedKeyword),
+    IdentOrKeyword(NamespacedKeyword),
     Constant(NonIntegerConstant),
+}
+
+impl FromValue<PatternValuePlace> for PatternValuePlace {
+    fn from_value(v: &edn::Value) -> Option<PatternValuePlace> {
+        match v {
+            &edn::Value::Integer(x) =>
+                Some(PatternValuePlace::EntidOrInteger(x)),
+            &edn::Value::PlainSymbol(ref x) if x.0.as_str() == "_" =>
+                Some(PatternValuePlace::Placeholder),
+            &edn::Value::PlainSymbol(ref x) if x.is_var_symbol() =>
+                Some(PatternValuePlace::Variable(Variable(x.clone()))),
+            &edn::Value::NamespacedKeyword(ref x) =>
+                Some(PatternValuePlace::IdentOrKeyword(x.clone())),
+            &edn::Value::Boolean(x) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
+            &edn::Value::Float(x) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Float(x))),
+            &edn::Value::BigInteger(ref x) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::BigInteger(x.clone()))),
+            &edn::Value::Text(ref x) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Text(x.clone()))),
+            _ => None,
+        }
+    }
+}
+
+impl PatternValuePlace {
+    // I think we'll want move variants, so let's leave these here for now.
+    #[allow(dead_code)]
+    fn into_pattern_non_value_place(self) -> Option<PatternNonValuePlace> {
+        match self {
+            PatternValuePlace::Placeholder       => Some(PatternNonValuePlace::Placeholder),
+            PatternValuePlace::Variable(x)       => Some(PatternNonValuePlace::Variable(x)),
+            PatternValuePlace::EntidOrInteger(x) => if x >= 0 {
+                Some(PatternNonValuePlace::Entid(x))
+            } else {
+                None
+            },
+            PatternValuePlace::IdentOrKeyword(x) => Some(PatternNonValuePlace::Ident(x)),
+            PatternValuePlace::Constant(_)       => None,
+        }
+    }
+
+    fn to_pattern_non_value_place(&self) -> Option<PatternNonValuePlace> {
+        match *self {
+            PatternValuePlace::Placeholder           => Some(PatternNonValuePlace::Placeholder),
+            PatternValuePlace::Variable(ref x)       => Some(PatternNonValuePlace::Variable(x.clone())),
+            PatternValuePlace::EntidOrInteger(x)     => if x >= 0 {
+                Some(PatternNonValuePlace::Entid(x))
+            } else {
+                None
+            },
+            PatternValuePlace::IdentOrKeyword(ref x) => Some(PatternNonValuePlace::Ident(x.clone())),
+            PatternValuePlace::Constant(_)           => None,
+        }
+    }
 }
 
 /*
@@ -212,13 +316,6 @@ pub enum FindSpec {
     FindScalar(Element),
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-#[allow(dead_code)]
-pub struct FindQuery {
-    pub find_spec: FindSpec,
-    pub default_source: SrcVar,
-}
-
 /// Returns true if the provided `FindSpec` returns at most one result.
 pub fn is_unit_limited(spec: &FindSpec) -> bool {
     match spec {
@@ -255,18 +352,55 @@ pub fn requires_distinct(spec: &FindSpec) -> bool {
 // A pattern with a reversed attribute — :foo/_bar — is reversed
 // at the point of parsing. These `Pattern` instances only represent
 // one direction.
-#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Pattern {
-    source: Option<SrcVar>,
-    entity: PatternNonValuePlace,
-    attribute: PatternNonValuePlace,
-    value: PatternValuePlace,
-    tx: PatternNonValuePlace,
+    pub source: Option<SrcVar>,
+    pub entity: PatternNonValuePlace,
+    pub attribute: PatternNonValuePlace,
+    pub value: PatternValuePlace,
+    pub tx: PatternNonValuePlace,
 }
 
+impl Pattern {
+    pub fn new(src: Option<SrcVar>,
+               e: PatternNonValuePlace,
+               a: PatternNonValuePlace,
+               v: PatternValuePlace,
+               tx: PatternNonValuePlace) -> Option<Pattern> {
+        let aa = a.clone();       // Too tired of fighting borrow scope for now.
+        if let PatternNonValuePlace::Ident(ref k) = aa {
+            if k.is_backward() {
+                // e and v have different types; we must convert them.
+                // Not every parseable value is suitable for the entity field!
+                // As such, this is a failable constructor.
+                let e_v = e.to_pattern_value_place();
+                if let Some(v_e) = v.to_pattern_non_value_place() {
+                    return Some(Pattern {
+                        source: src,
+                        entity: v_e,
+                        attribute: PatternNonValuePlace::Ident(k.to_reversed()),
+                        value: e_v,
+                        tx: tx,
+                    });
+                } else {
+                    return None;
+                }
+            }
+        }
+        Some(Pattern {
+            source: src,
+            entity: e,
+            attribute: a,
+            value: v,
+            tx: tx,
+        })
+    }
+}
+
+
 #[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
-    /*
     Not,
     NotJoin,
     Or,
@@ -274,16 +408,17 @@ pub enum WhereClause {
     Pred,
     WhereFn,
     RuleExpr,
-    */
-    Pattern,
+    Pattern(Pattern),
 }
 
 #[allow(dead_code)]
-pub struct Query {
-    find: FindSpec,
-    with: Vec<Variable>,
-    in_vars: Vec<Variable>,
-    in_sources: Vec<SrcVar>,
-    where_clauses: Vec<WhereClause>,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FindQuery {
+    pub find_spec: FindSpec,
+    pub default_source: SrcVar,
+    pub with: Vec<Variable>,
+    pub in_vars: Vec<Variable>,
+    pub in_sources: Vec<SrcVar>,
+    pub where_clauses: Vec<WhereClause>,
     // TODO: in_rules;
 }

@@ -38,10 +38,36 @@ extern crate mentat_query;
 
 use std::collections::BTreeMap;
 
-use self::mentat_query::{FindQuery, SrcVar};
+use self::mentat_query::{
+    FindQuery,
+    FromValue,
+    SrcVar,
+    Variable,
+};
 
-use super::error::{QueryParseError, QueryParseResult};
-use super::util::{values_to_variables, vec_to_keyword_map};
+use super::parse::{
+    NotAVariableError,
+    QueryParseError,
+    QueryParseResult,
+    clause_seq_to_patterns,
+};
+
+use super::util::vec_to_keyword_map;
+
+/// If the provided slice of EDN values are all variables as
+/// defined by `value_to_variable`, return a `Vec` of `Variable`s.
+/// Otherwise, return the unrecognized Value in a `NotAVariableError`.
+fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
+    let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
+    for v in vals {
+        if let Some(var) = Variable::from_value(v) {
+            out.push(var);
+            continue;
+        }
+        return Err(NotAVariableError(v.clone()));
+    }
+    return Ok(out);
+}
 
 #[allow(unused_variables)]
 fn parse_find_parts(find: &[edn::Value],
@@ -63,19 +89,27 @@ fn parse_find_parts(find: &[edn::Value],
     let source = SrcVar::DefaultSrc;
 
     // :with is an array of variables. This is simple, so we don't use a parser.
-    let with_vars = with.map(values_to_variables);
+    let with_vars = if let Some(vals) = with {
+        values_to_variables(vals)?
+    } else {
+        vec![]
+    };
+
     // :wheres is a whole datastructure.
+    let where_clauses = clause_seq_to_patterns(wheres)?;
 
     super::parse::find_seq_to_find_spec(find)
         .map(|spec| {
             FindQuery {
                 find_spec: spec,
                 default_source: source,
+                with: with_vars,
+                in_vars: vec!(),       // TODO
+                in_sources: vec!(),    // TODO
+                where_clauses: where_clauses,
             }
         })
         .map_err(QueryParseError::FindParseError)
-
-
 }
 
 fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseResult {
@@ -135,4 +169,65 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
         }
     }
     return Err(QueryParseError::InvalidInput(expr));
+}
+
+#[cfg(test)]
+mod test_parse {
+    extern crate edn;
+
+    use self::edn::{NamespacedKeyword, PlainSymbol};
+    use self::edn::types::{to_keyword, to_symbol};
+    use super::mentat_query::{
+        Element,
+        FindSpec,
+        Pattern,
+        PatternNonValuePlace,
+        PatternValuePlace,
+        SrcVar,
+        Variable,
+        WhereClause,
+    };
+    use super::*;
+
+    // TODO: when #224 lands, fix to_keyword to be variadic.
+    #[test]
+    fn test_parse_find() {
+        let truncated_input = edn::Value::Vector(vec![to_keyword(None, "find")]);
+        assert!(parse_find(truncated_input).is_err());
+
+        let input = edn::Value::Vector(vec![
+                                       to_keyword(None, "find"),
+                                       to_symbol(None, "?x"),
+                                       to_symbol(None, "?y"),
+                                       to_keyword(None, "where"),
+                                       edn::Value::Vector(vec![
+                                                          to_symbol(None, "?x"),
+                                                          to_keyword("foo", "bar"),
+                                                          to_symbol(None, "?y"),
+                                       ]),
+        ]);
+
+        let parsed = parse_find(input).unwrap();
+        if let FindSpec::FindRel(elems) = parsed.find_spec {
+            assert_eq!(2, elems.len());
+            assert_eq!(vec![
+                       Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
+                       Element::Variable(Variable(edn::PlainSymbol::new("?y"))),
+            ], elems);
+        } else {
+            panic!("Expected FindRel.");
+        }
+
+        assert_eq!(SrcVar::DefaultSrc, parsed.default_source);
+        assert_eq!(parsed.where_clauses,
+                   vec![
+                   WhereClause::Pattern(Pattern {
+                       source: None,
+                       entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                       attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+                       value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                       tx: PatternNonValuePlace::Placeholder,
+                   })]);
+
+    }
 }
