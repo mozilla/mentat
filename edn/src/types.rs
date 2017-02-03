@@ -11,6 +11,7 @@
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt::{Display, Formatter};
+use std::f64;
 
 use symbols;
 use num::BigInt;
@@ -54,7 +55,19 @@ impl Display for Value {
             Boolean(v) => write!(f, "{}", v),
             Integer(v) => write!(f, "{}", v),
             BigInteger(ref v) => write!(f, "{}N", v),
-            Float(OrderedFloat(v)) => write!(f, "{}", v),
+            Float(ref v) => {
+                // TODO: make sure float syntax is correct.
+                if *v == OrderedFloat(f64::INFINITY) {
+                    write!(f, "#f {}", "+Infinity")
+                } else if *v == OrderedFloat(f64::NEG_INFINITY) {
+                    write!(f, "#f {}", "-Infinity")
+                } else if *v == OrderedFloat(f64::NAN) {
+                    write!(f, "#f {}", "NaN")
+                } else {
+                    write!(f, "{}", v)
+                }
+            }
+            // TODO: EDN escaping.
             Text(ref v) => write!(f, "{}", v),
             PlainSymbol(ref v) => v.fmt(f),
             NamespacedSymbol(ref v) => v.fmt(f),
@@ -266,6 +279,7 @@ mod test {
 
     use std::collections::{BTreeSet, BTreeMap, LinkedList};
     use std::cmp::{Ordering};
+    use std::f64;
 
     use symbols;
     use num::BigInt;
@@ -280,7 +294,7 @@ mod test {
 
     #[test]
     fn test_print_edn() {
-        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false nil ]",
+        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]",
             Value::Vector(vec![
                 Value::Integer(1),
                 Value::Integer(2),
@@ -300,7 +314,10 @@ mod test {
                 Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
                 Value::Boolean(true),
                 Value::Boolean(false),
-                Value::Nil
+                Value::Nil,
+                Value::Float(OrderedFloat(f64::NAN)),
+                Value::Float(OrderedFloat(f64::NEG_INFINITY)),
+                Value::Float(OrderedFloat(f64::INFINITY)),
             ]
         ).to_string());
     }
