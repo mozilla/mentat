@@ -50,7 +50,7 @@ impl Display for Value {
     // See https://github.com/mozilla/mentat/issues/232
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         match *self {
-            Nil => write!(f, "null"),
+            Nil => write!(f, "nil"),
             Boolean(v) => write!(f, "{}", v),
             Integer(v) => write!(f, "{}", v),
             BigInteger(ref v) => write!(f, "{}N", v),
@@ -280,7 +280,7 @@ mod test {
 
     #[test]
     fn test_print_edn() {
-        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false null ]",
+        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false nil ]",
             Value::Vector(vec![
                 Value::Integer(1),
                 Value::Integer(2),
