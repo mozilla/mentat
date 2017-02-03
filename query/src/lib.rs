@@ -60,7 +60,7 @@ impl FromValue<Variable> for Variable {
 }
 
 impl Variable {
-    fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
         if sym.is_var_symbol() {
             Some(Variable(sym.clone()))
         } else {
