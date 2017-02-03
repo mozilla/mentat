@@ -9,6 +9,9 @@
 // specific language governing permissions and limitations under the License.
 
 #[macro_use]
+extern crate matches;
+
+#[macro_use]
 extern crate mentat_parser_utils;
 
 #[macro_use]

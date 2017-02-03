@@ -98,7 +98,9 @@ def_value_parser_fn!(Where, pattern, Pattern, input, {
                     let v = v.unwrap_or(PatternValuePlace::Placeholder);
                     let tx = tx.unwrap_or(PatternNonValuePlace::Placeholder);
 
-                    // Pattern::new takes care of reversal.
+                    // Pattern::new takes care of reversal of reversed
+                    // attributes: [?x :foo/_bar ?y] turns into
+                    // [?y :foo/bar ?x].
                     Pattern::new(src, e, a, v, tx)
                 });
 
@@ -126,7 +128,7 @@ def_value_parser_fn!(Where, pattern, Pattern, input, {
 });
 
 def_value_parser_fn!(Where, clauses, Vec<WhereClause>, input, {
-    // Right now we only support patterns.
+    // Right now we only support patterns. See #239 for more.
     (many1::<Vec<Pattern>, _>(Where::pattern()), eof())
         .map(|(patterns, _)| {
             patterns.into_iter().map(WhereClause::Pattern).collect()
@@ -187,11 +189,11 @@ def_value_parser_fn!(Find, find, FindSpec, input, {
     // Any one of the four specs might apply, so we combine them with `choice`.
     // Our parsers consume input, so we need to wrap them in `try` so that they
     // operate independently.
-    choice::<[&mut Parser<Input = I, Output = FindSpec>; 4],
-             _>([&mut try(Find::find_scalar()),
-                 &mut try(Find::find_coll()),
-                 &mut try(Find::find_tuple()),
-                 &mut try(Find::find_rel())])
+    choice::<[&mut Parser<Input = I, Output = FindSpec>; 4], _>
+        ([&mut try(Find::find_scalar()),
+          &mut try(Find::find_coll()),
+          &mut try(Find::find_tuple()),
+          &mut try(Find::find_rel())])
         .parse_stream(input)
 });
 
@@ -301,10 +303,7 @@ mod test {
 
         let mut par = Where::pattern();
         let result = par.parse(&input[..]);
-        if let Err(_) = result {
-        } else {
-            panic!("Expected a parse error.");
-        }
+        assert!(matches!(result, Err(_)), "Expected a parse error.");
     }
 
     #[test]

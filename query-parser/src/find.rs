@@ -49,8 +49,8 @@ use super::parse::{NotAVariableError, QueryParseError, QueryParseResult};
 use super::util::vec_to_keyword_map;
 
 /// If the provided slice of EDN values are all variables as
-/// defined by `value_to_variable`, return a Vec of Variables.
-/// Otherwise, return the unrecognized Value.
+/// defined by `value_to_variable`, return a `Vec` of `Variable`s.
+/// Otherwise, return the unrecognized Value in a `NotAVariableError`.
 fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
     let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
     for v in vals {
