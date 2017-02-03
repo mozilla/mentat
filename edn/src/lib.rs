@@ -21,5 +21,7 @@ pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
 }
 
-pub use self::types::Value;
-pub use self::symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};
+pub use ordered_float::OrderedFloat;
+pub use num::BigInt;
+pub use types::Value;
+pub use symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};
