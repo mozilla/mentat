@@ -97,7 +97,7 @@ impl Display for Value {
             Map(ref v) => {
                 write!(f, "{{")?;
                 for (key, val) in v {
-                    write!(f, " :{} {}", key, val)?;
+                    write!(f, " {} {}", key, val)?;
                 }
                 write!(f, " }}")
             }
@@ -279,12 +279,13 @@ mod test {
 
     use std::collections::{BTreeSet, BTreeMap, LinkedList};
     use std::cmp::{Ordering};
+    use std::iter::FromIterator;
     use std::f64;
 
     use symbols;
+    use parse;
     use num::BigInt;
     use ordered_float::OrderedFloat;
-    use std::iter::FromIterator;
 
     #[test]
     fn test_value_from() {
@@ -294,32 +295,35 @@ mod test {
 
     #[test]
     fn test_print_edn() {
-        assert_eq!("[ 1 2 ( 3.14 ) #{ 4N } { :foo/bar 42 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]",
-            Value::Vector(vec![
-                Value::Integer(1),
-                Value::Integer(2),
-                Value::List(LinkedList::from_iter(vec![
-                    Value::Float(OrderedFloat(3.14))
-                ])),
-                Value::Set(BTreeSet::from_iter(vec![
-                    Value::from_bigint("4").unwrap()
-                ])),
-                Value::Map(BTreeMap::from_iter(vec![
-                    (Value::from_symbol("foo", "bar"), Value::Integer(42))
-                ])),
-                Value::Vector(vec![]),
-                Value::Keyword(symbols::Keyword::new("five")),
-                Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
-                Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
-                Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
-                Value::Boolean(true),
-                Value::Boolean(false),
-                Value::Nil,
-                Value::Float(OrderedFloat(f64::NAN)),
-                Value::Float(OrderedFloat(f64::NEG_INFINITY)),
-                Value::Float(OrderedFloat(f64::INFINITY)),
-            ]
-        ).to_string());
+        let string = "[ 1 2 ( 3.14 ) #{ 4N } { foo/bar 42 :baz/boz 43 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]";
+        let data = Value::Vector(vec![
+            Value::Integer(1),
+            Value::Integer(2),
+            Value::List(LinkedList::from_iter(vec![
+                Value::Float(OrderedFloat(3.14))
+            ])),
+            Value::Set(BTreeSet::from_iter(vec![
+                Value::from_bigint("4").unwrap()
+            ])),
+            Value::Map(BTreeMap::from_iter(vec![
+                (Value::from_symbol("foo", "bar"), Value::Integer(42)),
+                (Value::from_keyword("baz", "boz"), Value::Integer(43))
+            ])),
+            Value::Vector(vec![]),
+            Value::Keyword(symbols::Keyword::new("five")),
+            Value::NamespacedKeyword(symbols::NamespacedKeyword::new("six", "seven")),
+            Value::PlainSymbol(symbols::PlainSymbol::new("eight")),
+            Value::NamespacedSymbol(symbols::NamespacedSymbol::new("nine", "ten")),
+            Value::Boolean(true),
+            Value::Boolean(false),
+            Value::Nil,
+            Value::Float(OrderedFloat(f64::NAN)),
+            Value::Float(OrderedFloat(f64::NEG_INFINITY)),
+            Value::Float(OrderedFloat(f64::INFINITY)),
+        ]);
+
+        assert_eq!(string, data.to_string());
+        assert_eq!(string, parse::value(&data.to_string()).unwrap().to_string());
     }
 
     #[test]
