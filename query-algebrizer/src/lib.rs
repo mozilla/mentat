@@ -9,16 +9,31 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_query;
+
+mod cc;
+
 use mentat_query::{
     FindQuery,
+    FindSpec,
     SrcVar,
-    Variable,
-    WhereClause,
 };
 
-pub struct AlgebrizedQuery {
+#[allow(dead_code)]
+pub struct AlgebraicQuery {
+    default_source: SrcVar,
+    find_spec: FindSpec,
+    has_aggregates: bool,
+    limit: Option<i64>,
+    cc: cc::ConjoiningClauses,
 }
 
-pub fn algebrize(parsed: FindQuery) -> AlgebrizedQuery {
-    AlgebrizedQuery {}
+#[allow(dead_code)]
+pub fn algebrize(parsed: FindQuery) -> AlgebraicQuery {
+    AlgebraicQuery {
+        default_source: parsed.default_source,
+        find_spec: parsed.find_spec,
+        has_aggregates: false,           // TODO: we don't parse them yet.
+        limit: None,
+        cc: cc::ConjoiningClauses::default(),
+    }
 }
