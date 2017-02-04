@@ -32,10 +32,10 @@ pub nil -> Value =
     "nil" { Value::Nil }
 
 pub nan -> Value =
-    "#f NaN" { Value::Float(OrderedFloat(NAN)) }
+    "#f" __ "NaN" { Value::Float(OrderedFloat(NAN)) }
 
 pub infinity -> Value =
-    "#f" s:$(sign) "Infinity" {
+    "#f" __ s:$(sign) "Infinity" {
         Value::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY }))
     }
 
