@@ -32,7 +32,8 @@
 
 extern crate edn;
 
-use edn::{BigInt, OrderedFloat, NamespacedKeyword, PlainSymbol};
+use edn::{BigInt, OrderedFloat};
+pub use edn::{NamespacedKeyword, PlainSymbol};
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
