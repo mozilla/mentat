@@ -107,17 +107,17 @@ pub keyword -> Value =
     }
 
 pub list -> Value =
-    "(" v:(value)* ")" {
+    "(" __ v:(value)* __ ")" {
         Value::List(LinkedList::from_iter(v))
     }
 
 pub vector -> Value =
-    "[" v:(value)* "]" {
+    "[" __ v:(value)* __ "]" {
         Value::Vector(v)
     }
 
 pub set -> Value =
-    "#{" v:(value)* "}" {
+    "#{" __ v:(value)* __ "}" {
         Value::Set(BTreeSet::from_iter(v))
     }
 
@@ -127,7 +127,7 @@ pair -> (Value, Value) =
     }
 
 pub map -> Value =
-    "{" v:(pair)* "}" {
+    "{" __ v:(pair)* __ "}" {
         Value::Map(BTreeMap::from_iter(v))
     }
 

@@ -185,7 +185,18 @@ fn test_vector() {
     ]);
     assert_eq!(vector(test).unwrap(), value);
 
+    let test = "[ ]";
+    let value = Vector(vec![
+    ]);
+    assert_eq!(vector(test).unwrap(), value);
+
     let test = "[1]";
+    let value = Vector(vec![
+        Integer(1),
+    ]);
+    assert_eq!(vector(test).unwrap(), value);
+
+    let test = "[ 1 ]";
     let value = Vector(vec![
         Integer(1),
     ]);
@@ -246,7 +257,18 @@ fn test_list() {
     ]));
     assert_eq!(list(test).unwrap(), value);
 
+    let test = "( )";
+    let value = List(LinkedList::from_iter(vec![
+    ]));
+    assert_eq!(list(test).unwrap(), value);
+
     let test = "(1)";
+    let value = List(LinkedList::from_iter(vec![
+        Integer(1),
+    ]));
+    assert_eq!(list(test).unwrap(), value);
+
+    let test = "( 1 )";
     let value = List(LinkedList::from_iter(vec![
         Integer(1),
     ]));
@@ -306,7 +328,18 @@ fn test_set() {
     ]));
     assert_eq!(set(test).unwrap(), value);
 
+    let test = "#{ }";
+    let value = Set(BTreeSet::from_iter(vec![
+    ]));
+    assert_eq!(set(test).unwrap(), value);
+
     let test = "#{1}";
+    let value = Set(BTreeSet::from_iter(vec![
+        Integer(1),
+    ]));
+    assert_eq!(set(test).unwrap(), value);
+
+    let test = "#{ 1 }";
     let value = Set(BTreeSet::from_iter(vec![
         Integer(1),
     ]));
@@ -370,13 +403,31 @@ fn test_map() {
     ]));
     assert_eq!(map(test).unwrap(), value);
 
+    let test = "{ }";
+    let value = Map(BTreeMap::from_iter(vec![
+    ]));
+    assert_eq!(map(test).unwrap(), value);
+
     let test = "{\"a\" 1}";
     let value = Map(BTreeMap::from_iter(vec![
         (Text("a".to_string()), Integer(1)),
     ]));
     assert_eq!(map(test).unwrap(), value);
 
+    let test = "{ \"a\" 1 }";
+    let value = Map(BTreeMap::from_iter(vec![
+        (Text("a".to_string()), Integer(1)),
+    ]));
+    assert_eq!(map(test).unwrap(), value);
+
     let test = "{nil 1, \"b\" 2}";
+    let value = Map(BTreeMap::from_iter(vec![
+        (Nil, Integer(1)),
+        (Text("b".to_string()), Integer(2)),
+    ]));
+    assert_eq!(map(test).unwrap(), value);
+
+    let test = "{ nil 1 \"b\" 2 }";
     let value = Map(BTreeMap::from_iter(vec![
         (Nil, Integer(1)),
         (Text("b".to_string()), Integer(2)),
@@ -391,16 +442,23 @@ fn test_map() {
     ]));
     assert_eq!(map(test).unwrap(), value);
 
+    let test = "{ nil 1 \"b\" 2 \"a\" 3}";
+    let value = Map(BTreeMap::from_iter(vec![
+        (Nil, Integer(1)),
+        (Text("a".to_string()), Integer(3)),
+        (Text("b".to_string()), Integer(2)),
+    ]));
+    assert_eq!(map(test).unwrap(), value);
+
     let test = "{:a 1, $b {:b/a nil, :b/b #{nil 5}}, c [1 2], d (3 4)}";
     let value = Map(
         BTreeMap::from_iter(
             vec![
             (Keyword(symbols::Keyword::new("a")), Integer(1)),
             (s_plain("$b"), Map(BTreeMap::from_iter(vec![
-                                                               (k_ns("b", "a"), Nil),
-
-                                                               (k_ns("b", "b"),
-                                                               Set(BTreeSet::from_iter(vec![Nil, Integer(5),]))),
+                (k_ns("b", "a"), Nil),
+                (k_ns("b", "b"),
+                Set(BTreeSet::from_iter(vec![Nil, Integer(5),]))),
             ]))),
             (s_plain("c"), Vector(vec![Integer(1), Integer(2),])),
             (s_plain("d"), List(LinkedList::from_iter(vec![Integer(3), Integer(4),]))),
