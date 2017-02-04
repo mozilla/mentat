@@ -17,6 +17,9 @@ features = ["bundled"]
 [dependencies.edn]
 path = "../edn"
 
+[dependencies.mentat_core]
+path = "../core"
+
 [dependencies.mentat_tx]
 path = "../tx"
 

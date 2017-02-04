@@ -21,6 +21,9 @@ path = "edn"
 [dependencies.mentat_parser_utils]
 path = "parser-utils"
 
+[dependencies.mentat_core]
+path = "core"
+
 [dependencies.mentat_db]
 path = "db"
 
