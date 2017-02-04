@@ -3,5 +3,8 @@ name = "mentat_query_algebrizer"
 version = "0.0.1"
 
 [dependencies]
+[dependencies.mentat_core]
+  path = "../core"
+
 [dependencies.mentat_query]
   path = "../query"

@@ -182,6 +182,12 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum IdentOrEntid {
+    Ident(NamespacedKeyword),
+    Entid(i64),
+}
+
 /// The `v` part of a pattern can be much broader: it can represent
 /// integers that aren't entity IDs (particularly negative integers),
 /// strings, and all the rest. We group those under `Constant`.
