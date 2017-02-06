@@ -53,19 +53,32 @@ fn test_nil() {
 
 #[test]
 fn test_nan() {
-    assert_eq!(nan("#fNaN").unwrap(), Float(OrderedFloat(f64::NAN)));
+    assert!(nan("#fNaN").is_err());
+    assert!(nan("#f;x\nNaN").is_err());
+
     assert_eq!(nan("#f NaN").unwrap(), Float(OrderedFloat(f64::NAN)));
+    assert_eq!(nan("#f\t NaN").unwrap(), Float(OrderedFloat(f64::NAN)));
+    assert_eq!(nan("#f,NaN").unwrap(), Float(OrderedFloat(f64::NAN)));
 
     assert!(nan("true").is_err());
 }
 
 #[test]
 fn test_infinity() {
-    assert_eq!(infinity("#f-Infinity").unwrap(), Float(OrderedFloat(f64::NEG_INFINITY)));
-    assert_eq!(infinity("#f+Infinity").unwrap(), Float(OrderedFloat(f64::INFINITY)));
+    assert!(infinity("#f-Infinity").is_err());
+    assert!(infinity("#f+Infinity").is_err());
+
+    assert!(infinity("#f;x\n-Infinity").is_err());
+    assert!(infinity("#f;x\n+Infinity").is_err());
 
     assert_eq!(infinity("#f -Infinity").unwrap(), Float(OrderedFloat(f64::NEG_INFINITY)));
     assert_eq!(infinity("#f +Infinity").unwrap(), Float(OrderedFloat(f64::INFINITY)));
+
+    assert_eq!(infinity("#f\t -Infinity").unwrap(), Float(OrderedFloat(f64::NEG_INFINITY)));
+    assert_eq!(infinity("#f\t +Infinity").unwrap(), Float(OrderedFloat(f64::INFINITY)));
+
+    assert_eq!(infinity("#f,-Infinity").unwrap(), Float(OrderedFloat(f64::NEG_INFINITY)));
+    assert_eq!(infinity("#f,+Infinity").unwrap(), Float(OrderedFloat(f64::INFINITY)));
 
     assert!(infinity("true").is_err());
 }
