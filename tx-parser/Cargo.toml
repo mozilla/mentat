@@ -10,3 +10,9 @@ combine = "2.1.1"
 
 [dependencies.mentat_tx]
   path = "../tx"
+
+[dependencies.mentat_parser_utils]
+  path = "../parser-utils"
+
+[dependencies.mentat_query_parser]
+  path = "../query-parser"

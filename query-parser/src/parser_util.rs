@@ -40,6 +40,7 @@ macro_rules! matches_plain_symbol {
 /// The provided `$body` will be evaluated with `$input` bound to the input stream.
 ///
 /// `$body`, when run, should return a `ParseResult` of the appropriate result type.
+#[macro_export]
 macro_rules! def_parser_fn {
     ( $parser: ident, $name: ident, $item_type: ty, $result_type: ty, $input: ident, $body: block ) => {
         impl<I> $parser<I> where I: Stream<Item = $item_type> {
