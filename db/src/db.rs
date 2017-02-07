@@ -15,10 +15,10 @@ use rusqlite::types::{ToSql, ToSqlOutput};
 
 use bootstrap;
 use edn::types::Value;
-use errors::*;
+use errors::{ErrorKind, Result, ResultExt};
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::Entity;
-use types::*;
+use types::{Attribute, DB, Entid, IdentMap, Partition, PartitionMap, Schema, TypedValue, ValueType};
 
 pub fn new_connection() -> rusqlite::Connection {
     return rusqlite::Connection::open_in_memory().unwrap();
@@ -460,11 +460,10 @@ impl DB {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{CURRENT_VERSION, DB, ensure_current_version, new_connection, read_db, read_ident_map, read_schema};
     use bootstrap;
     use debug;
     use rusqlite;
-    use types::*;
 
     #[test]
     fn test_open_current_version() {
