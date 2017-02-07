@@ -5,3 +5,9 @@ authors = ["Victor Porof <vporof@mozilla.com>", "Richard Newman <rnewman@mozilla
 
 [dependencies]
 combine = "2.1.1"
+
+[dependencies.edn]
+  path = "../edn"
+
+[dependencies.mentat_query]
+  path = "../query"

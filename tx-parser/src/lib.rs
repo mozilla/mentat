@@ -13,9 +13,9 @@
 extern crate edn;
 extern crate combine;
 extern crate mentat_tx;
-extern crate mentat_parser_utils;
 
 #[macro_use]
+extern crate mentat_parser_utils;
 extern crate mentat_query_parser;
 
 use combine::{any, eof, many, optional, parser, satisfy_map, token, Parser, ParseResult, Stream};

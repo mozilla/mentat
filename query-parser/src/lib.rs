@@ -14,8 +14,6 @@ extern crate matches;
 #[macro_use]
 extern crate mentat_parser_utils;
 
-#[macro_use]
-pub mod parser_util;
 mod util;
 mod parse;
 pub mod find;
