@@ -37,7 +37,7 @@ pub use edn::{NamespacedKeyword, PlainSymbol};
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Variable(pub PlainSymbol);
 
 pub trait FromValue<T> {
