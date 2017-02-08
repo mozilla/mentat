@@ -8,6 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate ordered_float;
+use self::ordered_float::OrderedFloat;
+
 /// Core types defining a Mentat knowledge base.
 
 /// Represents one entid in the entid space.
@@ -28,6 +31,33 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+}
+
+/// Represents a Mentat value in a particular value set.
+// TODO: expand to include :db.type/{instant,url,uuid}.
+// TODO: BigInt?
+#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+pub enum TypedValue {
+    Ref(Entid),
+    Boolean(bool),
+    Long(i64),
+    Double(OrderedFloat<f64>),
+    // TODO: &str throughout?
+    String(String),
+    Keyword(String),
+}
+
+impl TypedValue {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &TypedValue::Ref(_) => ValueType::Ref,
+            &TypedValue::Boolean(_) => ValueType::Boolean,
+            &TypedValue::Long(_) => ValueType::Long,
+            &TypedValue::Double(_) => ValueType::Double,
+            &TypedValue::String(_) => ValueType::String,
+            &TypedValue::Keyword(_) => ValueType::Keyword,
+        }
+    }
 }
 
 /// A Mentat schema attribute has a value type and several other flags determining how assertions

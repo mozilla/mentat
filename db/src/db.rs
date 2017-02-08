@@ -290,9 +290,16 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     }
 }
 
-impl TypedValue {
+pub trait TypedSQLValue {
+    fn from_sql_value_pair(value: rusqlite::types::Value, value_type_tag: i32) -> Result<TypedValue>;
+    fn to_sql_value_pair<'a>(&'a self) -> (ToSqlOutput<'a>, i32);
+    fn from_edn_value(value: &Value) -> Option<TypedValue>;
+    fn to_edn_value_pair(&self) -> (Value, ValueType);
+}
+
+impl TypedSQLValue for TypedValue {
     /// Given a SQLite `value` and a `value_type_tag`, return the corresponding `TypedValue`.
-    pub fn from_sql_value_pair(value: rusqlite::types::Value, value_type_tag: i32) -> Result<TypedValue> {
+    fn from_sql_value_pair(value: rusqlite::types::Value, value_type_tag: i32) -> Result<TypedValue> {
         match (value_type_tag, value) {
             (0, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Ref(x)),
             (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
@@ -313,7 +320,7 @@ impl TypedValue {
     /// EDN values which are not Mentat typed values.
     ///
     /// This function is deterministic.
-    pub fn from_edn_value(value: &Value) -> Option<TypedValue> {
+    fn from_edn_value(value: &Value) -> Option<TypedValue> {
         match value {
             &Value::Boolean(x) => Some(TypedValue::Boolean(x)),
             &Value::Integer(x) => Some(TypedValue::Long(x)),
@@ -325,7 +332,7 @@ impl TypedValue {
     }
 
     /// Return the corresponding SQLite `value` and `value_type_tag` pair.
-    pub fn to_sql_value_pair<'a>(&'a self) -> (ToSqlOutput<'a>, i32) {
+    fn to_sql_value_pair<'a>(&'a self) -> (ToSqlOutput<'a>, i32) {
         match self {
             &TypedValue::Ref(x) => (rusqlite::types::Value::Integer(x).into(), 0),
             &TypedValue::Boolean(x) => (rusqlite::types::Value::Integer(if x { 1 } else { 0 }).into(), 1),
@@ -338,7 +345,7 @@ impl TypedValue {
     }
 
     /// Return the corresponding EDN `value` and `value_type` pair.
-    pub fn to_edn_value_pair(&self) -> (Value, ValueType) {
+    fn to_edn_value_pair(&self) -> (Value, ValueType) {
         match self {
             &TypedValue::Ref(x) => (Value::Integer(x), ValueType::Ref),
             &TypedValue::Boolean(x) => (Value::Boolean(x), ValueType::Boolean),

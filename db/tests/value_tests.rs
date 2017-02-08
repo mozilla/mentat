@@ -9,11 +9,13 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate edn;
+extern crate mentat_core;
 extern crate mentat_db;
 extern crate ordered_float;
 extern crate rusqlite;
 
-use mentat_db::{TypedValue, ValueType};
+use mentat_core::{TypedValue, ValueType};
+use mentat_db::db::TypedSQLValue;
 use ordered_float::OrderedFloat;
 use edn::symbols;
 

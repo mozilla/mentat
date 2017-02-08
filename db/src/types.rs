@@ -11,42 +11,15 @@
 #![allow(dead_code)]
 
 use std::collections::{BTreeMap};
-use edn::OrderedFloat;
 
 extern crate mentat_core;
 
 pub use self::mentat_core::{
     Entid,
     ValueType,
+    TypedValue,
     Attribute,
 };
-
-/// Represents a Mentat value in a particular value set.
-// TODO: expand to include :db.type/{instant,url,uuid}.
-// TODO: BigInt?
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub enum TypedValue {
-    Ref(Entid),
-    Boolean(bool),
-    Long(i64),
-    Double(OrderedFloat<f64>),
-    // TODO: &str throughout?
-    String(String),
-    Keyword(String),
-}
-
-impl TypedValue {
-    pub fn value_type(&self) -> ValueType {
-        match self {
-            &TypedValue::Ref(_) => ValueType::Ref,
-            &TypedValue::Boolean(_) => ValueType::Boolean,
-            &TypedValue::Long(_) => ValueType::Long,
-            &TypedValue::Double(_) => ValueType::Double,
-            &TypedValue::String(_) => ValueType::String,
-            &TypedValue::Keyword(_) => ValueType::Keyword,
-        }
-    }
-}
 
 /// Represents one partition of the entid space.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]

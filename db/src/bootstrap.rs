@@ -15,9 +15,11 @@ use edn;
 use edn::types::Value;
 use entids;
 use errors::*;
+use db::TypedSQLValue;
 use mentat_tx::entities::Entity;
 use mentat_tx_parser;
-use types::{IdentMap, Partition, PartitionMap, Schema, TypedValue};
+use mentat_core::TypedValue;
+use types::{IdentMap, Partition, PartitionMap, Schema};
 use values;
 
 /// The first transaction ID applied to the knowledge base.

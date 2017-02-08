@@ -25,8 +25,10 @@ use bootstrap;
 use edn;
 use edn::symbols;
 use entids;
+use mentat_core::TypedValue;
 use mentat_tx::entities::{Entid};
-use types::{DB, TypedValue};
+use db::TypedSQLValue;
+use types::DB;
 use errors::Result;
 
 /// Represents a *datom* (assertion) in the store.
