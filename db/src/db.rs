@@ -10,6 +10,7 @@
 
 #![allow(dead_code)]
 
+use std::collections::HashMap;
 use std::iter::once;
 use std::path::Path;
 
@@ -35,7 +36,13 @@ use mentat_core::{
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use errors::{ErrorKind, Result, ResultExt};
-use types::{DB, Partition, PartitionMap};
+use types::{
+    AVMap,
+    AVPair,
+    DB,
+    Partition,
+    PartitionMap,
+};
 use schema::SchemaBuilding;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
@@ -461,6 +468,77 @@ impl DB {
                 (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
             }
         }
+    }
+
+    /// Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.
+    ///
+    /// It is assumed that the attribute `a` in each lookup-ref is `:db/unique`, so that at most one
+    /// matching [e a v] triple exists.  (If this is not true, some matching entid `e` will be
+    /// chosen non-deterministically, if one exists.)
+    ///
+    /// Returns a map &(a, v) -> e, to avoid cloning potentially large values.  The keys of the map
+    /// are exactly those (a, v) pairs that have an assertion [e a v] in the datom store.
+    pub fn resolve_avs<'a>(&self, conn: &rusqlite::Connection, avs: &'a [&'a AVPair]) -> Result<AVMap<'a>> {
+        // Start search_id's at some identifiable number.
+        let initial_search_id = 2000;
+        let bindings_per_statement = 4;
+
+        // We map [a v] -> numeric search_id -> e, and then we use the search_id lookups to finally
+        // produce the map [a v] -> e.
+        //
+        // TODO: `collect` into a HashSet so that any (a, v) is resolved at most once.
+        let chunks: itertools::IntoChunks<_> = avs.into_iter().enumerate().chunks(::SQLITE_MAX_VARIABLE_NUMBER / 4);
+
+        // We'd like to `flat_map` here, but it's not obvious how to `flat_map` across `Result`.
+        // Alternatively, this is a `fold`, and it might be wise to express it as such.
+        let results: Result<Vec<Vec<_>>> = chunks.into_iter().map(|chunk| -> Result<Vec<_>> {
+            let mut count = 0;
+
+            // We must keep these computed values somewhere to reference them later, so we can't
+            // combine this `map` and the subsequent `flat_map`.
+            let block: Vec<(i64, i64, ToSqlOutput<'a>, i32)> = chunk.map(|(index, &&(a, ref v))| {
+                count += 1;
+                let search_id: i64 = initial_search_id + index as i64;
+                let (value, value_type_tag) = v.to_sql_value_pair();
+                (search_id, a, value, value_type_tag)
+            }).collect();
+
+            // `params` reference computed values in `block`.
+            let params: Vec<&ToSql> = block.iter().flat_map(|&(ref searchid, ref a, ref value, ref value_type_tag)| {
+                // Avoid inner heap allocation.
+                once(searchid as &ToSql)
+                    .chain(once(a as &ToSql)
+                           .chain(once(value as &ToSql)
+                                  .chain(once(value_type_tag as &ToSql))))
+            }).collect();
+
+            // TODO: cache these statements for selected values of `count`.
+            // TODO: query against `datoms` and UNION ALL with `fulltext_datoms` rather than
+            // querying against `all_datoms`.  We know all the attributes, and in the common case,
+            // where most unique attributes will not be fulltext-indexed, we'll be querying just
+            // `datoms`, which will be much faster.
+            let values: String = repeat_values(bindings_per_statement, count);
+            let s: String = format!("WITH t(search_id, a, v, value_type_tag) AS (VALUES {}) SELECT t.search_id, d.e \
+                                     FROM t, all_datoms AS d \
+                                     WHERE d.index_avet IS NOT 0 AND d.a = t.a AND d.value_type_tag = t.value_type_tag AND d.v = t.v",
+                                    values);
+            let mut stmt: rusqlite::Statement = conn.prepare(s.as_str())?;
+
+            let m: Result<Vec<(i64, Entid)>> = stmt.query_and_then(&params, |row| -> Result<(i64, Entid)> {
+                Ok((row.get_checked(0)?, row.get_checked(1)?))
+            })?.collect();
+            m
+        }).collect::<Result<Vec<Vec<(i64, Entid)>>>>();
+
+        // Flatten.
+        let results: Vec<(i64, Entid)> = results?.as_slice().concat();
+
+        // Create map [a v] -> e.
+        let m: HashMap<&'a AVPair, Entid> = results.into_iter().map(|(search_id, entid)| {
+            let index: usize = (search_id - initial_search_id) as usize;
+            (avs[index], entid)
+        }).collect();
+        Ok(m)
     }
 
     /// Create empty temporary tables for search parameters and search results.

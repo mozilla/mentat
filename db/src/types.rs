@@ -10,7 +10,8 @@
 
 #![allow(dead_code)]
 
-use std::collections::{BTreeMap};
+use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 extern crate mentat_core;
 
@@ -64,3 +65,13 @@ impl DB {
         }
     }
 }
+
+/// A pair [a v] in the store.
+///
+/// Used to represent lookup-refs and [TEMPID a v] upserts as they are resolved.
+pub type AVPair = (Entid, TypedValue);
+
+/// Map [a v] pairs to existing entids.
+///
+/// Used to resolve lookup-refs and upserts.
+pub type AVMap<'a> = HashMap<&'a AVPair, Entid>;
