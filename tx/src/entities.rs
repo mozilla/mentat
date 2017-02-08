@@ -41,14 +41,15 @@ pub enum ValueOrLookupRef {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum OpType {
+    Add,
+    Retract,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Entity {
-    Add {
-        e: EntidOrLookupRef,
-        a: Entid,
-        v: ValueOrLookupRef,
-        tx: Option<Entid>,
-    },
-    Retract {
+    AddOrRetract {
+        op: OpType,
         e: EntidOrLookupRef,
         a: Entid,
         v: ValueOrLookupRef,
