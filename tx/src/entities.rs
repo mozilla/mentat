@@ -53,6 +53,4 @@ pub enum Entity {
         a: Entid,
         v: ValueOrLookupRef,
     },
-    RetractAttribute { e: EntidOrLookupRef, a: Entid },
-    RetractEntity { e: EntidOrLookupRef },
 }

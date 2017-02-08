@@ -174,66 +174,15 @@ impl<I> Tx<I>
         fn_parser(Tx::<I>::retract_, "[:db/retract e a v]")
     }
 
-    fn retract_attribute_(input: I) -> ParseResult<Entity, I> {
-        return satisfy_map(|x: Value| -> Option<Entity> {
-                if let Value::Vector(y) = x {
-                    let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "retractAttribute"))),
-                                 Tx::<&[Value]>::entid_or_lookup_ref(),
-                                 Tx::<&[Value]>::entid(),
-                                 eof())
-                        .map(|(_, e, a, _)| Entity::RetractAttribute { e: e, a: a });
-                    // TODO: use ok() with a type annotation rather than explicit match.
-                    match p.parse_lazy(&y[..]).into() {
-                        Ok((r, _)) => Some(r),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            })
-            .parse_stream(input);
-    }
-
-    fn retract_attribute() -> TxParser<Entity, I> {
-        fn_parser(Tx::<I>::retract_attribute_, "[:db/retractAttribute e a]")
-    }
-
-    fn retract_entity_(input: I) -> ParseResult<Entity, I> {
-        return satisfy_map(|x: Value| -> Option<Entity> {
-                if let Value::Vector(y) = x {
-                    let mut p =
-                        (token(Value::NamespacedKeyword(NamespacedKeyword::new("db",
-                                                                               "retractEntity"))),
-                         Tx::<&[Value]>::entid_or_lookup_ref(),
-                         eof())
-                            .map(|(_, e, _)| Entity::RetractEntity { e: e });
-                    // TODO: use ok() with a type annotation rather than explicit match.
-                    match p.parse_lazy(&y[..]).into() {
-                        Ok((r, _)) => Some(r),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            })
-            .parse_stream(input);
-    }
-
-    fn retract_entity() -> TxParser<Entity, I> {
-        fn_parser(Tx::<I>::retract_entity_, "[:db/retractEntity e]")
-    }
-
     fn entity_(input: I) -> ParseResult<Entity, I> {
         let mut p = Tx::<I>::add()
-            .or(Tx::<I>::retract())
-            .or(Tx::<I>::retract_attribute())
-            .or(Tx::<I>::retract_entity());
+            .or(Tx::<I>::retract());
         p.parse_stream(input)
     }
 
     fn entity() -> TxParser<Entity, I> {
         fn_parser(Tx::<I>::entity_,
-                  "[:db/add|:db/retract|:db/retractAttribute|:db/retractEntity ...]")
+                  "[:db/add|:db/retract ...]")
     }
 
     fn entities_(input: I) -> ParseResult<Vec<Entity>, I> {
@@ -254,7 +203,7 @@ impl<I> Tx<I>
 
     fn entities() -> TxParser<Vec<Entity>, I> {
         fn_parser(Tx::<I>::entities_,
-                  "[[:db/add|:db/retract|:db/retractAttribute|:db/retractEntity ...]*]")
+                  "[[:db/add|:db/retract ...]*]")
     }
 
     pub fn parse(input: I) -> Result<Vec<Entity>, combine::ParseError<I>> {
