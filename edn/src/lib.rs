@@ -8,13 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(dead_code)]
-
 extern crate ordered_float;
 extern crate num;
+extern crate pretty;
 
 pub mod symbols;
 pub mod types;
+pub mod types_pp;
 pub mod utils;
 
 pub mod parse {
