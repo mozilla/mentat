@@ -244,10 +244,9 @@ mod test {
     extern crate combine;
     extern crate edn;
     extern crate mentat_query;
-    extern crate ordered_float;
 
     use self::combine::Parser;
-    use self::ordered_float::OrderedFloat;
+    use self::edn::OrderedFloat;
     use self::mentat_query::{
         Element,
         FindSpec,

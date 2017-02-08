@@ -31,12 +31,8 @@
 ///! a tradeoff against well-typed function signatures and other such boundaries.
 
 extern crate edn;
-extern crate num;
-extern crate ordered_float;
 
-use num::BigInt;
-use ordered_float::OrderedFloat;
-use edn::{NamespacedKeyword, PlainSymbol};
+use edn::{BigInt, OrderedFloat, NamespacedKeyword, PlainSymbol};
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 

@@ -11,8 +11,7 @@
 #![allow(dead_code)]
 
 use std::collections::{BTreeMap};
-
-use ordered_float::{OrderedFloat};
+use edn::OrderedFloat;
 
 extern crate mentat_core;
 
