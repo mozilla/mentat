@@ -506,9 +506,9 @@ impl DB {
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
     fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
-        let values_per_statement = 10;
+        let bindings_per_statement = 10;
 
-        let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement);
+        let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
 
         // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
         let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {
@@ -556,7 +556,7 @@ impl DB {
             }).collect();
 
             // TODO: cache this for selected values of count.
-            let values: String = repeat_values(values_per_statement, count);
+            let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
                 format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, tx0, added0, index_avet0, index_vaet0, index_fulltext0, unique_value0) VALUES {}", values)
             } else {
