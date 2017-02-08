@@ -16,7 +16,7 @@ extern crate mentat_tx_parser;
 use edn::parse;
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
-use mentat_tx::entities::*;
+use mentat_tx::entities::{Entid, EntidOrLookupRef, Entity, OpType, ValueOrLookupRef};
 use mentat_tx_parser::Tx;
 
 #[test]
@@ -32,16 +32,17 @@ fn test_entities() {
     let result = Tx::parse(&input[..]);
     assert_eq!(result,
                Ok(vec![
-                   Entity::Add {
+                   Entity::AddOrRetract {
                        e: EntidOrLookupRef::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                       tx: None,
+                       op: OpType::Add,
                    },
-                   Entity::Retract {
+                   Entity::AddOrRetract {
                        e: EntidOrLookupRef::Entid(Entid::Entid(102)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "b")),
                        v: ValueOrLookupRef::Value(Value::Text("w".into())),
+                       op: OpType::Retract,
                    },
                    ]));
 }

@@ -24,7 +24,7 @@ use edn::types::Value;
 use entids;
 use errors::*;
 use mentat_tx::entities as entmod;
-use mentat_tx::entities::Entity;
+use mentat_tx::entities::{Entity, OpType};
 use types::*;
 
 pub fn new_connection() -> rusqlite::Connection {
@@ -710,11 +710,11 @@ impl DB {
         // underlying entities, in which case this expression is more natural than for loops.
         let r: Vec<Result<()>> = entities.into_iter().map(|entity: &Entity| -> Result<()> {
             match *entity {
-                Entity::Add {
+                Entity::AddOrRetract {
+                    op: OpType::Add,
                     e: entmod::EntidOrLookupRef::Entid(ref e_),
                     a: ref a_,
-                    v: entmod::ValueOrLookupRef::Value(ref v_),
-                    tx: _ } => {
+                    v: entmod::ValueOrLookupRef::Value(ref v_)} => {
 
                     let e: i64 = match e_ {
                         &entmod::Entid::Entid(ref e__) => *e__,
@@ -745,7 +745,8 @@ impl DB {
                     Ok(())
                 },
 
-                Entity::Retract {
+                Entity::AddOrRetract {
+                    op: OpType::Retract,
                     e: entmod::EntidOrLookupRef::Entid(ref e_),
                     a: ref a_,
                     v: entmod::ValueOrLookupRef::Value(ref v_) } => {

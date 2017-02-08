@@ -14,11 +14,11 @@ extern crate edn;
 extern crate combine;
 extern crate mentat_tx;
 
-use combine::{any, eof, many, optional, parser, satisfy_map, token, Parser, ParseResult, Stream};
+use combine::{any, eof, many, parser, satisfy_map, token, Parser, ParseResult, Stream};
 use combine::combinator::{Expected, FnParser};
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
-use mentat_tx::entities::*;
+use mentat_tx::entities::{Entid, EntidOrLookupRef, Entity, LookupRef, OpType, ValueOrLookupRef};
 
 pub struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
 
@@ -114,15 +114,13 @@ impl<I> Tx<I>
                                  Tx::<&[Value]>::entid(),
                                  // TODO: handle lookup-ref.
                                  any(),
-                                 // TODO: entid or special keyword :db/tx?
-                                 optional(Tx::<&[Value]>::entid()),
                                  eof())
-                        .map(|(_, e, a, v, tx, _)| {
-                            Entity::Add {
+                        .map(|(_, e, a, v, _)| {
+                            Entity::AddOrRetract {
+                                op: OpType::Add,
                                 e: e,
                                 a: a,
                                 v: ValueOrLookupRef::Value(v),
-                                tx: tx,
                             }
                         });
                     // TODO: use ok() with a type annotation rather than explicit match.
@@ -138,7 +136,7 @@ impl<I> Tx<I>
     }
 
     fn add() -> TxParser<Entity, I> {
-        fn_parser(Tx::<I>::add_, "[:db/add e a v tx?]")
+        fn_parser(Tx::<I>::add_, "[:db/add e a v]")
     }
 
     fn retract_(input: I) -> ParseResult<Entity, I> {
@@ -152,7 +150,8 @@ impl<I> Tx<I>
                                  any(),
                                  eof())
                         .map(|(_, e, a, v, _)| {
-                            Entity::Retract {
+                            Entity::AddOrRetract {
+                                op: OpType::Retract,
                                 e: e,
                                 a: a,
                                 v: ValueOrLookupRef::Value(v),
@@ -235,12 +234,12 @@ mod tests {
         let mut parser = Tx::entity();
         let result = parser.parse(&input[..]);
         assert_eq!(result,
-                   Ok((Entity::Add {
+                   Ok((Entity::AddOrRetract {
+                       op: OpType::Add,
                        e: EntidOrLookupRef::Entid(Entid::Ident(NamespacedKeyword::new("test",
                                                                                       "entid"))),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                       tx: None,
                    },
                        &[][..])));
     }
@@ -254,7 +253,8 @@ mod tests {
         let mut parser = Tx::entity();
         let result = parser.parse(&input[..]);
         assert_eq!(result,
-                   Ok((Entity::Retract {
+                   Ok((Entity::AddOrRetract {
+                       op: OpType::Retract,
                        e: EntidOrLookupRef::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
@@ -272,14 +272,14 @@ mod tests {
         let mut parser = Tx::entity();
         let result = parser.parse(&input[..]);
         assert_eq!(result,
-                   Ok((Entity::Add {
+                   Ok((Entity::AddOrRetract {
+                       op: OpType::Add,
                        e: EntidOrLookupRef::LookupRef(LookupRef {
                            a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
                            v: Value::Text("v1".into()),
                        }),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: ValueOrLookupRef::Value(Value::Text("v".into())),
-                       tx: None,
                    },
                        &[][..])));
     }
