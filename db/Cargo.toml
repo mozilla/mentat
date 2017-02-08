@@ -7,7 +7,7 @@ error-chain = "0.8.0"
 lazy_static = "0.2.2"
 
 [dependencies.rusqlite]
-version = "0.9.3"
+version = "0.9.5"
 # System sqlite might be very old.
 features = ["bundled"]
 
