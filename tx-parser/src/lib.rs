@@ -14,11 +14,16 @@ extern crate edn;
 extern crate combine;
 extern crate mentat_tx;
 
+#[macro_use]
+extern crate mentat_parser_utils;
+extern crate mentat_query_parser;
+
 use combine::{any, eof, many, optional, parser, satisfy_map, token, Parser, ParseResult, Stream};
 use combine::combinator::{Expected, FnParser};
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
-use mentat_tx::entities::*;
+use mentat_tx::entities::{Entid, EntidOrLookupRef, Entity, LookupRef, ValueOrLookupRef};
+use mentat_parser_utils::ResultParser;
 
 pub struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
 
@@ -30,9 +35,19 @@ fn fn_parser<O, I>(f: fn(I) -> ParseResult<O, I>, err: &'static str) -> TxParser
     parser(f).expected(err)
 }
 
+def_parser_fn!(Tx, integer, Value, i64, input, {
+    return satisfy_map(|x: Value| if let Value::Integer(y) = x {
+            Some(y)
+        } else {
+            None
+        })
+        .parse_stream(input);
+});
+
 impl<I> Tx<I>
     where I: Stream<Item = Value>
 {
+    /*
     fn integer() -> TxParser<i64, I> {
         fn_parser(Tx::<I>::integer_, "integer")
     }
@@ -45,6 +60,7 @@ impl<I> Tx<I>
             })
             .parse_stream(input);
     }
+    */
 
     fn keyword() -> TxParser<NamespacedKeyword, I> {
         fn_parser(Tx::<I>::keyword_, "keyword")
@@ -271,7 +287,6 @@ mod tests {
     use combine::Parser;
     use edn::symbols::NamespacedKeyword;
     use edn::types::Value;
-    use mentat_tx::entities::*;
 
     fn kw(namespace: &str, name: &str) -> Value {
         Value::NamespacedKeyword(NamespacedKeyword::new(namespace, name))

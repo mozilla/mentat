@@ -11,7 +11,6 @@
 extern crate combine;
 extern crate edn;
 
-extern crate mentat_parser_utils;
 extern crate mentat_query;
 
 /// Generate a `satisfy_map` expression that matches a `PlainSymbol`
@@ -20,6 +19,7 @@ extern crate mentat_query;
 /// We do this rather than using `combine::token` so that we don't
 /// need to allocate a new `String` inside a `PlainSymbol` inside a `Value`
 /// just to match input.
+#[macro_export]
 macro_rules! matches_plain_symbol {
     ($name: expr, $input: ident) => {
         satisfy_map(|x: edn::Value| {
@@ -40,6 +40,7 @@ macro_rules! matches_plain_symbol {
 /// The provided `$body` will be evaluated with `$input` bound to the input stream.
 ///
 /// `$body`, when run, should return a `ParseResult` of the appropriate result type.
+#[macro_export]
 macro_rules! def_parser_fn {
     ( $parser: ident, $name: ident, $item_type: ty, $result_type: ty, $input: ident, $body: block ) => {
         impl<I> $parser<I> where I: Stream<Item = $item_type> {
@@ -55,6 +56,7 @@ macro_rules! def_parser_fn {
 
 /// `def_value_parser_fn` is a short-cut to `def_parser_fn` with the input type
 /// being `edn::Value`.
+#[macro_export]
 macro_rules! def_value_parser_fn {
     ( $parser: ident, $name: ident, $result_type: ty, $input: ident, $body: block ) => {
         def_parser_fn!($parser, $name, edn::Value, $result_type, $input, $body);
@@ -67,6 +69,7 @@ macro_rules! def_value_parser_fn {
 /// In practice this allows you to simply pass a function that accepts an `&edn::Value` and
 /// returns an `Option<$result_type>`: if a suitable value is at the front of the stream,
 /// it will be converted and returned by the parser; otherwise, the parse will fail.
+#[macro_export]
 macro_rules! def_value_satisfy_parser_fn {
     ( $parser: ident, $name: ident, $result_type: ty, $transformer: path ) => {
         def_value_parser_fn!($parser, $name, $result_type, input, {

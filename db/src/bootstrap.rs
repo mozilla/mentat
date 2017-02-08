@@ -14,7 +14,7 @@ use {to_namespaced_keyword};
 use edn;
 use edn::types::Value;
 use entids;
-use errors::*;
+use errors::{ErrorKind, Result};
 use mentat_tx::entities::Entity;
 use mentat_tx_parser;
 use types::{IdentMap, Partition, PartitionMap, Schema, TypedValue};
