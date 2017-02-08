@@ -18,7 +18,7 @@ use rusqlite;
 use rusqlite::types::{ToSql, ToSqlOutput};
 use time;
 
-use {repeat_values, to_namespaced_keyword};
+use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use entids;

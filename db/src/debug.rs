@@ -20,7 +20,7 @@ use rusqlite;
 use rusqlite::types::{ToSql};
 use tabwriter::TabWriter;
 
-use {to_namespaced_keyword};
+use ::{to_namespaced_keyword};
 use bootstrap;
 use edn;
 use edn::symbols;

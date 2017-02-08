@@ -10,7 +10,7 @@
 
 #![allow(dead_code)]
 
-use {to_namespaced_keyword};
+use ::{to_namespaced_keyword};
 use edn;
 use edn::types::Value;
 use entids;
