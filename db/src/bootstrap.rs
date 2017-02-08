@@ -10,7 +10,7 @@
 
 #![allow(dead_code)]
 
-use {to_namespaced_keyword};
+use ::{to_namespaced_keyword};
 use edn;
 use edn::types::Value;
 use entids;
@@ -19,6 +19,11 @@ use mentat_tx::entities::Entity;
 use mentat_tx_parser;
 use types::{IdentMap, Partition, PartitionMap, Schema, TypedValue};
 use values;
+
+/// The first transaction ID applied to the knowledge base.
+///
+/// This is the start of the :db.part/tx partition.
+pub const TX0: i64 = 0x10000000;
 
 lazy_static! {
     static ref V1_IDENTS: Vec<(&'static str, i64)> = {
@@ -70,14 +75,14 @@ lazy_static! {
     static ref V1_PARTS: Vec<(&'static str, i64, i64)> = {
         vec![(":db.part/db", 0, (1 + V1_IDENTS.len()) as i64),
              (":db.part/user", 0x10000, 0x10000),
-             (":db.part/tx", 0x10000000, 0x10000000),
+             (":db.part/tx", TX0, TX0),
         ]
     };
 
     static ref V2_PARTS: Vec<(&'static str, i64, i64)> = {
         vec![(":db.part/db", 0, (1 + V2_IDENTS.len()) as i64),
              (":db.part/user", 0x10000, 0x10000),
-             (":db.part/tx", 0x10000000, 0x10000000),
+             (":db.part/tx", TX0, TX0),
         ]
     };
 
