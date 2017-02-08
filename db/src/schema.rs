@@ -19,6 +19,10 @@ fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<(
     for (entid, attribute) in schema_map {
         let ident = entid_map.get(entid).ok_or(ErrorKind::BadSchemaAssertion(format!("Could not get ident for entid: {}", entid)))?;
 
+        if attribute.unique_value && !attribute.index {
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value true without :db/index true for entid: {}", ident)))
+        }
+
         if attribute.unique_identity && !attribute.unique_value {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/unique :db/unique_value for entid: {}", ident)))
         }
@@ -106,10 +110,14 @@ impl Schema {
 
                 entids::DB_UNIQUE => {
                     match *value {
-                        TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { attributes.unique_value = true; },
+                        TypedValue::Ref(entids::DB_UNIQUE_VALUE) => {
+                            attributes.unique_value = true;
+                            attributes.index = true;
+                        },
                         TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => {
                             attributes.unique_value = true;
                             attributes.unique_identity = true;
+                            attributes.index = true;
                         },
                         _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
                     }
