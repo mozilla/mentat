@@ -70,7 +70,8 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 /// 1: initial schema.
 /// 2: added :db.schema/version and /attribute in bootstrap; assigned idents 36 and 37, so we bump
 ///    the part range here; tie bootstrapping to the SQLite user_version.
-pub const CURRENT_VERSION: i32 = 2;
+/// 3: Add :db.type/uuid and :db.type/uri.
+pub const CURRENT_VERSION: i32 = 3;
 
 const TRUE: &'static bool = &true;
 const FALSE: &'static bool = &false;
@@ -374,10 +375,13 @@ impl TypedSQLValue for TypedValue {
         match self {
             &TypedValue::Ref(x) => (rusqlite::types::Value::Integer(x).into(), 0),
             &TypedValue::Boolean(x) => (rusqlite::types::Value::Integer(if x { 1 } else { 0 }).into(), 1),
+            &TypedValue::Instant(x) => (rusqlite::types::Value::Integer(x).into(), 4),
             // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
             &TypedValue::Long(x) => (rusqlite::types::Value::Integer(x).into(), 5),
             &TypedValue::Double(x) => (rusqlite::types::Value::Real(x.into_inner()).into(), 5),
             &TypedValue::String(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 10),
+            &TypedValue::UUID(ref x) => (rusqlite::types::ValueRef::Text(&x.to_string()).into(), 11),
+            &TypedValue::URI(ref x) => (rusqlite::types::ValueRef::Text(&x.to_string()).into(), 12),
             &TypedValue::Keyword(ref x) => (rusqlite::types::ValueRef::Text(&x.to_string()).into(), 13),
         }
     }
@@ -387,9 +391,12 @@ impl TypedSQLValue for TypedValue {
         match self {
             &TypedValue::Ref(x) => (Value::Integer(x), ValueType::Ref),
             &TypedValue::Boolean(x) => (Value::Boolean(x), ValueType::Boolean),
+            &TypedValue::Instant(x) => (Value::Integer(x), ValueType::Instant),
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.clone()), ValueType::String),
+            &TypedValue::UUID(ref x) => (Value::Text(x.clone()), ValueType::UUID),
+            &TypedValue::URI(ref x) => (Value::Text(x.clone()), ValueType::URI),
             &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.clone()), ValueType::Keyword),
         }
     }
@@ -883,12 +890,12 @@ mod tests {
 
         // Does not include :db/txInstant.
         let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        assert_eq!(datoms.0.len(), 90);
 
         // Includes :db/txInstant.
         let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        assert_eq!(transactions.0[0].0.len(), 91);
     }
 
     /// Assert that a sequence of transactions meets expectations.
@@ -957,12 +964,12 @@ mod tests {
 
         // Does not include :db/txInstant.
         let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        assert_eq!(datoms.0.len(), 90);
 
         // Includes :db/txInstant.
         let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        assert_eq!(transactions.0[0].0.len(), 91);
 
         // TODO: extract a test macro simplifying this boilerplate yet further.
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap().without_spans();
@@ -978,12 +985,12 @@ mod tests {
 
         // Does not include :db/txInstant.
         let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        assert_eq!(datoms.0.len(), 90);
 
         // Includes :db/txInstant.
         let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        assert_eq!(transactions.0[0].0.len(), 91);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap().without_spans();
 
@@ -998,12 +1005,12 @@ mod tests {
 
         // Does not include :db/txInstant.
         let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        assert_eq!(datoms.0.len(), 90);
 
         // Includes :db/txInstant.
         let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        assert_eq!(transactions.0[0].0.len(), 91);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap().without_spans();
 

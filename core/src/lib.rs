@@ -34,6 +34,8 @@ pub enum ValueType {
     Long,
     Double,
     String,
+    UUID,
+    URI,
     Keyword,
 }
 
@@ -49,6 +51,9 @@ pub enum TypedValue {
     // TODO: &str throughout?
     String(String),
     Keyword(NamespacedKeyword),
+    Instant(i64),
+    UUID(String),
+    URI(String),
 }
 
 impl TypedValue {
@@ -72,6 +77,9 @@ impl TypedValue {
             &TypedValue::Double(_) => ValueType::Double,
             &TypedValue::String(_) => ValueType::String,
             &TypedValue::Keyword(_) => ValueType::Keyword,
+            &TypedValue::Instant(_) => ValueType::Instant,
+            &TypedValue::UUID(_) => ValueType::UUID,
+            &TypedValue::URI(_) => ValueType::URI,
         }
     }
 }
