@@ -81,6 +81,17 @@ fn test_typed_value() {
     assert!(TypedValue::String("foo".to_string()).is_congruent_with(None));
 }
 
+/// Bit flags used in `flags0` column in temporary tables created during search,
+/// such as the `search_results`, `inexact_searches` and `exact_searches` tables.
+/// When moving to a more concrete table, such as `datoms`, they are expanded out
+/// via these flags and put into their own column rather than a bit field.
+pub enum AttributeBitFlags {
+    IndexAVET     = 1 << 0,
+    IndexVAET     = 1 << 1,
+    IndexFulltext = 1 << 2,
+    UniqueValue   = 1 << 3,
+}
+
 /// A Mentat schema attribute has a value type and several other flags determining how assertions
 /// with the attribute are interpreted.
 ///
@@ -126,6 +137,27 @@ pub struct Attribute {
     pub component: bool,
 }
 
+impl Attribute {
+    /// Combine several attribute flags into a bitfield used in temporary search tables.
+    pub fn flags(&self) -> u8 {
+        let mut flags: u8 = 0;
+
+        if self.index {
+            flags |= AttributeBitFlags::IndexAVET as u8;
+        }
+        if self.value_type == ValueType::Ref {
+            flags |= AttributeBitFlags::IndexVAET as u8;
+        }
+        if self.fulltext {
+            flags |= AttributeBitFlags::IndexFulltext as u8;
+        }
+        if self.unique_value {
+            flags |= AttributeBitFlags::UniqueValue as u8;
+        }
+        flags
+    }
+}
+
 impl Default for Attribute {
     fn default() -> Attribute {
         Attribute {
@@ -141,3 +173,40 @@ impl Default for Attribute {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_attribute_flags() {
+        let attr1 = Attribute {
+            index: true,
+            value_type: ValueType::Ref,
+            fulltext: false,
+            unique_value: false,
+            multival: false,
+            unique_identity: false,
+            component: false,
+        };
+
+        assert!(attr1.flags() & AttributeBitFlags::IndexAVET as u8 != 0);
+        assert!(attr1.flags() & AttributeBitFlags::IndexVAET as u8 != 0);
+        assert!(attr1.flags() & AttributeBitFlags::IndexFulltext as u8 == 0);
+        assert!(attr1.flags() & AttributeBitFlags::UniqueValue as u8 == 0);
+
+        let attr2 = Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: true,
+            unique_value: true,
+            multival: false,
+            unique_identity: false,
+            component: false,
+        };
+
+        assert!(attr2.flags() & AttributeBitFlags::IndexAVET as u8 == 0);
+        assert!(attr2.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
+        assert!(attr2.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
+        assert!(attr2.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
+    }
+}

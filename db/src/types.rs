@@ -19,6 +19,7 @@ pub use self::mentat_core::{
     ValueType,
     TypedValue,
     Attribute,
+    AttributeBitFlags,
 };
 
 /// Represents one partition of the entid space.
