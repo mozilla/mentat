@@ -40,7 +40,7 @@ pub enum ValueOrLookupRef {
     LookupRef(LookupRef),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum OpType {
     Add,
     Retract,
