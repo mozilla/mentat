@@ -272,3 +272,5 @@ mod test {
         assert!(attr2.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
     }
 }
+
+pub mod intern_set;
