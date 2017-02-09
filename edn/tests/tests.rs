@@ -1020,6 +1020,15 @@ macro_rules! def_test_as_type {
     }
 }
 
+macro_rules! def_test_into_type {
+    ($value: ident, $method: ident, $is_some: expr, $expected: expr) => {
+        if $is_some {
+            assert_eq!($value.clone().$method().unwrap(), $expected)
+        }
+        assert_eq!($value.clone().$method().is_some(), $is_some);
+    }
+}
+
 #[test]
 fn test_is_and_as_type_helper_functions() {
     let max_i64 = i64::max_value().to_bigint().unwrap();
@@ -1083,15 +1092,31 @@ fn test_is_and_as_type_helper_functions() {
         def_test_as_type!(value, as_ordered_float, i == 4, OrderedFloat(22.22f64));
         def_test_as_type!(value, as_text, i == 5, "hello world".to_string());
         def_test_as_type!(value, as_symbol, i == 6, symbols::PlainSymbol::new("$symbol"));
-        def_test_as_type!(value, as_namespaced_symbol, i == 7,
-            symbols::NamespacedSymbol::new("$ns", "$symbol"));
+        def_test_as_type!(value, as_namespaced_symbol, i == 7, symbols::NamespacedSymbol::new("$ns", "$symbol"));
         def_test_as_type!(value, as_keyword, i == 8, symbols::Keyword::new("hello"));
-        def_test_as_type!(value, as_namespaced_keyword, i == 9,
-            symbols::NamespacedKeyword::new("hello", "world"));
+        def_test_as_type!(value, as_namespaced_keyword, i == 9, symbols::NamespacedKeyword::new("hello", "world"));
         def_test_as_type!(value, as_vector, i == 10, vec![Integer(1)]);
         def_test_as_type!(value, as_list, i == 11, LinkedList::from_iter(vec![]));
         def_test_as_type!(value, as_set, i == 12, BTreeSet::from_iter(vec![]));
         def_test_as_type!(value, as_map, i == 13, BTreeMap::from_iter(vec![
+            (Value::Text("a".to_string()), Value::Integer(1)),
+        ]));
+
+        def_test_into_type!(value, into_boolean, i == 1, false);
+        def_test_into_type!(value, into_integer, i == 2, 1i64);
+        def_test_into_type!(value, into_float, i == 4, 22.22f64);
+
+        def_test_into_type!(value, into_big_integer, i == 3, &max_i64 * &max_i64);
+        def_test_into_type!(value, into_ordered_float, i == 4, OrderedFloat(22.22f64));
+        def_test_into_type!(value, into_text, i == 5, "hello world".to_string());
+        def_test_into_type!(value, into_symbol, i == 6, symbols::PlainSymbol::new("$symbol"));
+        def_test_into_type!(value, into_namespaced_symbol, i == 7, symbols::NamespacedSymbol::new("$ns", "$symbol"));
+        def_test_into_type!(value, into_keyword, i == 8, symbols::Keyword::new("hello"));
+        def_test_into_type!(value, into_namespaced_keyword, i == 9, symbols::NamespacedKeyword::new("hello", "world"));
+        def_test_into_type!(value, into_vector, i == 10, vec![Integer(1)]);
+        def_test_into_type!(value, into_list, i == 11, LinkedList::from_iter(vec![]));
+        def_test_into_type!(value, into_set, i == 12, BTreeSet::from_iter(vec![]));
+        def_test_into_type!(value, into_map, i == 13, BTreeMap::from_iter(vec![
             (Value::Text("a".to_string()), Value::Integer(1)),
         ]));
     }
