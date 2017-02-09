@@ -1003,6 +1003,14 @@ fn test_utils_merge() {
     test(&right, &left, &expected);
 }
 
+macro_rules! def_test_as_value_type {
+    ($value: ident, $method: ident, $is_some: expr, $expected: expr) => {
+        if $is_some {
+            assert_eq!($value.$method().unwrap(), $expected)
+        }
+        assert_eq!($value.$method().is_some(), $is_some);
+    }
+}
 macro_rules! def_test_as_type {
     ($value: ident, $method: ident, $is_some: expr, $expected: expr) => {
         if $is_some {
@@ -1066,10 +1074,13 @@ fn test_is_and_as_type_helper_functions() {
             assert!(!value.as_nil().is_some())
         }
 
-        def_test_as_type!(value, as_boolean, i == 1, false);
-        def_test_as_type!(value, as_integer, i == 2, 1i64);
+        // These return copied values, not references.
+        def_test_as_value_type!(value, as_boolean, i == 1, false);
+        def_test_as_value_type!(value, as_integer, i == 2, 1i64);
+        def_test_as_value_type!(value, as_float, i == 4, 22.22f64);
+
         def_test_as_type!(value, as_big_integer, i == 3, &max_i64 * &max_i64);
-        def_test_as_type!(value, as_float, i == 4, OrderedFloat(22.22f64));
+        def_test_as_type!(value, as_ordered_float, i == 4, OrderedFloat(22.22f64));
         def_test_as_type!(value, as_text, i == 5, "hello world".to_string());
         def_test_as_type!(value, as_symbol, i == 6, symbols::PlainSymbol::new("$symbol"));
         def_test_as_type!(value, as_namespaced_symbol, i == 7,

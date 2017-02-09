@@ -115,10 +115,21 @@ macro_rules! def_is {
     }
 }
 
+/// Creates `as_$TYPE` helper functions for Value, like `as_integer()`,
+/// which returns the underlying value representing this Value wrapped
+/// in an Option, like `<Option<i64>`.
+macro_rules! def_as {
+    ($name: ident, $kind: path, $t: ty) => {
+        pub fn $name(&self) -> Option<$t> {
+            match *self { $kind(v) => Some(v), _ => None }
+        }
+    }
+}
+
 /// Creates `as_$TYPE` helper functions for Value, like `as_big_integer()`,
 /// which returns the underlying value representing this Value wrapped
 /// in an Option, like `<Option<&BigInt>`.
-macro_rules! def_as {
+macro_rules! def_as_ref {
     ($name: ident, $kind: path, $t: ty) => {
         pub fn $name(&self) -> Option<&$t> {
             match *self { $kind(ref v) => Some(v), _ => None }
@@ -148,19 +159,23 @@ impl Value {
         match *self { Nil => Some(()), _ => None }
     }
 
+    pub fn as_float(&self) -> Option<f64> {
+        self.as_ordered_float().map(|x| (*x).into())
+    }
+
     def_as!(as_boolean, Boolean, bool);
     def_as!(as_integer, Integer, i64);
-    def_as!(as_big_integer, BigInteger, BigInt);
-    def_as!(as_float, Float, OrderedFloat<f64>);
-    def_as!(as_text, Text, String);
-    def_as!(as_symbol, PlainSymbol, symbols::PlainSymbol);
-    def_as!(as_namespaced_symbol, NamespacedSymbol, symbols::NamespacedSymbol);
-    def_as!(as_keyword, Keyword, symbols::Keyword);
-    def_as!(as_namespaced_keyword, NamespacedKeyword, symbols::NamespacedKeyword);
-    def_as!(as_vector, Vector, Vec<Value>);
-    def_as!(as_list, List, LinkedList<Value>);
-    def_as!(as_set, Set, BTreeSet<Value>);
-    def_as!(as_map, Map, BTreeMap<Value, Value>);
+    def_as_ref!(as_big_integer, BigInteger, BigInt);
+    def_as_ref!(as_ordered_float, Float, OrderedFloat<f64>);
+    def_as_ref!(as_text, Text, String);
+    def_as_ref!(as_symbol, PlainSymbol, symbols::PlainSymbol);
+    def_as_ref!(as_namespaced_symbol, NamespacedSymbol, symbols::NamespacedSymbol);
+    def_as_ref!(as_keyword, Keyword, symbols::Keyword);
+    def_as_ref!(as_namespaced_keyword, NamespacedKeyword, symbols::NamespacedKeyword);
+    def_as_ref!(as_vector, Vector, Vec<Value>);
+    def_as_ref!(as_list, List, LinkedList<Value>);
+    def_as_ref!(as_set, Set, BTreeSet<Value>);
+    def_as_ref!(as_map, Map, BTreeMap<Value, Value>);
 
     pub fn from_bigint(src: &str) -> Option<Value> {
         src.parse::<BigInt>().map(Value::BigInteger).ok()
