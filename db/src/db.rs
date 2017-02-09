@@ -11,6 +11,7 @@
 #![allow(dead_code)]
 
 use std::iter::once;
+use std::path::Path;
 
 use itertools;
 use itertools::Itertools;
@@ -27,8 +28,21 @@ use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use types::*;
 
-pub fn new_connection() -> rusqlite::Connection {
-    return rusqlite::Connection::open_in_memory().unwrap();
+pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
+    let conn = match uri.as_ref().to_string_lossy().len() {
+        0 => rusqlite::Connection::open_in_memory()?,
+        _ => rusqlite::Connection::open(uri)?,
+    };
+
+    conn.execute_batch("
+        PRAGMA page_size=32768;
+        PRAGMA journal_mode=wal;
+        PRAGMA wal_autocheckpoint=32;
+        PRAGMA journal_size_limit=3145728;
+        PRAGMA foreign_keys=ON;
+    ")?;
+
+    Ok(conn)
 }
 
 /// Version history:
@@ -889,7 +903,7 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let mut conn = new_connection();
+        let mut conn = new_connection("").expect("Couldn't open in-memory db");
         assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
 
         let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
@@ -912,7 +926,7 @@ mod tests {
 
     #[test]
     fn test_retract() {
-        let mut conn = new_connection();
+        let mut conn = new_connection("").expect("Couldn't open in-memory db");
         assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
 
         let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
