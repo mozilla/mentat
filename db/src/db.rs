@@ -1114,25 +1114,40 @@ mod tests {
             let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
             let expected_transaction: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-transaction")));
             let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-datoms")));
+            let expected_error_message: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-error-message")));
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
 
-            let report = db.transact(&conn, entities).unwrap();
-            assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
+            let maybe_report = db.transact(&conn, entities);
 
             if let Some(expected_transaction) = expected_transaction {
+                if expected_transaction.is_nil() {
+                    assert!(maybe_report.is_err());
+
+                    if let Some(expected_error_message) = expected_error_message {
+                        let expected_error_message = expected_error_message.as_text();
+                        assert!(expected_error_message.is_some(), "Expected error message to be text:\n{:?}", expected_error_message);
+                        let error_message = maybe_report.unwrap_err().to_string();
+                        assert!(error_message.contains(expected_error_message.unwrap()), "Expected error message:\n{}\nto contain:\n{}", error_message, expected_error_message.unwrap());
+                    }
+                    continue
+                }
+
+                let report = maybe_report.unwrap();
+                assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
+
                 let transactions = debug::transactions_after(&conn, &db, bootstrap::TX0 + index).unwrap();
                 assert_eq!(transactions.0.len(), 1);
-                assert_eq!(transactions.0[0].into_edn(),
-                           *expected_transaction,
-                           "\n{} - expected transaction:\n{}\n{}", label, transactions.0[0].into_edn(), *expected_transaction);
+                assert_eq!(*expected_transaction,
+                           transactions.0[0].into_edn(),
+                           "\n{} - expected transaction:\n{}\nbut got transaction:\n{}", label, *expected_transaction, transactions.0[0].into_edn());
             }
 
             if let Some(expected_datoms) = expected_datoms {
                 let datoms = debug::datoms_after(&conn, &db, bootstrap::TX0).unwrap();
-                assert_eq!(datoms.into_edn(),
-                           *expected_datoms,
-                           "\n{} - expected datoms:\n{}\n{}", label, datoms.into_edn(), *expected_datoms);
+                assert_eq!(*expected_datoms,
+                           datoms.into_edn(),
+                           "\n{} - expected datoms:\n{}\nbut got datoms:\n{}", label, *expected_datoms, datoms.into_edn())
             }
 
             // Don't allow empty tests.  This will need to change if we allow transacting schema
@@ -1178,6 +1193,26 @@ mod tests {
         assert_eq!(transactions.0[0].0.len(), 89);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap();
+
+        let transactions = value.as_vector().unwrap();
+        assert_transactions(&conn, &mut db, transactions);
+    }
+
+    #[test]
+    fn test_upsert_vector() {
+        let mut conn = new_connection("").expect("Couldn't open in-memory db");
+        let mut db = ensure_current_version(&mut conn).unwrap();
+
+        // Does not include :db/txInstant.
+        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        assert_eq!(datoms.0.len(), 88);
+
+        // Includes :db/txInstant.
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        assert_eq!(transactions.0.len(), 1);
+        assert_eq!(transactions.0[0].0.len(), 89);
+
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap();
 
         let transactions = value.as_vector().unwrap();
         assert_transactions(&conn, &mut db, transactions);
