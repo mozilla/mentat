@@ -116,12 +116,23 @@ macro_rules! def_is {
 }
 
 /// Creates `as_$TYPE` helper functions for Value, like `as_big_integer()`,
-/// which returns the underlying value representing this Value wrapped
-/// in an Option, like `<Option<&BigInt>`.
+/// which returns a reference to the underlying value representing this Value
+/// wrapped in an Option, like `<Option<&BigInt>`.
 macro_rules! def_as {
     ($name: ident, $kind: path, $t: ty) => {
         pub fn $name(&self) -> Option<&$t> {
             match *self { $kind(ref v) => Some(v), _ => None }
+        }
+    }
+}
+
+/// Creates `into_$TYPE` helper functions for Value, like `into_big_integer()`,
+/// which consumes it, returning underlying value representing this Value
+/// wrapped in an Option, like `<Option<BigInt>`.
+macro_rules! def_into {
+    ($name: ident, $kind: path, $t: ty, $( $transform: expr ),* ) => {
+        pub fn $name(self) -> Option<$t> {
+            match self { $kind(v) => { $( let v = $transform(v) )*; Some(v) }, _ => None }
         }
     }
 }
@@ -151,7 +162,8 @@ impl Value {
     def_as!(as_boolean, Boolean, bool);
     def_as!(as_integer, Integer, i64);
     def_as!(as_big_integer, BigInteger, BigInt);
-    def_as!(as_float, Float, OrderedFloat<f64>);
+    def_as!(as_ordered_float, Float, OrderedFloat<f64>);
+    def_as!(as_float, Float, f64);
     def_as!(as_text, Text, String);
     def_as!(as_symbol, PlainSymbol, symbols::PlainSymbol);
     def_as!(as_namespaced_symbol, NamespacedSymbol, symbols::NamespacedSymbol);
@@ -161,6 +173,21 @@ impl Value {
     def_as!(as_list, List, LinkedList<Value>);
     def_as!(as_set, Set, BTreeSet<Value>);
     def_as!(as_map, Map, BTreeMap<Value, Value>);
+
+    def_into!(into_boolean, Boolean, bool,);
+    def_into!(into_integer, Integer, i64,);
+    def_into!(into_big_integer, BigInteger, BigInt,);
+    def_into!(into_ordered_float, Float, OrderedFloat<f64>,);
+    def_into!(into_float, Float, f64, |v: OrderedFloat<f64>| v.into_inner());
+    def_into!(into_text, Text, String,);
+    def_into!(into_symbol, PlainSymbol, symbols::PlainSymbol,);
+    def_into!(into_namespaced_symbol, NamespacedSymbol, symbols::NamespacedSymbol,);
+    def_into!(into_keyword, Keyword, symbols::Keyword,);
+    def_into!(into_namespaced_keyword, NamespacedKeyword, symbols::NamespacedKeyword,);
+    def_into!(into_vector, Vector, Vec<Value>,);
+    def_into!(into_list, List, LinkedList<Value>,);
+    def_into!(into_set, Set, BTreeSet<Value>,);
+    def_into!(into_map, Map, BTreeMap<Value, Value>,);
 
     pub fn from_bigint(src: &str) -> Option<Value> {
         src.parse::<BigInt>().map(Value::BigInteger).ok()
