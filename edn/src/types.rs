@@ -55,14 +55,14 @@ impl Display for Value {
             Boolean(v) => write!(f, "{}", v),
             Integer(v) => write!(f, "{}", v),
             BigInteger(ref v) => write!(f, "{}N", v),
+            // TODO: make sure float syntax is correct.
             Float(ref v) => {
-                // TODO: make sure float syntax is correct.
                 if *v == OrderedFloat(f64::INFINITY) {
-                    write!(f, "#f {}", "+Infinity")
+                    write!(f, "#f +Infinity")
                 } else if *v == OrderedFloat(f64::NEG_INFINITY) {
-                    write!(f, "#f {}", "-Infinity")
+                    write!(f, "#f -Infinity")
                 } else if *v == OrderedFloat(f64::NAN) {
-                    write!(f, "#f {}", "NaN")
+                    write!(f, "#f NaN")
                 } else {
                     write!(f, "{}", v)
                 }
