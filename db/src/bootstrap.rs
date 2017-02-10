@@ -12,9 +12,9 @@
 
 use ::{to_namespaced_keyword};
 use edn;
+use errors::{ErrorKind, Result};
 use edn::types::Value;
 use entids;
-use errors::*;
 use db::TypedSQLValue;
 use mentat_tx::entities::Entity;
 use mentat_tx_parser;

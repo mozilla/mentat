@@ -23,10 +23,10 @@ use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use entids;
-use errors::*;
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
-use types::*;
+use errors::{ErrorKind, Result, ResultExt};
+use types::{Attribute, DB, Entid, IdentMap, Partition, PartitionMap, Schema, TypedValue, ValueType};
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
