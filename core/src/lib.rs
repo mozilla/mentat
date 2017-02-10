@@ -22,7 +22,7 @@ pub type Entid = i64;
 
 /// The attribute of each Mentat assertion has a :db/valueType constraining the value to a
 /// particular set.  Mentat recognizes the following :db/valueType values.
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone,Copy,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum ValueType {
     Ref,
     Boolean,
