@@ -10,7 +10,8 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std;
+use std::collections::{BTreeSet, HashMap};
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
@@ -33,6 +34,7 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
+use mentat_core::intern_set;
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use errors::{ErrorKind, Result, ResultExt};
@@ -45,6 +47,17 @@ use types::{
     PartitionMap,
     TxReport,
 };
+use internal_types::{
+    replace_lookup_ref,
+    LookupRefOrTempId,
+    TempId,
+    TempIdMap,
+    Term,
+    TermWithTempIds,
+    TermWithTempIdsAndLookupRefs,
+    TermWithoutTempIds,
+};
+use upsert_resolution::Generation;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -208,7 +221,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
 
     // TODO: return to transact_internal to self manage the encompassing SQLite transaction.
     let mut bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
-    bootstrap_db.transact(&tx, &bootstrap::bootstrap_entities()[..])?;
+    bootstrap_db.transact(&tx, bootstrap::bootstrap_entities())?;
 
     set_user_version(&tx, CURRENT_VERSION)?;
 
@@ -544,6 +557,38 @@ impl DB {
         Ok(m)
     }
 
+    /// TODO: explain what this is doing.
+    pub fn resolve_temp_id_avs<'a>(&self, conn: &rusqlite::Connection, temp_id_avs: &'a [(TempId, AVPair)]) -> Result<TempIdMap> {
+        if temp_id_avs.is_empty() {
+            return Ok(TempIdMap::default());
+        }
+
+        // Map [a v]->entid.
+        let mut av_pairs: Vec<&AVPair> = vec![];
+        for i in 0..temp_id_avs.len() {
+            av_pairs.push(&temp_id_avs[i].1);
+        }
+
+        // Lookup in the store.
+        let av_map: AVMap = self.resolve_avs(conn, &av_pairs[..])?;
+
+        // Map id->entid.
+        let mut temp_id_map: TempIdMap = TempIdMap::default();
+        for &(ref temp_id, ref av_pair) in temp_id_avs {
+            if let Some(n) = av_map.get(&av_pair) {
+                if let Some(previous_n) = temp_id_map.get(&*temp_id) {
+                    if n != previous_n {
+                        // Conflicting upsert!  TODO: collect conflicts and give more details on what failed this transaction.
+                        bail!(ErrorKind::NotYetImplemented(format!("Conflicting upsert: tempid '{}' resolves to more than one entid: {:?}, {:?}", temp_id, previous_n, n))) // XXX
+                    }
+                }
+                temp_id_map.insert(temp_id.clone(), *n);
+            }
+        }
+
+        Ok((temp_id_map))
+    }
+
     /// Create empty temporary tables for search parameters and search results.
     fn create_temp_tables(&self, conn: &rusqlite::Connection) -> Result<()> {
         // We can't do this in one shot, since we can't prepare a batch statement.
@@ -825,12 +870,87 @@ impl DB {
         }
     }
 
+    /// Pipeline stage 1: convert `Entity` instances into `Term` instances, ready for term
+    /// rewriting.
+    ///
+    /// The `Term` instances produce share interned TempId and LookupRef handles.
+    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<Vec<TermWithTempIdsAndLookupRefs>> where I: IntoIterator<Item=Entity> {
+        let mut temp_ids = intern_set::InternSet::new();
+
+        entities.into_iter()
+            .map(|entity: Entity| -> Result<TermWithTempIdsAndLookupRefs> {
+                match entity {
+                    Entity::AddOrRetract { op, e, a, v } => {
+                        let a: i64 = match a {
+                            entmod::Entid::Entid(ref a) => *a,
+                            entmod::Entid::Ident(ref a) => self.schema.require_entid(&a.to_string())?,
+                        };
+
+                        let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
+
+                        let e = match e {
+                            entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                                let e: i64 = match e {
+                                    entmod::Entid::Entid(ref e) => *e,
+                                    entmod::Entid::Ident(ref e) => self.schema.require_entid(&e.to_string())?,
+                                };
+                                std::result::Result::Ok(e)
+                            },
+
+                            entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                            },
+
+                            entmod::EntidOrLookupRefOrTempId::LookupRef(_) => {
+                                // TODO: reference entity and initial input.
+                                bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
+                            },
+                        };
+
+                        let v = {
+                            if attribute.value_type == ValueType::Ref && v.is_text() {
+                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
+                            } else if attribute.value_type == ValueType::Ref && v.is_vector() && v.as_vector().unwrap().len() == 2 {
+                                bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
+                            } else {
+                                // Here is where we do schema-aware typechecking: we either assert that
+                                // the given value is in the attribute's value set, or (in limited
+                                // cases) coerce the value into the attribute's value set.
+                                let typed_value: TypedValue = self.to_typed_value(&v, &attribute)?;
+
+                                std::result::Result::Ok(typed_value)
+                            }
+                        };
+
+                        Ok(Term::AddOrRetract(op, e, a, v))
+                    },
+                }
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
+    /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
+    /// lookup refs.
+    ///
+    /// The `Term` instances produce share interned TempId handles and have no LookupRef references.
+    fn resolve_lookup_refs<I>(&self, lookup_ref_map: &AVMap, terms: I) -> Result<Vec<TermWithTempIds>> where I: IntoIterator<Item=TermWithTempIdsAndLookupRefs> {
+        terms.into_iter().map(|term: TermWithTempIdsAndLookupRefs| -> Result<TermWithTempIds> {
+            match term {
+                Term::AddOrRetract(op, e, a, v) => {
+                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| x)?;
+                    let v = replace_lookup_ref(&lookup_ref_map, v, |x| TypedValue::Ref(x))?;
+                    Ok(Term::AddOrRetract(op, e, a, v))
+                },
+            }
+        }).collect::<Result<Vec<_>>>()
+    }
+
     /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
     /// `self.DB`.
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
-    pub fn transact(&mut self, conn: &rusqlite::Connection, entities: &[Entity]) -> Result<TxReport> {
+    pub fn transact<I>(&mut self, conn: &rusqlite::Connection, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         let tx_instant = now(); // Label the transaction with the timestamp when we first see it: leading edge.
         let tx = self.allocate_entid(":db.part/tx".to_string());
 
@@ -844,7 +964,7 @@ impl DB {
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
-    pub fn transact_internal(&mut self, conn: &rusqlite::Connection, entities: &[Entity], tx_id: Entid, tx_instant: i64) -> Result<TxReport> {
+    pub fn transact_internal<I>(&mut self, conn: &rusqlite::Connection, entities: I, tx_id: Entid, tx_instant: i64) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         // TODO: push these into an internal transaction report?
 
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
@@ -860,88 +980,63 @@ impl DB {
                           TypedValue::Long(tx_instant),
                           true));
 
-        // Right now, this could be a for loop, saving some mapping, collecting, and type
-        // annotations.  However, I expect it to be a multi-stage map as we start to transform the
-        // underlying entities, in which case this expression is more natural than for loops.
-        let r: Vec<Result<()>> = entities.into_iter().map(|entity: &Entity| -> Result<()> {
-            match *entity {
-                Entity::AddOrRetract {
-                    op: OpType::Add,
-                    e: entmod::EntidOrLookupRefOrTempId::Entid(ref e_),
-                    a: ref a_,
-                    v: ref v_ } => {
+        // We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
+        let lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
 
-                    let e: i64 = match e_ {
-                        &entmod::Entid::Entid(ref e__) => *e__,
-                        &entmod::Entid::Ident(ref e__) => self.schema.require_entid(&e__.to_string())?,
-                    };
+        // TODO: extract the tempids set as well.
+        // Pipeline stage 1: entities -> terms with tempids and lookup refs.
+        let terms_with_temp_ids_and_lookup_refs = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
-                    let a: i64 = match a_ {
-                        &entmod::Entid::Entid(ref a__) => *a__,
-                        &entmod::Entid::Ident(ref a__) => self.schema.require_entid(&a__.to_string())?,
-                    };
+        // Pipeline stage 2: resolve lookup refs -> terms with tempids.
+        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_refs.inner.iter().map(|rc| &**rc).collect();
+        let lookup_ref_map: AVMap = self.resolve_avs(conn, &lookup_ref_avs[..])?;
 
+        let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
+
+        // Pipeline stage 3: upsert tempids -> terms without tempids or lookup refs.
+        // Now we can collect upsert populations.
+        let (mut generation, inert_terms) = Generation::from(terms_with_temp_ids, self)?;
+
+        // And evolve them forward.
+        while generation.can_evolve() {
+            // Evolve further.
+            let temp_id_map = self.resolve_temp_id_avs(conn, &generation.temp_id_avs()[..])?;
+            generation = generation.evolve_one_step(&temp_id_map);
+        }
+
+        // Allocate entids for tempids that didn't upsert.  BTreeSet rather than HashSet so this is deterministic.
+        let unresolved_temp_ids: BTreeSet<TempId> = generation.temp_ids_in_allocations();
+
+        // TODO: track partitions for temporary IDs.
+        let entids = self.allocate_entids(":db.part/user".to_string(), unresolved_temp_ids.len());
+
+        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
+
+        let final_populations = generation.into_final_populations(&temp_id_allocations)?;
+        let final_terms: Vec<TermWithoutTempIds> = [final_populations.resolved,
+                                                    final_populations.allocated,
+                                                    inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
+
+        // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
+        // Collect into non_fts_*.
+        // TODO: use something like Clojure's group_by to do this.
+        for term in final_terms {
+            match term {
+                Term::AddOrRetract(op, e, a, v) => {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if attribute.fulltext {
-                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented: {:?}", entity)))
+                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented"))) // TODO: reference original input.  Difficult!
                     }
 
-                    // This is our chance to do schema-aware typechecking: to either assert that the
-                    // given value is in the attribute's value set, or (in limited cases) to coerce
-                    // the value into the attribute's value set.
-                    let typed_value: TypedValue = self.to_typed_value(v_, &attribute)?;
-
-                    let added = true;
+                    let added = op == OpType::Add;
                     if attribute.multival {
-                        non_fts_many.push((e, a, typed_value, added));
+                        non_fts_many.push((e, a, v, added));
                     } else {
-                        non_fts_one.push((e, a, typed_value, added));
+                        non_fts_one.push((e, a, v, added));
                     }
-                    Ok(())
                 },
-
-                Entity::AddOrRetract {
-                    op: OpType::Retract,
-                    e: entmod::EntidOrLookupRefOrTempId::Entid(ref e_),
-                    a: ref a_,
-                    v: ref v_ } => {
-
-                    let e: i64 = match e_ {
-                        &entmod::Entid::Entid(ref e__) => *e__,
-                        &entmod::Entid::Ident(ref e__) => self.schema.require_entid(&e__.to_string())?,
-                    };
-
-                    let a: i64 = match a_ {
-                        &entmod::Entid::Entid(ref a__) => *a__,
-                        &entmod::Entid::Ident(ref a__) => self.schema.require_entid(&a__.to_string())?,
-                    };
-
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                    if attribute.fulltext {
-                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented: {:?}", entity)))
-                    }
-
-                    // This is our chance to do schema-aware typechecking: to either assert that the
-                    // given value is in the attribute's value set, or (in limited cases) to coerce
-                    // the value into the attribute's value set.
-                    let typed_value: TypedValue = self.to_typed_value(v_, &attribute)?;
-
-                    let added = false;
-
-                    if attribute.multival {
-                        non_fts_many.push((e, a, typed_value, added));
-                    } else {
-                        non_fts_one.push((e, a, typed_value, added));
-                    }
-                    Ok(())
-                },
-
-                _ => bail!(ErrorKind::NotYetImplemented(format!("Transacting this entity is not yet implemented: {:?}", entity)))
             }
-        }).collect();
-
-        let r: Result<Vec<()>> = r.into_iter().collect();
-        r?;
+        }
 
         self.create_temp_tables(conn)?;
 
@@ -1022,7 +1117,7 @@ mod tests {
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
 
-            let report = db.transact(&conn, &entities[..]).unwrap();
+            let report = db.transact(&conn, entities).unwrap();
             assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
 
             if let Some(expected_transaction) = expected_transaction {
