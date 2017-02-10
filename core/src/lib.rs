@@ -48,6 +48,18 @@ pub enum TypedValue {
 }
 
 impl TypedValue {
+    /// Returns true if the provided type is `Some` and matches this value's type, or if the
+    /// provided type is `None`.
+    #[inline]
+    pub fn is_congruent_with<T: Into<Option<ValueType>>>(&self, t: T) -> bool {
+        t.into().map_or(true, |x| self.matches_type(x))
+    }
+
+    #[inline]
+    pub fn matches_type(&self, t: ValueType) -> bool {
+        self.value_type() == t
+    }
+
     pub fn value_type(&self) -> ValueType {
         match self {
             &TypedValue::Ref(_) => ValueType::Ref,
@@ -58,6 +70,15 @@ impl TypedValue {
             &TypedValue::Keyword(_) => ValueType::Keyword,
         }
     }
+}
+
+#[test]
+fn test_typed_value() {
+    assert!(TypedValue::Boolean(false).is_congruent_with(None));
+    assert!(TypedValue::Boolean(false).is_congruent_with(ValueType::Boolean));
+    assert!(!TypedValue::String("foo".to_string()).is_congruent_with(ValueType::Boolean));
+    assert!(TypedValue::String("foo".to_string()).is_congruent_with(ValueType::String));
+    assert!(TypedValue::String("foo".to_string()).is_congruent_with(None));
 }
 
 /// A Mentat schema attribute has a value type and several other flags determining how assertions
