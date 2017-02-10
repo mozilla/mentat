@@ -6,3 +6,6 @@ version = "0.0.1"
 
 [dependencies.edn]
   path = "../edn"
+
+[dependencies.mentat_core]
+  path = "../core"
