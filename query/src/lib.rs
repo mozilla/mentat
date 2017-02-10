@@ -31,9 +31,11 @@
 ///! a tradeoff against well-typed function signatures and other such boundaries.
 
 extern crate edn;
+extern crate mentat_core;
 
 use edn::{BigInt, OrderedFloat};
 pub use edn::{NamespacedKeyword, PlainSymbol};
+use mentat_core::TypedValue;
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
@@ -99,6 +101,17 @@ pub enum NonIntegerConstant {
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
+}
+
+impl NonIntegerConstant {
+    pub fn into_typed_value(self) -> TypedValue {
+        match self {
+            NonIntegerConstant::BigInteger(_) => unimplemented!(),
+            NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
+            NonIntegerConstant::Float(v) => TypedValue::Double(v),
+            NonIntegerConstant::Text(v) => TypedValue::String(v),
+        }
+    }
 }
 
 pub enum FnArg {
