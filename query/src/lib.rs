@@ -106,7 +106,7 @@ pub enum NonIntegerConstant {
 impl NonIntegerConstant {
     pub fn into_typed_value(self) -> TypedValue {
         match self {
-            NonIntegerConstant::BigInteger(_) => unimplemented!(),
+            NonIntegerConstant::BigInteger(_) => unimplemented!(),     // TODO: #280.
             NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
             NonIntegerConstant::Float(v) => TypedValue::Double(v),
             NonIntegerConstant::Text(v) => TypedValue::String(v),
