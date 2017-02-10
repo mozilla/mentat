@@ -26,7 +26,7 @@ use entids;
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use errors::{ErrorKind, Result, ResultExt};
-use types::{Attribute, DB, Entid, IdentMap, Partition, PartitionMap, Schema, TypedValue, ValueType};
+use types::{Attribute, AttributeBitFlags, DB, Entid, IdentMap, Partition, PartitionMap, Schema, TypedValue, ValueType};
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -458,8 +458,9 @@ impl DB {
         // We can't do this in one shot, since we can't prepare a batch statement.
         let statements = [
             r#"DROP TABLE IF EXISTS temp.exact_searches"#,
-            // TODO: compress bit flags into a single bit field, and expand when inserting into
-            // `datoms` and `transactions`.
+            // Note that `flags0` is a bitfield of several flags compressed via
+            // `AttributeBitFlags.flags()` in the temporary search tables, later
+            // expanded in the `datoms` insertion.
             // TODO: drop tx0 entirely.
             r#"CREATE TABLE temp.exact_searches (
                e0 INTEGER NOT NULL,
@@ -468,10 +469,7 @@ impl DB {
                value_type_tag0 SMALLINT NOT NULL,
                tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
-               index_avet0 TINYINT NOT NULL,
-               index_vaet0 TINYINT NOT NULL,
-               index_fulltext0 TINYINT NOT NULL,
-               unique_value0 TINYINT NOT NULL)"#,
+               flags0 TINYINT NOT NULL)"#,
             // There's no real need to split exact and inexact searches, so long as we keep things
             // in the correct place and performant.  Splitting has the advantage of being explicit
             // and slightly easier to read, so we'll do that to start.
@@ -483,10 +481,7 @@ impl DB {
                value_type_tag0 SMALLINT NOT NULL,
                tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
-               index_avet0 TINYINT NOT NULL,
-               index_vaet0 TINYINT NOT NULL,
-               index_fulltext0 TINYINT NOT NULL,
-               unique_value0 TINYINT NOT NULL)"#,
+               flags0 TINYINT NOT NULL)"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
             // TODO: don't encode search_type as a STRING.  This is explicit and much easier to read
             // than another flag, so we'll do it to start, and optimize later.
@@ -497,10 +492,7 @@ impl DB {
                value_type_tag0 SMALLINT NOT NULL,
                tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
-               index_avet0 TINYINT NOT NULL,
-               index_vaet0 TINYINT NOT NULL,
-               index_fulltext0 TINYINT NOT NULL,
-               unique_value0 TINYINT NOT NULL,
+               flags0 TINYINT NOT NULL,
                search_type STRING NOT NULL,
                rid INTEGER,
                v BLOB)"#,
@@ -527,7 +519,7 @@ impl DB {
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
     fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
-        let bindings_per_statement = 10;
+        let bindings_per_statement = 7;
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
 
@@ -537,31 +529,27 @@ impl DB {
 
             // We must keep these computed values somewhere to reference them later, so we can't
             // combine this map and the subsequent flat_map.
-            // (e0, a0, v0, value_type_tag0, added0, index_avet0, index_vaet0, index_fulltext0, unique_value0)
+            // (e0, a0, v0, value_type_tag0, added0, flags0)
             let block: Result<Vec<(i64 /* e */, i64 /* a */,
                                    ToSqlOutput<'a> /* value */, /* value_type_tag */ i32,
                                    /* added0 */ bool,
-                                   /* index_avet0 */ bool,
-                                   /* index_vaet0 */ bool,
-                                   /* index_fulltext0 */ bool,
-                                   /* unique_value0 */ bool)>> = chunk.map(|&(e, a, ref typed_value, added)| {
+                                   /* flags0 */ u8)>> = chunk.map(|&(e, a, ref typed_value, added)| {
                 count += 1;
                 let attribute: &Attribute = self.schema.require_attribute_for_entid(&a)?;
 
                 // Now we can represent the typed value as an SQL value.
                 let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
 
+                let flags = attribute.flags();
+
                 Ok((e, a, value, value_type_tag,
                     added,
-                    attribute.index,
-                    attribute.value_type == ValueType::Ref,
-                    attribute.fulltext,
-                    attribute.unique_value))
+                    flags))
             }).collect();
             let block = block?;
 
             // `params` reference computed values in `block`.
-            let params: Vec<&ToSql> = block.iter().flat_map(|&(ref e, ref a, ref value, ref value_type_tag, added, index_avet, index_vaet, index_fulltext, unique_value)| {
+            let params: Vec<&ToSql> = block.iter().flat_map(|&(ref e, ref a, ref value, ref value_type_tag, added, ref flags)| {
                 // Avoid inner heap allocation.
                 // TODO: extract some finite length iterator to make this less indented!
                 once(e as &ToSql)
@@ -570,18 +558,15 @@ impl DB {
                                   .chain(once(value_type_tag as &ToSql)
                                          .chain(once(&tx as &ToSql)
                                                 .chain(once(to_bool_ref(added) as &ToSql)
-                                                       .chain(once(to_bool_ref(index_avet) as &ToSql)
-                                                              .chain(once(to_bool_ref(index_vaet) as &ToSql)
-                                                                     .chain(once(to_bool_ref(index_fulltext) as &ToSql)
-                                                                            .chain(once(to_bool_ref(unique_value) as &ToSql))))))))))
+                                                       .chain(once(flags as &ToSql)))))))
             }).collect();
 
             // TODO: cache this for selected values of count.
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
-                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, tx0, added0, index_avet0, index_vaet0, index_fulltext0, unique_value0) VALUES {}", values)
+                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, tx0, added0, flags0) VALUES {}", values)
             } else {
-                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, tx0, added0, index_avet0, index_vaet0, index_fulltext0, unique_value0) VALUES {}", values)
+                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, tx0, added0, flags0) VALUES {}", values)
             };
 
             // TODO: consider ensuring we inserted the expected number of rows.
@@ -602,7 +587,7 @@ impl DB {
         // Second is slower, but still only one table walk: lookup old value by ea.
         let s = r#"
           INSERT INTO temp.search_results
-          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, ':db.cardinality/many', d.rowid, d.v
+          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.flags0, ':db.cardinality/many', d.rowid, d.v
           FROM temp.exact_searches AS t
           LEFT JOIN datoms AS d
           ON t.e0 = d.e AND
@@ -612,7 +597,7 @@ impl DB {
 
           UNION ALL
 
-          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.index_avet0, t.index_vaet0, t.index_fulltext0, t.unique_value0, ':db.cardinality/one', d.rowid, d.v
+          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.flags0, ':db.cardinality/one', d.rowid, d.v
           FROM temp.inexact_searches AS t
           LEFT JOIN datoms AS d
           ON t.e0 = d.e AND
@@ -680,15 +665,23 @@ impl DB {
             .map(|_c| ())
             .chain_err(|| "Could not update datoms: failed to retract datoms already present")?;
 
-        // Insert datoms that were added and not already present.
-        let s = r#"
+        // Insert datoms that were added and not already present. We also must
+        // expand our bitfield into flags.
+        let s = format!(r#"
           INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
           SELECT e0, a0, v0, ?, value_type_tag0,
-                 index_avet0, index_vaet0, index_fulltext0, unique_value0
+                 flags0 & {} IS NOT 0,
+                 flags0 & {} IS NOT 0,
+                 flags0 & {} IS NOT 0,
+                 flags0 & {} IS NOT 0
           FROM temp.search_results
-          WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
+          WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#,
+          AttributeBitFlags::IndexAVET as u8,
+          AttributeBitFlags::IndexVAET as u8,
+          AttributeBitFlags::IndexFulltext as u8,
+          AttributeBitFlags::UniqueValue as u8);
 
-        let mut stmt = conn.prepare_cached(s)?;
+        let mut stmt = conn.prepare_cached(&s)?;
         stmt.execute(&[&tx])
             .map(|_c| ())
             .chain_err(|| "Could not update datoms: failed to add datoms not already present")?;
