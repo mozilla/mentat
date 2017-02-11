@@ -865,10 +865,8 @@ mod tests {
             let transaction = transaction.as_map().unwrap();
             let label: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "label"))).unwrap().clone();
             let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
-            // TODO: use hyphenated keywords, like :test/expected-transaction -- when the EDN parser
-            // supports them!
-            let expected_transaction: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expectedtransaction")));
-            let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expecteddatoms")));
+            let expected_transaction: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-transaction")));
+            let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-datoms")));
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
             db.transact_internal(&conn, &entities[..], bootstrap::TX0 + index + 1).unwrap();
@@ -890,7 +888,7 @@ mod tests {
             // Don't allow empty tests.  This will need to change if we allow transacting schema
             // fragments in a preamble, but for now it might catch malformed tests.
             assert_ne!((expected_transaction, expected_datoms), (None, None),
-                       "Transaction test must include at least one of :test/expectedtransaction or :test/expecteddatoms");
+                       "Transaction test must include at least one of :test/expected-transaction or :test/expected-datoms");
         }
     }
 
