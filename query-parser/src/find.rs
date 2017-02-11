@@ -158,6 +158,17 @@ fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> QueryParseResult
     parse_find_map(m)
 }
 
+impl From<edn::parse::ParseError> for QueryParseError {
+    fn from(err: edn::parse::ParseError) -> QueryParseError {
+        QueryParseError::EdnParseError(err)
+    }
+}
+
+pub fn parse_find_string(string: &str) -> QueryParseResult {
+    let expr = edn::parse::value(string)?;
+    parse_find(expr)
+}
+
 pub fn parse_find(expr: edn::Value) -> QueryParseResult {
     // No `match` because scoping and use of `expr` in error handling is nuts.
     if let edn::Value::Map(m) = expr {
