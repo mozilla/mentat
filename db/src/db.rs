@@ -10,8 +10,7 @@
 
 #![allow(dead_code)]
 
-use std;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
@@ -24,7 +23,6 @@ use rusqlite::types::{ToSql, ToSqlOutput};
 use ::{now, repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
-use entids;
 use mentat_core::{
     Attribute,
     AttributeBitFlags,
@@ -34,9 +32,7 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
-use mentat_core::intern_set;
-use mentat_tx::entities as entmod;
-use mentat_tx::entities::{Entity, OpType};
+use mentat_tx::entities::Entity;
 use errors::{ErrorKind, Result, ResultExt};
 use schema::SchemaBuilding;
 use types::{
@@ -47,17 +43,7 @@ use types::{
     PartitionMap,
     TxReport,
 };
-use internal_types::{
-    replace_lookup_ref,
-    LookupRefOrTempId,
-    TempId,
-    TempIdMap,
-    Term,
-    TermWithTempIds,
-    TermWithTempIdsAndLookupRefs,
-    TermWithoutTempIds,
-};
-use upsert_resolution::Generation;
+use tx::Tx;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -452,7 +438,7 @@ pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
 }
 
 /// Internal representation of an [e a v added] datom, ready to be transacted against the store.
-type ReducedEntity = (i64, i64, TypedValue, bool);
+pub type ReducedEntity = (i64, i64, TypedValue, bool);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum SearchType {
@@ -557,38 +543,6 @@ impl DB {
         Ok(m)
     }
 
-    /// TODO: explain what this is doing.
-    pub fn resolve_temp_id_avs<'a>(&self, conn: &rusqlite::Connection, temp_id_avs: &'a [(TempId, AVPair)]) -> Result<TempIdMap> {
-        if temp_id_avs.is_empty() {
-            return Ok(TempIdMap::default());
-        }
-
-        // Map [a v]->entid.
-        let mut av_pairs: Vec<&AVPair> = vec![];
-        for i in 0..temp_id_avs.len() {
-            av_pairs.push(&temp_id_avs[i].1);
-        }
-
-        // Lookup in the store.
-        let av_map: AVMap = self.resolve_avs(conn, &av_pairs[..])?;
-
-        // Map id->entid.
-        let mut temp_id_map: TempIdMap = TempIdMap::default();
-        for &(ref temp_id, ref av_pair) in temp_id_avs {
-            if let Some(n) = av_map.get(&av_pair) {
-                if let Some(previous_n) = temp_id_map.get(&*temp_id) {
-                    if n != previous_n {
-                        // Conflicting upsert!  TODO: collect conflicts and give more details on what failed this transaction.
-                        bail!(ErrorKind::NotYetImplemented(format!("Conflicting upsert: tempid '{}' resolves to more than one entid: {:?}, {:?}", temp_id, previous_n, n))) // XXX
-                    }
-                }
-                temp_id_map.insert(temp_id.clone(), *n);
-            }
-        }
-
-        Ok((temp_id_map))
-    }
-
     /// Create empty temporary tables for search parameters and search results.
     fn create_temp_tables(&self, conn: &rusqlite::Connection) -> Result<()> {
         // We can't do this in one shot, since we can't prepare a batch statement.
@@ -654,7 +608,7 @@ impl DB {
     ///
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
+    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
         let bindings_per_statement = 7;
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
@@ -718,7 +672,7 @@ impl DB {
     /// Take search rows and complete `temp.search_results`.
     ///
     /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    fn search(&self, conn: &rusqlite::Connection) -> Result<()> {
+    pub fn search(&self, conn: &rusqlite::Connection) -> Result<()> {
         // First is fast, only one table walk: lookup by exact eav.
         // Second is slower, but still only one table walk: lookup old value by ea.
         let s = r#"
@@ -751,7 +705,7 @@ impl DB {
     ///
     /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
     // TODO: capture `conn` in a `TxInternal` structure.
-    fn insert_transaction(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    pub fn insert_transaction(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         let s = r#"
           INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
           SELECT e0, a0, v0, ?, 1, value_type_tag0
@@ -785,7 +739,7 @@ impl DB {
     ///
     /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
     // TODO: capture `conn` in a `TxInternal` structure.
-    fn update_datoms(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    pub fn update_datoms(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         // Delete datoms that were retracted, or those that were :db.cardinality/one and will be
         // replaced.
         let s = r#"
@@ -827,7 +781,7 @@ impl DB {
 
     /// Update the current partition map materialized view.
     // TODO: only update changed partitions.
-    fn update_partition_map(&self, conn: &rusqlite::Connection) -> Result<()> {
+    pub fn update_partition_map(&self, conn: &rusqlite::Connection) -> Result<()> {
         let values_per_statement = 2;
         let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
         if self.partition_map.len() > max_partitions {
@@ -853,12 +807,12 @@ impl DB {
     }
 
     /// Allocate a single fresh entid in the given `partition`.
-    fn allocate_entid(&mut self, partition: String) -> i64 {
+    pub fn allocate_entid(&mut self, partition: String) -> i64 {
         self.allocate_entids(partition, 1).start
     }
 
     /// Allocate `n` fresh entids in the given `partition`.
-    fn allocate_entids(&mut self, partition: String, n: usize) -> Range<i64> {
+    pub fn allocate_entids(&mut self, partition: String, n: usize) -> Range<i64> {
         match self.partition_map.get_mut(&partition) {
             Some(mut partition) => {
                 let idx = partition.index;
@@ -870,196 +824,22 @@ impl DB {
         }
     }
 
-    /// Pipeline stage 1: convert `Entity` instances into `Term` instances, ready for term
-    /// rewriting.
-    ///
-    /// The `Term` instances produce share interned TempId and LookupRef handles.
-    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<Vec<TermWithTempIdsAndLookupRefs>> where I: IntoIterator<Item=Entity> {
-        let mut temp_ids = intern_set::InternSet::new();
-
-        entities.into_iter()
-            .map(|entity: Entity| -> Result<TermWithTempIdsAndLookupRefs> {
-                match entity {
-                    Entity::AddOrRetract { op, e, a, v } => {
-                        let a: i64 = match a {
-                            entmod::Entid::Entid(ref a) => *a,
-                            entmod::Entid::Ident(ref a) => self.schema.require_entid(&a.to_string())?,
-                        };
-
-                        let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-
-                        let e = match e {
-                            entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                                let e: i64 = match e {
-                                    entmod::Entid::Entid(ref e) => *e,
-                                    entmod::Entid::Ident(ref e) => self.schema.require_entid(&e.to_string())?,
-                                };
-                                std::result::Result::Ok(e)
-                            },
-
-                            entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(e)))
-                            },
-
-                            entmod::EntidOrLookupRefOrTempId::LookupRef(_) => {
-                                // TODO: reference entity and initial input.
-                                bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
-                            },
-                        };
-
-                        let v = {
-                            if attribute.value_type == ValueType::Ref && v.is_text() {
-                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
-                            } else if attribute.value_type == ValueType::Ref && v.is_vector() && v.as_vector().unwrap().len() == 2 {
-                                bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
-                            } else {
-                                // Here is where we do schema-aware typechecking: we either assert that
-                                // the given value is in the attribute's value set, or (in limited
-                                // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.to_typed_value(&v, &attribute)?;
-
-                                std::result::Result::Ok(typed_value)
-                            }
-                        };
-
-                        Ok(Term::AddOrRetract(op, e, a, v))
-                    },
-                }
-            })
-            .collect::<Result<Vec<_>>>()
-    }
-
-    /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
-    /// lookup refs.
-    ///
-    /// The `Term` instances produce share interned TempId handles and have no LookupRef references.
-    fn resolve_lookup_refs<I>(&self, lookup_ref_map: &AVMap, terms: I) -> Result<Vec<TermWithTempIds>> where I: IntoIterator<Item=TermWithTempIdsAndLookupRefs> {
-        terms.into_iter().map(|term: TermWithTempIdsAndLookupRefs| -> Result<TermWithTempIds> {
-            match term {
-                Term::AddOrRetract(op, e, a, v) => {
-                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| x)?;
-                    let v = replace_lookup_ref(&lookup_ref_map, v, |x| TypedValue::Ref(x))?;
-                    Ok(Term::AddOrRetract(op, e, a, v))
-                },
-            }
-        }).collect::<Result<Vec<_>>>()
-    }
-
     /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
     /// `self.DB`.
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
     pub fn transact<I>(&mut self, conn: &rusqlite::Connection, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
+        // Eventually, this function will be responsible for managing a SQLite transaction.  For
+        // now, it's just about the tx details.
+
         let tx_instant = now(); // Label the transaction with the timestamp when we first see it: leading edge.
-        let tx = self.allocate_entid(":db.part/tx".to_string());
-
-        // Eventually, this will be responsible for managing a SQLite transaction.  For now, it's
-        // just about the tx details.
-        self.transact_internal(conn, entities, tx, tx_instant)
-    }
-
-    /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
-    /// `self.DB`.
-    ///
-    /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
-    // TODO: move this to the transactor layer.
-    pub fn transact_internal<I>(&mut self, conn: &rusqlite::Connection, entities: I, tx_id: Entid, tx_instant: i64) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
-        // TODO: push these into an internal transaction report?
-
-        /// Assertions that are :db.cardinality/one and not :db.fulltext.
-        let mut non_fts_one: Vec<ReducedEntity> = vec![];
-
-        /// Assertions that are :db.cardinality/many and not :db.fulltext.
-        let mut non_fts_many: Vec<ReducedEntity> = vec![];
-
-        // Transact [:db/add :db/txInstant NOW :db/tx].
-        // TODO: allow this to be present in the transaction data.
-        non_fts_one.push((tx_id,
-                          entids::DB_TX_INSTANT,
-                          TypedValue::Long(tx_instant),
-                          true));
-
-        // We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
-        let lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
-
-        // TODO: extract the tempids set as well.
-        // Pipeline stage 1: entities -> terms with tempids and lookup refs.
-        let terms_with_temp_ids_and_lookup_refs = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
-
-        // Pipeline stage 2: resolve lookup refs -> terms with tempids.
-        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_refs.inner.iter().map(|rc| &**rc).collect();
-        let lookup_ref_map: AVMap = self.resolve_avs(conn, &lookup_ref_avs[..])?;
-
-        let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
-
-        // Pipeline stage 3: upsert tempids -> terms without tempids or lookup refs.
-        // Now we can collect upsert populations.
-        let (mut generation, inert_terms) = Generation::from(terms_with_temp_ids, self)?;
-
-        // And evolve them forward.
-        while generation.can_evolve() {
-            // Evolve further.
-            let temp_id_map = self.resolve_temp_id_avs(conn, &generation.temp_id_avs()[..])?;
-            generation = generation.evolve_one_step(&temp_id_map);
-        }
-
-        // Allocate entids for tempids that didn't upsert.  BTreeSet rather than HashSet so this is deterministic.
-        let unresolved_temp_ids: BTreeSet<TempId> = generation.temp_ids_in_allocations();
-
-        // TODO: track partitions for temporary IDs.
-        let entids = self.allocate_entids(":db.part/user".to_string(), unresolved_temp_ids.len());
-
-        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
-
-        let final_populations = generation.into_final_populations(&temp_id_allocations)?;
-        let final_terms: Vec<TermWithoutTempIds> = [final_populations.resolved,
-                                                    final_populations.allocated,
-                                                    inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
-
-        // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
-        // Collect into non_fts_*.
-        // TODO: use something like Clojure's group_by to do this.
-        for term in final_terms {
-            match term {
-                Term::AddOrRetract(op, e, a, v) => {
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                    if attribute.fulltext {
-                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented"))) // TODO: reference original input.  Difficult!
-                    }
-
-                    let added = op == OpType::Add;
-                    if attribute.multival {
-                        non_fts_many.push((e, a, v, added));
-                    } else {
-                        non_fts_one.push((e, a, v, added));
-                    }
-                },
-            }
-        }
+        let tx_id = self.allocate_entid(":db.part/tx".to_string());
 
         self.create_temp_tables(conn)?;
 
-        if !non_fts_one.is_empty() {
-            self.insert_non_fts_searches(conn, &non_fts_one[..], tx_id, SearchType::Inexact)?;
-        }
-
-        if !non_fts_many.is_empty() {
-            self.insert_non_fts_searches(conn, &non_fts_many[..], tx_id, SearchType::Exact)?;
-        }
-
-        self.search(conn)?;
-
-        self.insert_transaction(conn, tx_id)?;
-        self.update_datoms(conn, tx_id)?;
-
-        // TODO: update idents and schema materialized views.
-        self.update_partition_map(conn)?;
-
-        Ok(TxReport {
-            tx_id: tx_id,
-            tx_instant: tx_instant,
-        })
+        let mut tx = Tx::new(self, conn, tx_id, tx_instant);
+        tx.transact_entities(entities)
     }
 }
 

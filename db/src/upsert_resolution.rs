@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use mentat_tx::entities::OpType;
 use errors;
 use errors::ErrorKind;
-use types::{Attribute, AVPair, DB, Entid, TypedValue};
+use types::{Attribute, AVPair, Entid, Schema, TypedValue};
 use internal_types::*;
 use schema::SchemaBuilding;
 
@@ -74,26 +74,26 @@ pub struct FinalPopulations {
 impl Generation {
     /// Split entities into a generation of populations that need to evolve to have their tempids
     /// resolved or allocated, and a population of inert entities that do not reference tempids.
-    pub fn from<I>(terms: I, db: &DB) -> errors::Result<(Generation, Population)> where I: IntoIterator<Item=TermWithTempIds> {
+    pub fn from<I>(terms: I, schema: &Schema) -> errors::Result<(Generation, Population)> where I: IntoIterator<Item=TermWithTempIds> {
         let mut generation = Generation::default();
         let mut inert = vec![];
 
-        let is_unique = |a: &Entid| -> errors::Result<bool> {
-            let attribute: &Attribute = db.schema.require_attribute_for_entid(*a)?;
+        let is_unique = |a: Entid| -> errors::Result<bool> {
+            let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
             Ok(attribute.unique_identity)
         };
 
         for term in terms.into_iter() {
             match term {
                 Term::AddOrRetract(op, Err(e), a, Err(v)) => {
-                    if op == OpType::Add && is_unique(&a)? {
+                    if op == OpType::Add && is_unique(a)? {
                         generation.upserts_ev.push(UpsertEV(e, a, v));
                     } else {
                         generation.allocations.push(Term::AddOrRetract(op, Err(e), a, Err(v)));
                     }
                 },
                 Term::AddOrRetract(op, Err(e), a, Ok(v)) => {
-                    if op == OpType::Add && is_unique(&a)? {
+                    if op == OpType::Add && is_unique(a)? {
                         generation.upserts_e.push(UpsertE(e, a, v));
                     } else {
                         generation.allocations.push(Term::AddOrRetract(op, Err(e), a, Ok(v)));
