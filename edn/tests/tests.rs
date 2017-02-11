@@ -102,6 +102,33 @@ fn test_integer() {
 }
 
 #[test]
+fn test_hexinteger() {
+    assert_eq!(hexinteger("0xabc111").unwrap(), Integer(11256081));
+    assert_eq!(hexinteger("0xABCDEF").unwrap(), Integer(11259375));
+    assert_eq!(hexinteger("0xabcdef").unwrap(), Integer(11259375));
+
+    assert!(hexinteger("nil").is_err());
+    assert!(hexinteger("0xZZZ").is_err());
+}
+
+#[test]
+fn test_basedinteger() {
+    assert_eq!(basedinteger("2r111").unwrap(), Integer(7));
+    assert_eq!(basedinteger("36r1z").unwrap(), Integer(71));
+    assert_eq!(basedinteger("36r1Z").unwrap(), Integer(71));
+    assert_eq!(basedinteger("12r11").unwrap(), Integer(13));
+    assert_eq!(basedinteger("24r10").unwrap(), Integer(24));
+
+    assert!(basedinteger("nil").is_err());
+}
+
+#[test]
+fn test_octalinteger() {
+    assert_eq!(octalinteger("011").unwrap(), Integer(9));
+    assert_eq!(octalinteger("00107").unwrap(), Integer(71));
+}
+
+#[test]
 fn test_bigint() {
     let max_i64 = i64::max_value().to_bigint().unwrap();
     let bigger = &max_i64 * &max_i64;
@@ -186,6 +213,9 @@ fn test_value() {
     assert_eq!(value("[1]").unwrap(), Vector(vec![Integer(1)]));
     assert_eq!(value("111.222").unwrap(), Float(OrderedFloat(111.222f64)));
     assert_eq!(value("85070591730234615847396907784232501249N").unwrap(), BigInteger(bigger));
+    assert_eq!(value("0xabc111").unwrap(), Integer(11256081));
+    assert_eq!(value("2r111").unwrap(), Integer(7));
+    assert_eq!(value("011").unwrap(), Integer(9));
 }
 
 #[test]

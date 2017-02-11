@@ -44,11 +44,31 @@ pub boolean -> Value =
     "false" { Value::Boolean(false) }
 
 digit = [0-9]
+alphanumeric = [0-9a-zA-Z]
+octaldigit = [0-7]
+validbase = [3][0-6] / [12][0-9] / [2-9]
+hex = [0-9a-fA-F]
 sign = "-" / "+"
 
 pub bigint -> Value =
     b:$( sign? digit+ ) "N" {
         Value::BigInteger(b.parse::<BigInt>().unwrap())
+    }
+
+pub octalinteger -> Value =
+    "0" i:$( octaldigit+ ) {
+        Value::Integer(i64::from_str_radix(i, 8).unwrap())
+    }
+
+pub hexinteger -> Value =
+    "0x" i:$( hex+ ) {
+        Value::Integer(i64::from_str_radix(i, 16).unwrap())
+    }
+
+pub basedinteger -> Value =
+    // Only allow values 2-36
+    b:$( validbase ) "r" i:$( alphanumeric+ ) {
+        Value::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap())
     }
 
 pub integer -> Value =
@@ -134,7 +154,7 @@ pub map -> Value =
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
 pub value -> Value =
-    __ v:(nil / nan / infinity / boolean / float / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
+    __ v:(nil / nan / infinity / boolean / float / octalinteger / hexinteger / basedinteger / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
         v
     }
 
