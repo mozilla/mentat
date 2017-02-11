@@ -2,11 +2,11 @@
   :test/assertions
   [[:db/add 100 :db/ident :keyword/value1]
    [:db/add 101 :db/ident :keyword/value2]]
-  :test/expectedtransaction
+  :test/expected-transaction
   #{[100 :db/ident :keyword/value1 ?tx1 true]
     [101 :db/ident :keyword/value2 ?tx1 true]
     [?tx1 :db/txInstant ?ms1 ?tx1 true]}
-  :test/expecteddatoms
+  :test/expected-datoms
   #{[100 :db/ident :keyword/value1]
     [101 :db/ident :keyword/value2]}}
 
@@ -14,11 +14,11 @@
   :test/assertions
   [[:db/add 200 :db.schema/attribute 100]
    [:db/add 200 :db.schema/attribute 101]]
-  :test/expectedtransaction
+  :test/expected-transaction
   #{[200 :db.schema/attribute 100 ?tx2 true]
     [200 :db.schema/attribute 101 ?tx2 true]
     [?tx2 :db/txInstant ?ms2 ?tx2 true]}
-  :test/expecteddatoms
+  :test/expected-datoms
   #{[100 :db/ident :keyword/value1]
     [101 :db/ident :keyword/value2]
     [200 :db.schema/attribute 100]
@@ -27,10 +27,10 @@
  {:test/label ":db.cardinality/one, retract"
   :test/assertions
   [[:db/retract 100 :db/ident :keyword/value1]]
-  :test/expectedtransaction
+  :test/expected-transaction
   #{[100 :db/ident :keyword/value1 ?tx3 false]
     [?tx3 :db/txInstant ?ms3 ?tx3 true]}
-  :test/expecteddatoms
+  :test/expected-datoms
   #{[101 :db/ident :keyword/value2]
     [200 :db.schema/attribute 100]
     [200 :db.schema/attribute 101]}}
@@ -38,10 +38,10 @@
  {:test/label ":db.cardinality/many, retract"
   :test/assertions
   [[:db/retract 200 :db.schema/attribute 100]]
-  :test/expectedtransaction
+  :test/expected-transaction
   #{[200 :db.schema/attribute 100 ?tx4 false]
     [?tx4 :db/txInstant ?ms4 ?tx4 true]}
-  :test/expecteddatoms
+  :test/expected-datoms
   #{[101 :db/ident :keyword/value2]
     [200 :db.schema/attribute 101]}
   }
@@ -50,9 +50,9 @@
   :test/assertions
   [[:db/retract 100 :db/ident :keyword/value1]
    [:db/retract 200 :db.schema/attribute 100]]
-  :test/expectedtransaction
+  :test/expected-transaction
   #{[?tx5 :db/txInstant ?ms5 ?tx5 true]}
-  :test/expecteddatoms
+  :test/expected-datoms
   #{[101 :db/ident :keyword/value2]
     [200 :db.schema/attribute 101]}
   }
