@@ -35,6 +35,8 @@ mod schema;
 mod types;
 mod values;
 
+pub use types::DB;
+
 use edn::symbols;
 
 // TODO: replace with sqlite3_limit. #288.
