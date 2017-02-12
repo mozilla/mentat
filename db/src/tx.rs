@@ -10,6 +10,41 @@
 
 #![allow(dead_code)]
 
+//! This module implements the transaction application algorithm described at
+//! https://github.com/mozilla/mentat/wiki/Transacting and its children pages.
+//!
+//! The implementation proceeds in four main stages, labeled "Pipeline stage 1" through "Pipeline
+//! stage 4".  _Pipeline_ may be a misnomer, since the stages as written **cannot** be interleaved
+//! in parallel.  That is, a single transacted entity cannot flow through all the stages without its
+//! sibling entities.
+//!
+//! This unintuitive architectural decision was made because the second and third stages (resolving
+//! lookup refs and tempids, respectively) operate _in bulk_ to minimize the number of expensive
+//! SQLite queries by processing many in one SQLite invocation.  Pipeline stage 2 doesn't need to
+//! operate like this: it is easy to handle each transacted entity independently of all the others
+//! (and earlier, less efficient, implementations did this).  However, Pipeline stage 3 appears to
+//! require processing multiple elements at the same time, since there can be arbitrarily complex
+//! graph relationships between tempids.  Pipeline stage 4 (inserting elements into the SQL store)
+//! could also be expressed as an independent operation per transacted entity, but there are
+//! non-trivial uniqueness relationships inside a single transaction that need to enforced.
+//! Therefore, some multi-entity processing is required, and a per-entity pipeline becomes less
+//! attractive.
+//!
+//! A note on the types in the implementation.  The pipeline stages are strongly typed: each stage
+//! accepts and produces a subset of the previous.  We hope this will reduce errors as data moves
+//! through the system.  In contrast the Clojure implementation rewrote the fundamental entity type
+//! in place and suffered bugs where particular code paths missed cases.
+//!
+//! The type hierarchy accepts `Entity` instances from the transaction parser and flows `Term`
+//! instances through the term-rewriting transaction applier.  `Term` is a general `[:db/add e a v]`
+//! with restrictions on the `e` and `v` components.  The hierarchy is expressed using `Result` to
+//! model either/or, and layers of `Result` are stripped -- we might say the `Term` instances are
+//! _lowered_ as they flow through the pipeline.  This type hierarchy could have been expressed by
+//! combinatorially increasing `enum` cases, but this makes it difficult to handle the `e` and `v`
+//! components symmetrically.  Hence, layers of `Result` type aliases.  Hopefully the explanatory
+//! names -- `TermWithTempIdsAndLookupRefs`, anyone? -- and strongly typed stage functions will help
+//! keep everything straight.
+
 use std;
 use std::collections::BTreeSet;
 
