@@ -35,8 +35,11 @@ mod schema;
 mod types;
 mod values;
 
+pub use types::DB;
+
 use edn::symbols;
 
+// TODO: replace with sqlite3_limit. #288.
 pub const SQLITE_MAX_VARIABLE_NUMBER: usize = 999;
 
 pub fn to_namespaced_keyword(s: &str) -> Option<symbols::NamespacedKeyword> {

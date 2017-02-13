@@ -54,12 +54,6 @@ pub enum QueryParseError {
     WithParseError(NotAVariableError),
 }
 
-impl From<edn::parse::ParseError> for QueryParseError {
-    fn from(err: edn::parse::ParseError) -> QueryParseError {
-        QueryParseError::EdnParseError(err)
-    }
-}
-
 impl From<WhereParseError> for QueryParseError {
     fn from(err: WhereParseError) -> QueryParseError {
         QueryParseError::WhereParseError(err)

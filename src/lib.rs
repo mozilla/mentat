@@ -13,14 +13,18 @@ extern crate slog;
 #[macro_use]
 extern crate slog_scope;
 
+extern crate rusqlite;
+
 extern crate edn;
+extern crate mentat_core;
+extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_parser;
-extern crate rusqlite;
 
 use rusqlite::Connection;
 
 pub mod ident;
+pub mod query;
 
 pub fn get_name() -> String {
     info!("Called into mentat library"; "fn" => "get_name");
