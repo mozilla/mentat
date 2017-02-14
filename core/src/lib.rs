@@ -176,6 +176,7 @@ impl Default for Attribute {
 }
 
 /// Map `String` idents (`:db/ident`) to positive integer entids (`1`).
+/// TODO: these should all be parsed into NamespacedKeywords on entry. #291.
 pub type IdentMap = BTreeMap<String, Entid>;
 
 /// Map positive integer entids (`1`) to `String` idents (`:db/ident`).
