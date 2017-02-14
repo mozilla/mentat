@@ -253,7 +253,7 @@ impl<'conn> Tx<'conn> {
         let unresolved_temp_ids: BTreeSet<TempId> = generation.temp_ids_in_allocations();
 
         // TODO: track partitions for temporary IDs.
-        let entids = self.db.allocate_entids(":db.part/user".to_string(), unresolved_temp_ids.len());
+        let entids = self.db.allocate_entids(":db.part/user", unresolved_temp_ids.len());
 
         let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
 

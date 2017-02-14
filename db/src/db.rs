@@ -10,7 +10,9 @@
 
 #![allow(dead_code)]
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
@@ -807,13 +809,13 @@ impl DB {
     }
 
     /// Allocate a single fresh entid in the given `partition`.
-    pub fn allocate_entid(&mut self, partition: String) -> i64 {
+    pub fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S> {
         self.allocate_entids(partition, 1).start
     }
 
     /// Allocate `n` fresh entids in the given `partition`.
-    pub fn allocate_entids(&mut self, partition: String, n: usize) -> Range<i64> {
-        match self.partition_map.get_mut(&partition) {
+    pub fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
+        match self.partition_map.get_mut(partition) {
             Some(mut partition) => {
                 let idx = partition.index;
                 partition.index += n as i64;
@@ -834,7 +836,7 @@ impl DB {
         // now, it's just about the tx details.
 
         let tx_instant = now(); // Label the transaction with the timestamp when we first see it: leading edge.
-        let tx_id = self.allocate_entid(":db.part/tx".to_string());
+        let tx_id = self.allocate_entid(":db.part/tx");
 
         self.create_temp_tables(conn)?;
 
