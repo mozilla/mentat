@@ -50,25 +50,25 @@ fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<(
 }
 
 pub trait SchemaBuilding {
-    fn require_ident(&self, entid: &Entid) -> Result<&String>;
-    fn require_entid(&self, ident: &String) -> Result<&Entid>;
-    fn require_attribute_for_entid(&self, entid: &Entid) -> Result<&Attribute>;
+    fn require_ident(&self, entid: Entid) -> Result<&String>;
+    fn require_entid(&self, ident: &String) -> Result<Entid>;
+    fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute>;
     fn from_ident_map_and_schema_map(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema>;
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
         where U: IntoIterator<Item=(String, String, TypedValue)>;
 }
 
 impl SchemaBuilding for Schema {
-    fn require_ident(&self, entid: &Entid) -> Result<&String> {
-        self.get_ident(&entid).ok_or(ErrorKind::UnrecognizedEntid(*entid).into())
+    fn require_ident(&self, entid: Entid) -> Result<&String> {
+        self.get_ident(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
-    fn require_entid(&self, ident: &String) -> Result<&Entid> {
+    fn require_entid(&self, ident: &String) -> Result<Entid> {
         self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.clone()).into())
     }
 
-    fn require_attribute_for_entid(&self, entid: &Entid) -> Result<&Attribute> {
-        self.attribute_for_entid(entid).ok_or(ErrorKind::UnrecognizedEntid(*entid).into())
+    fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute> {
+        self.attribute_for_entid(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
     /// Create a valid `Schema` from the constituent maps.

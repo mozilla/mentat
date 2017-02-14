@@ -212,20 +212,20 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn get_ident(&self, x: &Entid) -> Option<&String> {
-        self.entid_map.get(x)
+    pub fn get_ident(&self, x: Entid) -> Option<&String> {
+        self.entid_map.get(&x)
     }
 
-    pub fn get_entid(&self, x: &String) -> Option<&Entid> {
-        self.ident_map.get(x)
+    pub fn get_entid(&self, x: &String) -> Option<Entid> {
+        self.ident_map.get(x).map(|x| *x)
     }
 
-    pub fn attribute_for_entid(&self, x: &Entid) -> Option<&Attribute> {
-        self.schema_map.get(x)
+    pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+        self.schema_map.get(&x)
     }
 
-    pub fn is_attribute(&self, x: &Entid) -> bool {
-        self.schema_map.contains_key(x)
+    pub fn is_attribute(&self, x: Entid) -> bool {
+        self.schema_map.contains_key(&x)
     }
 
     pub fn identifies_attribute(&self, x: &String) -> bool {

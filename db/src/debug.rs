@@ -107,7 +107,7 @@ impl Transactions {
 
 /// Convert a numeric entid to an ident `Entid` if possible, otherwise a numeric `Entid`.
 fn to_entid(db: &DB, entid: i64) -> Entid {
-    db.schema.get_ident(&entid).and_then(|ident| to_namespaced_keyword(&ident)).map_or(Entid::Entid(entid), Entid::Ident)
+    db.schema.get_ident(entid).and_then(|ident| to_namespaced_keyword(&ident)).map_or(Entid::Entid(entid), Entid::Ident)
 }
 
 /// Return the set of datoms in the store, ordered by (e, a, v, tx), but not including any datoms of
