@@ -51,7 +51,15 @@ use std::collections::BTreeSet;
 use db::{ReducedEntity, SearchType};
 use entids;
 use errors::*;
-use internal_types::{LookupRefOrTempId, TempId, TempIdMap, Term, TermWithTempIdsAndLookupRefs, TermWithTempIds, TermWithoutTempIds, replace_lookup_ref};
+use internal_types::{
+    LookupRefOrTempId,
+    TempId,
+    TempIdMap,
+    Term,
+    TermWithTempIdsAndLookupRefs,
+    TermWithTempIds,
+    TermWithoutTempIds,
+    replace_lookup_ref};
 use mentat_core::intern_set;
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
