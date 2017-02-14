@@ -207,7 +207,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
         tx.execute("INSERT INTO parts VALUES (?, ?, ?)", &[part, &partition.start, &partition.index])?;
     }
 
-    // TODO: return to transact_internal to self manage the encompassing SQLite transaction.
+    // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
     let mut bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
     bootstrap_db.transact(&tx, bootstrap::bootstrap_entities())?;
 
@@ -800,7 +800,7 @@ impl DB {
         }).collect();
 
         // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
-        // supported in the Clojure implementationat all, and might not be supported in Mentat soon,
+        // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
         // so this is very low priority.
         let mut stmt = conn.prepare_cached(s.as_str())?;
         stmt.execute(&params[..])

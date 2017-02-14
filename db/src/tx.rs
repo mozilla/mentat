@@ -80,7 +80,7 @@ pub struct Tx<'conn> {
     /// The transaction ID of the transaction.
     pub tx_id: Entid,
 
-    /// The timestamp when the transaction began to be commited.
+    /// The timestamp when the transaction began to be committed.
     ///
     /// This is milliseconds after the Unix epoch according to the transactor's local clock.
     // TODO: :db.type/instant.
@@ -89,10 +89,12 @@ pub struct Tx<'conn> {
 
 impl<'conn> Tx<'conn> {
     pub fn new(db: &'conn mut DB, conn: &'conn rusqlite::Connection, tx_id: Entid, tx_instant: i64) -> Tx<'conn> {
-        Tx { db: db,
-             conn: conn,
-             tx_id: tx_id,
-             tx_instant: tx_instant }
+        Tx {
+            db: db,
+            conn: conn,
+            tx_id: tx_id,
+            tx_instant: tx_instant,
+        }
     }
 
     /// Given a collection of tempids and the [a v] pairs that they might upsert to, resolve exactly

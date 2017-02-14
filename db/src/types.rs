@@ -83,7 +83,7 @@ pub struct TxReport {
     /// The transaction ID of the transaction.
     pub tx_id: Entid,
 
-    /// The timestamp when the transaction was commited.
+    /// The timestamp when the transaction began to be committed.
     ///
     /// This is milliseconds after the Unix epoch according to the transactor's local clock.
     // TODO: :db.type/instant.
