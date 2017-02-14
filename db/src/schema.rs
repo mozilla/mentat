@@ -12,7 +12,16 @@
 
 use entids;
 use errors::*;
-use types::{Attribute, Entid, EntidMap, IdentMap, Schema, SchemaMap, TypedValue, ValueType};
+use mentat_core::{
+    Attribute,
+    Entid,
+    EntidMap,
+    IdentMap,
+    Schema,
+    SchemaMap,
+    TypedValue,
+    ValueType,
+};
 
 /// Return `Ok(())` if `schema_map` defines a valid Mentat schema.
 fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<()> {
@@ -40,33 +49,30 @@ fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<(
     Ok(())
 }
 
-impl Schema {
-    pub fn get_ident(&self, x: &Entid) -> Option<&String> {
-        self.entid_map.get(x)
+pub trait SchemaBuilding {
+    fn require_ident(&self, entid: Entid) -> Result<&String>;
+    fn require_entid(&self, ident: &String) -> Result<Entid>;
+    fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute>;
+    fn from_ident_map_and_schema_map(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema>;
+    fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
+        where U: IntoIterator<Item=(String, String, TypedValue)>;
+}
+
+impl SchemaBuilding for Schema {
+    fn require_ident(&self, entid: Entid) -> Result<&String> {
+        self.get_ident(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
-    pub fn get_entid(&self, x: &String) -> Option<&Entid> {
-        self.ident_map.get(x)
-    }
-
-    pub fn attribute_for_entid(&self, x: &Entid) -> Option<&Attribute> {
-        self.schema_map.get(x)
-    }
-
-    pub fn require_ident(&self, entid: &Entid) -> Result<&String> {
-        self.get_ident(&entid).ok_or(ErrorKind::UnrecognizedEntid(*entid).into())
-    }
-
-    pub fn require_entid(&self, ident: &String) -> Result<&Entid> {
+    fn require_entid(&self, ident: &String) -> Result<Entid> {
         self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.clone()).into())
     }
 
-    pub fn require_attribute_for_entid(&self, entid: &Entid) -> Result<&Attribute> {
-        self.attribute_for_entid(entid).ok_or(ErrorKind::UnrecognizedEntid(*entid).into())
+    fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute> {
+        self.attribute_for_entid(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
     /// Create a valid `Schema` from the constituent maps.
-    pub fn from(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema> {
+    fn from_ident_map_and_schema_map(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema> {
         let entid_map: EntidMap = ident_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
 
         validate_schema_map(&entid_map, &schema_map)?;
@@ -79,7 +85,7 @@ impl Schema {
     }
 
     /// Turn vec![(String(:ident), String(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
-    pub fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
+    fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
         where U: IntoIterator<Item=(String, String, TypedValue)>{
         let mut schema_map = SchemaMap::new();
         for (ref symbolic_ident, ref symbolic_attr, ref value) in assertions.into_iter() {
@@ -167,6 +173,6 @@ impl Schema {
             }
         };
 
-        Schema::from(ident_map.clone(), schema_map)
+        Schema::from_ident_map_and_schema_map(ident_map.clone(), schema_map)
     }
 }

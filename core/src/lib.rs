@@ -9,6 +9,8 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate ordered_float;
+
+use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
 
 /// Core types defining a Mentat knowledge base.
@@ -170,6 +172,64 @@ impl Default for Attribute {
             unique_identity: false,
             component: false,
         }
+    }
+}
+
+/// Map `String` idents (`:db/ident`) to positive integer entids (`1`).
+/// TODO: these should all be parsed into NamespacedKeywords on entry. #291.
+pub type IdentMap = BTreeMap<String, Entid>;
+
+/// Map positive integer entids (`1`) to `String` idents (`:db/ident`).
+pub type EntidMap = BTreeMap<Entid, String>;
+
+/// Map attribute entids to `Attribute` instances.
+pub type SchemaMap = BTreeMap<Entid, Attribute>;
+
+/// Represents a Mentat schema.
+///
+/// Maintains the mapping between string idents and positive integer entids; and exposes the schema
+/// flags associated to a given entid (equivalently, ident).
+///
+/// TODO: consider a single bi-directional map instead of separate ident->entid and entid->ident
+/// maps.
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub struct Schema {
+    /// Map entid->ident.
+    ///
+    /// Invariant: is the inverse map of `ident_map`.
+    pub entid_map: EntidMap,
+
+    /// Map ident->entid.
+    ///
+    /// Invariant: is the inverse map of `entid_map`.
+    pub ident_map: IdentMap,
+
+    /// Map entid->attribute flags.
+    ///
+    /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
+    /// `ident_map`).
+    pub schema_map: SchemaMap,
+}
+
+impl Schema {
+    pub fn get_ident(&self, x: Entid) -> Option<&String> {
+        self.entid_map.get(&x)
+    }
+
+    pub fn get_entid(&self, x: &String) -> Option<Entid> {
+        self.ident_map.get(x).map(|x| *x)
+    }
+
+    pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+        self.schema_map.get(&x)
+    }
+
+    pub fn is_attribute(&self, x: Entid) -> bool {
+        self.schema_map.contains_key(&x)
+    }
+
+    pub fn identifies_attribute(&self, x: &String) -> bool {
+        self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 }
 

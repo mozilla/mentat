@@ -23,10 +23,20 @@ use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use entids;
+use mentat_core::{
+    Attribute,
+    AttributeBitFlags,
+    Entid,
+    IdentMap,
+    Schema,
+    TypedValue,
+    ValueType,
+};
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use errors::{ErrorKind, Result, ResultExt};
-use types::{Attribute, AttributeBitFlags, DB, Entid, IdentMap, Partition, PartitionMap, Schema, TypedValue, ValueType};
+use types::{DB, Partition, PartitionMap};
+use schema::SchemaBuilding;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -446,7 +456,7 @@ impl DB {
                 (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (&ValueType::Ref, TypedValue::Keyword(ref x)) => self.schema.require_entid(&x.to_string()).map(|&entid| TypedValue::Ref(entid)),
+                (&ValueType::Ref, TypedValue::Keyword(ref x)) => self.schema.require_entid(&x.to_string()).map(|entid| TypedValue::Ref(entid)),
                 // Otherwise, we have a type mismatch.
                 (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
             }
@@ -535,7 +545,7 @@ impl DB {
                                    /* added0 */ bool,
                                    /* flags0 */ u8)>> = chunk.map(|&(e, a, ref typed_value, added)| {
                 count += 1;
-                let attribute: &Attribute = self.schema.require_attribute_for_entid(&a)?;
+                let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                 // Now we can represent the typed value as an SQL value.
                 let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
@@ -725,15 +735,15 @@ impl DB {
 
                     let e: i64 = match e_ {
                         &entmod::Entid::Entid(ref e__) => *e__,
-                        &entmod::Entid::Ident(ref e__) => *self.schema.require_entid(&e__.to_string())?,
+                        &entmod::Entid::Ident(ref e__) => self.schema.require_entid(&e__.to_string())?,
                     };
 
                     let a: i64 = match a_ {
                         &entmod::Entid::Entid(ref a__) => *a__,
-                        &entmod::Entid::Ident(ref a__) => *self.schema.require_entid(&a__.to_string())?,
+                        &entmod::Entid::Ident(ref a__) => self.schema.require_entid(&a__.to_string())?,
                     };
 
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(&a)?;
+                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if attribute.fulltext {
                         bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented: {:?}", entity)))
                     }
@@ -760,15 +770,15 @@ impl DB {
 
                     let e: i64 = match e_ {
                         &entmod::Entid::Entid(ref e__) => *e__,
-                        &entmod::Entid::Ident(ref e__) => *self.schema.require_entid(&e__.to_string())?,
+                        &entmod::Entid::Ident(ref e__) => self.schema.require_entid(&e__.to_string())?,
                     };
 
                     let a: i64 = match a_ {
                         &entmod::Entid::Entid(ref a__) => *a__,
-                        &entmod::Entid::Ident(ref a__) => *self.schema.require_entid(&a__.to_string())?,
+                        &entmod::Entid::Ident(ref a__) => self.schema.require_entid(&a__.to_string())?,
                     };
 
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(&a)?;
+                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if attribute.fulltext {
                         bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented: {:?}", entity)))
                     }

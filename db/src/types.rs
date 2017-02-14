@@ -20,6 +20,7 @@ pub use self::mentat_core::{
     TypedValue,
     Attribute,
     AttributeBitFlags,
+    Schema,
 };
 
 /// Represents one partition of the entid space.
@@ -40,40 +41,6 @@ impl Partition {
 
 /// Map partition names to `Partition` instances.
 pub type PartitionMap = BTreeMap<String, Partition>;
-/// Map `String` idents (`:db/ident`) to positive integer entids (`1`).
-pub type IdentMap = BTreeMap<String, Entid>;
-
-/// Map positive integer entids (`1`) to `String` idents (`:db/ident`).
-pub type EntidMap = BTreeMap<Entid, String>;
-
-/// Map attribute entids to `Attribute` instances.
-pub type SchemaMap = BTreeMap<i64, Attribute>;
-
-/// Represents a Mentat schema.
-///
-/// Maintains the mapping between string idents and positive integer entids; and exposes the schema
-/// flags associated to a given entid (equivalently, ident).
-///
-/// TODO: consider a single bi-directional map instead of separate ident->entid and entid->ident
-/// maps.
-#[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct Schema {
-    /// Map entid->ident.
-    ///
-    /// Invariant: is the inverse map of `ident_map`.
-    pub entid_map: EntidMap,
-
-    /// Map ident->entid.
-    ///
-    /// Invariant: is the inverse map of `entid_map`.
-    pub ident_map: IdentMap,
-
-    /// Map entid->attribute flags.
-    ///
-    /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
-    /// `ident_map`).
-    pub schema_map: SchemaMap,
-}
 
 /// Represents the metadata required to query from, or apply transactions to, a Mentat store.
 ///

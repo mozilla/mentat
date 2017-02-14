@@ -18,8 +18,13 @@ use entids;
 use db::TypedSQLValue;
 use mentat_tx::entities::Entity;
 use mentat_tx_parser;
-use mentat_core::TypedValue;
-use types::{IdentMap, Partition, PartitionMap, Schema};
+use mentat_core::{
+    IdentMap,
+    Schema,
+    TypedValue,
+};
+use schema::SchemaBuilding;
+use types::{Partition, PartitionMap};
 use values;
 
 /// The first transaction ID applied to the knowledge base.
