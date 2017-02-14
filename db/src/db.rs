@@ -954,7 +954,7 @@ mod tests {
         assert_eq!(transactions.0[0].0.len(), 89);
 
         // TODO: extract a test macro simplifying this boilerplate yet further.
-        let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap();
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap().without_spans();
 
         let transactions = value.as_vector().unwrap();
         assert_transactions(&conn, &mut db, transactions);
@@ -974,7 +974,7 @@ mod tests {
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
-        let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap();
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap().without_spans();
 
         let transactions = value.as_vector().unwrap();
         assert_transactions(&conn, &mut db, transactions);
@@ -994,7 +994,7 @@ mod tests {
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
-        let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap();
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap().without_spans();
 
         let transactions = value.as_vector().unwrap();
         assert_transactions(&conn, &mut db, transactions);

@@ -166,7 +166,7 @@ impl From<edn::parse::ParseError> for QueryParseError {
 
 pub fn parse_find_string(string: &str) -> QueryParseResult {
     let expr = edn::parse::value(string)?;
-    parse_find(expr)
+    parse_find(expr.without_spans())
 }
 
 pub fn parse_find(expr: edn::Value) -> QueryParseResult {
@@ -187,7 +187,7 @@ mod test_parse {
     extern crate edn;
 
     use self::edn::{NamespacedKeyword, PlainSymbol};
-    use self::edn::types::{to_keyword, to_symbol};
+    use self::edn::types::Value;
     use super::mentat_query::{
         Element,
         FindSpec,
@@ -203,18 +203,18 @@ mod test_parse {
     // TODO: when #224 lands, fix to_keyword to be variadic.
     #[test]
     fn test_parse_find() {
-        let truncated_input = edn::Value::Vector(vec![to_keyword(None, "find")]);
+        let truncated_input = edn::Value::Vector(vec![Value::from_keyword(None, "find")]);
         assert!(parse_find(truncated_input).is_err());
 
         let input = edn::Value::Vector(vec![
-                                       to_keyword(None, "find"),
-                                       to_symbol(None, "?x"),
-                                       to_symbol(None, "?y"),
-                                       to_keyword(None, "where"),
+                                       Value::from_keyword(None, "find"),
+                                       Value::from_symbol(None, "?x"),
+                                       Value::from_symbol(None, "?y"),
+                                       Value::from_keyword(None, "where"),
                                        edn::Value::Vector(vec![
-                                                          to_symbol(None, "?x"),
-                                                          to_keyword("foo", "bar"),
-                                                          to_symbol(None, "?y"),
+                                                          Value::from_symbol(None, "?x"),
+                                                          Value::from_keyword("foo", "bar"),
+                                                          Value::from_symbol(None, "?y"),
                                        ]),
         ]);
 

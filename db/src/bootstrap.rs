@@ -127,6 +127,7 @@ lazy_static! {
  :db/noHistory         {:db/valueType   :db.type/boolean
                         :db/cardinality :db.cardinality/one}}"#;
         edn::parse::value(s)
+            .map(|v| v.without_spans())
             .map_err(|_| ErrorKind::BadBootstrapDefinition("Unable to parse V1_SYMBOLIC_SCHEMA".into()))
             .unwrap()
     };
@@ -144,8 +145,10 @@ lazy_static! {
                         :db/unique      :db.unique/value
                         :db/cardinality :db.cardinality/many}}"#;
         let right = edn::parse::value(s)
+            .map(|v| v.without_spans())
             .map_err(|_| ErrorKind::BadBootstrapDefinition("Unable to parse V2_SYMBOLIC_SCHEMA".into()))
             .unwrap();
+
         edn::utils::merge(&V1_SYMBOLIC_SCHEMA, &right)
             .ok_or(ErrorKind::BadBootstrapDefinition("Unable to parse V2_SYMBOLIC_SCHEMA".into()))
             .unwrap()

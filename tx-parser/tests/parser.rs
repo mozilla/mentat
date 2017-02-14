@@ -26,7 +26,7 @@ fn test_entities() {
  [:db/add "tempid" :test/a "v"]
  [:db/retract 102 :test/b "w"]]"#;
 
-    let edn = parse::value(input).unwrap();
+    let edn = parse::value(input).unwrap().without_spans();
     let input = [edn];
 
     let result = Tx::parse(&input[..]);
