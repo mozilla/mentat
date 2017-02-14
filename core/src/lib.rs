@@ -224,10 +224,12 @@ impl Schema {
         self.schema_map.get(&x)
     }
 
+    /// Return true if the provided entid identifies an attribute in this schema.
     pub fn is_attribute(&self, x: Entid) -> bool {
         self.schema_map.contains_key(&x)
     }
 
+    /// Return true if the provided ident identifies an attribute in this schema.
     pub fn identifies_attribute(&self, x: &String) -> bool {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
