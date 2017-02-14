@@ -277,3 +277,18 @@ impl Display for NamespacedKeyword {
         write!(f, ":{}/{}", self.namespace, self.name)
     }
 }
+
+#[macro_export]
+macro_rules! ns_keyword {
+    ($ns: expr, $name: expr) => {{
+        $crate::NamespacedKeyword::new($ns, $name)
+    }}
+}
+
+#[test]
+fn test_ns_keyword_macro() {
+    assert_eq!(ns_keyword!("test", "name").to_string(),
+               NamespacedKeyword::new("test", "name").to_string());
+    assert_eq!(ns_keyword!("ns", "_name").to_string(),
+               NamespacedKeyword::new("ns", "_name").to_string());
+}

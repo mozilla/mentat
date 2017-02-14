@@ -262,7 +262,7 @@ impl ConjoiningClauses {
     }
 
     fn entid_for_ident<'s, 'a>(&self, schema: &'s Schema, ident: &'a NamespacedKeyword) -> Option<Entid> {
-        schema.get_entid(&ident.to_string())      // TODO: #291.
+        schema.get_entid(&ident)
     }
 
     fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a PatternValuePlace) -> Option<DatomsTable> {
@@ -602,9 +602,9 @@ impl ConjoiningClauses {
 mod testing {
     use super::*;
 
-    fn associate_ident(schema: &mut Schema, i: &str, e: Entid) {
-        schema.entid_map.insert(e, i.to_string());
-        schema.ident_map.insert(i.to_string(), e);
+    fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+        schema.entid_map.insert(e, i.clone());
+        schema.ident_map.insert(i.clone(), e);
     }
 
     fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
@@ -632,7 +632,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, ":foo/bar", 99);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
 
         cc.apply_pattern(&schema, &Pattern {
             source: None,
@@ -650,7 +650,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, ":foo/bar", 99);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -733,8 +733,8 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, ":foo/bar", 99);
-        associate_ident(&mut schema, ":foo/roz", 98);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()

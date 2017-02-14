@@ -18,6 +18,7 @@ extern crate time;
 
 extern crate tabwriter;
 
+#[macro_use]
 extern crate edn;
 extern crate mentat_core;
 extern crate mentat_tx;
