@@ -222,6 +222,14 @@ impl Schema {
     pub fn attribute_for_entid(&self, x: &Entid) -> Option<&Attribute> {
         self.schema_map.get(x)
     }
+
+    pub fn is_attribute(&self, x: &Entid) -> bool {
+        self.schema_map.contains_key(x)
+    }
+
+    pub fn identifies_attribute(&self, x: &String) -> bool {
+        self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
+    }
 }
 
 #[cfg(test)]
