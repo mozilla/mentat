@@ -16,8 +16,8 @@ use std::f64::{NAN, INFINITY, NEG_INFINITY};
 
 use num::BigInt;
 use ordered_float::OrderedFloat;
-use types;
-use types::Value;
+
+use types::{SpannedValue, Span, ValueAndSpan};
 
 // Goal: Be able to parse https://github.com/edn-format/edn
 // Also extensible to help parse http://docs.datomic.com/query.html
@@ -28,20 +28,43 @@ use types::Value;
 // TODO: Support tagged elements
 // TODO: Support discard
 
-pub nil -> Value =
-    "nil" { Value::Nil }
-
-pub nan -> Value =
-    "#f" whitespace+ "NaN" { Value::Float(OrderedFloat(NAN)) }
-
-pub infinity -> Value =
-    "#f" whitespace+ s:$(sign) "Infinity" {
-        Value::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY }))
+pub nil -> ValueAndSpan =
+    start:#position "nil" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Nil,
+            span: Span(start, end)
+        }
     }
 
-pub boolean -> Value =
-    "true" { Value::Boolean(true) } /
-    "false" { Value::Boolean(false) }
+pub nan -> ValueAndSpan =
+    start:#position "#f" whitespace+ "NaN" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Float(OrderedFloat(NAN)),
+            span: Span(start, end)
+        }
+    }
+
+pub infinity -> ValueAndSpan =
+    start:#position "#f" whitespace+ s:$(sign) "Infinity" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY })),
+            span: Span(start, end)
+        }
+    }
+
+pub boolean -> ValueAndSpan =
+    start:#position "true" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Boolean(true),
+            span: Span(start, end)
+        }
+    } /
+    start:#position "false" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Boolean(false),
+            span: Span(start, end)
+        }
+    }
 
 digit = [0-9]
 alphanumeric = [0-9a-zA-Z]
@@ -50,30 +73,45 @@ validbase = [3][0-6] / [12][0-9] / [2-9]
 hex = [0-9a-fA-F]
 sign = "-" / "+"
 
-pub bigint -> Value =
-    b:$( sign? digit+ ) "N" {
-        Value::BigInteger(b.parse::<BigInt>().unwrap())
+pub bigint -> ValueAndSpan =
+    start:#position b:$( sign? digit+ ) "N" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::BigInteger(b.parse::<BigInt>().unwrap()),
+            span: Span(start, end)
+        }
     }
 
-pub octalinteger -> Value =
-    "0" i:$( octaldigit+ ) {
-        Value::Integer(i64::from_str_radix(i, 8).unwrap())
+pub octalinteger -> ValueAndSpan =
+    start:#position "0" i:$( octaldigit+ ) end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Integer(i64::from_str_radix(i, 8).unwrap()),
+            span: Span(start, end)
+        }
     }
 
-pub hexinteger -> Value =
-    "0x" i:$( hex+ ) {
-        Value::Integer(i64::from_str_radix(i, 16).unwrap())
+pub hexinteger -> ValueAndSpan =
+    start:#position "0x" i:$( hex+ ) end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Integer(i64::from_str_radix(i, 16).unwrap()),
+            span: Span(start, end)
+        }
     }
 
-pub basedinteger -> Value =
+pub basedinteger -> ValueAndSpan =
     // Only allow values 2-36
-    b:$( validbase ) "r" i:$( alphanumeric+ ) {
-        Value::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap())
+    start:#position b:$( validbase ) "r" i:$( alphanumeric+ ) end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap()),
+            span: Span(start, end)
+        }
     }
 
-pub integer -> Value =
-    i:$( sign? digit+ ) {
-        Value::Integer(i.parse::<i64>().unwrap())
+pub integer -> ValueAndSpan =
+    start:#position i:$( sign? digit+ ) end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Integer(i.parse::<i64>().unwrap()),
+            span: Span(start, end)
+        }
     }
 
 frac =     sign? digit+ "." digit+
@@ -82,9 +120,12 @@ frac_exp = sign? digit+ "." digit+ ("e" / "E") sign? digit+
 
 // The order here is important - frac_exp must come before (exp / frac) or the
 // parser assumes exp or frac when the float is really a frac_exp and fails
-pub float -> Value =
-    f:$( frac_exp / exp / frac ) {
-        Value::Float(OrderedFloat(f.parse::<f64>().unwrap()))
+pub float -> ValueAndSpan =
+    start:#position f:$( frac_exp / exp / frac ) end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())),
+            span: Span(start, end)
+        }
     }
 
 // TODO: \newline, \return, \space and \tab
@@ -93,9 +134,12 @@ quote = "\\\""
 tab = "\\tab"
 char = [^"] / special_char
 
-pub text -> Value =
-    "\"" t:$( char* ) "\"" {
-        Value::Text(t.to_string())
+pub text -> ValueAndSpan =
+    start:#position "\"" t:$( char* ) "\"" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Text(t.to_string()),
+            span: Span(start, end)
+        }
     }
 
 namespace_divider = "."
@@ -112,48 +156,69 @@ symbol_name = ( symbol_char_initial+ / "." ) ( symbol_char_subsequent* / "." )
 
 keyword_prefix = ":"
 
-pub symbol -> Value =
-    ns:( sns:$(symbol_namespace) namespace_separator {
-        sns
-    })? n:$(symbol_name) {
-        types::to_symbol(ns, n)
+pub symbol -> ValueAndSpan =
+    start:#position
+    ns:( sns:$(symbol_namespace) namespace_separator { sns })?
+    n:$(symbol_name)
+    end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::from_symbol(ns, n),
+            span: Span(start, end)
+        }
     }
 
-pub keyword -> Value =
-    keyword_prefix ns:( sns:$(symbol_namespace) namespace_separator {
-        sns
-    })? n:$(symbol_name) {
-        types::to_keyword(ns, n)
+pub keyword -> ValueAndSpan =
+    start:#position
+    keyword_prefix
+    ns:( sns:$(symbol_namespace) namespace_separator { sns })?
+    n:$(symbol_name)
+    end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::from_keyword(ns, n),
+            span: Span(start, end)
+        }
     }
 
-pub list -> Value =
-    "(" __ v:(value)* __ ")" {
-        Value::List(LinkedList::from_iter(v))
+pub list -> ValueAndSpan =
+    start:#position "(" __ v:(value)* __ ")" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::List(LinkedList::from_iter(v)),
+            span: Span(start, end)
+        }
     }
 
-pub vector -> Value =
-    "[" __ v:(value)* __ "]" {
-        Value::Vector(v)
+pub vector -> ValueAndSpan =
+    start:#position "[" __ v:(value)* __ "]" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Vector(v),
+            span: Span(start, end)
+        }
     }
 
-pub set -> Value =
-    "#{" __ v:(value)* __ "}" {
-        Value::Set(BTreeSet::from_iter(v))
+pub set -> ValueAndSpan =
+    start:#position "#{" __ v:(value)* __ "}" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Set(BTreeSet::from_iter(v)),
+            span: Span(start, end)
+        }
     }
 
-pair -> (Value, Value) =
+pair -> (ValueAndSpan, ValueAndSpan) =
     k:(value) v:(value) {
         (k, v)
     }
 
-pub map -> Value =
-    "{" __ v:(pair)* __ "}" {
-        Value::Map(BTreeMap::from_iter(v))
+pub map -> ValueAndSpan =
+    start:#position "{" __ v:(pair)* __ "}" end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Map(BTreeMap::from_iter(v)),
+            span: Span(start, end)
+        }
     }
 
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
-pub value -> Value =
+pub value -> ValueAndSpan =
     __ v:(nil / nan / infinity / boolean / float / octalinteger / hexinteger / basedinteger / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
         v
     }
