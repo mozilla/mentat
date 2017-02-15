@@ -8,10 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate edn;
 extern crate ordered_float;
 
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
+use self::edn::NamespacedKeyword;
 
 /// Core types defining a Mentat knowledge base.
 
@@ -222,6 +224,12 @@ impl Schema {
 
     pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
         self.schema_map.get(&x)
+    }
+
+    pub fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+        let s = ident.to_string();       // TODO: don't do this. #291.
+        self.get_entid(&s)
+            .and_then(|x| self.attribute_for_entid(x))
     }
 
     /// Return true if the provided entid identifies an attribute in this schema.
