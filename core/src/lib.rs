@@ -212,6 +212,14 @@ pub struct Schema {
 }
 
 impl Schema {
+    pub fn new() -> Schema {
+        Schema {
+            entid_map: BTreeMap::new(),
+            ident_map: BTreeMap::new(),
+            schema_map: BTreeMap::new(),
+        }
+    }
+
     pub fn get_ident(&self, x: Entid) -> Option<&String> {
         self.entid_map.get(&x)
     }

@@ -34,5 +34,8 @@ path = "query"
 [dependencies.mentat_query_parser]
 path = "query-parser"
 
+[dependencies.mentat_query_algebrizer]
+path = "query-algebrizer"
+
 [dependencies.mentat_tx_parser]
 path = "tx-parser"
