@@ -16,15 +16,15 @@ extern crate mentat_tx_parser;
 use edn::parse;
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
-use mentat_tx::entities::{Entid, EntidOrLookupRef, Entity, OpType, ValueOrLookupRef};
+use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, OpType};
 use mentat_tx_parser::Tx;
 
 #[test]
 fn test_entities() {
-
-    // TODO: align with whitespace after the EDN parser ignores more whitespace.
-    let input = r#"[[:db/add 101 :test/a "v"]
-[:db/retract 102 :test/b "w"]]"#;
+    let input = r#"
+[[:db/add 101 :test/a "v"]
+ [:db/add "tempid" :test/a "v"]
+ [:db/retract 102 :test/b "w"]]"#;
 
     let edn = parse::value(input).unwrap();
     let input = [edn];
@@ -33,16 +33,22 @@ fn test_entities() {
     assert_eq!(result,
                Ok(vec![
                    Entity::AddOrRetract {
-                       e: EntidOrLookupRef::Entid(Entid::Entid(101)),
-                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: ValueOrLookupRef::Value(Value::Text("v".into())),
                        op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: Value::Text("v".into()),
                    },
                    Entity::AddOrRetract {
-                       e: EntidOrLookupRef::Entid(Entid::Entid(102)),
-                       a: Entid::Ident(NamespacedKeyword::new("test", "b")),
-                       v: ValueOrLookupRef::Value(Value::Text("w".into())),
+                       op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::TempId("tempid".into()),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: Value::Text("v".into()),
+                   },
+                   Entity::AddOrRetract {
                        op: OpType::Retract,
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(102)),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "b")),
+                       v: Value::Text("w".into()),
                    },
                    ]));
 }

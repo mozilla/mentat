@@ -10,19 +10,21 @@
 
 #![allow(dead_code)]
 
-use std::iter::once;
+use std::borrow::Borrow;
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::iter::{once, repeat};
+use std::ops::Range;
 use std::path::Path;
 
 use itertools;
 use itertools::Itertools;
 use rusqlite;
 use rusqlite::types::{ToSql, ToSqlOutput};
-use time;
 
-use ::{repeat_values, to_namespaced_keyword};
+use ::{now, repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
-use entids;
 use mentat_core::{
     Attribute,
     AttributeBitFlags,
@@ -32,11 +34,18 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
-use mentat_tx::entities as entmod;
-use mentat_tx::entities::{Entity, OpType};
+use mentat_tx::entities::Entity;
 use errors::{ErrorKind, Result, ResultExt};
-use types::{DB, Partition, PartitionMap};
 use schema::SchemaBuilding;
+use types::{
+    AVMap,
+    AVPair,
+    DB,
+    Partition,
+    PartitionMap,
+    TxReport,
+};
+use tx::Tx;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -153,6 +162,7 @@ lazy_static! {
         r#"CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value BLOB NOT NULL, value_type_tag SMALLINT NOT NULL,
              FOREIGN KEY (ident) REFERENCES idents (ident))"#,
         r#"CREATE INDEX idx_schema_unique ON schema (ident, attr, value, value_type_tag)"#,
+        // TODO: store entid instead of ident for partition name.
         r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"#,
         ]
     };
@@ -180,7 +190,7 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 }
 
 // TODO: rename "SQL" functions to align with "datoms" functions.
-pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
+pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     let tx = conn.transaction()?;
 
     for statement in (&V2_STATEMENTS).iter() {
@@ -191,20 +201,21 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
     // TODO: think more carefully about allocating new parts and bitmasking part ranges.
     // TODO: install these using bootstrap assertions.  It's tricky because the part ranges are implicit.
     // TODO: one insert, chunk into 999/3 sections, for safety.
+    // This is necessary: `transact` will only UPDATE parts, not INSERT them if they're missing.
     for (part, partition) in bootstrap_partition_map.iter() {
         // TODO: Convert "keyword" part to SQL using Value conversion.
         tx.execute("INSERT INTO parts VALUES (?, ?, ?)", &[part, &partition.start, &partition.index])?;
     }
 
-    let bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
-    bootstrap_db.transact_internal(&tx, &bootstrap::bootstrap_entities()[..], bootstrap::TX0)?;
+    // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
+    let mut bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
+    bootstrap_db.transact(&tx, bootstrap::bootstrap_entities())?;
 
     set_user_version(&tx, CURRENT_VERSION)?;
-    let user_version = get_user_version(&tx)?;
 
     // TODO: use the drop semantics to do this automagically?
     tx.commit()?;
-    Ok(user_version)
+    Ok(bootstrap_db)
 }
 
 // (def v2-statements v1-statements)
@@ -305,12 +316,12 @@ pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32
     Ok(user_version)
 }
 
-pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<i32> {
+pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     let user_version = get_user_version(&conn)?;
     match user_version {
-        CURRENT_VERSION => Ok(user_version),
         0 => create_current_version(conn),
-        v => update_from_version(conn, v),
+        // TODO: support updating or re-opening an existing store.
+        v => bail!(ErrorKind::NotYetImplemented(format!("Opening databases with Mentat version: {}", v))),
     }
 }
 
@@ -429,7 +440,7 @@ pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
 }
 
 /// Internal representation of an [e a v added] datom, ready to be transacted against the store.
-type ReducedEntity = (i64, i64, TypedValue, bool);
+pub type ReducedEntity = (i64, i64, TypedValue, bool);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum SearchType {
@@ -461,6 +472,77 @@ impl DB {
                 (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
             }
         }
+    }
+
+    /// Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.
+    ///
+    /// It is assumed that the attribute `a` in each lookup-ref is `:db/unique`, so that at most one
+    /// matching [e a v] triple exists.  (If this is not true, some matching entid `e` will be
+    /// chosen non-deterministically, if one exists.)
+    ///
+    /// Returns a map &(a, v) -> e, to avoid cloning potentially large values.  The keys of the map
+    /// are exactly those (a, v) pairs that have an assertion [e a v] in the datom store.
+    pub fn resolve_avs<'a>(&self, conn: &rusqlite::Connection, avs: &'a [&'a AVPair]) -> Result<AVMap<'a>> {
+        // Start search_id's at some identifiable number.
+        let initial_search_id = 2000;
+        let bindings_per_statement = 4;
+
+        // We map [a v] -> numeric search_id -> e, and then we use the search_id lookups to finally
+        // produce the map [a v] -> e.
+        //
+        // TODO: `collect` into a HashSet so that any (a, v) is resolved at most once.
+        let chunks: itertools::IntoChunks<_> = avs.into_iter().enumerate().chunks(::SQLITE_MAX_VARIABLE_NUMBER / 4);
+
+        // We'd like to `flat_map` here, but it's not obvious how to `flat_map` across `Result`.
+        // Alternatively, this is a `fold`, and it might be wise to express it as such.
+        let results: Result<Vec<Vec<_>>> = chunks.into_iter().map(|chunk| -> Result<Vec<_>> {
+            let mut count = 0;
+
+            // We must keep these computed values somewhere to reference them later, so we can't
+            // combine this `map` and the subsequent `flat_map`.
+            let block: Vec<(i64, i64, ToSqlOutput<'a>, i32)> = chunk.map(|(index, &&(a, ref v))| {
+                count += 1;
+                let search_id: i64 = initial_search_id + index as i64;
+                let (value, value_type_tag) = v.to_sql_value_pair();
+                (search_id, a, value, value_type_tag)
+            }).collect();
+
+            // `params` reference computed values in `block`.
+            let params: Vec<&ToSql> = block.iter().flat_map(|&(ref searchid, ref a, ref value, ref value_type_tag)| {
+                // Avoid inner heap allocation.
+                once(searchid as &ToSql)
+                    .chain(once(a as &ToSql)
+                           .chain(once(value as &ToSql)
+                                  .chain(once(value_type_tag as &ToSql))))
+            }).collect();
+
+            // TODO: cache these statements for selected values of `count`.
+            // TODO: query against `datoms` and UNION ALL with `fulltext_datoms` rather than
+            // querying against `all_datoms`.  We know all the attributes, and in the common case,
+            // where most unique attributes will not be fulltext-indexed, we'll be querying just
+            // `datoms`, which will be much faster.
+            let values: String = repeat_values(bindings_per_statement, count);
+            let s: String = format!("WITH t(search_id, a, v, value_type_tag) AS (VALUES {}) SELECT t.search_id, d.e \
+                                     FROM t, all_datoms AS d \
+                                     WHERE d.index_avet IS NOT 0 AND d.a = t.a AND d.value_type_tag = t.value_type_tag AND d.v = t.v",
+                                    values);
+            let mut stmt: rusqlite::Statement = conn.prepare(s.as_str())?;
+
+            let m: Result<Vec<(i64, Entid)>> = stmt.query_and_then(&params, |row| -> Result<(i64, Entid)> {
+                Ok((row.get_checked(0)?, row.get_checked(1)?))
+            })?.collect();
+            m
+        }).collect::<Result<Vec<Vec<(i64, Entid)>>>>();
+
+        // Flatten.
+        let results: Vec<(i64, Entid)> = results?.as_slice().concat();
+
+        // Create map [a v] -> e.
+        let m: HashMap<&'a AVPair, Entid> = results.into_iter().map(|(search_id, entid)| {
+            let index: usize = (search_id - initial_search_id) as usize;
+            (avs[index], entid)
+        }).collect();
+        Ok(m)
     }
 
     /// Create empty temporary tables for search parameters and search results.
@@ -528,7 +610,7 @@ impl DB {
     ///
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
+    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
         let bindings_per_statement = 7;
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
@@ -592,7 +674,7 @@ impl DB {
     /// Take search rows and complete `temp.search_results`.
     ///
     /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    fn search(&self, conn: &rusqlite::Connection) -> Result<()> {
+    pub fn search(&self, conn: &rusqlite::Connection) -> Result<()> {
         // First is fast, only one table walk: lookup by exact eav.
         // Second is slower, but still only one table walk: lookup old value by ea.
         let s = r#"
@@ -625,7 +707,7 @@ impl DB {
     ///
     /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
     // TODO: capture `conn` in a `TxInternal` structure.
-    fn insert_transaction(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    pub fn insert_transaction(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         let s = r#"
           INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
           SELECT e0, a0, v0, ?, 1, value_type_tag0
@@ -659,7 +741,7 @@ impl DB {
     ///
     /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
     // TODO: capture `conn` in a `TxInternal` structure.
-    fn update_datoms(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    pub fn update_datoms(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         // Delete datoms that were retracted, or those that were :db.cardinality/one and will be
         // replaced.
         let s = r#"
@@ -699,130 +781,67 @@ impl DB {
         Ok(())
     }
 
+    /// Update the current partition map materialized view.
+    // TODO: only update changed partitions.
+    pub fn update_partition_map(&self, conn: &rusqlite::Connection) -> Result<()> {
+        let values_per_statement = 2;
+        let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
+        if self.partition_map.len() > max_partitions {
+            bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
+        }
+
+        // Like "UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END".
+        let s = format!("UPDATE parts SET idx = CASE {} ELSE idx END",
+                        repeat("WHEN part = ? THEN ?").take(self.partition_map.len()).join(" "));
+
+        let params: Vec<&ToSql> = self.partition_map.iter().flat_map(|(name, partition)| {
+            once(name as &ToSql)
+                .chain(once(&partition.index as &ToSql))
+        }).collect();
+
+        // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
+        // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
+        // so this is very low priority.
+        let mut stmt = conn.prepare_cached(s.as_str())?;
+        stmt.execute(&params[..])
+            .map(|_c| ())
+            .chain_err(|| "Could not update partition map")
+    }
+
+    /// Allocate a single fresh entid in the given `partition`.
+    pub fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S> {
+        self.allocate_entids(partition, 1).start
+    }
+
+    /// Allocate `n` fresh entids in the given `partition`.
+    pub fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
+        match self.partition_map.get_mut(partition) {
+            Some(mut partition) => {
+                let idx = partition.index;
+                partition.index += n as i64;
+                idx..partition.index
+            },
+            // This is a programming error.
+            None => panic!("Cannot allocate entid from unknown partition: {}", partition),
+        }
+    }
+
     /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
     /// `self.DB`.
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
-    pub fn transact_internal(&self, conn: &rusqlite::Connection, entities: &[Entity], tx: Entid) -> Result<()>{
-        // TODO: push these into an internal transaction report?
+    pub fn transact<I>(&mut self, conn: &rusqlite::Connection, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
+        // Eventually, this function will be responsible for managing a SQLite transaction.  For
+        // now, it's just about the tx details.
 
-        /// Assertions that are :db.cardinality/one and not :db.fulltext.
-        let mut non_fts_one: Vec<ReducedEntity> = vec![];
-
-        /// Assertions that are :db.cardinality/many and not :db.fulltext.
-        let mut non_fts_many: Vec<ReducedEntity> = vec![];
-
-        // Transact [:db/add :db/txInstant NOW :db/tx].
-        // TODO: allow this to be present in the transaction data.
-        let now = time::get_time();
-        let tx_instant = (now.sec as i64 * 1_000) + (now.nsec as i64 / (1_000_000));
-        non_fts_one.push((tx,
-                          entids::DB_TX_INSTANT,
-                          TypedValue::Long(tx_instant),
-                          true));
-
-        // Right now, this could be a for loop, saving some mapping, collecting, and type
-        // annotations.  However, I expect it to be a multi-stage map as we start to transform the
-        // underlying entities, in which case this expression is more natural than for loops.
-        let r: Vec<Result<()>> = entities.into_iter().map(|entity: &Entity| -> Result<()> {
-            match *entity {
-                Entity::AddOrRetract {
-                    op: OpType::Add,
-                    e: entmod::EntidOrLookupRef::Entid(ref e_),
-                    a: ref a_,
-                    v: entmod::ValueOrLookupRef::Value(ref v_)} => {
-
-                    let e: i64 = match e_ {
-                        &entmod::Entid::Entid(ref e__) => *e__,
-                        &entmod::Entid::Ident(ref e__) => self.schema.require_entid(&e__.to_string())?,
-                    };
-
-                    let a: i64 = match a_ {
-                        &entmod::Entid::Entid(ref a__) => *a__,
-                        &entmod::Entid::Ident(ref a__) => self.schema.require_entid(&a__.to_string())?,
-                    };
-
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                    if attribute.fulltext {
-                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented: {:?}", entity)))
-                    }
-
-                    // This is our chance to do schema-aware typechecking: to either assert that the
-                    // given value is in the attribute's value set, or (in limited cases) to coerce
-                    // the value into the attribute's value set.
-                    let typed_value: TypedValue = self.to_typed_value(v_, &attribute)?;
-
-                    let added = true;
-                    if attribute.multival {
-                        non_fts_many.push((e, a, typed_value, added));
-                    } else {
-                        non_fts_one.push((e, a, typed_value, added));
-                    }
-                    Ok(())
-                },
-
-                Entity::AddOrRetract {
-                    op: OpType::Retract,
-                    e: entmod::EntidOrLookupRef::Entid(ref e_),
-                    a: ref a_,
-                    v: entmod::ValueOrLookupRef::Value(ref v_) } => {
-
-                    let e: i64 = match e_ {
-                        &entmod::Entid::Entid(ref e__) => *e__,
-                        &entmod::Entid::Ident(ref e__) => self.schema.require_entid(&e__.to_string())?,
-                    };
-
-                    let a: i64 = match a_ {
-                        &entmod::Entid::Entid(ref a__) => *a__,
-                        &entmod::Entid::Ident(ref a__) => self.schema.require_entid(&a__.to_string())?,
-                    };
-
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                    if attribute.fulltext {
-                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented: {:?}", entity)))
-                    }
-
-                    // This is our chance to do schema-aware typechecking: to either assert that the
-                    // given value is in the attribute's value set, or (in limited cases) to coerce
-                    // the value into the attribute's value set.
-                    let typed_value: TypedValue = self.to_typed_value(v_, &attribute)?;
-
-                    let added = false;
-
-                    if attribute.multival {
-                        non_fts_many.push((e, a, typed_value, added));
-                    } else {
-                        non_fts_one.push((e, a, typed_value, added));
-                    }
-                    Ok(())
-                },
-
-                _ => bail!(ErrorKind::NotYetImplemented(format!("Transacting this entity is not yet implemented: {:?}", entity)))
-            }
-        }).collect();
-
-        let r: Result<Vec<()>> = r.into_iter().collect();
-        r?;
+        let tx_instant = now(); // Label the transaction with the timestamp when we first see it: leading edge.
+        let tx_id = self.allocate_entid(":db.part/tx");
 
         self.create_temp_tables(conn)?;
 
-        if !non_fts_one.is_empty() {
-            self.insert_non_fts_searches(conn, &non_fts_one[..], tx, SearchType::Inexact)?;
-        }
-
-        if !non_fts_many.is_empty() {
-            self.insert_non_fts_searches(conn, &non_fts_many[..], tx, SearchType::Exact)?;
-        }
-
-        self.search(conn)?;
-
-        self.insert_transaction(conn, tx)?;
-        self.update_datoms(conn, tx)?;
-
-        // TODO: update parts, idents, schema materialized views.
-
-        Ok(())
+        let mut tx = Tx::new(self, conn, tx_id, tx_instant);
+        tx.transact_entities(entities)
     }
 }
 
@@ -869,7 +888,7 @@ mod tests {
     /// There is some magic here about transaction numbering that I don't want to commit to or
     /// document just yet.  The end state might be much more general pattern matching syntax, rather
     /// than the targeted transaction ID and timestamp replacement we have right now.
-    fn assert_transactions(conn: &rusqlite::Connection, db: &DB, transactions: &Vec<edn::Value>) {
+    fn assert_transactions(conn: &rusqlite::Connection, db: &mut DB, transactions: &Vec<edn::Value>) {
         for (index, transaction) in transactions.into_iter().enumerate() {
             let index = index as i64;
             let transaction = transaction.as_map().unwrap();
@@ -877,22 +896,40 @@ mod tests {
             let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
             let expected_transaction: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-transaction")));
             let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-datoms")));
+            let expected_error_message: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-error-message")));
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
-            db.transact_internal(&conn, &entities[..], bootstrap::TX0 + index + 1).unwrap();
+
+            let maybe_report = db.transact(&conn, entities);
 
             if let Some(expected_transaction) = expected_transaction {
+                if expected_transaction.is_nil() {
+                    assert!(maybe_report.is_err());
+
+                    if let Some(expected_error_message) = expected_error_message {
+                        let expected_error_message = expected_error_message.as_text();
+                        assert!(expected_error_message.is_some(), "Expected error message to be text:\n{:?}", expected_error_message);
+                        let error_message = maybe_report.unwrap_err().to_string();
+                        assert!(error_message.contains(expected_error_message.unwrap()), "Expected error message:\n{}\nto contain:\n{}", error_message, expected_error_message.unwrap());
+                    }
+                    continue
+                }
+
+                let report = maybe_report.unwrap();
+                assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
+
                 let transactions = debug::transactions_after(&conn, &db, bootstrap::TX0 + index).unwrap();
-                assert_eq!(transactions.0[0].into_edn(),
-                           *expected_transaction,
-                           "\n{} - expected transaction:\n{}\n{}", label, transactions.0[0].into_edn(), *expected_transaction);
+                assert_eq!(transactions.0.len(), 1);
+                assert_eq!(*expected_transaction,
+                           transactions.0[0].into_edn(),
+                           "\n{} - expected transaction:\n{}\nbut got transaction:\n{}", label, *expected_transaction, transactions.0[0].into_edn());
             }
 
             if let Some(expected_datoms) = expected_datoms {
                 let datoms = debug::datoms_after(&conn, &db, bootstrap::TX0).unwrap();
-                assert_eq!(datoms.into_edn(),
-                           *expected_datoms,
-                           "\n{} - expected datoms:\n{}\n{}", label, datoms.into_edn(), *expected_datoms);
+                assert_eq!(*expected_datoms,
+                           datoms.into_edn(),
+                           "\n{} - expected datoms:\n{}\nbut got datoms:\n{}", label, *expected_datoms, datoms.into_edn())
             }
 
             // Don't allow empty tests.  This will need to change if we allow transacting schema
@@ -905,16 +942,14 @@ mod tests {
     #[test]
     fn test_add() {
         let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
-
-        let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
+        let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &bootstrap_db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &bootstrap_db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
@@ -922,28 +957,46 @@ mod tests {
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &bootstrap_db, transactions);
+        assert_transactions(&conn, &mut db, transactions);
     }
 
     #[test]
     fn test_retract() {
         let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        assert_eq!(ensure_current_version(&mut conn).unwrap(), CURRENT_VERSION);
-
-        let bootstrap_db = DB::new(bootstrap::bootstrap_partition_map(), bootstrap::bootstrap_schema());
+        let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &bootstrap_db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &bootstrap_db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &bootstrap_db, transactions);
+        assert_transactions(&conn, &mut db, transactions);
+    }
+
+    #[test]
+    fn test_upsert_vector() {
+        let mut conn = new_connection("").expect("Couldn't open in-memory db");
+        let mut db = ensure_current_version(&mut conn).unwrap();
+
+        // Does not include :db/txInstant.
+        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        assert_eq!(datoms.0.len(), 88);
+
+        // Includes :db/txInstant.
+        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        assert_eq!(transactions.0.len(), 1);
+        assert_eq!(transactions.0[0].0.len(), 89);
+
+        let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap();
+
+        let transactions = value.as_vector().unwrap();
+        assert_transactions(&conn, &mut db, transactions);
     }
 }
