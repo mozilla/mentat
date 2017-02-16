@@ -19,14 +19,14 @@ use types::Value;
 impl Value {
     /// Return a pretty string representation of this `Value`.
     pub fn to_pretty(&self, width: usize) -> Result<String, io::Error> {
-        self.pretty_print_to_writable(width, Vec::new())
-            .map(|writable| String::from_utf8_lossy(&writable).into_owned())
+        let mut out = Vec::new();
+        self.write_pretty(width, &mut out)?;
+        Ok(String::from_utf8_lossy(&out).into_owned())
     }
 
-    /// Recursively traverses this value and pretty prints it to memory or any
-    /// other given stream.
-    pub fn pretty_print_to_writable<W>(&self, width: usize, mut out: W) -> Result<W, io::Error> where W: io::Write {
-        self.as_doc(&pretty::BoxAllocator).1.render(width, &mut out).map(|()| out)
+    /// Write a pretty representation of this `Value` to the given writer.
+    pub fn write_pretty<W>(&self, width: usize, out: &mut W) -> Result<(), io::Error> where W: io::Write {
+        self.as_doc(&pretty::BoxAllocator).1.render(width, out)
     }
 
     /// Bracket a collection of values.
@@ -81,7 +81,7 @@ mod test {
         let string = "$";
         let data = parse::value(string).unwrap();
 
-        assert_eq!(data.pretty_print_to_writable(40, Vec::new()).is_ok(), true);
+        assert_eq!(data.write_pretty(40, &mut Vec::new()).is_ok(), true);
     }
 
     #[test]
