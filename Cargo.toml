@@ -35,6 +35,9 @@ path = "parser-utils"
 [dependencies.mentat_core]
 path = "core"
 
+[dependencies.mentat_sql]
+path = "sql"
+
 [dependencies.mentat_db]
 path = "db"
 
