@@ -47,7 +47,7 @@ pub enum DatomsTable {
 }
 
 impl DatomsTable {
-    fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match *self {
             DatomsTable::Datoms => "datoms",
             DatomsTable::FulltextValues => "fulltext_values",
@@ -67,16 +67,30 @@ pub enum DatomsColumn {
     ValueTypeTag,
 }
 
+impl DatomsColumn {
+    pub fn as_str(&self) -> &'static str {
+        use DatomsColumn::*;
+        match *self {
+            Entity => "e",
+            Attribute => "a",
+            Value => "v",
+            Tx => "tx",
+            ValueTypeTag => "value_type_tag",
+        }
+    }
+}
+
+
 /// A specific instance of a table within a query. E.g., "datoms123".
 pub type TableAlias = String;
 
 /// The association between a table and its alias. E.g., AllDatoms, "all_datoms123".
 #[derive(PartialEq, Eq, Debug)]
-pub struct SourceAlias(DatomsTable, TableAlias);
+pub struct SourceAlias(pub DatomsTable, pub TableAlias);
 
 /// A particular column of a particular aliased table. E.g., "datoms123", Attribute.
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct QualifiedAlias(TableAlias, DatomsColumn);
+pub struct QualifiedAlias(pub TableAlias, pub DatomsColumn);
 
 impl QualifiedAlias {
     fn for_type_tag(&self) -> QualifiedAlias {
