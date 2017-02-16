@@ -13,8 +13,13 @@
 extern crate mentat_core;
 extern crate mentat_query;
 
-use ::std::collections::BTreeMap;
-use ::std::collections::btree_map::Entry;
+use std::fmt::{
+    Debug,
+    Formatter,
+    Result,
+};
+use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 
 use self::mentat_core::{
     Attribute,
@@ -85,12 +90,24 @@ impl DatomsColumn {
 pub type TableAlias = String;
 
 /// The association between a table and its alias. E.g., AllDatoms, "all_datoms123".
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 pub struct SourceAlias(pub DatomsTable, pub TableAlias);
 
+impl Debug for SourceAlias {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "SourceAlias({:?}, {})", self.0, self.1)
+    }
+}
+
 /// A particular column of a particular aliased table. E.g., "datoms123", Attribute.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct QualifiedAlias(pub TableAlias, pub DatomsColumn);
+
+impl Debug for QualifiedAlias {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}.{}", self.0, self.1.as_str())
+    }
+}
 
 impl QualifiedAlias {
     fn for_type_tag(&self) -> QualifiedAlias {
@@ -115,11 +132,28 @@ pub fn default_table_aliaser() -> TableAliaser {
     })
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 pub enum ColumnConstraint {
     EqualsEntity(QualifiedAlias, Entid),
     EqualsValue(QualifiedAlias, TypedValue),
     EqualsColumn(QualifiedAlias, QualifiedAlias),
+}
+
+impl Debug for ColumnConstraint {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        use self::ColumnConstraint::*;
+        match self {
+            &EqualsEntity(ref qa, ref entid) => {
+                write!(f, "{:?} = entity({:?})", qa, entid)
+            }
+            &EqualsValue(ref qa, ref typed_value) => {
+                write!(f, "{:?} = value({:?})", qa, typed_value)
+            }
+            &EqualsColumn(ref qa1, ref qa2) => {
+                write!(f, "{:?} = {:?}", qa1, qa2)
+            }
+        }
+    }
 }
 
 /// A `ConjoiningClauses` (CC) is a collection of clauses that are combined with `JOIN`.
@@ -171,9 +205,8 @@ pub struct ConjoiningClauses {
     extracted_types: BTreeMap<Variable, QualifiedAlias>,
 }
 
-impl ::std::fmt::Debug for ConjoiningClauses {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        // TODO: improve this representation.
+impl Debug for ConjoiningClauses {
+    fn fmt(&self, fmt: &mut Formatter) -> Result {
         fmt.debug_struct("ConjoiningClauses")
             .field("is_known_empty", &self.is_known_empty)
             .field("from", &self.from)

@@ -33,13 +33,14 @@
 extern crate edn;
 extern crate mentat_core;
 
+use std::fmt;
 use edn::{BigInt, OrderedFloat};
 pub use edn::{NamespacedKeyword, PlainSymbol};
 use mentat_core::TypedValue;
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Variable(pub PlainSymbol);
 
 pub trait FromValue<T> {
@@ -65,6 +66,12 @@ impl Variable {
         } else {
             None
         }
+    }
+}
+
+impl fmt::Debug for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "var({})", self.0)
     }
 }
 
