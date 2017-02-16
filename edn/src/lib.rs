@@ -15,7 +15,7 @@ extern crate pretty;
 
 pub mod symbols;
 pub mod types;
-pub mod types_pp;
+pub mod pretty_print;
 pub mod utils;
 
 pub mod parse {
