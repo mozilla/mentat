@@ -8,50 +8,18 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io;
+use itertools::Itertools;
 use pretty;
 
+use std::io;
+use std::borrow::Cow;
+
 use types::Value;
-use symbols;
-
-/// Helper for glueing a sequence of pretty.rs documents together. All of these
-/// given `$node`s can be anything that converts into a pretty.rs document.
-macro_rules! print_seq {
-    ( $pp:ident: $( $node:expr ),+ ) => {{
-        let mut doc = $pp.nil();
-        $( doc = doc.append($node); )*
-        doc
-    }}
-}
-
-/// Helper for joining a sequence of nodes from an `$iterator` into a pretty.rs
-/// document, separated by zero or more `$separator` nodes. All of these
-/// given `$node`s can be anything that converts into a pretty.rs document.
-/// The second variant of this macro creates a pretty.rs document which nests
-/// all the nodes from an `$iterator` at a specified `$indent` depth, surrounded
-/// by newlines. If `$indent` is zero, a non-indented pretty.rs document is returned.
-macro_rules! print_iter {
-    ( $pp:ident: $iterator:expr, $( $separator:expr ),* ) => {{
-        let mut doc = $pp.nil();
-        for (index, value) in $iterator.enumerate() {
-            if index != 0 { $( doc = doc.append($separator); )* }
-            doc = doc.append(value)
-        }
-        doc
-    }};
-    ( $pp:ident: $iterator:expr, $( $separator:expr ),*; $indent:expr ) => {{
-        let children = print_iter!($pp: $iterator, $( $separator ),*);
-        match $indent {
-            0 => children,
-            _ => print_seq!($pp: print_seq!($pp: $pp.newline(), children).nest($indent), $pp.newline()),
-        }
-    }}
-}
 
 impl Value {
-    /// Recursively traverses this value and pretty prints it to a string.
-    pub fn pretty_print_to_string(&self) -> Result<String, io::Error> {
-        self.pretty_print_to_writable(80, Vec::new())
+    /// Return a pretty string representation of this `Value`.
+    pub fn to_pretty(&self, width: usize) -> Result<String, io::Error> {
+        self.pretty_print_to_writable(width, Vec::new())
             .map(|writable| String::from_utf8_lossy(&writable).into_owned())
     }
 
@@ -61,58 +29,44 @@ impl Value {
         self.as_doc(&pretty::BoxAllocator).1.render(width, &mut out).map(|()| out)
     }
 
+    /// Bracket a collection of values.
+    ///
+    /// We aim for
+    /// [1 2 3]
+    /// and fall back if necessary to
+    /// [1,
+    ///  2,
+    ///  3].
+    fn bracket<'a, A, T, I>(&'a self, allocator: &'a A, open: T, vs: I, close: T) -> pretty::DocBuilder<'a, A>
+        where A: pretty::DocAllocator<'a>, T: Into<Cow<'a, str>>,
+    I: IntoIterator<Item=&'a Value>,
+    {
+        let open = open.into();
+        let n = open.len();
+        let i = vs.into_iter().map(|ref v| v.as_doc(allocator)).intersperse(allocator.space());
+        allocator.text(open)
+            .append(allocator.concat(i).nest(n))
+            .append(allocator.text(close))
+            .group()
+    }
+
     /// Recursively traverses this value and creates a pretty.rs document.
     /// This pretty printing implementation is optimized for edn queries
     /// readability and limited whitespace expansion.
     pub fn as_doc<'a, A>(&'a self, pp: &'a A) -> pretty::DocBuilder<'a, A>
-    where A: pretty::DocAllocator<'a> {
-        // Returns the desired indentation amount for a given collection of Values.
-        macro_rules! indent { ( $v:expr ) => {
-            if $v.len() < 2 || $v.iter().all(|x| x.is_symbol()) { 0 } else { 4 }
-        }}
-        // Maps a collection of Values to pretty.rs documents.
-        macro_rules! map_values { ( $v:expr ) => {
-            $v.iter().map(|x| x.as_doc(pp))
-        }}
-        // Maps a collection of (Value, Value) pairs to pretty.rs documents.
-        macro_rules! map_pairs { ( $v:expr ) => {
-            $v.iter().map(|(x, y)| print_seq!(pp: x.as_doc(pp), " ", y.as_doc(pp)));
-        }}
-        match *self {
-            Value::Vector(ref v) => {
-                print_seq!(pp: "[", print_iter!(pp: map_values!(v), " "; indent!(v)), "]")
+        where A: pretty::DocAllocator<'a> {
+        match self {
+            &Value::Vector(ref vs) => self.bracket(pp, "[", vs, "]"),
+            &Value::List(ref vs) => self.bracket(pp, "(", vs, ")"),
+            &Value::Set(ref vs) => self.bracket(pp, "#{", vs, "}"),
+            &Value::Map(ref vs) => {
+                let xs = vs.iter().rev().map(|(ref k, ref v)| k.as_doc(pp).append(pp.space()).append(v.as_doc(pp)).group()).intersperse(pp.space());
+                pp.text("{")
+                    .append(pp.concat(xs).nest(1))
+                    .append(pp.text("}"))
+                    .group()
             }
-            Value::List(ref v) => {
-                print_seq!(pp: "(", print_iter!(pp: map_values!(v), " "; indent!(v)), ")")
-            }
-            Value::Set(ref v) => {
-                print_seq!(pp: "#{", print_iter!(pp: map_values!(v), " "), "}")
-            }
-            Value::Map(ref v) => {
-                print_seq!(pp: "{", print_iter!(pp: map_pairs!(v), " "), "}")
-            }
-            Value::Text(ref v) => {
-                print_seq!(pp: "\"", v.as_ref(), "\"")
-            }
-            Value::NamespacedSymbol(ref v) => {
-                print_seq!(pp: v.namespace.as_ref(), "/", v.name.as_ref())
-            }
-            Value::NamespacedKeyword(ref v) => {
-                print_seq!(pp: ":", v.namespace.as_ref(), "/", v.name.as_ref())
-            }
-            Value::PlainSymbol(symbols::PlainSymbol(ref name)) => {
-                print_seq!(pp: name.as_ref())
-            }
-            Value::Keyword(symbols::Keyword(ref name)) => {
-                // Special treatment for ":in" and ":where" keywords to always
-                // place them on a newline in the outputted pretty.rs document.
-                // TODO: Add more "special" keywords here, or remove this?
-                let name = name.as_ref();
-                match name {
-                    "in" | "where" => print_seq!(pp: pp.newline(), ":", name),
-                    _ => print_seq!(pp: ":", name)
-                }
-            }
+            &Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
             _ => pp.text(self.to_string())
         }
     }
@@ -122,15 +76,12 @@ impl Value {
 mod test {
     use parse;
 
-    // To output an edn value to stdout, use the following snippet:
-    // value.pretty_print_to_writable(80, ::std::io::stdout()).ok();
-
     #[test]
     fn test_pp_io() {
         let string = "$";
         let data = parse::value(string).unwrap();
 
-        assert_eq!(data.pretty_print_to_writable(80, Vec::new()).is_ok(), true);
+        assert_eq!(data.pretty_print_to_writable(40, Vec::new()).is_ok(), true);
     }
 
     #[test]
@@ -138,11 +89,34 @@ mod test {
         let string = "[ [ ] ( ) #{ } { }, \"\" ]";
         let data = parse::value(string).unwrap();
 
-        let pretty = data.pretty_print_to_string();
-        assert_eq!(pretty.unwrap(), "\
-[
-    [] () #{} {} \"\"
-]");
+        assert_eq!(data.to_pretty(40).unwrap(), "[[] () #{} {} \"\"]");
+    }
+
+    #[test]
+    fn test_vector() {
+        let string = "[1 2 3 4 5 6]";
+        let data = parse::value(string).unwrap();
+
+        assert_eq!(data.to_pretty(20).unwrap(), "[1 2 3 4 5 6]");
+        assert_eq!(data.to_pretty(10).unwrap(), "\
+[1
+ 2
+ 3
+ 4
+ 5
+ 6]");
+    }
+
+    #[test]
+    fn test_map() {
+        let string = "{:a 1 :b 2 :c 3}";
+        let data = parse::value(string).unwrap();
+
+        assert_eq!(data.to_pretty(20).unwrap(), "{:a 1 :b 2 :c 3}");
+        assert_eq!(data.to_pretty(10).unwrap(), "\
+{:a 1
+ :b 2
+ :c 3}");
     }
 
     #[test]
@@ -150,11 +124,23 @@ mod test {
         let string = "[ 1 2 ( 3.14 ) #{ 4N } { foo/bar 42 :baz/boz 43 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]";
         let data = parse::value(string).unwrap();
 
-        let pretty = data.pretty_print_to_string();
-        assert_eq!(pretty.unwrap(),"\
-[
-    1 2 (3.14) #{4N} {foo/bar 42 :baz/boz 43} [] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity
-]");
+        assert_eq!(data.to_pretty(40).unwrap(), "\
+[1
+ 2
+ (3.14)
+ #{4N}
+ {:baz/boz 43 foo/bar 42}
+ []
+ :five
+ :six/seven
+ eight
+ nine/ten
+ true
+ false
+ nil
+ #f NaN
+ #f -Infinity
+ #f +Infinity]");
     }
 
     #[test]
@@ -162,17 +148,20 @@ mod test {
         let string = "[:find ?id ?bar ?baz :in $ :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts]]";
         let data = parse::value(string).unwrap();
 
-        let pretty = data.pretty_print_to_string();
-        assert_eq!(pretty.unwrap(), "\
-[
-    :find ?id ?bar ?baz\x20
-    :in $\x20
-    :where [
-        ?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"
-    ] [
-        ?tx :db/tx ?ts
-    ]
-]");
+        assert_eq!(data.to_pretty(40).unwrap(), "\
+[:find
+ ?id
+ ?bar
+ ?baz
+ :in
+ $
+ :where
+ [?id
+  :session/keyword-foo
+  ?symbol1
+  ?symbol2
+  \"some string\"]
+ [?tx :db/tx ?ts]]");
     }
 
     #[test]
@@ -180,20 +169,20 @@ mod test {
         let string = "[:find [?id ?bar ?baz] :in [$] :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts] (not-join [?id] [?id :session/keyword-bar _])]";
         let data = parse::value(string).unwrap();
 
-        let pretty = data.pretty_print_to_string();
-        assert_eq!(pretty.unwrap(), "\
-[
-    :find [?id ?bar ?baz]\x20
-    :in [$]\x20
-    :where [
-        ?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"
-    ] [
-        ?tx :db/tx ?ts
-    ] (
-        not-join [?id] [
-            ?id :session/keyword-bar _
-        ]
-    )
-]");
+        assert_eq!(data.to_pretty(40).unwrap(), "\
+[:find
+ [?id ?bar ?baz]
+ :in
+ [$]
+ :where
+ [?id
+  :session/keyword-foo
+  ?symbol1
+  ?symbol2
+  \"some string\"]
+ [?tx :db/tx ?ts]
+ (not-join
+  [?id]
+  [?id :session/keyword-bar _])]");
     }
 }
