@@ -506,6 +506,19 @@
             ExceptionInfo #"\{:db/valueType :db.type/ref\}"
             (<? (d/<transact! conn [{:db/id 101 :aka {:name "Petr"}}])))))))
 
+(deftest-db test-explode-maps-with-db-id conn
+  (let [{tx0 :tx} (<? (d/<transact! conn test-schema))]
+    (testing "recursively nested maps with specified :db/id are accepted"
+      (<? (d/<transact! conn [{:db/id 101 :name "Oleg"}]))
+
+      (<? (d/<transact! conn [{:db/id 101 :friends {:db/id 201 :name "Ivan" :friends {:db/id 301 :name "Petr"}}}]))
+      (is (= (<? (<datoms-after (d/db conn) tx0))
+             #{[101 :name "Oleg"]
+               [101 :friends 201]
+               [201 :name "Ivan"]
+               [201 :friends 301 ]
+               [301 :name "Petr"]})))))
+
 (deftest-db test-explode-reverse-refs conn
   (let [{tx0 :tx} (<? (d/<transact! conn test-schema))]
     (testing "reverse refs are accepted"
