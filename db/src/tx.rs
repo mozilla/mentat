@@ -68,7 +68,10 @@ use mentat_core::intern_set;
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use rusqlite;
-use schema::SchemaBuilding;
+use schema::{
+    SchemaBuilding,
+    SchemaTypeChecking,
+};
 use types::{
     Attribute,
     AVPair,
@@ -190,7 +193,7 @@ impl<'conn> Tx<'conn> {
                                 // Here is where we do schema-aware typechecking: we either assert that
                                 // the given value is in the attribute's value set, or (in limited
                                 // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.db.to_typed_value(&v, &attribute)?;
+                                let typed_value: TypedValue = self.db.schema.to_typed_value(&v, &attribute)?;
 
                                 std::result::Result::Ok(typed_value)
                             }

@@ -458,32 +458,6 @@ pub enum SearchType {
 }
 
 impl DB {
-    /// Do schema-aware typechecking and coercion.
-    ///
-    /// Either assert that the given value is in the attribute's value set, or (in limited cases)
-    /// coerce the given value into the attribute's value set.
-    pub fn to_typed_value(&self, value: &Value, attribute: &Attribute) -> Result<TypedValue> {
-        // TODO: encapsulate entid-ident-attribute for better error messages.
-        match TypedValue::from_edn_value(value) {
-            // We don't recognize this EDN at all.  Get out!
-            None => bail!(ErrorKind::BadEDNValuePair(value.clone(), attribute.value_type.clone())),
-            Some(typed_value) => match (&attribute.value_type, typed_value) {
-                // Most types don't coerce at all.
-                (&ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
-                (&ValueType::Long, tv @ TypedValue::Long(_)) => Ok(tv),
-                (&ValueType::Double, tv @ TypedValue::Double(_)) => Ok(tv),
-                (&ValueType::String, tv @ TypedValue::String(_)) => Ok(tv),
-                (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
-                // Ref coerces a little: we interpret some things depending on the schema as a Ref.
-                (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (&ValueType::Ref, TypedValue::Keyword(ref x)) => {
-                    self.schema.require_entid(&x).map(|entid| TypedValue::Ref(entid))
-                }
-                // Otherwise, we have a type mismatch.
-                (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
-            }
-        }
-    }
 
     /// Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.
     ///
