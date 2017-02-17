@@ -49,7 +49,9 @@ use std;
 use std::collections::BTreeSet;
 
 use ::{to_namespaced_keyword};
+use db;
 use db::{
+    PartitionMapping,
     ReducedEntity,
     SearchType,
 };
@@ -264,7 +266,7 @@ impl<'conn> Tx<'conn> {
         let unresolved_temp_ids: BTreeSet<TempId> = generation.temp_ids_in_allocations();
 
         // TODO: track partitions for temporary IDs.
-        let entids = self.db.allocate_entids(":db.part/user", unresolved_temp_ids.len());
+        let entids = self.db.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
 
         let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
 
@@ -317,7 +319,7 @@ impl<'conn> Tx<'conn> {
         self.db.update_datoms(self.conn, self.tx_id)?;
 
         // TODO: update idents and schema materialized views.
-        self.db.update_partition_map(self.conn)?;
+        db::update_partition_map(self.conn, &self.db.partition_map)?;
 
         Ok(TxReport {
             tx_id: self.tx_id,

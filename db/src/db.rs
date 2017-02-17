@@ -758,51 +758,6 @@ impl DB {
         Ok(())
     }
 
-    /// Update the current partition map materialized view.
-    // TODO: only update changed partitions.
-    pub fn update_partition_map(&self, conn: &rusqlite::Connection) -> Result<()> {
-        let values_per_statement = 2;
-        let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
-        if self.partition_map.len() > max_partitions {
-            bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
-        }
-
-        // Like "UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END".
-        let s = format!("UPDATE parts SET idx = CASE {} ELSE idx END",
-                        repeat("WHEN part = ? THEN ?").take(self.partition_map.len()).join(" "));
-
-        let params: Vec<&ToSql> = self.partition_map.iter().flat_map(|(name, partition)| {
-            once(name as &ToSql)
-                .chain(once(&partition.index as &ToSql))
-        }).collect();
-
-        // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
-        // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
-        // so this is very low priority.
-        let mut stmt = conn.prepare_cached(s.as_str())?;
-        stmt.execute(&params[..])
-            .map(|_c| ())
-            .chain_err(|| "Could not update partition map")
-    }
-
-    /// Allocate a single fresh entid in the given `partition`.
-    pub fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S> {
-        self.allocate_entids(partition, 1).start
-    }
-
-    /// Allocate `n` fresh entids in the given `partition`.
-    pub fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
-        match self.partition_map.get_mut(partition) {
-            Some(mut partition) => {
-                let idx = partition.index;
-                partition.index += n as i64;
-                idx..partition.index
-            },
-            // This is a programming error.
-            None => panic!("Cannot allocate entid from unknown partition: {}", partition),
-        }
-    }
-
     /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
     /// `self.DB`.
     ///
@@ -813,12 +768,64 @@ impl DB {
         // now, it's just about the tx details.
 
         let tx_instant = now(); // Label the transaction with the timestamp when we first see it: leading edge.
-        let tx_id = self.allocate_entid(":db.part/tx");
+        let tx_id = self.partition_map.allocate_entid(":db.part/tx");
 
         self.create_temp_tables(conn)?;
 
         let mut tx = Tx::new(self, conn, tx_id, tx_instant);
         tx.transact_entities(entities)
+    }
+}
+
+/// Update the current partition map materialized view.
+// TODO: only update changed partitions.
+pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &PartitionMap) -> Result<()> {
+    let values_per_statement = 2;
+    let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
+    if partition_map.len() > max_partitions {
+        bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
+    }
+
+    // Like "UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END".
+    let s = format!("UPDATE parts SET idx = CASE {} ELSE idx END",
+                    repeat("WHEN part = ? THEN ?").take(partition_map.len()).join(" "));
+
+    let params: Vec<&ToSql> = partition_map.iter().flat_map(|(name, partition)| {
+        once(name as &ToSql)
+            .chain(once(&partition.index as &ToSql))
+    }).collect();
+
+    // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
+    // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
+    // so this is very low priority.
+    let mut stmt = conn.prepare_cached(s.as_str())?;
+    stmt.execute(&params[..])
+        .map(|_c| ())
+        .chain_err(|| "Could not update partition map")
+}
+
+pub trait PartitionMapping {
+    fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S>;
+    fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S>;
+}
+
+impl PartitionMapping for PartitionMap {
+    /// Allocate a single fresh entid in the given `partition`.
+    fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S> {
+        self.allocate_entids(partition, 1).start
+    }
+
+    /// Allocate `n` fresh entids in the given `partition`.
+    fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
+        match self.get_mut(partition) {
+            Some(mut partition) => {
+                let idx = partition.index;
+                partition.index += n as i64;
+                idx..partition.index
+            },
+            // This is a programming error.
+            None => panic!("Cannot allocate entid from unknown partition: {}", partition),
+        }
     }
 }
 
