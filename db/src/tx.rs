@@ -144,7 +144,7 @@ impl<'conn> Tx<'conn> {
                     Entity::AddOrRetract { op, e, a, v } => {
                         let a: i64 = match a {
                             entmod::Entid::Entid(ref a) => *a,
-                            entmod::Entid::Ident(ref a) => self.db.schema.require_entid(&a.to_string())?,
+                            entmod::Entid::Ident(ref a) => self.db.schema.require_entid(&a)?,
                         };
 
                         let attribute: &Attribute = self.db.schema.require_attribute_for_entid(a)?;
@@ -153,7 +153,7 @@ impl<'conn> Tx<'conn> {
                             entmod::EntidOrLookupRefOrTempId::Entid(e) => {
                                 let e: i64 = match e {
                                     entmod::Entid::Entid(ref e) => *e,
-                                    entmod::Entid::Ident(ref e) => self.db.schema.require_entid(&e.to_string())?,
+                                    entmod::Entid::Ident(ref e) => self.db.schema.require_entid(&e)?,
                                 };
                                 std::result::Result::Ok(e)
                             },

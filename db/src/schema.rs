@@ -12,6 +12,7 @@
 
 use entids;
 use errors::*;
+use edn::symbols;
 use mentat_core::{
     Attribute,
     Entid,
@@ -50,21 +51,21 @@ fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<(
 }
 
 pub trait SchemaBuilding {
-    fn require_ident(&self, entid: Entid) -> Result<&String>;
-    fn require_entid(&self, ident: &String) -> Result<Entid>;
+    fn require_ident(&self, entid: Entid) -> Result<&symbols::NamespacedKeyword>;
+    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<Entid>;
     fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute>;
     fn from_ident_map_and_schema_map(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema>;
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
-        where U: IntoIterator<Item=(String, String, TypedValue)>;
+        where U: IntoIterator<Item=(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>;
 }
 
 impl SchemaBuilding for Schema {
-    fn require_ident(&self, entid: Entid) -> Result<&String> {
+    fn require_ident(&self, entid: Entid) -> Result<&symbols::NamespacedKeyword> {
         self.get_ident(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
-    fn require_entid(&self, ident: &String) -> Result<Entid> {
-        self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.clone()).into())
+    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<Entid> {
+        self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.to_string()).into())
     }
 
     fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute> {
@@ -84,13 +85,13 @@ impl SchemaBuilding for Schema {
         })
     }
 
-    /// Turn vec![(String(:ident), String(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
+    /// Turn vec![(NamespacedKeyword(:ident), NamespacedKeyword(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
-        where U: IntoIterator<Item=(String, String, TypedValue)>{
+        where U: IntoIterator<Item=(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>{
         let mut schema_map = SchemaMap::new();
         for (ref symbolic_ident, ref symbolic_attr, ref value) in assertions.into_iter() {
-            let ident: i64 = *ident_map.get(symbolic_ident).ok_or(ErrorKind::UnrecognizedIdent(symbolic_ident.clone()))?;
-            let attr: i64 = *ident_map.get(symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.clone()))?;
+            let ident: i64 = *ident_map.get(symbolic_ident).ok_or(ErrorKind::UnrecognizedIdent(symbolic_ident.to_string()))?;
+            let attr: i64 = *ident_map.get(symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.to_string()))?;
             let attributes = schema_map.entry(ident).or_insert(Attribute::default());
 
             // TODO: improve error messages throughout.

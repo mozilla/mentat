@@ -177,12 +177,11 @@ impl Default for Attribute {
     }
 }
 
-/// Map `String` idents (`:db/ident`) to positive integer entids (`1`).
-/// TODO: these should all be parsed into NamespacedKeywords on entry. #291.
-pub type IdentMap = BTreeMap<String, Entid>;
+/// Map `NamespacedKeyword` idents (`:db/ident`) to positive integer entids (`1`).
+pub type IdentMap = BTreeMap<NamespacedKeyword, Entid>;
 
-/// Map positive integer entids (`1`) to `String` idents (`:db/ident`).
-pub type EntidMap = BTreeMap<Entid, String>;
+/// Map positive integer entids (`1`) to `NamespacedKeyword` idents (`:db/ident`).
+pub type EntidMap = BTreeMap<Entid, NamespacedKeyword>;
 
 /// Map attribute entids to `Attribute` instances.
 pub type SchemaMap = BTreeMap<Entid, Attribute>;
@@ -214,11 +213,11 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn get_ident(&self, x: Entid) -> Option<&String> {
+    pub fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
         self.entid_map.get(&x)
     }
 
-    pub fn get_entid(&self, x: &String) -> Option<Entid> {
+    pub fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
         self.ident_map.get(x).map(|x| *x)
     }
 
@@ -227,8 +226,7 @@ impl Schema {
     }
 
     pub fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
-        let s = ident.to_string();       // TODO: don't do this. #291.
-        self.get_entid(&s)
+        self.get_entid(&ident)
             .and_then(|x| self.attribute_for_entid(x))
     }
 
@@ -238,7 +236,7 @@ impl Schema {
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    pub fn identifies_attribute(&self, x: &String) -> bool {
+    pub fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 }

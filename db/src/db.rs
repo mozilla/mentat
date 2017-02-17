@@ -25,6 +25,7 @@ use rusqlite::types::{ToSql, ToSqlOutput};
 use ::{now, repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
+use edn::symbols;
 use mentat_core::{
     Attribute,
     AttributeBitFlags,
@@ -387,7 +388,13 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.clone()), ValueType::String),
-            &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(to_namespaced_keyword(&x).unwrap()), ValueType::Keyword),
+            &TypedValue::Keyword(ref x) => {
+                match to_namespaced_keyword(&x) {
+                    Some(x) => (Value::NamespacedKeyword(x), ValueType::Keyword),
+                    // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+                    None => panic!(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", x))),
+                }
+            },
         }
     }
 }
@@ -395,12 +402,15 @@ impl TypedSQLValue for TypedValue {
 /// Read the ident map materialized view from the given SQL store.
 pub fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, entid FROM idents")?;
-    let m = stmt.query_and_then(&[], |row| -> Result<(String, Entid)> {
-        Ok((row.get(0), row.get(1)))
+    let m = stmt.query_and_then(&[], |row| -> Result<(symbols::NamespacedKeyword, Entid)> {
+        let ident: String = row.get(0);
+        to_namespaced_keyword(&ident)
+            .map(|i| (i, row.get(1)))
+            // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+            .ok_or(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", ident.clone())).into())
     })?.collect();
     m
 }
-
 
 /// Read the partition map materialized view from the given SQL store.
 pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
@@ -414,7 +424,7 @@ pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
 /// Read the schema materialized view from the given SQL store.
 pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<Schema> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, attr, value, value_type_tag FROM schema")?;
-    let r: Result<Vec<(String, String, TypedValue)>> = stmt.query_and_then(&[], |row| {
+    let r: Result<Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>> = stmt.query_and_then(&[], |row| {
         // Each row looks like :db/index|:db/valueType|28|0.  Observe that 28|0 represents a
         // :db.type/ref to entid 28, which needs to be converted to a TypedValue.
         // TODO: don't use textual ident and attr; just use entids directly.
@@ -424,7 +434,17 @@ pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<
         let value_type_tag: i32 = row.get_checked(3)?;
         let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
 
-        Ok((symbolic_ident, symbolic_attr, typed_value))
+        let ident = to_namespaced_keyword(&symbolic_ident);
+        let attr = to_namespaced_keyword(&symbolic_attr);
+        match (ident, attr, typed_value) {
+            (Some(ident), Some(attr), typed_value) => Ok((ident, attr, typed_value)),
+            (None, _, _) =>
+                // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+                Err(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", &symbolic_ident)).into()),
+            (_, None, _) =>
+                // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+                Err(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", &symbolic_attr)).into()),
+        }
     })?.collect();
 
     r.and_then(|triples| Schema::from_ident_map_and_triples(ident_map.clone(), triples))
@@ -467,7 +487,13 @@ impl DB {
                 (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (&ValueType::Ref, TypedValue::Keyword(ref x)) => self.schema.require_entid(&x.to_string()).map(|entid| TypedValue::Ref(entid)),
+                (&ValueType::Ref, TypedValue::Keyword(ref x)) => {
+                    match to_namespaced_keyword(x) {
+                        Some(x) => self.schema.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
+                        // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+                        None => bail!(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", x))),
+                    }
+                }
                 // Otherwise, we have a type mismatch.
                 (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
             }

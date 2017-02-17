@@ -14,6 +14,7 @@ use ::{to_namespaced_keyword};
 use edn;
 use errors::{ErrorKind, Result};
 use edn::types::Value;
+use edn::symbols;
 use entids;
 use db::TypedSQLValue;
 use mentat_tx::entities::Entity;
@@ -33,63 +34,63 @@ use values;
 pub const TX0: i64 = 0x10000000;
 
 lazy_static! {
-    static ref V1_IDENTS: Vec<(&'static str, i64)> = {
-        vec![(":db/ident",             entids::DB_IDENT),
-             (":db.part/db",           entids::DB_PART_DB),
-             (":db/txInstant",         entids::DB_TX_INSTANT),
-             (":db.install/partition", entids::DB_INSTALL_PARTITION),
-             (":db.install/valueType", entids::DB_INSTALL_VALUETYPE),
-             (":db.install/attribute", entids::DB_INSTALL_ATTRIBUTE),
-             (":db/valueType",         entids::DB_VALUE_TYPE),
-             (":db/cardinality",       entids::DB_CARDINALITY),
-             (":db/unique",            entids::DB_UNIQUE),
-             (":db/isComponent",       entids::DB_IS_COMPONENT),
-             (":db/index",             entids::DB_INDEX),
-             (":db/fulltext",          entids::DB_FULLTEXT),
-             (":db/noHistory",         entids::DB_NO_HISTORY),
-             (":db/add",               entids::DB_ADD),
-             (":db/retract",           entids::DB_RETRACT),
-             (":db.part/user",         entids::DB_PART_USER),
-             (":db.part/tx",           entids::DB_PART_TX),
-             (":db/excise",            entids::DB_EXCISE),
-             (":db.excise/attrs",      entids::DB_EXCISE_ATTRS),
-             (":db.excise/beforeT",    entids::DB_EXCISE_BEFORE_T),
-             (":db.excise/before",     entids::DB_EXCISE_BEFORE),
-             (":db.alter/attribute",   entids::DB_ALTER_ATTRIBUTE),
-             (":db.type/ref",          entids::DB_TYPE_REF),
-             (":db.type/keyword",      entids::DB_TYPE_KEYWORD),
-             (":db.type/long",         entids::DB_TYPE_LONG),
-             (":db.type/double",       entids::DB_TYPE_DOUBLE),
-             (":db.type/string",       entids::DB_TYPE_STRING),
-             (":db.type/boolean",      entids::DB_TYPE_BOOLEAN),
-             (":db.type/instant",      entids::DB_TYPE_INSTANT),
-             (":db.type/bytes",        entids::DB_TYPE_BYTES),
-             (":db.cardinality/one",   entids::DB_CARDINALITY_ONE),
-             (":db.cardinality/many",  entids::DB_CARDINALITY_MANY),
-             (":db.unique/value",      entids::DB_UNIQUE_VALUE),
-             (":db.unique/identity",   entids::DB_UNIQUE_IDENTITY),
-             (":db/doc",               entids::DB_DOC),
+    static ref V1_IDENTS: Vec<(symbols::NamespacedKeyword, i64)> = {
+        vec![(ns_keyword!("db", "ident"),             entids::DB_IDENT),
+             (ns_keyword!("db.part", "db"),           entids::DB_PART_DB),
+             (ns_keyword!("db", "txInstant"),         entids::DB_TX_INSTANT),
+             (ns_keyword!("db.install", "partition"), entids::DB_INSTALL_PARTITION),
+             (ns_keyword!("db.install", "valueType"), entids::DB_INSTALL_VALUETYPE),
+             (ns_keyword!("db.install", "attribute"), entids::DB_INSTALL_ATTRIBUTE),
+             (ns_keyword!("db", "valueType"),         entids::DB_VALUE_TYPE),
+             (ns_keyword!("db", "cardinality"),       entids::DB_CARDINALITY),
+             (ns_keyword!("db", "unique"),            entids::DB_UNIQUE),
+             (ns_keyword!("db", "isComponent"),       entids::DB_IS_COMPONENT),
+             (ns_keyword!("db", "index"),             entids::DB_INDEX),
+             (ns_keyword!("db", "fulltext"),          entids::DB_FULLTEXT),
+             (ns_keyword!("db", "noHistory"),         entids::DB_NO_HISTORY),
+             (ns_keyword!("db", "add"),               entids::DB_ADD),
+             (ns_keyword!("db", "retract"),           entids::DB_RETRACT),
+             (ns_keyword!("db.part", "user"),         entids::DB_PART_USER),
+             (ns_keyword!("db.part", "tx"),           entids::DB_PART_TX),
+             (ns_keyword!("db", "excise"),            entids::DB_EXCISE),
+             (ns_keyword!("db.excise", "attrs"),      entids::DB_EXCISE_ATTRS),
+             (ns_keyword!("db.excise", "beforeT"),    entids::DB_EXCISE_BEFORE_T),
+             (ns_keyword!("db.excise", "before"),     entids::DB_EXCISE_BEFORE),
+             (ns_keyword!("db.alter", "attribute"),   entids::DB_ALTER_ATTRIBUTE),
+             (ns_keyword!("db.type", "ref"),          entids::DB_TYPE_REF),
+             (ns_keyword!("db.type", "keyword"),      entids::DB_TYPE_KEYWORD),
+             (ns_keyword!("db.type", "long"),         entids::DB_TYPE_LONG),
+             (ns_keyword!("db.type", "double"),       entids::DB_TYPE_DOUBLE),
+             (ns_keyword!("db.type", "string"),       entids::DB_TYPE_STRING),
+             (ns_keyword!("db.type", "boolean"),      entids::DB_TYPE_BOOLEAN),
+             (ns_keyword!("db.type", "instant"),      entids::DB_TYPE_INSTANT),
+             (ns_keyword!("db.type", "bytes"),        entids::DB_TYPE_BYTES),
+             (ns_keyword!("db.cardinality", "one"),   entids::DB_CARDINALITY_ONE),
+             (ns_keyword!("db.cardinality", "many"),  entids::DB_CARDINALITY_MANY),
+             (ns_keyword!("db.unique", "value"),      entids::DB_UNIQUE_VALUE),
+             (ns_keyword!("db.unique", "identity"),   entids::DB_UNIQUE_IDENTITY),
+             (ns_keyword!("db", "doc"),               entids::DB_DOC),
         ]
     };
 
-    static ref V2_IDENTS: Vec<(&'static str, i64)> = {
+    static ref V2_IDENTS: Vec<(symbols::NamespacedKeyword, i64)> = {
         [(*V1_IDENTS).clone(),
-         vec![(":db.schema/version",   entids::DB_SCHEMA_VERSION),
-              (":db.schema/attribute", entids::DB_SCHEMA_ATTRIBUTE),
+         vec![(ns_keyword!("db.schema", "version"),   entids::DB_SCHEMA_VERSION),
+              (ns_keyword!("db.schema", "attribute"), entids::DB_SCHEMA_ATTRIBUTE),
          ]].concat()
     };
 
-    static ref V1_PARTS: Vec<(&'static str, i64, i64)> = {
-        vec![(":db.part/db", 0, (1 + V1_IDENTS.len()) as i64),
-             (":db.part/user", 0x10000, 0x10000),
-             (":db.part/tx", TX0, TX0),
+    static ref V1_PARTS: Vec<(symbols::NamespacedKeyword, i64, i64)> = {
+        vec![(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
+             (ns_keyword!("db.part", "user"), 0x10000, 0x10000),
+             (ns_keyword!("db.part", "tx"), TX0, TX0),
         ]
     };
 
-    static ref V2_PARTS: Vec<(&'static str, i64, i64)> = {
-        vec![(":db.part/db", 0, (1 + V2_IDENTS.len()) as i64),
-             (":db.part/user", 0x10000, 0x10000),
-             (":db.part/tx", TX0, TX0),
+    static ref V2_PARTS: Vec<(symbols::NamespacedKeyword, i64, i64)> = {
+        vec![(ns_keyword!("db.part", "db"), 0, (1 + V2_IDENTS.len()) as i64),
+             (ns_keyword!("db.part", "user"), 0x10000, 0x10000),
+             (ns_keyword!("db.part", "tx"), TX0, TX0),
         ]
     };
 
@@ -156,36 +157,37 @@ lazy_static! {
 }
 
 /// Convert (ident, entid) pairs into [:db/add IDENT :db/ident IDENT] `Value` instances.
-fn idents_to_assertions(idents: &[(&str, i64)]) -> Vec<Value> {
+fn idents_to_assertions(idents: &[(symbols::NamespacedKeyword, i64)]) -> Vec<Value> {
     idents
         .into_iter()
-        .map(|&(ident, _)| {
-            let value = Value::NamespacedKeyword(to_namespaced_keyword(&ident).unwrap());
+        .map(|&(ref ident, _)| {
+            let value = Value::NamespacedKeyword(ident.clone());
             Value::Vector(vec![values::DB_ADD.clone(), value.clone(), values::DB_IDENT.clone(), value.clone()])
         })
         .collect()
 }
 
-/// Convert {:ident {:key :value ...} ...} to vec![(String(:ident), String(:key), TypedValue(:value)), ...].
+/// Convert {:ident {:key :value ...} ...} to
+/// vec![(symbols::NamespacedKeyword(:ident), symbols::NamespacedKeyword(:key), TypedValue(:value)), ...].
 ///
 /// Such triples are closer to what the transactor will produce when processing
 /// :db.install/attribute assertions.
-fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(String, String, TypedValue)>> {
+fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>> {
     // Failure here is a coding error, not a runtime error.
-    let mut triples: Vec<(String, String, TypedValue)> = vec![];
+    let mut triples: Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)> = vec![];
     // TODO: Consider `flat_map` and `map` rather than loop.
     match *symbolic_schema {
         Value::Map(ref m) => {
             for (ident, mp) in m {
                 let ident = match ident {
-                    &Value::NamespacedKeyword(ref ident) => ident.to_string(),
+                    &Value::NamespacedKeyword(ref ident) => ident,
                     _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident)))
                 };
                 match *mp {
                     Value::Map(ref mpp) => {
                         for (attr, value) in mpp {
                             let attr = match attr {
-                                &Value::NamespacedKeyword(ref attr) => attr.to_string(),
+                                &Value::NamespacedKeyword(ref attr) => attr,
                                 _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for attr but got '{:?}'", attr)))
                             };
 
@@ -198,14 +200,17 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
                             // bootstrap symbolic schema, or by representing the initial bootstrap
                             // schema directly as Rust data.
                             let typed_value = match TypedValue::from_edn_value(value) {
-                                Some(TypedValue::Keyword(ref s)) => TypedValue::Ref(*ident_map.get(s).ok_or(ErrorKind::UnrecognizedIdent(s.clone()))?),
+                                Some(TypedValue::Keyword(ref s)) => {
+                                    to_namespaced_keyword(s)
+                                        .and_then(|ident| ident_map.get(&ident))
+                                        .map(|entid| TypedValue::Ref(*entid))
+                                        .ok_or(ErrorKind::UnrecognizedIdent(s.clone()))?
+                                },
                                 Some(v) => v,
                                 _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected Mentat typed value for value but got '{:?}'", value)))
                             };
 
-                            triples.push((ident.clone(),
-                                       attr.clone(),
-                                       typed_value));
+                            triples.push((ident.clone(), attr.clone(), typed_value));
                         }
                     },
                     _ => bail!(ErrorKind::BadBootstrapDefinition("Expected {:db/ident {:db/attr value ...} ...}".into()))
@@ -249,13 +254,13 @@ fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> 
 
 pub fn bootstrap_partition_map() -> PartitionMap {
     V2_PARTS[..].iter()
-        .map(|&(part, start, index)| (part.to_string(), Partition::new(start, index)))
+        .map(|&(ref part, start, index)| (part.to_string(), Partition::new(start, index)))
         .collect()
 }
 
 pub fn bootstrap_ident_map() -> IdentMap {
     V2_IDENTS[..].iter()
-        .map(|&(ident, entid)| (ident.to_string(), entid))
+        .map(|&(ref ident, entid)| (ident.clone(), entid))
         .collect()
 }
 
