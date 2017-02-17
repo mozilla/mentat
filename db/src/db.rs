@@ -344,7 +344,11 @@ impl TypedSQLValue for TypedValue {
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
             (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
             (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(x)),
-            (13, rusqlite::types::Value::Text(x)) => Ok(TypedValue::Keyword(x)),
+            (13, rusqlite::types::Value::Text(x)) => {
+                to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(k))
+                    // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+                    .ok_or(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", x)).into())
+            },
             (_, value) => bail!(ErrorKind::BadSQLValuePair(value, value_type_tag)),
         }
     }
@@ -362,7 +366,7 @@ impl TypedSQLValue for TypedValue {
             &Value::Integer(x) => Some(TypedValue::Long(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
             &Value::Text(ref x) => Some(TypedValue::String(x.clone())),
-            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(x.to_string())),
+            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(x.clone())),
             _ => None
         }
     }
@@ -376,7 +380,7 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Long(x) => (rusqlite::types::Value::Integer(x).into(), 5),
             &TypedValue::Double(x) => (rusqlite::types::Value::Real(x.into_inner()).into(), 5),
             &TypedValue::String(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 10),
-            &TypedValue::Keyword(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 13),
+            &TypedValue::Keyword(ref x) => (rusqlite::types::ValueRef::Text(&x.to_string()).into(), 13),
         }
     }
 
@@ -388,13 +392,7 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.clone()), ValueType::String),
-            &TypedValue::Keyword(ref x) => {
-                match to_namespaced_keyword(&x) {
-                    Some(x) => (Value::NamespacedKeyword(x), ValueType::Keyword),
-                    // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-                    None => panic!(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", x))),
-                }
-            },
+            &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.clone()), ValueType::Keyword),
         }
     }
 }
@@ -488,11 +486,7 @@ impl DB {
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
                 (&ValueType::Ref, TypedValue::Keyword(ref x)) => {
-                    match to_namespaced_keyword(x) {
-                        Some(x) => self.schema.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
-                        // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-                        None => bail!(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", x))),
-                    }
+                    self.schema.require_entid(&x).map(|entid| TypedValue::Ref(entid))
                 }
                 // Otherwise, we have a type mismatch.
                 (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),

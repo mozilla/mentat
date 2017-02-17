@@ -10,7 +10,6 @@
 
 #![allow(dead_code)]
 
-use ::{to_namespaced_keyword};
 use edn;
 use errors::{ErrorKind, Result};
 use edn::types::Value;
@@ -200,11 +199,10 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
                             // bootstrap symbolic schema, or by representing the initial bootstrap
                             // schema directly as Rust data.
                             let typed_value = match TypedValue::from_edn_value(value) {
-                                Some(TypedValue::Keyword(ref s)) => {
-                                    to_namespaced_keyword(s)
-                                        .and_then(|ident| ident_map.get(&ident))
+                                Some(TypedValue::Keyword(ref k)) => {
+                                    ident_map.get(k)
                                         .map(|entid| TypedValue::Ref(*entid))
-                                        .ok_or(ErrorKind::UnrecognizedIdent(s.clone()))?
+                                        .ok_or(ErrorKind::UnrecognizedIdent(k.to_string()))?
                                 },
                                 Some(v) => v,
                                 _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected Mentat typed value for value but got '{:?}'", value)))
