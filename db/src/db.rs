@@ -564,13 +564,11 @@ impl DB {
             // Note that `flags0` is a bitfield of several flags compressed via
             // `AttributeBitFlags.flags()` in the temporary search tables, later
             // expanded in the `datoms` insertion.
-            // TODO: drop tx0 entirely.
             r#"CREATE TABLE temp.exact_searches (
                e0 INTEGER NOT NULL,
                a0 SMALLINT NOT NULL,
                v0 BLOB NOT NULL,
                value_type_tag0 SMALLINT NOT NULL,
-               tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
             // There's no real need to split exact and inexact searches, so long as we keep things
@@ -582,7 +580,6 @@ impl DB {
                a0 SMALLINT NOT NULL,
                v0 BLOB NOT NULL,
                value_type_tag0 SMALLINT NOT NULL,
-               tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
@@ -593,7 +590,6 @@ impl DB {
                a0 SMALLINT NOT NULL,
                v0 BLOB NOT NULL,
                value_type_tag0 SMALLINT NOT NULL,
-               tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL,
                search_type STRING NOT NULL,
@@ -621,8 +617,8 @@ impl DB {
     ///
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
-        let bindings_per_statement = 7;
+    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()> {
+        let bindings_per_statement = 6;
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
 
@@ -633,21 +629,19 @@ impl DB {
             // We must keep these computed values somewhere to reference them later, so we can't
             // combine this map and the subsequent flat_map.
             // (e0, a0, v0, value_type_tag0, added0, flags0)
-            let block: Result<Vec<(i64 /* e */, i64 /* a */,
-                                   ToSqlOutput<'a> /* value */, /* value_type_tag */ i32,
-                                   /* added0 */ bool,
-                                   /* flags0 */ u8)>> = chunk.map(|&(e, a, ref typed_value, added)| {
+            let block: Result<Vec<(i64 /* e */,
+                                   i64 /* a */,
+                                   ToSqlOutput<'a> /* value */,
+                                   i32 /* value_type_tag */,
+                                   bool, /* added0 */
+                                   u8 /* flags0 */)>> = chunk.map(|&(e, a, ref typed_value, added)| {
                 count += 1;
                 let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                 // Now we can represent the typed value as an SQL value.
                 let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
 
-                let flags = attribute.flags();
-
-                Ok((e, a, value, value_type_tag,
-                    added,
-                    flags))
+                Ok((e, a, value, value_type_tag, added, attribute.flags()))
             }).collect();
             let block = block?;
 
@@ -659,17 +653,16 @@ impl DB {
                     .chain(once(a as &ToSql)
                            .chain(once(value as &ToSql)
                                   .chain(once(value_type_tag as &ToSql)
-                                         .chain(once(&tx as &ToSql)
-                                                .chain(once(to_bool_ref(added) as &ToSql)
-                                                       .chain(once(flags as &ToSql)))))))
+                                         .chain(once(to_bool_ref(added) as &ToSql)
+                                                .chain(once(flags as &ToSql))))))
             }).collect();
 
             // TODO: cache this for selected values of count.
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
-                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, tx0, added0, flags0) VALUES {}", values)
+                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
             } else {
-                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, tx0, added0, flags0) VALUES {}", values)
+                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
             };
 
             // TODO: consider ensuring we inserted the expected number of rows.
@@ -690,7 +683,7 @@ impl DB {
         // Second is slower, but still only one table walk: lookup old value by ea.
         let s = r#"
           INSERT INTO temp.search_results
-          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.flags0, ':db.cardinality/many', d.rowid, d.v
+          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.added0, t.flags0, ':db.cardinality/many', d.rowid, d.v
           FROM temp.exact_searches AS t
           LEFT JOIN datoms AS d
           ON t.e0 = d.e AND
@@ -700,7 +693,7 @@ impl DB {
 
           UNION ALL
 
-          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.flags0, ':db.cardinality/one', d.rowid, d.v
+          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.added0, t.flags0, ':db.cardinality/one', d.rowid, d.v
           FROM temp.inexact_searches AS t
           LEFT JOIN datoms AS d
           ON t.e0 = d.e AND

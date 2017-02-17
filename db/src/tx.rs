@@ -295,11 +295,11 @@ impl<'conn> Tx<'conn> {
         }
 
         if !non_fts_one.is_empty() {
-            self.db.insert_non_fts_searches(self.conn, &non_fts_one[..], self.tx_id, SearchType::Inexact)?;
+            self.db.insert_non_fts_searches(self.conn, &non_fts_one[..], SearchType::Inexact)?;
         }
 
         if !non_fts_many.is_empty() {
-            self.db.insert_non_fts_searches(self.conn, &non_fts_many[..], self.tx_id, SearchType::Exact)?;
+            self.db.insert_non_fts_searches(self.conn, &non_fts_many[..], SearchType::Exact)?;
         }
 
         self.db.search(self.conn)?;
