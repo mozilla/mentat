@@ -233,6 +233,7 @@ impl<'conn> Tx<'conn> {
         // TODO: allow this to be present in the transaction data.
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
+                          self.db.schema.require_attribute_for_entid(self.db.schema.require_entid(&":db/txInstant".to_string())?)?,
                           TypedValue::Long(self.tx_instant),
                           true));
 
@@ -286,9 +287,9 @@ impl<'conn> Tx<'conn> {
 
                     let added = op == OpType::Add;
                     if attribute.multival {
-                        non_fts_many.push((e, a, v, added));
+                        non_fts_many.push((e, a, attribute, v, added));
                     } else {
-                        non_fts_one.push((e, a, v, added));
+                        non_fts_one.push((e, a, attribute, v, added));
                     }
                 },
             }

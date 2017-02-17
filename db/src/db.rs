@@ -449,7 +449,7 @@ pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
 }
 
 /// Internal representation of an [e a v added] datom, ready to be transacted against the store.
-pub type ReducedEntity = (i64, i64, TypedValue, bool);
+pub type ReducedEntity<'a> = (Entid, Entid, &'a Attribute, TypedValue, bool);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum SearchType {
@@ -617,7 +617,7 @@ impl DB {
     ///
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()> {
+    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity<'a>], search_type: SearchType) -> Result<()> {
         let bindings_per_statement = 6;
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
@@ -634,9 +634,8 @@ impl DB {
                                    ToSqlOutput<'a> /* value */,
                                    i32 /* value_type_tag */,
                                    bool, /* added0 */
-                                   u8 /* flags0 */)>> = chunk.map(|&(e, a, ref typed_value, added)| {
+                                   u8 /* flags0 */)>> = chunk.map(|&(e, a, ref attribute, ref typed_value, added)| {
                 count += 1;
-                let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                 // Now we can represent the typed value as an SQL value.
                 let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
