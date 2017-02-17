@@ -11,7 +11,7 @@
 #![allow(dead_code)]
 
 use entids;
-use errors::*;
+use errors::{ErrorKind, Result};
 use edn::symbols;
 use mentat_core::{
     Attribute,

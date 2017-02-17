@@ -26,6 +26,7 @@ extern crate mentat_tx_parser;
 
 use itertools::Itertools;
 use std::iter::repeat;
+use errors::{ErrorKind, Result};
 
 pub mod db;
 mod bootstrap;
@@ -46,13 +47,16 @@ use edn::symbols;
 // TODO: replace with sqlite3_limit. #288.
 pub const SQLITE_MAX_VARIABLE_NUMBER: usize = 999;
 
-pub fn to_namespaced_keyword(s: &str) -> Option<symbols::NamespacedKeyword> {
+pub fn to_namespaced_keyword(s: &str) -> Result<symbols::NamespacedKeyword> {
     let splits = [':', '/'];
     let mut i = s.split(&splits[..]);
-    match (i.next(), i.next(), i.next(), i.next()) {
+    let nsk = match (i.next(), i.next(), i.next(), i.next()) {
         (Some(""), Some(namespace), Some(name), None) => Some(symbols::NamespacedKeyword::new(namespace, name)),
-        _ => None
-    }
+        _ => None,
+    };
+
+    // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+    nsk.ok_or(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", s)).into())
 }
 
 /// Prepare an SQL `VALUES` block, like (?, ?, ?), (?, ?, ?).
