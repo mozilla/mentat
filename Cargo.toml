@@ -8,6 +8,10 @@ authors = [
 ]
 name = "mentat"
 version = "0.4.0"
+build = "build/version.rs"
+
+[build-dependencies]
+rustc_version = "0.1.7"
 
 [dependencies]
 clap = "2.19.3"
