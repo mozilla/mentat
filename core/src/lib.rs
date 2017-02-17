@@ -48,7 +48,7 @@ pub enum TypedValue {
     Double(OrderedFloat<f64>),
     // TODO: &str throughout?
     String(String),
-    Keyword(String),
+    Keyword(NamespacedKeyword),
 }
 
 impl TypedValue {
