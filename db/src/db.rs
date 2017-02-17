@@ -873,11 +873,11 @@ mod tests {
         let db = read_db(&conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
     }
@@ -920,7 +920,7 @@ mod tests {
                 let report = maybe_report.unwrap();
                 assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
 
-                let transactions = debug::transactions_after(&conn, &db, bootstrap::TX0 + index).unwrap();
+                let transactions = debug::transactions_after(&conn, &db.schema, bootstrap::TX0 + index).unwrap();
                 assert_eq!(transactions.0.len(), 1);
                 assert_eq!(*expected_transaction,
                            transactions.0[0].into_edn(),
@@ -928,7 +928,7 @@ mod tests {
             }
 
             if let Some(expected_datoms) = expected_datoms {
-                let datoms = debug::datoms_after(&conn, &db, bootstrap::TX0).unwrap();
+                let datoms = debug::datoms_after(&conn, &db.schema, bootstrap::TX0).unwrap();
                 assert_eq!(*expected_datoms,
                            datoms.into_edn(),
                            "\n{} - expected datoms:\n{}\nbut got datoms:\n{}", label, *expected_datoms, datoms.into_edn())
@@ -947,11 +947,11 @@ mod tests {
         let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
@@ -968,11 +968,11 @@ mod tests {
         let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
@@ -988,11 +988,11 @@ mod tests {
         let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 

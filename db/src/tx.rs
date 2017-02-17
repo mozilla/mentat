@@ -48,7 +48,11 @@
 use std;
 use std::collections::BTreeSet;
 
-use db::{ReducedEntity, SearchType};
+use ::{to_namespaced_keyword};
+use db::{
+    ReducedEntity,
+    SearchType,
+};
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
@@ -229,14 +233,6 @@ impl<'conn> Tx<'conn> {
         /// Assertions that are :db.cardinality/many and not :db.fulltext.
         let mut non_fts_many: Vec<ReducedEntity> = vec![];
 
-        // Transact [:db/add :db/txInstant NOW :db/tx].
-        // TODO: allow this to be present in the transaction data.
-        non_fts_one.push((self.tx_id,
-                          entids::DB_TX_INSTANT,
-                          self.db.schema.require_attribute_for_entid(self.db.schema.require_entid(&":db/txInstant".to_string())?)?,
-                          TypedValue::Long(self.tx_instant),
-                          true));
-
         // We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
         let lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
 
@@ -294,6 +290,15 @@ impl<'conn> Tx<'conn> {
                 },
             }
         }
+
+        // Transact [:db/add :db/txInstant NOW :db/tx].
+        // TODO: allow this to be present in the transaction data.
+        non_fts_one.push((self.tx_id,
+                          entids::DB_TX_INSTANT,
+                          // TODO: extract this to a constant.
+                          self.db.schema.require_attribute_for_entid(self.db.schema.require_entid(&to_namespaced_keyword(":db/txInstant").unwrap())?)?,
+                          TypedValue::Long(self.tx_instant),
+                          true));
 
         if !non_fts_one.is_empty() {
             self.db.insert_non_fts_searches(self.conn, &non_fts_one[..], SearchType::Inexact)?;
