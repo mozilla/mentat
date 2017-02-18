@@ -346,8 +346,6 @@ impl TypedSQLValue for TypedValue {
             (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(x)),
             (13, rusqlite::types::Value::Text(x)) => {
                 to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(k))
-                    // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-                    .ok_or(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", x)).into())
             },
             (_, value) => bail!(ErrorKind::BadSQLValuePair(value, value_type_tag)),
         }
@@ -402,10 +400,7 @@ pub fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, entid FROM idents")?;
     let m = stmt.query_and_then(&[], |row| -> Result<(symbols::NamespacedKeyword, Entid)> {
         let ident: String = row.get(0);
-        to_namespaced_keyword(&ident)
-            .map(|i| (i, row.get(1)))
-            // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-            .ok_or(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", ident.clone())).into())
+        to_namespaced_keyword(&ident).map(|i| (i, row.get(1)))
     })?.collect();
     m
 }
@@ -435,13 +430,9 @@ pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<
         let ident = to_namespaced_keyword(&symbolic_ident);
         let attr = to_namespaced_keyword(&symbolic_attr);
         match (ident, attr, typed_value) {
-            (Some(ident), Some(attr), typed_value) => Ok((ident, attr, typed_value)),
-            (None, _, _) =>
-                // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-                Err(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", &symbolic_ident)).into()),
-            (_, None, _) =>
-                // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-                Err(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", &symbolic_attr)).into()),
+            (Ok(ident), Ok(attr), typed_value) => Ok((ident, attr, typed_value)),
+            (Err(e), _, _) => Err(e),
+            (_, Err(e), _) => Err(e),
         }
     })?.collect();
 
