@@ -51,9 +51,8 @@ use std::collections::BTreeSet;
 use ::{to_namespaced_keyword};
 use db;
 use db::{
+    MentatStoring,
     PartitionMapping,
-    ReducedEntity,
-    SearchType,
 };
 use entids;
 use errors::{ErrorKind, Result};
@@ -66,7 +65,10 @@ use internal_types::{
     TermWithTempIds,
     TermWithoutTempIds,
     replace_lookup_ref};
-use mentat_core::intern_set;
+use mentat_core::{
+    intern_set,
+    Schema,
+};
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use rusqlite;
@@ -78,8 +80,8 @@ use types::{
     Attribute,
     AVPair,
     AVMap,
-    DB,
     Entid,
+    PartitionMap,
     TypedValue,
     TxReport,
     ValueType,
@@ -88,28 +90,37 @@ use upsert_resolution::Generation;
 
 /// A transaction on its way to being applied.
 #[derive(Debug)]
-pub struct Tx<'conn> {
-    /// The metadata to use to interpret the transaction entities with.
-    pub db: &'conn mut DB,
+pub struct Tx<'conn, 'a> {
+    /// The storage to apply against.  In the future, this will be a Mentat connection.
+    store: &'conn rusqlite::Connection, // TODO: db::MentatStoring,
 
-    /// The SQLite connection to apply against.  In the future, this will be a Mentat connection.
-    pub conn: &'conn rusqlite::Connection,
+    /// The partition map to allocate entids from.
+    ///
+    /// The partition map is volatile in the sense that every succesful transaction updates
+    /// allocates at least one tx ID, so we own and modify our own partition map.
+    partition_map: PartitionMap,
+
+    /// The schema to use when interpreting the transaction entities.
+    ///
+    /// The schema is infrequently updated, so we borrow a schema until we need to modify it.
+    schema: Cow<'a, Schema>,
 
     /// The transaction ID of the transaction.
-    pub tx_id: Entid,
+    tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
     ///
     /// This is milliseconds after the Unix epoch according to the transactor's local clock.
     // TODO: :db.type/instant.
-    pub tx_instant: i64,
+    tx_instant: i64,
 }
 
-impl<'conn> Tx<'conn> {
-    pub fn new(db: &'conn mut DB, conn: &'conn rusqlite::Connection, tx_id: Entid, tx_instant: i64) -> Tx<'conn> {
+impl<'conn, 'a> Tx<'conn, 'a> {
+    pub fn new(store: &'conn rusqlite::Connection, partition_map: PartitionMap, schema: &'a Schema, tx_id: Entid, tx_instant: i64) -> Tx<'conn, 'a> {
         Tx {
-            db: db,
-            conn: conn,
+            store: store,
+            partition_map: partition_map,
+            schema: Cow::Borrowed(schema),
             tx_id: tx_id,
             tx_instant: tx_instant,
         }
@@ -118,7 +129,7 @@ impl<'conn> Tx<'conn> {
     /// Given a collection of tempids and the [a v] pairs that they might upsert to, resolve exactly
     /// which [a v] pairs do upsert to entids, and map each tempid that upserts to the upserted
     /// entid.  The keys of the resulting map are exactly those tempids that upserted.
-    pub fn resolve_temp_id_avs<'a>(&self, conn: &rusqlite::Connection, temp_id_avs: &'a [(TempId, AVPair)]) -> Result<TempIdMap> {
+    pub fn resolve_temp_id_avs<'b>(&self, temp_id_avs: &'b [(TempId, AVPair)]) -> Result<TempIdMap> {
         if temp_id_avs.is_empty() {
             return Ok(TempIdMap::default());
         }
@@ -130,7 +141,7 @@ impl<'conn> Tx<'conn> {
         }
 
         // Lookup in the store.
-        let av_map: AVMap = self.db.resolve_avs(conn, &av_pairs[..])?;
+        let av_map: AVMap = self.store.resolve_avs(&av_pairs[..])?;
 
         // Map id->entid.
         let mut temp_id_map: TempIdMap = TempIdMap::default();
@@ -162,16 +173,16 @@ impl<'conn> Tx<'conn> {
                     Entity::AddOrRetract { op, e, a, v } => {
                         let a: i64 = match a {
                             entmod::Entid::Entid(ref a) => *a,
-                            entmod::Entid::Ident(ref a) => self.db.schema.require_entid(&a)?,
+                            entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
                         };
 
-                        let attribute: &Attribute = self.db.schema.require_attribute_for_entid(a)?;
+                        let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                         let e = match e {
                             entmod::EntidOrLookupRefOrTempId::Entid(e) => {
                                 let e: i64 = match e {
                                     entmod::Entid::Entid(ref e) => *e,
-                                    entmod::Entid::Ident(ref e) => self.db.schema.require_entid(&e)?,
+                                    entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
                                 };
                                 std::result::Result::Ok(e)
                             },
@@ -195,7 +206,7 @@ impl<'conn> Tx<'conn> {
                                 // Here is where we do schema-aware typechecking: we either assert that
                                 // the given value is in the attribute's value set, or (in limited
                                 // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.db.schema.to_typed_value(&v, &attribute)?;
+                                let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
 
                                 std::result::Result::Ok(typed_value)
                             }
@@ -224,19 +235,12 @@ impl<'conn> Tx<'conn> {
         }).collect::<Result<Vec<_>>>()
     }
 
-    /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
-    /// `self.DB`.
+    /// Transact the given `entities` against the store.
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         // TODO: push these into an internal transaction report?
-
-        /// Assertions that are :db.cardinality/one and not :db.fulltext.
-        let mut non_fts_one: Vec<ReducedEntity> = vec![];
-
-        /// Assertions that are :db.cardinality/many and not :db.fulltext.
-        let mut non_fts_many: Vec<ReducedEntity> = vec![];
 
         // We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
         let lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
@@ -247,18 +251,18 @@ impl<'conn> Tx<'conn> {
 
         // Pipeline stage 2: resolve lookup refs -> terms with tempids.
         let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_refs.inner.iter().map(|rc| &**rc).collect();
-        let lookup_ref_map: AVMap = self.db.resolve_avs(self.conn, &lookup_ref_avs[..])?;
+        let lookup_ref_map: AVMap = self.store.resolve_avs(&lookup_ref_avs[..])?;
 
         let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
 
         // Pipeline stage 3: upsert tempids -> terms without tempids or lookup refs.
         // Now we can collect upsert populations.
-        let (mut generation, inert_terms) = Generation::from(terms_with_temp_ids, &self.db.schema)?;
+        let (mut generation, inert_terms) = Generation::from(terms_with_temp_ids, &self.schema)?;
 
         // And evolve them forward.
         while generation.can_evolve() {
             // Evolve further.
-            let temp_id_map = self.resolve_temp_id_avs(self.conn, &generation.temp_id_avs()[..])?;
+            let temp_id_map = self.resolve_temp_id_avs(&generation.temp_id_avs()[..])?;
             generation = generation.evolve_one_step(&temp_id_map);
         }
 
@@ -266,11 +270,18 @@ impl<'conn> Tx<'conn> {
         let unresolved_temp_ids: BTreeSet<TempId> = generation.temp_ids_in_allocations();
 
         // TODO: track partitions for temporary IDs.
-        let entids = self.db.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
+        let entids = self.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
 
         let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
 
         let final_populations = generation.into_final_populations(&temp_id_allocations)?;
+        {
+        /// Assertions that are :db.cardinality/one and not :db.fulltext.
+        let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
+
+        /// Assertions that are :db.cardinality/many and not :db.fulltext.
+        let mut non_fts_many: Vec<db::ReducedEntity> = vec![];
+
         let final_terms: Vec<TermWithoutTempIds> = [final_populations.resolved,
                                                     final_populations.allocated,
                                                     inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
@@ -281,7 +292,7 @@ impl<'conn> Tx<'conn> {
         for term in final_terms {
             match term {
                 Term::AddOrRetract(op, e, a, v) => {
-                    let attribute: &Attribute = self.db.schema.require_attribute_for_entid(a)?;
+                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if attribute.fulltext {
                         bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented"))) // TODO: reference original input.  Difficult!
                     }
@@ -301,29 +312,60 @@ impl<'conn> Tx<'conn> {
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
                           // TODO: extract this to a constant.
-                          self.db.schema.require_attribute_for_entid(self.db.schema.require_entid(&to_namespaced_keyword(":db/txInstant").unwrap())?)?,
+                          self.schema.require_attribute_for_entid(self.schema.require_entid(&to_namespaced_keyword(":db/txInstant").unwrap())?)?,
                           TypedValue::Long(self.tx_instant),
                           true));
 
         if !non_fts_one.is_empty() {
-            self.db.insert_non_fts_searches(self.conn, &non_fts_one[..], SearchType::Inexact)?;
+            self.store.insert_non_fts_searches(&non_fts_one[..], db::SearchType::Inexact)?;
         }
 
         if !non_fts_many.is_empty() {
-            self.db.insert_non_fts_searches(self.conn, &non_fts_many[..], SearchType::Exact)?;
+            self.store.insert_non_fts_searches(&non_fts_many[..], db::SearchType::Exact)?;
         }
 
-        self.db.search(self.conn)?;
+        self.store.commit_transaction(self.tx_id)?;
+        }
 
-        self.db.insert_transaction(self.conn, self.tx_id)?;
-        self.db.update_datoms(self.conn, self.tx_id)?;
+        // let mut next_schema = self.schema.to_mut();
+        // next_schema.ident_map.insert(NamespacedKeyword::new("db", "new"), 1000);
 
         // TODO: update idents and schema materialized views.
-        db::update_partition_map(self.conn, &self.db.partition_map)?;
+        db::update_partition_map(self.store, &self.partition_map)?;
 
         Ok(TxReport {
             tx_id: self.tx_id,
             tx_instant: self.tx_instant,
         })
     }
+}
+
+use std::borrow::Cow;
+
+/// Transact the given `entities` against the given SQLite `conn`, using the metadata in
+/// `self.DB`.
+///
+/// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
+// TODO: move this to the transactor layer.
+pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, partition_map: &'a PartitionMap, schema: &'a Schema, entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
+    // Eventually, this function will be responsible for managing a SQLite transaction.  For
+    // now, it's just about the tx details.
+
+    let tx_instant = ::now(); // Label the transaction with the timestamp when we first see it: leading edge.
+
+    let mut next_partition_map: PartitionMap = partition_map.clone();
+    let tx_id = next_partition_map.allocate_entid(":db.part/tx");
+
+    conn.begin_transaction()?;
+
+    let mut tx = Tx::new(conn, next_partition_map, schema, tx_id, tx_instant);
+
+    let report = tx.transact_entities(entities)?;
+
+    // If the schema has moved on, return it.
+    let next_schema = match tx.schema {
+        Cow::Borrowed(_) => None,
+        Cow::Owned(next_schema) => Some(next_schema),
+    };
+    Ok((report, tx.partition_map, next_schema))
 }
