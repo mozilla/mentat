@@ -9,4 +9,6 @@ script:
   - cargo test --verbose -p mentat_query
   - cargo test --verbose -p mentat_query_parser
   - cargo test --verbose -p mentat_query_algebrizer
+  - cargo test --verbose -p mentat_query_translator
+  - cargo test --verbose -p mentat_sql
   - cargo test --verbose -p mentat_tx_parser

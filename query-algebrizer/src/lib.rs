@@ -37,3 +37,16 @@ pub fn algebrize(parsed: FindQuery) -> AlgebraicQuery {
         cc: cc::ConjoiningClauses::default(),
     }
 }
+
+pub use cc::{
+    ConjoiningClauses,
+};
+
+pub use cc::{
+    DatomsColumn,
+    DatomsTable,
+    QualifiedAlias,
+    SourceAlias,
+    TableAlias,
+};
+

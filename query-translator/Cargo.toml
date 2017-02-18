@@ -1,0 +1,13 @@
+[package]
+name = "mentat_query_translator"
+version = "0.0.1"
+
+[dependencies]
+[dependencies.mentat_sql]
+path = "../sql"
+
+[dependencies.mentat_query]
+path = "../query"
+
+[dependencies.mentat_query_algebrizer]
+path = "../query-algebrizer"
