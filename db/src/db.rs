@@ -891,8 +891,9 @@ mod tests {
     /// document just yet.  The end state might be much more general pattern matching syntax, rather
     /// than the targeted transaction ID and timestamp replacement we have right now.
     fn assert_transactions(conn: &rusqlite::Connection, db: &mut DB, transactions: &Vec<edn::Value>) {
-        for (index, transaction) in transactions.into_iter().enumerate() {
-            let index = index as i64;
+        let mut index: i64 = bootstrap::TX0;
+
+        for transaction in transactions {
             let transaction = transaction.as_map().unwrap();
             let label: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "label"))).unwrap().clone();
             let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
@@ -905,7 +906,9 @@ mod tests {
             let maybe_report = db.transact(&conn, entities);
 
             if let Some(expected_transaction) = expected_transaction {
-                if expected_transaction.is_nil() {
+                if !expected_transaction.is_nil() {
+                    index += 1;
+                } else {
                     assert!(maybe_report.is_err());
 
                     if let Some(expected_error_message) = expected_error_message {
@@ -918,9 +921,10 @@ mod tests {
                 }
 
                 let report = maybe_report.unwrap();
-                assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
+                assert_eq!(index, report.tx_id,
+                           "\n{} - expected tx_id {} but got tx_id {}", label, index, report.tx_id);
 
-                let transactions = debug::transactions_after(&conn, &db.schema, bootstrap::TX0 + index).unwrap();
+                let transactions = debug::transactions_after(&conn, &db.schema, index - 1).unwrap();
                 assert_eq!(transactions.0.len(), 1);
                 assert_eq!(*expected_transaction,
                            transactions.0[0].into_edn(),

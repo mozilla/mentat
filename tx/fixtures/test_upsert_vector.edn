@@ -74,7 +74,7 @@
    ;; This ref doesn't exist, so the assertion will be ignored.
    [:db/retract "t1" :db.schema/attribute 103]]
   :test/expected-transaction
-  #{[?tx6 :db/txInstant ?ms6 ?tx6 true]}
+  #{[?tx5 :db/txInstant ?ms5 ?tx5 true]}
   :test/expected-error-message
   ""
   :test/expected-tempids
@@ -94,9 +94,9 @@
   [[:db/add "t1" :db/ident :name/Josef]
    [:db/add "t2" :db.schema/attribute "t1"]]
   :test/expected-transaction
-  #{[65538 :db/ident :name/Josef ?tx8 true]
-    [65539 :db.schema/attribute 65538 ?tx8 true]
-    [?tx8 :db/txInstant ?ms8 ?tx8 true]}
+  #{[65538 :db/ident :name/Josef ?tx6 true]
+    [65539 :db.schema/attribute 65538 ?tx6 true]
+    [?tx6 :db/txInstant ?ms6 ?tx6 true]}
   :test/expected-error-message
   ""
   :test/expected-tempids
