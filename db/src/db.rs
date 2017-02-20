@@ -865,7 +865,6 @@ mod tests {
     use edn::symbols;
     use mentat_tx_parser;
     use rusqlite;
-    use types::*;
 
     #[test]
     fn test_open_current_version() {

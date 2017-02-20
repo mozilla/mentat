@@ -12,7 +12,7 @@ extern crate mentat_query_parser;
 extern crate mentat_query;
 extern crate edn;
 
-use mentat_query::FindSpec::*;
+use mentat_query::FindSpec::FindScalar;
 use mentat_query::Element;
 use mentat_query::Variable;
 use edn::PlainSymbol;

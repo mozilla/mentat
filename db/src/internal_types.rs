@@ -18,7 +18,12 @@ use std::rc::Rc;
 
 use errors;
 use errors::ErrorKind;
-use types::*;
+use types::{
+    AVMap,
+    AVPair,
+    Entid,
+    TypedValue,
+};
 use mentat_tx::entities::OpType;
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]

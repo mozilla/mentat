@@ -50,7 +50,7 @@ use std::collections::BTreeSet;
 
 use db::{ReducedEntity, SearchType};
 use entids;
-use errors::*;
+use errors::{ErrorKind, Result};
 use internal_types::{
     LookupRefOrTempId,
     TempId,
@@ -65,7 +65,16 @@ use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
 use rusqlite;
 use schema::SchemaBuilding;
-use types::*;
+use types::{
+    Attribute,
+    AVPair,
+    AVMap,
+    DB,
+    Entid,
+    TypedValue,
+    TxReport,
+    ValueType,
+};
 use upsert_resolution::Generation;
 
 /// A transaction on its way to being applied.

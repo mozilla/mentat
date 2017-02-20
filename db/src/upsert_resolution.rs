@@ -18,8 +18,21 @@ use std::collections::BTreeSet;
 use mentat_tx::entities::OpType;
 use errors;
 use errors::ErrorKind;
-use types::{Attribute, AVPair, Entid, Schema, TypedValue};
-use internal_types::*;
+use types::{
+    Attribute,
+    AVPair,
+    Entid,
+    Schema,
+    TypedValue,
+};
+use internal_types::{
+    Population,
+    TempId,
+    TempIdMap,
+    Term,
+    TermWithoutTempIds,
+    TermWithTempIds,
+};
 use schema::SchemaBuilding;
 
 /// A "Simple upsert" that looks like [:db/add TEMPID a v], where a is :db.unique/identity.
