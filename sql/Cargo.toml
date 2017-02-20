@@ -1,3 +1,4 @@
 [package]
 name = "mentat_sql"
 version = "0.0.1"
+workspace = ".."

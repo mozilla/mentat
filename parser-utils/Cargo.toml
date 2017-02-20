@@ -2,6 +2,7 @@
 name = "mentat_parser_utils"
 version = "0.1.0"
 authors = ["Victor Porof <vporof@mozilla.com>", "Richard Newman <rnewman@mozilla.com>"]
+workspace = ".."
 
 [dependencies]
 combine = "2.1.1"

@@ -1,6 +1,7 @@
 [package]
 name = "mentat_query_translator"
 version = "0.0.1"
+workspace = ".."
 
 [dependencies]
 [dependencies.mentat_sql]

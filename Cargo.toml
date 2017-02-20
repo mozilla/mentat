@@ -10,6 +10,9 @@ name = "mentat"
 version = "0.4.0"
 build = "build/version.rs"
 
+[workspace]
+members = []
+
 [build-dependencies]
 rustc_version = "0.1.7"
 
