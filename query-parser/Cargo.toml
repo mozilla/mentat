@@ -4,7 +4,7 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
-combine = "2.1.1"
+combine = "2.2.2"
 matches = "0.1"
 
 [dependencies.edn]

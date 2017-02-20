@@ -30,9 +30,9 @@ use errors::{ErrorKind, Result};
 
 pub mod db;
 mod bootstrap;
-mod debug;
+pub mod debug;
 mod entids;
-mod errors;
+pub mod errors;
 mod schema;
 mod types;
 mod internal_types;
@@ -40,7 +40,13 @@ mod upsert_resolution;
 mod values;
 mod tx;
 
-pub use types::DB;
+pub use tx::transact;
+pub use types::{
+    DB,
+    PartitionMap,
+    TxReport,
+};
+pub use errors::*;
 
 use edn::symbols;
 

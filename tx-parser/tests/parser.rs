@@ -30,8 +30,8 @@ fn test_entities() {
     let input = [edn];
 
     let result = Tx::parse(&input[..]);
-    assert_eq!(result,
-               Ok(vec![
+    assert_eq!(result.unwrap(),
+               vec![
                    Entity::AddOrRetract {
                        op: OpType::Add,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
@@ -50,7 +50,7 @@ fn test_entities() {
                        a: Entid::Ident(NamespacedKeyword::new("test", "b")),
                        v: Value::Text("w".into()),
                    },
-                   ]));
+               ]);
 }
 
 // TODO: test error handling in select cases.
