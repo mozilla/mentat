@@ -1,6 +1,7 @@
 [package]
 name = "mentat_db"
 version = "0.0.1"
+workspace = ".."
 
 [dependencies]
 error-chain = "0.8.0"
