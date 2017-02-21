@@ -17,6 +17,7 @@ pub mod symbols;
 pub mod types;
 pub mod pretty_print;
 pub mod utils;
+pub mod matcher;
 
 pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
