@@ -116,7 +116,7 @@ git commit --amend --reset-author --no-edit
 
 # Style Guide
 
-Our Rust code approximately follows the [Rust style guide](https://github.com/rust-lang-nursery/fmt-rfcs/blob/master/guide/guide.md). We use four-space indents, with categorized and alphabetized imports; see the examples in the tree.
+Our Rust code approximately follows the [Rust style guide](https://github.com/rust-lang-nursery/fmt-rfcs/blob/master/guide/guide.md). We use four-space indents, with categorized and alphabetized imports; see the examples in the tree. We try to follow [these guidelines](https://aturon.github.io/), too.
 
 We do not automatically use `rustfmt` because it tends to make code incrementally worse, but you should be prepared to consider its suggestions.
 
