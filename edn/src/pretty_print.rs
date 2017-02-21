@@ -83,7 +83,7 @@ mod test {
     #[test]
     fn test_pp_io() {
         let string = "$";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.write_pretty(40, &mut Vec::new()).is_ok(), true);
     }
@@ -91,7 +91,7 @@ mod test {
     #[test]
     fn test_pp_types_empty() {
         let string = "[ [ ] ( ) #{ } { }, \"\" ]";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.to_pretty(40).unwrap(), "[[] () #{} {} \"\"]");
     }
@@ -99,7 +99,7 @@ mod test {
     #[test]
     fn test_vector() {
         let string = "[1 2 3 4 5 6]";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.to_pretty(20).unwrap(), "[1 2 3 4 5 6]");
         assert_eq!(data.to_pretty(10).unwrap(), "\
@@ -114,7 +114,7 @@ mod test {
     #[test]
     fn test_map() {
         let string = "{:a 1 :b 2 :c 3}";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.to_pretty(20).unwrap(), "{:a 1 :b 2 :c 3}");
         assert_eq!(data.to_pretty(10).unwrap(), "\
@@ -126,7 +126,7 @@ mod test {
     #[test]
     fn test_pp_types() {
         let string = "[ 1 2 ( 3.14 ) #{ 4N } { foo/bar 42 :baz/boz 43 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.to_pretty(40).unwrap(), "\
 [1
@@ -150,7 +150,7 @@ mod test {
     #[test]
     fn test_pp_query1() {
         let string = "[:find ?id ?bar ?baz :in $ :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts]]";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.to_pretty(40).unwrap(), "\
 [:find
@@ -171,7 +171,7 @@ mod test {
     #[test]
     fn test_pp_query2() {
         let string = "[:find [?id ?bar ?baz] :in [$] :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts] (not-join [?id] [?id :session/keyword-bar _])]";
-        let data = parse::value(string).unwrap();
+        let data = parse::value(string).unwrap().without_spans();
 
         assert_eq!(data.to_pretty(40).unwrap(), "\
 [:find
