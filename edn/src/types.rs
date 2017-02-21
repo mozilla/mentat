@@ -224,7 +224,7 @@ macro_rules! to_keyword {
 /// Implements multiple is*, as*, into* and from* methods common to
 /// both Value and SpannedValue.
 macro_rules! def_common_value_methods {
-    ( $t:tt, $tchild:tt ) => {
+    ( $t:tt<$tchild:tt> ) => {
         def_is!(is_nil, $t::Nil);
         def_is!(is_boolean, $t::Boolean(_));
         def_is!(is_integer, $t::Integer(_));
@@ -394,29 +394,38 @@ macro_rules! def_common_value_display {
     }
 }
 
-impl Value {
-    def_common_value_methods!(Value, Value);
+macro_rules! def_common_value_impl {
+    ( $t:tt<$tchild:tt> ) => {
+        impl $t {
+            def_common_value_methods!($t<$tchild>);
+        }
+
+        impl PartialOrd for $t {
+            fn partial_cmp(&self, other: &$t) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for $t {
+            fn cmp(&self, other: &$t) -> Ordering {
+                def_common_value_ord!($t, self, other)
+            }
+        }
+
+        impl Display for $t {
+            fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+                def_common_value_display!($t, self, f)
+            }
+        }
+    }
 }
 
-impl SpannedValue {
-    def_common_value_methods!(SpannedValue, ValueAndSpan);
-}
+def_common_value_impl!(Value<Value>);
+def_common_value_impl!(SpannedValue<ValueAndSpan>);
 
 impl ValueAndSpan {
     pub fn without_spans(self) -> Value {
         self.inner.into()
-    }
-}
-
-impl PartialOrd for Value {
-    fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialOrd for SpannedValue {
-    fn partial_cmp(&self, other: &SpannedValue) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -426,33 +435,9 @@ impl PartialOrd for ValueAndSpan {
     }
 }
 
-impl Ord for Value {
-    fn cmp(&self, other: &Value) -> Ordering {
-        def_common_value_ord!(Value, self, other)
-    }
-}
-
-impl Ord for SpannedValue {
-    fn cmp(&self, other: &SpannedValue) -> Ordering {
-        def_common_value_ord!(SpannedValue, self, other)
-    }
-}
-
 impl Ord for ValueAndSpan {
     fn cmp(&self, other: &ValueAndSpan) -> Ordering {
         self.inner.cmp(&other.inner)
-    }
-}
-
-impl Display for Value {
-    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        def_common_value_display!(Value, self, f)
-    }
-}
-
-impl Display for SpannedValue {
-    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        def_common_value_display!(SpannedValue, self, f)
     }
 }
 
