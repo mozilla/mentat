@@ -4,6 +4,8 @@ This project is very new, so we'll probably revise these guidelines. Please
 comment on a bug before putting significant effort in, if you'd like to
 contribute.
 
+You probably want to quickly read the [front page of the wiki](https://github.com/mozilla/mentat/wiki) to get up to speed.
+
 ## Guidelines
 
 * Follow the Style Guide (see below).
@@ -19,7 +21,7 @@ description including any additional information that might help future
 spelunkers (see below).
 
 ```
-Frobnicate the URL bazzer before flattening pilchard, r=mossop,rnewman. Fixes #6.
+Frobnicate the URL bazzer before flattening pilchard. (#123) r=mossop,rnewman.
 
 The frobnication method used is as described in Podder's Miscellany, page 15.
 Note that this pull request doesn't include tests, because we're bad people.
@@ -56,10 +58,10 @@ git commit --signoff --message "Some commit message"
 * Rebase your work during development and before submitting a pull request,
 avoiding merge commits, such that your commits are a logical sequence to
 read rather than a record of your fevered typing.
-* Make sure you're on the correct branch and are pulling from the correct upstream:
+* Make sure you're on the correct branch and are pulling from the correct upstream (currently `rust`):
 ```
 git checkout some-new-branch
-git pull upstream master --rebase
+git pull upstream rust --rebase
 ```
 Or using `git reset --soft` (as described in [a tale of three trees](http://www.infoq.com/presentations/A-Tale-of-Three-Trees))
 
@@ -114,11 +116,43 @@ git commit --amend --reset-author --no-edit
 
 # Style Guide
 
+Our Rust code approximately follows the [Rust style guide](https://github.com/rust-lang-nursery/fmt-rfcs/blob/master/guide/guide.md). We use four-space indents, with categorized and alphabetized imports; see the examples in the tree.
+
+We do not automatically use `rustfmt` because it tends to make code incrementally worse, but you should be prepared to consider its suggestions.
+
+An example of 'good' Rust code, omitting the license block:
+
+```rust
+#![allow(…)]
+
+extern crate foo;
+
+use std::borrow::Borrow;
+use std::error::Error;
+use std::iter::{once, repeat};
+
+use rusqlite;
+
+use mentat_core::{
+    Attribute,
+    AttributeBitFlags,
+    Entid,
+};
+
+type MyError = Box<Error + Send + Sync>;
+
+pub type Thing = Borrow<String>;
+
+pub fn foo_thing(x: Thing) -> Result<(), MyError> {
+    // Do things here.
+}
+```
+
 Our JavaScript code follows the [airbnb style](https://github.com/airbnb/javascript)
 with a [few exceptions](../../blob/master/.eslintrc). The precise rules are
 likely to change a little as we get started so for now let eslint be your guide.
 
-Our ClojureScript code follows… well, no guide so far.
+Our ClojureScript code (no longer live) doesn't follow a specific style guide.
 
 # How to sign-off your commits
 
@@ -160,13 +194,13 @@ then you just add a line saying
 
     Signed-off-by: Random J Developer <random@developer.example.org>
 
-using your real name (sorry, no pseudonyms or anonymous contributions.)
+using your real name (sorry, no pseudonyms or anonymous contributions).
 
 If you're using the command line, you can get this done automatically with
 
     $ git commit --signoff
 
-Some GUIs (e.g. SourceTree) have an option to automatically sign commits.
+Some GUIs (_e.g._, SourceTree) have an option to automatically sign commits.
 
 If you need to slightly modify patches you receive in order to merge them,
 because the code is not exactly the same in your tree and the submitters'.
@@ -174,11 +208,11 @@ If you stick strictly to rule (c), you should ask the submitter to submit, but
 this is a totally counter-productive waste of time and energy.
 Rule (b) allows you to adjust the code, but then it is very impolite to change
 one submitter's code and make them endorse your bugs. To solve this problem,
-it is recommended that you add a line between the last Signed-off-by header and
+it is recommended that you add a line between the last `Signed-off-by` header and
 yours, indicating the nature of your changes. While there is nothing mandatory
 about this, it seems like prepending the description with your mail and/or name,
 all enclosed in square brackets, is noticeable enough to make it obvious that
-you are responsible for last-minute changes. Example :
+you are responsible for last-minute changes. Example:
 
     Signed-off-by: Random J Developer <random@developer.example.org>
     [lucky@maintainer.example.org: struct foo moved from foo.c to foo.h]
@@ -187,5 +221,5 @@ you are responsible for last-minute changes. Example :
 This practice is particularly helpful if you maintain a stable branch and
 want at the same time to credit the author, track changes, merge the fix,
 and protect the submitter from complaints. Note that under no circumstances
-can you change the author's identity (the From header), as it is the one
+can you change the author's identity (the `From` header), as it is the one
 which appears in the change-log.
