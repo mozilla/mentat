@@ -13,7 +13,7 @@ extern crate edn;
 extern crate mentat_parser_utils;
 extern crate mentat_query;
 
-use self::mentat_parser_utils::ResultParser;
+use self::mentat_parser_utils::{ResultParser, ValueParseError};
 use self::combine::{eof, many1, optional, parser, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{choice, try};
 use self::mentat_query::{
@@ -29,47 +29,10 @@ use self::mentat_query::{
     WhereClause,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NotAVariableError(pub edn::Value);
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FindParseError {
-    Err,
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum WhereParseError {
-    Err,
-}
-
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub enum QueryParseError {
-    InvalidInput(edn::Value),
-    EdnParseError(edn::parse::ParseError),
-    MissingField(edn::Keyword),
-    FindParseError(FindParseError),
-    WhereParseError(WhereParseError),
-    WithParseError(NotAVariableError),
-}
-
-impl From<WhereParseError> for QueryParseError {
-    fn from(err: WhereParseError) -> QueryParseError {
-        QueryParseError::WhereParseError(err)
-    }
-}
-
-impl From<NotAVariableError> for QueryParseError {
-    fn from(err: NotAVariableError) -> QueryParseError {
-        QueryParseError::WithParseError(err)
-    }
-}
-
-pub type WhereParseResult = Result<Vec<WhereClause>, WhereParseError>;
-pub type FindParseResult = Result<FindSpec, FindParseError>;
-pub type QueryParseResult = Result<FindQuery, QueryParseError>;
-
+use errors::{Error, ErrorKind, ResultExt, Result};
+pub type WhereParseResult = Result<Vec<WhereClause>>;
+pub type FindParseResult = Result<FindSpec>;
+pub type QueryParseResult = Result<FindQuery>;
 
 pub struct Query<I>(::std::marker::PhantomData<fn(I) -> I>);
 
@@ -222,7 +185,8 @@ pub fn find_seq_to_find_spec(find: &[edn::Value]) -> FindParseResult {
     Find::find()
         .parse(find)
         .map(|x| x.0)
-        .map_err(|_| FindParseError::Err)
+        .map_err::<ValueParseError, _>(|e| e.translate_position(find).into())
+        .map_err(|e| Error::from_kind(ErrorKind::FindParseError(e)))
 }
 
 #[allow(dead_code)]
@@ -230,7 +194,8 @@ pub fn clause_seq_to_patterns(clauses: &[edn::Value]) -> WhereParseResult {
     Where::clauses()
         .parse(clauses)
         .map(|x| x.0)
-        .map_err(|_| WhereParseError::Err)
+        .map_err::<ValueParseError, _>(|e| e.translate_position(clauses).into())
+        .map_err(|e| Error::from_kind(ErrorKind::WhereParseError(e)))
 }
 
 #[cfg(test)]
@@ -401,15 +366,15 @@ mod test {
                                             edn::Value::PlainSymbol(ellipsis.clone())])];
         let rel = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
 
-        assert_eq!(Ok(FindSpec::FindScalar(Element::Variable(Variable(vx.clone())))),
-                   find_seq_to_find_spec(&scalar));
-        assert_eq!(Ok(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
-                                               Element::Variable(Variable(vy.clone()))])),
-                   find_seq_to_find_spec(&tuple));
-        assert_eq!(Ok(FindSpec::FindColl(Element::Variable(Variable(vx.clone())))),
-                   find_seq_to_find_spec(&coll));
-        assert_eq!(Ok(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
-                                             Element::Variable(Variable(vy.clone()))])),
-                   find_seq_to_find_spec(&rel));
+        assert_eq!(FindSpec::FindScalar(Element::Variable(Variable(vx.clone()))),
+                   find_seq_to_find_spec(&scalar).unwrap());
+        assert_eq!(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
+                                            Element::Variable(Variable(vy.clone()))]),
+                   find_seq_to_find_spec(&tuple).unwrap());
+        assert_eq!(FindSpec::FindColl(Element::Variable(Variable(vx.clone()))),
+                   find_seq_to_find_spec(&coll).unwrap());
+        assert_eq!(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
+                                          Element::Variable(Variable(vy.clone()))]),
+                   find_seq_to_find_spec(&rel).unwrap());
     }
 }

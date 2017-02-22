@@ -34,6 +34,7 @@
 /// ! parts of the map.
 
 extern crate edn;
+extern crate mentat_parser_utils;
 extern crate mentat_query;
 
 use std::collections::BTreeMap;
@@ -44,10 +45,15 @@ use self::mentat_query::{
     SrcVar,
     Variable,
 };
+use self::mentat_parser_utils::ValueParseError;
+
+use super::errors::{
+    Error,
+    ErrorKind,
+    Result,
+};
 
 use super::parse::{
-    NotAVariableError,
-    QueryParseError,
     QueryParseResult,
     clause_seq_to_patterns,
 };
@@ -57,14 +63,14 @@ use super::util::vec_to_keyword_map;
 /// If the provided slice of EDN values are all variables as
 /// defined by `value_to_variable`, return a `Vec` of `Variable`s.
 /// Otherwise, return the unrecognized Value in a `NotAVariableError`.
-fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
+fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>> {
     let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
     for v in vals {
         if let Some(var) = Variable::from_value(v) {
             out.push(var);
             continue;
         }
-        return Err(NotAVariableError(v.clone()));
+        bail!(ErrorKind::NotAVariableError(v.clone()));
     }
     return Ok(out);
 }
@@ -109,7 +115,6 @@ fn parse_find_parts(find: &[edn::Value],
                 where_clauses: where_clauses,
             }
         })
-        .map_err(QueryParseError::FindParseError)
 }
 
 fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseResult {
@@ -127,10 +132,10 @@ fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseRes
                                     map.get(&kw_with).map(|x| x.as_slice()),
                                     wheres);
         } else {
-            return Err(QueryParseError::MissingField(kw_where));
+            bail!(ErrorKind::MissingField(kw_where));
         }
     } else {
-        return Err(QueryParseError::MissingField(kw_find));
+        bail!(ErrorKind::MissingField(kw_find));
     }
 }
 
@@ -148,20 +153,14 @@ fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> QueryParseResult
                 m.insert(kw, vec);
                 continue;
             } else {
-                return Err(QueryParseError::InvalidInput(v));
+                bail!(ErrorKind::InvalidInput(v));
             }
         } else {
-            return Err(QueryParseError::InvalidInput(k));
+            bail!(ErrorKind::InvalidInput(k));
         }
     }
 
     parse_find_map(m)
-}
-
-impl From<edn::parse::ParseError> for QueryParseError {
-    fn from(err: edn::parse::ParseError) -> QueryParseError {
-        QueryParseError::EdnParseError(err)
-    }
 }
 
 pub fn parse_find_string(string: &str) -> QueryParseResult {
@@ -179,7 +178,7 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
             return parse_find_map(m);
         }
     }
-    return Err(QueryParseError::InvalidInput(expr));
+    bail!(ErrorKind::InvalidInput(expr));
 }
 
 #[cfg(test)]

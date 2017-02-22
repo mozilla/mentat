@@ -8,34 +8,28 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(unused_imports)]
+#![allow(dead_code)]
 
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate matches;
+use edn;
+use mentat_parser_utils::ValueParseError;
 
-extern crate edn;
-#[macro_use]
-extern crate mentat_parser_utils;
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
 
-mod util;
-mod parse;
-pub mod errors;
-pub mod find;
+    foreign_links {
+        EdnParseError(edn::ParseError);
+    }
 
-pub use errors::{
-    Error,
-    ErrorKind,
-    ResultExt,
-    Result,
-};
+    links {
+    }
 
-pub use find::{
-    parse_find,
-    parse_find_string,
-};
-
-pub use parse::{
-    QueryParseResult,
-};
+    errors {
+        NotAVariableError(value: edn::Value) {}
+        InvalidInput(value: edn::Value) {}
+        FindParseError(value_parse_error: ValueParseError) {}
+        WhereParseError(value_parse_error: ValueParseError) {}
+        MissingField(field: edn::Keyword) {}
+    }
+}
