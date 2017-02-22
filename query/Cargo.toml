@@ -6,7 +6,7 @@ workspace = ".."
 [dependencies]
 
 [dependencies.edn]
-  path = "../edn"
+path = "../edn"
 
 [dependencies.mentat_core]
-  path = "../core"
+path = "../core"
