@@ -18,7 +18,10 @@ use mentat_db::DB;
 
 use mentat_query_parser::{
     parse_find_string,
-    QueryParseError,
+};
+
+use errors::{
+    Result,
 };
 
 // TODO
@@ -31,19 +34,6 @@ pub enum QueryResults {
     Rel(Vec<Vec<TypedValue>>),
 }
 
-pub enum QueryExecutionError {
-    ParseError(QueryParseError),
-    InvalidArgumentName(String),
-}
-
-impl From<QueryParseError> for QueryExecutionError {
-    fn from(err: QueryParseError) -> QueryExecutionError {
-        QueryExecutionError::ParseError(err)
-    }
-}
-
-pub type QueryExecutionResult = Result<QueryResults, QueryExecutionError>;
-
 /// Take an EDN query string, a reference to a open SQLite connection, a Mentat DB, and an optional
 /// collection of input bindings (which should be keyed by `"?varname"`), and execute the query
 /// immediately, blocking the current thread.
@@ -53,7 +43,7 @@ pub type QueryExecutionResult = Result<QueryResults, QueryExecutionError>;
 pub fn q_once(sqlite: SQLiteConnection,
               db: DB,
               query: &str,
-              inputs: Option<HashMap<String, TypedValue>>) -> QueryExecutionResult {
+              inputs: Option<HashMap<String, TypedValue>>) -> Result<QueryResults> {
     // TODO: validate inputs.
     let parsed = parse_find_string(query)?;
     Ok(QueryResults::Scalar(Some(TypedValue::Boolean(true))))

@@ -26,7 +26,7 @@ extern crate mentat_tx_parser;
 
 use itertools::Itertools;
 use std::iter::repeat;
-use errors::{ErrorKind, Result};
+pub use errors::{Error, ErrorKind, ResultExt, Result};
 
 pub mod db;
 mod bootstrap;
@@ -46,7 +46,6 @@ pub use types::{
     PartitionMap,
     TxReport,
 };
-pub use errors::*;
 
 use edn::symbols;
 
