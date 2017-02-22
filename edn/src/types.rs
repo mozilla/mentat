@@ -45,8 +45,8 @@ pub enum Value {
     Map(BTreeMap<Value, Value>),
 }
 
-/// SpannedValue is the parallel to Value but used in ValueAndSpan.
-/// Container types have ValueAndSpan children.
+/// `SpannedValue` is the parallel to `Value` but used in `ValueAndSpan`.
+/// Container types have `ValueAndSpan` children.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum SpannedValue {
     Nil,
@@ -69,7 +69,7 @@ pub enum SpannedValue {
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct Span(pub usize, pub usize);
 
-/// A wrapper type around SpannedValue and Span, representing some EDN Value
+/// A wrapper type around `SpannedValue` and `Span`, representing some EDN value
 /// and the parsing offset (start, end) in the original EDN string.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct ValueAndSpan {
@@ -113,9 +113,9 @@ macro_rules! def_from {
 /// like `from_bigint()` where the conversion is optional.
 macro_rules! def_from_option {
     ($name: ident, $out: ty, $kind: path, $t: ty, $( $transform: expr ),* ) => {
-        pub fn $name<'a>(src: $t) -> Option<$out> {
+        pub fn $name(src: $t) -> Option<$out> {
             $( let src = $transform(src); )*
-            src.map(|v| $kind(v))
+            src.map($kind)
         }
     }
 }
@@ -277,7 +277,7 @@ macro_rules! def_common_value_methods {
         def_into!(into_set, $t::Set, BTreeSet<$tchild>,);
         def_into!(into_map, $t::Map, BTreeMap<$tchild, $tchild>,);
 
-        def_from_option!(from_bigint, $t, $t::BigInteger, &'a str, |src: &'a str| src.parse::<BigInt>().ok());
+        def_from_option!(from_bigint, $t, $t::BigInteger, &str, |src: &str| src.parse::<BigInt>().ok());
         def_from!(from_float, $t, $t::Float, f64, |src: f64| OrderedFloat::from(src));
         def_from!(from_ordered_float, $t, $t::Float, OrderedFloat<f64>,);
 
