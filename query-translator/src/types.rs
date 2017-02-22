@@ -10,6 +10,8 @@
 
 #![allow(dead_code, unused_imports)]
 
+use mentat_core::TypedValue;
+
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     ConjoiningClauses,
@@ -25,26 +27,46 @@ use mentat_sql::{
     QueryBuilder,
     QueryFragment,
     SQLiteQueryBuilder,
+    SQLQuery,
 };
 
 //---------------------------------------------------------
 // A Mentat-focused representation of a SQL query.
 
-enum ColumnOrExpression {
+pub enum ColumnOrExpression {
     Column(QualifiedAlias),
-    Integer(i64),             // Because it's so common.
+    Integer(i64),            // Because it's so common.
+    Value(TypedValue),       // TODO: replace with a SQLite value.
 }
 
-type Name = String;
-struct Projection (ColumnOrExpression, Name);
+pub type Name = String;
 
-#[derive(Clone)]
-struct Op(String);      // TODO
-enum Constraint {
+pub struct ProjectedColumn(pub ColumnOrExpression, pub Name);
+
+pub enum Projection {
+    Columns(Vec<ProjectedColumn>),
+    Star,
+    One,
+}
+
+#[derive(Copy, Clone)]
+pub struct Op(&'static str);      // TODO
+
+pub enum Constraint {
     Infix {
         op: Op,
         left: ColumnOrExpression,
         right: ColumnOrExpression
+    }
+}
+
+impl Constraint {
+    pub fn equal(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
+        Constraint::Infix {
+            op: Op("="),
+            left: left,
+            right: right,
+        }
     }
 }
 
@@ -53,9 +75,9 @@ enum JoinOp {
 }
 
 // Short-hand for a list of tables all inner-joined.
-struct TableList(Vec<SourceAlias>);
+pub struct TableList(pub Vec<SourceAlias>);
 
-struct Join {
+pub struct Join {
     left: TableOrSubquery,
     op: JoinOp,
     right: TableOrSubquery,
@@ -67,15 +89,20 @@ enum TableOrSubquery {
     // TODO: Subquery.
 }
 
-enum FromClause {
+pub enum FromClause {
     TableList(TableList),      // Short-hand for a pile of inner joins.
     Join(Join),
 }
 
-struct SelectQuery {
-    projection: Vec<Projection>,
-    from: FromClause,
-    constraints: Vec<Constraint>,
+pub struct SelectQuery {
+    pub projection: Projection,
+    pub from: FromClause,
+    pub constraints: Vec<Constraint>,
+}
+
+// We know that DatomsColumns are safe to serialize.
+fn push_column(qb: &mut QueryBuilder, col: &DatomsColumn) {
+    qb.push_sql(col.as_str());
 }
 
 //---------------------------------------------------------
@@ -88,28 +115,47 @@ impl QueryFragment for ColumnOrExpression {
             &Column(QualifiedAlias(ref table, ref column)) => {
                 out.push_identifier(table.as_str())?;
                 out.push_sql(".");
-                out.push_identifier(column.as_str())
+                push_column(out, column);
+                Ok(())
             },
             &Integer(i) => {
                 out.push_sql(i.to_string().as_str());
                 Ok(())
-            }
+            },
+            &Value(ref v) => {
+                out.push_typed_value(v)
+            },
         }
     }
 }
 
 impl QueryFragment for Projection {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
-        self.0.push_sql(out)?;
-        out.push_sql(" AS ");
-        out.push_identifier(self.1.as_str())
+        use self::Projection::*;
+        match self {
+            &One => out.push_sql("1"),
+            &Star => out.push_sql("*"),
+            &Columns(ref cols) => {
+                let &ProjectedColumn(ref col, ref alias) = &cols[0];
+                col.push_sql(out)?;
+                out.push_sql(" AS ");
+                out.push_identifier(alias.as_str())?;
+
+                for &ProjectedColumn(ref col, ref alias) in &cols[1..] {
+                    col.push_sql(out)?;
+                    out.push_sql(" AS ");
+                    out.push_identifier(alias.as_str())?;
+                }
+            },
+        };
+        Ok(())
     }
 }
 
 impl QueryFragment for Op {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         // No escaping needed.
-        out.push_sql(self.0.as_str());
+        out.push_sql(self.0);
         Ok(())
     }
 }
@@ -190,12 +236,7 @@ impl QueryFragment for FromClause {
 impl QueryFragment for SelectQuery {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         out.push_sql("SELECT ");
-        self.projection[0].push_sql(out)?;
-
-        for projection in self.projection[1..].iter() {
-            out.push_sql(", ");
-            projection.push_sql(out)?;
-        }
+        self.projection.push_sql(out)?;
 
         out.push_sql(" FROM ");
         self.from.push_sql(out)?;
@@ -217,7 +258,7 @@ impl QueryFragment for SelectQuery {
 }
 
 impl SelectQuery {
-    fn to_sql_string(&self) -> Result<String, BuildQueryError> {
+    pub fn to_sql_query(&self) -> Result<SQLQuery, BuildQueryError> {
         let mut builder = SQLiteQueryBuilder::new();
         self.push_sql(&mut builder).map(|_| builder.finish())
     }
@@ -233,18 +274,18 @@ mod tests {
         // [:find ?x :where [?x 65537 ?v] [?x 65536 ?v]]
         let datoms00 = "datoms00".to_string();
         let datoms01 = "datoms01".to_string();
-        let eq = Op("=".to_string());
+        let eq = Op("=");
         let source_aliases = vec![
             SourceAlias(DatomsTable::Datoms, datoms00.clone()),
             SourceAlias(DatomsTable::Datoms, datoms01.clone()),
         ];
         let query = SelectQuery {
-            projection: vec![
-                Projection(
-                    ColumnOrExpression::Column(QualifiedAlias(datoms00.clone(), DatomsColumn::Entity)),
-                    "x".to_string(),
-                    ),
-            ],
+            projection: Projection::Columns(
+                            vec![
+                                ProjectedColumn(
+                                    ColumnOrExpression::Column(QualifiedAlias(datoms00.clone(), DatomsColumn::Entity)),
+                                    "x".to_string()),
+                            ]),
             from: FromClause::TableList(TableList(source_aliases)),
             constraints: vec![
                 //ColumnOrExpression::Expression(TypedValue::Integer(15)),
@@ -266,8 +307,9 @@ mod tests {
             ],
         };
 
-        let sql = query.to_sql_string().unwrap();
+        let SQLQuery { sql, args } = query.to_sql_query().unwrap();
         println!("{}", sql);
-        assert_eq!("SELECT `datoms00`.`e` AS `x` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` WHERE `datoms01`.`v` = `datoms00`.`v` AND `datoms00`.`a` = 65537 AND `datoms01`.`a` = 65536", sql);
+        assert_eq!("SELECT `datoms00`.e AS `x` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` WHERE `datoms01`.v = `datoms00`.v AND `datoms00`.a = 65537 AND `datoms01`.a = 65536", sql);
+        assert!(args.is_empty());
     }
 }
