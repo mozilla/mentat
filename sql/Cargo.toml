@@ -2,3 +2,9 @@
 name = "mentat_sql"
 version = "0.0.1"
 workspace = ".."
+
+[dependencies]
+ordered-float = "0.4.0"
+
+[dependencies.mentat_core]
+path = "../core"
