@@ -85,7 +85,7 @@ impl DatomsColumn {
 pub type TableAlias = String;
 
 /// The association between a table and its alias. E.g., AllDatoms, "all_datoms123".
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct SourceAlias(pub DatomsTable, pub TableAlias);
 
 /// A particular column of a particular aliased table. E.g., "datoms123", Attribute.
@@ -153,10 +153,10 @@ pub struct ConjoiningClauses {
     aliaser: TableAliaser,
 
     /// A vector of source/alias pairs used to construct a SQL `FROM` list.
-    from: Vec<SourceAlias>,
+    pub from: Vec<SourceAlias>,
 
     /// A list of fragments that can be joined by `AND`.
-    wheres: Vec<ColumnConstraint>,
+    pub wheres: Vec<ColumnConstraint>,
 
     /// A map from var to qualified columns. Used to project.
     bindings: BTreeMap<Variable, Vec<QualifiedAlias>>,
