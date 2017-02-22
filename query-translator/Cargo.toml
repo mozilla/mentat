@@ -4,6 +4,9 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
+[dependencies.mentat_core]
+path = "../core"
+
 [dependencies.mentat_sql]
 path = "../sql"
 
@@ -12,3 +15,7 @@ path = "../query"
 
 [dependencies.mentat_query_algebrizer]
 path = "../query-algebrizer"
+
+# Only for tests.
+[dev-dependencies.mentat_query_parser]
+path = "../query-parser"
