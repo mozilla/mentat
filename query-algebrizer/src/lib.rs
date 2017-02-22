@@ -8,14 +8,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate mentat_core;
 extern crate mentat_query;
 
 mod cc;
+
+use mentat_core::{
+    Schema,
+};
 
 use mentat_query::{
     FindQuery,
     FindSpec,
     SrcVar,
+    WhereClause,
 };
 
 #[allow(dead_code)]
@@ -24,21 +30,34 @@ pub struct AlgebraicQuery {
     find_spec: FindSpec,
     has_aggregates: bool,
     limit: Option<i64>,
-    cc: cc::ConjoiningClauses,
+    pub cc: cc::ConjoiningClauses,
 }
 
 #[allow(dead_code)]
-pub fn algebrize(parsed: FindQuery) -> AlgebraicQuery {
+pub fn algebrize(schema: &Schema, parsed: FindQuery) -> AlgebraicQuery {
+    // TODO: integrate default source into pattern processing.
+    // TODO: flesh out the rest of find-into-context.
+    let mut cc = cc::ConjoiningClauses::default();
+    let where_clauses = parsed.where_clauses;
+    for where_clause in where_clauses {
+        if let WhereClause::Pattern(p) = where_clause {
+            cc.apply_pattern(schema, &p);
+        } else {
+            unimplemented!();
+        }
+    }
+
     AlgebraicQuery {
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
         has_aggregates: false,           // TODO: we don't parse them yet.
         limit: None,
-        cc: cc::ConjoiningClauses::default(),
+        cc: cc,
     }
 }
 
 pub use cc::{
+    ColumnConstraint,
     ConjoiningClauses,
 };
 
