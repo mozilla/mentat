@@ -46,6 +46,7 @@
 //! keep everything straight.
 
 use std;
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use ::{to_namespaced_keyword};
@@ -275,7 +276,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
 
         let final_populations = generation.into_final_populations(&temp_id_allocations)?;
-        {
+
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
 
@@ -325,10 +326,6 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         self.store.commit_transaction(self.tx_id)?;
-        }
-
-        // let mut next_schema = self.schema.to_mut();
-        // next_schema.ident_map.insert(NamespacedKeyword::new("db", "new"), 1000);
 
         // TODO: update idents and schema materialized views.
         db::update_partition_map(self.store, &self.partition_map)?;
@@ -340,25 +337,20 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     }
 }
 
-use std::borrow::Cow;
-
-/// Transact the given `entities` against the given SQLite `conn`, using the metadata in
-/// `self.DB`.
+/// Transact the given `entities` against the given SQLite `conn`, using the given metadata.
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
-pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, partition_map: &'a PartitionMap, schema: &'a Schema, entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
+pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, mut partition_map: PartitionMap, schema: &'a Schema, entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
     // Eventually, this function will be responsible for managing a SQLite transaction.  For
     // now, it's just about the tx details.
 
     let tx_instant = ::now(); // Label the transaction with the timestamp when we first see it: leading edge.
-
-    let mut next_partition_map: PartitionMap = partition_map.clone();
-    let tx_id = next_partition_map.allocate_entid(":db.part/tx");
+    let tx_id = partition_map.allocate_entid(":db.part/tx");
 
     conn.begin_transaction()?;
 
-    let mut tx = Tx::new(conn, next_partition_map, schema, tx_id, tx_instant);
+    let mut tx = Tx::new(conn, partition_map, schema, tx_id, tx_instant);
 
     let report = tx.transact_entities(entities)?;
 
