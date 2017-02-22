@@ -38,12 +38,10 @@ impl Value {
     ///  2,
     ///  3].
     fn bracket<'a, A, T, I>(&'a self, allocator: &'a A, open: T, vs: I, close: T) -> pretty::DocBuilder<'a, A>
-        where A: pretty::DocAllocator<'a>, T: Into<Cow<'a, str>>,
-    I: IntoIterator<Item=&'a Value>,
-    {
+    where A: pretty::DocAllocator<'a>, T: Into<Cow<'a, str>>, I: IntoIterator<Item=&'a Value> {
         let open = open.into();
         let n = open.len();
-        let i = vs.into_iter().map(|ref v| v.as_doc(allocator)).intersperse(allocator.space());
+        let i = vs.into_iter().map(|v| v.as_doc(allocator)).intersperse(allocator.space());
         allocator.text(open)
             .append(allocator.concat(i).nest(n))
             .append(allocator.text(close))
@@ -55,22 +53,22 @@ impl Value {
     /// readability and limited whitespace expansion.
     pub fn as_doc<'a, A>(&'a self, pp: &'a A) -> pretty::DocBuilder<'a, A>
         where A: pretty::DocAllocator<'a> {
-        match self {
-            &Value::Vector(ref vs) => self.bracket(pp, "[", vs, "]"),
-            &Value::List(ref vs) => self.bracket(pp, "(", vs, ")"),
-            &Value::Set(ref vs) => self.bracket(pp, "#{", vs, "}"),
-            &Value::Map(ref vs) => {
-                let xs = vs.iter().rev().map(|(ref k, ref v)| k.as_doc(pp).append(pp.space()).append(v.as_doc(pp)).group()).intersperse(pp.space());
+        match *self {
+            Value::Vector(ref vs) => self.bracket(pp, "[", vs, "]"),
+            Value::List(ref vs) => self.bracket(pp, "(", vs, ")"),
+            Value::Set(ref vs) => self.bracket(pp, "#{", vs, "}"),
+            Value::Map(ref vs) => {
+                let xs = vs.iter().rev().map(|(k, v)| k.as_doc(pp).append(pp.space()).append(v.as_doc(pp)).group()).intersperse(pp.space());
                 pp.text("{")
                     .append(pp.concat(xs).nest(1))
                     .append(pp.text("}"))
                     .group()
             }
-            &Value::NamespacedSymbol(ref v) => pp.text(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
-            &Value::PlainSymbol(ref v) => pp.text(v.0.as_ref()),
-            &Value::NamespacedKeyword(ref v) => pp.text(":").append(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
-            &Value::Keyword(ref v) => pp.text(":").append(v.0.as_ref()),
-            &Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
+            Value::NamespacedSymbol(ref v) => pp.text(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
+            Value::PlainSymbol(ref v) => pp.text(v.0.as_ref()),
+            Value::NamespacedKeyword(ref v) => pp.text(":").append(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
+            Value::Keyword(ref v) => pp.text(":").append(v.0.as_ref()),
+            Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
             _ => pp.text(self.to_string())
         }
     }

@@ -1348,6 +1348,7 @@ macro_rules! def_test_into_type {
 }
 
 #[test]
+#[cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
 fn test_is_and_as_type_helper_functions() {
     let max_i64 = i64::max_value().to_bigint().unwrap();
     let bigger = &max_i64 * &max_i64;
