@@ -96,8 +96,8 @@ lazy_static! {
     static ref V1_SYMBOLIC_SCHEMA: Value = {
         let s = r#"
 {:db/ident             {:db/valueType   :db.type/keyword
-                       :db/cardinality :db.cardinality/one
-                       :db/unique      :db.unique/identity}
+                        :db/cardinality :db.cardinality/one
+                        :db/unique      :db.unique/identity}
  :db.install/partition {:db/valueType   :db.type/ref
                         :db/cardinality :db.cardinality/many}
  :db.install/valueType {:db/valueType   :db.type/ref
