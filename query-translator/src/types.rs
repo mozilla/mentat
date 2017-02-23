@@ -142,6 +142,7 @@ impl QueryFragment for Projection {
                 out.push_identifier(alias.as_str())?;
 
                 for &ProjectedColumn(ref col, ref alias) in &cols[1..] {
+                    out.push_sql(", ");
                     col.push_sql(out)?;
                     out.push_sql(" AS ");
                     out.push_identifier(alias.as_str())?;
