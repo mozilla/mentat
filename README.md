@@ -57,7 +57,7 @@ We've observed that data storage is a particular area of difficulty for software
 
 - Queries are intimately tied to structural storage choices. That not only hides the declarative domain-level meaning of the query — it's hard to tell what a query is trying to do when it's a 100-line mess of subqueries and `LEFT OUTER JOIN`s — but it also means a simple structural schema change requires auditing _every query_ for correctness.
 
-- Developers often capture less information than they perhaps should, simply because their MVP doesn't need it. It's quite common to later want to [know when a fact was recorded](https://bugzilla.mozilla.org/show_bug.cgi?id=1341939), or _in which order_ two facts were recorded (particularly for migrations)… or even that a fact was _ever_ recorded and then deleted.
+- Developers often capture less event-shaped than they perhaps should, simply because their initial requirements don't warrant it. It's quite common to later want to [know when a fact was recorded](https://bugzilla.mozilla.org/show_bug.cgi?id=1341939), or _in which order_ two facts were recorded (particularly for migrations), or on which device an event took place… or even that a fact was _ever_ recorded and then deleted.
 
 - Common queries are hard. Storing values only once, upserts, complicated joins, and group-wise maxima are all difficult for non-expert developers to get right.
 
