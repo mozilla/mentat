@@ -140,9 +140,10 @@ pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, 
 
         let tx: i64 = row.get_checked(4)?;
 
+        let borrowed_schema = schema.borrow();
         Ok(Some(Datom {
-            e: to_entid(schema.borrow(), e),
-            a: to_entid(schema.borrow(), a),
+            e: to_entid(borrowed_schema, e),
+            a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
             added: None,
@@ -172,9 +173,10 @@ pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema
         let tx: i64 = row.get_checked(4)?;
         let added: bool = row.get_checked(5)?;
 
+        let borrowed_schema = schema.borrow();
         Ok(Datom {
-            e: to_entid(schema.borrow(), e),
-            a: to_entid(schema.borrow(), a),
+            e: to_entid(borrowed_schema, e),
+            a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
             added: Some(added),
