@@ -47,13 +47,9 @@ use self::mentat_query::{
 };
 use self::mentat_parser_utils::ValueParseError;
 
-use super::errors::{
-    Error,
-    ErrorKind,
-    Result,
-};
-
 use super::parse::{
+    Result,
+    ErrorKind,
     QueryParseResult,
     clause_seq_to_patterns,
 };
@@ -127,15 +123,15 @@ fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseRes
     // Oh, if only we had `guard`.
     if let Some(find) = map.get(&kw_find) {
         if let Some(wheres) = map.get(&kw_where) {
-            return parse_find_parts(find,
-                                    map.get(&kw_in).map(|x| x.as_slice()),
-                                    map.get(&kw_with).map(|x| x.as_slice()),
-                                    wheres);
+            parse_find_parts(find,
+                             map.get(&kw_in).map(|x| x.as_slice()),
+                             map.get(&kw_with).map(|x| x.as_slice()),
+                             wheres)
         } else {
-            bail!(ErrorKind::MissingField(kw_where));
+            bail!(ErrorKind::MissingFieldError(kw_where))
         }
     } else {
-        bail!(ErrorKind::MissingField(kw_find));
+        bail!(ErrorKind::MissingFieldError(kw_find))
     }
 }
 
@@ -153,10 +149,10 @@ fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> QueryParseResult
                 m.insert(kw, vec);
                 continue;
             } else {
-                bail!(ErrorKind::InvalidInput(v));
+                bail!(ErrorKind::InvalidInputError(v))
             }
         } else {
-            bail!(ErrorKind::InvalidInput(k));
+            bail!(ErrorKind::InvalidInputError(k))
         }
     }
 
@@ -178,7 +174,7 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
             return parse_find_map(m);
         }
     }
-    bail!(ErrorKind::InvalidInput(expr));
+    bail!(ErrorKind::InvalidInputError(expr))
 }
 
 #[cfg(test)]

@@ -13,9 +13,14 @@ extern crate edn;
 extern crate mentat_parser_utils;
 extern crate mentat_query;
 
-use self::mentat_parser_utils::{ResultParser, ValueParseError};
 use self::combine::{eof, many1, optional, parser, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{choice, try};
+
+use self::mentat_parser_utils::{
+    ResultParser,
+    ValueParseError,
+};
+
 use self::mentat_query::{
     Element,
     FindQuery,
@@ -29,7 +34,49 @@ use self::mentat_query::{
     WhereClause,
 };
 
-use errors::{Error, ErrorKind, ResultExt, Result};
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
+
+    foreign_links {
+        EdnParseError(edn::parse::ParseError);
+    }
+
+    errors {
+        NotAVariableError(value: edn::Value) {
+            description("not a variable")
+            display("not a variable: '{}'", value)
+        }
+
+        FindParseError(e: ValueParseError) {
+            description(":find parse error")
+            display(":find parse error")
+        }
+
+        WhereParseError(e: ValueParseError) {
+            description(":where parse error")
+            display(":where parse error")
+        }
+
+        // Not yet used.
+        WithParseError {
+            description(":with parse error")
+            display(":with parse error")
+        }
+
+        InvalidInputError(value: edn::Value) {
+            description("invalid input")
+            display("invalid input: '{}'", value)
+        }
+
+        MissingFieldError(value: edn::Keyword) {
+            description("missing field")
+            display("missing field: '{}'", value)
+        }
+    }
+}
+
 pub type WhereParseResult = Result<Vec<WhereClause>>;
 pub type FindParseResult = Result<FindSpec>;
 pub type QueryParseResult = Result<FindQuery>;
