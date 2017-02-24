@@ -12,12 +12,16 @@ extern crate itertools;
 extern crate num;
 extern crate ordered_float;
 extern crate pretty;
+extern crate difference;
 
 pub mod symbols;
 pub mod types;
 pub mod pretty_print;
 pub mod utils;
 pub mod matcher;
+
+#[macro_use]
+pub mod text_diff;
 
 pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
