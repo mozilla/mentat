@@ -8,19 +8,26 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate mentat_core;
-extern crate mentat_query;
-extern crate mentat_query_algebrizer;
-extern crate mentat_sql;
+use rusqlite;
 
-mod translate;
-mod types;
+use mentat_query_parser;
+use mentat_sql;
 
-pub use types::{
-    Projection,
-};
+error_chain! {
+    foreign_links {
+        Rusqlite(rusqlite::Error);
+    }
 
-pub use translate::{
-    cc_to_exists,
-    cc_to_select,
-};
+    links {
+        SqlError(mentat_sql::Error, mentat_sql::ErrorKind);
+        ParseError(mentat_query_parser::Error, mentat_query_parser::ErrorKind);
+    }
+
+    errors {
+        InvalidArgumentName(name: String) {
+            description("invalid argument name")
+            display("invalid argument name: '{}'", name)
+        }
+    }
+
+}
