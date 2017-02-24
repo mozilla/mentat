@@ -24,8 +24,9 @@ use mentat_query_algebrizer::{
     SourceAlias,
 };
 
+use mentat_sql;
+
 use mentat_sql::{
-    BuildQueryError,
     BuildQueryResult,
     QueryBuilder,
     QueryFragment,
@@ -268,7 +269,7 @@ impl QueryFragment for SelectQuery {
 }
 
 impl SelectQuery {
-    pub fn to_sql_query(&self) -> Result<SQLQuery, BuildQueryError> {
+    pub fn to_sql_query(&self) -> mentat_sql::Result<SQLQuery> {
         let mut builder = SQLiteQueryBuilder::new();
         self.push_sql(&mut builder).map(|_| builder.finish())
     }

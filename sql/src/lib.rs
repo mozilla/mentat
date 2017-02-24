@@ -8,22 +8,34 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use]
+extern crate error_chain;
 extern crate ordered_float;
 extern crate mentat_core;
-
-use std::error::Error;
 
 use ordered_float::OrderedFloat;
 
 use mentat_core::TypedValue;
 
-pub type BuildQueryError = Box<Error + Send + Sync>;
-pub type BuildQueryResult = Result<(), BuildQueryError>;
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
 
-pub enum BindParamError {
-    InvalidParameterName(String),
-    BindParamCouldBeGenerated(String),
+    errors {
+        InvalidParameterName(name: String) {
+            description("invalid parameter name")
+            display("invalid parameter name: '{}'", name)
+        }
+
+        BindParamCouldBeGenerated(name: String) {
+            description("parameter name could be generated")
+            display("parameter name could be generated: '{}'", name)
+        }
+    }
 }
+
+pub type BuildQueryResult = Result<()>;
 
 /// We want to accumulate values that will later be substituted into a SQL statement execution.
 /// This struct encapsulates the generated string and the _initial_ argument list.
@@ -42,7 +54,7 @@ pub trait QueryBuilder {
     fn push_sql(&mut self, sql: &str);
     fn push_identifier(&mut self, identifier: &str) -> BuildQueryResult;
     fn push_typed_value(&mut self, value: &TypedValue) -> BuildQueryResult;
-    fn push_bind_param(&mut self, name: &str) -> Result<(), BindParamError>;
+    fn push_bind_param(&mut self, name: &str) -> BuildQueryResult;
     fn finish(self) -> SQLQuery;
 }
 
@@ -134,16 +146,16 @@ impl QueryBuilder for SQLiteQueryBuilder {
     /// returns an `InvalidParameterName` error result.
     /// Callers should make sure that the name doesn't overlap with generated parameter names. If
     /// it does, `BindParamCouldBeGenerated` is the error.
-    fn push_bind_param(&mut self, name: &str) -> Result<(), BindParamError> {
+    fn push_bind_param(&mut self, name: &str) -> BuildQueryResult {
         // Do some validation first.
         // This is not free, but it's probably worth it for now.
         if !name.chars().all(char::is_alphanumeric) {
-            return Err(BindParamError::InvalidParameterName(name.to_string()));
+            bail!(ErrorKind::InvalidParameterName(name.to_string()));
         }
 
         if name.starts_with(self.arg_prefix.as_str()) &&
            name.chars().skip(self.arg_prefix.len()).all(char::is_numeric) {
-               return Err(BindParamError::BindParamCouldBeGenerated(name.to_string()));
+               bail!(ErrorKind::BindParamCouldBeGenerated(name.to_string()));
         }
 
         self.push_sql("$");
