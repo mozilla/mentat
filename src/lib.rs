@@ -10,8 +10,10 @@
 
 #[macro_use]
 extern crate error_chain;
+
 #[macro_use]
 extern crate slog;
+
 #[macro_use]
 extern crate slog_scope;
 
@@ -21,8 +23,10 @@ extern crate edn;
 extern crate mentat_core;
 extern crate mentat_db;
 extern crate mentat_query;
-extern crate mentat_query_parser;
 extern crate mentat_query_algebrizer;
+extern crate mentat_query_parser;
+extern crate mentat_query_translator;
+extern crate mentat_sql;
 extern crate mentat_tx_parser;
 
 use rusqlite::Connection;

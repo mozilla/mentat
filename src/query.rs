@@ -11,21 +11,28 @@
 use std::collections::HashMap;
 
 use mentat_core::{
+    Schema,
     TypedValue,
 };
 
-use mentat_db::DB;
+use mentat_query_algebrizer::algebrize;
 
 use mentat_query_parser::{
     parse_find_string,
 };
 
-use errors::{
-    Result,
+use mentat_sql::{
+    SQLQuery,
 };
 
-// TODO
-pub type SQLiteConnection = ();
+use mentat_query_translator::{
+    cc_to_select,
+    Projection,
+};
+
+use errors::Result;
+
+use rusqlite;
 
 pub enum QueryResults {
     Scalar(Option<TypedValue>),
@@ -34,17 +41,39 @@ pub enum QueryResults {
     Rel(Vec<Vec<TypedValue>>),
 }
 
+pub type QueryExecutionResult = Result<QueryResults>;
+
 /// Take an EDN query string, a reference to a open SQLite connection, a Mentat DB, and an optional
 /// collection of input bindings (which should be keyed by `"?varname"`), and execute the query
 /// immediately, blocking the current thread.
 /// Returns a structure that corresponds to the kind of input query, populated with `TypedValue`
 /// instances.
+/// The caller is responsible for ensuring that the SQLite connection is in a transaction if
+/// isolation is required.
 #[allow(unused_variables)]
-pub fn q_once(sqlite: SQLiteConnection,
-              db: DB,
-              query: &str,
-              inputs: Option<HashMap<String, TypedValue>>) -> Result<QueryResults> {
+pub fn q_once<'sqlite, 'schema, 'query>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ query: &'query str,
+ inputs: Option<HashMap<String, TypedValue>>) -> QueryExecutionResult {
     // TODO: validate inputs.
     let parsed = parse_find_string(query)?;
+    let algebrized = algebrize(schema, parsed);
+    let projection = Projection::Star;
+    let select = cc_to_select(projection, algebrized.cc);
+    let SQLQuery { sql, args } = select.to_sql_query()?;
+
+    /*
+    let mut statement = sqlite.prepare(sql.as_str())?;
+
+    let mut rows = if args.is_empty() {
+        statement.query(&[])?
+    } else {
+        statement.query_named(args.map(|(k, v)| (k.as_str(), &v)))?
+    };
+    */
+
+
+
     Ok(QueryResults::Scalar(Some(TypedValue::Boolean(true))))
 }

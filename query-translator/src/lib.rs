@@ -16,6 +16,10 @@ extern crate mentat_sql;
 mod translate;
 mod types;
 
+pub use types::{
+    Projection,
+};
+
 pub use translate::{
     cc_to_exists,
     cc_to_select,
