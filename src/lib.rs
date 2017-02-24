@@ -9,6 +9,9 @@
 // specific language governing permissions and limitations under the License.
 
 #[macro_use]
+extern crate error_chain;
+
+#[macro_use]
 extern crate slog;
 #[macro_use]
 extern crate slog_scope;
@@ -19,11 +22,14 @@ extern crate edn;
 extern crate mentat_core;
 extern crate mentat_db;
 extern crate mentat_query;
-extern crate mentat_query_parser;
 extern crate mentat_query_algebrizer;
+extern crate mentat_query_parser;
+extern crate mentat_query_translator;
+extern crate mentat_sql;
 
 use rusqlite::Connection;
 
+pub mod errors;
 pub mod ident;
 pub mod query;
 
