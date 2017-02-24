@@ -25,6 +25,7 @@ extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
+extern crate mentat_query_projector;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 extern crate mentat_tx_parser;
