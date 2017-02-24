@@ -103,6 +103,9 @@ impl SchemaBuilding for Schema {
                         TypedValue::Ref(entids::DB_TYPE_LONG) => { attributes.value_type = ValueType::Long; },
                         TypedValue::Ref(entids::DB_TYPE_STRING) => { attributes.value_type = ValueType::String; },
                         TypedValue::Ref(entids::DB_TYPE_KEYWORD) => { attributes.value_type = ValueType::Keyword; },
+                        TypedValue::Ref(entids::DB_TYPE_INSTANT) => { attributes.value_type = ValueType::Instant; },
+                        TypedValue::Ref(entids::DB_TYPE_UUID) => { attributes.value_type = ValueType::UUID; },
+                        TypedValue::Ref(entids::DB_TYPE_URI) => { attributes.value_type = ValueType::URI; },
                         _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for ident '{}' and attribute '{}'", value, ident, attr)))
                     }
                 },

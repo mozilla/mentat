@@ -56,3 +56,7 @@ pub const DB_DOC: Entid = 35;
 // Added in SQL schema v2.
 pub const DB_SCHEMA_VERSION: Entid = 36;
 pub const DB_SCHEMA_ATTRIBUTE: Entid = 37;
+
+// Added in SQL schema v3.
+pub const DB_TYPE_UUID: Entid = 38;
+pub const DB_TYPE_URI: Entid = 39;
