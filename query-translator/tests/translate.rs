@@ -27,7 +27,7 @@ use mentat_core::{
 use mentat_query_parser::parse_find_string;
 use mentat_query_algebrizer::algebrize;
 use mentat_query_translator::{
-    cc_to_exists,
+    query_to_select,
 };
 
 use mentat_sql::SQLQuery;
@@ -55,7 +55,7 @@ fn test_coll() {
     let parsed = parse_find_string(input).expect("parse failed");
     let algebrized = algebrize(&schema, parsed);
     let select = query_to_select(algebrized);
-    let SQLQuery { sql, args } = select.to_sql_query().unwrap();
+    let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
 }
@@ -72,8 +72,8 @@ fn test_rel() {
     let input = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
     let parsed = parse_find_string(input).expect("parse failed");
     let algebrized = algebrize(&schema, parsed);
-    let select = cc_to_exists(algebrized.cc);
-    let SQLQuery { sql, args } = select.to_sql_query().unwrap();
-    assert_eq!(sql, "SELECT 1 FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
+    let select = query_to_select(algebrized);
+    let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
 }

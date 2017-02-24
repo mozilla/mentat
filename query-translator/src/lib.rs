@@ -11,16 +11,18 @@
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
+extern crate mentat_query_projector;
+extern crate mentat_query_sql;
 extern crate mentat_sql;
 
 mod translate;
-mod types;
 
-pub use types::{
+pub use mentat_query_sql::{
     Projection,
 };
 
 pub use translate::{
     cc_to_exists,
     cc_to_select,
+    query_to_select,
 };
