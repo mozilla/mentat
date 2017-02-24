@@ -9,24 +9,40 @@
 // specific language governing permissions and limitations under the License.
 
 use itertools::Itertools;
-use pretty;
+use pretty::{
+    BoxAllocator,
+    DocAllocator,
+    DocBuilder
+};
 
+use std::usize;
 use std::io;
 use std::borrow::Cow;
 
 use types::Value;
 
+pub struct MaxLineLength(pub usize);
+pub struct Indent(pub usize);
+
+pub enum Style {
+    Clojure(MaxLineLength),
+    Expanded(Indent)
+}
+
 impl Value {
     /// Return a pretty string representation of this `Value`.
-    pub fn to_pretty(&self, width: usize) -> Result<String, io::Error> {
+    pub fn to_pretty(&self, style: Style) -> Result<String, io::Error> {
         let mut out = Vec::new();
-        self.write_pretty(width, &mut out)?;
+        self.write_pretty(style, &mut out)?;
         Ok(String::from_utf8_lossy(&out).into_owned())
     }
 
     /// Write a pretty representation of this `Value` to the given writer.
-    pub fn write_pretty<W>(&self, width: usize, out: &mut W) -> Result<(), io::Error> where W: io::Write {
-        self.as_doc(&pretty::BoxAllocator).1.render(width, out)
+    pub fn write_pretty<W>(&self, style: Style, out: &mut W) -> Result<(), io::Error> where W: io::Write {
+        self.as_doc(&BoxAllocator, &style).1.render(match style {
+            Style::Clojure(MaxLineLength(len)) => len,
+            Style::Expanded(_) => usize::MAX,
+        }, out)
     }
 
     /// Bracket a collection of values.
@@ -37,45 +53,84 @@ impl Value {
     /// [1,
     ///  2,
     ///  3].
-    fn bracket<'a, A, T, I>(&'a self, allocator: &'a A, open: T, vs: I, close: T) -> pretty::DocBuilder<'a, A>
-    where A: pretty::DocAllocator<'a>, T: Into<Cow<'a, str>>, I: IntoIterator<Item=&'a Value> {
+    fn bracket<'a, A, T, I>(&'a self, alloc: &'a A, style: &Style, open: T, vs: I, close: T) -> DocBuilder<'a, A>
+    where A: DocAllocator<'a>, T: Into<Cow<'a, str>>, I: IntoIterator<Item=&'a Value> {
         let open = open.into();
-        let n = open.len();
-        let i = vs.into_iter().map(|v| v.as_doc(allocator)).intersperse(allocator.space());
-        allocator.text(open)
-            .append(allocator.concat(i).nest(n))
-            .append(allocator.text(close))
-            .group()
+        let close = close.into();
+        let i = vs.into_iter().map(|v| v.as_doc(alloc, style));
+        match *style {
+            Style::Clojure(_) => {
+                let n = open.len();
+                let i = i.intersperse(alloc.space());
+                alloc.text(open)
+                    .append(alloc.concat(i).nest(n))
+                    .append(alloc.text(close))
+                    .group()
+            },
+            Style::Expanded(Indent(n)) => {
+                let i = i.intersperse(alloc.newline());
+                alloc.text(open)
+                    .append(alloc.newline()
+                        .append(alloc.concat(i))
+                        .nest(n))
+                    .append(alloc.newline())
+                    .append(alloc.text(close))
+                    .group()
+            }
+        }
+    }
+
+    fn bracket_map<'a, A, T, I>(&'a self, alloc: &'a A, style: &Style, open: T, pairs: I, close: T) -> DocBuilder<'a, A>
+    where A: DocAllocator<'a>, T: Into<Cow<'a, str>>, I: IntoIterator<Item=(&'a Value, &'a Value)>, I::IntoIter: DoubleEndedIterator {
+        let open = open.into();
+        let close = close.into();
+        let i = pairs.into_iter().rev().map(|(k, v)| (k.as_doc(alloc, style), v.as_doc(alloc, style)));
+        match *style {
+            Style::Clojure(_) => {
+                let i = i.map(|(k, v)| k.append(alloc.space()).append(v).group()).intersperse(alloc.space());
+                let n = open.len();
+                alloc.text(open)
+                    .append(alloc.concat(i).nest(n))
+                    .append(alloc.text(close))
+                    .group()
+            },
+            Style::Expanded(Indent(n)) => {
+                let i = i.map(|(k, v)| k.append(alloc.newline()).append(v).group()).intersperse(alloc.newline());
+                alloc.text(open)
+                    .append(alloc.newline()
+                        .append(alloc.concat(i))
+                        .nest(n))
+                    .append(alloc.newline())
+                    .append(alloc.text(close))
+                    .group()
+            }
+        }
     }
 
     /// Recursively traverses this value and creates a pretty.rs document.
     /// This pretty printing implementation is optimized for edn queries
     /// readability and limited whitespace expansion.
-    pub fn as_doc<'a, A>(&'a self, pp: &'a A) -> pretty::DocBuilder<'a, A>
-        where A: pretty::DocAllocator<'a> {
+    pub fn as_doc<'a, A>(&'a self, alloc: &'a A, style: &Style) -> DocBuilder<'a, A>
+    where A: DocAllocator<'a> {
         match *self {
-            Value::Vector(ref vs) => self.bracket(pp, "[", vs, "]"),
-            Value::List(ref vs) => self.bracket(pp, "(", vs, ")"),
-            Value::Set(ref vs) => self.bracket(pp, "#{", vs, "}"),
-            Value::Map(ref vs) => {
-                let xs = vs.iter().rev().map(|(k, v)| k.as_doc(pp).append(pp.space()).append(v.as_doc(pp)).group()).intersperse(pp.space());
-                pp.text("{")
-                    .append(pp.concat(xs).nest(1))
-                    .append(pp.text("}"))
-                    .group()
-            }
-            Value::NamespacedSymbol(ref v) => pp.text(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
-            Value::PlainSymbol(ref v) => pp.text(v.0.as_ref()),
-            Value::NamespacedKeyword(ref v) => pp.text(":").append(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
-            Value::Keyword(ref v) => pp.text(":").append(v.0.as_ref()),
-            Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
-            _ => pp.text(self.to_string())
+            Value::Vector(ref vs) => self.bracket(alloc, style, "[", vs, "]"),
+            Value::List(ref vs) => self.bracket(alloc, style, "(", vs, ")"),
+            Value::Set(ref vs) => self.bracket(alloc, style, "#{", vs, "}"),
+            Value::Map(ref vs) => self.bracket_map(alloc, style, "{", vs, "}"),
+            Value::NamespacedSymbol(ref v) => alloc.text(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
+            Value::PlainSymbol(ref v) => alloc.text(v.0.as_ref()),
+            Value::NamespacedKeyword(ref v) => alloc.text(":").append(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
+            Value::Keyword(ref v) => alloc.text(":").append(v.0.as_ref()),
+            Value::Text(ref v) => alloc.text("\"").append(v.as_ref()).append("\""),
+            _ => alloc.text(self.to_string())
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
     use parse;
 
     #[test]
@@ -83,7 +138,7 @@ mod test {
         let string = "$";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.write_pretty(40, &mut Vec::new()).is_ok(), true);
+        assert_eq!(data.write_pretty(Style::Clojure(MaxLineLength(40)), &mut Vec::new()).is_ok(), true);
     }
 
     #[test]
@@ -91,7 +146,32 @@ mod test {
         let string = "[ [ ] ( ) #{ } { }, \"\" ]";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.to_pretty(40).unwrap(), "[[] () #{} {} \"\"]");
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(40))).unwrap(), "[[] () #{} {} \"\"]");
+    }
+
+    #[test]
+    fn test_pp_types_empty_expanded() {
+        let string = "[ [ ] ( ) #{ } { }, \"\" ]";
+        let data = parse::value(string).unwrap().without_spans();
+
+        // Ending whitespace with `\x20` to avoid editors from removing trailing
+        // whitespace and seemingly surprisingly causing this test to fail.
+        assert_eq!(data.to_pretty(Style::Expanded(Indent(4))).unwrap(), "\
+[
+    [
+       \x20
+    ]
+    (
+       \x20
+    )
+    #{
+       \x20
+    }
+    {
+       \x20
+    }
+    \"\"
+]");
     }
 
     #[test]
@@ -99,8 +179,8 @@ mod test {
         let string = "[1 2 3 4 5 6]";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.to_pretty(20).unwrap(), "[1 2 3 4 5 6]");
-        assert_eq!(data.to_pretty(10).unwrap(), "\
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(20))).unwrap(), "[1 2 3 4 5 6]");
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(10))).unwrap(), "\
 [1
  2
  3
@@ -110,15 +190,47 @@ mod test {
     }
 
     #[test]
+    fn test_vector_expanded() {
+        let string = "[1 2 3 4 5 6]";
+        let data = parse::value(string).unwrap().without_spans();
+
+        assert_eq!(data.to_pretty(Style::Expanded(Indent(4))).unwrap(), "\
+[
+    1
+    2
+    3
+    4
+    5
+    6
+]");
+    }
+
+    #[test]
     fn test_map() {
         let string = "{:a 1 :b 2 :c 3}";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.to_pretty(20).unwrap(), "{:a 1 :b 2 :c 3}");
-        assert_eq!(data.to_pretty(10).unwrap(), "\
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(20))).unwrap(), "{:a 1 :b 2 :c 3}");
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(10))).unwrap(), "\
 {:a 1
  :b 2
  :c 3}");
+    }
+
+    #[test]
+    fn test_map_expanded() {
+        let string = "{:a 1 :b 2 :c 3}";
+        let data = parse::value(string).unwrap().without_spans();
+
+        assert_eq!(data.to_pretty(Style::Expanded(Indent(4))).unwrap(), "\
+{
+    :a
+    1
+    :b
+    2
+    :c
+    3
+}");
     }
 
     #[test]
@@ -126,7 +238,7 @@ mod test {
         let string = "[ 1 2 ( 3.14 ) #{ 4N } { foo/bar 42 :baz/boz 43 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.to_pretty(40).unwrap(), "\
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(40))).unwrap(), "\
 [1
  2
  (3.14)
@@ -146,11 +258,50 @@ mod test {
     }
 
     #[test]
+    fn test_pp_types_expanded() {
+        let string = "[ 1 2 ( 3.14 ) #{ 4N } { foo/bar 42 :baz/boz 43 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]";
+        let data = parse::value(string).unwrap().without_spans();
+
+        // Ending whitespace with `\x20` to avoid editors from removing trailing
+        // whitespace and seemingly surprisingly causing this test to fail.
+        assert_eq!(data.to_pretty(Style::Expanded(Indent(4))).unwrap(), "\
+[
+    1
+    2
+    (
+        3.14
+    )
+    #{
+        4N
+    }
+    {
+        :baz/boz
+        43
+        foo/bar
+        42
+    }
+    [
+       \x20
+    ]
+    :five
+    :six/seven
+    eight
+    nine/ten
+    true
+    false
+    nil
+    #f NaN
+    #f -Infinity
+    #f +Infinity
+]");
+    }
+
+    #[test]
     fn test_pp_query1() {
         let string = "[:find ?id ?bar ?baz :in $ :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts]]";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.to_pretty(40).unwrap(), "\
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(40))).unwrap(), "\
 [:find
  ?id
  ?bar
@@ -167,11 +318,40 @@ mod test {
     }
 
     #[test]
+    fn test_pp_query1_expanded() {
+        let string = "[:find ?id ?bar ?baz :in $ :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts]]";
+        let data = parse::value(string).unwrap().without_spans();
+
+        assert_eq!(data.to_pretty(Style::Expanded(Indent(4))).unwrap(), "\
+[
+    :find
+    ?id
+    ?bar
+    ?baz
+    :in
+    $
+    :where
+    [
+        ?id
+        :session/keyword-foo
+        ?symbol1
+        ?symbol2
+        \"some string\"
+    ]
+    [
+        ?tx
+        :db/tx
+        ?ts
+    ]
+]");
+    }
+
+    #[test]
     fn test_pp_query2() {
         let string = "[:find [?id ?bar ?baz] :in [$] :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts] (not-join [?id] [?id :session/keyword-bar _])]";
         let data = parse::value(string).unwrap().without_spans();
 
-        assert_eq!(data.to_pretty(40).unwrap(), "\
+        assert_eq!(data.to_pretty(Style::Clojure(MaxLineLength(40))).unwrap(), "\
 [:find
  [?id ?bar ?baz]
  :in
@@ -186,5 +366,49 @@ mod test {
  (not-join
   [?id]
   [?id :session/keyword-bar _])]");
+    }
+
+    #[test]
+    fn test_pp_query2_expanded() {
+        let string = "[:find [?id ?bar ?baz] :in [$] :where [?id :session/keyword-foo ?symbol1 ?symbol2 \"some string\"] [?tx :db/tx ?ts] (not-join [?id] [?id :session/keyword-bar _])]";
+        let data = parse::value(string).unwrap().without_spans();
+
+        assert_eq!(data.to_pretty(Style::Expanded(Indent(4))).unwrap(), "\
+[
+    :find
+    [
+        ?id
+        ?bar
+        ?baz
+    ]
+    :in
+    [
+        $
+    ]
+    :where
+    [
+        ?id
+        :session/keyword-foo
+        ?symbol1
+        ?symbol2
+        \"some string\"
+    ]
+    [
+        ?tx
+        :db/tx
+        ?ts
+    ]
+    (
+        not-join
+        [
+            ?id
+        ]
+        [
+            ?id
+            :session/keyword-bar
+            _
+        ]
+    )
+]");
     }
 }
