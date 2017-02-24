@@ -46,8 +46,8 @@ use self::mentat_query::{
 };
 
 use super::parse::{
-    NotAVariableError,
-    QueryParseError,
+    Result,
+    ErrorKind,
     QueryParseResult,
     clause_seq_to_patterns,
 };
@@ -57,14 +57,14 @@ use super::util::vec_to_keyword_map;
 /// If the provided slice of EDN values are all variables as
 /// defined by `value_to_variable`, return a `Vec` of `Variable`s.
 /// Otherwise, return the unrecognized Value in a `NotAVariableError`.
-fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>, NotAVariableError> {
+fn values_to_variables(vals: &[edn::Value]) -> Result<Vec<Variable>> {
     let mut out: Vec<Variable> = Vec::with_capacity(vals.len());
     for v in vals {
         if let Some(var) = Variable::from_value(v) {
             out.push(var);
             continue;
         }
-        return Err(NotAVariableError(v.clone()));
+        bail!(ErrorKind::NotAVariableError(v.clone()));
     }
     return Ok(out);
 }
@@ -98,18 +98,18 @@ fn parse_find_parts(find: &[edn::Value],
     // :wheres is a whole datastructure.
     let where_clauses = clause_seq_to_patterns(wheres)?;
 
-    super::parse::find_seq_to_find_spec(find)
-        .map(|spec| {
-            FindQuery {
-                find_spec: spec,
-                default_source: source,
-                with: with_vars,
-                in_vars: vec!(),       // TODO
-                in_sources: vec!(),    // TODO
-                where_clauses: where_clauses,
-            }
+    if let Ok(spec) = super::parse::find_seq_to_find_spec(find) {
+        Ok(FindQuery {
+            find_spec: spec,
+            default_source: source,
+            with: with_vars,
+            in_vars: vec!(),       // TODO
+            in_sources: vec!(),    // TODO
+            where_clauses: where_clauses,
         })
-        .map_err(QueryParseError::FindParseError)
+    } else {
+        bail!(ErrorKind::FindParseError)
+    }
 }
 
 fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseResult {
@@ -122,15 +122,15 @@ fn parse_find_map(map: BTreeMap<edn::Keyword, Vec<edn::Value>>) -> QueryParseRes
     // Oh, if only we had `guard`.
     if let Some(find) = map.get(&kw_find) {
         if let Some(wheres) = map.get(&kw_where) {
-            return parse_find_parts(find,
-                                    map.get(&kw_in).map(|x| x.as_slice()),
-                                    map.get(&kw_with).map(|x| x.as_slice()),
-                                    wheres);
+            parse_find_parts(find,
+                             map.get(&kw_in).map(|x| x.as_slice()),
+                             map.get(&kw_with).map(|x| x.as_slice()),
+                             wheres)
         } else {
-            return Err(QueryParseError::MissingField(kw_where));
+            bail!(ErrorKind::MissingFieldError(kw_where))
         }
     } else {
-        return Err(QueryParseError::MissingField(kw_find));
+        bail!(ErrorKind::MissingFieldError(kw_find))
     }
 }
 
@@ -148,20 +148,14 @@ fn parse_find_edn_map(map: BTreeMap<edn::Value, edn::Value>) -> QueryParseResult
                 m.insert(kw, vec);
                 continue;
             } else {
-                return Err(QueryParseError::InvalidInput(v));
+                bail!(ErrorKind::InvalidInputError(v))
             }
         } else {
-            return Err(QueryParseError::InvalidInput(k));
+            bail!(ErrorKind::InvalidInputError(k))
         }
     }
 
     parse_find_map(m)
-}
-
-impl From<edn::parse::ParseError> for QueryParseError {
-    fn from(err: edn::parse::ParseError) -> QueryParseError {
-        QueryParseError::EdnParseError(err)
-    }
 }
 
 pub fn parse_find_string(string: &str) -> QueryParseResult {
@@ -179,7 +173,7 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
             return parse_find_map(m);
         }
     }
-    return Err(QueryParseError::InvalidInput(expr));
+    bail!(ErrorKind::InvalidInputError(expr))
 }
 
 #[cfg(test)]

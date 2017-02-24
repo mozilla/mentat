@@ -29,46 +29,52 @@ use self::mentat_query::{
     WhereClause,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NotAVariableError(pub edn::Value);
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
 
-#[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FindParseError {
-    Err,
-}
+    foreign_links {
+        EdnParseError(edn::parse::ParseError);
+    }
 
-#[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum WhereParseError {
-    Err,
-}
+    errors {
+        NotAVariableError(value: edn::Value) {
+            description("not a variable")
+            display("not a variable: '{}'", value)
+        }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub enum QueryParseError {
-    InvalidInput(edn::Value),
-    EdnParseError(edn::parse::ParseError),
-    MissingField(edn::Keyword),
-    FindParseError(FindParseError),
-    WhereParseError(WhereParseError),
-    WithParseError(NotAVariableError),
-}
+        FindParseError {
+            description(":find parse error")
+            display(":find parse error")
+        }
 
-impl From<WhereParseError> for QueryParseError {
-    fn from(err: WhereParseError) -> QueryParseError {
-        QueryParseError::WhereParseError(err)
+        WhereParseError {
+            description(":where parse error")
+            display(":where parse error")
+        }
+
+        // Not yet used.
+        WithParseError {
+            description(":with parse error")
+            display(":with parse error")
+        }
+
+        InvalidInputError(value: edn::Value) {
+            description("invalid input")
+            display("invalid input: '{}'", value)
+        }
+
+        MissingFieldError(value: edn::Keyword) {
+            description("missing field")
+            display("missing field: '{}'", value)
+        }
     }
 }
 
-impl From<NotAVariableError> for QueryParseError {
-    fn from(err: NotAVariableError) -> QueryParseError {
-        QueryParseError::WithParseError(err)
-    }
-}
-
-pub type WhereParseResult = Result<Vec<WhereClause>, WhereParseError>;
-pub type FindParseResult = Result<FindSpec, FindParseError>;
-pub type QueryParseResult = Result<FindQuery, QueryParseError>;
+pub type WhereParseResult = Result<Vec<WhereClause>>;
+pub type FindParseResult = Result<FindSpec>;
+pub type QueryParseResult = Result<FindQuery>;
 
 
 pub struct Query<I>(::std::marker::PhantomData<fn(I) -> I>);
@@ -219,18 +225,20 @@ def_value_parser_fn!(Find, find, FindSpec, input, {
 //
 #[allow(dead_code)]
 pub fn find_seq_to_find_spec(find: &[edn::Value]) -> FindParseResult {
-    Find::find()
-        .parse(find)
-        .map(|x| x.0)
-        .map_err(|_| FindParseError::Err)
+    if let Ok((result, _)) = Find::find().parse(find) {
+        Ok(result)
+    } else {
+        bail!(ErrorKind::FindParseError)
+    }
 }
 
 #[allow(dead_code)]
 pub fn clause_seq_to_patterns(clauses: &[edn::Value]) -> WhereParseResult {
-    Where::clauses()
-        .parse(clauses)
-        .map(|x| x.0)
-        .map_err(|_| WhereParseError::Err)
+    if let Ok((result, _)) = Where::clauses().parse(clauses) {
+        Ok(result)
+    } else {
+        bail!(ErrorKind::WhereParseError)
+    }
 }
 
 #[cfg(test)]
@@ -401,15 +409,15 @@ mod test {
                                             edn::Value::PlainSymbol(ellipsis.clone())])];
         let rel = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
 
-        assert_eq!(Ok(FindSpec::FindScalar(Element::Variable(Variable(vx.clone())))),
-                   find_seq_to_find_spec(&scalar));
-        assert_eq!(Ok(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
-                                               Element::Variable(Variable(vy.clone()))])),
-                   find_seq_to_find_spec(&tuple));
-        assert_eq!(Ok(FindSpec::FindColl(Element::Variable(Variable(vx.clone())))),
-                   find_seq_to_find_spec(&coll));
-        assert_eq!(Ok(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
-                                             Element::Variable(Variable(vy.clone()))])),
-                   find_seq_to_find_spec(&rel));
+        assert_eq!(FindSpec::FindScalar(Element::Variable(Variable(vx.clone()))),
+                   find_seq_to_find_spec(&scalar).unwrap());
+        assert_eq!(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
+                                            Element::Variable(Variable(vy.clone()))]),
+                   find_seq_to_find_spec(&tuple).unwrap());
+        assert_eq!(FindSpec::FindColl(Element::Variable(Variable(vx.clone()))),
+                   find_seq_to_find_spec(&coll).unwrap());
+        assert_eq!(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
+                                          Element::Variable(Variable(vy.clone()))]),
+                   find_seq_to_find_spec(&rel).unwrap());
     }
 }
