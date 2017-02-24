@@ -11,14 +11,25 @@
 #![allow(unused_imports)]
 
 #[macro_use]
+extern crate error_chain;
+#[macro_use]
 extern crate matches;
 
+extern crate edn;
 #[macro_use]
 extern crate mentat_parser_utils;
 
 mod util;
 mod parse;
+pub mod errors;
 pub mod find;
+
+pub use errors::{
+    Error,
+    ErrorKind,
+    ResultExt,
+    Result,
+};
 
 pub use find::{
     parse_find,
@@ -27,8 +38,4 @@ pub use find::{
 
 pub use parse::{
     QueryParseResult,
-    QueryParseError,
-    FindParseError,
-    WhereParseError,
-    NotAVariableError,
 };

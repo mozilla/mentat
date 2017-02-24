@@ -105,3 +105,85 @@ macro_rules! def_value_satisfy_parser_fn {
         });
     }
 }
+
+/// A `ValueParseError` is a `combine::primitives::ParseError`-alike that implements the `Debug`,
+/// `Display`, and `std::error::Error` traits.  In addition, it doesn't capture references, making
+/// it possible to store `ValueParseError` instances in local links with the `error-chain` crate.
+///
+/// This is achieved by wrapping slices of type `&'a [edn::Value]` in an owning type that implements
+/// `Display`; rather than introducing a newtype like `DisplayVec`, we re-use `edn::Value::Vector`.
+#[derive(PartialEq)]
+pub struct ValueParseError {
+    pub position: usize,
+    // Think of this as `Vec<Error<edn::Value, DisplayVec<edn::Value>>>`; see above.
+    pub errors: Vec<combine::primitives::Error<edn::Value, edn::Value>>,
+}
+
+impl std::fmt::Debug for ValueParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f,
+               "ParseError {{ position: {:?}, errors: {:?} }}",
+               self.position,
+               self.errors)
+    }
+}
+
+impl std::fmt::Display for ValueParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        try!(writeln!(f, "Parse error at {}", self.position));
+        combine::primitives::Error::fmt_errors(&self.errors, f)
+    }
+}
+
+impl std::error::Error for ValueParseError {
+    fn description(&self) -> &str {
+        "parse error parsing EDN values"
+    }
+}
+
+impl<'a> From<combine::primitives::ParseError<&'a [edn::Value]>> for ValueParseError {
+    fn from(e: combine::primitives::ParseError<&'a [edn::Value]>) -> ValueParseError {
+        ValueParseError {
+            position: e.position,
+            errors: e.errors.into_iter().map(|e| e.map_range(|r| {
+                let mut v = Vec::new();
+                v.extend_from_slice(r);
+                edn::Value::Vector(v)
+            })).collect(),
+        }
+    }
+}
+
+/// Allow to map the range types of combine::primitives::{Info, Error}.
+trait MapRange<R, S> {
+    type Output;
+    fn map_range<F>(self, f: F) -> Self::Output where F: FnOnce(R) -> S;
+}
+
+impl<T, R, S> MapRange<R, S> for combine::primitives::Info<T, R> {
+    type Output = combine::primitives::Info<T, S>;
+
+    fn map_range<F>(self, f: F) -> combine::primitives::Info<T, S> where F: FnOnce(R) -> S {
+        use combine::primitives::Info::*;
+        match self {
+            Token(t) => Token(t),
+            Range(r) => Range(f(r)),
+            Owned(s) => Owned(s),
+            Borrowed(x) => Borrowed(x),
+        }
+    }
+}
+
+impl<T, R, S> MapRange<R, S> for combine::primitives::Error<T, R> {
+    type Output = combine::primitives::Error<T, S>;
+
+    fn map_range<F>(self, f: F) -> combine::primitives::Error<T, S> where F: FnOnce(R) -> S {
+        use combine::primitives::Error::*;
+        match self {
+            Unexpected(x) => Unexpected(x.map_range(f)),
+            Expected(x) => Expected(x.map_range(f)),
+            Message(x) => Message(x.map_range(f)),
+            Other(x) => Other(x),
+        }
+    }
+}

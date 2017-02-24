@@ -10,8 +10,11 @@
 
 #![allow(dead_code)]
 
-extern crate edn;
 extern crate combine;
+#[macro_use]
+extern crate error_chain;
+
+extern crate edn;
 extern crate mentat_tx;
 
 #[macro_use]
@@ -22,7 +25,10 @@ use combine::combinator::{Expected, FnParser};
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
 use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, LookupRef, OpType};
-use mentat_parser_utils::ResultParser;
+use mentat_parser_utils::{ResultParser, ValueParseError};
+
+pub mod errors;
+pub use errors::*;
 
 pub struct Tx<I>(::std::marker::PhantomData<fn(I) -> I>);
 
@@ -158,14 +164,14 @@ def_parser_fn!(Tx, entities, Value, Vec<Entity>, input, {
         .parse_stream(input)
 });
 
-impl<I> Tx<I>
-    where I: Stream<Item = Value>
-{
-    pub fn parse(input: I) -> Result<Vec<Entity>, combine::ParseError<I>> {
-        (Tx::<I>::entities(), eof())
+impl<'a> Tx<&'a [edn::Value]> {
+    pub fn parse(input: &'a [edn::Value]) -> std::result::Result<Vec<Entity>, errors::Error> {
+        (Tx::<_>::entities(), eof())
             .map(|(es, _)| es)
             .parse(input)
             .map(|x| x.0)
+            .map_err::<ValueParseError, _>(|e| e.translate_position(input).into())
+            .map_err(|e| Error::from_kind(ErrorKind::ParseError(e)))
     }
 }
 

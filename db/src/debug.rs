@@ -12,6 +12,7 @@
 
 /// Low-level functions for testing.
 
+use std::borrow::Borrow;
 use std::collections::{BTreeSet};
 use std::io::{Write};
 
@@ -28,7 +29,7 @@ use entids;
 use mentat_core::TypedValue;
 use mentat_tx::entities::{Entid};
 use db::TypedSQLValue;
-use types::DB;
+use types::Schema;
 use errors::Result;
 
 /// Represents a *datom* (assertion) in the store.
@@ -106,21 +107,21 @@ impl Transactions {
 }
 
 /// Convert a numeric entid to an ident `Entid` if possible, otherwise a numeric `Entid`.
-fn to_entid(db: &DB, entid: i64) -> Entid {
-    db.schema.get_ident(entid).map_or(Entid::Entid(entid), |ident| Entid::Ident(ident.clone()))
+fn to_entid(schema: &Schema, entid: i64) -> Entid {
+    schema.get_ident(entid).map_or(Entid::Entid(entid), |ident| Entid::Ident(ident.clone()))
 }
 
 /// Return the set of datoms in the store, ordered by (e, a, v, tx), but not including any datoms of
 /// the form [... :db/txInstant ...].
-pub fn datoms(conn: &rusqlite::Connection, db: &DB) -> Result<Datoms> {
-    datoms_after(conn, db, bootstrap::TX0 - 1)
+pub fn datoms<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S) -> Result<Datoms> {
+    datoms_after(conn, schema, bootstrap::TX0 - 1)
 }
 
 /// Return the set of datoms in the store with transaction ID strictly greater than the given `tx`,
 /// ordered by (e, a, v, tx).
 ///
 /// The datom set returned does not include any datoms of the form [... :db/txInstant ...].
-pub fn datoms_after(conn: &rusqlite::Connection, db: &DB, tx: i64) -> Result<Datoms> {
+pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Datoms> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx FROM datoms WHERE tx > ? ORDER BY e ASC, a ASC, v ASC, tx ASC")?;
 
     let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| {
@@ -139,9 +140,10 @@ pub fn datoms_after(conn: &rusqlite::Connection, db: &DB, tx: i64) -> Result<Dat
 
         let tx: i64 = row.get_checked(4)?;
 
+        let borrowed_schema = schema.borrow();
         Ok(Some(Datom {
-            e: to_entid(db, e),
-            a: to_entid(db, a),
+            e: to_entid(borrowed_schema, e),
+            a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
             added: None,
@@ -155,7 +157,7 @@ pub fn datoms_after(conn: &rusqlite::Connection, db: &DB, tx: i64) -> Result<Dat
 /// given `tx`, ordered by (tx, e, a, v).
 ///
 /// Each transaction returned includes the [:db/tx :db/txInstant ...] datom.
-pub fn transactions_after(conn: &rusqlite::Connection, db: &DB, tx: i64) -> Result<Transactions> {
+pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Transactions> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e ASC, a ASC, v ASC, added ASC")?;
 
     let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| {
@@ -171,9 +173,10 @@ pub fn transactions_after(conn: &rusqlite::Connection, db: &DB, tx: i64) -> Resu
         let tx: i64 = row.get_checked(4)?;
         let added: bool = row.get_checked(5)?;
 
+        let borrowed_schema = schema.borrow();
         Ok(Datom {
-            e: to_entid(db, e),
-            a: to_entid(db, a),
+            e: to_entid(borrowed_schema, e),
+            a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
             added: Some(added),

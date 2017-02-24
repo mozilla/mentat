@@ -22,7 +22,7 @@ use itertools::Itertools;
 use rusqlite;
 use rusqlite::types::{ToSql, ToSqlOutput};
 
-use ::{now, repeat_values, to_namespaced_keyword};
+use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use edn::symbols;
@@ -35,7 +35,6 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
-use mentat_tx::entities::Entity;
 use errors::{ErrorKind, Result, ResultExt};
 use schema::SchemaBuilding;
 use types::{
@@ -44,9 +43,8 @@ use types::{
     DB,
     Partition,
     PartitionMap,
-    TxReport,
 };
-use tx::Tx;
+use tx::transact;
 
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
@@ -209,13 +207,20 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     }
 
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
-    let mut bootstrap_db = DB::new(bootstrap_partition_map, bootstrap::bootstrap_schema());
-    bootstrap_db.transact(&tx, bootstrap::bootstrap_entities())?;
+    let bootstrap_schema = bootstrap::bootstrap_schema();
+    let (_report, next_partition_map, next_schema) = transact(&tx, &bootstrap_partition_map, &bootstrap_schema, bootstrap::bootstrap_entities())?;
+    if next_schema.is_some() {
+        // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+        bail!(ErrorKind::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
+    }
 
     set_user_version(&tx, CURRENT_VERSION)?;
 
     // TODO: use the drop semantics to do this automagically?
     tx.commit()?;
+
+    // TODO: ensure that schema is not changed by bootstrap transaction.
+    let bootstrap_db = DB::new(next_partition_map, bootstrap_schema);
     Ok(bootstrap_db)
 }
 
@@ -449,7 +454,7 @@ pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
 }
 
 /// Internal representation of an [e a v added] datom, ready to be transacted against the store.
-pub type ReducedEntity = (i64, i64, TypedValue, bool);
+pub type ReducedEntity<'a> = (Entid, Entid, &'a Attribute, TypedValue, bool);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum SearchType {
@@ -457,34 +462,13 @@ pub enum SearchType {
     Inexact,
 }
 
-impl DB {
-    /// Do schema-aware typechecking and coercion.
-    ///
-    /// Either assert that the given value is in the attribute's value set, or (in limited cases)
-    /// coerce the given value into the attribute's value set.
-    pub fn to_typed_value(&self, value: &Value, attribute: &Attribute) -> Result<TypedValue> {
-        // TODO: encapsulate entid-ident-attribute for better error messages.
-        match TypedValue::from_edn_value(value) {
-            // We don't recognize this EDN at all.  Get out!
-            None => bail!(ErrorKind::BadEDNValuePair(value.clone(), attribute.value_type.clone())),
-            Some(typed_value) => match (&attribute.value_type, typed_value) {
-                // Most types don't coerce at all.
-                (&ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
-                (&ValueType::Long, tv @ TypedValue::Long(_)) => Ok(tv),
-                (&ValueType::Double, tv @ TypedValue::Double(_)) => Ok(tv),
-                (&ValueType::String, tv @ TypedValue::String(_)) => Ok(tv),
-                (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
-                // Ref coerces a little: we interpret some things depending on the schema as a Ref.
-                (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (&ValueType::Ref, TypedValue::Keyword(ref x)) => {
-                    self.schema.require_entid(&x).map(|entid| TypedValue::Ref(entid))
-                }
-                // Otherwise, we have a type mismatch.
-                (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
-            }
-        }
-    }
-
+/// `MentatStoring` will be the trait that encapsulates the storage layer.  It is consumed by the
+/// transaction processing layer.
+///
+/// Right now, the only implementation of `MentatStoring` is the SQLite-specific SQL schema.  In the
+/// future, we might consider other SQL engines (perhaps with different fulltext indexing), or
+/// entirely different data stores, say ones shaped like key-value stores.
+pub trait MentatStoring {
     /// Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.
     ///
     /// It is assumed that the attribute `a` in each lookup-ref is `:db/unique`, so that at most one
@@ -492,8 +476,135 @@ impl DB {
     /// chosen non-deterministically, if one exists.)
     ///
     /// Returns a map &(a, v) -> e, to avoid cloning potentially large values.  The keys of the map
-    /// are exactly those (a, v) pairs that have an assertion [e a v] in the datom store.
-    pub fn resolve_avs<'a>(&self, conn: &rusqlite::Connection, avs: &'a [&'a AVPair]) -> Result<AVMap<'a>> {
+    /// are exactly those (a, v) pairs that have an assertion [e a v] in the store.
+    fn resolve_avs<'a>(&self, avs: &'a [&'a AVPair]) -> Result<AVMap<'a>>;
+
+    /// Begin (or prepare) the underlying storage layer for a new Mentat transaction.
+    ///
+    /// Use this to create temporary tables, prepare indices, set pragmas, etc, before the initial
+    /// `insert_non_fts_searches` invocation.
+    fn begin_transaction(&self) -> Result<()>;
+
+    // TODO: this is not a reasonable abstraction, but I don't want to really consider non-SQL storage just yet.
+    fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
+
+    /// Finalize the underlying storage layer after a Mentat transaction.
+    ///
+    /// Use this to finalize temporary tables, complete indices, revert pragmas, etc, after the
+    /// final `insert_non_fts_searches` invocation.
+    fn commit_transaction(&self, tx_id: Entid) -> Result<()>;
+}
+
+/// Take search rows and complete `temp.search_results`.
+///
+/// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
+fn search(conn: &rusqlite::Connection) -> Result<()> {
+    // First is fast, only one table walk: lookup by exact eav.
+    // Second is slower, but still only one table walk: lookup old value by ea.
+    let s = r#"
+      INSERT INTO temp.search_results
+      SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.added0, t.flags0, ':db.cardinality/many', d.rowid, d.v
+      FROM temp.exact_searches AS t
+      LEFT JOIN datoms AS d
+      ON t.e0 = d.e AND
+         t.a0 = d.a AND
+         t.value_type_tag0 = d.value_type_tag AND
+         t.v0 = d.v
+
+      UNION ALL
+
+      SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.added0, t.flags0, ':db.cardinality/one', d.rowid, d.v
+      FROM temp.inexact_searches AS t
+      LEFT JOIN datoms AS d
+      ON t.e0 = d.e AND
+         t.a0 = d.a"#;
+
+    let mut stmt = conn.prepare_cached(s)?;
+    stmt.execute(&[])
+        .map(|_c| ())
+        .chain_err(|| "Could not search!")
+}
+
+/// Insert the new transaction into the `transactions` table.
+///
+/// This turns the contents of `search_results` into a new transaction.
+///
+/// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
+fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    let s = r#"
+      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+      SELECT e0, a0, v0, ?, 1, value_type_tag0
+      FROM temp.search_results
+      WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
+
+    let mut stmt = conn.prepare_cached(s)?;
+    stmt.execute(&[&tx])
+        .map(|_c| ())
+        .chain_err(|| "Could not insert transaction: failed to add datoms not already present")?;
+
+    let s = r#"
+      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+      SELECT e0, a0, v, ?, 0, value_type_tag0
+      FROM temp.search_results
+      WHERE rid IS NOT NULL AND
+            ((added0 IS 0) OR
+             (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v))"#;
+
+    let mut stmt = conn.prepare_cached(s)?;
+    stmt.execute(&[&tx])
+        .map(|_c| ())
+        .chain_err(|| "Could not insert transaction: failed to retract datoms already present")?;
+
+    Ok(())
+}
+
+/// Update the contents of the `datoms` materialized view with the new transaction.
+///
+/// This applies the contents of `search_results` to the `datoms` table (in place).
+///
+/// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
+fn update_datoms(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    // Delete datoms that were retracted, or those that were :db.cardinality/one and will be
+    // replaced.
+    let s = r#"
+        WITH ids AS (SELECT rid
+                     FROM temp.search_results
+                     WHERE rid IS NOT NULL AND
+                           ((added0 IS 0) OR
+                            (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v)))
+        DELETE FROM datoms WHERE rowid IN ids"#;
+
+    let mut stmt = conn.prepare_cached(s)?;
+    stmt.execute(&[])
+        .map(|_c| ())
+        .chain_err(|| "Could not update datoms: failed to retract datoms already present")?;
+
+    // Insert datoms that were added and not already present. We also must
+    // expand our bitfield into flags.
+    let s = format!(r#"
+      INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
+      SELECT e0, a0, v0, ?, value_type_tag0,
+             flags0 & {} IS NOT 0,
+             flags0 & {} IS NOT 0,
+             flags0 & {} IS NOT 0,
+             flags0 & {} IS NOT 0
+      FROM temp.search_results
+      WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#,
+      AttributeBitFlags::IndexAVET as u8,
+      AttributeBitFlags::IndexVAET as u8,
+      AttributeBitFlags::IndexFulltext as u8,
+      AttributeBitFlags::UniqueValue as u8);
+
+    let mut stmt = conn.prepare_cached(&s)?;
+    stmt.execute(&[&tx])
+        .map(|_c| ())
+        .chain_err(|| "Could not update datoms: failed to add datoms not already present")?;
+
+    Ok(())
+}
+
+impl MentatStoring for rusqlite::Connection {
+    fn resolve_avs<'a>(&self, avs: &'a [&'a AVPair]) -> Result<AVMap<'a>> {
         // Start search_id's at some identifiable number.
         let initial_search_id = 2000;
         let bindings_per_statement = 4;
@@ -537,7 +648,7 @@ impl DB {
                                      FROM t, all_datoms AS d \
                                      WHERE d.index_avet IS NOT 0 AND d.a = t.a AND d.value_type_tag = t.value_type_tag AND d.v = t.v",
                                     values);
-            let mut stmt: rusqlite::Statement = conn.prepare(s.as_str())?;
+            let mut stmt: rusqlite::Statement = self.prepare(s.as_str())?;
 
             let m: Result<Vec<(i64, Entid)>> = stmt.query_and_then(&params, |row| -> Result<(i64, Entid)> {
                 Ok((row.get_checked(0)?, row.get_checked(1)?))
@@ -557,20 +668,18 @@ impl DB {
     }
 
     /// Create empty temporary tables for search parameters and search results.
-    fn create_temp_tables(&self, conn: &rusqlite::Connection) -> Result<()> {
+    fn begin_transaction(&self) -> Result<()> {
         // We can't do this in one shot, since we can't prepare a batch statement.
         let statements = [
             r#"DROP TABLE IF EXISTS temp.exact_searches"#,
             // Note that `flags0` is a bitfield of several flags compressed via
             // `AttributeBitFlags.flags()` in the temporary search tables, later
             // expanded in the `datoms` insertion.
-            // TODO: drop tx0 entirely.
             r#"CREATE TABLE temp.exact_searches (
                e0 INTEGER NOT NULL,
                a0 SMALLINT NOT NULL,
                v0 BLOB NOT NULL,
                value_type_tag0 SMALLINT NOT NULL,
-               tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
             // There's no real need to split exact and inexact searches, so long as we keep things
@@ -582,7 +691,6 @@ impl DB {
                a0 SMALLINT NOT NULL,
                v0 BLOB NOT NULL,
                value_type_tag0 SMALLINT NOT NULL,
-               tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
@@ -593,7 +701,6 @@ impl DB {
                a0 SMALLINT NOT NULL,
                v0 BLOB NOT NULL,
                value_type_tag0 SMALLINT NOT NULL,
-               tx0 INTEGER NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL,
                search_type STRING NOT NULL,
@@ -608,7 +715,7 @@ impl DB {
         ];
 
         for statement in &statements {
-            let mut stmt = conn.prepare_cached(statement)?;
+            let mut stmt = self.prepare_cached(statement)?;
             stmt.execute(&[])
                 .map(|_c| ())
                 .chain_err(|| "Failed to create temporary tables")?;
@@ -621,8 +728,8 @@ impl DB {
     ///
     /// Eventually, the details of this approach will be captured in
     /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    pub fn insert_non_fts_searches<'a>(&self, conn: &rusqlite::Connection, entities: &'a [ReducedEntity], tx: Entid, search_type: SearchType) -> Result<()> {
-        let bindings_per_statement = 7;
+    fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity<'a>], search_type: SearchType) -> Result<()> {
+        let bindings_per_statement = 6;
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
 
@@ -633,21 +740,18 @@ impl DB {
             // We must keep these computed values somewhere to reference them later, so we can't
             // combine this map and the subsequent flat_map.
             // (e0, a0, v0, value_type_tag0, added0, flags0)
-            let block: Result<Vec<(i64 /* e */, i64 /* a */,
-                                   ToSqlOutput<'a> /* value */, /* value_type_tag */ i32,
-                                   /* added0 */ bool,
-                                   /* flags0 */ u8)>> = chunk.map(|&(e, a, ref typed_value, added)| {
+            let block: Result<Vec<(i64 /* e */,
+                                   i64 /* a */,
+                                   ToSqlOutput<'a> /* value */,
+                                   i32 /* value_type_tag */,
+                                   bool, /* added0 */
+                                   u8 /* flags0 */)>> = chunk.map(|&(e, a, ref attribute, ref typed_value, added)| {
                 count += 1;
-                let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                 // Now we can represent the typed value as an SQL value.
                 let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
 
-                let flags = attribute.flags();
-
-                Ok((e, a, value, value_type_tag,
-                    added,
-                    flags))
+                Ok((e, a, value, value_type_tag, added, attribute.flags()))
             }).collect();
             let block = block?;
 
@@ -659,21 +763,20 @@ impl DB {
                     .chain(once(a as &ToSql)
                            .chain(once(value as &ToSql)
                                   .chain(once(value_type_tag as &ToSql)
-                                         .chain(once(&tx as &ToSql)
-                                                .chain(once(to_bool_ref(added) as &ToSql)
-                                                       .chain(once(flags as &ToSql)))))))
+                                         .chain(once(to_bool_ref(added) as &ToSql)
+                                                .chain(once(flags as &ToSql))))))
             }).collect();
 
             // TODO: cache this for selected values of count.
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
-                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, tx0, added0, flags0) VALUES {}", values)
+                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
             } else {
-                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, tx0, added0, flags0) VALUES {}", values)
+                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
             };
 
             // TODO: consider ensuring we inserted the expected number of rows.
-            let mut stmt = conn.prepare_cached(s.as_str())?;
+            let mut stmt = self.prepare_cached(s.as_str())?;
             stmt.execute(&params)
                 .map(|_c| ())
                 .chain_err(|| "Could not insert non-fts one statements into temporary search table!")
@@ -682,151 +785,55 @@ impl DB {
         results.map(|_| ())
     }
 
-    /// Take search rows and complete `temp.search_results`.
-    ///
-    /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    pub fn search(&self, conn: &rusqlite::Connection) -> Result<()> {
-        // First is fast, only one table walk: lookup by exact eav.
-        // Second is slower, but still only one table walk: lookup old value by ea.
-        let s = r#"
-          INSERT INTO temp.search_results
-          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.flags0, ':db.cardinality/many', d.rowid, d.v
-          FROM temp.exact_searches AS t
-          LEFT JOIN datoms AS d
-          ON t.e0 = d.e AND
-             t.a0 = d.a AND
-             t.value_type_tag0 = d.value_type_tag AND
-             t.v0 = d.v
-
-          UNION ALL
-
-          SELECT t.e0, t.a0, t.v0, t.value_type_tag0, t.tx0, t.added0, t.flags0, ':db.cardinality/one', d.rowid, d.v
-          FROM temp.inexact_searches AS t
-          LEFT JOIN datoms AS d
-          ON t.e0 = d.e AND
-             t.a0 = d.a"#;
-
-        let mut stmt = conn.prepare_cached(s)?;
-        stmt.execute(&[])
-            .map(|_c| ())
-            .chain_err(|| "Could not search!")
-    }
-
-    /// Insert the new transaction into the `transactions` table.
-    ///
-    /// This turns the contents of `search_results` into a new transaction.
-    ///
-    /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    // TODO: capture `conn` in a `TxInternal` structure.
-    pub fn insert_transaction(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
-        let s = r#"
-          INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
-          SELECT e0, a0, v0, ?, 1, value_type_tag0
-          FROM temp.search_results
-          WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
-
-        let mut stmt = conn.prepare_cached(s)?;
-        stmt.execute(&[&tx])
-            .map(|_c| ())
-            .chain_err(|| "Could not insert transaction: failed to add datoms not already present")?;
-
-        let s = r#"
-          INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
-          SELECT e0, a0, v, ?, 0, value_type_tag0
-          FROM temp.search_results
-          WHERE rid IS NOT NULL AND
-                ((added0 IS 0) OR
-                 (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v))"#;
-
-        let mut stmt = conn.prepare_cached(s)?;
-        stmt.execute(&[&tx])
-            .map(|_c| ())
-            .chain_err(|| "Could not insert transaction: failed to retract datoms already present")?;
-
+    fn commit_transaction(&self, tx_id: Entid) -> Result<()> {
+        search(&self)?;
+        insert_transaction(&self, tx_id)?;
+        update_datoms(&self, tx_id)?;
         Ok(())
     }
+}
 
-    /// Update the contents of the `datoms` materialized view with the new transaction.
-    ///
-    /// This applies the contents of `search_results` to the `datoms` table (in place).
-    ///
-    /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
-    // TODO: capture `conn` in a `TxInternal` structure.
-    pub fn update_datoms(&self, conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
-        // Delete datoms that were retracted, or those that were :db.cardinality/one and will be
-        // replaced.
-        let s = r#"
-            WITH ids AS (SELECT rid
-                         FROM temp.search_results
-                         WHERE rid IS NOT NULL AND
-                               ((added0 IS 0) OR
-                                (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v)))
-            DELETE FROM datoms WHERE rowid IN ids"#;
-
-        let mut stmt = conn.prepare_cached(s)?;
-        stmt.execute(&[])
-            .map(|_c| ())
-            .chain_err(|| "Could not update datoms: failed to retract datoms already present")?;
-
-        // Insert datoms that were added and not already present. We also must
-        // expand our bitfield into flags.
-        let s = format!(r#"
-          INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
-          SELECT e0, a0, v0, ?, value_type_tag0,
-                 flags0 & {} IS NOT 0,
-                 flags0 & {} IS NOT 0,
-                 flags0 & {} IS NOT 0,
-                 flags0 & {} IS NOT 0
-          FROM temp.search_results
-          WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#,
-          AttributeBitFlags::IndexAVET as u8,
-          AttributeBitFlags::IndexVAET as u8,
-          AttributeBitFlags::IndexFulltext as u8,
-          AttributeBitFlags::UniqueValue as u8);
-
-        let mut stmt = conn.prepare_cached(&s)?;
-        stmt.execute(&[&tx])
-            .map(|_c| ())
-            .chain_err(|| "Could not update datoms: failed to add datoms not already present")?;
-
-        Ok(())
+/// Update the current partition map materialized view.
+// TODO: only update changed partitions.
+pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &PartitionMap) -> Result<()> {
+    let values_per_statement = 2;
+    let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
+    if partition_map.len() > max_partitions {
+        bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
     }
 
-    /// Update the current partition map materialized view.
-    // TODO: only update changed partitions.
-    pub fn update_partition_map(&self, conn: &rusqlite::Connection) -> Result<()> {
-        let values_per_statement = 2;
-        let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
-        if self.partition_map.len() > max_partitions {
-            bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
-        }
+    // Like "UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END".
+    let s = format!("UPDATE parts SET idx = CASE {} ELSE idx END",
+                    repeat("WHEN part = ? THEN ?").take(partition_map.len()).join(" "));
 
-        // Like "UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END".
-        let s = format!("UPDATE parts SET idx = CASE {} ELSE idx END",
-                        repeat("WHEN part = ? THEN ?").take(self.partition_map.len()).join(" "));
+    let params: Vec<&ToSql> = partition_map.iter().flat_map(|(name, partition)| {
+        once(name as &ToSql)
+            .chain(once(&partition.index as &ToSql))
+    }).collect();
 
-        let params: Vec<&ToSql> = self.partition_map.iter().flat_map(|(name, partition)| {
-            once(name as &ToSql)
-                .chain(once(&partition.index as &ToSql))
-        }).collect();
+    // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
+    // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
+    // so this is very low priority.
+    let mut stmt = conn.prepare_cached(s.as_str())?;
+    stmt.execute(&params[..])
+        .map(|_c| ())
+        .chain_err(|| "Could not update partition map")
+}
 
-        // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
-        // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
-        // so this is very low priority.
-        let mut stmt = conn.prepare_cached(s.as_str())?;
-        stmt.execute(&params[..])
-            .map(|_c| ())
-            .chain_err(|| "Could not update partition map")
-    }
+pub trait PartitionMapping {
+    fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S>;
+    fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S>;
+}
 
+impl PartitionMapping for PartitionMap {
     /// Allocate a single fresh entid in the given `partition`.
-    pub fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S> {
+    fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S> {
         self.allocate_entids(partition, 1).start
     }
 
     /// Allocate `n` fresh entids in the given `partition`.
-    pub fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
-        match self.partition_map.get_mut(partition) {
+    fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
+        match self.get_mut(partition) {
             Some(mut partition) => {
                 let idx = partition.index;
                 partition.index += n as i64;
@@ -835,24 +842,6 @@ impl DB {
             // This is a programming error.
             None => panic!("Cannot allocate entid from unknown partition: {}", partition),
         }
-    }
-
-    /// Transact the given `entities` against the given SQLite `conn`, using the metadata in
-    /// `self.DB`.
-    ///
-    /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
-    // TODO: move this to the transactor layer.
-    pub fn transact<I>(&mut self, conn: &rusqlite::Connection, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
-        // Eventually, this function will be responsible for managing a SQLite transaction.  For
-        // now, it's just about the tx details.
-
-        let tx_instant = now(); // Label the transaction with the timestamp when we first see it: leading edge.
-        let tx_id = self.allocate_entid(":db.part/tx");
-
-        self.create_temp_tables(conn)?;
-
-        let mut tx = Tx::new(self, conn, tx_id, tx_instant);
-        tx.transact_entities(entities)
     }
 }
 
@@ -865,6 +854,7 @@ mod tests {
     use edn::symbols;
     use mentat_tx_parser;
     use rusqlite;
+    use tx::transact;
 
     #[test]
     fn test_open_current_version() {
@@ -881,11 +871,11 @@ mod tests {
         let db = read_db(&conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
     }
@@ -898,9 +888,11 @@ mod tests {
     /// There is some magic here about transaction numbering that I don't want to commit to or
     /// document just yet.  The end state might be much more general pattern matching syntax, rather
     /// than the targeted transaction ID and timestamp replacement we have right now.
-    fn assert_transactions(conn: &rusqlite::Connection, db: &mut DB, transactions: &Vec<edn::Value>) {
-        for (index, transaction) in transactions.into_iter().enumerate() {
-            let index = index as i64;
+    // TODO: accept a `Conn`.
+    fn assert_transactions<'a>(conn: &rusqlite::Connection, partition_map: &mut PartitionMap, schema: &mut Schema, transactions: &Vec<edn::Value>) {
+        let mut index: i64 = bootstrap::TX0;
+
+        for transaction in transactions {
             let transaction = transaction.as_map().unwrap();
             let label: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "label"))).unwrap().clone();
             let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
@@ -910,10 +902,12 @@ mod tests {
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
 
-            let maybe_report = db.transact(&conn, entities);
+            let maybe_report = transact(&conn, partition_map, schema, entities);
 
             if let Some(expected_transaction) = expected_transaction {
-                if expected_transaction.is_nil() {
+                if !expected_transaction.is_nil() {
+                    index += 1;
+                } else {
                     assert!(maybe_report.is_err());
 
                     if let Some(expected_error_message) = expected_error_message {
@@ -925,10 +919,17 @@ mod tests {
                     continue
                 }
 
-                let report = maybe_report.unwrap();
-                assert_eq!(report.tx_id, bootstrap::TX0 + index + 1);
+                // TODO: test schema changes in the EDN format.
+                let (report, next_partition_map, next_schema) = maybe_report.unwrap();
+                *partition_map = next_partition_map;
+                if let Some(next_schema) = next_schema {
+                    *schema = next_schema;
+                }
 
-                let transactions = debug::transactions_after(&conn, &db, bootstrap::TX0 + index).unwrap();
+                assert_eq!(index, report.tx_id,
+                           "\n{} - expected tx_id {} but got tx_id {}", label, index, report.tx_id);
+
+                let transactions = debug::transactions_after(&conn, &schema, index - 1).unwrap();
                 assert_eq!(transactions.0.len(), 1);
                 assert_eq!(*expected_transaction,
                            transactions.0[0].into_edn(),
@@ -936,7 +937,7 @@ mod tests {
             }
 
             if let Some(expected_datoms) = expected_datoms {
-                let datoms = debug::datoms_after(&conn, &db, bootstrap::TX0).unwrap();
+                let datoms = debug::datoms_after(&conn, &schema, bootstrap::TX0).unwrap();
                 assert_eq!(*expected_datoms,
                            datoms.into_edn(),
                            "\n{} - expected datoms:\n{}\nbut got datoms:\n{}", label, *expected_datoms, datoms.into_edn())
@@ -955,11 +956,11 @@ mod tests {
         let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
@@ -967,7 +968,8 @@ mod tests {
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap().without_spans();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &mut db, transactions);
+
+        assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
     }
 
     #[test]
@@ -976,18 +978,18 @@ mod tests {
         let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap().without_spans();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &mut db, transactions);
+        assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
     }
 
     #[test]
@@ -996,17 +998,17 @@ mod tests {
         let mut db = ensure_current_version(&mut conn).unwrap();
 
         // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db, 0).unwrap();
+        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(datoms.0.len(), 88);
 
         // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db, 0).unwrap();
+        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.0.len(), 1);
         assert_eq!(transactions.0[0].0.len(), 89);
 
         let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap().without_spans();
 
         let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &mut db, transactions);
+        assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
     }
 }

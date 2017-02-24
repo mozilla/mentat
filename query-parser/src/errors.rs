@@ -8,23 +8,28 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate itertools;
-extern crate num;
-extern crate ordered_float;
-extern crate pretty;
+#![allow(dead_code)]
 
-pub mod symbols;
-pub mod types;
-pub mod pretty_print;
-pub mod utils;
-pub mod matcher;
+use edn;
+use mentat_parser_utils::ValueParseError;
 
-pub mod parse {
-    include!(concat!(env!("OUT_DIR"), "/edn.rs"));
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
+
+    foreign_links {
+        EdnParseError(edn::ParseError);
+    }
+
+    links {
+    }
+
+    errors {
+        NotAVariableError(value: edn::Value) {}
+        InvalidInput(value: edn::Value) {}
+        FindParseError(value_parse_error: ValueParseError) {}
+        WhereParseError(value_parse_error: ValueParseError) {}
+        MissingField(field: edn::Keyword) {}
+    }
 }
-
-pub use num::BigInt;
-pub use ordered_float::OrderedFloat;
-pub use parse::ParseError;
-pub use types::Value;
-pub use symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};

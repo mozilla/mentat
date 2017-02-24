@@ -8,23 +8,28 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate itertools;
-extern crate num;
-extern crate ordered_float;
-extern crate pretty;
+#![allow(dead_code)]
 
-pub mod symbols;
-pub mod types;
-pub mod pretty_print;
-pub mod utils;
-pub mod matcher;
+use rusqlite;
 
-pub mod parse {
-    include!(concat!(env!("OUT_DIR"), "/edn.rs"));
+use edn;
+use mentat_db;
+use mentat_query_parser;
+use mentat_tx_parser;
+
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
+
+    foreign_links {
+        EdnParseError(edn::ParseError);
+        Rusqlite(rusqlite::Error);
+    }
+
+    links {
+        DbError(mentat_db::Error, mentat_db::ErrorKind);
+        QueryParseError(mentat_query_parser::Error, mentat_query_parser::ErrorKind);
+        TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
+    }
 }
-
-pub use num::BigInt;
-pub use ordered_float::OrderedFloat;
-pub use parse::ParseError;
-pub use types::Value;
-pub use symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};
