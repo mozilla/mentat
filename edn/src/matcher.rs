@@ -10,7 +10,6 @@
 
 use std::collections::HashMap;
 use std::cell::RefCell;
-use itertools::diff_with;
 
 use symbols;
 use types::Value;
@@ -72,6 +71,37 @@ impl<'a> Matcher<'a> {
         matcher.match_internal::<T>(value, pattern)
     }
 
+    // This is the same as itertools::diff_with() except that it:
+    // - returns a boolean
+    // - takes account of '...' (':ellipsis' for now)
+    // - automatically calls match_internal rather than requiring an is_equal() closure
+    fn match_iter_internal<I, T>(&self, v: I, p: I) -> bool
+        where I: IntoIterator<Item=&'a Value>,
+              T: PatternMatchingRules<'a, Value> {
+        let mut v = v.into_iter();
+        let mut p = p.into_iter();
+        while let Some(v_elem) = v.next() {
+            match p.next() {
+                None => return false,
+                Some(p_elem) => {
+                    match *p_elem {
+                        Value::Keyword(ref keyword) => {
+                            // We don't support having anything after the elipsis (yet?)
+                            match p.next() { Some(_) => unimplemented!(), None => {} }
+
+                            if keyword.0 == "ellipsis" { return true }
+                        },
+                        _ => {},
+                    }
+                    if !self.match_internal::<T>(&v_elem, &p_elem) {
+                        return false;
+                    }
+                },
+            }
+        }
+        match p.next() { None => true, Some(_) => false }
+    }
+
     /// Recursively traverses two EDN `Value` instances (`value` and `pattern`)
     /// performing pattern matching. Note that the internal `placeholders` cache
     /// might not be empty on invocation.
@@ -87,9 +117,9 @@ impl<'a> Matcher<'a> {
         } else {
             match (value, pattern) {
                 (&Vector(ref v), &Vector(ref p)) =>
-                    diff_with(v, p, |a, b| self.match_internal::<T>(a, b)).is_none(),
+                    self.match_iter_internal::<_, T>(v, p),
                 (&List(ref v), &List(ref p)) =>
-                    diff_with(v, p, |a, b| self.match_internal::<T>(a, b)).is_none(),
+                    self.match_iter_internal::<_, T>(v, p),
                 (&Set(ref v), &Set(ref p)) =>
                     v.len() == p.len() &&
                     v.iter().all(|a| p.iter().any(|b| self.match_internal::<T>(a, b))) &&
@@ -577,5 +607,10 @@ mod test {
 
         assert_match!("[#{?x ?y} ?x]" =~ "[#{1 2} 1]");
         assert_match!("[#{?x ?y} ?y]" =~ "[#{1 2} 2]");
+    }
+
+    #[test]
+    fn test_match_blah() {
+        assert_match!("[1 :ellipsis]" =~ "[1 2 3]");
     }
 }
