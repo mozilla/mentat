@@ -13,7 +13,6 @@
 /// Low-level functions for testing.
 
 use std::borrow::Borrow;
-use std::collections::{BTreeSet};
 use std::io::{Write};
 
 use itertools::Itertools;
@@ -42,9 +41,18 @@ pub struct Datom {
 }
 
 /// Represents a set of datoms (assertions) in the store.
-pub struct Datoms(pub BTreeSet<Datom>);
+///
+/// To make comparision easier, we deterministically order.  The ordering is the ascending tuple
+/// ordering determined by `(e, a, (value_type_tag, v), tx)`, where `value_type_tag` is an internal
+/// value that is not exposed but is deterministic.
+pub struct Datoms(pub Vec<Datom>);
 
 /// Represents an ordered sequence of transactions in the store.
+///
+/// To make comparision easier, we deterministically order.  The ordering is the ascending tuple
+/// ordering determined by `(e, a, (value_type_tag, v), tx, added)`, where `value_type_tag` is an
+/// internal value that is not exposed but is deterministic, and `added` is ordered such that
+/// retracted assertions appear before added assertions.
 pub struct Transactions(pub Vec<Datoms>);
 
 impl Datom {
@@ -68,7 +76,7 @@ impl Datom {
 
 impl Datoms {
     pub fn into_edn(&self) -> edn::Value {
-        edn::Value::Set((&self.0).into_iter().map(|x| x.into_edn()).collect())
+        edn::Value::Vector((&self.0).into_iter().map(|x| x.into_edn()).collect())
     }
 }
 
@@ -94,7 +102,7 @@ pub fn datoms<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S) -> Res
 ///
 /// The datom set returned does not include any datoms of the form [... :db/txInstant ...].
 pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Datoms> {
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx FROM datoms WHERE tx > ? ORDER BY e ASC, a ASC, v ASC, tx ASC")?;
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx FROM datoms WHERE tx > ? ORDER BY e ASC, a ASC, value_type_tag ASC, v ASC, tx ASC")?;
 
     let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| {
         let e: i64 = row.get_checked(0)?;
@@ -130,7 +138,7 @@ pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, 
 ///
 /// Each transaction returned includes the [:db/tx :db/txInstant ...] datom.
 pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Transactions> {
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e ASC, a ASC, v ASC, added ASC")?;
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e ASC, a ASC, value_type_tag ASC, v ASC, added ASC")?;
 
     let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| {
         let e: i64 = row.get_checked(0)?;

@@ -3,12 +3,12 @@
   [[:db/add 100 :db/ident :name/Ivan]
    [:db/add 101 :db/ident :name/Petr]]
   :test/expected-transaction
-  #{[100 :db/ident :name/Ivan ?tx1 true]
-    [101 :db/ident :name/Petr ?tx1 true]
-    [?tx1 :db/txInstant ?ms1 ?tx1 true]}
+  [[100 :db/ident :name/Ivan ?tx1 true]
+   [101 :db/ident :name/Petr ?tx1 true]
+   [?tx1 :db/txInstant ?ms1 ?tx1 true]]
   :test/expected-datoms
-  #{[100 :db/ident :name/Ivan]
-    [101 :db/ident :name/Petr]}}
+  [[100 :db/ident :name/Ivan]
+   [101 :db/ident :name/Petr]]}
 
  {:test/label "upsert two tempids to same entid"
   :test/assertions
@@ -17,14 +17,14 @@
    [:db/add "t2" :db/ident :name/Petr]
    [:db/add "t2" :db.schema/attribute 101]]
   :test/expected-transaction
-  #{[100 :db.schema/attribute 100 ?tx2 true]
-    [101 :db.schema/attribute 101 ?tx2 true]
-    [?tx2 :db/txInstant ?ms2 ?tx2 true]}
+  [[100 :db.schema/attribute 100 ?tx2 true]
+   [101 :db.schema/attribute 101 ?tx2 true]
+   [?tx2 :db/txInstant ?ms2 ?tx2 true]]
   :test/expected-datoms
-  #{[100 :db/ident :name/Ivan]
-    [101 :db/ident :name/Petr]
-    [100 :db.schema/attribute 100]
-    [101 :db.schema/attribute 101]}
+  [[100 :db/ident :name/Ivan]
+   [100 :db.schema/attribute 100]
+   [101 :db/ident :name/Petr]
+   [101 :db.schema/attribute 101]]
   :test/expected-tempids
   {"t1" 100
    "t2" 101}}
@@ -35,14 +35,14 @@
    ;; Ref doesn't have to exist (at this time).  Can't reuse due to :db/unique :db.unique/value.
    [:db/add "t1" :db.schema/attribute 102]]
   :test/expected-transaction
-  #{[100 :db.schema/attribute 102 ?tx3 true]
-    [?tx3 :db/txInstant ?ms3 ?tx3 true]}
+  [[100 :db.schema/attribute 102 ?tx3 true]
+   [?tx3 :db/txInstant ?ms3 ?tx3 true]]
   :test/expected-datoms
-  #{[100 :db/ident :name/Ivan]
-    [101 :db/ident :name/Petr]
-    [100 :db.schema/attribute 100]
-    [100 :db.schema/attribute 102]
-    [101 :db.schema/attribute 101]}
+  [[100 :db/ident :name/Ivan]
+   [100 :db.schema/attribute 100]
+   [100 :db.schema/attribute 102]
+   [101 :db/ident :name/Petr]
+   [101 :db.schema/attribute 101]]
   :test/expected-tempids
   {"t1" 100}}
 
@@ -51,8 +51,8 @@
   :test/assertions
   [[:db/add "t1" :db.schema/attribute "t2"]]
   :test/expected-transaction
-  #{[65536 :db.schema/attribute 65537 ?tx4 true]
-    [?tx4 :db/txInstant ?ms4 ?tx4 true]}
+  [[65536 :db.schema/attribute 65537 ?tx4 true]
+   [?tx4 :db/txInstant ?ms4 ?tx4 true]]
   :test/expected-tempids
   {"t1" 65536
    "t2" 65537}}
@@ -74,7 +74,7 @@
    ;; This ref doesn't exist, so the assertion will be ignored.
    [:db/retract "t1" :db.schema/attribute 103]]
   :test/expected-transaction
-  #{[?tx5 :db/txInstant ?ms5 ?tx5 true]}
+  [[?tx5 :db/txInstant ?ms5 ?tx5 true]]
   :test/expected-error-message
   ""
   :test/expected-tempids
@@ -94,9 +94,9 @@
   [[:db/add "t1" :db/ident :name/Josef]
    [:db/add "t2" :db.schema/attribute "t1"]]
   :test/expected-transaction
-  #{[65538 :db/ident :name/Josef ?tx6 true]
-    [65539 :db.schema/attribute 65538 ?tx6 true]
-    [?tx6 :db/txInstant ?ms6 ?tx6 true]}
+  [[65538 :db/ident :name/Josef ?tx6 true]
+   [65539 :db.schema/attribute 65538 ?tx6 true]
+   [?tx6 :db/txInstant ?ms6 ?tx6 true]]
   :test/expected-error-message
   ""
   :test/expected-tempids
@@ -110,9 +110,9 @@
  ;;  [[:db/add "t1" :db/ident :name/Josef]
  ;;   [:db/add "t2" :db/ident "t1"]]
  ;;  :test/expected-transaction
- ;;  #{[65538 :db/ident :name/Josef]
+ ;;  [[65538 :db/ident :name/Josef]
  ;;    [65538 :db/ident :name/Karl]
- ;;    [?tx8 :db/txInstant ?ms8 ?tx8 true]}
+ ;;    [?tx8 :db/txInstant ?ms8 ?tx8 true]]
  ;;  :test/expected-error-message
  ;;  ""
  ;;  :test/expected-tempids
