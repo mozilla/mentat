@@ -12,9 +12,60 @@ We are in the early stages of reimplementing Datomish in [Rust](https://www.rust
 
 Datomish is intended to be a flexible relational (not key-value, not document-oriented) store that doesn't leak its storage schema to users, and doesn't make it hard to grow its domain schema and run arbitrary queries.
 
-Our short-term goal is to build a system that, as the basis for a User Agent Service, can support multiple [Tofino](https://github.com/mozilla/tofino) UX experiments without having a storage engineer do significant data migration, schema work, or revving of special-purpose endpoints.
+Our short-term goal for Project Mentat is to build a system that, as the basis for a User Agent Service, can support multiple [Tofino](https://github.com/mozilla/tofino) UX experiments without having a storage engineer do significant data migration, schema work, or revving of special-purpose endpoints.
 
 By abstracting away the storage schema, and by exposing change listeners outside the database (not via triggers), we hope to allow both the data store itself and embedding applications to use better architectures, meeting performance goals in a way that allows future evolution.
+
+## Data storage is hard
+
+We've observed that data storage is a particular area of difficulty for software development teams:
+
+- It's hard to define storage schemas well. A developer must:
+  - Model their domain entities and relationships.
+  - Encode that model _efficiently_ and _correctly_ using the features available in the database.
+  - Plan for future extensions and performance tuning.
+  
+  In a SQL database, the same schema definition defines everything from high-level domain relationships through to numeric field sizes in the same smear of keywords. It's difficult for someone unfamiliar with the domain to determine from such a schema what's a domain fact and what's an implementation concession — are all part numbers always 16 characters long, or are we trying to save space? — or, indeed, whether a missing constraint is deliberate or a bug.
+  
+  The developer must think about foreign key constraints, compound uniqueness, and nullability. They must consider indexing, synchronizing, and stable identifiers. Most developers simply don't do enough work in SQL to get all of these things right. Storage thus becomes the specialty of a few individuals.
+
+   Which one of these is correct?
+   
+   ```edn
+   {:db/id          :person/email
+     :db/valueType   :db.type/string
+     :db/cardinality :db.cardinality/many     ; People can have multiple email addresses.
+     :db/unique      :db.unique/identity      ; For our purposes, each email identifies one person.
+     :db/index       true}                    ; We want fast lookups by email.         
+   {:db/id          :person/friend
+     :db/valueType   :db.type/ref
+     :db/cardinality :db.cardinality/many}    ; People can have many friends.
+   ```
+   ```sql
+   CREATE TABLE people (
+     id INTEGER PRIMARY KEY,  -- Bug: because of the primary key, each person can have no more than 1 email.
+     email VARCHAR(64),       -- Bug?: no NOT NULL, so a person can have no email.
+                              -- Bug: nobody will ever have a long email address, right?
+   );
+   CREATE TABLE friendships (
+     FOREIGN KEY person REFERENCES people(id),  -- Bug?: no indexing, so lookups by friend or person will be slow.
+     FOREIGN KEY friend REFERENCES people(id),  -- Bug: no compound uniqueness constraint, so we can have dupe friendships.
+   );
+   ```
+   
+   They both have limitations — the Mentat schema allows only for an open world (it's possible to declare friendships with people whose email isn't known), and requires validation code to enforce email string correctness — but we think that even such a tiny SQL example is harder to understand and obscures important domain decisions.
+
+- Queries are intimately tied to structural storage choices. That not only hides the declarative domain-level meaning of the query — it's hard to tell what a query is trying to do when it's a 100-line mess of subqueries and `LEFT OUTER JOIN`s — but it also means a simple structural schema change requires auditing _every query_ for correctness.
+
+- Developers often capture less event-shaped than they perhaps should, simply because their initial requirements don't warrant it. It's quite common to later want to [know when a fact was recorded](https://bugzilla.mozilla.org/show_bug.cgi?id=1341939), or _in which order_ two facts were recorded (particularly for migrations), or on which device an event took place… or even that a fact was _ever_ recorded and then deleted.
+
+- Common queries are hard. Storing values only once, upserts, complicated joins, and group-wise maxima are all difficult for non-expert developers to get right.
+
+- It's hard to evolve storage schemas. Writing a robust SQL schema migration is hard, particularly if a bad migration has ever escaped into the wild! Teams learn to fear and avoid schema changes, and eventually they ship a table called `metadata`, with three `TEXT` columns, so they never have to write a migration again. That decision pushes storage complexity into application code. (Or they start storing unversioned JSON blobs in the database…)
+
+- It's hard to share storage with another component, let alone share _data_ with another component. Conway's Law applies: your software system will often grow to have one database per team.
+
+- It's hard to build efficient storage and querying architectures. Materialized views require knowledge of triggers, or the implementation of bottleneck APIs. _Ad hoc_ caches are often wrong, are almost never formally designed (do you want a write-back, write-through, or write-around cache? Do you know the difference?), and often aren't reusable. The average developer, faced with a SQL database, has little choice but to build a simple table that tries to meet every need.
 
 
 ## Comparison to DataScript
@@ -47,7 +98,7 @@ Datomish is designed for embedding, initially in an Electron app ([Tofino](https
 
 ## Comparison to SQLite
 
-SQLite is a traditional SQL database in most respects: schemas conflate semantic, structural, and datatype concerns; the main interface with the database is human-first textual queries; sparse and graph-structured data are 'unnatural', if not always inefficient; experimenting with and evolving data models are error-prone and complicated activities; and so on.
+SQLite is a traditional SQL database in most respects: schemas conflate semantic, structural, and datatype concerns, as described above; the main interface with the database is human-first textual queries; sparse and graph-structured data are 'unnatural', if not always inefficient; experimenting with and evolving data models are error-prone and complicated activities; and so on.
 
 Datomish aims to offer many of the advantages of SQLite — single-file use, embeddability, and good performance — while building a more relaxed and expressive data model on top.
 
