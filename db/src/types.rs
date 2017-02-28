@@ -88,4 +88,11 @@ pub struct TxReport {
     /// This is milliseconds after the Unix epoch according to the transactor's local clock.
     // TODO: :db.type/instant.
     pub tx_instant: i64,
+
+    /// A map from string literal tempid to resolved or allocated entid.
+    ///
+    /// Every string literal tempid presented to the transactor either resolves via upsert to an
+    /// existing entid, or is allocated a new entid.  (It is possible for multiple distinct string
+    /// literal tempids to all unify to a single freshly allocated entid.)
+    pub tempids: BTreeMap<String, Entid>,
 }

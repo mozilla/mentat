@@ -860,6 +860,7 @@ mod tests {
     use edn;
     use mentat_tx_parser;
     use rusqlite;
+    use std::collections::BTreeMap;
     use types::TxReport;
     use tx;
 
@@ -932,6 +933,14 @@ mod tests {
                        partition_map: db.partition_map,
                        schema: db.schema }
         }
+    }
+
+    fn tempids(report: &TxReport) -> edn::Value {
+        let mut map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
+        for (tempid, &entid) in report.tempids.iter() {
+            map.insert(edn::Value::Text(tempid.clone()), edn::Value::Integer(entid));
+        }
+        edn::Value::Map(map)
     }
 
     #[test]
@@ -1086,7 +1095,6 @@ mod tests {
 
     #[test]
     fn test_upsert_vector() {
-        // TODO: assert the tempids allocated throughout.
         let mut conn = TestConn::default();
 
         // Insert some :db.unique/identity elements.
@@ -1101,10 +1109,10 @@ mod tests {
                           [101 :db/ident :name/Petr]]");
 
         // Upserting two tempids to the same entid works.
-        conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                        [:db/add \"t1\" :db.schema/attribute 100]
-                        [:db/add \"t2\" :db/ident :name/Petr]
-                        [:db/add \"t2\" :db.schema/attribute 101]]").unwrap();
+        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                                     [:db/add \"t1\" :db.schema/attribute 100]
+                                     [:db/add \"t2\" :db/ident :name/Petr]
+                                     [:db/add \"t2\" :db.schema/attribute 101]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/attribute 100 ?tx true]
                           [101 :db.schema/attribute 101 ?tx true]
@@ -1114,11 +1122,14 @@ mod tests {
                           [100 :db.schema/attribute 100]
                           [101 :db/ident :name/Petr]
                           [101 :db.schema/attribute 101]]");
+        assert_matches!(tempids(&report),
+                        "{\"t1\" 100
+                          \"t2\" 101}");
 
         // Upserting a tempid works.  The ref doesn't have to exist (at this time), but we can't
         // reuse an existing ref due to :db/unique :db.unique/value.
-        conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                        [:db/add \"t1\" :db.schema/attribute 102]]").unwrap();
+        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                                     [:db/add \"t1\" :db.schema/attribute 102]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/attribute 102 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
@@ -1128,12 +1139,18 @@ mod tests {
                           [100 :db.schema/attribute 102]
                           [101 :db/ident :name/Petr]
                           [101 :db.schema/attribute 101]]");
+        assert_matches!(tempids(&report),
+                        "{\"t1\" 100}");
+
 
         // A single complex upsert allocates a new entid.
-        conn.transact("[[:db/add \"t1\" :db.schema/attribute \"t2\"]]").unwrap();
+        let report = conn.transact("[[:db/add \"t1\" :db.schema/attribute \"t2\"]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[65536 :db.schema/attribute 65537 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{\"t1\" 65536
+                          \"t2\" 65537}");
 
         // Conflicting upserts fail.
         let err = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
@@ -1146,19 +1163,24 @@ mod tests {
 
         // tempids in :db/retract that do upsert are retracted.  The ref given doesn't exist, so the
         // assertion will be ignored.
-        conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                        [:db/retract \"t1\" :db.schema/attribute 103]]").unwrap();
+        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                                     [:db/retract \"t1\" :db.schema/attribute 103]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{\"t1\" 100}");
 
         // A multistep upsert.  The upsert algorithm will first try to resolve "t1", fail, and then
         // allocate both "t1" and "t2".
-        conn.transact("[[:db/add \"t1\" :db/ident :name/Josef]
-                        [:db/add \"t2\" :db.schema/attribute \"t1\"]]").unwrap();
+        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Josef]
+                                     [:db/add \"t2\" :db.schema/attribute \"t1\"]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[65538 :db/ident :name/Josef ?tx true]
                           [65539 :db.schema/attribute 65538 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{\"t1\" 65538
+                          \"t2\" 65539}");
 
         // A multistep insert.  This time, we can resolve both, but we have to try "t1", succeed,
         // and then resolve "t2".

@@ -47,7 +47,10 @@
 
 use std;
 use std::borrow::Cow;
-use std::collections::BTreeSet;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
 
 use ::{to_namespaced_keyword};
 use db;
@@ -164,9 +167,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// Pipeline stage 1: convert `Entity` instances into `Term` instances, ready for term
     /// rewriting.
     ///
-    /// The `Term` instances produce share interned TempId and LookupRef handles.
-    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<Vec<TermWithTempIdsAndLookupRefs>> where I: IntoIterator<Item=Entity> {
+    /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
+    /// interned handle sets so that consumers can ensure all handles are used appropriately.
+    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<String>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
         let mut temp_ids = intern_set::InternSet::new();
+        // #183: We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
+        let lookup_refs = intern_set::InternSet::new();
 
         entities.into_iter()
             .map(|entity: Entity| -> Result<TermWithTempIdsAndLookupRefs> {
@@ -218,6 +224,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 }
             })
             .collect::<Result<Vec<_>>>()
+            .map(|terms| (terms, temp_ids, lookup_refs))
     }
 
     /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
@@ -242,16 +249,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     // TODO: move this to the transactor layer.
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         // TODO: push these into an internal transaction report?
+        let mut tempids: BTreeMap<String, Entid> = BTreeMap::default();
 
-        // We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
-        let lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
-
-        // TODO: extract the tempids set as well.
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
-        let terms_with_temp_ids_and_lookup_refs = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
+        let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
         // Pipeline stage 2: resolve lookup refs -> terms with tempids.
-        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_refs.inner.iter().map(|rc| &**rc).collect();
+        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_ref_set.inner.iter().map(|rc| &**rc).collect();
         let lookup_ref_map: AVMap = self.store.resolve_avs(&lookup_ref_avs[..])?;
 
         let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
@@ -263,8 +267,24 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // And evolve them forward.
         while generation.can_evolve() {
             // Evolve further.
-            let temp_id_map = self.resolve_temp_id_avs(&generation.temp_id_avs()[..])?;
+            let temp_id_map: TempIdMap = self.resolve_temp_id_avs(&generation.temp_id_avs()[..])?;
             generation = generation.evolve_one_step(&temp_id_map);
+
+            // Report each tempid that resolves via upsert.
+            for (tempid, &entid) in &temp_id_map {
+                // Every tempid should be resolved at most once.  Prima facie, we might expect a
+                // tempid to be resolved in two different generations.  However, that is not so: the
+                // keys of temp_id_map are unique between generations.Suppose that id->e and id->e*
+                // are two such mappings, resolved on subsequent evolutionary steps, and that `id`
+                // is a key in the intersection of the two key sets. This can't happen: if `id` maps
+                // to `e` via id->e, all instances of `id` have been evolved forward (replaced with
+                // `e`) before we try to resolve the next set of `UpsertsE`.  That is, we'll never
+                // successfully upsert the same tempid in more than one generation step.  (We might
+                // upsert the same tempid to multiple entids via distinct `[a v]` pairs in a single
+                // generation step; in this case, the transaction will fail.)
+                assert!(!tempids.contains_key(&**tempid));
+                tempids.insert((**tempid).clone(), entid);
+            }
         }
 
         // Allocate entids for tempids that didn't upsert.  BTreeSet rather than HashSet so this is deterministic.
@@ -276,6 +296,19 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
 
         let final_populations = generation.into_final_populations(&temp_id_allocations)?;
+
+        // Report each tempid that is allocated.
+        for (tempid, &entid) in &temp_id_allocations {
+            // Every tempid should be allocated at most once.
+            assert!(!tempids.contains_key(&**tempid));
+            tempids.insert((**tempid).clone(), entid);
+        }
+
+        // Verify that every tempid we interned either resolved or has been allocated.
+        assert_eq!(tempids.len(), tempid_set.inner.len());
+        for tempid in &tempid_set.inner {
+            assert!(tempids.contains_key(&**tempid));
+        }
 
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
@@ -333,6 +366,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         Ok(TxReport {
             tx_id: self.tx_id,
             tx_instant: self.tx_instant,
+            tempids: tempids,
         })
     }
 }
