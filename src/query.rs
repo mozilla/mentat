@@ -20,6 +20,11 @@ use mentat_core::{
 
 use mentat_query_algebrizer::algebrize;
 
+pub use mentat_query::{
+    NamespacedKeyword,
+    PlainSymbol,
+};
+
 use mentat_query_parser::{
     parse_find_string,
 };
@@ -32,7 +37,7 @@ use mentat_query_translator::{
     query_to_select,
 };
 
-use mentat_query_projector::{
+pub use mentat_query_projector::{
     QueryResults,
 };
 

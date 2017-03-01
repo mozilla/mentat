@@ -46,6 +46,17 @@ pub fn get_connection() -> Connection {
     return Connection::open_in_memory().unwrap();
 }
 
+pub use mentat_db::{
+    new_connection,
+};
+
+pub use query::{
+    NamespacedKeyword,
+    PlainSymbol,
+    QueryResults,
+    q_once,
+};
+
 #[cfg(test)]
 mod tests {
     use edn::symbols::Keyword;
