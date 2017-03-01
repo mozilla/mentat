@@ -40,6 +40,11 @@ mod upsert_resolution;
 mod values;
 mod tx;
 
+pub use db::{
+    SQLValueType,
+    TypedSQLValue,
+};
+
 pub use tx::transact;
 pub use types::{
     DB,
