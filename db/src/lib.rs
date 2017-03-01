@@ -43,6 +43,7 @@ mod tx;
 pub use db::{
     SQLValueType,
     TypedSQLValue,
+    new_connection,
 };
 
 pub use tx::transact;
