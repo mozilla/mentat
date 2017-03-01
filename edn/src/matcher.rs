@@ -73,33 +73,38 @@ impl<'a> Matcher<'a> {
 
     // This is the same as itertools::diff_with() except that it:
     // - returns a boolean
-    // - takes account of '...' (':ellipsis' for now)
+    // - takes account of '...'
     // - automatically calls match_internal rather than requiring an is_equal() closure
-    fn match_iter_internal<I, T>(&self, v: I, p: I) -> bool
-        where I: IntoIterator<Item=&'a Value>,
+    fn match_iter_internal<II, T>(&self, values: II, patterns: II) -> bool
+        where II: IntoIterator<Item=&'a Value>,
               T: PatternMatchingRules<'a, Value> {
-        let mut v = v.into_iter();
-        let mut p = p.into_iter();
-        while let Some(v_elem) = v.next() {
-            match p.next() {
-                None => return false,
-                Some(p_elem) => {
-                    match *p_elem {
-                        Value::Keyword(ref keyword) => {
-                            // We don't support having anything after the elipsis (yet?)
-                            match p.next() { Some(_) => unimplemented!(), None => {} }
+        let mut values = values.into_iter();
+        let mut patterns = patterns.into_iter();
 
-                            if keyword.0 == "ellipsis" { return true }
+        while let Some(value) = values.next() {
+            match patterns.next() {
+                None => { return false; },
+                Some(match_elem) => {
+                    match *match_elem {
+                        Value::PlainSymbol(ref symbol) if symbol.0 == "..." => {
+                            // We don't support having anything after the ellipsis
+                            match patterns.next() { Some(_) => unimplemented!(), None => {} }
+                            return true;
                         },
                         _ => {},
                     }
-                    if !self.match_internal::<T>(&v_elem, &p_elem) {
+                    if !self.match_internal::<T>(&value, &match_elem) {
                         return false;
                     }
                 },
             }
         }
-        match p.next() { None => true, Some(_) => false }
+
+        match patterns.next() {
+            None => true,
+            Some(&Value::PlainSymbol(ref symbol)) if symbol.0 == "..." => true,
+            _ => false,
+        }
     }
 
     /// Recursively traverses two EDN `Value` instances (`value` and `pattern`)
@@ -108,6 +113,7 @@ impl<'a> Matcher<'a> {
     fn match_internal<T>(&self, value: &'a Value, pattern: &'a Value) -> bool
     where T: PatternMatchingRules<'a, Value> {
         use Value::*;
+        let ellipsis = Value::PlainSymbol(symbols::PlainSymbol::new(r"..."));
 
         if T::matches_any(pattern) {
             true
@@ -124,10 +130,37 @@ impl<'a> Matcher<'a> {
                     v.len() == p.len() &&
                     v.iter().all(|a| p.iter().any(|b| self.match_internal::<T>(a, b))) &&
                     p.iter().all(|b| v.iter().any(|a| self.match_internal::<T>(a, b))),
-                (&Map(ref v), &Map(ref p)) =>
-                    v.len() == p.len() &&
-                    v.iter().all(|a| p.iter().any(|b| self.match_internal::<T>(a.0, b.0) && self.match_internal::<T>(a.1, b.1))) &&
-                    p.iter().all(|b| v.iter().any(|a| self.match_internal::<T>(a.0, b.0) && self.match_internal::<T>(a.1, b.1))),
+                (&Map(ref values), &Map(ref patterns)) => {
+                    if !patterns.contains_key(&ellipsis) && values.len() != patterns.len() {
+                        return false;
+                    }
+
+                    // ellipsis:not-ellipsis is an error
+                    match patterns.get(&ellipsis) {
+                        Some(value) if value != &ellipsis => unimplemented!(),
+                        _ => {},
+                    }
+
+                    let all_values_match_a_pattern = values.iter().all(|value_entry| {
+                        patterns.iter().any(|pattern_entry| {
+                            pattern_entry.0 == &ellipsis || (
+                                self.match_internal::<T>(value_entry.0, pattern_entry.0) &&
+                                self.match_internal::<T>(value_entry.1, pattern_entry.1)
+                            )
+                        })
+                    });
+
+                    let all_patterns_match_a_value = patterns.iter().all(|pattern_entry| {
+                        values.iter().any(|value_entry| {
+                            pattern_entry.0 == &ellipsis || (
+                                self.match_internal::<T>(value_entry.0, pattern_entry.0) &&
+                                self.match_internal::<T>(value_entry.1, pattern_entry.1)
+                            )
+                        })
+                    });
+
+                    all_patterns_match_a_value && all_values_match_a_pattern
+                },
                 _ => value == pattern
             }
         }
@@ -310,7 +343,7 @@ mod test {
 
     #[test]
     fn test_match_any_in_list_with_multiple_values() {
-        assert_match!("(_ 2)" =~ "(1 2)");
+        assert_match!("(1 2)" =~ "(1 2)");
         assert_match!("(1 _)" =~ "(1 2)");
         assert_match!("(1 _ 3 4)" =~ "(1 2 3 4)");
         assert_match!("(1 (2 (3 _)) 5 (_ 7))" =~ "(1 (2 (3 4)) 5 (6 7))");
@@ -596,6 +629,17 @@ mod test {
     }
 
     #[test]
+    fn test_match_map_ellipsis() {
+        assert_match!("{a 1, ... ...}"           =~ "{a 1, b 2, c 3}");
+        assert_match!("{a 1, b 2, ... ...}"      =~ "{a 1, b 2, c 3}");
+        assert_match!("{a 1, b 2, c 3, ... ...}" =~ "{a 1, b 2, c 3}");
+
+        assert_match!("{a 1, ... ...}"                 =~ "{a 1, (x y) [z], c 3}");
+        assert_match!("{a 1, (x y) [z], ... ...}"      =~ "{a 1, (x y) [z], c 3}");
+        assert_match!("{a 1, (x y) [z], c 3, ... ...}" =~ "{a 1, (x y) [z], c 3}");
+    }
+
+    #[test]
     fn test_match_placeholder_in_different_value_types() {
         assert_match!("{1 {2 [3 ?x]}, 5 (?y 7)}" =~ "{1 {2 [3 4]}, 5 (6 7)}");
         assert_match!("{1 {2 [3 ?x]}, 5 (?y 7)}" =~ "{1 {2 [3 4]}, 5 (4 7)}");
@@ -610,7 +654,24 @@ mod test {
     }
 
     #[test]
-    fn test_match_blah() {
-        assert_match!("[1 :ellipsis]" =~ "[1 2 3]");
+    fn test_match_ellipsis_match_some() {
+        assert_match!("(1 ...)" =~ "(1 2 3)");
+        assert_match!("[1 ...]" =~ "[1 2 3]");
+        assert_match!("#{1 ...}" !~ "#{1 2 3}");
+
+        assert_match!("(1 2 ...)" =~ "(1 2 3)");
+        assert_match!("[1 2 ...]" =~ "[1 2 3]");
+        assert_match!("#{1 2 ...}" !~ "#{1 2 3}");
+
+        assert_match!("(1 2 3 ...)" =~ "(1 2 3)");
+        assert_match!("[1 2 3 ...]" =~ "[1 2 3]");
+        assert_match!("#{1 2 3 ...}" !~ "#{1 2 3}");
+    }
+
+    #[test]
+    fn test_match_ellipsis_match_none() {
+        assert_match!("(...)" =~ "()");
+        assert_match!("[...]" =~ "[]");
+        assert_match!("#{...}" !~ "#{}");
     }
 }
