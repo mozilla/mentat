@@ -41,14 +41,14 @@ use query::{
 ///
 /// See https://github.com/mozilla/mentat/wiki/Thoughts:-modeling-db-conn-in-Rust.
 pub struct Metadata {
-    pub generation: usize,
+    pub generation: u64,
     pub partition_map: PartitionMap,
     pub schema: Arc<Schema>,
 }
 
 impl Metadata {
     // Intentionally not public.
-    fn new(generation: usize, partition_map: PartitionMap, schema: Arc<Schema>) -> Metadata {
+    fn new(generation: u64, partition_map: PartitionMap, schema: Arc<Schema>) -> Metadata {
         Metadata {
             generation: generation,
             partition_map: partition_map,
@@ -101,17 +101,19 @@ impl Conn {
         //
         // This approach might need to change when we support interrupting query threads (#297), and
         // will definitely need to change if we support interrupting transactor threads.
+        //
+        // Improving this is tracked by https://github.com/mozilla/mentat/issues/356.
         self.metadata.lock().unwrap().schema.clone()
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.
     pub fn q_once<T>(&self,
-                     _sqlite: &rusqlite::Connection,
+                     sqlite: &rusqlite::Connection,
                      query: &str,
                      inputs: T) -> Result<QueryResults>
         where T: Into<Option<HashMap<String, TypedValue>>> {
 
-        q_once((), // TODO: _sqlite,
+        q_once(sqlite,
                &*self.current_schema(),
                query,
                inputs.into())
@@ -149,6 +151,7 @@ impl Conn {
 
             if current_generation != metadata.generation {
                 // Somebody else wrote!
+                // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
                 bail!("Lost the transact() race!");
             }
 
