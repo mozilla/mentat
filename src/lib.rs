@@ -33,6 +33,7 @@ use rusqlite::Connection;
 
 pub mod errors;
 pub mod ident;
+pub mod conn;
 pub mod query;
 
 pub fn get_name() -> String {

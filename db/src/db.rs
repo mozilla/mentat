@@ -208,7 +208,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
 
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
     let bootstrap_schema = bootstrap::bootstrap_schema();
-    let (_report, next_partition_map, next_schema) = transact(&tx, &bootstrap_partition_map, &bootstrap_schema, bootstrap::bootstrap_entities())?;
+    let (_report, next_partition_map, next_schema) = transact(&tx, bootstrap_partition_map, &bootstrap_schema, bootstrap::bootstrap_entities())?;
     if next_schema.is_some() {
         // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
         bail!(ErrorKind::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
@@ -902,7 +902,7 @@ mod tests {
 
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
 
-            let maybe_report = transact(&conn, partition_map, schema, entities);
+            let maybe_report = transact(&conn, partition_map.clone(), schema, entities);
 
             if let Some(expected_transaction) = expected_transaction {
                 if !expected_transaction.is_nil() {
