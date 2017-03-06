@@ -48,11 +48,17 @@ path = "db"
 [dependencies.mentat_query]
 path = "query"
 
+[dependencies.mentat_query_algebrizer]
+path = "query-algebrizer"
+
 [dependencies.mentat_query_parser]
 path = "query-parser"
 
-[dependencies.mentat_query_algebrizer]
-path = "query-algebrizer"
+[dependencies.mentat_query_projector]
+path = "query-projector"
+
+[dependencies.mentat_query_sql]
+path = "query-sql"
 
 [dependencies.mentat_query_translator]
 path = "query-translator"

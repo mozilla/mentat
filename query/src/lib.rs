@@ -340,35 +340,48 @@ pub enum FindSpec {
 }
 
 /// Returns true if the provided `FindSpec` returns at most one result.
-pub fn is_unit_limited(spec: &FindSpec) -> bool {
-    match spec {
-        &FindSpec::FindScalar(..) => true,
-        &FindSpec::FindTuple(..)  => true,
-        &FindSpec::FindRel(..)    => false,
-        &FindSpec::FindColl(..)   => false,
+impl FindSpec {
+    pub fn is_unit_limited(&self) -> bool {
+        use FindSpec::*;
+        match self {
+            &FindScalar(..) => true,
+            &FindTuple(..)  => true,
+            &FindRel(..)    => false,
+            &FindColl(..)   => false,
+        }
     }
-}
 
-/// Returns true if the provided `FindSpec` cares about distinct results.
-///
-/// I use the words "cares about" because find is generally defined in terms of producing distinct
-/// results at the Datalog level.
-///
-/// Two of the find specs (scalar and tuple) produce only a single result. Those don't need to be
-/// run with `SELECT DISTINCT`, because we're only consuming a single result. Those queries will be
-/// run with `LIMIT 1`.
-///
-/// Additionally, some projections cannot produce duplicate results: `[:find (max ?x) …]`, for
-/// example.
-///
-/// This function gives us the hook to add that logic when we're ready.
-///
-/// Beyond this, `DISTINCT` is not always needed. For example, in some kinds of accumulation or
-/// sampling projections we might not need to do it at the SQL level because we're consuming into
-/// a dupe-eliminating data structure like a Set, or we know that a particular query cannot produce
-/// duplicate results.
-pub fn requires_distinct(spec: &FindSpec) -> bool {
-    return !is_unit_limited(spec);
+    pub fn expected_column_count(&self) -> usize {
+        use FindSpec::*;
+        match self {
+            &FindScalar(..) => 1,
+            &FindColl(..)   => 1,
+            &FindTuple(ref elems) | &FindRel(ref elems) => elems.len(),
+        }
+    }
+
+
+    /// Returns true if the provided `FindSpec` cares about distinct results.
+    ///
+    /// I use the words "cares about" because find is generally defined in terms of producing distinct
+    /// results at the Datalog level.
+    ///
+    /// Two of the find specs (scalar and tuple) produce only a single result. Those don't need to be
+    /// run with `SELECT DISTINCT`, because we're only consuming a single result. Those queries will be
+    /// run with `LIMIT 1`.
+    ///
+    /// Additionally, some projections cannot produce duplicate results: `[:find (max ?x) …]`, for
+    /// example.
+    ///
+    /// This function gives us the hook to add that logic when we're ready.
+    ///
+    /// Beyond this, `DISTINCT` is not always needed. For example, in some kinds of accumulation or
+    /// sampling projections we might not need to do it at the SQL level because we're consuming into
+    /// a dupe-eliminating data structure like a Set, or we know that a particular query cannot produce
+    /// duplicate results.
+    pub fn requires_distinct(&self) -> bool {
+        !self.is_unit_limited()
+    }
 }
 
 // Note that the "implicit blank" rule applies.

@@ -25,6 +25,7 @@ extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
+extern crate mentat_query_projector;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 extern crate mentat_tx_parser;
@@ -45,6 +46,17 @@ pub fn get_name() -> String {
 pub fn get_connection() -> Connection {
     return Connection::open_in_memory().unwrap();
 }
+
+pub use mentat_db::{
+    new_connection,
+};
+
+pub use query::{
+    NamespacedKeyword,
+    PlainSymbol,
+    QueryResults,
+    q_once,
+};
 
 #[cfg(test)]
 mod tests {

@@ -1,11 +1,21 @@
 [package]
-name = "mentat_query_translator"
+name = "mentat_query_projector"
 version = "0.0.1"
 workspace = ".."
 
 [dependencies]
+error-chain = "0.9.0"
+
+[dependencies.rusqlite]
+version = "0.9.5"
+# System sqlite might be very old.
+features = ["bundled"]
+
 [dependencies.mentat_core]
 path = "../core"
+
+[dependencies.mentat_db]
+path = "../db"
 
 [dependencies.mentat_sql]
 path = "../sql"
@@ -20,8 +30,6 @@ path = "../query-algebrizer"
 [dev-dependencies.mentat_query_parser]
 path = "../query-parser"
 
-[dependencies.mentat_query_projector]
-path = "../query-projector"
-
 [dependencies.mentat_query_sql]
 path = "../query-sql"
+

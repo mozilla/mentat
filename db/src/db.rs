@@ -331,6 +331,25 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     }
 }
 
+pub trait SQLValueType {
+    fn value_type_tag(&self) -> i32;
+}
+
+impl SQLValueType for ValueType {
+    fn value_type_tag(&self) -> i32 {
+        match *self {
+            ValueType::Ref =>      0,
+            ValueType::Boolean =>  1,
+            ValueType::Instant =>  4,
+            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+            ValueType::Long =>     5,
+            ValueType::Double =>   5,
+            ValueType::String =>  10,
+            ValueType::Keyword => 13,
+        }
+    }
+}
+
 pub trait TypedSQLValue {
     fn from_sql_value_pair(value: rusqlite::types::Value, value_type_tag: i32) -> Result<TypedValue>;
     fn to_sql_value_pair<'a>(&'a self) -> (ToSqlOutput<'a>, i32);

@@ -10,6 +10,13 @@
 
 #![allow(dead_code, unused_imports)]
 
+use mentat_query::{
+    Element,
+    FindSpec,
+    PlainSymbol,
+    Variable,
+};
+
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     ColumnConstraint,
@@ -20,11 +27,19 @@ use mentat_query_algebrizer::{
     SourceAlias,
 };
 
-use types::{
+use mentat_query_projector::{
+    CombinedProjection,
+    Projector,
+    query_projection,
+};
+
+use mentat_query_sql::{
     ColumnOrExpression,
     Constraint,
     FromClause,
+    Name,
     Projection,
+    ProjectedColumn,
     SelectQuery,
     TableList,
 };
@@ -57,10 +72,12 @@ impl ToConstraint for ColumnConstraint {
     }
 }
 
+pub struct CombinedSelectQuery {
+    pub query: SelectQuery,
+    pub projector: Box<Projector>,
+}
 
-/// Consume a provided `ConjoiningClauses` to yield a new
-/// `SelectQuery`. A projection list must also be provided.
-pub fn cc_to_select(projection: Projection, cc: ConjoiningClauses) -> SelectQuery {
+fn cc_to_select_query(projection: Projection, cc: ConjoiningClauses) -> SelectQuery {
     SelectQuery {
         projection: projection,
         from: FromClause::TableList(TableList(cc.from)),
@@ -71,6 +88,20 @@ pub fn cc_to_select(projection: Projection, cc: ConjoiningClauses) -> SelectQuer
     }
 }
 
+/// Consume a provided `ConjoiningClauses` to yield a new
+/// `SelectQuery`. A projection list must also be provided.
+pub fn cc_to_select(projection: CombinedProjection, cc: ConjoiningClauses) -> CombinedSelectQuery {
+    let CombinedProjection { sql_projection, datalog_projector } = projection;
+    CombinedSelectQuery {
+        query: cc_to_select_query(sql_projection, cc),
+        projector: datalog_projector,
+    }
+}
+
+pub fn query_to_select(query: AlgebraicQuery) -> CombinedSelectQuery {
+    cc_to_select(query_projection(&query), query.cc)
+}
+
 pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
-    cc_to_select(Projection::One, cc)
+    cc_to_select_query(Projection::One, cc)
 }

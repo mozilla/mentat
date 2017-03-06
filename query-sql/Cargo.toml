@@ -1,5 +1,5 @@
 [package]
-name = "mentat_query_translator"
+name = "mentat_query_sql"
 version = "0.0.1"
 workspace = ".."
 
@@ -19,9 +19,3 @@ path = "../query-algebrizer"
 # Only for tests.
 [dev-dependencies.mentat_query_parser]
 path = "../query-parser"
-
-[dependencies.mentat_query_projector]
-path = "../query-projector"
-
-[dependencies.mentat_query_sql]
-path = "../query-sql"

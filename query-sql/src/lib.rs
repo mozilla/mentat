@@ -8,7 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(dead_code, unused_imports)]
+extern crate mentat_core;
+extern crate mentat_query;
+extern crate mentat_query_algebrizer;
+extern crate mentat_sql;
 
 use mentat_core::{
     Entid,
@@ -16,15 +19,10 @@ use mentat_core::{
 };
 
 use mentat_query_algebrizer::{
-    AlgebraicQuery,
-    ConjoiningClauses,
     DatomsColumn,
-    DatomsTable,
     QualifiedAlias,
     SourceAlias,
 };
-
-use mentat_sql;
 
 use mentat_sql::{
     BuildQueryResult,
@@ -80,6 +78,7 @@ impl Constraint {
     }
 }
 
+#[allow(dead_code)]
 enum JoinOp {
     Inner,
 }
@@ -94,6 +93,7 @@ pub struct Join {
     // TODO: constraints (ON, USING).
 }
 
+#[allow(dead_code)]
 enum TableOrSubquery {
     Table(SourceAlias),
     // TODO: Subquery.
@@ -278,6 +278,7 @@ impl SelectQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mentat_query_algebrizer::DatomsTable;
 
     #[test]
     fn test_end_to_end() {

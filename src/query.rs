@@ -10,12 +10,20 @@
 
 use std::collections::HashMap;
 
+use rusqlite;
+use rusqlite::types::ToSql;
+
 use mentat_core::{
     Schema,
     TypedValue,
 };
 
 use mentat_query_algebrizer::algebrize;
+
+pub use mentat_query::{
+    NamespacedKeyword,
+    PlainSymbol,
+};
 
 use mentat_query_parser::{
     parse_find_string,
@@ -26,20 +34,14 @@ use mentat_sql::{
 };
 
 use mentat_query_translator::{
-    cc_to_select,
-    Projection,
+    query_to_select,
+};
+
+pub use mentat_query_projector::{
+    QueryResults,
 };
 
 use errors::Result;
-
-use rusqlite;
-
-pub enum QueryResults {
-    Scalar(Option<TypedValue>),
-    Tuple(Vec<TypedValue>),
-    Coll(Vec<TypedValue>),
-    Rel(Vec<Vec<TypedValue>>),
-}
 
 pub type QueryExecutionResult = Result<QueryResults>;
 
@@ -59,21 +61,22 @@ pub fn q_once<'sqlite, 'schema, 'query>
     // TODO: validate inputs.
     let parsed = parse_find_string(query)?;
     let algebrized = algebrize(schema, parsed);
-    let projection = Projection::Star;
-    let select = cc_to_select(projection, algebrized.cc);
-    let SQLQuery { sql, args } = select.to_sql_query()?;
+    let select = query_to_select(algebrized);
+    let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
-    /*
     let mut statement = sqlite.prepare(sql.as_str())?;
 
-    let mut rows = if args.is_empty() {
+    let rows = if args.is_empty() {
         statement.query(&[])?
     } else {
-        statement.query_named(args.map(|(k, v)| (k.as_str(), &v)))?
+        let refs: Vec<(&str, &ToSql)> =
+            args.iter()
+                .map(|&(ref k, ref v)| (k.as_str(), v as &ToSql))
+                .collect();
+        statement.query_named(refs.as_slice())?
     };
-    */
 
-
-
-    Ok(QueryResults::Scalar(Some(TypedValue::Boolean(true))))
+    select.projector
+          .project(rows)
+          .map_err(|e| e.into())
 }
