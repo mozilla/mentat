@@ -152,14 +152,15 @@ symbol_char_initial = [a-z] / [A-Z] / [0-9] / [*!_?$%&=<>]
 symbol_char_subsequent = [a-z] / [A-Z] / [0-9] / [-*!_?$%&=<>]
 
 symbol_namespace = symbol_char_initial symbol_char_subsequent* (namespace_divider symbol_char_subsequent+)*
-symbol_name = ( symbol_char_initial+ / "." ) ( symbol_char_subsequent* / "." )
+symbol_name = ( symbol_char_initial+ symbol_char_subsequent* )
+plain_symbol_name = symbol_name / "..." / "."
 
 keyword_prefix = ":"
 
 pub symbol -> ValueAndSpan =
     start:#position
     ns:( sns:$(symbol_namespace) namespace_separator { sns })?
-    n:$(symbol_name)
+    n:$(plain_symbol_name)
     end:#position {
         ValueAndSpan {
             inner: SpannedValue::from_symbol(ns, n),

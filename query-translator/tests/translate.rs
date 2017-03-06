@@ -42,7 +42,6 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 }
 
 #[test]
-#[should_panic(expected = "parse failed")]
 fn test_coll() {
     let mut schema = Schema::default();
     associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
