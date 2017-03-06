@@ -137,6 +137,25 @@ fn test_tuple() {
 
 #[test]
 fn test_coll() {
-    // We can't test Coll yet, because the EDN parser is incomplete.
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
+
+    // Coll.
+    let start = time::PreciseTime::now();
+    let results = q_once(&c, &db.schema,
+                         "[:find [?e ...] :where [?e :db/ident _]]", None)
+        .expect("Query failed");
+    let end = time::PreciseTime::now();
+
+    assert_eq!(37, results.len());
+
+    if let QueryResults::Coll(ref coll) = results {
+        assert!(coll.iter().all(|item| item.matches_type(ValueType::Ref)));
+    } else {
+        panic!("Expected coll.");
+    }
+
+    println!("{:?}", results);
+    println!("Coll took {}µs", start.to(end).num_microseconds().unwrap());
 }
 
