@@ -313,9 +313,13 @@ fn test_span_text() {
 fn test_symbol() {
     assert_eq!(symbol("$").unwrap(), s_plain("$"));
     assert_eq!(symbol(".").unwrap(), s_plain("."));
+    assert_eq!(symbol("...").unwrap(), s_plain("..."));
 
     assert_eq!(symbol("hello/world").unwrap(), s_ns("hello", "world"));
     assert_eq!(symbol("foo-bar/baz-boz").unwrap(), s_ns("foo-bar", "baz-boz"));
+    assert_eq!(symbol("hello/...").unwrap(), s_ns("hello", "..."));
+    assert_eq!(symbol("./hello").unwrap(), s_ns(".", "hello"));
+    assert_eq!(symbol("../..").unwrap(), s_ns("..", ".."));
 
     assert_eq!(symbol("foo-bar/baz_boz").unwrap(), s_ns("foo-bar", "baz_boz"));
     assert_eq!(symbol("foo_bar/baz-boz").unwrap(), s_ns("foo_bar", "baz-boz"));
@@ -337,6 +341,10 @@ fn test_span_symbol() {
         inner: SpannedValue::from_symbol("hello", "world"),
         span: Span(0, 11)
     });
+    assert_eq!(parse::symbol("...").unwrap(), ValueAndSpan {
+        inner: SpannedValue::from_symbol(None, "..."),
+        span: Span(0, 3)
+    });
 }
 
 #[test]
@@ -353,6 +361,9 @@ fn test_keyword() {
     assert_eq!(keyword(":foo-bar").unwrap(), k_plain("foo-bar"));
     assert_eq!(keyword(":foo_bar").unwrap(), k_plain("foo_bar"));
 
+    assert_eq!(keyword(":./world").unwrap(), k_ns(".", "world"));
+    assert_eq!(keyword(":hello/...").unwrap(), k_ns("hello", "..."));
+
     assert!(keyword(":").is_err());
     assert!(keyword(":foo/").is_err());
 }
@@ -366,6 +377,10 @@ fn test_span_keyword() {
     assert_eq!(parse::keyword(":hello/world").unwrap(), ValueAndSpan {
         inner: SpannedValue::from_keyword("hello", "world"),
         span: Span(0, 12)
+    });
+    assert_eq!(parse::keyword(":.../...").unwrap(), ValueAndSpan {
+        inner: SpannedValue::from_keyword("...", "..."),
+        span: Span(0, 8)
     });
 }
 
