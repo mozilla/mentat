@@ -313,6 +313,7 @@ fn test_span_text() {
 fn test_symbol() {
     assert_eq!(symbol("$").unwrap(), s_plain("$"));
     assert_eq!(symbol(".").unwrap(), s_plain("."));
+    assert_eq!(symbol("...").unwrap(), s_plain("..."));
 
     assert_eq!(symbol("hello/world").unwrap(), s_ns("hello", "world"));
     assert_eq!(symbol("foo-bar/baz-boz").unwrap(), s_ns("foo-bar", "baz-boz"));
