@@ -27,7 +27,7 @@ use mentat::{
 };
 
 #[test]
-fn test_query() {
+fn test_rel() {
     let mut c = new_connection("").expect("Couldn't open conn.");
     let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
 
@@ -54,6 +54,12 @@ fn test_query() {
 
     println!("{:?}", results);
     println!("Rel took {}µs", start.to(end).num_microseconds().unwrap());
+}
+
+#[test]
+fn test_failing_scalar() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
 
     // Scalar that fails.
     let start = time::PreciseTime::now();
@@ -70,6 +76,12 @@ fn test_query() {
     }
 
     println!("Failing scalar took {}µs", start.to(end).num_microseconds().unwrap());
+}
+
+#[test]
+fn test_scalar() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
 
     // Scalar that succeeds.
     let start = time::PreciseTime::now();
@@ -91,6 +103,12 @@ fn test_query() {
 
     println!("{:?}", results);
     println!("Scalar took {}µs", start.to(end).num_microseconds().unwrap());
+}
+
+#[test]
+fn test_tuple() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
 
     // Tuple.
     let start = time::PreciseTime::now();
@@ -115,7 +133,10 @@ fn test_query() {
 
     println!("{:?}", results);
     println!("Tuple took {}µs", start.to(end).num_microseconds().unwrap());
+}
 
+#[test]
+fn test_coll() {
     // We can't test Coll yet, because the EDN parser is incomplete.
 }
 

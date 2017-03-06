@@ -341,6 +341,7 @@ impl SQLValueType for ValueType {
             ValueType::Ref =>      0,
             ValueType::Boolean =>  1,
             ValueType::Instant =>  4,
+            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
             ValueType::Long =>     5,
             ValueType::Double =>   5,
             ValueType::String =>  10,

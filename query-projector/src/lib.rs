@@ -117,7 +117,12 @@ impl TypedIndex {
     /// - If the retrieved value can't be coerced to a rusqlite `Value`.
     /// - Either index is out of bounds.
     ///
-    /// This function will return an error if the type code is unknown, or the value is
+    /// Because we construct our SQL projection list, the code that stored the data, and this
+    /// consumer, a panic here implies that we have a bad bug — we put data of a very wrong type in
+    /// a row, and thus can't coerce to Value, we're retrieving from the wrong place, or our
+    /// generated SQL is junk.
+    ///
+    /// This function will return a runtime error if the type code is unknown, or the value is
     /// otherwise not convertible by the DB layer.
     fn lookup<'a, 'stmt>(&self, row: &Row<'a, 'stmt>) -> Result<TypedValue> {
         use TypedIndex::*;
@@ -136,7 +141,6 @@ impl TypedIndex {
     }
 }
 
-// TODO: this sucks. Can we take ownership and avoid the clone?
 fn column_name(var: &Variable) -> Name {
     let &Variable(PlainSymbol(ref s)) = var;
     s.clone()
@@ -147,15 +151,25 @@ fn value_type_tag_name(var: &Variable) -> Name {
     format!("{}_value_type_tag", s)
 }
 
-/// Walk an iterator of `Element`s, collecting projector templates and
-/// pushing columns into the provided `Vec`.
+/// Walk an iterator of `Element`s, collecting projector templates and columns.
+///
+/// Returns a pair: the SQL projection (which should always be a `Projection::Columns`)
+/// and a `Vec` of `TypedIndex` 'keys' to use when looking up values.
+///
+/// Callers must ensure that every `Element` is distinct -- a query like
+///
+/// ```edn
+/// [:find ?x ?x :where [?x _ _]]
+/// ```
+///
+/// should fail to parse. See #358.
 fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
+    count: usize,
     elements: I,
-    starting_at: i32,
-    query: &AlgebraicQuery,
-    cols: &mut Vec<ProjectedColumn>) -> Vec<TypedIndex> {
+    query: &AlgebraicQuery) -> (Projection, Vec<TypedIndex>) {
 
-    let mut i: i32 = starting_at;
+    let mut cols = Vec::with_capacity(count);
+    let mut i: i32 = 0;
     let mut templates = vec![];
 
     for e in elements {
@@ -164,7 +178,15 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             // into the SQL projection, aliased to the name of the variable,
             // and we push an annotated index into the projector.
             &Element::Variable(ref var) => {
-                let qa = query.cc.bindings.get(var).unwrap()[0].clone();   // TODO
+                // Every variable should be bound by the top-level CC to at least
+                // one column in the query. If that constraint is violated it's a
+                // bug in our code, so it's appropriate to panic here.
+                let columns = query.cc
+                                   .bindings
+                                   .get(var)
+                                   .expect("Every variable has a binding");
+
+                let qa = columns[0].clone();
                 let name = column_name(var);
 
                 if let Some(t) = query.cc.known_types.get(var) {
@@ -187,7 +209,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         }
     }
 
-    templates
+    (Projection::Columns(cols), templates)
 }
 
 pub trait Projector {
@@ -202,6 +224,14 @@ impl ScalarProjector {
     fn with_template(template: TypedIndex) -> ScalarProjector {
         ScalarProjector {
             template: template,
+        }
+    }
+
+    fn combine(sql: Projection, mut templates: Vec<TypedIndex>) -> CombinedProjection {
+        let template = templates.pop().expect("Expected a single template");
+        CombinedProjection {
+            sql_projection: sql,
+            datalog_projector: Box::new(ScalarProjector::with_template(template)),
         }
     }
 }
@@ -239,6 +269,14 @@ impl TupleProjector {
             .iter()
             .map(|ti| ti.lookup(&row))
             .collect::<Result<Vec<TypedValue>>>()
+    }
+
+    fn combine(column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> CombinedProjection {
+        let p = TupleProjector::with_templates(column_count, templates);
+        CombinedProjection {
+            sql_projection: sql,
+            datalog_projector: Box::new(p),
+        }
     }
 }
 
@@ -279,6 +317,14 @@ impl RelProjector {
             .map(|ti| ti.lookup(&row))
             .collect::<Result<Vec<TypedValue>>>()
     }
+
+    fn combine(column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> CombinedProjection {
+        let p = RelProjector::with_templates(column_count, templates);
+        CombinedProjection {
+            sql_projection: sql,
+            datalog_projector: Box::new(p),
+        }
+    }
 }
 
 impl Projector for RelProjector {
@@ -305,6 +351,14 @@ impl CollProjector {
             template: template,
         }
     }
+
+    fn combine(sql: Projection, mut templates: Vec<TypedIndex>) -> CombinedProjection {
+        let template = templates.pop().expect("Expected a single template");
+        CombinedProjection {
+            sql_projection: sql,
+            datalog_projector: Box::new(CollProjector::with_template(template)),
+        }
+    }
 }
 
 impl Projector for CollProjector {
@@ -319,18 +373,16 @@ impl Projector for CollProjector {
     }
 }
 
-/// Convenience function for grabbing a single-element projection.
-fn one_typed_index(element: &Element, query: &AlgebraicQuery, mut cols: &mut Vec<ProjectedColumn>) -> TypedIndex {
-    let mut templates = project_elements(iter::once(element), 0, query, &mut cols);
-    assert_eq!(1, templates.len());
-    templates.pop().expect("Couldn't pop a vec of len 1!")
-}
-
 /// Combines the two things you need to turn a query into SQL and turn its results into
 /// `QueryResults`.
 pub struct CombinedProjection {
+    /// A SQL projection, mapping columns mentioned in the body of the query to columns in the
+    /// output.
     pub sql_projection: Projection,
-    pub projector: Box<Projector>,
+
+    /// A Datalog projection. This consumes rows of the appropriate shape (as defined by
+    /// the SQL projection) to yield one of the four kinds of Datalog query result.
+    pub datalog_projector: Box<Projector>,
 }
 
 /// Compute a suitable SQL projection for an algebrized query.
@@ -344,34 +396,28 @@ pub struct CombinedProjection {
 pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
     use self::FindSpec::*;
 
-    let column_count = query.find_spec.expected_column_count();
-    let mut cols = Vec::with_capacity(column_count);
-    let proj: Box<Projector> = 
-        match query.find_spec {
-            FindColl(ref element) => {
-                let template = one_typed_index(element, query, &mut cols);
-                Box::new(CollProjector::with_template(template))
-            },
+    match query.find_spec {
+        FindColl(ref element) => {
+            let (cols, templates) = project_elements(1, iter::once(element), query);
+            CollProjector::combine(cols, templates)
+        },
 
-            FindScalar(ref element) => {
-                let template = one_typed_index(element, query, &mut cols);
-                Box::new(ScalarProjector::with_template(template))
-            },
+        FindScalar(ref element) => {
+            let (cols, templates) = project_elements(1, iter::once(element), query);
+            ScalarProjector::combine(cols, templates)
+        },
 
-            FindRel(ref elements) => {
-                let templates = project_elements(elements, 0, query, &mut cols);
-                Box::new(RelProjector::with_templates(column_count, templates))
-            },
+        FindRel(ref elements) => {
+            let column_count = query.find_spec.expected_column_count();
+            let (cols, templates) = project_elements(column_count, elements, query);
+            RelProjector::combine(column_count, cols, templates)
+        },
 
-            FindTuple(ref elements) => {
-                let templates = project_elements(elements, 0, query, &mut cols);
-                Box::new(TupleProjector::with_templates(column_count, templates))
-            },
-        };
-
-    CombinedProjection {
-        sql_projection: Projection::Columns(cols),
-        projector: proj,
+        FindTuple(ref elements) => {
+            let column_count = query.find_spec.expected_column_count();
+            let (cols, templates) = project_elements(column_count, elements, query);
+            TupleProjector::combine(column_count, cols, templates)
+        },
     }
 }
 

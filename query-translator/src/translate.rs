@@ -91,10 +91,10 @@ fn cc_to_select_query(projection: Projection, cc: ConjoiningClauses) -> SelectQu
 /// Consume a provided `ConjoiningClauses` to yield a new
 /// `SelectQuery`. A projection list must also be provided.
 pub fn cc_to_select(projection: CombinedProjection, cc: ConjoiningClauses) -> CombinedSelectQuery {
-    let CombinedProjection { sql_projection, projector } = projection;
+    let CombinedProjection { sql_projection, datalog_projector } = projection;
     CombinedSelectQuery {
         query: cc_to_select_query(sql_projection, cc),
-        projector: projector,
+        projector: datalog_projector,
     }
 }
 
