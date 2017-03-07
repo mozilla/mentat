@@ -76,3 +76,22 @@ fn test_rel() {
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
 }
+
+#[test]
+fn test_limit() {
+    let mut schema = Schema::default();
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+    add_attribute(&mut schema, 99, Attribute {
+        value_type: ValueType::String,
+        ..Default::default()
+    });
+
+    let input = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
+    let parsed = parse_find_string(input).expect("parse failed");
+    let mut algebrized = algebrize(&schema, parsed);
+    algebrized.limit = Some(5);
+    let select = query_to_select(algebrized);
+    let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 5");
+    assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
+}

@@ -77,7 +77,7 @@ pub struct CombinedSelectQuery {
     pub projector: Box<Projector>,
 }
 
-fn cc_to_select_query(projection: Projection, cc: ConjoiningClauses) -> SelectQuery {
+fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: ConjoiningClauses, limit: T) -> SelectQuery {
     SelectQuery {
         projection: projection,
         from: FromClause::TableList(TableList(cc.from)),
@@ -85,23 +85,24 @@ fn cc_to_select_query(projection: Projection, cc: ConjoiningClauses) -> SelectQu
                        .into_iter()
                        .map(|c| c.to_constraint())
                        .collect(),
+        limit: limit.into(),
     }
 }
 
 /// Consume a provided `ConjoiningClauses` to yield a new
 /// `SelectQuery`. A projection list must also be provided.
-pub fn cc_to_select(projection: CombinedProjection, cc: ConjoiningClauses) -> CombinedSelectQuery {
+pub fn cc_to_select(projection: CombinedProjection, cc: ConjoiningClauses, limit: Option<u64>) -> CombinedSelectQuery {
     let CombinedProjection { sql_projection, datalog_projector } = projection;
     CombinedSelectQuery {
-        query: cc_to_select_query(sql_projection, cc),
+        query: cc_to_select_query(sql_projection, cc, limit),
         projector: datalog_projector,
     }
 }
 
 pub fn query_to_select(query: AlgebraicQuery) -> CombinedSelectQuery {
-    cc_to_select(query_projection(&query), query.cc)
+    cc_to_select(query_projection(&query), query.cc, query.limit)
 }
 
 pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
-    cc_to_select_query(Projection::One, cc)
+    cc_to_select_query(Projection::One, cc, 1)
 }
