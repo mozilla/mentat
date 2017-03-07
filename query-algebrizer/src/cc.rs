@@ -620,7 +620,9 @@ impl ConjoiningClauses {
                         return;
                     }
                 } else {
-                    unimplemented!();
+                    // It must be a keyword.
+                    self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, TypedValue::Keyword(kw.clone()));
+                    self.wheres.push(ColumnConstraint::HasType(col.clone(), ValueType::Keyword));
                 };
             },
             PatternValuePlace::Constant(ref c) => {
