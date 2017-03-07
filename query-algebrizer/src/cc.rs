@@ -552,11 +552,11 @@ impl ConjoiningClauses {
                     self.mark_known_empty("Attribute entid isn't an attribute.");
                     return;
                 }
-                self.constrain_column_to_entity(col.clone(), DatomsColumn::Attribute, entid)
+                self.constrain_attribute(col.clone(), entid)
             },
             PatternNonValuePlace::Ident(ref ident) => {
                 if let Some(entid) = self.entid_for_ident(schema, ident) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Attribute, entid);
+                    self.constrain_attribute(col.clone(), entid);
 
                     if !schema.is_attribute(entid) {
                         self.mark_known_empty("Attribute ident isn't an attribute.");
@@ -580,6 +580,7 @@ impl ConjoiningClauses {
         match pattern.value {
             PatternValuePlace::Placeholder =>
                 (),
+
             PatternValuePlace::Variable(ref v) => {
                 if let Some(this_type) = value_type {
                     // Wouldn't it be nice if we didn't need to clone in the found case?
