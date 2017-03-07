@@ -134,23 +134,39 @@ pub fn default_table_aliaser() -> TableAliaser {
 
 #[derive(PartialEq, Eq)]
 pub enum ColumnConstraint {
+    EqualsColumn(QualifiedAlias, QualifiedAlias),
     EqualsEntity(QualifiedAlias, Entid),
     EqualsValue(QualifiedAlias, TypedValue),
-    EqualsColumn(QualifiedAlias, QualifiedAlias),
+
+    // This is different: a numeric value can only apply to the 'v' column, and it implicitly
+    // constrains the `value_type_tag` column. For instance, a primitive long on `datoms00` of `5`
+    // cannot be a boolean, so `datoms00.value_type_tag` must be in the set `#{0, 4, 5}`.
+    // Note that `5 = 5.0` in SQLite, and we preserve that here.
+    EqualsPrimitiveLong(TableAlias, i64),
+
+    HasType(TableAlias, ValueType),
 }
 
 impl Debug for ColumnConstraint {
     fn fmt(&self, f: &mut Formatter) -> Result {
         use self::ColumnConstraint::*;
         match self {
+            &EqualsColumn(ref qa1, ref qa2) => {
+                write!(f, "{:?} = {:?}", qa1, qa2)
+            }
             &EqualsEntity(ref qa, ref entid) => {
                 write!(f, "{:?} = entity({:?})", qa, entid)
             }
             &EqualsValue(ref qa, ref typed_value) => {
                 write!(f, "{:?} = value({:?})", qa, typed_value)
             }
-            &EqualsColumn(ref qa1, ref qa2) => {
-                write!(f, "{:?} = {:?}", qa1, qa2)
+
+            &EqualsPrimitiveLong(ref qa, value) => {
+                write!(f, "{:?}.v = primitive({:?})", qa, value)
+            }
+
+            &HasType(ref qa, value_type) => {
+                write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
             }
         }
     }
@@ -262,6 +278,10 @@ impl ConjoiningClauses {
 
     pub fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
         self.constrain_column_to_entity(table, DatomsColumn::Attribute, attribute)
+    }
+
+    pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
+        self.wheres.push(ColumnConstraint::EqualsPrimitiveLong(table, value))
     }
 
     /// Constrains the var if there's no existing type.
@@ -601,7 +621,18 @@ impl ConjoiningClauses {
                 if let Some(ValueType::Ref) = value_type {
                     self.constrain_column_to_entity(col.clone(), DatomsColumn::Value, i);
                 } else {
-                    unimplemented!();
+                    // If we have a pattern like:
+                    //
+                    //   `[123 ?a 1]`
+                    //
+                    // then `1` could be an entid (ref), a long, a boolean, or an instant.
+                    //
+                    // We represent these constraints during execution:
+                    //
+                    // - Constraining the value column to the plain numeric value '1'.
+                    // - Constraining its type column to one of a set of types.
+                    //
+                    self.constrain_value_to_numeric(col.clone(), i);
                 },
             PatternValuePlace::IdentOrKeyword(ref kw) => {
                 // If we know the valueType, then we can determine whether this is an ident or a

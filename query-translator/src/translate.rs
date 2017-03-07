@@ -10,6 +10,11 @@
 
 #![allow(dead_code, unused_imports)]
 
+use mentat_core::{
+    SQLValueType,
+    TypedValue,
+};
+
 use mentat_query::{
     Element,
     FindSpec,
@@ -68,6 +73,40 @@ impl ToConstraint for ColumnConstraint {
                 Constraint::equal(qa.to_column(), ColumnOrExpression::Value(tv)),
             EqualsColumn(left, right) =>
                 Constraint::equal(left.to_column(), right.to_column()),
+            EqualsPrimitiveLong(table, value) => {
+                let value_column = QualifiedAlias(table.clone(), DatomsColumn::Value).to_column();
+                let tag_column = QualifiedAlias(table, DatomsColumn::ValueTypeTag).to_column();
+                Constraint::And {
+                    constraints: vec![
+                        Constraint::equal(value_column, ColumnOrExpression::Value(TypedValue::Long(value))),
+                        Constraint::In {
+                            left: tag_column,
+                            list:
+                                if value < 0 {
+                                    // Can't be a ref or a boolean.
+                                    vec![ColumnOrExpression::Integer(4),
+                                         ColumnOrExpression::Integer(5),]
+                                } else if value > 1 {
+                                    // Can't be a boolean.
+                                    vec![ColumnOrExpression::Integer(0),
+                                         ColumnOrExpression::Integer(4),
+                                         ColumnOrExpression::Integer(5),]
+                                } else {
+                                    vec![ColumnOrExpression::Integer(0),
+                                         ColumnOrExpression::Integer(1),
+                                         ColumnOrExpression::Integer(4),
+                                         ColumnOrExpression::Integer(5),]
+                                },
+                        },
+                    ],
+                }
+            },
+
+
+            HasType(table, value_type) => {
+                let column = QualifiedAlias(table, DatomsColumn::ValueTypeTag).to_column();
+                Constraint::equal(column, ColumnOrExpression::Integer(value_type.value_type_tag()))
+            },
         }
     }
 }
