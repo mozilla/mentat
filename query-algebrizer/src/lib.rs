@@ -29,8 +29,24 @@ pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: FindSpec,
     has_aggregates: bool,
-    pub limit: Option<i64>,
+    pub limit: Option<u64>,
     pub cc: cc::ConjoiningClauses,
+}
+
+impl AlgebraicQuery {
+    pub fn apply_limit(&mut self, limit: Option<u64>) {
+        match self.limit {
+            None => self.limit = limit,
+            Some(existing) =>
+                match limit {
+                    None => (),
+                    Some(new) =>
+                        if new < existing {
+                            self.limit = limit;
+                        },
+                },
+        };
+    }
 }
 
 #[allow(dead_code)]

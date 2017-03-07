@@ -34,7 +34,7 @@ fn test_rel() {
     // Rel.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find ?x ?ident :where [?x :db/ident ?ident]]", None)
+                         "[:find ?x ?ident :where [?x :db/ident ?ident]]", None, None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -64,7 +64,7 @@ fn test_failing_scalar() {
     // Scalar that fails.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find ?x . :where [?x :db/fulltext true]]", None)
+                         "[:find ?x . :where [?x :db/fulltext true]]", None, None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -86,7 +86,7 @@ fn test_scalar() {
     // Scalar that succeeds.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find ?ident . :where [24 :db/ident ?ident]]", None)
+                         "[:find ?ident . :where [24 :db/ident ?ident]]", None, None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -116,7 +116,7 @@ fn test_tuple() {
                          "[:find [?index ?cardinality]
                            :where [:db/txInstant :db/index ?index]
                                   [:db/txInstant :db/cardinality ?cardinality]]",
-                         None)
+                         None, None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -143,7 +143,7 @@ fn test_coll() {
     // Coll.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find [?e ...] :where [?e :db/ident _]]", None)
+                         "[:find [?e ...] :where [?e :db/ident _]]", None, None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 

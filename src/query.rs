@@ -53,14 +53,21 @@ pub type QueryExecutionResult = Result<QueryResults>;
 /// The caller is responsible for ensuring that the SQLite connection is in a transaction if
 /// isolation is required.
 #[allow(unused_variables)]
-pub fn q_once<'sqlite, 'schema, 'query>
+pub fn q_once<'sqlite, 'schema, 'query, T, U>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
  query: &'query str,
- inputs: Option<HashMap<String, TypedValue>>) -> QueryExecutionResult {
+ inputs: T,
+ limit: U) -> QueryExecutionResult
+        where T: Into<Option<HashMap<String, TypedValue>>>,
+              U: Into<Option<u64>>
+{
     // TODO: validate inputs.
+
     let parsed = parse_find_string(query)?;
-    let algebrized = algebrize(schema, parsed);
+    let mut algebrized = algebrize(schema, parsed);
+    algebrized.apply_limit(limit.into());
+
     let select = query_to_select(algebrized);
     let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
