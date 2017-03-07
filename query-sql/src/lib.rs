@@ -108,6 +108,7 @@ pub struct SelectQuery {
     pub projection: Projection,
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
+    pub limit: Option<u64>,
 }
 
 // We know that DatomsColumns are safe to serialize.
@@ -264,6 +265,12 @@ impl QueryFragment for SelectQuery {
             constraint.push_sql(out)?;
         }
 
+        // Guaranteed to be positive: u64.
+        if let Some(limit) = self.limit {
+            out.push_sql(" LIMIT ");
+            out.push_sql(limit.to_string().as_str());
+        }
+
         Ok(())
     }
 }
@@ -316,6 +323,7 @@ mod tests {
                     right: ColumnOrExpression::Entid(65536),
                 },
             ],
+            limit: None,
         };
 
         let SQLQuery { sql, args } = query.to_sql_query().unwrap();
