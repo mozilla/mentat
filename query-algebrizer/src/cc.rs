@@ -244,6 +244,8 @@ impl ConjoiningClauses {
             !self.known_types.contains_key(&var) &&
             !self.extracted_types.contains_key(&var);
 
+        // If we subsequently find out its type, we'll remove this later -- see
+        // the removal in `constrain_var_to_type`.
         if needs_type_extraction {
             self.extracted_types.insert(var.clone(), alias.for_type_tag());
         }
@@ -266,6 +268,18 @@ impl ConjoiningClauses {
     /// Returns `false` if it's impossible for this type to apply (because there's a conflicting
     /// type already known).
     fn constrain_var_to_type(&mut self, variable: Variable, this_type: ValueType) -> bool {
+        // If this variable now has a known attribute, we can unhook extracted types for
+        // any other instances of that variable.
+        // For example, given
+        //
+        // ```edn
+        // [:find ?v :where [?x ?a ?v] [?y :foo/int ?v]]
+        // ```
+        //
+        // we will initially choose to extract the type tag for `?v`, but on encountering
+        // the second pattern we can avoid that.
+        self.extracted_types.remove(&variable);
+
         // Is there an existing binding for this variable?
         let types_entry = self.known_types.entry(variable);
         match types_entry {
