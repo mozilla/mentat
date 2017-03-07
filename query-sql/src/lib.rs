@@ -172,6 +172,19 @@ impl QueryFragment for Op {
     }
 }
 
+macro_rules! interpose {
+    ( $name: ident, $across: expr, $body: block, $inter: block ) => {
+        let mut seq = $across.iter();
+        if let Some($name) = seq.next() {
+            $body;
+            for $name in seq {
+                $inter;
+                $body;
+            }
+        }
+    }
+}
+
 impl QueryFragment for Constraint {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::Constraint::*;
@@ -208,12 +221,9 @@ impl QueryFragment for TableList {
             return Ok(());
         }
 
-        source_alias_push_sql(out, &self.0[0])?;
-
-        for sa in self.0.iter().skip(1) {
-            out.push_sql(", ");
-            source_alias_push_sql(out, sa)?;
-        }
+        interpose!(sa, self.0,
+                   { source_alias_push_sql(out, sa)? },
+                   { out.push_sql(", ") });
         Ok(())
     }
 }
@@ -258,12 +268,9 @@ impl QueryFragment for SelectQuery {
         }
 
         out.push_sql(" WHERE ");
-        self.constraints[0].push_sql(out)?;
-
-        for constraint in self.constraints[1..].iter() {
-            out.push_sql(" AND ");
-            constraint.push_sql(out)?;
-        }
+        interpose!(constraint, self.constraints,
+                   { constraint.push_sql(out)? },
+                   { out.push_sql(" AND ") });
 
         // Guaranteed to be positive: u64.
         if let Some(limit) = self.limit {
