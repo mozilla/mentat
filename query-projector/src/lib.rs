@@ -100,6 +100,36 @@ impl QueryResults {
             &Rel(ref v)    => v.len(),
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        use QueryResults::*;
+        match self {
+            &Scalar(ref o) => o.is_none(),
+            &Tuple(ref o)  => o.is_none(),
+            &Coll(ref v)   => v.is_empty(),
+            &Rel(ref v)    => v.is_empty(),
+        }
+    }
+
+    pub fn empty(spec: &FindSpec) -> QueryResults {
+        use self::FindSpec::*;
+        match spec {
+            &FindScalar(_) => QueryResults::Scalar(None),
+            &FindTuple(_)  => QueryResults::Tuple(None),
+            &FindColl(_)   => QueryResults::Coll(vec![]),
+            &FindRel(_)    => QueryResults::Rel(vec![]),
+        }
+    }
+
+    pub fn empty_factory(spec: &FindSpec) -> Box<Fn() -> QueryResults> {
+        use self::FindSpec::*;
+        match spec {
+            &FindScalar(_) => Box::new(|| QueryResults::Scalar(None)),
+            &FindTuple(_)  => Box::new(|| QueryResults::Tuple(None)),
+            &FindColl(_)   => Box::new(|| QueryResults::Coll(vec![])),
+            &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
+        }
+    }
 }
 
 type Index = i32;            // See rusqlite::RowIndex.
@@ -214,6 +244,24 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
 pub trait Projector {
     fn project<'stmt>(&self, rows: Rows<'stmt>) -> Result<QueryResults>;
+}
+
+/// A projector that produces a `QueryResult` containing fixed data.
+/// Takes a boxed function that should return an empty result set of the desired type.
+struct ConstantProjector {
+    results_factory: Box<Fn() -> QueryResults>,
+}
+
+impl ConstantProjector {
+    fn new(results_factory: Box<Fn() -> QueryResults>) -> ConstantProjector {
+        ConstantProjector { results_factory: results_factory }
+    }
+}
+
+impl Projector for ConstantProjector {
+    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryResults> {
+        Ok((self.results_factory)())
+    }
 }
 
 struct ScalarProjector {
@@ -396,28 +444,39 @@ pub struct CombinedProjection {
 pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
     use self::FindSpec::*;
 
-    match query.find_spec {
-        FindColl(ref element) => {
-            let (cols, templates) = project_elements(1, iter::once(element), query);
-            CollProjector::combine(cols, templates)
-        },
+    if query.is_known_empty() {
+        // Do a few gyrations to produce empty results of the right kind for the query.
+        let empty = QueryResults::empty_factory(&query.find_spec);
+        let constant_projector = ConstantProjector::new(empty);
+        CombinedProjection {
+            sql_projection: Projection::One,
 
-        FindScalar(ref element) => {
-            let (cols, templates) = project_elements(1, iter::once(element), query);
-            ScalarProjector::combine(cols, templates)
-        },
+            datalog_projector: Box::new(constant_projector),
+        }
+    } else {
+        match query.find_spec {
+            FindColl(ref element) => {
+                let (cols, templates) = project_elements(1, iter::once(element), query);
+                CollProjector::combine(cols, templates)
+            },
 
-        FindRel(ref elements) => {
-            let column_count = query.find_spec.expected_column_count();
-            let (cols, templates) = project_elements(column_count, elements, query);
-            RelProjector::combine(column_count, cols, templates)
-        },
+            FindScalar(ref element) => {
+                let (cols, templates) = project_elements(1, iter::once(element), query);
+                ScalarProjector::combine(cols, templates)
+            },
 
-        FindTuple(ref elements) => {
-            let column_count = query.find_spec.expected_column_count();
-            let (cols, templates) = project_elements(column_count, elements, query);
-            TupleProjector::combine(column_count, cols, templates)
-        },
+            FindRel(ref elements) => {
+                let column_count = query.find_spec.expected_column_count();
+                let (cols, templates) = project_elements(column_count, elements, query);
+                RelProjector::combine(column_count, cols, templates)
+            },
+
+            FindTuple(ref elements) => {
+                let column_count = query.find_spec.expected_column_count();
+                let (cols, templates) = project_elements(column_count, elements, query);
+                TupleProjector::combine(column_count, cols, templates)
+            },
+        }
     }
 }
 

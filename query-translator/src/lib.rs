@@ -23,6 +23,5 @@ pub use mentat_query_sql::{
 
 pub use translate::{
     cc_to_exists,
-    cc_to_select,
     query_to_select,
 };

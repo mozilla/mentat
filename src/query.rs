@@ -66,6 +66,12 @@ pub fn q_once<'sqlite, 'schema, 'query, T, U>
 
     let parsed = parse_find_string(query)?;
     let mut algebrized = algebrize(schema, parsed);
+
+    if algebrized.is_known_empty() {
+        // We don't need to do any SQL work at all.
+        return Ok(QueryResults::empty(&algebrized.find_spec));
+    }
+
     algebrized.apply_limit(limit.into());
 
     let select = query_to_select(algebrized);
