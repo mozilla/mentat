@@ -27,11 +27,11 @@ use rusqlite::{
 };
 
 use mentat_core::{
+    SQLValueType,
     TypedValue,
 };
 
 use mentat_db::{
-    SQLValueType,
     TypedSQLValue,
 };
 

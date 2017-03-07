@@ -41,7 +41,6 @@ mod values;
 mod tx;
 
 pub use db::{
-    SQLValueType,
     TypedSQLValue,
     new_connection,
 };

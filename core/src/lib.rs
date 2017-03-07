@@ -76,6 +76,26 @@ impl TypedValue {
     }
 }
 
+// Put this here rather than in `db` simply because it's widely needed.
+pub trait SQLValueType {
+    fn value_type_tag(&self) -> i32;
+}
+
+impl SQLValueType for ValueType {
+    fn value_type_tag(&self) -> i32 {
+        match *self {
+            ValueType::Ref =>      0,
+            ValueType::Boolean =>  1,
+            ValueType::Instant =>  4,
+            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+            ValueType::Long =>     5,
+            ValueType::Double =>   5,
+            ValueType::String =>  10,
+            ValueType::Keyword => 13,
+        }
+    }
+}
+
 #[test]
 fn test_typed_value() {
     assert!(TypedValue::Boolean(false).is_congruent_with(None));
