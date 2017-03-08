@@ -197,7 +197,7 @@ impl Debug for ColumnConstraint {
 ///---------------------------------------------------------------------------------------
 pub struct ConjoiningClauses {
     /// `true` if this set of clauses cannot yield results in the context of the current schema.
-    is_known_empty: bool,
+    pub is_known_empty: bool,
 
     /// A function used to generate an alias for a table -- e.g., from "datoms" to "datoms123".
     aliaser: TableAliaser,
@@ -668,7 +668,26 @@ impl ConjoiningClauses {
                 // TODO: if we don't know the type of the attribute because we don't know the
                 // attribute, we can actually work backwards to the set of appropriate attributes
                 // from the type of the value itself! #292.
+                let typed_value_type = typed_value.value_type();
                 self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, typed_value);
+
+                // If we can't already determine the range of values in the DB from the attribute,
+                // then we must also constrain the type tag.
+                //
+                // Input values might be:
+                //
+                // - A long. This is handled by EntidOrInteger.
+                // - A boolean. This is unambiguous.
+                // - A double. This is currently unambiguous, though note that SQLite will equate 5.0 with 5.
+                // - A string. This is unambiguous.
+                // - A keyword. This is unambiguous.
+                //
+                // Because everything we handle here is unambiguous, we generate a single type
+                // restriction from the value type of the typed value.
+                if value_type.is_none() {
+                    self.wheres.push(ColumnConstraint::HasType(col.clone(), typed_value_type));
+                }
+
             },
         }
 
@@ -820,6 +839,7 @@ mod testing {
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::EqualsValue(d0_v, TypedValue::Boolean(true)),
+                   ColumnConstraint::HasType("datoms00".to_string(), ValueType::Boolean),
         ]);
     }
 

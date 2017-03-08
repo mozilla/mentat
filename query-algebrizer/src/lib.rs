@@ -34,6 +34,9 @@ pub struct AlgebraicQuery {
 }
 
 impl AlgebraicQuery {
+    /**
+     * Apply a new limit to this query, if one is provided and any existing limit is larger.
+     */
     pub fn apply_limit(&mut self, limit: Option<u64>) {
         match self.limit {
             None => self.limit = limit,
@@ -46,6 +49,10 @@ impl AlgebraicQuery {
                         },
                 },
         };
+    }
+
+    pub fn cannot_succeed(&self) -> bool {
+        self.cc.is_known_empty
     }
 }
 

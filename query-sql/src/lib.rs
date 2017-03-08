@@ -77,6 +77,14 @@ pub enum Constraint {
 }
 
 impl Constraint {
+    pub fn not_equal(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
+        Constraint::Infix {
+            op: Op("<>"),     // ANSI SQL for future-proofing!
+            left: left,
+            right: right,
+        }
+    }
+
     pub fn equal(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
         Constraint::Infix {
             op: Op("="),
@@ -110,6 +118,7 @@ enum TableOrSubquery {
 pub enum FromClause {
     TableList(TableList),      // Short-hand for a pile of inner joins.
     Join(Join),
+    Nothing,
 }
 
 pub struct SelectQuery {
@@ -127,6 +136,35 @@ fn push_column(qb: &mut QueryBuilder, col: &DatomsColumn) {
 //---------------------------------------------------------
 // Turn that representation into SQL.
 
+
+/// A helper macro to sequentially process an iterable sequence,
+/// evaluating a block between each pair of items.
+///
+/// This is used to simply and efficiently produce output like
+///
+/// ```sql
+///   1, 2, 3
+/// ```
+///
+/// or
+///
+/// ```sql
+/// x = 1 AND y = 2
+/// ```
+///
+/// without producing an intermediate string sequence.
+macro_rules! interpose {
+    ( $name: ident, $across: expr, $body: block, $inter: block ) => {
+        let mut seq = $across.iter();
+        if let Some($name) = seq.next() {
+            $body;
+            for $name in seq {
+                $inter;
+                $body;
+            }
+        }
+    }
+}
 impl QueryFragment for ColumnOrExpression {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::ColumnOrExpression::*;
@@ -181,19 +219,6 @@ impl QueryFragment for Op {
         // No escaping needed.
         out.push_sql(self.0);
         Ok(())
-    }
-}
-
-macro_rules! interpose {
-    ( $name: ident, $across: expr, $body: block, $inter: block ) => {
-        let mut seq = $across.iter();
-        if let Some($name) = seq.next() {
-            $body;
-            for $name in seq {
-                $inter;
-                $body;
-            }
-        }
     }
 }
 
@@ -280,8 +305,15 @@ impl QueryFragment for FromClause {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::FromClause::*;
         match self {
-            &TableList(ref table_list) => table_list.push_sql(out),
-            &Join(ref join) => join.push_sql(out),
+            &TableList(ref table_list) => {
+                out.push_sql(" FROM ");
+                table_list.push_sql(out)
+            },
+            &Join(ref join) => {
+                out.push_sql(" FROM ");
+                join.push_sql(out)
+            },
+            &Nothing => Ok(()),
         }
     }
 }
@@ -290,18 +322,14 @@ impl QueryFragment for SelectQuery {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         out.push_sql("SELECT ");
         self.projection.push_sql(out)?;
-
-        out.push_sql(" FROM ");
         self.from.push_sql(out)?;
 
-        if self.constraints.is_empty() {
-            return Ok(());
+        if !self.constraints.is_empty() {
+            out.push_sql(" WHERE ");
+            interpose!(constraint, self.constraints,
+                       { constraint.push_sql(out)? },
+                       { out.push_sql(" AND ") });
         }
-
-        out.push_sql(" WHERE ");
-        interpose!(constraint, self.constraints,
-                   { constraint.push_sql(out)? },
-                   { out.push_sql(" AND ") });
 
         // Guaranteed to be positive: u64.
         if let Some(limit) = self.limit {
