@@ -27,11 +27,11 @@ use rusqlite::{
 };
 
 use mentat_core::{
+    SQLValueType,
     TypedValue,
 };
 
 use mentat_db::{
-    SQLValueType,
     TypedSQLValue,
 };
 
@@ -98,6 +98,16 @@ impl QueryResults {
             &Tuple(ref o)  => if o.is_some() { 1 } else { 0 },
             &Coll(ref v)   => v.len(),
             &Rel(ref v)    => v.len(),
+        }
+    }
+
+    pub fn empty(spec: &FindSpec) -> Box<Fn() -> QueryResults> {
+        use self::FindSpec::*;
+        match spec {
+            &FindScalar(_) => Box::new(|| QueryResults::Scalar(None)),
+            &FindTuple(_)  => Box::new(|| QueryResults::Tuple(None)),
+            &FindColl(_)   => Box::new(|| QueryResults::Coll(vec![])),
+            &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
         }
     }
 }
@@ -214,6 +224,22 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
 pub trait Projector {
     fn project<'stmt>(&self, rows: Rows<'stmt>) -> Result<QueryResults>;
+}
+
+struct NullProjector {
+    results: Box<Fn() -> QueryResults>,
+}
+
+impl NullProjector {
+    fn null(result_factory: Box<Fn() -> QueryResults>) -> NullProjector {
+        NullProjector { results: result_factory }
+    }
+}
+
+impl Projector for NullProjector {
+    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryResults> {
+        Ok((self.results)())
+    }
 }
 
 struct ScalarProjector {
@@ -396,28 +422,39 @@ pub struct CombinedProjection {
 pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
     use self::FindSpec::*;
 
-    match query.find_spec {
-        FindColl(ref element) => {
-            let (cols, templates) = project_elements(1, iter::once(element), query);
-            CollProjector::combine(cols, templates)
-        },
+    if query.cannot_succeed() {
+        // Do a few gyrations to produce empty results of the right kind for the query.
+        let empty = QueryResults::empty(&query.find_spec);
+        let null_projector = NullProjector::null(empty);
+        CombinedProjection {
+            sql_projection: Projection::One,
 
-        FindScalar(ref element) => {
-            let (cols, templates) = project_elements(1, iter::once(element), query);
-            ScalarProjector::combine(cols, templates)
-        },
+            datalog_projector: Box::new(null_projector),
+        }
+    } else {
+        match query.find_spec {
+            FindColl(ref element) => {
+                let (cols, templates) = project_elements(1, iter::once(element), query);
+                CollProjector::combine(cols, templates)
+            },
 
-        FindRel(ref elements) => {
-            let column_count = query.find_spec.expected_column_count();
-            let (cols, templates) = project_elements(column_count, elements, query);
-            RelProjector::combine(column_count, cols, templates)
-        },
+            FindScalar(ref element) => {
+                let (cols, templates) = project_elements(1, iter::once(element), query);
+                ScalarProjector::combine(cols, templates)
+            },
 
-        FindTuple(ref elements) => {
-            let column_count = query.find_spec.expected_column_count();
-            let (cols, templates) = project_elements(column_count, elements, query);
-            TupleProjector::combine(column_count, cols, templates)
-        },
+            FindRel(ref elements) => {
+                let column_count = query.find_spec.expected_column_count();
+                let (cols, templates) = project_elements(column_count, elements, query);
+                RelProjector::combine(column_count, cols, templates)
+            },
+
+            FindTuple(ref elements) => {
+                let column_count = query.find_spec.expected_column_count();
+                let (cols, templates) = project_elements(column_count, elements, query);
+                TupleProjector::combine(column_count, cols, templates)
+            },
+        }
     }
 }
 

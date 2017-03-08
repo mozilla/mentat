@@ -44,6 +44,7 @@ use mentat_sql::{
 pub enum ColumnOrExpression {
     Column(QualifiedAlias),
     Entid(Entid),       // Because it's so common.
+    Integer(i32),       // We use these for type codes etc.
     Value(TypedValue),
 }
 
@@ -64,11 +65,26 @@ pub enum Constraint {
     Infix {
         op: Op,
         left: ColumnOrExpression,
-        right: ColumnOrExpression
+        right: ColumnOrExpression,
+    },
+    And {
+        constraints: Vec<Constraint>,
+    },
+    In {
+        left: ColumnOrExpression,
+        list: Vec<ColumnOrExpression>,
     }
 }
 
 impl Constraint {
+    pub fn not_equal(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
+        Constraint::Infix {
+            op: Op("<>"),     // ANSI SQL for future-proofing!
+            left: left,
+            right: right,
+        }
+    }
+
     pub fn equal(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
         Constraint::Infix {
             op: Op("="),
@@ -102,12 +118,14 @@ enum TableOrSubquery {
 pub enum FromClause {
     TableList(TableList),      // Short-hand for a pile of inner joins.
     Join(Join),
+    Nothing,
 }
 
 pub struct SelectQuery {
     pub projection: Projection,
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
+    pub limit: Option<u64>,
 }
 
 // We know that DatomsColumns are safe to serialize.
@@ -118,6 +136,35 @@ fn push_column(qb: &mut QueryBuilder, col: &DatomsColumn) {
 //---------------------------------------------------------
 // Turn that representation into SQL.
 
+
+/// A helper macro to sequentially process an iterable sequence,
+/// evaluating a block between each pair of items.
+///
+/// This is used to simply and efficiently produce output like
+///
+/// ```sql
+///   1, 2, 3
+/// ```
+///
+/// or
+///
+/// ```sql
+/// x = 1 AND y = 2
+/// ```
+///
+/// without producing an intermediate string sequence.
+macro_rules! interpose {
+    ( $name: ident, $across: expr, $body: block, $inter: block ) => {
+        let mut seq = $across.iter();
+        if let Some($name) = seq.next() {
+            $body;
+            for $name in seq {
+                $inter;
+                $body;
+            }
+        }
+    }
+}
 impl QueryFragment for ColumnOrExpression {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::ColumnOrExpression::*;
@@ -130,6 +177,10 @@ impl QueryFragment for ColumnOrExpression {
             },
             &Entid(entid) => {
                 out.push_sql(entid.to_string().as_str());
+                Ok(())
+            },
+            &Integer(integer) => {
+                out.push_sql(integer.to_string().as_str());
                 Ok(())
             },
             &Value(ref v) => {
@@ -181,7 +232,26 @@ impl QueryFragment for Constraint {
                 op.push_sql(out)?;
                 out.push_sql(" ");
                 right.push_sql(out)
-            }
+            },
+
+            &And { ref constraints } => {
+                out.push_sql("(");
+                interpose!(constraint, constraints,
+                           { constraint.push_sql(out)? },
+                           { out.push_sql(" AND ") });
+                out.push_sql(")");
+                Ok(())
+            },
+
+            &In { ref left, ref list } => {
+                left.push_sql(out)?;
+                out.push_sql(" IN (");
+                interpose!(item, list,
+                           { item.push_sql(out)? },
+                           { out.push_sql(", ") });
+                out.push_sql(")");
+                Ok(())
+            },
         }
     }
 }
@@ -207,12 +277,9 @@ impl QueryFragment for TableList {
             return Ok(());
         }
 
-        source_alias_push_sql(out, &self.0[0])?;
-
-        for sa in self.0.iter().skip(1) {
-            out.push_sql(", ");
-            source_alias_push_sql(out, sa)?;
-        }
+        interpose!(sa, self.0,
+                   { source_alias_push_sql(out, sa)? },
+                   { out.push_sql(", ") });
         Ok(())
     }
 }
@@ -238,8 +305,15 @@ impl QueryFragment for FromClause {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::FromClause::*;
         match self {
-            &TableList(ref table_list) => table_list.push_sql(out),
-            &Join(ref join) => join.push_sql(out),
+            &TableList(ref table_list) => {
+                out.push_sql(" FROM ");
+                table_list.push_sql(out)
+            },
+            &Join(ref join) => {
+                out.push_sql(" FROM ");
+                join.push_sql(out)
+            },
+            &Nothing => Ok(()),
         }
     }
 }
@@ -248,20 +322,19 @@ impl QueryFragment for SelectQuery {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         out.push_sql("SELECT ");
         self.projection.push_sql(out)?;
-
-        out.push_sql(" FROM ");
         self.from.push_sql(out)?;
 
-        if self.constraints.is_empty() {
-            return Ok(());
+        if !self.constraints.is_empty() {
+            out.push_sql(" WHERE ");
+            interpose!(constraint, self.constraints,
+                       { constraint.push_sql(out)? },
+                       { out.push_sql(" AND ") });
         }
 
-        out.push_sql(" WHERE ");
-        self.constraints[0].push_sql(out)?;
-
-        for constraint in self.constraints[1..].iter() {
-            out.push_sql(" AND ");
-            constraint.push_sql(out)?;
+        // Guaranteed to be positive: u64.
+        if let Some(limit) = self.limit {
+            out.push_sql(" LIMIT ");
+            out.push_sql(limit.to_string().as_str());
         }
 
         Ok(())
@@ -279,6 +352,67 @@ impl SelectQuery {
 mod tests {
     use super::*;
     use mentat_query_algebrizer::DatomsTable;
+
+    fn build_constraint(c: Constraint) -> String {
+        let mut builder = SQLiteQueryBuilder::new();
+        c.push_sql(&mut builder)
+         .map(|_| builder.finish())
+         .unwrap().sql
+    }
+
+    #[test]
+    fn test_in_constraint() {
+        let none = Constraint::In {
+            left: ColumnOrExpression::Column(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value)),
+            list: vec![],
+        };
+
+        let one = Constraint::In {
+            left: ColumnOrExpression::Column(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value)),
+            list: vec![
+                ColumnOrExpression::Entid(123),
+            ],
+        };
+
+        let three = Constraint::In {
+            left: ColumnOrExpression::Column(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value)),
+            list: vec![
+                ColumnOrExpression::Entid(123),
+                ColumnOrExpression::Entid(456),
+                ColumnOrExpression::Entid(789),
+            ],
+        };
+
+        assert_eq!("`datoms01`.v IN ()", build_constraint(none));
+        assert_eq!("`datoms01`.v IN (123)", build_constraint(one));
+        assert_eq!("`datoms01`.v IN (123, 456, 789)", build_constraint(three));
+    }
+
+    #[test]
+    fn test_and_constraint() {
+        let c = Constraint::And {
+            constraints: vec![
+                Constraint::And {
+                    constraints: vec![
+                        Constraint::Infix {
+                            op: Op("="),
+                            left: ColumnOrExpression::Entid(123),
+                            right: ColumnOrExpression::Entid(456),
+                        },
+                        Constraint::Infix {
+                            op: Op("="),
+                            left: ColumnOrExpression::Entid(789),
+                            right: ColumnOrExpression::Entid(246),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        // Two sets of parens: the outermost AND only has one child,
+        // but still contributes parens.
+        assert_eq!("((123 = 456 AND 789 = 246))", build_constraint(c));
+    }
 
     #[test]
     fn test_end_to_end() {
@@ -316,6 +450,7 @@ mod tests {
                     right: ColumnOrExpression::Entid(65536),
                 },
             ],
+            limit: None,
         };
 
         let SQLQuery { sql, args } = query.to_sql_query().unwrap();

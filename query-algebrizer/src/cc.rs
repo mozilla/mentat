@@ -134,23 +134,39 @@ pub fn default_table_aliaser() -> TableAliaser {
 
 #[derive(PartialEq, Eq)]
 pub enum ColumnConstraint {
+    EqualsColumn(QualifiedAlias, QualifiedAlias),
     EqualsEntity(QualifiedAlias, Entid),
     EqualsValue(QualifiedAlias, TypedValue),
-    EqualsColumn(QualifiedAlias, QualifiedAlias),
+
+    // This is different: a numeric value can only apply to the 'v' column, and it implicitly
+    // constrains the `value_type_tag` column. For instance, a primitive long on `datoms00` of `5`
+    // cannot be a boolean, so `datoms00.value_type_tag` must be in the set `#{0, 4, 5}`.
+    // Note that `5 = 5.0` in SQLite, and we preserve that here.
+    EqualsPrimitiveLong(TableAlias, i64),
+
+    HasType(TableAlias, ValueType),
 }
 
 impl Debug for ColumnConstraint {
     fn fmt(&self, f: &mut Formatter) -> Result {
         use self::ColumnConstraint::*;
         match self {
+            &EqualsColumn(ref qa1, ref qa2) => {
+                write!(f, "{:?} = {:?}", qa1, qa2)
+            }
             &EqualsEntity(ref qa, ref entid) => {
                 write!(f, "{:?} = entity({:?})", qa, entid)
             }
             &EqualsValue(ref qa, ref typed_value) => {
                 write!(f, "{:?} = value({:?})", qa, typed_value)
             }
-            &EqualsColumn(ref qa1, ref qa2) => {
-                write!(f, "{:?} = {:?}", qa1, qa2)
+
+            &EqualsPrimitiveLong(ref qa, value) => {
+                write!(f, "{:?}.v = primitive({:?})", qa, value)
+            }
+
+            &HasType(ref qa, value_type) => {
+                write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
             }
         }
     }
@@ -181,7 +197,7 @@ impl Debug for ColumnConstraint {
 ///---------------------------------------------------------------------------------------
 pub struct ConjoiningClauses {
     /// `true` if this set of clauses cannot yield results in the context of the current schema.
-    is_known_empty: bool,
+    pub is_known_empty: bool,
 
     /// A function used to generate an alias for a table -- e.g., from "datoms" to "datoms123".
     aliaser: TableAliaser,
@@ -244,6 +260,8 @@ impl ConjoiningClauses {
             !self.known_types.contains_key(&var) &&
             !self.extracted_types.contains_key(&var);
 
+        // If we subsequently find out its type, we'll remove this later -- see
+        // the removal in `constrain_var_to_type`.
         if needs_type_extraction {
             self.extracted_types.insert(var.clone(), alias.for_type_tag());
         }
@@ -262,10 +280,26 @@ impl ConjoiningClauses {
         self.constrain_column_to_entity(table, DatomsColumn::Attribute, attribute)
     }
 
+    pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
+        self.wheres.push(ColumnConstraint::EqualsPrimitiveLong(table, value))
+    }
+
     /// Constrains the var if there's no existing type.
     /// Returns `false` if it's impossible for this type to apply (because there's a conflicting
     /// type already known).
     fn constrain_var_to_type(&mut self, variable: Variable, this_type: ValueType) -> bool {
+        // If this variable now has a known attribute, we can unhook extracted types for
+        // any other instances of that variable.
+        // For example, given
+        //
+        // ```edn
+        // [:find ?v :where [?x ?a ?v] [?y :foo/int ?v]]
+        // ```
+        //
+        // we will initially choose to extract the type tag for `?v`, but on encountering
+        // the second pattern we can avoid that.
+        self.extracted_types.remove(&variable);
+
         // Is there an existing binding for this variable?
         let types_entry = self.known_types.entry(variable);
         match types_entry {
@@ -538,11 +572,11 @@ impl ConjoiningClauses {
                     self.mark_known_empty("Attribute entid isn't an attribute.");
                     return;
                 }
-                self.constrain_column_to_entity(col.clone(), DatomsColumn::Attribute, entid)
+                self.constrain_attribute(col.clone(), entid)
             },
             PatternNonValuePlace::Ident(ref ident) => {
                 if let Some(entid) = self.entid_for_ident(schema, ident) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Attribute, entid);
+                    self.constrain_attribute(col.clone(), entid);
 
                     if !schema.is_attribute(entid) {
                         self.mark_known_empty("Attribute ident isn't an attribute.");
@@ -566,6 +600,7 @@ impl ConjoiningClauses {
         match pattern.value {
             PatternValuePlace::Placeholder =>
                 (),
+
             PatternValuePlace::Variable(ref v) => {
                 if let Some(this_type) = value_type {
                     // Wouldn't it be nice if we didn't need to clone in the found case?
@@ -586,7 +621,18 @@ impl ConjoiningClauses {
                 if let Some(ValueType::Ref) = value_type {
                     self.constrain_column_to_entity(col.clone(), DatomsColumn::Value, i);
                 } else {
-                    unimplemented!();
+                    // If we have a pattern like:
+                    //
+                    //   `[123 ?a 1]`
+                    //
+                    // then `1` could be an entid (ref), a long, a boolean, or an instant.
+                    //
+                    // We represent these constraints during execution:
+                    //
+                    // - Constraining the value column to the plain numeric value '1'.
+                    // - Constraining its type column to one of a set of types.
+                    //
+                    self.constrain_value_to_numeric(col.clone(), i);
                 },
             PatternValuePlace::IdentOrKeyword(ref kw) => {
                 // If we know the valueType, then we can determine whether this is an ident or a
@@ -605,7 +651,9 @@ impl ConjoiningClauses {
                         return;
                     }
                 } else {
-                    unimplemented!();
+                    // It must be a keyword.
+                    self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, TypedValue::Keyword(kw.clone()));
+                    self.wheres.push(ColumnConstraint::HasType(col.clone(), ValueType::Keyword));
                 };
             },
             PatternValuePlace::Constant(ref c) => {
@@ -620,7 +668,26 @@ impl ConjoiningClauses {
                 // TODO: if we don't know the type of the attribute because we don't know the
                 // attribute, we can actually work backwards to the set of appropriate attributes
                 // from the type of the value itself! #292.
+                let typed_value_type = typed_value.value_type();
                 self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, typed_value);
+
+                // If we can't already determine the range of values in the DB from the attribute,
+                // then we must also constrain the type tag.
+                //
+                // Input values might be:
+                //
+                // - A long. This is handled by EntidOrInteger.
+                // - A boolean. This is unambiguous.
+                // - A double. This is currently unambiguous, though note that SQLite will equate 5.0 with 5.
+                // - A string. This is unambiguous.
+                // - A keyword. This is unambiguous.
+                //
+                // Because everything we handle here is unambiguous, we generate a single type
+                // restriction from the value type of the typed value.
+                if value_type.is_none() {
+                    self.wheres.push(ColumnConstraint::HasType(col.clone(), typed_value_type));
+                }
+
             },
         }
 
@@ -772,6 +839,7 @@ mod testing {
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::EqualsValue(d0_v, TypedValue::Boolean(true)),
+                   ColumnConstraint::HasType("datoms00".to_string(), ValueType::Boolean),
         ]);
     }
 

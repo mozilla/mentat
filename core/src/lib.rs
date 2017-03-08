@@ -74,6 +74,50 @@ impl TypedValue {
             &TypedValue::Keyword(_) => ValueType::Keyword,
         }
     }
+
+}
+
+// Put this here rather than in `db` simply because it's widely needed.
+pub trait SQLValueType {
+    fn value_type_tag(&self) -> i32;
+    fn accommodates_integer(&self, int: i64) -> bool;
+}
+
+impl SQLValueType for ValueType {
+    fn value_type_tag(&self) -> i32 {
+        match *self {
+            ValueType::Ref =>      0,
+            ValueType::Boolean =>  1,
+            ValueType::Instant =>  4,
+            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+            ValueType::Long =>     5,
+            ValueType::Double =>   5,
+            ValueType::String =>  10,
+            ValueType::Keyword => 13,
+        }
+    }
+
+    /// Returns true if the provided integer is in the SQLite value space of this type. For
+    /// example, `1` is how we encode `true`.
+    ///
+    /// ```
+    /// use mentat_core::{ValueType, SQLValueType};
+    /// assert!(ValueType::Boolean.accommodates_integer(1));
+    /// assert!(!ValueType::Boolean.accommodates_integer(-1));
+    /// assert!(!ValueType::Boolean.accommodates_integer(10));
+    /// assert!(!ValueType::String.accommodates_integer(10));
+    /// ```
+    fn accommodates_integer(&self, int: i64) -> bool {
+        use ValueType::*;
+        match *self {
+            Ref               => int >= 0,
+            Boolean           => (int == 0) || (int == 1),
+            Instant | Long    => true,
+            Double            => true,
+            ValueType::String => false,
+            Keyword           => false,
+        }
+    }
 }
 
 #[test]
