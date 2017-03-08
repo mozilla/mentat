@@ -21,10 +21,8 @@ use rusqlite;
 use rusqlite::types::{ToSql};
 use tabwriter::TabWriter;
 
-use ::{to_namespaced_keyword};
 use bootstrap;
 use edn;
-use edn::symbols;
 use entids;
 use mentat_core::TypedValue;
 use mentat_tx::entities::{Entid};
@@ -49,17 +47,8 @@ pub struct Datoms(pub BTreeSet<Datom>);
 /// Represents an ordered sequence of transactions in the store.
 pub struct Transactions(pub Vec<Datoms>);
 
-fn label_tx_id(tx: i64) -> edn::Value {
-    edn::Value::PlainSymbol(symbols::PlainSymbol::new(format!("?tx{}", tx - bootstrap::TX0)))
-}
-
-fn label_tx_instant(tx: i64) -> edn::Value {
-    edn::Value::PlainSymbol(symbols::PlainSymbol::new(format!("?ms{}", tx - bootstrap::TX0)))
-}
-
 impl Datom {
-    pub fn into_edn<T, U>(&self, tx_id: T, tx_instant: &U) -> edn::Value
-        where T: Fn(i64) -> edn::Value, U: Fn(i64) -> edn::Value {
+    pub fn into_edn(&self) -> edn::Value {
         let f = |entid: &Entid| -> edn::Value {
             match *entid {
                 Entid::Entid(ref y) => edn::Value::Integer(y.clone()),
@@ -67,16 +56,9 @@ impl Datom {
             }
         };
 
-        // Rewrite [E :db/txInstant V] to [?txN :db/txInstant ?t0].
-        let mut v = if self.a == Entid::Entid(entids::DB_TX_INSTANT) || self.a == Entid::Ident(to_namespaced_keyword(":db/txInstant").unwrap()) {
-            vec![tx_id(self.tx),
-                 f(&self.a),
-                 tx_instant(self.tx)]
-        } else {
-            vec![f(&self.e), f(&self.a), self.v.clone()]
-        };
+        let mut v = vec![f(&self.e), f(&self.a), self.v.clone()];
         if let Some(added) = self.added {
-            v.push(tx_id(self.tx));
+            v.push(edn::Value::Integer(self.tx));
             v.push(edn::Value::Boolean(added));
         }
 
@@ -85,24 +67,14 @@ impl Datom {
 }
 
 impl Datoms {
-    pub fn into_edn_raw<T, U>(&self, tx_id: &T, tx_instant: &U) -> edn::Value
-        where T: Fn(i64) -> edn::Value, U: Fn(i64) -> edn::Value {
-        edn::Value::Set((&self.0).into_iter().map(|x| x.into_edn(tx_id, tx_instant)).collect())
-    }
-
     pub fn into_edn(&self) -> edn::Value {
-        self.into_edn_raw(&label_tx_id, &label_tx_instant)
+        edn::Value::Set((&self.0).into_iter().map(|x| x.into_edn()).collect())
     }
 }
 
 impl Transactions {
-    pub fn into_edn_raw<T, U>(&self, tx_id: &T, tx_instant: &U) -> edn::Value
-        where T: Fn(i64) -> edn::Value, U: Fn(i64) -> edn::Value {
-        edn::Value::Vector((&self.0).into_iter().map(|x| x.into_edn_raw(tx_id, tx_instant)).collect())
-    }
-
     pub fn into_edn(&self) -> edn::Value {
-        self.into_edn_raw(&label_tx_id, &label_tx_instant)
+        edn::Value::Vector((&self.0).into_iter().map(|x| x.into_edn()).collect())
     }
 }
 
@@ -142,7 +114,7 @@ pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, 
 
         let borrowed_schema = schema.borrow();
         Ok(Some(Datom {
-            e: to_entid(borrowed_schema, e),
+            e: Entid::Entid(e),
             a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
@@ -175,7 +147,7 @@ pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema
 
         let borrowed_schema = schema.borrow();
         Ok(Datom {
-            e: to_entid(borrowed_schema, e),
+            e: Entid::Entid(e),
             a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
