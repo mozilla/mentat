@@ -858,10 +858,81 @@ mod tests {
     use bootstrap;
     use debug;
     use edn;
-    use edn::symbols;
     use mentat_tx_parser;
     use rusqlite;
-    use tx::transact;
+    use types::TxReport;
+    use tx;
+
+    // Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
+    // against it.
+    //
+    // This is a macro only to give nice line numbers when tests fail.
+    macro_rules! assert_matches {
+        ( $input: expr, $expected: expr ) => {{
+            // Failure to parse the expected pattern is a coding error, so we unwrap.
+            let pattern_value = edn::parse::value($expected.borrow()).unwrap().without_spans();
+            assert!($input.matches(&pattern_value),
+                    "Expected value:\n{}\nto match pattern:\n{}\n",
+                    $input.to_pretty(120).unwrap(),
+                    pattern_value.to_pretty(120).unwrap());
+        }}
+    }
+
+    // A connection that doesn't try to be clever about possibly sharing its `Schema`.  Compare to
+    // `mentat::Conn`.
+    struct TestConn {
+        sqlite: rusqlite::Connection,
+        partition_map: PartitionMap,
+        schema: Schema,
+    }
+
+    impl TestConn {
+        fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
+            // Failure to parse the transaction is a coding error, so we unwrap.
+            let assertions = edn::parse::value(transaction.borrow()).unwrap().without_spans();
+            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
+            // Applying the transaction can fail, so we don't unwrap.
+            let details = tx::transact(&self.sqlite, self.partition_map.clone(), &self.schema, entities)?;
+            let (report, next_partition_map, next_schema) = details;
+            self.partition_map = next_partition_map;
+            if let Some(next_schema) = next_schema {
+                self.schema = next_schema;
+            }
+            Ok(report)
+        }
+
+        fn last_tx_id(&self) -> Entid {
+            self.partition_map.get(&":db.part/tx".to_string()).unwrap().index - 1
+        }
+
+        fn last_transaction(&self) -> edn::Value {
+            debug::transactions_after(&self.sqlite, &self.schema, self.last_tx_id() - 1).unwrap().0[0].into_edn()
+        }
+
+        fn datoms(&self) -> edn::Value {
+            debug::datoms_after(&self.sqlite, &self.schema, bootstrap::TX0).unwrap().into_edn()
+        }
+    }
+
+    impl Default for TestConn {
+        fn default() -> TestConn {
+            let mut conn = new_connection("").expect("Couldn't open in-memory db");
+            let db = ensure_current_version(&mut conn).unwrap();
+
+            // Does not include :db/txInstant.
+            let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
+            assert_eq!(datoms.0.len(), 88);
+
+            // Includes :db/txInstant.
+            let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
+            assert_eq!(transactions.0.len(), 1);
+            assert_eq!(transactions.0[0].0.len(), 89);
+
+            TestConn { sqlite: conn,
+                       partition_map: db.partition_map,
+                       schema: db.schema }
+        }
+    }
 
     #[test]
     fn test_open_current_version() {
@@ -887,136 +958,217 @@ mod tests {
         assert_eq!(transactions.0[0].0.len(), 89);
     }
 
-    /// Assert that a sequence of transactions meets expectations.
-    ///
-    /// The transactions, expectations, and optional labels, are given in a simple EDN format; see
-    /// https://github.com/mozilla/mentat/wiki/Transacting:-EDN-test-format.
-    ///
-    /// There is some magic here about transaction numbering that I don't want to commit to or
-    /// document just yet.  The end state might be much more general pattern matching syntax, rather
-    /// than the targeted transaction ID and timestamp replacement we have right now.
-    // TODO: accept a `Conn`.
-    fn assert_transactions<'a>(conn: &rusqlite::Connection, partition_map: &mut PartitionMap, schema: &mut Schema, transactions: &Vec<edn::Value>) {
-        let mut index: i64 = bootstrap::TX0;
-
-        for transaction in transactions {
-            let transaction = transaction.as_map().unwrap();
-            let label: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "label"))).unwrap().clone();
-            let assertions: edn::Value = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "assertions"))).unwrap().clone();
-            let expected_transaction: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-transaction")));
-            let expected_datoms: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-datoms")));
-            let expected_error_message: Option<&edn::Value> = transaction.get(&edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("test", "expected-error-message")));
-
-            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
-
-            let maybe_report = transact(&conn, partition_map.clone(), schema, entities);
-
-            if let Some(expected_transaction) = expected_transaction {
-                if !expected_transaction.is_nil() {
-                    index += 1;
-                } else {
-                    assert!(maybe_report.is_err());
-
-                    if let Some(expected_error_message) = expected_error_message {
-                        let expected_error_message = expected_error_message.as_text();
-                        assert!(expected_error_message.is_some(), "Expected error message to be text:\n{:?}", expected_error_message);
-                        let error_message = maybe_report.unwrap_err().to_string();
-                        assert!(error_message.contains(expected_error_message.unwrap()), "Expected error message:\n{}\nto contain:\n{}", error_message, expected_error_message.unwrap());
-                    }
-                    continue
-                }
-
-                // TODO: test schema changes in the EDN format.
-                let (report, next_partition_map, next_schema) = maybe_report.unwrap();
-                *partition_map = next_partition_map;
-                if let Some(next_schema) = next_schema {
-                    *schema = next_schema;
-                }
-
-                assert_eq!(index, report.tx_id,
-                           "\n{} - expected tx_id {} but got tx_id {}", label, index, report.tx_id);
-
-                let transactions = debug::transactions_after(&conn, &schema, index - 1).unwrap();
-                assert_eq!(transactions.0.len(), 1);
-                assert_eq!(*expected_transaction,
-                           transactions.0[0].into_edn(),
-                           "\n{} - expected transaction:\n{}\nbut got transaction:\n{}", label, *expected_transaction, transactions.0[0].into_edn());
-            }
-
-            if let Some(expected_datoms) = expected_datoms {
-                let datoms = debug::datoms_after(&conn, &schema, bootstrap::TX0).unwrap();
-                assert_eq!(*expected_datoms,
-                           datoms.into_edn(),
-                           "\n{} - expected datoms:\n{}\nbut got datoms:\n{}", label, *expected_datoms, datoms.into_edn())
-            }
-
-            // Don't allow empty tests.  This will need to change if we allow transacting schema
-            // fragments in a preamble, but for now it might catch malformed tests.
-            assert_ne!((expected_transaction, expected_datoms), (None, None),
-                       "Transaction test must include at least one of :test/expected-transaction or :test/expected-datoms");
-        }
-    }
-
     #[test]
     fn test_add() {
-        let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        let mut db = ensure_current_version(&mut conn).unwrap();
+        let mut conn = TestConn::default();
 
-        // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        // Test inserting :db.cardinality/one elements.
+        conn.transact("[[:db/add 100 :db/ident :keyword/value1]
+                        [:db/add 101 :db/ident :keyword/value2]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db/ident :keyword/value1 ?tx true]
+                          [101 :db/ident :keyword/value2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                       "[[100 :db/ident :keyword/value1]
+                         [101 :db/ident :keyword/value2]]");
 
-        // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        // Test inserting :db.cardinality/many elements.
+        conn.transact("[[:db/add 200 :db.schema/attribute 100]
+                        [:db/add 200 :db.schema/attribute 101]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/attribute 100 ?tx true]
+                          [200 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :keyword/value1]
+                          [101 :db/ident :keyword/value2]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
 
-        // TODO: extract a test macro simplifying this boilerplate yet further.
-        let value = edn::parse::value(include_str!("../../tx/fixtures/test_add.edn")).unwrap().without_spans();
+        // Test replacing existing :db.cardinality/one elements.
+        conn.transact("[[:db/add 100 :db/ident :keyword/value11]
+                        [:db/add 101 :db/ident :keyword/value22]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db/ident :keyword/value1 ?tx false]
+                          [100 :db/ident :keyword/value11 ?tx true]
+                          [101 :db/ident :keyword/value2 ?tx false]
+                          [101 :db/ident :keyword/value22 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :keyword/value11]
+                          [101 :db/ident :keyword/value22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
 
-        let transactions = value.as_vector().unwrap();
 
-        assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
+        // Test that asserting existing :db.cardinality/one elements doesn't change the store.
+        conn.transact("[[:db/add 100 :db/ident :keyword/value11]
+                        [:db/add 101 :db/ident :keyword/value22]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :keyword/value11]
+                          [101 :db/ident :keyword/value22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+
+
+        // Test that asserting existing :db.cardinality/many elements doesn't change the store.
+        conn.transact("[[:db/add 200 :db.schema/attribute 100]
+                        [:db/add 200 :db.schema/attribute 101]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :keyword/value11]
+                          [101 :db/ident :keyword/value22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
     }
 
     #[test]
     fn test_retract() {
-        let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        let mut db = ensure_current_version(&mut conn).unwrap();
+        let mut conn = TestConn::default();
 
-        // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        // Insert a few :db.cardinality/one elements.
+        conn.transact("[[:db/add 100 :db/ident :keyword/value1]
+                        [:db/add 101 :db/ident :keyword/value2]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db/ident :keyword/value1 ?tx true]
+                          [101 :db/ident :keyword/value2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :keyword/value1]
+                          [101 :db/ident :keyword/value2]]");
 
-        // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        // And a few :db.cardinality/many elements.
+        conn.transact("[[:db/add 200 :db.schema/attribute 100]
+                        [:db/add 200 :db.schema/attribute 101]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/attribute 100 ?tx true]
+                          [200 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :keyword/value1]
+                          [101 :db/ident :keyword/value2]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
 
-        let value = edn::parse::value(include_str!("../../tx/fixtures/test_retract.edn")).unwrap().without_spans();
+        // Test that we can retract :db.cardinality/one elements.
+        conn.transact("[[:db/retract 100 :db/ident :keyword/value1]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db/ident :keyword/value1 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[101 :db/ident :keyword/value2]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
 
-        let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
+        // Test that we can retract :db.cardinality/many elements.
+        conn.transact("[[:db/retract 200 :db.schema/attribute 100]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/attribute 100 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[101 :db/ident :keyword/value2]
+                          [200 :db.schema/attribute 101]]");
+
+        // Verify that retracting :db.cardinality/{one,many} elements that are not present doesn't
+        // change the store.
+        conn.transact("[[:db/retract 100 :db/ident :keyword/value1]
+                        [:db/retract 200 :db.schema/attribute 100]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[101 :db/ident :keyword/value2]
+                          [200 :db.schema/attribute 101]]");
     }
 
     #[test]
     fn test_upsert_vector() {
-        let mut conn = new_connection("").expect("Couldn't open in-memory db");
-        let mut db = ensure_current_version(&mut conn).unwrap();
+        // TODO: assert the tempids allocated throughout.
+        let mut conn = TestConn::default();
 
-        // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
+        // Insert some :db.unique/identity elements.
+        conn.transact("[[:db/add 100 :db/ident :name/Ivan]
+                        [:db/add 101 :db/ident :name/Petr]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db/ident :name/Ivan ?tx true]
+                          [101 :db/ident :name/Petr ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :name/Ivan]
+                          [101 :db/ident :name/Petr]]");
 
-        // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
+        // Upserting two tempids to the same entid works.
+        conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                        [:db/add \"t1\" :db.schema/attribute 100]
+                        [:db/add \"t2\" :db/ident :name/Petr]
+                        [:db/add \"t2\" :db.schema/attribute 101]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/attribute 100 ?tx true]
+                          [101 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :name/Ivan]
+                          [100 :db.schema/attribute 100]
+                          [101 :db/ident :name/Petr]
+                          [101 :db.schema/attribute 101]]");
 
-        let value = edn::parse::value(include_str!("../../tx/fixtures/test_upsert_vector.edn")).unwrap().without_spans();
+        // Upserting a tempid works.  The ref doesn't have to exist (at this time), but we can't
+        // reuse an existing ref due to :db/unique :db.unique/value.
+        conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                        [:db/add \"t1\" :db.schema/attribute 102]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/attribute 102 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :name/Ivan]
+                          [100 :db.schema/attribute 100]
+                          [100 :db.schema/attribute 102]
+                          [101 :db/ident :name/Petr]
+                          [101 :db.schema/attribute 101]]");
 
-        let transactions = value.as_vector().unwrap();
-        assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
+        // A single complex upsert allocates a new entid.
+        conn.transact("[[:db/add \"t1\" :db.schema/attribute \"t2\"]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[65536 :db.schema/attribute 65537 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Conflicting upserts fail.
+        let err = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                                  [:db/add \"t1\" :db/ident :name/Petr]]").unwrap_err().to_string();
+        assert_eq!(err, "not yet implemented: Conflicting upsert: tempid \'t1\' resolves to more than one entid: 100, 101");
+
+        // tempids in :db/retract that don't upsert fail.
+        let err = conn.transact("[[:db/retract \"t1\" :db/ident :name/Anonymous]]").unwrap_err().to_string();
+        assert_eq!(err, "not yet implemented: [:db/retract ...] entity referenced tempid that did not upsert: t1");
+
+        // tempids in :db/retract that do upsert are retracted.  The ref given doesn't exist, so the
+        // assertion will be ignored.
+        conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
+                        [:db/retract \"t1\" :db.schema/attribute 103]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+
+        // A multistep upsert.  The upsert algorithm will first try to resolve "t1", fail, and then
+        // allocate both "t1" and "t2".
+        conn.transact("[[:db/add \"t1\" :db/ident :name/Josef]
+                        [:db/add \"t2\" :db.schema/attribute \"t1\"]]").unwrap();
+        assert_matches!(conn.last_transaction(),
+                        "[[65538 :db/ident :name/Josef ?tx true]
+                          [65539 :db.schema/attribute 65538 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // A multistep insert.  This time, we can resolve both, but we have to try "t1", succeed,
+        // and then resolve "t2".
+        // TODO: We can't quite test this without more schema elements.
+        // conn.transact("[[:db/add \"t1\" :db/ident :name/Josef]
+        //                 [:db/add \"t2\" :db/ident \"t1\"]]");
+        // assert_matches!(conn.last_transaction(),
+        //                 "[[65538 :db/ident :name/Josef]
+        //                   [65538 :db/ident :name/Karl]
+        //                   [?tx :db/txInstant ?ms ?tx true]]");
     }
 
     #[test]
