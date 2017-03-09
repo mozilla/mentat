@@ -12,6 +12,8 @@
     ".cljs_*_repl": true,
     ".gitignore": true,
     ".lein*": true,
-    ".sw*": true
+    ".sw*": true,
+    "target": true,          // Top-level build output.
+    "*/target": true         // Sub-crate build output.
   }
 }
