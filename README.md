@@ -125,11 +125,12 @@ cargo build
 To run tests use:
 
 ````
-# Run tests for the core code (src/)
-cargo test
+# Run tests for everything.
+cargo test --all
 
-# Run tests for the query-parser folder
-cargo test -p mentat_query_parser
+# Run tests for just the query-parser folder (specify the crate, not the folder),
+# printing debug output.
+cargo test -p mentat_query_parser -- --nocapture
 ````
 
 To start the server use:
