@@ -11,7 +11,7 @@ ordered-float = "0.4.0"
 time = "0.1.35"
 
 [dependencies.rusqlite]
-version = "0.9.5"
+version = "0.10.1"
 # System sqlite might be very old.
 features = ["bundled"]
 
