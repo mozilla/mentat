@@ -1,0 +1,17 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+  // Configure glob patterns for excluding files and folders.
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/.*.sw*": true,       // Vim swap files.
+    "**/*~": true,           // Vim backup files.
+    ".cljs_*_repl": true,
+    ".gitignore": true,
+    ".lein*": true,
+    ".sw*": true
+  }
+}
