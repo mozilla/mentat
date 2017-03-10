@@ -26,16 +26,18 @@ use rusqlite::limits::Limit;
 use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
-use edn::symbols;
+use entids;
 use mentat_core::{
     Attribute,
     AttributeBitFlags,
     Entid,
     IdentMap,
     Schema,
+    SchemaMap,
     TypedValue,
     ValueType,
 };
+use metadata;
 use errors::{ErrorKind, Result, ResultExt};
 use schema::SchemaBuilding;
 use types::{
@@ -157,11 +159,11 @@ lazy_static! {
              SELECT e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value
                FROM fulltext_datoms"#,
 
-        // Materialized views of the schema.
-        r#"CREATE TABLE idents (ident TEXT NOT NULL PRIMARY KEY, entid INTEGER UNIQUE NOT NULL)"#,
-        r#"CREATE TABLE schema (ident TEXT NOT NULL, attr TEXT NOT NULL, value BLOB NOT NULL, value_type_tag SMALLINT NOT NULL,
-             FOREIGN KEY (ident) REFERENCES idents (ident))"#,
-        r#"CREATE INDEX idx_schema_unique ON schema (ident, attr, value, value_type_tag)"#,
+        // Materialized views of the metadata.
+        r#"CREATE TABLE idents (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
+        r#"CREATE INDEX idx_idents_unique ON idents (e, a, v, value_type_tag)"#,
+        r#"CREATE TABLE schema (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
+        r#"CREATE INDEX idx_schema_unique ON schema (e, a, v, value_type_tag)"#,
         // TODO: store entid instead of ident for partition name.
         r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"#,
         ]
@@ -401,18 +403,23 @@ impl TypedSQLValue for TypedValue {
     }
 }
 
-/// Read the ident map materialized view from the given SQL store.
-pub fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, entid FROM idents")?;
-    let m = stmt.query_and_then(&[], |row| -> Result<(symbols::NamespacedKeyword, Entid)> {
-        let ident: String = row.get(0);
-        to_namespaced_keyword(&ident).map(|i| (i, row.get(1)))
+/// Read an arbitrary [e a v value_type_tag] materialized view from the given table in the SQL
+/// store.
+fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -> Result<Vec<(Entid, Entid, TypedValue)>> {
+    let mut stmt: rusqlite::Statement = conn.prepare(format!("SELECT e, a, v, value_type_tag FROM {}", table).as_str())?;
+    let m: Result<Vec<(Entid, Entid, TypedValue)>> = stmt.query_and_then(&[], |row| {
+        let e: Entid = row.get_checked(0)?;
+        let a: Entid = row.get_checked(1)?;
+        let v: rusqlite::types::Value = row.get_checked(2)?;
+        let value_type_tag: i32 = row.get_checked(3)?;
+        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
+        Ok((e, a, typed_value))
     })?.collect();
     m
 }
 
 /// Read the partition map materialized view from the given SQL store.
-pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
+fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT part, start, idx FROM parts")?;
     let m = stmt.query_and_then(&[], |row| -> Result<(String, Partition)> {
         Ok((row.get_checked(0)?, Partition::new(row.get_checked(1)?, row.get_checked(2)?)))
@@ -420,29 +427,27 @@ pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
     m
 }
 
-/// Read the schema materialized view from the given SQL store.
-pub fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<Schema> {
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT ident, attr, value, value_type_tag FROM schema")?;
-    let r: Result<Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>> = stmt.query_and_then(&[], |row| {
-        // Each row looks like :db/index|:db/valueType|28|0.  Observe that 28|0 represents a
-        // :db.type/ref to entid 28, which needs to be converted to a TypedValue.
-        // TODO: don't use textual ident and attr; just use entids directly.
-        let symbolic_ident: String = row.get_checked(0)?;
-        let symbolic_attr: String = row.get_checked(1)?;
-        let v: rusqlite::types::Value = row.get_checked(2)?;
-        let value_type_tag: i32 = row.get_checked(3)?;
-        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
-
-        let ident = to_namespaced_keyword(&symbolic_ident);
-        let attr = to_namespaced_keyword(&symbolic_attr);
-        match (ident, attr, typed_value) {
-            (Ok(ident), Ok(attr), typed_value) => Ok((ident, attr, typed_value)),
-            (Err(e), _, _) => Err(e),
-            (_, Err(e), _) => Err(e),
+/// Read the ident map materialized view from the given SQL store.
+fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
+    let v = read_materialized_view(conn, "idents")?;
+    v.into_iter().map(|(e, a, typed_value)| {
+        if a != entids::DB_IDENT {
+            bail!(ErrorKind::NotYetImplemented(format!("bad idents materialized view: expected :db/ident but got {}", a)));
         }
-    })?.collect();
+        if let TypedValue::Keyword(keyword) = typed_value {
+            Ok((keyword, e))
+        } else {
+            bail!(ErrorKind::NotYetImplemented(format!("bad idents materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]", typed_value)));
+        }
+    }).collect()
+}
 
-    r.and_then(|triples| Schema::from_ident_map_and_triples(ident_map.clone(), triples))
+/// Read the schema materialized view from the given SQL store.
+fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<Schema> {
+    let entid_triples = read_materialized_view(conn, "idents")?;
+    let mut schema = Schema::from_ident_map_and_schema_map(ident_map.clone(), SchemaMap::default())?;
+    metadata::update_metadata_from_entid_triples(&mut schema, entid_triples)?;
+    Ok(schema)
 }
 
 /// Read the materialized views from the given SQL store and return a Mentat `DB` for querying and
@@ -941,30 +946,6 @@ mod tests {
             map.insert(edn::Value::Text(tempid.clone()), edn::Value::Integer(entid));
         }
         edn::Value::Map(map)
-    }
-
-    #[test]
-    fn test_open_current_version() {
-        // TODO: figure out how to reference the fixtures directory for real.  For now, assume we're
-        // executing `cargo test` in `db/`.
-        let conn = rusqlite::Connection::open("../fixtures/v2empty.db").unwrap();
-
-        let ident_map = read_ident_map(&conn).unwrap();
-        assert_eq!(ident_map, bootstrap::bootstrap_ident_map());
-
-        let schema = read_schema(&conn, &ident_map).unwrap();
-        assert_eq!(schema, bootstrap::bootstrap_schema());
-
-        let db = read_db(&conn).unwrap();
-
-        // Does not include :db/txInstant.
-        let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(datoms.0.len(), 88);
-
-        // Includes :db/txInstant.
-        let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 89);
     }
 
     #[test]
