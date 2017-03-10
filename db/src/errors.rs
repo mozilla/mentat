@@ -55,25 +55,25 @@ error_chain! {
         /// a runtime error.
         BadBootstrapDefinition(t: String) {
             description("bad bootstrap definition")
-            display("bad bootstrap definition: '{}'", t)
+            display("bad bootstrap definition: {}", t)
         }
 
         /// A schema assertion couldn't be parsed.
         BadSchemaAssertion(t: String) {
             description("bad schema assertion")
-            display("bad schema assertion: '{}'", t)
+            display("bad schema assertion: {}", t)
         }
 
         /// An ident->entid mapping failed.
         UnrecognizedIdent(ident: String) {
             description("no entid found for ident")
-            display("no entid found for ident: '{}'", ident)
+            display("no entid found for ident: {}", ident)
         }
 
         /// An entid->ident mapping failed.
         UnrecognizedEntid(entid: Entid) {
             description("no ident found for entid")
-            display("no ident found for entid: '{}'", entid)
+            display("no ident found for entid: {}", entid)
         }
     }
 }
