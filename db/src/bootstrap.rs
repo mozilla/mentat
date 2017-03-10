@@ -38,7 +38,7 @@ lazy_static! {
              (ns_keyword!("db.part", "db"),           entids::DB_PART_DB),
              (ns_keyword!("db", "txInstant"),         entids::DB_TX_INSTANT),
              (ns_keyword!("db.install", "partition"), entids::DB_INSTALL_PARTITION),
-             (ns_keyword!("db.install", "valueType"), entids::DB_INSTALL_VALUETYPE),
+             (ns_keyword!("db.install", "valueType"), entids::DB_INSTALL_VALUE_TYPE),
              (ns_keyword!("db.install", "attribute"), entids::DB_INSTALL_ATTRIBUTE),
              (ns_keyword!("db", "valueType"),         entids::DB_VALUE_TYPE),
              (ns_keyword!("db", "cardinality"),       entids::DB_CARDINALITY),
