@@ -972,15 +972,15 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Test inserting :db.cardinality/one elements.
-        conn.transact("[[:db/add 100 :db/ident :keyword/value1]
-                        [:db/add 101 :db/ident :keyword/value2]]").unwrap();
+        conn.transact("[[:db/add 100 :db.schema/version 1]
+                        [:db/add 101 :db.schema/version 2]]").unwrap();
         assert_matches!(conn.last_transaction(),
-                        "[[100 :db/ident :keyword/value1 ?tx true]
-                          [101 :db/ident :keyword/value2 ?tx true]
+                        "[[100 :db.schema/version 1 ?tx true]
+                          [101 :db.schema/version 2 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                       "[[100 :db/ident :keyword/value1]
-                         [101 :db/ident :keyword/value2]]");
+                       "[[100 :db.schema/version 1]
+                         [101 :db.schema/version 2]]");
 
         // Test inserting :db.cardinality/many elements.
         conn.transact("[[:db/add 200 :db.schema/attribute 100]
@@ -990,35 +990,35 @@ mod tests {
                           [200 :db.schema/attribute 101 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[100 :db/ident :keyword/value1]
-                          [101 :db/ident :keyword/value2]
+                        "[[100 :db.schema/version 1]
+                          [101 :db.schema/version 2]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
 
         // Test replacing existing :db.cardinality/one elements.
-        conn.transact("[[:db/add 100 :db/ident :keyword/value11]
-                        [:db/add 101 :db/ident :keyword/value22]]").unwrap();
+        conn.transact("[[:db/add 100 :db.schema/version 11]
+                        [:db/add 101 :db.schema/version 22]]").unwrap();
         assert_matches!(conn.last_transaction(),
-                        "[[100 :db/ident :keyword/value1 ?tx false]
-                          [100 :db/ident :keyword/value11 ?tx true]
-                          [101 :db/ident :keyword/value2 ?tx false]
-                          [101 :db/ident :keyword/value22 ?tx true]
+                        "[[100 :db.schema/version 1 ?tx false]
+                          [100 :db.schema/version 11 ?tx true]
+                          [101 :db.schema/version 2 ?tx false]
+                          [101 :db.schema/version 22 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[100 :db/ident :keyword/value11]
-                          [101 :db/ident :keyword/value22]
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
 
 
         // Test that asserting existing :db.cardinality/one elements doesn't change the store.
-        conn.transact("[[:db/add 100 :db/ident :keyword/value11]
-                        [:db/add 101 :db/ident :keyword/value22]]").unwrap();
+        conn.transact("[[:db/add 100 :db.schema/version 11]
+                        [:db/add 101 :db.schema/version 22]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[100 :db/ident :keyword/value11]
-                          [101 :db/ident :keyword/value22]
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
 
@@ -1029,8 +1029,8 @@ mod tests {
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[100 :db/ident :keyword/value11]
-                          [101 :db/ident :keyword/value22]
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
     }
@@ -1040,15 +1040,15 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Insert a few :db.cardinality/one elements.
-        conn.transact("[[:db/add 100 :db/ident :keyword/value1]
-                        [:db/add 101 :db/ident :keyword/value2]]").unwrap();
+        conn.transact("[[:db/add 100 :db.schema/version 1]
+                        [:db/add 101 :db.schema/version 2]]").unwrap();
         assert_matches!(conn.last_transaction(),
-                        "[[100 :db/ident :keyword/value1 ?tx true]
-                          [101 :db/ident :keyword/value2 ?tx true]
+                        "[[100 :db.schema/version 1 ?tx true]
+                          [101 :db.schema/version 2 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[100 :db/ident :keyword/value1]
-                          [101 :db/ident :keyword/value2]]");
+                        "[[100 :db.schema/version 1]
+                          [101 :db.schema/version 2]]");
 
         // And a few :db.cardinality/many elements.
         conn.transact("[[:db/add 200 :db.schema/attribute 100]
@@ -1058,18 +1058,18 @@ mod tests {
                           [200 :db.schema/attribute 101 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[100 :db/ident :keyword/value1]
-                          [101 :db/ident :keyword/value2]
+                        "[[100 :db.schema/version 1]
+                          [101 :db.schema/version 2]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
 
         // Test that we can retract :db.cardinality/one elements.
-        conn.transact("[[:db/retract 100 :db/ident :keyword/value1]]").unwrap();
+        conn.transact("[[:db/retract 100 :db.schema/version 1]]").unwrap();
         assert_matches!(conn.last_transaction(),
-                        "[[100 :db/ident :keyword/value1 ?tx false]
+                        "[[100 :db.schema/version 1 ?tx false]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[101 :db/ident :keyword/value2]
+                        "[[101 :db.schema/version 2]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
 
@@ -1079,17 +1079,17 @@ mod tests {
                         "[[200 :db.schema/attribute 100 ?tx false]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[101 :db/ident :keyword/value2]
+                        "[[101 :db.schema/version 2]
                           [200 :db.schema/attribute 101]]");
 
         // Verify that retracting :db.cardinality/{one,many} elements that are not present doesn't
         // change the store.
-        conn.transact("[[:db/retract 100 :db/ident :keyword/value1]
+        conn.transact("[[:db/retract 100 :db.schema/version 1]
                         [:db/retract 200 :db.schema/attribute 100]]").unwrap();
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[101 :db/ident :keyword/value2]
+                        "[[101 :db.schema/version 2]
                           [200 :db.schema/attribute 101]]");
     }
 
