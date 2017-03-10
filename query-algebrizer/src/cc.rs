@@ -18,7 +18,11 @@ use std::fmt::{
     Formatter,
     Result,
 };
-use std::collections::BTreeMap;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
+
 use std::collections::btree_map::Entry;
 
 use self::mentat_core::{
@@ -209,14 +213,31 @@ pub struct ConjoiningClauses {
     pub wheres: Vec<ColumnConstraint>,
 
     /// A map from var to qualified columns. Used to project.
-    pub bindings: BTreeMap<Variable, Vec<QualifiedAlias>>,
+    pub column_bindings: BTreeMap<Variable, Vec<QualifiedAlias>>,
+
+    /// A list of variables mentioned in the query's :in clause. These must all be bound before the
+    /// query can be executed.
+    pub input_variables: BTreeSet<Variable>,
+
+    /// In some situations -- e.g., when a query is being run only once -- we know the values of
+    /// some or all bindings in advance. These can be substituted directly when the query is
+    /// algebrized.
+    ///
+    /// Known bindings must agree with `known_types`. If you write a query like
+    /// ```edn
+    /// [:find ?x :in $ ?val :where [?x :foo/int ?val]]
+    /// ```
+    ///
+    /// and for `?val` provide `TypedValue::String("foo".to_string())`, the query will be known at
+    /// algebrizing time to be empty.
+    known_bindings: BTreeMap<Variable, TypedValue>,
 
     /// A map from var to type. Whenever a var maps unambiguously to two different types, it cannot
     /// yield results, so we don't represent that case here. If a var isn't present in the map, it
     /// means that its type is not known in advance.
     pub known_types: BTreeMap<Variable, ValueType>,
 
-    /// A mapping, similar to `bindings`, but used to pull type tags out of the store at runtime.
+    /// A mapping, similar to `column_bindings`, but used to pull type tags out of the store at runtime.
     /// If a var isn't present in `known_types`, it should be present here.
     extracted_types: BTreeMap<Variable, QualifiedAlias>,
 }
@@ -227,7 +248,9 @@ impl Debug for ConjoiningClauses {
             .field("is_known_empty", &self.is_known_empty)
             .field("from", &self.from)
             .field("wheres", &self.wheres)
-            .field("bindings", &self.bindings)
+            .field("column_bindings", &self.column_bindings)
+            .field("input_variables", &self.input_variables)
+            .field("known_bindings", &self.known_bindings)
             .field("known_types", &self.known_types)
             .field("extracted_types", &self.extracted_types)
             .finish()
@@ -242,7 +265,9 @@ impl Default for ConjoiningClauses {
             aliaser: default_table_aliaser(),
             from: vec![],
             wheres: vec![],
-            bindings: BTreeMap::new(),
+            input_variables: BTreeSet::new(),
+            column_bindings: BTreeMap::new(),
+            known_bindings: BTreeMap::new(),
             known_types: BTreeMap::new(),
             extracted_types: BTreeMap::new(),
         }
@@ -250,22 +275,53 @@ impl Default for ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
+    fn with_bindings(bindings: BTreeMap<Variable, TypedValue>) -> ConjoiningClauses {
+        let mut cc = ConjoiningClauses {
+            known_bindings: bindings,
+            ..Default::default()
+        };
+
+        // Pre-fill our type mappings with the types of the input bindings.
+        cc.known_types
+          .extend(cc.known_bindings.iter()
+                    .map(|(k, v)| (k.clone(), v.value_type())));
+        cc
+    }
+}
+
+impl ConjoiningClauses {
+    fn known_binding(&self, var: &Variable) -> Option<TypedValue> {
+        self.known_bindings.get(var).cloned()
+    }
+
     pub fn bind_column_to_var(&mut self, table: TableAlias, column: DatomsColumn, var: Variable) {
-        let alias = QualifiedAlias(table, column);
+        // Do we have an external binding for this?
+        if let Some(bound_val) = self.known_binding(&var) {
+            // Great! Use that instead.
+            self.constrain_column_to_constant(table, column, bound_val);
+            return;
+        }
+
+        // Will we have an external binding for this?
+        // If so, we don't need to extract its type. We'll know it later.
+        let late_binding = self.input_variables.contains(&var);
 
         // If this is a value, and we don't already know its type or where
         // to get its type, record that we can get it from this table.
         let needs_type_extraction =
-            alias.is_value() &&
-            !self.known_types.contains_key(&var) &&
-            !self.extracted_types.contains_key(&var);
+            !late_binding &&                           // Never need to extract for bound vars.
+            column == DatomsColumn::Value &&           // Never need to extract types for refs.
+            !self.known_types.contains_key(&var) &&    // We know the type!
+            !self.extracted_types.contains_key(&var);  // We're already extracting the type.
+
+        let alias = QualifiedAlias(table, column);
 
         // If we subsequently find out its type, we'll remove this later -- see
         // the removal in `constrain_var_to_type`.
         if needs_type_extraction {
             self.extracted_types.insert(var.clone(), alias.for_type_tag());
         }
-        self.bindings.entry(var).or_insert(vec![]).push(alias);
+        self.column_bindings.entry(var).or_insert(vec![]).push(alias);
     }
 
     pub fn constrain_column_to_constant(&mut self, table: TableAlias, column: DatomsColumn, constant: TypedValue) {
@@ -300,7 +356,9 @@ impl ConjoiningClauses {
         // the second pattern we can avoid that.
         self.extracted_types.remove(&variable);
 
-        // Is there an existing binding for this variable?
+        // Is there an existing mapping for this variable?
+        // Any known inputs have already been added to known_types, and so if they conflict we'll
+        // spot it here.
         let types_entry = self.known_types.entry(variable);
         match types_entry {
             // If so, the types must match.
@@ -433,7 +491,7 @@ impl ConjoiningClauses {
 /// Expansions.
 impl ConjoiningClauses {
 
-    /// Take the contents of `bindings` and generate inter-constraints for the appropriate
+    /// Take the contents of `column_bindings` and generate inter-constraints for the appropriate
     /// columns into `wheres`.
     ///
     /// For example, a bindings map associating a var to three places in the query, like
@@ -448,8 +506,8 @@ impl ConjoiningClauses {
     ///    datoms12.e = datoms13.v
     ///    datoms12.e = datoms14.e
     /// ```
-    pub fn expand_bindings(&mut self) {
-        for cols in self.bindings.values() {
+    pub fn expand_column_bindings(&mut self) {
+        for cols in self.column_bindings.values() {
             if cols.len() > 1 {
                 let ref primary = cols[0];
                 let secondaries = cols.iter().skip(1);
@@ -541,7 +599,7 @@ impl ConjoiningClauses {
 
         match pattern.entity {
             PatternNonValuePlace::Placeholder =>
-                // Placeholders don't contribute any bindings, nor do
+                // Placeholders don't contribute any column bindings, nor do
                 // they constrain the query -- there's no need to produce
                 // IS NOT NULL, because we don't store nulls in our schema.
                 (),
@@ -793,7 +851,7 @@ mod testing {
         assert_eq!(cc.known_types.get(&x).unwrap(), &ValueType::Ref);
 
         // ?x is bound to datoms0.e.
-        assert_eq!(cc.bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
+        assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
 
         // Our 'where' clauses are two:
         // - datoms0.a = 99
@@ -831,7 +889,7 @@ mod testing {
         assert_eq!(cc.known_types.get(&x).unwrap(), &ValueType::Ref);
 
         // ?x is bound to datoms0.e.
-        assert_eq!(cc.bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
+        assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
 
         // Our 'where' clauses are two:
         // - datoms0.v = true
@@ -877,8 +935,8 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        // Finally, expand bindings to get the overlaps for ?x.
-        cc.expand_bindings();
+        // Finally, expand column bindings to get the overlaps for ?x.
+        cc.expand_column_bindings();
 
         println!("{:#?}", cc);
 
@@ -898,7 +956,7 @@ mod testing {
         assert_eq!(cc.known_types.get(&x).unwrap(), &ValueType::Ref);
 
         // ?x is bound to datoms0.e and datoms1.e.
-        assert_eq!(cc.bindings.get(&x).unwrap(),
+        assert_eq!(cc.column_bindings.get(&x).unwrap(),
                    &vec![
                        d0_e.clone(),
                        d1_e.clone(),
@@ -917,4 +975,75 @@ mod testing {
         ]);
     }
 
+    #[test]
+    fn test_known_bindings() {
+        let mut schema = Schema::default();
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::Boolean,
+            ..Default::default()
+        });
+
+        let x = Variable(PlainSymbol::new("?x"));
+        let y = Variable(PlainSymbol::new("?y"));
+
+        let b: BTreeMap<Variable, TypedValue> =
+            vec![(y.clone(), TypedValue::Boolean(true))].into_iter().collect();
+        let mut cc = ConjoiningClauses::with_bindings(b);
+
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            value: PatternValuePlace::Variable(y.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+
+        let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
+        let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
+        let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
+
+        // ?y has been expanded into `true`.
+        assert_eq!(cc.wheres, vec![
+                   ColumnConstraint::EqualsEntity(d0_a, 99),
+                   ColumnConstraint::EqualsValue(d0_v, TypedValue::Boolean(true)),
+        ]);
+
+        // There is no binding for ?y.
+        assert!(!cc.column_bindings.contains_key(&y));
+
+        // ?x is bound to the entity.
+        assert_eq!(cc.column_bindings.get(&x).unwrap(),
+                   &vec![d0_e.clone()]);
+    }
+
+    #[test]
+    fn test_known_bindings_type_disagreement() {
+        let mut schema = Schema::default();
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::Boolean,
+            ..Default::default()
+        });
+
+        let x = Variable(PlainSymbol::new("?x"));
+        let y = Variable(PlainSymbol::new("?y"));
+
+        let b: BTreeMap<Variable, TypedValue> =
+            vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
+        let mut cc = ConjoiningClauses::with_bindings(b);
+
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            value: PatternValuePlace::Variable(y.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+
+        // The type of the provided binding doesn't match the type of the attribute.
+        assert!(cc.is_known_empty);
+    }
 }

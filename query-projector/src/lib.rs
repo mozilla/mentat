@@ -212,7 +212,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                 // one column in the query. If that constraint is violated it's a
                 // bug in our code, so it's appropriate to panic here.
                 let columns = query.cc
-                                   .bindings
+                                   .column_bindings
                                    .get(var)
                                    .expect("Every variable has a binding");
 
