@@ -54,9 +54,6 @@ pub use types::{
 
 use edn::symbols;
 
-// TODO: replace with sqlite3_limit. #288.
-pub const SQLITE_MAX_VARIABLE_NUMBER: usize = 999;
-
 pub fn to_namespaced_keyword(s: &str) -> Result<symbols::NamespacedKeyword> {
     let splits = [':', '/'];
     let mut i = s.split(&splits[..]);
@@ -84,7 +81,6 @@ pub fn to_namespaced_keyword(s: &str) -> Result<symbols::NamespacedKeyword> {
 pub fn repeat_values(values_per_tuple: usize, tuples: usize) -> String {
     assert!(values_per_tuple >= 1);
     assert!(tuples >= 1);
-    assert!(values_per_tuple * tuples < SQLITE_MAX_VARIABLE_NUMBER, "Too many values: {} * {} >= {}", values_per_tuple, tuples, SQLITE_MAX_VARIABLE_NUMBER);
     // Like "(?, ?, ?)".
     let inner = format!("({})", repeat("?").take(values_per_tuple).join(", "));
     // Like "(?, ?, ?), (?, ?, ?)".

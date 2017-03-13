@@ -21,6 +21,7 @@ use itertools;
 use itertools::Itertools;
 use rusqlite;
 use rusqlite::types::{ToSql, ToSqlOutput};
+use rusqlite::limits::Limit;
 
 use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
@@ -613,7 +614,8 @@ impl MentatStoring for rusqlite::Connection {
         // produce the map [a v] -> e.
         //
         // TODO: `collect` into a HashSet so that any (a, v) is resolved at most once.
-        let chunks: itertools::IntoChunks<_> = avs.into_iter().enumerate().chunks(::SQLITE_MAX_VARIABLE_NUMBER / 4);
+        let max_vars = self.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER) as usize;
+        let chunks: itertools::IntoChunks<_> = avs.into_iter().enumerate().chunks(max_vars / 4);
 
         // We'd like to `flat_map` here, but it's not obvious how to `flat_map` across `Result`.
         // Alternatively, this is a `fold`, and it might be wise to express it as such.
@@ -642,7 +644,9 @@ impl MentatStoring for rusqlite::Connection {
             // TODO: query against `datoms` and UNION ALL with `fulltext_datoms` rather than
             // querying against `all_datoms`.  We know all the attributes, and in the common case,
             // where most unique attributes will not be fulltext-indexed, we'll be querying just
-            // `datoms`, which will be much faster.
+            // `datoms`, which will be much faster.ˇ
+            assert!(bindings_per_statement * count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, count, max_vars);
+
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = format!("WITH t(search_id, a, v, value_type_tag) AS (VALUES {}) SELECT t.search_id, d.e \
                                      FROM t, all_datoms AS d \
@@ -731,7 +735,8 @@ impl MentatStoring for rusqlite::Connection {
     fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity<'a>], search_type: SearchType) -> Result<()> {
         let bindings_per_statement = 6;
 
-        let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(::SQLITE_MAX_VARIABLE_NUMBER / bindings_per_statement);
+        let max_vars = self.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER) as usize;
+        let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(max_vars / bindings_per_statement);
 
         // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
         let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {
@@ -767,7 +772,8 @@ impl MentatStoring for rusqlite::Connection {
                                                 .chain(once(flags as &ToSql))))))
             }).collect();
 
-            // TODO: cache this for selected values of count.
+            // TODO: cache this for selected values of count.            
+            assert!(bindings_per_statement * count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, count, max_vars);
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
                 format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
@@ -797,7 +803,8 @@ impl MentatStoring for rusqlite::Connection {
 // TODO: only update changed partitions.
 pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &PartitionMap) -> Result<()> {
     let values_per_statement = 2;
-    let max_partitions = ::SQLITE_MAX_VARIABLE_NUMBER / values_per_statement;
+    let max_vars = conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER) as usize;
+    let max_partitions = max_vars / values_per_statement;
     if partition_map.len() > max_partitions {
         bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
     }
@@ -1010,5 +1017,17 @@ mod tests {
 
         let transactions = value.as_vector().unwrap();
         assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
+    }
+
+    #[test]
+    fn test_sqlite_limit() {
+        let conn = new_connection("").expect("Couldn't open in-memory db");
+        let initial = conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER);
+        // Sanity check.
+        assert!(initial > 500);
+
+        // Make sure setting works.
+        conn.set_limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER, 222);
+        assert_eq!(222, conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER));
     }
 }
