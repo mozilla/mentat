@@ -1018,4 +1018,16 @@ mod tests {
         let transactions = value.as_vector().unwrap();
         assert_transactions(&conn, &mut db.partition_map, &mut db.schema, transactions);
     }
+
+    #[test]
+    fn test_sqlite_limit() {
+        let conn = new_connection("").expect("Couldn't open in-memory db");
+        let initial = conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER);
+        // Sanity check.
+        assert!(initial > 500);
+
+        // Make sure setting works.
+        conn.set_limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER, 222);
+        assert_eq!(222, conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER));
+    }
 }
