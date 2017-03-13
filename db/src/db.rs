@@ -214,10 +214,13 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
 
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
     let bootstrap_schema = bootstrap::bootstrap_schema();
-    let (_report, next_partition_map, next_schema) = transact(&tx, bootstrap_partition_map, &bootstrap_schema, bootstrap::bootstrap_entities())?;
-    if next_schema.is_some() {
-        // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-        bail!(ErrorKind::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
+    let bootstrap_schema_for_mutation = Schema::default(); // The bootstrap transaction will populate this schema.
+    let (_report, next_partition_map, next_schema) = transact(&tx, bootstrap_partition_map, &bootstrap_schema_for_mutation, &bootstrap_schema, bootstrap::bootstrap_entities())?;
+    if let Some(next_schema) = next_schema {
+        if next_schema != bootstrap_schema {
+            // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
+            bail!(ErrorKind::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
+        }
     }
 
     set_user_version(&tx, CURRENT_VERSION)?;
@@ -922,7 +925,7 @@ mod tests {
             let assertions = edn::parse::value(transaction.borrow()).unwrap().without_spans();
             let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
             // Applying the transaction can fail, so we don't unwrap.
-            let details = tx::transact(&self.sqlite, self.partition_map.clone(), &self.schema, entities)?;
+            let details = tx::transact(&self.sqlite, self.partition_map.clone(), &self.schema, &self.schema, entities)?;
             let (report, next_partition_map, next_schema) = details;
             self.partition_map = next_partition_map;
             if let Some(next_schema) = next_schema {

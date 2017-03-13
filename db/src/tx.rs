@@ -104,10 +104,16 @@ pub struct Tx<'conn, 'a> {
     /// allocates at least one tx ID, so we own and modify our own partition map.
     partition_map: PartitionMap,
 
+    /// The schema to update from the transaction entities.
+    ///
+    /// Transactions only update the schema infrequently, so we borrow this schema until we need to
+    /// modify it.
+    schema_for_mutation: Cow<'a, Schema>,
+
     /// The schema to use when interpreting the transaction entities.
     ///
-    /// The schema is infrequently updated, so we borrow a schema until we need to modify it.
-    schema: Cow<'a, Schema>,
+    /// This schema is not updated, so we just borrow it.
+    schema: &'a Schema,
 
     /// The transaction ID of the transaction.
     tx_id: Entid,
@@ -120,11 +126,18 @@ pub struct Tx<'conn, 'a> {
 }
 
 impl<'conn, 'a> Tx<'conn, 'a> {
-    pub fn new(store: &'conn rusqlite::Connection, partition_map: PartitionMap, schema: &'a Schema, tx_id: Entid, tx_instant: i64) -> Tx<'conn, 'a> {
+    pub fn new(
+        store: &'conn rusqlite::Connection,
+        partition_map: PartitionMap,
+        schema_for_mutation: &'a Schema,
+        schema: &'a Schema,
+        tx_id: Entid,
+        tx_instant: i64) -> Tx<'conn, 'a> {
         Tx {
             store: store,
             partition_map: partition_map,
-            schema: Cow::Borrowed(schema),
+            schema_for_mutation: Cow::Borrowed(schema_for_mutation),
+            schema: schema,
             tx_id: tx_id,
             tx_instant: tx_instant,
         }
@@ -375,7 +388,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
-pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, mut partition_map: PartitionMap, schema: &'a Schema, entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
+pub fn transact<'conn, 'a, I>(
+    conn: &'conn rusqlite::Connection,
+    mut partition_map: PartitionMap,
+    schema_for_mutation: &'a Schema,
+    schema: &'a Schema,
+    entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
     // Eventually, this function will be responsible for managing a SQLite transaction.  For
     // now, it's just about the tx details.
 
@@ -384,12 +402,12 @@ pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, mut partition_m
 
     conn.begin_transaction()?;
 
-    let mut tx = Tx::new(conn, partition_map, schema, tx_id, tx_instant);
+    let mut tx = Tx::new(conn, partition_map, schema_for_mutation, schema, tx_id, tx_instant);
 
     let report = tx.transact_entities(entities)?;
 
     // If the schema has moved on, return it.
-    let next_schema = match tx.schema {
+    let next_schema = match tx.schema_for_mutation {
         Cow::Borrowed(_) => None,
         Cow::Owned(next_schema) => Some(next_schema),
     };
