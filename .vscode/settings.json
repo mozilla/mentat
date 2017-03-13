@@ -15,5 +15,13 @@
     ".sw*": true,
     "target": true,          // Top-level build output.
     "*/target": true         // Sub-crate build output.
-  }
+  },
+  "rust.customTestConfigurations": [
+    {
+      "title": "All Crates",
+      "args": [
+        "--all"
+      ]
+    }
+  ]
 }
