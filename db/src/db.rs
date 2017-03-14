@@ -31,6 +31,7 @@ use mentat_core::{
     Attribute,
     AttributeBitFlags,
     Entid,
+    EntidMap,
     IdentMap,
     Schema,
     SchemaMap,
@@ -160,6 +161,8 @@ lazy_static! {
                FROM fulltext_datoms"#,
 
         // Materialized views of the metadata.
+        r#"CREATE TABLE entids (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
+        r#"CREATE INDEX idx_entids_unique ON entids (e, a, v, value_type_tag)"#,
         r#"CREATE TABLE idents (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
         r#"CREATE INDEX idx_idents_unique ON idents (e, a, v, value_type_tag)"#,
         r#"CREATE TABLE schema (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
@@ -427,6 +430,21 @@ fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
     m
 }
 
+/// Read the entid map materialized view from the given SQL store.
+fn read_entid_map(conn: &rusqlite::Connection) -> Result<EntidMap> {
+    let v = read_materialized_view(conn, "entids")?;
+    v.into_iter().map(|(e, a, typed_value)| {
+        if a != entids::DB_IDENT {
+            bail!(ErrorKind::NotYetImplemented(format!("bad entids materialized view: expected :db/ident but got {}", a)));
+        }
+        if let TypedValue::Keyword(keyword) = typed_value {
+            Ok((e, keyword))
+        } else {
+            bail!(ErrorKind::NotYetImplemented(format!("bad entids materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]", typed_value)));
+        }
+    }).collect()
+}
+
 /// Read the ident map materialized view from the given SQL store.
 fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
     let v = read_materialized_view(conn, "idents")?;
@@ -443,19 +461,25 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
 }
 
 /// Read the schema materialized view from the given SQL store.
-fn read_schema(conn: &rusqlite::Connection, ident_map: &IdentMap) -> Result<Schema> {
-    let entid_triples = read_materialized_view(conn, "idents")?;
-    let mut schema = Schema::from_ident_map_and_schema_map(ident_map.clone(), SchemaMap::default())?;
-    metadata::update_metadata_from_entid_triples(&mut schema, entid_triples)?;
-    Ok(schema)
+fn read_schema_map(conn: &rusqlite::Connection) -> Result<SchemaMap> {
+    let entid_triples = read_materialized_view(conn, "schema")?;
+    let mut schema_map = SchemaMap::default();
+    metadata::update_schema_map_from_entid_triples(&mut schema_map, entid_triples)?;
+    Ok(schema_map)
 }
 
 /// Read the materialized views from the given SQL store and return a Mentat `DB` for querying and
 /// applying transactions.
 pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
     let partition_map = read_partition_map(conn)?;
+    let entid_map = read_entid_map(conn)?;
     let ident_map = read_ident_map(conn)?;
-    let schema = read_schema(conn, &ident_map)?;
+    let schema_map = read_schema_map(conn)?;
+    let schema = Schema {
+        entid_map: entid_map,
+        ident_map: ident_map,
+        schema_map: schema_map,
+    };
     Ok(DB::new(partition_map, schema))
 }
 
