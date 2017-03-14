@@ -176,6 +176,19 @@ impl Debug for ColumnConstraint {
     }
 }
 
+trait OptionEffect<T> {
+    fn when_not<F: FnOnce()>(self, f: F) -> Option<T>;
+}
+
+impl<T> OptionEffect<T> for Option<T> {
+    fn when_not<F: FnOnce()>(self, f: F) -> Option<T> {
+        if self.is_none() {
+            f();
+        }
+        self
+    }
+}
+
 /// A `ConjoiningClauses` (CC) is a collection of clauses that are combined with `JOIN`.
 /// The topmost form in a query is a `ConjoiningClauses`.
 ///
@@ -249,6 +262,7 @@ pub enum EmptyBecause {
     UnresolvedIdent(NamespacedKeyword),
     InvalidAttributeIdent(NamespacedKeyword),
     InvalidAttributeEntid(Entid),
+    InvalidBinding(DatomsColumn, TypedValue),
     ValueTypeMismatch(ValueType, TypedValue),
     AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
 }
@@ -269,6 +283,9 @@ impl Debug for EmptyBecause {
             },
             &InvalidAttributeEntid(entid) => {
                 write!(f, "{} is not an attribute", entid)
+            },
+            &InvalidBinding(ref column, ref tv) => {
+                write!(f, "{:?} cannot name column {:?}", tv, column)
             },
             &ValueTypeMismatch(value_type, ref typed_value) => {
                 write!(f, "Type mismatch: {:?} doesn't match attribute type {:?}",
@@ -341,19 +358,31 @@ impl ConjoiningClauses {
             // We expect callers to do things like bind keywords here; we need to translate these
             // before they hit our constraints.
             // TODO: recognize when the valueType might be a ref and also translate entids there.
-            if column != DatomsColumn::Value {
-                if let TypedValue::Keyword(ref kw) = bound_val {
-                    if let Some(entid) = self.entid_for_ident(schema, kw) {
+            if column == DatomsColumn::Value {
+                self.constrain_column_to_constant(table, column, bound_val);
+            } else {
+                match bound_val {
+                    TypedValue::Keyword(ref kw) => {
+                        if let Some(entid) = self.entid_for_ident(schema, kw) {
+                            self.constrain_column_to_entity(table, column, entid);
+                        } else {
+                            // Impossible.
+                            // For attributes this shouldn't occur, because we check the binding in
+                            // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
+                            // attribute then we should have already marked the pattern as empty.
+                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.clone()));
+                        }
+                    },
+                    TypedValue::Ref(entid) => {
                         self.constrain_column_to_entity(table, column, entid);
-                    } else {
-                        // Impossible.
-                        self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.clone()));
-                    }
-                    return;
+                    },
+                    _ => {
+                        // One can't bind an e, a, or tx to something other than an entity.
+                        self.mark_known_empty(EmptyBecause::InvalidBinding(column, bound_val));
+                    },
                 }
             }
 
-            self.constrain_column_to_constant(table, column, bound_val);
             return;
         }
 
@@ -481,7 +510,7 @@ impl ConjoiningClauses {
         }
     }
 
-    fn table_for_unknown_attribute<'s, 'a>(&self, schema: &'s Schema, value: &'a PatternValuePlace) -> Option<DatomsTable> {
+    fn table_for_unknown_attribute<'s, 'a>(&self, value: &'a PatternValuePlace) -> Option<DatomsTable> {
         // If the value is known to be non-textual, we can simply use the regular datoms
         // table (TODO: and exclude on `index_fulltext`!).
         //
@@ -503,34 +532,46 @@ impl ConjoiningClauses {
             })
     }
 
-    fn table_for_places<'s, 'a>(&self, schema: &'s Schema, attribute: &'a PatternNonValuePlace, value: &'a PatternValuePlace) -> Option<DatomsTable> {
+    /// Decide which table to use for the provided attribute and value.
+    /// If the attribute input or value binding doesn't name an attribute, or doesn't name an
+    /// attribute that is congruent with the supplied value, we mark the CC as known-empty and
+    /// return `None`.
+    fn table_for_places<'s, 'a>(&mut self, schema: &'s Schema, attribute: &'a PatternNonValuePlace, value: &'a PatternValuePlace) -> Option<DatomsTable> {
         match attribute {
             &PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw)
+                      .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(kw.clone())))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             &PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
+                      .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(id)))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             // TODO: In a prepared context, defer this decision until a second algebrizing phase.
             // #278.
             &PatternNonValuePlace::Placeholder =>
-                self.table_for_unknown_attribute(schema, value),
+                self.table_for_unknown_attribute(value),
             &PatternNonValuePlace::Variable(ref v) => {
                 // See if we have a binding for the variable.
                 match self.bound_value(v) {
                     // TODO: In a prepared context, defer this decision until a second algebrizing phase.
                     // #278.
                     None =>
-                        self.table_for_unknown_attribute(schema, value),
+                        self.table_for_unknown_attribute(value),
                     Some(TypedValue::Ref(id)) =>
                         // Recurse: it's easy.
                         self.table_for_places(schema, &PatternNonValuePlace::Entid(id), value),
                     Some(TypedValue::Keyword(ref kw)) =>
                         // Don't recurse: avoid needing to clone the keyword.
                         schema.attribute_for_ident(kw)
+                              .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(kw.clone())))
                               .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
-                    _ =>
-                        None,
+                    Some(v) => {
+                        // This pattern cannot match: the caller has bound a non-entity value to an
+                        // attribute place. Return `None` and invalidate this CC.
+                        self.mark_known_empty(EmptyBecause::InvalidBinding(DatomsColumn::Attribute,
+                                                                           v.clone()));
+                        None
+                    },
                 }
             },
 
@@ -543,6 +584,7 @@ impl ConjoiningClauses {
     /// `is_known_empty`.
     fn alias_table<'s, 'a>(&mut self, schema: &'s Schema, pattern: &'a Pattern) -> Option<SourceAlias> {
         self.table_for_places(schema, &pattern.attribute, &pattern.value)
+            .when_not(|| assert!(self.is_known_empty))   // table_for_places should have flipped this.
             .map(|table| SourceAlias(table, (self.aliaser)(table)))
     }
 
@@ -1008,7 +1050,6 @@ mod testing {
 
         let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
         let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
-        let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
 
         assert!(!cc.is_known_empty);
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
@@ -1021,6 +1062,29 @@ mod testing {
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::EqualsEntity(d0_a, 99),
         ]);
+    }
+
+    /// Queries that bind non-entity values to entity places can't succeed.
+    #[test]
+    fn test_bind_the_wrong_thing() {
+        let mut cc = ConjoiningClauses::default();
+        let schema = Schema::default();
+
+        let x = Variable(PlainSymbol::new("?x"));
+        let a = Variable(PlainSymbol::new("?a"));
+        let v = Variable(PlainSymbol::new("?v"));
+
+        cc.input_variables.insert(a.clone());
+        cc.value_bindings.insert(a.clone(), TypedValue::String("hello".to_string()));
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Variable(a.clone()),
+            value: PatternValuePlace::Variable(v.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+
+        assert!(cc.is_known_empty);
     }
 
 
@@ -1044,7 +1108,6 @@ mod testing {
         // println!("{:#?}", cc);
 
         let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
-        let d0_v = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Value);
 
         assert!(!cc.is_known_empty);
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
@@ -1056,7 +1119,6 @@ mod testing {
         assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
         assert_eq!(cc.wheres, vec![]);
     }
-
 
     /// This test ensures that we query all_datoms if we're looking for a string.
     #[test]
