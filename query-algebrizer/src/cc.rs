@@ -478,6 +478,9 @@ impl ConjoiningClauses {
 
     fn mark_known_empty(&mut self, why: EmptyBecause) {
         self.is_known_empty = true;
+        if self.empty_because.is_some() {
+            return;
+        }
         println!("CC known empty: {:?}.", &why);                   // TODO: proper logging.
         self.empty_because = Some(why);
     }
