@@ -821,6 +821,7 @@ impl ConjoiningClauses {
 #[cfg(test)]
 mod testing {
     use super::*;
+    use mentat_core::attribute::Unique;
     use mentat_query::PlainSymbol;
 
     fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
@@ -1207,6 +1208,8 @@ mod testing {
     }
 
     #[test]
+    /// Bind a value to a variable in a query where the type of the value disagrees with the type of
+    /// the variable inferred from known attributes.
     fn test_value_bindings_type_disagreement() {
         let mut schema = Schema::default();
 
@@ -1233,5 +1236,120 @@ mod testing {
 
         // The type of the provided binding doesn't match the type of the attribute.
         assert!(cc.is_known_empty);
+    }
+
+    #[test]
+    /// Bind a non-textual value to a variable in a query where the variable is used as the value
+    /// of a fulltext-valued attribute.
+    fn test_fulltext_type_disagreement() {
+        let mut schema = Schema::default();
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::String,
+            fulltext: true,
+            ..Default::default()
+        });
+
+        let x = Variable(PlainSymbol::new("?x"));
+        let y = Variable(PlainSymbol::new("?y"));
+
+        let b: BTreeMap<Variable, TypedValue> =
+            vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
+        let mut cc = ConjoiningClauses::with_value_bindings(b);
+
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            value: PatternValuePlace::Variable(y.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+
+        // The type of the provided binding doesn't match the type of the attribute.
+        assert!(cc.is_known_empty);
+    }
+
+    #[test]
+    /// Apply two patterns with differently typed attributes, but sharing a variable in the value
+    /// place. No value can bind to a variable and match both types, so the CC is known to return
+    /// no results.
+    fn test_apply_two_conflicting_known_patterns() {
+        let mut cc = ConjoiningClauses::default();
+        let mut schema = Schema::default();
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::Boolean,
+            ..Default::default()
+        });
+        add_attribute(&mut schema, 98, Attribute {
+            value_type: ValueType::String,
+            unique: Some(Unique::Identity),
+            ..Default::default()
+        });
+
+        let x = Variable(PlainSymbol::new("?x"));
+        let y = Variable(PlainSymbol::new("?y"));
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "roz")),
+            value: PatternValuePlace::Variable(y.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            value: PatternValuePlace::Variable(y.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+
+        // Finally, expand column bindings to get the overlaps for ?x.
+        cc.expand_column_bindings();
+
+        assert!(cc.is_known_empty);
+        assert_eq!(cc.empty_because.unwrap(),
+                   EmptyBecause::TypeMismatch(y.clone(), ValueType::String, ValueType::Boolean));
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed: cc.is_known_empty")]
+    /// This test needs range inference in order to succeed: we must deduce that ?y must
+    /// simultaneously be a boolean-valued attribute and a ref-valued attribute, and thus
+    /// the CC can never return results.
+    fn test_apply_two_implicitly_conflicting_patterns() {
+        let mut cc = ConjoiningClauses::default();
+        let schema = Schema::default();
+
+        // [:find ?x :where
+        //  [?x ?y true]
+        //  [?z ?y ?x]]
+        let x = Variable(PlainSymbol::new("?x"));
+        let y = Variable(PlainSymbol::new("?y"));
+        let z = Variable(PlainSymbol::new("?z"));
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Variable(y.clone()),
+            value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+        cc.apply_pattern(&schema, &Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(z.clone()),
+            attribute: PatternNonValuePlace::Variable(y.clone()),
+            value: PatternValuePlace::Variable(x.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+
+        // Finally, expand column bindings to get the overlaps for ?x.
+        cc.expand_column_bindings();
+
+        assert!(cc.is_known_empty);
+        assert_eq!(cc.empty_because.unwrap(),
+                   EmptyBecause::TypeMismatch(x.clone(), ValueType::Ref, ValueType::Boolean));
     }
 }
