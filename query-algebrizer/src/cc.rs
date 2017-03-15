@@ -45,84 +45,13 @@ use self::mentat_query::{
     Variable,
 };
 
-/// This enum models the fixed set of default tables we have -- two
-/// tables and two views.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum DatomsTable {
-    Datoms,             // The non-fulltext datoms table.
-    FulltextValues,     // The virtual table mapping IDs to strings.
-    FulltextDatoms,     // The fulltext-datoms view.
-    AllDatoms,          // Fulltext and non-fulltext datoms.
-}
-
-impl DatomsTable {
-    pub fn name(&self) -> &'static str {
-        match *self {
-            DatomsTable::Datoms => "datoms",
-            DatomsTable::FulltextValues => "fulltext_values",
-            DatomsTable::FulltextDatoms => "fulltext_datoms",
-            DatomsTable::AllDatoms => "all_datoms",
-        }
-    }
-}
-
-/// One of the named columns of our tables.
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum DatomsColumn {
-    Entity,
-    Attribute,
-    Value,
-    Tx,
-    ValueTypeTag,
-}
-
-impl DatomsColumn {
-    pub fn as_str(&self) -> &'static str {
-        use DatomsColumn::*;
-        match *self {
-            Entity => "e",
-            Attribute => "a",
-            Value => "v",
-            Tx => "tx",
-            ValueTypeTag => "value_type_tag",
-        }
-    }
-}
-
-
-/// A specific instance of a table within a query. E.g., "datoms123".
-pub type TableAlias = String;
-
-/// The association between a table and its alias. E.g., AllDatoms, "all_datoms123".
-#[derive(PartialEq, Eq, Clone)]
-pub struct SourceAlias(pub DatomsTable, pub TableAlias);
-
-impl Debug for SourceAlias {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "SourceAlias({:?}, {})", self.0, self.1)
-    }
-}
-
-/// A particular column of a particular aliased table. E.g., "datoms123", Attribute.
-#[derive(PartialEq, Eq, Clone)]
-pub struct QualifiedAlias(pub TableAlias, pub DatomsColumn);
-
-impl Debug for QualifiedAlias {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}.{}", self.0, self.1.as_str())
-    }
-}
-
-impl QualifiedAlias {
-    fn for_type_tag(&self) -> QualifiedAlias {
-        QualifiedAlias(self.0.clone(), DatomsColumn::ValueTypeTag)
-    }
-
-    #[inline]
-    fn is_value(&self) -> bool {
-        self.1 == DatomsColumn::Value
-    }
-}
+use types::{
+    DatomsColumn,
+    DatomsTable,
+    QualifiedAlias,
+    SourceAlias,
+    TableAlias,
+};
 
 /// A thing that's capable of aliasing a table name for us.
 /// This exists so that we can obtain predictable names in tests.
