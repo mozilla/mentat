@@ -11,6 +11,7 @@
 extern crate mentat_core;
 extern crate mentat_query;
 
+mod types;
 mod cc;
 
 use mentat_core::{
@@ -84,7 +85,7 @@ pub use cc::{
     ConjoiningClauses,
 };
 
-pub use cc::{
+pub use types::{
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,
