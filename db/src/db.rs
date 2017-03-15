@@ -31,7 +31,6 @@ use mentat_core::{
     Attribute,
     AttributeBitFlags,
     Entid,
-    EntidMap,
     IdentMap,
     Schema,
     SchemaMap,
@@ -163,8 +162,6 @@ lazy_static! {
                FROM fulltext_datoms"#,
 
         // Materialized views of the metadata.
-        r#"CREATE TABLE entids (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
-        r#"CREATE INDEX idx_entids_unique ON entids (e, a, v, value_type_tag)"#,
         r#"CREATE TABLE idents (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
         r#"CREATE INDEX idx_idents_unique ON idents (e, a, v, value_type_tag)"#,
         r#"CREATE TABLE schema (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
@@ -435,21 +432,6 @@ fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
     m
 }
 
-/// Read the entid map materialized view from the given SQL store.
-fn read_entid_map(conn: &rusqlite::Connection) -> Result<EntidMap> {
-    let v = read_materialized_view(conn, "entids")?;
-    v.into_iter().map(|(e, a, typed_value)| {
-        if a != entids::DB_IDENT {
-            bail!(ErrorKind::NotYetImplemented(format!("bad entids materialized view: expected :db/ident but got {}", a)));
-        }
-        if let TypedValue::Keyword(keyword) = typed_value {
-            Ok((e, keyword))
-        } else {
-            bail!(ErrorKind::NotYetImplemented(format!("bad entids materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]", typed_value)));
-        }
-    }).collect()
-}
-
 /// Read the ident map materialized view from the given SQL store.
 fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
     let v = read_materialized_view(conn, "idents")?;
@@ -477,14 +459,9 @@ fn read_schema_map(conn: &rusqlite::Connection) -> Result<SchemaMap> {
 /// applying transactions.
 pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
     let partition_map = read_partition_map(conn)?;
-    let entid_map = read_entid_map(conn)?;
     let ident_map = read_ident_map(conn)?;
     let schema_map = read_schema_map(conn)?;
-    let schema = Schema {
-        entid_map: entid_map,
-        ident_map: ident_map,
-        schema_map: schema_map,
-    };
+    let schema = Schema::from_ident_map_and_schema_map(ident_map, schema_map)?;
     Ok(DB::new(partition_map, schema))
 }
 
@@ -890,12 +867,6 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
     // TODO: consider doing this in fewer SQLite execute() invocations.
     // TODO: use concat! to avoid creating String instances.
     if !metadata_report.idents_altered.is_empty() {
-        // Entids is the materialized view of the [entid :db/ident ident] slice of datoms.
-        conn.execute(format!("DELETE FROM entids").as_str(),
-                     &[])?;
-        conn.execute(format!("INSERT INTO entids SELECT e, a, v, value_type_tag FROM datoms WHERE a IN {}", entids::IDENTS_SET.as_str()).as_str(),
-                     &[])?;
-
         // Idents is the materialized view of the [entid :db/ident ident _ added] slice of
         // transactions.  This keeps outdated idents around, just like Datomic does.
         conn.execute(format!("DELETE FROM idents").as_str(),
@@ -1024,14 +995,11 @@ mod tests {
 
     impl TestConn {
         fn assert_materialized_views(&self) {
-            let materialized_entid_map = read_entid_map(&self.sqlite).unwrap();
-            assert_eq!(materialized_entid_map, self.schema.entid_map);
-
             let materialized_ident_map = read_ident_map(&self.sqlite).unwrap();
-            assert_eq!(materialized_ident_map, self.schema.ident_map);
-
             let materialized_schema_map = read_schema_map(&self.sqlite).unwrap();
-            assert_eq!(materialized_schema_map, self.schema.schema_map);
+
+            let materialized_schema = Schema::from_ident_map_and_schema_map(materialized_ident_map, materialized_schema_map).unwrap();
+            assert_eq!(materialized_schema, self.schema);
         }
 
         fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
