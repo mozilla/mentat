@@ -28,8 +28,8 @@ use std::collections::btree_map::Entry;
 
 use itertools::Itertools; // For join().
 
-use diff_set::{
-    DiffSet,
+use add_retract_alter_set::{
+    AddRetractAlterSet,
 };
 use edn::symbols;
 use entids;
@@ -222,8 +222,8 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
     //
     // We also collect metadata assertions (:db.install/attribute, :db.alter/attribute, :db/ident)
     // separately; these are naturally :db.cardinality :db/cardinality many.
-    let mut attribute_diff_set: DiffSet<(Entid, Entid), TypedValue> = DiffSet::default();
-    let mut ident_diff_set: DiffSet<Entid, symbols::NamespacedKeyword> = DiffSet::default();
+    let mut attribute_set: AddRetractAlterSet<(Entid, Entid), TypedValue> = AddRetractAlterSet::default();
+    let mut ident_set: AddRetractAlterSet<Entid, symbols::NamespacedKeyword> = AddRetractAlterSet::default();
 
     let mut flagged_install: BTreeSet<Entid> = BTreeSet::default();
     let mut flagged_alter: BTreeSet<Entid> = BTreeSet::default();
@@ -233,7 +233,7 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
         match a {
             entids::DB_IDENT => {
                 if let TypedValue::Keyword(ref keyword) = typed_value {
-                    ident_diff_set.witness(e, keyword.clone(), added);
+                    ident_set.witness(e, keyword.clone(), added);
                     continue
                 } else {
                     // Something is terribly wrong: the schema ensures we have a keyword.
@@ -280,23 +280,23 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
             _ => {},
         }
 
-        attribute_diff_set.witness((e, a), typed_value, added);
+        attribute_set.witness((e, a), typed_value, added);
     }
 
     // Datomic does not allow to retract attributes or idents.  For now, Mentat follows suit.
-    if !attribute_diff_set.retracted.is_empty() {
+    if !attribute_set.retracted.is_empty() {
         bail!(ErrorKind::NotYetImplemented(format!("Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [{}]",
-                                                   attribute_diff_set.retracted.keys().map(|&(e, a)| format!("[{} {}]", e, a)).join(", "))));
+                                                   attribute_set.retracted.keys().map(|&(e, a)| format!("[{} {}]", e, a)).join(", "))));
     }
 
-    if !ident_diff_set.retracted.is_empty() {
+    if !ident_set.retracted.is_empty() {
         bail!(ErrorKind::NotYetImplemented(format!("Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [{}]",
-                                                   ident_diff_set.retracted.keys().map(|&e| format!("[{} :db/ident]", e)).join(", "))));
+                                                   ident_set.retracted.keys().map(|&e| format!("[{} :db/ident]", e)).join(", "))));
     }
 
     // Collect triples.
-    let asserted_triples = attribute_diff_set.asserted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
-    let altered_triples = attribute_diff_set.altered.into_iter().map(|((e, a), (_old_value, new_value))| (e, a, new_value));
+    let asserted_triples = attribute_set.asserted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
+    let altered_triples = attribute_set.altered.into_iter().map(|((e, a), (_old_value, new_value))| (e, a, new_value));
 
     let report = update_schema_map_from_entid_triples(&mut schema.schema_map, asserted_triples.chain(altered_triples))?;
 
@@ -311,7 +311,7 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
             bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for new attribute with entid {}, but :db.alter/attribute included in transaction", entid)));
         }
         // Datomic requires a :db/ident for every schema attribute.  Mentat follows suit.
-        if !ident_diff_set.asserted.contains_key(&entid) {
+        if !ident_set.asserted.contains_key(&entid) {
             bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for new attribute with entid {}, but :db/ident not included in transaction", entid)));
         }
     }
@@ -338,13 +338,13 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
     let mut idents_altered: BTreeMap<Entid, IdentAlteration> = BTreeMap::new();
 
     // Asserted or altered :db/idents update the relevant entids.
-    for (entid, ident) in ident_diff_set.asserted {
+    for (entid, ident) in ident_set.asserted {
         schema.entid_map.insert(entid, ident.clone());
         schema.ident_map.insert(ident.clone(), entid);
         idents_altered.insert(entid, IdentAlteration::Ident(ident.clone()));
     }
 
-    for (entid, (_old_ident, new_ident)) in ident_diff_set.altered {
+    for (entid, (_old_ident, new_ident)) in ident_set.altered {
         schema.entid_map.insert(entid, new_ident.clone());
         schema.ident_map.insert(new_ident.clone(), entid);
         idents_altered.insert(entid, IdentAlteration::Ident(new_ident.clone()));

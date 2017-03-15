@@ -31,7 +31,7 @@ pub use errors::{Error, ErrorKind, ResultExt, Result};
 pub mod db;
 mod bootstrap;
 pub mod debug;
-mod diff_set;
+mod add_retract_alter_set;
 mod entids;
 pub mod errors;
 mod metadata;
