@@ -904,7 +904,13 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                 &UniqueValue => {
                     // TODO: This can fail if there are conflicting values; give a more helpful
                     // error message in this case.
-                    unique_value_stmt.execute(&[&attribute.unique_value, &entid as &ToSql])?;
+                    if unique_value_stmt.execute(&[&attribute.unique_value, &entid as &ToSql]).is_err() {
+                        if attribute.unique_value {
+                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute '{}' to be :db.unique/value", entid)));
+                        } else {
+                            unreachable!(); // This shouldn't happen, even after we support removing :db/unique.
+                        }
+                    }
                 },
                 &Cardinality => {
                     // We can always go from :db.cardinality/one to :db.cardinality many.  It's
@@ -1503,5 +1509,71 @@ mod tests {
         // We cannot retract an existing :db/ident.
         let err = conn.transact("[[:db/retract :name/Petr :db/ident :name/Petr]]").unwrap_err().to_string();
         assert_eq!(err, "not yet implemented: Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [[100 :db/ident]]");
+    }
+
+    #[test]
+    fn test_db_alter_cardinality() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a :db.cardinality/one attribute.
+        conn.transact("[[:db/add 100 :db/ident :test/ident]
+                        [:db/add 100 :db/valueType :db.type/long]
+                        [:db/add 100 :db/cardinality :db.cardinality/one]
+                        [:db/add :db.part/db :db.install/attribute 100]]").unwrap();
+
+        conn.transact("[[:db/add 200 :test/ident 1]]").unwrap();
+
+        // We can always go from :db.cardinality/one to :db.cardinality/many.
+        conn.transact("[[:db/add 100 :db/cardinality :db.cardinality/many]
+                        [:db/add :db.part/db :db.alter/attribute 100]]").unwrap();
+
+        conn.transact("[[:db/add 200 :test/ident 2]]").unwrap();
+
+        assert_matches!(conn.datoms(),
+                        "[[2 :db.install/attribute :test/ident]
+                          [2 :db.alter/attribute :test/ident]
+                          [100 :db/ident :test/ident]
+                          [100 :db/valueType :db.type/long]
+                          [100 :db/cardinality :db.cardinality/many]
+                          [200 :test/ident 1]
+                          [200 :test/ident 2]]");
+
+        // We can't always go from :db.cardinality/many to :db.cardinality/one.
+        let err = conn.transact("[[:db/add 100 :db/cardinality :db.cardinality/one]
+                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
+        // TODO: give more helpful error details.
+        assert_eq!(err, "not yet implemented: Cannot alter schema attribute \'100\' to be :db.cardinality/one");
+    }
+
+    #[test]
+    fn test_db_alter_unique_value() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a :db.cardinality/one attribute.
+        conn.transact("[[:db/add 100 :db/ident :test/ident]
+                        [:db/add 100 :db/valueType :db.type/long]
+                        [:db/add 100 :db/cardinality :db.cardinality/one]
+                        [:db/add :db.part/db :db.install/attribute 100]]").unwrap();
+
+        conn.transact("[[:db/add 200 :test/ident 1]
+                        [:db/add 201 :test/ident 1]]").unwrap();
+
+        // We can't always migrate to be :db.unique/value.
+        let err = conn.transact("[[:db/add :test/ident :db/unique :db.unique/value]
+                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
+        // TODO: give more helpful error details.
+        assert_eq!(err, "not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value");
+
+        // Not even indirectly!
+        let err = conn.transact("[[:db/add :test/ident :db/unique :db.unique/identity]
+                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
+        // TODO: give more helpful error details.
+        assert_eq!(err, "not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value");
+
+        // But we can if we make sure there's no repeated [a v] pair.
+        conn.transact("[[:db/add 201 :test/ident 2]]").unwrap();
+
+        conn.transact("[[:db/add :test/ident :db/unique :db.unique/value]
+                        [:db/add :db.part/db :db.alter/attribute 100]]").unwrap();
     }
 }
