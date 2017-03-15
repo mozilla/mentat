@@ -26,6 +26,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
 
+use itertools::Itertools; // For join().
+
+use diff_set::{
+    DiffSet,
+};
 use edn::symbols;
 use entids;
 use errors::{
@@ -34,6 +39,7 @@ use errors::{
 };
 use mentat_core::{
     Entid,
+    Schema,
     SchemaMap,
     TypedValue,
     ValueType,
@@ -191,5 +197,161 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
         attributes_installed: attributes_installed,
         attributes_altered: attributes_altered,
         idents_altered: BTreeMap::default(),
+    })
+}
+
+/// Update a `Schema` in place from the given `[e a typed_value added]` quadruples.
+///
+/// This layer enforces that metadata assertions, as distinct from attribute assertions, and
+/// generally of the form
+/// - [entid :db/ident ...]
+/// - [:db.part/db :db.install/attribute ...]
+/// - [:db.part/db :db.alter/attribute ...]
+/// are present and correct.
+///
+/// This is suitable for mutating a `Schema` from an applied transaction.
+///
+/// Returns a report summarizing the mutations that were applied.
+pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U) -> Result<MetadataReport>
+    where U: IntoIterator<Item=(Entid, Entid, TypedValue, bool)> {
+
+    // Group attribute assertions into asserted, retracted, and updated.  We assume all our
+    // attribute assertions are :db/cardinality :db.cardinality/one (so they'll only be added or
+    // retracted at most once), which means all attribute alterations are simple changes from an old
+    // value to a new value.
+    //
+    // We also collect metadata assertions (:db.install/attribute, :db.alter/attribute, :db/ident)
+    // separately; these are naturally :db.cardinality :db/cardinality many.
+    let mut attribute_diff_set: DiffSet<(Entid, Entid), TypedValue> = DiffSet::default();
+    let mut ident_diff_set: DiffSet<Entid, symbols::NamespacedKeyword> = DiffSet::default();
+
+    let mut flagged_install: BTreeSet<Entid> = BTreeSet::default();
+    let mut flagged_alter: BTreeSet<Entid> = BTreeSet::default();
+
+    for (e, a, typed_value, added) in assertions.into_iter() {
+        // Here we handle metadata assertions.
+        match a {
+            entids::DB_IDENT => {
+                if let TypedValue::Keyword(ref keyword) = typed_value {
+                    ident_diff_set.witness(e, keyword.clone(), added);
+                    continue
+                } else {
+                    // Something is terribly wrong: the schema ensures we have a keyword.
+                    unreachable!();
+                }
+            }
+
+            entids::DB_INSTALL_ATTRIBUTE => {
+                if !added {
+                    bail!(ErrorKind::NotYetImplemented(format!("Handling attribute retractions with attribute {} not yet implemented", a)));
+                }
+
+                if e != entids::DB_PART_DB {
+                    bail!(ErrorKind::BadSchemaAssertion(format!("Expected [:db.part/db :db.install/attribute ...] but got [{:?} :db.install/attribute ...]", e)))
+                }
+
+                match typed_value {
+                    TypedValue::Ref(e) => {
+                        flagged_install.insert(e);
+                        continue
+                    },
+                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [:db.part/db :db.install/attribute entid] but got [:db.part/db :db.install/attribute {:?}]", typed_value)))
+                }
+            },
+
+            entids::DB_ALTER_ATTRIBUTE => {
+                if !added {
+                    bail!(ErrorKind::NotYetImplemented(format!("Handling attribute retractions with attribute {} not yet implemented", a)));
+                }
+
+                if e != entids::DB_PART_DB {
+                    bail!(ErrorKind::BadSchemaAssertion(format!("Expected [:db.part/db :db.alter/attribute ...] but got [{:?} :db.alter/attribute ...]", e)))
+                }
+
+                match typed_value {
+                    TypedValue::Ref(e) => {
+                        flagged_alter.insert(e);
+                        continue
+                    },
+                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [:db.part/db :db.alter/attribute entid] but got [:db.part/db :db.alter/attribute {:?}]", typed_value)))
+                }
+            },
+
+            _ => {},
+        }
+
+        attribute_diff_set.witness((e, a), typed_value, added);
+    }
+
+    // Datomic does not allow to retract attributes or idents.  For now, Mentat follows suit.
+    if !attribute_diff_set.retracted.is_empty() {
+        bail!(ErrorKind::NotYetImplemented(format!("Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [{}]",
+                                                   attribute_diff_set.retracted.keys().map(|&(e, a)| format!("[{} {}]", e, a)).join(", "))));
+    }
+
+    if !ident_diff_set.retracted.is_empty() {
+        bail!(ErrorKind::NotYetImplemented(format!("Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [{}]",
+                                                   ident_diff_set.retracted.keys().map(|&e| format!("[{} :db/ident]", e)).join(", "))));
+    }
+
+    // Collect triples.
+    let asserted_triples = attribute_diff_set.asserted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
+    let altered_triples = attribute_diff_set.altered.into_iter().map(|((e, a), (_old_value, new_value))| (e, a, new_value));
+
+    let report = update_schema_map_from_entid_triples(&mut schema.schema_map, asserted_triples.chain(altered_triples))?;
+
+    // Verify that new schema attributes were flagged with :db.install/attribute, that mutated
+    // schema attributes were flagged with :db.alter/attribute, and that no orphaned entids were
+    // flagged but not provided.
+    for &entid in &report.attributes_installed {
+        if !flagged_install.remove(&entid) {
+            bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for new attribute with entid {}, but :db.install/attribute not included in transaction", entid)));
+        }
+        if flagged_alter.contains(&entid) {
+            bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for new attribute with entid {}, but :db.alter/attribute included in transaction", entid)));
+        }
+        // Datomic requires a :db/ident for every schema attribute.  Mentat follows suit.
+        if !ident_diff_set.asserted.contains_key(&entid) {
+            bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for new attribute with entid {}, but :db/ident not included in transaction", entid)));
+        }
+    }
+
+    for &entid in report.attributes_altered.keys() {
+        if !flagged_alter.remove(&entid) {
+            bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for existing attribute with entid {}, but :db.alter/attribute not included in transaction", entid)));
+        }
+        if flagged_install.contains(&entid) {
+            bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes given for existing attribute with entid {}, but :db.install/attribute included in transaction", entid)));
+        }
+    }
+
+    // Verify that we have no orphaned entids: we've seen schema attributes for anything installed
+    // or altered.
+    if !flagged_install.is_empty() {
+        bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes not given for :db.install/attribute entids [{}]", flagged_install.iter().join(", "))));
+    }
+
+    if !flagged_alter.is_empty() {
+        bail!(ErrorKind::BadSchemaAssertion(format!("Schema attributes not given for :db.alter/attribute entids [{}]", flagged_alter.iter().join(", "))));
+    }
+
+    let mut idents_altered: BTreeMap<Entid, IdentAlteration> = BTreeMap::new();
+
+    // Asserted or altered :db/idents update the relevant entids.
+    for (entid, ident) in ident_diff_set.asserted {
+        schema.entid_map.insert(entid, ident.clone());
+        schema.ident_map.insert(ident.clone(), entid);
+        idents_altered.insert(entid, IdentAlteration::Ident(ident.clone()));
+    }
+
+    for (entid, (_old_ident, new_ident)) in ident_diff_set.altered {
+        schema.entid_map.insert(entid, new_ident.clone());
+        schema.ident_map.insert(new_ident.clone(), entid);
+        idents_altered.insert(entid, IdentAlteration::Ident(new_ident.clone()));
+    }
+
+    Ok(MetadataReport {
+        idents_altered: idents_altered,
+        .. report
     })
 }

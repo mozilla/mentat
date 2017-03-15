@@ -56,3 +56,67 @@ pub const DB_DOC: Entid = 35;
 // Added in SQL schema v2.
 pub const DB_SCHEMA_VERSION: Entid = 36;
 pub const DB_SCHEMA_ATTRIBUTE: Entid = 37;
+
+/// Return `false` if the given attribute will not change the metadata: recognized idents, schema,
+/// partitions in the partition map.
+pub fn might_update_metadata(attribute: Entid) -> bool {
+    if attribute > DB_DOC {
+        return false
+    }
+    match attribute {
+        // Idents.
+        DB_IDENT |
+        // Schema.
+        DB_ALTER_ATTRIBUTE |
+        DB_CARDINALITY |
+        DB_DOC |
+        DB_FULLTEXT |
+        DB_INSTALL_ATTRIBUTE |
+        DB_INSTALL_PARTITION |
+        DB_INSTALL_VALUE_TYPE |
+        DB_INDEX |
+        DB_IS_COMPONENT |
+        DB_UNIQUE |
+        DB_VALUE_TYPE =>
+            true,
+        _ => false,
+    }
+}
+
+lazy_static! {
+    /// Attributes that are "ident related".  These might change the "entids" and "idents"
+    /// materialized views.
+    pub static ref IDENTS_SET: String = {
+        format!("({})",
+                DB_IDENT)
+    };
+
+    /// Attributes that are "schema related".  These might change the "schema" materialized view.
+    pub static ref SCHEMA_SET: String = {
+        format!("({}, {}, {}, {}, {}, {}, {})",
+                DB_CARDINALITY,
+                DB_DOC,
+                DB_FULLTEXT,
+                DB_INDEX,
+                DB_IS_COMPONENT,
+                DB_UNIQUE,
+                DB_VALUE_TYPE)
+    };
+
+    /// Attributes that are "metadata" related.  These might change one of the materialized views.
+    pub static ref METADATA_SET: String = {
+        format!("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+                DB_ALTER_ATTRIBUTE,
+                DB_CARDINALITY,
+                DB_DOC,
+                DB_FULLTEXT,
+                DB_IDENT,
+                DB_INDEX,
+                DB_INSTALL_ATTRIBUTE,
+                DB_INSTALL_PARTITION,
+                DB_INSTALL_VALUE_TYPE,
+                DB_IS_COMPONENT,
+                DB_UNIQUE,
+                DB_VALUE_TYPE)
+    };
+}

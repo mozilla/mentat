@@ -52,7 +52,6 @@ use std::collections::{
     BTreeSet,
 };
 
-use ::{to_namespaced_keyword};
 use db;
 use db::{
     MentatStoring,
@@ -75,6 +74,7 @@ use mentat_core::{
 };
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
+use metadata;
 use rusqlite;
 use schema::{
     SchemaBuilding,
@@ -323,6 +323,14 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             assert!(tempids.contains_key(&**tempid));
         }
 
+        // A transaction might try to add or retract :db/ident assertions or other metadata mutating
+        // assertions , but those assertions might not make it to the store.  If we see a possible
+        // metadata mutation, we will figure out if any assertions made it through later.  This is
+        // strictly an optimization: it would be correct to _always_ check what made it to the
+        // store.
+        let mut tx_might_update_metadata = false;
+
+{
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
 
@@ -344,6 +352,10 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                         bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented"))) // TODO: reference original input.  Difficult!
                     }
 
+                    if entids::might_update_metadata(a) {
+                        tx_might_update_metadata = true;
+                    }
+
                     let added = op == OpType::Add;
                     if attribute.multival {
                         non_fts_many.push((e, a, attribute, v, added));
@@ -358,8 +370,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // TODO: allow this to be present in the transaction data.
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
-                          // TODO: extract this to a constant.
-                          self.schema.require_attribute_for_entid(self.schema.require_entid(&to_namespaced_keyword(":db/txInstant").unwrap())?)?,
+                          self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
                           TypedValue::Long(self.tx_instant),
                           true));
 
@@ -372,9 +383,28 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         self.store.commit_transaction(self.tx_id)?;
+    }
 
-        // TODO: update idents and schema materialized views.
         db::update_partition_map(self.store, &self.partition_map)?;
+
+        if tx_might_update_metadata {
+            // Extract changes to metadata from the store.
+            let metadata_assertions = self.store.committed_metadata_assertions(self.tx_id)?;
+
+            let mut new_schema = (*self.schema_for_mutation).clone(); // Clone the underlying Schema for modification.
+            let metadata_report = metadata::update_schema_from_entid_quadruples(&mut new_schema, metadata_assertions)?;
+
+            // We might not have made any changes to the schema, even though it looked like we
+            // would.  This should not happen, even during bootstrapping: we mutate an empty
+            // `Schema` in this case specifically to run the bootstrapped assertions through the
+            // regular transactor code paths, updating the schema and materialized views uniformly.
+            // But, belt-and-braces: handle it gracefully.
+            if new_schema != *self.schema_for_mutation {
+                let old_schema = (*self.schema_for_mutation).clone(); // Clone the original Schema for comparison.
+                *self.schema_for_mutation.to_mut() = new_schema; // Store the new Schema.
+                db::update_metadata(self.store, &old_schema, &*self.schema_for_mutation, &metadata_report)?;
+            }
+        }
 
         Ok(TxReport {
             tx_id: self.tx_id,
