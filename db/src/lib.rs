@@ -34,6 +34,7 @@ pub mod debug;
 mod diff_set;
 mod entids;
 pub mod errors;
+mod metadata;
 mod schema;
 mod types;
 mod internal_types;

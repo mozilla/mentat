@@ -12,7 +12,6 @@
 
 use db::TypedSQLValue;
 use edn;
-use entids;
 use errors::{ErrorKind, Result};
 use edn::symbols;
 use mentat_core::{
@@ -24,6 +23,10 @@ use mentat_core::{
     SchemaMap,
     TypedValue,
     ValueType,
+};
+use metadata;
+use metadata::{
+    AttributeAlteration,
 };
 
 /// Return `Ok(())` if `schema_map` defines a valid Mentat schema.
@@ -50,6 +53,135 @@ fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<(
         // scheme, as discussed in https://github.com/mozilla/mentat/issues/69.
     }
     Ok(())
+}
+
+#[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
+pub struct AttributeBuilder {
+    value_type: Option<ValueType>,
+    multival: Option<bool>,
+    unique_value: Option<bool>,
+    unique_identity: Option<bool>,
+    index: Option<bool>,
+    fulltext: Option<bool>,
+    component: Option<bool>,
+}
+
+impl AttributeBuilder {
+    pub fn value_type<'a>(&'a mut self, value_type: ValueType) -> &'a mut Self {
+        self.value_type = Some(value_type);
+        self
+    }
+
+    pub fn multival<'a>(&'a mut self, multival: bool) -> &'a mut Self {
+        self.multival = Some(multival);
+        self
+    }
+
+    pub fn unique_value<'a>(&'a mut self, unique_value: bool) -> &'a mut Self {
+        if unique_value {
+            self.index = Some(true);
+        }
+        self.unique_value = Some(unique_value);
+        self
+    }
+
+    pub fn unique_identity<'a>(&'a mut self, unique_identity: bool) -> &'a mut Self {
+        self.unique_identity = Some(unique_identity);
+        if unique_identity {
+            self.index = Some(true);
+            self.unique_value = Some(true);
+        }
+        self
+    }
+
+    pub fn index<'a>(&'a mut self, index: bool) -> &'a mut Self {
+        self.index = Some(index);
+        self
+    }
+
+    pub fn fulltext<'a>(&'a mut self, fulltext: bool) -> &'a mut Self {
+        self.fulltext = Some(fulltext);
+        if fulltext {
+            self.index = Some(true);
+        }
+        self
+    }
+
+    pub fn component<'a>(&'a mut self, component: bool) -> &'a mut Self {
+        self.component = Some(component);
+        self
+    }
+
+    pub fn is_valid_install_attribute(&self) -> bool {
+        self.value_type.is_some()
+    }
+
+    pub fn is_valid_alter_attribute(&self) -> bool {
+        self.value_type.is_none() && self.fulltext.is_none()
+    }
+
+    pub fn build(&self) -> Attribute {
+        let mut attribute = Attribute::default();
+        if let Some(value_type) = self.value_type {
+            attribute.value_type = value_type;
+        }
+        if let Some(fulltext) = self.fulltext {
+            attribute.fulltext = fulltext;
+        }
+        if let Some(multival) = self.multival {
+            attribute.multival = multival;
+        }
+        if let Some(unique_value) = self.unique_value {
+            attribute.unique_value = unique_value;
+        }
+        if let Some(unique_identity) = self.unique_identity {
+            attribute.unique_identity = unique_identity;
+        }
+        if let Some(index) = self.index {
+            attribute.index = index;
+        }
+        if let Some(component) = self.component {
+            attribute.component = component;
+        }
+
+        attribute
+    }
+
+    pub fn mutate(&self, attribute: &mut Attribute) -> Vec<AttributeAlteration> {
+        let mut mutations = Vec::new();
+        if let Some(multival) = self.multival {
+            if multival != attribute.multival {
+                attribute.multival = multival;
+                mutations.push(AttributeAlteration::Cardinality);
+            }
+        }
+        if let Some(unique_value) = self.unique_value {
+            if unique_value != attribute.unique_value {
+                attribute.unique_value = unique_value;
+                mutations.push(AttributeAlteration::UniqueValue);
+            }
+        }
+        if let Some(unique_identity) = self.unique_identity {
+            if unique_identity != attribute.unique_identity {
+                attribute.unique_identity = unique_identity;
+                mutations.push(AttributeAlteration::UniqueIdentity);
+            }
+        }
+        if let Some(index) = self.index {
+            if index != attribute.index {
+                attribute.index = index;
+                mutations.push(AttributeAlteration::Index);
+            }
+        }
+        if let Some(component) = self.component {
+            if component != attribute.component {
+                attribute.component = component;
+                mutations.push(AttributeAlteration::IsComponent);
+            }
+        }
+
+        mutations
+    }
 }
 
 pub trait SchemaBuilding {
@@ -90,93 +222,15 @@ impl SchemaBuilding for Schema {
     /// Turn vec![(NamespacedKeyword(:ident), NamespacedKeyword(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
         where U: IntoIterator<Item=(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>{
-        let mut schema_map = SchemaMap::new();
-        for (ref symbolic_ident, ref symbolic_attr, ref value) in assertions.into_iter() {
-            let ident: i64 = *ident_map.get(symbolic_ident).ok_or(ErrorKind::UnrecognizedIdent(symbolic_ident.to_string()))?;
-            let attr: i64 = *ident_map.get(symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.to_string()))?;
-            let attributes = schema_map.entry(ident).or_insert(Attribute::default());
 
-            // TODO: improve error messages throughout.
-            match attr {
-                entids::DB_VALUE_TYPE => {
-                    match *value {
-                        TypedValue::Ref(entids::DB_TYPE_REF) => { attributes.value_type = ValueType::Ref; },
-                        TypedValue::Ref(entids::DB_TYPE_BOOLEAN) => { attributes.value_type = ValueType::Boolean; },
-                        TypedValue::Ref(entids::DB_TYPE_LONG) => { attributes.value_type = ValueType::Long; },
-                        TypedValue::Ref(entids::DB_TYPE_STRING) => { attributes.value_type = ValueType::String; },
-                        TypedValue::Ref(entids::DB_TYPE_KEYWORD) => { attributes.value_type = ValueType::Keyword; },
-                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for ident '{}' and attribute '{}'", value, ident, attr)))
-                    }
-                },
-
-                entids::DB_CARDINALITY => {
-                    match *value {
-                        TypedValue::Ref(entids::DB_CARDINALITY_MANY) => { attributes.multival = true; },
-                        TypedValue::Ref(entids::DB_CARDINALITY_ONE) => { attributes.multival = false; },
-                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]", value)))
-                    }
-                },
-
-                entids::DB_UNIQUE => {
-                    match *value {
-                        TypedValue::Ref(entids::DB_UNIQUE_VALUE) => {
-                            attributes.unique_value = true;
-                            attributes.index = true;
-                        },
-                        TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => {
-                            attributes.unique_value = true;
-                            attributes.unique_identity = true;
-                            attributes.index = true;
-                        },
-                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
-                    }
-                },
-
-                entids::DB_INDEX => {
-                    match *value {
-                        TypedValue::Boolean(x) => { attributes.index = x },
-                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/index true|false] but got [... :db/index {:?}]", value)))
-                    }
-                },
-
-                entids::DB_FULLTEXT => {
-                    match *value {
-                        TypedValue::Boolean(x) => {
-                            attributes.fulltext = x;
-                            if attributes.fulltext {
-                                attributes.index = true;
-                            }
-                        },
-                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]", value)))
-                    }
-                },
-
-                entids::DB_IS_COMPONENT => {
-                    match *value {
-                        TypedValue::Boolean(x) => { attributes.component = x },
-                        _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]", value)))
-                    }
-                },
-
-                entids::DB_DOC => {
-                    // Nothing for now.
-                },
-
-                entids::DB_IDENT => {
-                    // Nothing for now.
-                },
-
-                entids::DB_INSTALL_ATTRIBUTE => {
-                    // Nothing for now.
-                },
-
-                _ => {
-                    bail!(ErrorKind::BadSchemaAssertion(format!("Do not recognize attribute '{}' for ident '{}'", attr, ident)))
-                }
-            }
-        };
-
-        Schema::from_ident_map_and_schema_map(ident_map.clone(), schema_map)
+        let entid_assertions: Result<Vec<(Entid, Entid, TypedValue)>> = assertions.into_iter().map(|(symbolic_ident, symbolic_attr, value)| {
+            let ident: i64 = *ident_map.get(&symbolic_ident).ok_or(ErrorKind::UnrecognizedIdent(symbolic_ident.to_string()))?;
+            let attr: i64 = *ident_map.get(&symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.to_string()))?;
+            Ok((ident, attr, value))
+        }).collect();
+        let mut schema = Schema::from_ident_map_and_schema_map(ident_map, SchemaMap::default())?;
+        metadata::update_schema_map_from_entid_triples(&mut schema.schema_map, entid_assertions?)?;
+        Ok(schema)
     }
 }
 

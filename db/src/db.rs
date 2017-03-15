@@ -40,7 +40,6 @@ use mentat_core::{
 };
 use metadata;
 use errors::{ErrorKind, Result, ResultExt};
-use schema::SchemaBuilding;
 use types::{
     AVMap,
     AVPair,
