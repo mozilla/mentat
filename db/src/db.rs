@@ -862,8 +862,8 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
 {
     use metadata::AttributeAlteration::*;
 
-    // Populate the materialized view directly from datoms and transactions.  This might generalize
-    // nicely as we expand the set of materialized views.
+    // Populate the materialized view directly from datoms (and, potentially in the future,
+    // transactions).  This might generalize nicely as we expand the set of materialized views.
     // TODO: consider doing this in fewer SQLite execute() invocations.
     // TODO: use concat! to avoid creating String instances.
     if !metadata_report.idents_altered.is_empty() {
@@ -873,7 +873,7 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                      &[])?;
         // Take the last, as determined by tx, added [e :db/ident v _ true].  This will pick up
         // :db/idents that have been retracted and/or re-purposed.
-        conn.execute(format!("INSERT INTO idents SELECT e, a, v, value_type_tag FROM (SELECT e, a, v, value_type_tag, MAX(tx) FROM transactions WHERE a IN {} AND added = 1 GROUP BY e, a, v, value_type_tag, tx)", entids::IDENTS_SET.as_str()).as_str(),
+        conn.execute(format!("INSERT INTO idents SELECT e, a, v, value_type_tag FROM datoms WHERE a IN {}", entids::IDENTS_SET.as_str()).as_str(),
                      &[])?;
     }
 
@@ -1477,8 +1477,8 @@ mod tests {
         assert_eq!(conn.schema.entid_map.get(&100).cloned().unwrap(), to_namespaced_keyword(":name/Petr").unwrap());
         // Ident map contains the new ident.
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Petr").unwrap()).cloned().unwrap(), 100);
-        // Ident map still contains the old ident.
-        assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).cloned().unwrap(), 100);
+        // Ident map no longer contains the old ident.
+        assert!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).is_none());
 
         // We can re-purpose an old ident.
         conn.transact("[[:db/add 101 :db/ident :name/Ivan]]").unwrap();

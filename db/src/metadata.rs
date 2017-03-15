@@ -344,8 +344,9 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
         idents_altered.insert(entid, IdentAlteration::Ident(ident.clone()));
     }
 
-    for (entid, (_old_ident, new_ident)) in ident_set.altered {
+    for (entid, (old_ident, new_ident)) in ident_set.altered {
         schema.entid_map.insert(entid, new_ident.clone());
+        schema.ident_map.remove(&old_ident);
         schema.ident_map.insert(new_ident.clone(), entid);
         idents_altered.insert(entid, IdentAlteration::Ident(new_ident.clone()));
     }
