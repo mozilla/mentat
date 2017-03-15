@@ -45,7 +45,6 @@
 //! names -- `TermWithTempIdsAndLookupRefs`, anyone? -- and strongly typed stage functions will help
 //! keep everything straight.
 
-use std;
 use std::borrow::Cow;
 use std::collections::{
     BTreeMap,
@@ -60,6 +59,7 @@ use db::{
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
+    Either,
     LookupRefOrTempId,
     TempId,
     TempIdMap,
@@ -204,11 +204,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                     entmod::Entid::Entid(ref e) => *e,
                                     entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
                                 };
-                                std::result::Result::Ok(e)
+                                Either::Left(e)
                             },
 
                             entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
                             },
 
                             entmod::EntidOrLookupRefOrTempId::LookupRef(_) => {
@@ -219,7 +219,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
                         let v = {
                             if attribute.value_type == ValueType::Ref && v.is_text() {
-                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
                             } else if attribute.value_type == ValueType::Ref && v.is_vector() && v.as_vector().unwrap().len() == 2 {
                                 bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
                             } else {
@@ -228,7 +228,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 // cases) coerce the value into the attribute's value set.
                                 let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
 
-                                std::result::Result::Ok(typed_value)
+                                Either::Left(typed_value)
                             }
                         };
 

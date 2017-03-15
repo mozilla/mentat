@@ -12,7 +12,6 @@
 
 //! Types used only within the transactor.  These should not be exposed outside of this crate.
 
-use std;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -31,8 +30,16 @@ pub enum Term<E, V> {
     AddOrRetract(OpType, E, Entid, V),
 }
 
-pub type EntidOr<T> = std::result::Result<Entid, T>;
-pub type TypedValueOr<T> = std::result::Result<TypedValue, T>;
+#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+pub enum Either<L, R> {
+    Left(L),
+    Right(R),
+}
+
+use self::Either::*;
+
+pub type EntidOr<T> = Either<Entid, T>;
+pub type TypedValueOr<T> = Either<TypedValue, T>;
 
 pub type TempId = Rc<String>;
 pub type TempIdMap = HashMap<TempId, Entid>;
@@ -59,7 +66,7 @@ impl TermWithTempIds {
     // Rust and seems appropriate here.
     pub fn unwrap(self) -> TermWithoutTempIds {
         match self {
-            Term::AddOrRetract(op, Ok(n), a, Ok(v)) => Term::AddOrRetract(op, n, a, v),
+            Term::AddOrRetract(op, Left(n), a, Left(v)) => Term::AddOrRetract(op, n, a, v),
             _ => unreachable!(),
         }
     }
@@ -74,14 +81,14 @@ impl TermWithTempIds {
 /// The reason for this awkward expression is that we're parameterizing over the _type constructor_
 /// (`EntidOr` or `TypedValueOr`), which is not trivial to express in Rust.  This only works because
 /// they're both the same `Result<...>` type with different parameterizations.
-pub fn replace_lookup_ref<T, U>(lookup_map: &AVMap, desired_or: Result<T, LookupRefOrTempId>, lift: U) -> errors::Result<Result<T, TempId>> where U: FnOnce(Entid) -> T {
+pub fn replace_lookup_ref<T, U>(lookup_map: &AVMap, desired_or: Either<T, LookupRefOrTempId>, lift: U) -> errors::Result<Either<T, TempId>> where U: FnOnce(Entid) -> T {
     match desired_or {
-        Ok(desired) => Ok(Ok(desired)), // N.b., must unwrap here -- the ::Ok types are different!
-        Err(other) => {
+        Left(desired) => Ok(Left(desired)), // N.b., must unwrap here -- the ::Left types are different!
+        Right(other) => {
             match other {
-                LookupRefOrTempId::TempId(t) => Ok(Err(t)),
+                LookupRefOrTempId::TempId(t) => Ok(Right(t)),
                 LookupRefOrTempId::LookupRef(av) => lookup_map.get(&*av)
-                    .map(|x| lift(*x)).map(Ok)
+                    .map(|x| lift(*x)).map(Left)
                     // XXX TODO: fix this error kind!
                     .ok_or_else(|| ErrorKind::UnrecognizedIdent(format!("couldn't lookup [a v]: {:?}", (*av).clone())).into()),
             }

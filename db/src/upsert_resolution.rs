@@ -33,6 +33,7 @@ use internal_types::{
     TermWithoutTempIds,
     TermWithTempIds,
 };
+use internal_types::Either::*;
 use schema::SchemaBuilding;
 
 /// A "Simple upsert" that looks like [:db/add TEMPID a v], where a is :db.unique/identity.
@@ -98,25 +99,25 @@ impl Generation {
 
         for term in terms.into_iter() {
             match term {
-                Term::AddOrRetract(op, Err(e), a, Err(v)) => {
+                Term::AddOrRetract(op, Right(e), a, Right(v)) => {
                     if op == OpType::Add && is_unique(a)? {
                         generation.upserts_ev.push(UpsertEV(e, a, v));
                     } else {
-                        generation.allocations.push(Term::AddOrRetract(op, Err(e), a, Err(v)));
+                        generation.allocations.push(Term::AddOrRetract(op, Right(e), a, Right(v)));
                     }
                 },
-                Term::AddOrRetract(op, Err(e), a, Ok(v)) => {
+                Term::AddOrRetract(op, Right(e), a, Left(v)) => {
                     if op == OpType::Add && is_unique(a)? {
                         generation.upserts_e.push(UpsertE(e, a, v));
                     } else {
-                        generation.allocations.push(Term::AddOrRetract(op, Err(e), a, Ok(v)));
+                        generation.allocations.push(Term::AddOrRetract(op, Right(e), a, Left(v)));
                     }
                 },
-                Term::AddOrRetract(op, Ok(e), a, Err(v)) => {
-                    generation.allocations.push(Term::AddOrRetract(op, Ok(e), a, Err(v)));
+                Term::AddOrRetract(op, Left(e), a, Right(v)) => {
+                    generation.allocations.push(Term::AddOrRetract(op, Left(e), a, Right(v)));
                 },
-                Term::AddOrRetract(op, Ok(e), a, Ok(v)) => {
-                    inert.push(Term::AddOrRetract(op, Ok(e), a, Ok(v)));
+                Term::AddOrRetract(op, Left(e), a, Left(v)) => {
+                    inert.push(Term::AddOrRetract(op, Left(e), a, Left(v)));
                 },
             }
         }
@@ -143,7 +144,7 @@ impl Generation {
         for UpsertE(t, a, v) in self.upserts_e {
             match temp_id_map.get(&*t) {
                 Some(&n) => next.upserted.push(Term::AddOrRetract(OpType::Add, n, a, v)),
-                None => next.allocations.push(Term::AddOrRetract(OpType::Add, Err(t), a, Ok(v))),
+                None => next.allocations.push(Term::AddOrRetract(OpType::Add, Right(t), a, Left(v))),
             }
         }
 
@@ -151,8 +152,8 @@ impl Generation {
             match (temp_id_map.get(&*t1), temp_id_map.get(&*t2)) {
                 (Some(&n1), Some(&n2)) => next.resolved.push(Term::AddOrRetract(OpType::Add, n1, a, TypedValue::Ref(n2))),
                 (None, Some(&n2)) => next.upserts_e.push(UpsertE(t1, a, TypedValue::Ref(n2))),
-                (Some(&n1), None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Ok(n1), a, Err(t2))),
-                (None, None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Err(t1), a, Err(t2))),
+                (Some(&n1), None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Left(n1), a, Right(t2))),
+                (None, None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Right(t1), a, Right(t2))),
             }
         }
 
@@ -162,27 +163,27 @@ impl Generation {
             // TODO: find an expression that destructures less?  I still expect this to be efficient
             // but it's a little verbose.
             match term {
-                Term::AddOrRetract(op, Err(t1), a, Err(t2)) => {
+                Term::AddOrRetract(op, Right(t1), a, Right(t2)) => {
                     match (temp_id_map.get(&*t1), temp_id_map.get(&*t2)) {
                         (Some(&n1), Some(&n2)) => next.resolved.push(Term::AddOrRetract(op, n1, a, TypedValue::Ref(n2))),
-                        (None, Some(&n2)) => next.allocations.push(Term::AddOrRetract(op, Err(t1), a, Ok(TypedValue::Ref(n2)))),
-                        (Some(&n1), None) => next.allocations.push(Term::AddOrRetract(op, Ok(n1), a, Err(t2))),
-                        (None, None) => next.allocations.push(Term::AddOrRetract(op, Err(t1), a, Err(t2))),
+                        (None, Some(&n2)) => next.allocations.push(Term::AddOrRetract(op, Right(t1), a, Left(TypedValue::Ref(n2)))),
+                        (Some(&n1), None) => next.allocations.push(Term::AddOrRetract(op, Left(n1), a, Right(t2))),
+                        (None, None) => next.allocations.push(Term::AddOrRetract(op, Right(t1), a, Right(t2))),
                     }
                 },
-                Term::AddOrRetract(op, Err(t), a, Ok(v)) => {
+                Term::AddOrRetract(op, Right(t), a, Left(v)) => {
                     match temp_id_map.get(&*t) {
                         Some(&n) => next.resolved.push(Term::AddOrRetract(op, n, a, v)),
-                        None => next.allocations.push(Term::AddOrRetract(op, Err(t), a, Ok(v))),
+                        None => next.allocations.push(Term::AddOrRetract(op, Right(t), a, Left(v))),
                     }
                 },
-                Term::AddOrRetract(op, Ok(e), a, Err(t)) => {
+                Term::AddOrRetract(op, Left(e), a, Right(t)) => {
                     match temp_id_map.get(&*t) {
                         Some(&n) => next.resolved.push(Term::AddOrRetract(op, e, a, TypedValue::Ref(n))),
-                        None => next.allocations.push(Term::AddOrRetract(op, Ok(e), a, Err(t))),
+                        None => next.allocations.push(Term::AddOrRetract(op, Left(e), a, Right(t))),
                     }
                 },
-                Term::AddOrRetract(_, Ok(_), _, Ok(_)) => unreachable!(),
+                Term::AddOrRetract(_, Left(_), _, Left(_)) => unreachable!(),
             }
         }
 
@@ -212,17 +213,17 @@ impl Generation {
 
         for term in self.allocations.iter() {
             match term {
-                &Term::AddOrRetract(OpType::Add, Err(ref t1), _, Err(ref t2)) => {
+                &Term::AddOrRetract(OpType::Add, Right(ref t1), _, Right(ref t2)) => {
                     temp_ids.insert(t1.clone());
                     temp_ids.insert(t2.clone());
                 },
-                &Term::AddOrRetract(OpType::Add, Err(ref t), _, Ok(_)) => {
+                &Term::AddOrRetract(OpType::Add, Right(ref t), _, Left(_)) => {
                     temp_ids.insert(t.clone());
                 },
-                &Term::AddOrRetract(OpType::Add, Ok(_), _, Err(ref t)) => {
+                &Term::AddOrRetract(OpType::Add, Left(_), _, Right(ref t)) => {
                     temp_ids.insert(t.clone());
                 },
-                &Term::AddOrRetract(OpType::Add, Ok(_), _, Ok(_)) => unreachable!(),
+                &Term::AddOrRetract(OpType::Add, Left(_), _, Left(_)) => unreachable!(),
                 &Term::AddOrRetract(OpType::Retract, _, _, _) => {
                     // [:db/retract ...] entities never allocate entids; they have to resolve due to
                     // other upserts (or they fail the transaction).
@@ -247,28 +248,28 @@ impl Generation {
         for term in self.allocations {
             let allocated = match term {
                 // TODO: consider require implementing require on temp_id_map.
-                Term::AddOrRetract(op, Err(t1), a, Err(t2)) => {
+                Term::AddOrRetract(op, Right(t1), a, Right(t2)) => {
                     match (op, temp_id_map.get(&*t1), temp_id_map.get(&*t2)) {
                         (op, Some(&n1), Some(&n2)) => Term::AddOrRetract(op, n1, a, TypedValue::Ref(n2)),
                         (OpType::Add, _, _) => unreachable!(), // This is a coding error -- every tempid in a :db/add entity should resolve or be allocated.
                         (OpType::Retract, _, _) => bail!(ErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: one of {}, {}", t1, t2))),
                     }
                 },
-                Term::AddOrRetract(op, Err(t), a, Ok(v)) => {
+                Term::AddOrRetract(op, Right(t), a, Left(v)) => {
                     match (op, temp_id_map.get(&*t)) {
                         (op, Some(&n)) => Term::AddOrRetract(op, n, a, v),
                         (OpType::Add, _) => unreachable!(), // This is a coding error.
                         (OpType::Retract, _) => bail!(ErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
                     }
                 },
-                Term::AddOrRetract(op, Ok(e), a, Err(t)) => {
+                Term::AddOrRetract(op, Left(e), a, Right(t)) => {
                     match (op, temp_id_map.get(&*t)) {
                         (op, Some(&n)) => Term::AddOrRetract(op, e, a, TypedValue::Ref(n)),
                         (OpType::Add, _) => unreachable!(), // This is a coding error.
                         (OpType::Retract, _) => bail!(ErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
                     }
                 },
-                Term::AddOrRetract(_, Ok(_), _, Ok(_)) => unreachable!(), // This is a coding error -- these should not be in allocations.
+                Term::AddOrRetract(_, Left(_), _, Left(_)) => unreachable!(), // This is a coding error -- these should not be in allocations.
             };
             populations.allocated.push(allocated);
         }
