@@ -877,16 +877,21 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                      &[])?;
     }
 
+
+    let mut stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str())?;
     for &entid in &metadata_report.attributes_installed {
-        conn.execute(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str(),
-                     &[&entid as &ToSql])?;
+        stmt.execute(&[&entid as &ToSql])?;
     }
 
+    let mut delete_stmt = conn.prepare(format!("DELETE FROM schema WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str())?;
+    let mut insert_stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str())?;
+    let mut index_stmt = conn.prepare("UPDATE datoms SET index_avet = ? WHERE a = ?")?;
+    let mut unique_value_stmt = conn.prepare("UPDATE datoms SET unique_value = ? WHERE a = ?")?;
+    let mut cardinality_stmt = conn.prepare("SELECT e FROM datoms WHERE a = ? GROUP BY e HAVING COUNT(*) > 1 LIMIT 1")?;
+
     for (&entid, alterations) in &metadata_report.attributes_altered {
-        conn.execute(format!("DELETE FROM schema WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str(),
-                     &[&entid as &ToSql])?;
-        conn.execute(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str(),
-                     &[&entid as &ToSql])?;
+        delete_stmt.execute(&[&entid as &ToSql])?;
+        insert_stmt.execute(&[&entid as &ToSql])?;
 
         let attribute = new_schema.require_attribute_for_entid(entid)?;
 
@@ -894,12 +899,12 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
             match alteration {
                 &Index => {
                     // This should always succeed.
-                    conn.execute("UPDATE datoms SET index_avet = ? WHERE a = ?", &[&attribute.index, &entid as &ToSql])?;
+                    index_stmt.execute(&[&attribute.index, &entid as &ToSql])?;
                 },
                 &UniqueValue => {
                     // TODO: This can fail if there are conflicting values; give a more helpful
                     // error message in this case.
-                    conn.execute("UPDATE datoms SET unique_value = ? WHERE a = ?", &[&attribute.unique_value, &entid as &ToSql])?;
+                    unique_value_stmt.execute(&[&attribute.unique_value, &entid as &ToSql])?;
                 },
                 &Cardinality => {
                     // We can always go from :db.cardinality/one to :db.cardinality many.  It's
@@ -908,8 +913,7 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                     // TODO: improve the failure message.  Perhaps try to mimic what Datomic says in
                     // this case?
                     if !attribute.multival {
-                        let mut stmt = conn.prepare("SELECT e FROM datoms GROUP BY e HAVING COUNT(*) > 1 WHERE a = ? LIMIT 1")?;
-                        let mut rows = stmt.query(&[&entid as &ToSql])?;
+                        let mut rows = cardinality_stmt.query(&[&entid as &ToSql])?;
                         if rows.next().is_some() {
                             bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute '{}' to be :db.cardinality/one", entid)));
                         }
