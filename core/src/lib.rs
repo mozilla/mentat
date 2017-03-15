@@ -74,7 +74,6 @@ impl TypedValue {
             &TypedValue::Keyword(_) => ValueType::Keyword,
         }
     }
-
 }
 
 // Put this here rather than in `db` simply because it's widely needed.

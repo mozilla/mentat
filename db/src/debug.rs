@@ -86,6 +86,21 @@ impl Transactions {
     }
 }
 
+/// Turn TypedValue::Ref into TypedValue::Keyword when it is possible.
+trait ToIdent {
+  fn map_ident(self, schema: &Schema) -> Self;
+}
+
+impl ToIdent for TypedValue {
+    fn map_ident(self, schema: &Schema) -> Self {
+        if let TypedValue::Ref(e) = self {
+            schema.get_ident(e).cloned().map(TypedValue::Keyword).unwrap_or(TypedValue::Ref(e))
+        } else {
+            self
+        }
+    }
+}
+
 /// Convert a numeric entid to an ident `Entid` if possible, otherwise a numeric `Entid`.
 fn to_entid(schema: &Schema, entid: i64) -> Entid {
     schema.get_ident(entid).map_or(Entid::Entid(entid), |ident| Entid::Ident(ident.clone()))
@@ -117,12 +132,7 @@ pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, 
         let v: rusqlite::types::Value = row.get_checked(2)?;
         let value_type_tag: i32 = row.get_checked(3)?;
 
-        let typed_value = match TypedValue::from_sql_value_pair(v, value_type_tag)? {
-            TypedValue::Ref(e) => {
-                borrowed_schema.get_ident(e).cloned().map(TypedValue::Keyword).unwrap_or(TypedValue::Ref(e))
-            },
-            x => x,
-        };
+        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?.map_ident(borrowed_schema);
         let (value, _) = typed_value.to_edn_value_pair();
 
         let tx: i64 = row.get_checked(4)?;
@@ -155,12 +165,7 @@ pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema
         let v: rusqlite::types::Value = row.get_checked(2)?;
         let value_type_tag: i32 = row.get_checked(3)?;
 
-        let typed_value = match TypedValue::from_sql_value_pair(v, value_type_tag)? {
-            TypedValue::Ref(e) => {
-                borrowed_schema.get_ident(e).cloned().map(TypedValue::Keyword).unwrap_or(TypedValue::Ref(e))
-            },
-            x => x,
-        };
+        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?.map_ident(borrowed_schema);
         let (value, _) = typed_value.to_edn_value_pair();
 
         let tx: i64 = row.get_checked(4)?;
