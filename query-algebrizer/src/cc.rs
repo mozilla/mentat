@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(dead_code, unused_imports)]
-
 extern crate mentat_core;
 extern crate mentat_query;
 
@@ -23,8 +21,6 @@ use std::collections::{
     BTreeSet,
 };
 
-use std::collections::btree_map::Entry;
-
 use self::mentat_core::{
     Attribute,
     Entid,
@@ -34,13 +30,11 @@ use self::mentat_core::{
 };
 
 use self::mentat_query::{
-    IdentOrEntid,
     NamespacedKeyword,
     NonIntegerConstant,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
-    PlainSymbol,
     SrcVar,
     Variable,
 };
@@ -262,6 +256,7 @@ impl Default for ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
+    #[allow(dead_code)]
     fn with_value_bindings(bindings: BTreeMap<Variable, TypedValue>) -> ConjoiningClauses {
         let mut cc = ConjoiningClauses {
             value_bindings: bindings,
@@ -826,6 +821,7 @@ impl ConjoiningClauses {
 #[cfg(test)]
 mod testing {
     use super::*;
+    use mentat_query::PlainSymbol;
 
     fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
         schema.entid_map.insert(e, i.clone());
