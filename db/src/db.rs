@@ -1479,9 +1479,11 @@ mod tests {
         // Ident map contains the old ident, but re-purposed to the new entid.
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).cloned().unwrap(), 101);
 
-        // We cannot retract an existing :db/ident.
-        assert_transact!(conn, "[[:db/retract :name/Petr :db/ident :name/Petr]]",
-                         Err("not yet implemented: Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [[100 :db/ident]]"));
+        // We can retract an existing :db/ident.
+        assert_transact!(conn, "[[:db/retract :name/Petr :db/ident :name/Petr]]");
+        // It's really gone.
+        assert!(conn.schema.entid_map.get(&100).is_none());
+        assert!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Petr").unwrap()).is_none());
     }
 
     #[test]

@@ -240,11 +240,6 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
                                                    attribute_set.retracted.keys().map(|&(e, a)| format!("[{} {}]", e, a)).join(", "))));
     }
 
-    if !ident_set.retracted.is_empty() {
-        bail!(ErrorKind::NotYetImplemented(format!("Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [{}]",
-                                                   ident_set.retracted.keys().map(|&e| format!("[{} :db/ident]", e)).join(", "))));
-    }
-
     // Collect triples.
     let asserted_triples = attribute_set.asserted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
     let altered_triples = attribute_set.altered.into_iter().map(|((e, a), (_old_value, new_value))| (e, a, new_value));
@@ -253,7 +248,7 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
 
     let mut idents_altered: BTreeMap<Entid, IdentAlteration> = BTreeMap::new();
 
-    // Asserted or altered :db/idents update the relevant entids.
+    // Asserted, altered, or retracted :db/idents update the relevant entids.
     for (entid, ident) in ident_set.asserted {
         schema.entid_map.insert(entid, ident.clone());
         schema.ident_map.insert(ident.clone(), entid);
@@ -265,6 +260,12 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
         schema.ident_map.remove(&old_ident); // Remove old.
         schema.ident_map.insert(new_ident.clone(), entid); // Insert new.
         idents_altered.insert(entid, IdentAlteration::Ident(new_ident.clone()));
+    }
+
+    for (entid, ident) in ident_set.retracted {
+        schema.entid_map.remove(&entid);
+        schema.ident_map.remove(&ident);
+        idents_altered.insert(entid, IdentAlteration::Ident(ident.clone()));
     }
 
     Ok(MetadataReport {
