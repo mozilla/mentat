@@ -32,20 +32,18 @@ use metadata::{
 /// Return `Ok(())` if `schema_map` defines a valid Mentat schema.
 fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<()> {
     for (entid, attribute) in schema_map {
-        let ident = entid_map.get(entid).ok_or(ErrorKind::BadSchemaAssertion(format!("Could not get ident for entid: {}", entid)))?;
-
+        let ident = || entid_map.get(entid).map(|ident| ident.to_string()).unwrap_or(entid.to_string());
         if attribute.unique_value && !attribute.index {
-            bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value true without :db/index true for entid: {}", ident)))
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value true without :db/index true for entid: {}", ident())))
         }
-
         if attribute.unique_identity && !attribute.unique_value {
-            bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/unique :db/unique_value for entid: {}", ident)))
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/unique :db/unique_value for entid: {}", ident())))
         }
         if attribute.fulltext && attribute.value_type != ValueType::String {
-            bail!(ErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/valueType :db.type/string for entid: {}", ident)))
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/valueType :db.type/string for entid: {}", ident())))
         }
         if attribute.component && attribute.value_type != ValueType::Ref {
-            bail!(ErrorKind::BadSchemaAssertion(format!(":db/isComponent true without :db/valueType :db.type/ref for entid: {}", ident)))
+            bail!(ErrorKind::BadSchemaAssertion(format!(":db/isComponent true without :db/valueType :db.type/ref for entid: {}", ident())))
         }
         // TODO: consider warning if we have :db/index true for :db/valueType :db.type/string,
         // since this may be inefficient.  More generally, we should try to drive complex

@@ -995,6 +995,21 @@ mod tests {
         }}
     }
 
+    // Transact $input against the given $conn, expecting success or a `Result<TxReport, String>`.
+    //
+    // This unwraps safely and makes asserting errors pleasant.
+    macro_rules! assert_transact {
+        ( $conn: expr, $input: expr, $expected: expr ) => {{
+            let result = $conn.transact($input).map_err(|e| e.to_string());
+            assert_eq!(result, $expected.map_err(|e| e.to_string()));
+        }};
+        ( $conn: expr, $input: expr ) => {{
+            let result = $conn.transact($input);
+            assert!(result.is_ok());
+            result.unwrap()
+        }};
+    }
+
     // A connection that doesn't try to be clever about possibly sharing its `Schema`.  Compare to
     // `mentat::Conn`.
     struct TestConn {
@@ -1005,10 +1020,10 @@ mod tests {
 
     impl TestConn {
         fn assert_materialized_views(&self) {
-            let materialized_ident_map = read_ident_map(&self.sqlite).unwrap();
-            let materialized_schema_map = read_schema_map(&self.sqlite).unwrap();
+            let materialized_ident_map = read_ident_map(&self.sqlite).expect("ident map");
+            let materialized_schema_map = read_schema_map(&self.sqlite).expect("schema map");
 
-            let materialized_schema = Schema::from_ident_map_and_schema_map(materialized_ident_map, materialized_schema_map).unwrap();
+            let materialized_schema = Schema::from_ident_map_and_schema_map(materialized_ident_map, materialized_schema_map).expect("schema");
             assert_eq!(materialized_schema, self.schema);
         }
 
@@ -1090,8 +1105,8 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Test inserting :db.cardinality/one elements.
-        conn.transact("[[:db/add 100 :db.schema/version 1]
-                        [:db/add 101 :db.schema/version 2]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 1]
+                                 [:db/add 101 :db.schema/version 2]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/version 1 ?tx true]
                           [101 :db.schema/version 2 ?tx true]
@@ -1101,8 +1116,8 @@ mod tests {
                          [101 :db.schema/version 2]]");
 
         // Test inserting :db.cardinality/many elements.
-        conn.transact("[[:db/add 200 :db.schema/attribute 100]
-                        [:db/add 200 :db.schema/attribute 101]]").unwrap();
+        assert_transact!(conn, "[[:db/add 200 :db.schema/attribute 100]
+                                 [:db/add 200 :db.schema/attribute 101]]");
         assert_matches!(conn.last_transaction(),
                         "[[200 :db.schema/attribute 100 ?tx true]
                           [200 :db.schema/attribute 101 ?tx true]
@@ -1114,8 +1129,8 @@ mod tests {
                           [200 :db.schema/attribute 101]]");
 
         // Test replacing existing :db.cardinality/one elements.
-        conn.transact("[[:db/add 100 :db.schema/version 11]
-                        [:db/add 101 :db.schema/version 22]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 11]
+                                 [:db/add 101 :db.schema/version 22]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/version 1 ?tx false]
                           [100 :db.schema/version 11 ?tx true]
@@ -1130,8 +1145,8 @@ mod tests {
 
 
         // Test that asserting existing :db.cardinality/one elements doesn't change the store.
-        conn.transact("[[:db/add 100 :db.schema/version 11]
-                        [:db/add 101 :db.schema/version 22]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 11]
+                                 [:db/add 101 :db.schema/version 22]]");
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
@@ -1142,8 +1157,8 @@ mod tests {
 
 
         // Test that asserting existing :db.cardinality/many elements doesn't change the store.
-        conn.transact("[[:db/add 200 :db.schema/attribute 100]
-                        [:db/add 200 :db.schema/attribute 101]]").unwrap();
+        assert_transact!(conn, "[[:db/add 200 :db.schema/attribute 100]
+                                 [:db/add 200 :db.schema/attribute 101]]");
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
@@ -1158,8 +1173,8 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Insert a few :db.cardinality/one elements.
-        conn.transact("[[:db/add 100 :db.schema/version 1]
-                        [:db/add 101 :db.schema/version 2]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 1]
+                                 [:db/add 101 :db.schema/version 2]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/version 1 ?tx true]
                           [101 :db.schema/version 2 ?tx true]
@@ -1169,8 +1184,8 @@ mod tests {
                           [101 :db.schema/version 2]]");
 
         // And a few :db.cardinality/many elements.
-        conn.transact("[[:db/add 200 :db.schema/attribute 100]
-                        [:db/add 200 :db.schema/attribute 101]]").unwrap();
+        assert_transact!(conn, "[[:db/add 200 :db.schema/attribute 100]
+                                 [:db/add 200 :db.schema/attribute 101]]");
         assert_matches!(conn.last_transaction(),
                         "[[200 :db.schema/attribute 100 ?tx true]
                           [200 :db.schema/attribute 101 ?tx true]
@@ -1182,7 +1197,7 @@ mod tests {
                           [200 :db.schema/attribute 101]]");
 
         // Test that we can retract :db.cardinality/one elements.
-        conn.transact("[[:db/retract 100 :db.schema/version 1]]").unwrap();
+        assert_transact!(conn, "[[:db/retract 100 :db.schema/version 1]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/version 1 ?tx false]
                           [?tx :db/txInstant ?ms ?tx true]]");
@@ -1192,7 +1207,7 @@ mod tests {
                           [200 :db.schema/attribute 101]]");
 
         // Test that we can retract :db.cardinality/many elements.
-        conn.transact("[[:db/retract 200 :db.schema/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/retract 200 :db.schema/attribute 100]]");
         assert_matches!(conn.last_transaction(),
                         "[[200 :db.schema/attribute 100 ?tx false]
                           [?tx :db/txInstant ?ms ?tx true]]");
@@ -1202,8 +1217,8 @@ mod tests {
 
         // Verify that retracting :db.cardinality/{one,many} elements that are not present doesn't
         // change the store.
-        conn.transact("[[:db/retract 100 :db.schema/version 1]
-                        [:db/retract 200 :db.schema/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/retract 100 :db.schema/version 1]
+                                 [:db/retract 200 :db.schema/attribute 100]]");
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
@@ -1217,8 +1232,8 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Insert some :db.unique/identity elements.
-        conn.transact("[[:db/add 100 :db/ident :name/Ivan]
-                        [:db/add 101 :db/ident :name/Petr]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :name/Ivan]
+                                 [:db/add 101 :db/ident :name/Petr]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db/ident :name/Ivan ?tx true]
                           [101 :db/ident :name/Petr ?tx true]
@@ -1228,10 +1243,10 @@ mod tests {
                           [101 :db/ident :name/Petr]]");
 
         // Upserting two tempids to the same entid works.
-        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                                     [:db/add \"t1\" :db.schema/attribute 100]
-                                     [:db/add \"t2\" :db/ident :name/Petr]
-                                     [:db/add \"t2\" :db.schema/attribute 101]]").unwrap();
+        let report = assert_transact!(conn, "[[:db/add \"t1\" :db/ident :name/Ivan]
+                                              [:db/add \"t1\" :db.schema/attribute 100]
+                                              [:db/add \"t2\" :db/ident :name/Petr]
+                                              [:db/add \"t2\" :db.schema/attribute 101]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/attribute :name/Ivan ?tx true]
                           [101 :db.schema/attribute :name/Petr ?tx true]
@@ -1247,8 +1262,8 @@ mod tests {
 
         // Upserting a tempid works.  The ref doesn't have to exist (at this time), but we can't
         // reuse an existing ref due to :db/unique :db.unique/value.
-        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                                     [:db/add \"t1\" :db.schema/attribute 102]]").unwrap();
+        let report = assert_transact!(conn, "[[:db/add \"t1\" :db/ident :name/Ivan]
+                                              [:db/add \"t1\" :db.schema/attribute 102]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db.schema/attribute 102 ?tx true]
                           [?true :db/txInstant ?ms ?tx true]]");
@@ -1262,7 +1277,7 @@ mod tests {
                         "{\"t1\" 100}");
 
         // A single complex upsert allocates a new entid.
-        let report = conn.transact("[[:db/add \"t1\" :db.schema/attribute \"t2\"]]").unwrap();
+        let report = assert_transact!(conn, "[[:db/add \"t1\" :db.schema/attribute \"t2\"]]");
         assert_matches!(conn.last_transaction(),
                         "[[65536 :db.schema/attribute 65537 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
@@ -1271,18 +1286,18 @@ mod tests {
                           \"t2\" 65537}");
 
         // Conflicting upserts fail.
-        let err = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                                  [:db/add \"t1\" :db/ident :name/Petr]]").unwrap_err().to_string();
-        assert_eq!(err, "not yet implemented: Conflicting upsert: tempid \'t1\' resolves to more than one entid: 100, 101");
+        assert_transact!(conn, "[[:db/add \"t1\" :db/ident :name/Ivan]
+                                [:db/add \"t1\" :db/ident :name/Petr]]",
+                         Err("not yet implemented: Conflicting upsert: tempid \'t1\' resolves to more than one entid: 100, 101"));
 
         // tempids in :db/retract that don't upsert fail.
-        let err = conn.transact("[[:db/retract \"t1\" :db/ident :name/Anonymous]]").unwrap_err().to_string();
-        assert_eq!(err, "not yet implemented: [:db/retract ...] entity referenced tempid that did not upsert: t1");
+        assert_transact!(conn, "[[:db/retract \"t1\" :db/ident :name/Anonymous]]",
+                         Err("not yet implemented: [:db/retract ...] entity referenced tempid that did not upsert: t1"));
 
         // tempids in :db/retract that do upsert are retracted.  The ref given doesn't exist, so the
         // assertion will be ignored.
-        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Ivan]
-                                     [:db/retract \"t1\" :db.schema/attribute 103]]").unwrap();
+        let report = assert_transact!(conn, "[[:db/add \"t1\" :db/ident :name/Ivan]
+                                              [:db/retract \"t1\" :db.schema/attribute 103]]");
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(tempids(&report),
@@ -1290,8 +1305,8 @@ mod tests {
 
         // A multistep upsert.  The upsert algorithm will first try to resolve "t1", fail, and then
         // allocate both "t1" and "t2".
-        let report = conn.transact("[[:db/add \"t1\" :db/ident :name/Josef]
-                                     [:db/add \"t2\" :db.schema/attribute \"t1\"]]").unwrap();
+        let report = assert_transact!(conn, "[[:db/add \"t1\" :db/ident :name/Josef]
+                                              [:db/add \"t2\" :db.schema/attribute \"t1\"]]");
         assert_matches!(conn.last_transaction(),
                         "[[65538 :db/ident :name/Josef ?tx true]
                           [65539 :db.schema/attribute :name/Josef ?tx true]
@@ -1328,24 +1343,24 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Trying to :db.install/attribute into the :db.part/user partition will fail.
-        let err = conn.transact("[[:db/add 100 :db/ident :test/ident]
-                                  [:db/add 100 :db/valueType :db.type/long]
-                                  [:db/add 100 :db/cardinality :db.cardinality/many]
-                                  [:db/add :db.part/user :db.install/attribute 100]]").unwrap_err().to_string();
-        // TODO: give the user's input back rather than internal entids (like 16).
-        assert_eq!(err, "bad schema assertion: Expected [:db.part/db :db.install/attribute ...] but got [16 :db.install/attribute ...]");
+        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
+                                 [:db/add 100 :db/valueType :db.type/long]
+                                 [:db/add 100 :db/cardinality :db.cardinality/many]
+                                 [:db/add :db.part/user :db.install/attribute 100]]",
+                         // TODO: give the user's input back rather than internal entids (like 16).
+                         Err("bad schema assertion: Expected [:db.part/db :db.install/attribute ...] but got [16 :db.install/attribute ...]"));
 
         // Trying to :db.install/attribute without a :db/ident will fail.
-        let err = conn.transact("[[:db/add 100 :db/valueType :db.type/long]
-                                  [:db/add 100 :db/cardinality :db.cardinality/many]
-                                  [:db/add :db.part/db :db.install/attribute 100]]").unwrap_err().to_string();
-        assert_eq!(err, "bad schema assertion: Schema attributes given for new attribute with entid 100, but :db/ident not included in transaction");
+        assert_transact!(conn, "[[:db/add 100 :db/valueType :db.type/long]
+                                 [:db/add 100 :db/cardinality :db.cardinality/many]
+                                 [:db/add :db.part/db :db.install/attribute 100]]",
+                         Err("bad schema assertion: Schema attributes given for new attribute with entid 100, but :db/ident not included in transaction"));
 
         // But we can :db.install/attribute into the :db.part/db partition.
-        conn.transact("[[:db/add 100 :db/ident :test/ident]
-                        [:db/add 100 :db/valueType :db.type/long]
-                        [:db/add 100 :db/cardinality :db.cardinality/many]
-                        [:db/add :db.part/db :db.install/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
+                                 [:db/add 100 :db/valueType :db.type/long]
+                                 [:db/add 100 :db/cardinality :db.cardinality/many]
+                                 [:db/add :db.part/db :db.install/attribute 100]]");
 
         assert_eq!(conn.schema.entid_map.get(&100).cloned().unwrap(), to_namespaced_keyword(":test/ident").unwrap());
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":test/ident").unwrap()).cloned().unwrap(), 100);
@@ -1373,8 +1388,8 @@ mod tests {
         assert_eq!(attribute.fulltext, false);
 
         // Let's check that we can use the freshly installed attribute.
-        conn.transact("[[:db/add 101 100 -10]
-                        [:db/add 101 :test/ident -9]]").unwrap();
+        assert_transact!(conn, "[[:db/add 101 100 -10]
+                                 [:db/add 101 :test/ident -9]]");
 
         assert_matches!(conn.last_transaction(),
                         "[[101 :test/ident -10 ?tx true]
@@ -1383,14 +1398,14 @@ mod tests {
 
         // TODO: unify the error messages given in these situations.
         // Cannot retract :db.install/attribute.
-        let err = conn.transact("[[:db/retract :db.part/db :db.install/attribute 100]]").unwrap_err().to_string();
-        // TODO: give the user's input back.
-        assert_eq!(err, "not yet implemented: Handling attribute retractions with attribute 6 not yet implemented");
+        assert_transact!(conn, "[[:db/retract :db.part/db :db.install/attribute 100]]",
+                         // TODO: give the user's input back.
+                         Err("not yet implemented: Handling attribute retractions with attribute 6 not yet implemented"));
 
         // Cannot retract a characteristic of an installed attribute.
-        let err = conn.transact("[[:db/retract 100 :db/cardinality :db.cardinality/many]]").unwrap_err().to_string();
-        // TODO: give the user's input back.
-        assert_eq!(err, "not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[100 8]]");
+        assert_transact!(conn, "[[:db/retract 100 :db/cardinality :db.cardinality/many]]",
+                         // TODO: give the user's input back.
+                         Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[100 8]]"));
     }
 
     #[test]
@@ -1398,26 +1413,26 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Start by installing a :db.cardinality/one attribute.
-        conn.transact("[[:db/add 100 :db/ident :test/ident]
-                        [:db/add 100 :db/valueType :db.type/keyword]
-                        [:db/add 100 :db/cardinality :db.cardinality/one]
-                        [:db/add :db.part/db :db.install/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
+                                 [:db/add 100 :db/valueType :db.type/keyword]
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]
+                                 [:db/add :db.part/db :db.install/attribute 100]]");
 
         // Trying to :db.alter/attribute in the :db.part/user partition will fail.
-        let err = conn.transact("[[:db/add 100 :db/cardinality :db.cardinality/many]
-                                  [:db/add :db.part/user :db.alter/attribute 100]]").unwrap_err().to_string();
-        // TODO: give the user's input back rather than internal entids (like 16).
-        assert_eq!(err, "bad schema assertion: Expected [:db.part/db :db.alter/attribute ...] but got [16 :db.alter/attribute ...]");
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]
+                                 [:db/add :db.part/user :db.alter/attribute 100]]",
+                         // TODO: give the user's input back rather than internal entids (like 16).
+                         Err("bad schema assertion: Expected [:db.part/db :db.alter/attribute ...] but got [16 :db.alter/attribute ...]"));
 
         // Trying to :db.alter/attribute the :db/valueType will fail.
-        let err = conn.transact("[[:db/add 100 :db/valueType :db.type/long]
-                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
-        // TODO: give the user's input back rather than internal entids (like 16).
-        assert_eq!(err, "bad schema assertion: Schema attribute for :db.alter/attribute with entid \'100\' must not set :db/valueType");
+        assert_transact!(conn, "[[:db/add 100 :db/valueType :db.type/long]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+                         // TODO: give the user's input back rather than internal entids (like 16).
+                         Err("bad schema assertion: Schema attribute for :db.alter/attribute with entid \'100\' must not set :db/valueType"));
 
         // But we can :db.alter/attribute in the :db.part/db partition.
-        conn.transact("[[:db/add 100 :db/cardinality :db.cardinality/many]
-                        [:db/add :db.part/db :db.alter/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]");
 
         assert_matches!(conn.last_transaction(),
                         "[[2 :db.alter/attribute :test/ident ?tx true]
@@ -1438,8 +1453,8 @@ mod tests {
         assert_eq!(attribute.fulltext, false);
 
         // Let's check that we can use the freshly altered attribute's new characteristic.
-        conn.transact("[[:db/add 101 100 :test/value1]
-                        [:db/add 101 :test/ident :test/value2]]").unwrap();
+        assert_transact!(conn, "[[:db/add 101 100 :test/value1]
+                                 [:db/add 101 :test/ident :test/value2]]");
 
         assert_matches!(conn.last_transaction(),
                         "[[101 :test/ident :test/value1 ?tx true]
@@ -1447,9 +1462,9 @@ mod tests {
                           [?tx :db/txInstant ?ms ?tx true]]");
 
         // Cannot retract :db.alter/attribute.
-        let err = conn.transact("[[:db/retract :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
-        // TODO: give the user's input back.
-        assert_eq!(err, "not yet implemented: Handling attribute retractions with attribute 22 not yet implemented");
+        assert_transact!(conn, "[[:db/retract :db.part/db :db.alter/attribute 100]]",
+                         // TODO: give the user's input back.
+                         Err("not yet implemented: Handling attribute retractions with attribute 22 not yet implemented"));
     }
 
     #[test]
@@ -1457,7 +1472,7 @@ mod tests {
         let mut conn = TestConn::default();
 
         // We can assert a new :db/ident.
-        conn.transact(" [[:db/add 100 :db/ident :name/Ivan]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :name/Ivan]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db/ident :name/Ivan ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
@@ -1467,7 +1482,7 @@ mod tests {
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).cloned().unwrap(), 100);
 
         // We can re-assert an existing :db/ident.
-        conn.transact("[[:db/add 100 :db/ident :name/Ivan]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :name/Ivan]]");
         assert_matches!(conn.last_transaction(),
                         "[[?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
@@ -1476,7 +1491,7 @@ mod tests {
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).cloned().unwrap(), 100);
 
         // We can alter an existing :db/ident to have a new keyword.
-        conn.transact("[[:db/add :name/Ivan :db/ident :name/Petr]]").unwrap();
+        assert_transact!(conn, "[[:db/add :name/Ivan :db/ident :name/Petr]]");
         assert_matches!(conn.last_transaction(),
                         "[[100 :db/ident :name/Ivan ?tx false]
                           [100 :db/ident :name/Petr ?tx true]
@@ -1491,7 +1506,7 @@ mod tests {
         assert!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).is_none());
 
         // We can re-purpose an old ident.
-        conn.transact("[[:db/add 101 :db/ident :name/Ivan]]").unwrap();
+        assert_transact!(conn, "[[:db/add 101 :db/ident :name/Ivan]]");
         assert_matches!(conn.last_transaction(),
                         "[[101 :db/ident :name/Ivan ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
@@ -1507,8 +1522,8 @@ mod tests {
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":name/Ivan").unwrap()).cloned().unwrap(), 101);
 
         // We cannot retract an existing :db/ident.
-        let err = conn.transact("[[:db/retract :name/Petr :db/ident :name/Petr]]").unwrap_err().to_string();
-        assert_eq!(err, "not yet implemented: Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [[100 :db/ident]]");
+        assert_transact!(conn, "[[:db/retract :name/Petr :db/ident :name/Petr]]",
+                         Err("not yet implemented: Retracting metadata idents assertions not yet implemented: retracted [e :db/ident] pairs [[100 :db/ident]]"));
     }
 
     #[test]
@@ -1516,18 +1531,18 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Start by installing a :db.cardinality/one attribute.
-        conn.transact("[[:db/add 100 :db/ident :test/ident]
-                        [:db/add 100 :db/valueType :db.type/long]
-                        [:db/add 100 :db/cardinality :db.cardinality/one]
-                        [:db/add :db.part/db :db.install/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
+                                 [:db/add 100 :db/valueType :db.type/long]
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]
+                                 [:db/add :db.part/db :db.install/attribute 100]]");
 
-        conn.transact("[[:db/add 200 :test/ident 1]]").unwrap();
+        assert_transact!(conn, "[[:db/add 200 :test/ident 1]]");
 
         // We can always go from :db.cardinality/one to :db.cardinality/many.
-        conn.transact("[[:db/add 100 :db/cardinality :db.cardinality/many]
-                        [:db/add :db.part/db :db.alter/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]");
 
-        conn.transact("[[:db/add 200 :test/ident 2]]").unwrap();
+        assert_transact!(conn, "[[:db/add 200 :test/ident 2]]");
 
         assert_matches!(conn.datoms(),
                         "[[2 :db.install/attribute :test/ident]
@@ -1539,10 +1554,10 @@ mod tests {
                           [200 :test/ident 2]]");
 
         // We can't always go from :db.cardinality/many to :db.cardinality/one.
-        let err = conn.transact("[[:db/add 100 :db/cardinality :db.cardinality/one]
-                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
-        // TODO: give more helpful error details.
-        assert_eq!(err, "not yet implemented: Cannot alter schema attribute \'100\' to be :db.cardinality/one");
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/one]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+                         // TODO: give more helpful error details.
+                         Err("not yet implemented: Cannot alter schema attribute \'100\' to be :db.cardinality/one"));
     }
 
     #[test]
@@ -1550,30 +1565,30 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Start by installing a :db.cardinality/one attribute.
-        conn.transact("[[:db/add 100 :db/ident :test/ident]
-                        [:db/add 100 :db/valueType :db.type/long]
-                        [:db/add 100 :db/cardinality :db.cardinality/one]
-                        [:db/add :db.part/db :db.install/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
+                                 [:db/add 100 :db/valueType :db.type/long]
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]
+                                 [:db/add :db.part/db :db.install/attribute 100]]");
 
-        conn.transact("[[:db/add 200 :test/ident 1]
-                        [:db/add 201 :test/ident 1]]").unwrap();
+        assert_transact!(conn, "[[:db/add 200 :test/ident 1]
+                                 [:db/add 201 :test/ident 1]]");
 
         // We can't always migrate to be :db.unique/value.
-        let err = conn.transact("[[:db/add :test/ident :db/unique :db.unique/value]
-                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
-        // TODO: give more helpful error details.
-        assert_eq!(err, "not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value");
+        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/value]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+                         // TODO: give more helpful error details.
+                         Err("not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value"));
 
         // Not even indirectly!
-        let err = conn.transact("[[:db/add :test/ident :db/unique :db.unique/identity]
-                                  [:db/add :db.part/db :db.alter/attribute 100]]").unwrap_err().to_string();
-        // TODO: give more helpful error details.
-        assert_eq!(err, "not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value");
+        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/identity]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+                         // TODO: give more helpful error details.
+                         Err("not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value"));
 
         // But we can if we make sure there's no repeated [a v] pair.
-        conn.transact("[[:db/add 201 :test/ident 2]]").unwrap();
+        assert_transact!(conn, "[[:db/add 201 :test/ident 2]]");
 
-        conn.transact("[[:db/add :test/ident :db/unique :db.unique/value]
-                        [:db/add :db.part/db :db.alter/attribute 100]]").unwrap();
+        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/value]
+                                 [:db/add :db.part/db :db.alter/attribute 100]]");
     }
 }
