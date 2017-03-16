@@ -201,25 +201,21 @@ mod test_parse {
         let truncated_input = edn::Value::Vector(vec![Value::from_keyword(None, "find")]);
         assert!(parse_find(truncated_input).is_err());
 
-        let input = edn::Value::Vector(vec![
-                                       Value::from_keyword(None, "find"),
-                                       Value::from_symbol(None, "?x"),
-                                       Value::from_symbol(None, "?y"),
-                                       Value::from_keyword(None, "where"),
-                                       edn::Value::Vector(vec![
-                                                          Value::from_symbol(None, "?x"),
-                                                          Value::from_keyword("foo", "bar"),
-                                                          Value::from_symbol(None, "?y"),
-                                       ]),
-        ]);
+        let input =
+            edn::Value::Vector(vec![Value::from_keyword(None, "find"),
+                                    Value::from_symbol(None, "?x"),
+                                    Value::from_symbol(None, "?y"),
+                                    Value::from_keyword(None, "where"),
+                                    edn::Value::Vector(vec![Value::from_symbol(None, "?x"),
+                                                            Value::from_keyword("foo", "bar"),
+                                                            Value::from_symbol(None, "?y")])]);
 
         let parsed = parse_find(input).unwrap();
         if let FindSpec::FindRel(elems) = parsed.find_spec {
             assert_eq!(2, elems.len());
-            assert_eq!(vec![
-                       Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
-                       Element::Variable(Variable(edn::PlainSymbol::new("?y"))),
-            ], elems);
+            assert_eq!(vec![Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
+                            Element::Variable(Variable(edn::PlainSymbol::new("?y")))],
+                       elems);
         } else {
             panic!("Expected FindRel.");
         }
