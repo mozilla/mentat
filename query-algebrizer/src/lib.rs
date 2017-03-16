@@ -8,9 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use]
+extern crate error_chain;
+
 extern crate mentat_core;
 extern crate mentat_query;
 
+mod errors;
 mod types;
 mod cc;
 
