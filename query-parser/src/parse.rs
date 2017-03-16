@@ -13,7 +13,7 @@ extern crate edn;
 extern crate mentat_parser_utils;
 extern crate mentat_query;
 
-use self::combine::{eof, many1, optional, parser, satisfy_map, Parser, ParseResult, Stream};
+use self::combine::{eof, many, many1, optional, parser, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{choice, try};
 
 use self::mentat_parser_utils::{
@@ -25,10 +25,13 @@ use self::mentat_query::{
     Element,
     FindQuery,
     FindSpec,
+    FnArg,
     FromValue,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
+    Predicate,
+    PredicateFn,
     SrcVar,
     Variable,
     WhereClause,
@@ -93,34 +96,75 @@ impl<I> Query<I>
 
 def_value_satisfy_parser_fn!(Query, variable, Variable, Variable::from_value);
 def_value_satisfy_parser_fn!(Query, source_var, SrcVar, SrcVar::from_value);
+def_value_satisfy_parser_fn!(Query, predicate_fn, PredicateFn, PredicateFn::from_value);
+def_value_satisfy_parser_fn!(Query, fn_arg, FnArg, FnArg::from_value);
 
 pub struct Where<I>(::std::marker::PhantomData<fn(I) -> I>);
 
-def_value_satisfy_parser_fn!(Where, pattern_value_place, PatternValuePlace, PatternValuePlace::from_value);
-def_value_satisfy_parser_fn!(Where, pattern_non_value_place, PatternNonValuePlace, PatternNonValuePlace::from_value);
+def_value_satisfy_parser_fn!(Where,
+                             pattern_value_place,
+                             PatternValuePlace,
+                             PatternValuePlace::from_value);
+def_value_satisfy_parser_fn!(Where,
+                             pattern_non_value_place,
+                             PatternNonValuePlace,
+                             PatternNonValuePlace::from_value);
 
-def_value_parser_fn!(Where, pattern, Pattern, input, {
+/// Take a vector Value containing one vector Value, and return the `Vec` inside the inner vector.
+/// Also accepts an inner list, returning it as a `Vec`.
+fn unwrap_nested(x: edn::Value) -> Option<Vec<edn::Value>> {
+    match x {
+        edn::Value::Vector(mut v) => {
+            match v.pop() {
+                Some(edn::Value::List(items)) => Some(items.into_iter().collect()),
+                Some(edn::Value::Vector(items)) => Some(items),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// A vector containing just a parenthesized filter expression.
+def_value_parser_fn!(Where, pred, WhereClause, input, {
+    satisfy_map(|x: edn::Value| {
+        // Accept either a list or a vector here:
+        // `[(foo ?x ?y)]` or `[[foo ?x ?y]]`
+        unwrap_nested(x).and_then(|items| {
+            let mut p = (Query::predicate_fn(), Query::arguments(), eof()).map(|(f, args, _)| {
+                WhereClause::Pred(
+                    Predicate {
+                        operator: f.0,
+                        args: args,
+                    })
+            });
+            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
+            r.ok().map(|x| x.0)
+        })
+    }).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, pattern, WhereClause, input, {
     satisfy_map(|x: edn::Value| {
         if let edn::Value::Vector(y) = x {
             // While *technically* Datomic allows you to have a query like:
             // [:find … :where [[?x]]]
-            // We don't -- we require at list e, a.
-            let mut p =
-                (optional(Query::source_var()),                 // src
-                 Where::pattern_non_value_place(),              // e
-                 Where::pattern_non_value_place(),              // a
-                 optional(Where::pattern_value_place()),        // v
-                 optional(Where::pattern_non_value_place()),    // tx
-                 eof())
-                .map(|(src, e, a, v, tx, _)| {
-                    let v = v.unwrap_or(PatternValuePlace::Placeholder);
-                    let tx = tx.unwrap_or(PatternNonValuePlace::Placeholder);
+            // We don't -- we require at least e, a.
+            let mut p = (optional(Query::source_var()),              // src
+                         Where::pattern_non_value_place(),           // e
+                         Where::pattern_non_value_place(),           // a
+                         optional(Where::pattern_value_place()),     // v
+                         optional(Where::pattern_non_value_place()), // tx
+                         eof())
+                    .map(|(src, e, a, v, tx, _)| {
+                        let v = v.unwrap_or(PatternValuePlace::Placeholder);
+                        let tx = tx.unwrap_or(PatternNonValuePlace::Placeholder);
 
-                    // Pattern::new takes care of reversal of reversed
-                    // attributes: [?x :foo/_bar ?y] turns into
-                    // [?y :foo/bar ?x].
-                    Pattern::new(src, e, a, v, tx)
-                });
+                        // Pattern::new takes care of reversal of reversed
+                        // attributes: [?x :foo/_bar ?y] turns into
+                        // [?y :foo/bar ?x].
+                        Pattern::new(src, e, a, v, tx).map(WhereClause::Pattern)
+                    });
 
             // This is a bit messy: the inner conversion to a Pattern can
             // fail if the input is something like
@@ -136,8 +180,8 @@ def_value_parser_fn!(Where, pattern, Pattern, input, {
             // ```
             //
             // is nonsense. That leaves us with nested optionals; we unwrap them here.
-            let r: ParseResult<Option<Pattern>, _> = p.parse_lazy(&y[..]).into();
-            let v: Option<Option<Pattern>> = r.ok().map(|x| x.0);
+            let r: ParseResult<Option<WhereClause>, _> = p.parse_lazy(&y[..]).into();
+            let v: Option<Option<WhereClause>> = r.ok().map(|x| x.0);
             v.unwrap_or(None)
         } else {
             None
@@ -145,12 +189,16 @@ def_value_parser_fn!(Where, pattern, Pattern, input, {
     }).parse_stream(input)
 });
 
+def_value_parser_fn!(Query, arguments, Vec<FnArg>, input, {
+    (many::<Vec<FnArg>, _>(Query::fn_arg()), eof())
+        .map(|(args, _)| { args })
+    .parse_stream(input)
+});
+
 def_value_parser_fn!(Where, clauses, Vec<WhereClause>, input, {
-    // Right now we only support patterns. See #239 for more.
-    (many1::<Vec<Pattern>, _>(Where::pattern()), eof())
-        .map(|(patterns, _)| {
-            patterns.into_iter().map(WhereClause::Pattern).collect()
-        })
+    // Right now we only support patterns and predicates. See #239 for more.
+    (many1::<Vec<WhereClause>, _>(choice([Where::pattern(), Where::pred()])), eof())
+        .map(|(patterns, _)| { patterns })
     .parse_stream(input)
 });
 
@@ -272,18 +320,17 @@ mod test {
         let a = edn::NamespacedKeyword::new("foo", "bar");
         let v = OrderedFloat(99.9);
         let tx = edn::PlainSymbol::new("?tx");
-        let input = [edn::Value::Vector(
-            vec!(edn::Value::PlainSymbol(e.clone()),
+        let input = [edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
                  edn::Value::NamespacedKeyword(a.clone()),
                  edn::Value::Float(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())))];
-        assert_parses_to!(Where::pattern, input, Pattern {
+        assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
             source: None,
             entity: PatternNonValuePlace::Placeholder,
             attribute: PatternNonValuePlace::Ident(a),
             value: PatternValuePlace::Constant(NonIntegerConstant::Float(v)),
             tx: PatternNonValuePlace::Variable(Variable(tx)),
-        });
+        }));
     }
 
     #[test]
@@ -293,19 +340,18 @@ mod test {
         let a = edn::PlainSymbol::new("?a");
         let v = edn::PlainSymbol::new("?v");
         let tx = edn::PlainSymbol::new("?tx");
-        let input = [edn::Value::Vector(
-            vec!(edn::Value::PlainSymbol(s.clone()),
+        let input = [edn::Value::Vector(vec!(edn::Value::PlainSymbol(s.clone()),
                  edn::Value::PlainSymbol(e.clone()),
                  edn::Value::PlainSymbol(a.clone()),
                  edn::Value::PlainSymbol(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())))];
-        assert_parses_to!(Where::pattern, input, Pattern {
+        assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
             source: Some(SrcVar::NamedSrc("x".to_string())),
             entity: PatternNonValuePlace::Variable(Variable(e)),
             attribute: PatternNonValuePlace::Variable(Variable(a)),
             value: PatternValuePlace::Variable(Variable(v)),
             tx: PatternNonValuePlace::Variable(Variable(tx)),
-        });
+        }));
     }
 
     #[test]
@@ -314,8 +360,7 @@ mod test {
         let a = edn::NamespacedKeyword::new("foo", "_bar");
         let v = OrderedFloat(99.9);
         let tx = edn::PlainSymbol::new("?tx");
-        let input = [edn::Value::Vector(
-            vec!(edn::Value::PlainSymbol(e.clone()),
+        let input = [edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
                  edn::Value::NamespacedKeyword(a.clone()),
                  edn::Value::Float(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())))];
@@ -331,21 +376,20 @@ mod test {
         let a = edn::NamespacedKeyword::new("foo", "_bar");
         let v = edn::PlainSymbol::new("?v");
         let tx = edn::PlainSymbol::new("?tx");
-        let input = [edn::Value::Vector(
-            vec!(edn::Value::PlainSymbol(e.clone()),
+        let input = [edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
                  edn::Value::NamespacedKeyword(a.clone()),
                  edn::Value::PlainSymbol(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())))];
 
         // Note that the attribute is no longer reversed, and the entity and value have
         // switched places.
-        assert_parses_to!(Where::pattern, input, Pattern {
+        assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable(v)),
             attribute: PatternNonValuePlace::Ident(edn::NamespacedKeyword::new("foo", "bar")),
             value: PatternValuePlace::Placeholder,
             tx: PatternNonValuePlace::Variable(Variable(tx)),
-        });
+        }));
     }
 
     #[test]
