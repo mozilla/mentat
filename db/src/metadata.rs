@@ -107,7 +107,7 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
             entids::DB_DOC => {
                 match *value {
                     TypedValue::String(_) => {},
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/doc \"string value\"] but got [... :db/doc {:?}] for entid '{}' and attribute '{}'", value, entid, attr)))
+                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/doc \"string value\"] but got [... :db/doc {:?}] for entid {} and attribute {}", value, entid, attr)))
                 }
             },
 
@@ -119,7 +119,7 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
                     TypedValue::Ref(entids::DB_TYPE_LONG) => { builder.value_type(ValueType::Long); },
                     TypedValue::Ref(entids::DB_TYPE_STRING) => { builder.value_type(ValueType::String); },
                     TypedValue::Ref(entids::DB_TYPE_KEYWORD) => { builder.value_type(ValueType::Keyword); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid '{}' and attribute '{}'", value, entid, attr)))
+                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid {} and attribute {}", value, entid, attr)))
                 }
             },
 
@@ -166,7 +166,7 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
             },
 
             _ => {
-                bail!(ErrorKind::BadSchemaAssertion(format!("Do not recognize attribute '{}' for entid '{}'", attr, entid)))
+                bail!(ErrorKind::BadSchemaAssertion(format!("Do not recognize attribute {} for entid {}", attr, entid)))
             }
         }
     };

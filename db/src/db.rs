@@ -906,7 +906,7 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                     // error message in this case.
                     if unique_value_stmt.execute(&[&attribute.unique_value, &entid as &ToSql]).is_err() {
                         if attribute.unique_value {
-                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute '{}' to be :db.unique/value", entid)));
+                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/value", entid)));
                         } else {
                             unreachable!(); // This shouldn't happen, even after we support removing :db/unique.
                         }
@@ -921,7 +921,7 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                     if !attribute.multival {
                         let mut rows = cardinality_stmt.query(&[&entid as &ToSql])?;
                         if rows.next().is_some() {
-                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute '{}' to be :db.cardinality/one", entid)));
+                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.cardinality/one", entid)));
                         }
                     }
                 },
