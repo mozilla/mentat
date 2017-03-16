@@ -169,8 +169,8 @@ fn idents_to_assertions(idents: &[(symbols::NamespacedKeyword, i64)]) -> Vec<Val
 /// Convert {:ident {:key :value ...} ...} to
 /// vec![(symbols::NamespacedKeyword(:ident), symbols::NamespacedKeyword(:key), TypedValue(:value)), ...].
 ///
-/// Such triples are closer to what the transactor will produce when processing
-/// :db.install/attribute assertions.
+/// Such triples are closer to what the transactor will produce when processing attribute
+/// assertions.
 fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>> {
     // Failure here is a coding error, not a runtime error.
     let mut triples: Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)> = vec![];
@@ -221,17 +221,12 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
 }
 
 /// Convert {IDENT {:key :value ...} ...} to [[:db/add IDENT :key :value] ...].
-/// In addition, add [:db.add :db.part/db :db.install/attribute IDENT] installation assertions.
 fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> {
     // Failure here is a coding error, not a runtime error.
     let mut assertions: Vec<Value> = vec![];
     match *symbolic_schema {
         Value::Map(ref m) => {
             for (ident, mp) in m {
-                assertions.push(Value::Vector(vec![values::DB_ADD.clone(),
-                                                   values::DB_PART_DB.clone(),
-                                                   values::DB_INSTALL_ATTRIBUTE.clone(),
-                                                   ident.clone()]));
                 match *mp {
                     Value::Map(ref mpp) => {
                         for (attr, value) in mpp {

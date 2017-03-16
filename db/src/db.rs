@@ -1073,12 +1073,12 @@ mod tests {
 
             // Does not include :db/txInstant.
             let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(datoms.0.len(), 88);
+            assert_eq!(datoms.0.len(), 72);
 
             // Includes :db/txInstant.
             let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
             assert_eq!(transactions.0.len(), 1);
-            assert_eq!(transactions.0[0].0.len(), 89);
+            assert_eq!(transactions.0[0].0.len(), 73);
 
             let test_conn = TestConn {
                 sqlite: conn,
@@ -1342,25 +1342,10 @@ mod tests {
     fn test_db_install() {
         let mut conn = TestConn::default();
 
-        // Trying to :db.install/attribute into the :db.part/user partition will fail.
+        // We can assert a new attribute.
         assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
                                  [:db/add 100 :db/valueType :db.type/long]
-                                 [:db/add 100 :db/cardinality :db.cardinality/many]
-                                 [:db/add :db.part/user :db.install/attribute 100]]",
-                         // TODO: give the user's input back rather than internal entids (like 16).
-                         Err("bad schema assertion: Expected [:db.part/db :db.install/attribute ...] but got [16 :db.install/attribute ...]"));
-
-        // Trying to :db.install/attribute without a :db/ident will fail.
-        assert_transact!(conn, "[[:db/add 100 :db/valueType :db.type/long]
-                                 [:db/add 100 :db/cardinality :db.cardinality/many]
-                                 [:db/add :db.part/db :db.install/attribute 100]]",
-                         Err("bad schema assertion: Schema attributes given for new attribute with entid 100, but :db/ident not included in transaction"));
-
-        // But we can :db.install/attribute into the :db.part/db partition.
-        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
-                                 [:db/add 100 :db/valueType :db.type/long]
-                                 [:db/add 100 :db/cardinality :db.cardinality/many]
-                                 [:db/add :db.part/db :db.install/attribute 100]]");
+                                 [:db/add 100 :db/cardinality :db.cardinality/many]]");
 
         assert_eq!(conn.schema.entid_map.get(&100).cloned().unwrap(), to_namespaced_keyword(":test/ident").unwrap());
         assert_eq!(conn.schema.ident_map.get(&to_namespaced_keyword(":test/ident").unwrap()).cloned().unwrap(), 100);
@@ -1370,14 +1355,12 @@ mod tests {
         assert_eq!(attribute.fulltext, false);
 
         assert_matches!(conn.last_transaction(),
-                        "[[2 :db.install/attribute :test/ident ?tx true]
-                          [100 :db/ident :test/ident ?tx true]
+                        "[[100 :db/ident :test/ident ?tx true]
                           [100 :db/valueType :db.type/long ?tx true]
                           [100 :db/cardinality :db.cardinality/many ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[2 :db.install/attribute :test/ident]
-                          [100 :db/ident :test/ident]
+                        "[[100 :db/ident :test/ident]
                           [100 :db/valueType :db.type/long]
                           [100 :db/cardinality :db.cardinality/many]]");
 
@@ -1396,16 +1379,14 @@ mod tests {
                           [101 :test/ident -9 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
 
-        // TODO: unify the error messages given in these situations.
-        // Cannot retract :db.install/attribute.
-        assert_transact!(conn, "[[:db/retract :db.part/db :db.install/attribute 100]]",
-                         // TODO: give the user's input back.
-                         Err("not yet implemented: Handling attribute retractions with attribute 6 not yet implemented"));
-
         // Cannot retract a characteristic of an installed attribute.
-        assert_transact!(conn, "[[:db/retract 100 :db/cardinality :db.cardinality/many]]",
-                         // TODO: give the user's input back.
+        assert_transact!(conn,
+                         "[[:db/retract 100 :db/cardinality :db.cardinality/many]]",
                          Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[100 8]]"));
+
+        // Trying to install an attribute without a :db/ident is allowed.
+        assert_transact!(conn, "[[:db/add 101 :db/valueType :db.type/long]
+                                 [:db/add 101 :db/cardinality :db.cardinality/many]]");
     }
 
     #[test]
@@ -1415,34 +1396,22 @@ mod tests {
         // Start by installing a :db.cardinality/one attribute.
         assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
                                  [:db/add 100 :db/valueType :db.type/keyword]
-                                 [:db/add 100 :db/cardinality :db.cardinality/one]
-                                 [:db/add :db.part/db :db.install/attribute 100]]");
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]]");
 
-        // Trying to :db.alter/attribute in the :db.part/user partition will fail.
-        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]
-                                 [:db/add :db.part/user :db.alter/attribute 100]]",
+        // Trying to alter the :db/valueType will fail.
+        assert_transact!(conn, "[[:db/add 100 :db/valueType :db.type/long]]",
                          // TODO: give the user's input back rather than internal entids (like 16).
-                         Err("bad schema assertion: Expected [:db.part/db :db.alter/attribute ...] but got [16 :db.alter/attribute ...]"));
+                         Err("bad schema assertion: Schema alteration for existing attribute with entid 100 must not set :db/valueType"));
 
-        // Trying to :db.alter/attribute the :db/valueType will fail.
-        assert_transact!(conn, "[[:db/add 100 :db/valueType :db.type/long]
-                                 [:db/add :db.part/db :db.alter/attribute 100]]",
-                         // TODO: give the user's input back rather than internal entids (like 16).
-                         Err("bad schema assertion: Schema attribute for :db.alter/attribute with entid \'100\' must not set :db/valueType"));
-
-        // But we can :db.alter/attribute in the :db.part/db partition.
-        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]
-                                 [:db/add :db.part/db :db.alter/attribute 100]]");
+        // But we can alter the cardinality.
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]]");
 
         assert_matches!(conn.last_transaction(),
-                        "[[2 :db.alter/attribute :test/ident ?tx true]
-                          [100 :db/cardinality :db.cardinality/one ?tx false]
+                        "[[100 :db/cardinality :db.cardinality/one ?tx false]
                           [100 :db/cardinality :db.cardinality/many ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
         assert_matches!(conn.datoms(),
-                        "[[2 :db.install/attribute :test/ident]
-                          [2 :db.alter/attribute :test/ident]
-                          [100 :db/ident :test/ident]
+                        "[[100 :db/ident :test/ident]
                           [100 :db/valueType :db.type/keyword]
                           [100 :db/cardinality :db.cardinality/many]]");
 
@@ -1460,11 +1429,6 @@ mod tests {
                         "[[101 :test/ident :test/value1 ?tx true]
                           [101 :test/ident :test/value2 ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
-
-        // Cannot retract :db.alter/attribute.
-        assert_transact!(conn, "[[:db/retract :db.part/db :db.alter/attribute 100]]",
-                         // TODO: give the user's input back.
-                         Err("not yet implemented: Handling attribute retractions with attribute 22 not yet implemented"));
     }
 
     #[test]
@@ -1533,31 +1497,26 @@ mod tests {
         // Start by installing a :db.cardinality/one attribute.
         assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
                                  [:db/add 100 :db/valueType :db.type/long]
-                                 [:db/add 100 :db/cardinality :db.cardinality/one]
-                                 [:db/add :db.part/db :db.install/attribute 100]]");
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]]");
 
         assert_transact!(conn, "[[:db/add 200 :test/ident 1]]");
 
         // We can always go from :db.cardinality/one to :db.cardinality/many.
-        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]
-                                 [:db/add :db.part/db :db.alter/attribute 100]]");
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]]");
 
         assert_transact!(conn, "[[:db/add 200 :test/ident 2]]");
 
         assert_matches!(conn.datoms(),
-                        "[[2 :db.install/attribute :test/ident]
-                          [2 :db.alter/attribute :test/ident]
-                          [100 :db/ident :test/ident]
+                        "[[100 :db/ident :test/ident]
                           [100 :db/valueType :db.type/long]
                           [100 :db/cardinality :db.cardinality/many]
                           [200 :test/ident 1]
                           [200 :test/ident 2]]");
 
         // We can't always go from :db.cardinality/many to :db.cardinality/one.
-        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/one]
-                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+        assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/one]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute \'100\' to be :db.cardinality/one"));
+                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.cardinality/one"));
     }
 
     #[test]
@@ -1567,23 +1526,20 @@ mod tests {
         // Start by installing a :db.cardinality/one attribute.
         assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
                                  [:db/add 100 :db/valueType :db.type/long]
-                                 [:db/add 100 :db/cardinality :db.cardinality/one]
-                                 [:db/add :db.part/db :db.install/attribute 100]]");
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]]");
 
         assert_transact!(conn, "[[:db/add 200 :test/ident 1]
                                  [:db/add 201 :test/ident 1]]");
 
         // We can't always migrate to be :db.unique/value.
-        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/value]
-                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/value]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value"));
+                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.unique/value"));
 
         // Not even indirectly!
-        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/identity]
-                                 [:db/add :db.part/db :db.alter/attribute 100]]",
+        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/identity]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute \'100\' to be :db.unique/value"));
+                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.unique/value"));
 
         // But we can if we make sure there's no repeated [a v] pair.
         assert_transact!(conn, "[[:db/add 201 :test/ident 2]]");

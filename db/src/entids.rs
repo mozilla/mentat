@@ -67,13 +67,9 @@ pub fn might_update_metadata(attribute: Entid) -> bool {
         // Idents.
         DB_IDENT |
         // Schema.
-        DB_ALTER_ATTRIBUTE |
         DB_CARDINALITY |
         DB_DOC |
         DB_FULLTEXT |
-        DB_INSTALL_ATTRIBUTE |
-        DB_INSTALL_PARTITION |
-        DB_INSTALL_VALUE_TYPE |
         DB_INDEX |
         DB_IS_COMPONENT |
         DB_UNIQUE |
@@ -84,8 +80,7 @@ pub fn might_update_metadata(attribute: Entid) -> bool {
 }
 
 lazy_static! {
-    /// Attributes that are "ident related".  These might change the "entids" and "idents"
-    /// materialized views.
+    /// Attributes that are "ident related".  These might change the "idents" materialized view.
     pub static ref IDENTS_SET: String = {
         format!("({})",
                 DB_IDENT)
@@ -105,16 +100,12 @@ lazy_static! {
 
     /// Attributes that are "metadata" related.  These might change one of the materialized views.
     pub static ref METADATA_SET: String = {
-        format!("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
-                DB_ALTER_ATTRIBUTE,
+        format!("({}, {}, {}, {}, {}, {}, {}, {})",
                 DB_CARDINALITY,
                 DB_DOC,
                 DB_FULLTEXT,
                 DB_IDENT,
                 DB_INDEX,
-                DB_INSTALL_ATTRIBUTE,
-                DB_INSTALL_PARTITION,
-                DB_INSTALL_VALUE_TYPE,
                 DB_IS_COMPONENT,
                 DB_UNIQUE,
                 DB_VALUE_TYPE)
