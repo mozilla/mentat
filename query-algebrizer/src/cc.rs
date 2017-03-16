@@ -14,8 +14,8 @@ extern crate mentat_query;
 use std::fmt::{
     Debug,
     Formatter,
-    Result,
 };
+
 use std::collections::{
     BTreeMap,
     BTreeSet,
@@ -37,6 +37,12 @@ use self::mentat_query::{
     PatternValuePlace,
     SrcVar,
     Variable,
+};
+
+use errors::{
+    Error,
+    ErrorKind,
+    Result,
 };
 
 use types::{
@@ -192,7 +198,7 @@ pub enum EmptyBecause {
 }
 
 impl Debug for EmptyBecause {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::EmptyBecause::*;
         match self {
             &TypeMismatch(ref var, ref existing, ref desired) => {
@@ -223,7 +229,7 @@ impl Debug for EmptyBecause {
 }
 
 impl Debug for ConjoiningClauses {
-    fn fmt(&self, fmt: &mut Formatter) -> Result {
+    fn fmt(&self, fmt: &mut Formatter) -> ::std::fmt::Result {
         fmt.debug_struct("ConjoiningClauses")
             .field("is_known_empty", &self.is_known_empty)
             .field("from", &self.from)
