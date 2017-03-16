@@ -15,15 +15,10 @@
 
 use std::collections::BTreeSet;
 
-use mentat_tx::entities::OpType;
 use errors;
 use errors::ErrorKind;
 use types::{
-    Attribute,
     AVPair,
-    Entid,
-    Schema,
-    TypedValue,
 };
 use internal_types::{
     Population,
@@ -34,6 +29,14 @@ use internal_types::{
     TermWithTempIds,
 };
 use internal_types::Either::*;
+use mentat_core::{
+    Attribute,
+    Entid,
+    Schema,
+    TypedValue,
+    Unique,
+};
+use mentat_tx::entities::OpType;
 use schema::SchemaBuilding;
 
 /// A "Simple upsert" that looks like [:db/add TEMPID a v], where a is :db.unique/identity.
@@ -94,7 +97,7 @@ impl Generation {
 
         let is_unique = |a: Entid| -> errors::Result<bool> {
             let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
-            Ok(attribute.unique_identity)
+            Ok(attribute.unique == Some(Unique::Identity))
         };
 
         for term in terms.into_iter() {

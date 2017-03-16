@@ -27,6 +27,7 @@ use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use entids;
+use mentat_core;
 use mentat_core::{
     Attribute,
     AttributeBitFlags,
@@ -901,14 +902,14 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                     // This should always succeed.
                     index_stmt.execute(&[&attribute.index, &entid as &ToSql])?;
                 },
-                &UniqueValue => {
+                &Unique => {
                     // TODO: This can fail if there are conflicting values; give a more helpful
                     // error message in this case.
-                    if unique_value_stmt.execute(&[&attribute.unique_value, &entid as &ToSql]).is_err() {
-                        if attribute.unique_value {
-                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/value", entid)));
-                        } else {
-                            unreachable!(); // This shouldn't happen, even after we support removing :db/unique.
+                    if unique_value_stmt.execute(&[to_bool_ref(attribute.unique.is_some()), &entid as &ToSql]).is_err() {
+                        match attribute.unique {
+                            Some(mentat_core::Unique::Value) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
+                            Some(mentat_core::Unique::Identity) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
+                            None => unreachable!(), // This shouldn't happen, even after we support removing :db/unique.
                         }
                     }
                 },
@@ -927,13 +928,6 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
                 },
                 &NoHistory | &IsComponent => {
                     // There's no on disk change required for either of these.
-                },
-                &UniqueIdentity => {
-                    // We must already have :db.unique/value, so there's no on disk change required.
-                    //
-                    // TODO: think about whether our defaulting, where we set values if they're
-                    // needed, will cause the schema to be out of sync because the datoms don't
-                    // really exist in the underlying store.
                 },
             }
         }
@@ -1005,7 +999,7 @@ mod tests {
         }};
         ( $conn: expr, $input: expr ) => {{
             let result = $conn.transact($input);
-            assert!(result.is_ok());
+            assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
             result.unwrap()
         }};
     }
@@ -1073,12 +1067,12 @@ mod tests {
 
             // Does not include :db/txInstant.
             let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(datoms.0.len(), 72);
+            assert_eq!(datoms.0.len(), 74);
 
             // Includes :db/txInstant.
             let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
             assert_eq!(transactions.0.len(), 1);
-            assert_eq!(transactions.0[0].0.len(), 73);
+            assert_eq!(transactions.0[0].0.len(), 75);
 
             let test_conn = TestConn {
                 sqlite: conn,
@@ -1539,12 +1533,13 @@ mod tests {
         // Not even indirectly!
         assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/identity]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.unique/value"));
+                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.unique/identity"));
 
         // But we can if we make sure there's no repeated [a v] pair.
         assert_transact!(conn, "[[:db/add 201 :test/ident 2]]");
 
-        assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/value]
+        assert_transact!(conn, "[[:db/add :test/ident :db/index true]
+                                 [:db/add :test/ident :db/unique :db.unique/value]
                                  [:db/add :db.part/db :db.alter/attribute 100]]");
     }
 }

@@ -38,6 +38,7 @@ use errors::{
     ErrorKind,
     Result,
 };
+use mentat_core;
 use mentat_core::{
     Entid,
     Schema,
@@ -58,8 +59,7 @@ pub enum AttributeAlteration {
     /// - add or remove indexes
     Index,
     /// - add or remove uniqueness constraints
-    UniqueValue,
-    UniqueIdentity,
+    Unique,
     /// - change attribute cardinality
     Cardinality,
     /// - change whether history is retained for an attribute
@@ -139,8 +139,8 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
                     //     builder.unique_value(false);
                     //     builder.unique_identity(false);
                     // },
-                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique_value(true); },
-                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique_identity(true); },
+                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(Some(mentat_core::Unique::Value)); },
+                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(Some(mentat_core::Unique::Identity)); },
                     _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
                 }
             },

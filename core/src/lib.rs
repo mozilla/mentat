@@ -138,6 +138,12 @@ pub enum AttributeBitFlags {
     UniqueValue   = 1 << 3,
 }
 
+#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+pub enum Unique {
+    Value,
+    Identity,
+}
+
 /// A Mentat schema attribute has a value type and several other flags determining how assertions
 /// with the attribute are interpreted.
 ///
@@ -152,19 +158,22 @@ pub struct Attribute {
     /// is `:db/cardinality :db.cardinality/one`.
     pub multival: bool,
 
-    /// `true` if this attribute is unique-value, i.e., it is `:db/unique :db.unique/value`.
+    /// `None` if this attribute is neither unique-value nor unique-identity.
+    ///
+    /// `Some(Unique::Value)` if this attribute is unique-value, i.e., it is `:db/unique
+    /// :db.unique/value`.
     ///
     /// *Unique-value* means that there is at most one assertion with the attribute and a
     /// particular value in the datom store.
-    pub unique_value: bool,
-
-    /// `true` if this attribute is unique-identity, i.e., it is `:db/unique :db.unique/identity`.
+    ///
+    /// `Some(Unique::Identity)` if this attribute is unique-identity, i.e., it is `:db/unique
+    /// :db.unique/identity`.
     ///
     /// Unique-identity attributes always have value type `Ref`.
     ///
     /// *Unique-identity* means that the attribute is *unique-value* and that they can be used in
     /// lookup-refs and will automatically upsert where appropriate.
-    pub unique_identity: bool,
+    pub unique: Option<Unique>,
 
     /// `true` if this attribute is automatically indexed, i.e., it is `:db/indexing true`.
     pub index: bool,
@@ -197,7 +206,7 @@ impl Attribute {
         if self.fulltext {
             flags |= AttributeBitFlags::IndexFulltext as u8;
         }
-        if self.unique_value {
+        if self.unique.is_some() {
             flags |= AttributeBitFlags::UniqueValue as u8;
         }
         flags
@@ -212,8 +221,7 @@ impl Default for Attribute {
             fulltext: false,
             index: false,
             multival: false,
-            unique_value: false,
-            unique_identity: false,
+            unique: None,
             component: false,
         }
     }
@@ -293,9 +301,8 @@ mod test {
             index: true,
             value_type: ValueType::Ref,
             fulltext: false,
-            unique_value: false,
+            unique: None,
             multival: false,
-            unique_identity: false,
             component: false,
         };
 
@@ -308,9 +315,8 @@ mod test {
             index: false,
             value_type: ValueType::Boolean,
             fulltext: true,
-            unique_value: true,
+            unique: Some(Unique::Value),
             multival: false,
-            unique_identity: false,
             component: false,
         };
 
@@ -318,6 +324,20 @@ mod test {
         assert!(attr2.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
         assert!(attr2.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
         assert!(attr2.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
+
+        let attr3 = Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: true,
+            unique: Some(Unique::Identity),
+            multival: false,
+            component: false,
+        };
+
+        assert!(attr3.flags() & AttributeBitFlags::IndexAVET as u8 == 0);
+        assert!(attr3.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
+        assert!(attr3.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
+        assert!(attr3.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
     }
 }
 

@@ -97,6 +97,7 @@ lazy_static! {
         let s = r#"
 {:db/ident             {:db/valueType   :db.type/keyword
                         :db/cardinality :db.cardinality/one
+                        :db/index       true
                         :db/unique      :db.unique/identity}
  :db.install/partition {:db/valueType   :db.type/ref
                         :db/cardinality :db.cardinality/many}
@@ -142,6 +143,7 @@ lazy_static! {
  ;; unique-value because an attribute can only belong to a single
  ;; schema fragment.
  :db.schema/attribute  {:db/valueType   :db.type/ref
+                        :db/index       true
                         :db/unique      :db.unique/value
                         :db/cardinality :db.cardinality/many}}"#;
         let right = edn::parse::value(s)
