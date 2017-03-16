@@ -30,11 +30,13 @@ use self::mentat_core::{
 };
 
 use self::mentat_query::{
+    FnArg,
     NamespacedKeyword,
     NonIntegerConstant,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
+    Predicate,
     SrcVar,
     Variable,
 };
@@ -46,9 +48,12 @@ use errors::{
 };
 
 use types::{
+    ColumnConstraint,
     DatomsColumn,
     DatomsTable,
+    NumericComparison,
     QualifiedAlias,
+    QueryValue,
     SourceAlias,
     TableAlias,
 };
@@ -63,46 +68,6 @@ pub fn default_table_aliaser() -> TableAliaser {
         i += 1;
         format!("{}{:02}", table.name(), i)
     })
-}
-
-#[derive(PartialEq, Eq)]
-pub enum ColumnConstraint {
-    EqualsColumn(QualifiedAlias, QualifiedAlias),
-    EqualsEntity(QualifiedAlias, Entid),
-    EqualsValue(QualifiedAlias, TypedValue),
-
-    // This is different: a numeric value can only apply to the 'v' column, and it implicitly
-    // constrains the `value_type_tag` column. For instance, a primitive long on `datoms00` of `5`
-    // cannot be a boolean, so `datoms00.value_type_tag` must be in the set `#{0, 4, 5}`.
-    // Note that `5 = 5.0` in SQLite, and we preserve that here.
-    EqualsPrimitiveLong(TableAlias, i64),
-
-    HasType(TableAlias, ValueType),
-}
-
-impl Debug for ColumnConstraint {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::ColumnConstraint::*;
-        match self {
-            &EqualsColumn(ref qa1, ref qa2) => {
-                write!(f, "{:?} = {:?}", qa1, qa2)
-            }
-            &EqualsEntity(ref qa, ref entid) => {
-                write!(f, "{:?} = entity({:?})", qa, entid)
-            }
-            &EqualsValue(ref qa, ref typed_value) => {
-                write!(f, "{:?} = value({:?})", qa, typed_value)
-            }
-
-            &EqualsPrimitiveLong(ref qa, value) => {
-                write!(f, "{:?}.v = primitive({:?})", qa, value)
-            }
-
-            &HasType(ref qa, value_type) => {
-                write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
-            }
-        }
-    }
 }
 
 trait OptionEffect<T> {
@@ -340,11 +305,11 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_column_to_constant(&mut self, table: TableAlias, column: DatomsColumn, constant: TypedValue) {
-        self.wheres.push(ColumnConstraint::EqualsValue(QualifiedAlias(table, column), constant))
+        self.wheres.push(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
     }
 
     pub fn constrain_column_to_entity(&mut self, table: TableAlias, column: DatomsColumn, entity: Entid) {
-        self.wheres.push(ColumnConstraint::EqualsEntity(QualifiedAlias(table, column), entity))
+        self.wheres.push(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
     }
 
     pub fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
@@ -352,7 +317,9 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
-        self.wheres.push(ColumnConstraint::EqualsPrimitiveLong(table, value))
+        self.wheres.push(ColumnConstraint::Equals(
+            QualifiedAlias(table, DatomsColumn::Value),
+            QueryValue::PrimitiveLong(value)))
     }
 
     /// Constrains the var if there's no existing type.
@@ -565,7 +532,7 @@ impl ConjoiningClauses {
                     // TODO: if both primary and secondary are .v, should we make sure
                     // the type tag columns also match?
                     // We don't do so in the ClojureScript version.
-                    self.wheres.push(ColumnConstraint::EqualsColumn(primary.clone(), secondary.clone()));
+                    self.wheres.push(ColumnConstraint::Equals(primary.clone(), QueryValue::Column(secondary.clone())));
                 }
             }
         }
@@ -822,6 +789,80 @@ impl ConjoiningClauses {
             return;
         }
     }
+
+    /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
+    /// constraint.
+    fn resolve_argument(&self, arg: FnArg) -> Result<QueryValue> {
+        use self::FnArg::*;
+        match arg {
+            FnArg::Variable(var) => {
+                self.column_bindings
+                    .get(&var)
+                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
+            },
+            EntidOrInteger(i) => Ok(QueryValue::PrimitiveLong(i)),
+            Ident(ref i) => unimplemented!(),     // TODO
+            Constant(NonIntegerConstant::Boolean(val)) => Ok(QueryValue::TypedValue(TypedValue::Boolean(val))),
+            Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
+            Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::String(s.clone()))),
+            Constant(NonIntegerConstant::BigInteger(_)) => unimplemented!(),
+            SrcVar(_) => unimplemented!(),
+        }
+    }
+
+    /// There are several kinds of predicates/functions in our Datalog:
+    /// - A limited set of binary comparison operators: < > <= >= !=.
+    ///   These are converted into SQLite binary comparisons and some type constraints.
+    /// - A set of predicates like `fulltext` and `get-else` that are translated into
+    ///   SQL `MATCH`es or joins, yielding bindings.
+    /// - In the future, some predicates that are implemented via function calls in SQLite.
+    ///
+    /// At present we have implemented only the five built-in comparison binary operators.
+    pub fn apply_predicate<'s, 'p>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
+        // Because we'll be growing the set of built-in predicates, handling each differently,
+        // and ultimately allowing user-specified predicates, we match on the predicate name first.
+        if let Some(op) = NumericComparison::from_datalog_operator(predicate.operator.0.as_str()) {
+            self.apply_numeric_predicate(schema, op, predicate)
+        } else {
+            bail!(ErrorKind::UnknownFunction(predicate.operator.clone()))
+        }
+    }
+
+    /// This function:
+    /// - Resolves variables and converts types to those more amenable to SQL.
+    /// - Ensures that the predicate functions name a known operator.
+    /// - Accumulates a `NumericInequality` constraint into the `wheres` list.
+    #[allow(unused_variables)]
+    pub fn apply_numeric_predicate<'s, 'p>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
+        if predicate.args.len() != 2 {
+            bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
+        }
+
+        // Go from arguments -- parser output -- to columns or values.
+        // Any variables that aren't bound by this point in the linear processing of clauses will
+        // cause the application of the predicate to fail.
+        let mut args = predicate.args.into_iter();
+        let left = self.resolve_argument(args.next().unwrap())?;
+        let right = self.resolve_argument(args.next().unwrap())?;
+
+        // These arguments must be variables or numeric constants.
+        // TODO: generalize argument resolution and validation for different kinds of predicates:
+        // as we process `(< ?x 5)` we are able to check or deduce that `?x` is numeric, and either
+        // simplify the pattern or optimize the rest of the query.
+        // To do so needs a slightly more sophisticated representation of type constraints — a set,
+        // not a single `Option`.
+
+        // TODO: static evaluation.
+        // TODO: type inference.
+        let constraint = ColumnConstraint::NumericInequality {
+            operator: comparison,
+            left: left,
+            right: right,
+        };
+        self.wheres.push(constraint);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -914,8 +955,8 @@ mod testing {
         // - datoms0.v = true
         // No need for a type tag constraint, because the attribute is known.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::EqualsEntity(d0_a, 99),
-                   ColumnConstraint::EqualsValue(d0_v, TypedValue::Boolean(true)),
+                   ColumnConstraint::Equals(d0_a, QueryValue::Entid(99)),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
         ]);
     }
 
@@ -952,7 +993,7 @@ mod testing {
         // - datoms0.value_type_tag = boolean
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::EqualsValue(d0_v, TypedValue::Boolean(true)),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
                    ColumnConstraint::HasType("datoms00".to_string(), ValueType::Boolean),
         ]);
     }
@@ -996,7 +1037,7 @@ mod testing {
         // ?x is bound to datoms0.e.
         assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::EqualsEntity(d0_a, 99),
+                   ColumnConstraint::Equals(d0_a, QueryValue::Entid(99)),
         ]);
     }
 
@@ -1092,7 +1133,7 @@ mod testing {
         // - datoms0.value_type_tag = string
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::EqualsValue(d0_v, TypedValue::String("hello".to_string())),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("hello".to_string()))),
                    ColumnConstraint::HasType("all_datoms00".to_string(), ValueType::String),
         ]);
     }
@@ -1163,10 +1204,10 @@ mod testing {
         // - datoms1.a = 99 (:foo/bar)
         // - datoms1.e = datoms0.e
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::EqualsEntity(d0_a, 98),
-                   ColumnConstraint::EqualsValue(d0_v, TypedValue::String("idgoeshere".to_string())),
-                   ColumnConstraint::EqualsEntity(d1_a, 99),
-                   ColumnConstraint::EqualsColumn(d0_e, d1_e),
+                   ColumnConstraint::Equals(d0_a, QueryValue::Entid(98)),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("idgoeshere".to_string()))),
+                   ColumnConstraint::Equals(d1_a, QueryValue::Entid(99)),
+                   ColumnConstraint::Equals(d0_e, QueryValue::Column(d1_e)),
         ]);
     }
 
@@ -1201,8 +1242,8 @@ mod testing {
 
         // ?y has been expanded into `true`.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::EqualsEntity(d0_a, 99),
-                   ColumnConstraint::EqualsValue(d0_v, TypedValue::Boolean(true)),
+                   ColumnConstraint::Equals(d0_a, QueryValue::Entid(99)),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
         ]);
 
         // There is no binding for ?y.

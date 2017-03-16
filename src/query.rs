@@ -65,7 +65,7 @@ pub fn q_once<'sqlite, 'schema, 'query, T, U>
     // TODO: validate inputs.
 
     let parsed = parse_find_string(query)?;
-    let mut algebrized = algebrize(schema, parsed);
+    let mut algebrized = algebrize(schema, parsed)?;
 
     if algebrized.is_known_empty() {
         // We don't need to do any SQL work at all.

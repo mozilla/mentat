@@ -14,6 +14,7 @@ use rusqlite;
 
 use edn;
 use mentat_db;
+use mentat_query_algebrizer;
 use mentat_query_parser;
 use mentat_query_projector;
 use mentat_sql;
@@ -31,6 +32,7 @@ error_chain! {
 
     links {
         DbError(mentat_db::Error, mentat_db::ErrorKind);
+        QueryError(mentat_query_algebrizer::Error, mentat_query_algebrizer::ErrorKind);   // Let's not leak the term 'algebrizer'.
         QueryParseError(mentat_query_parser::Error, mentat_query_parser::ErrorKind);
         ProjectorError(mentat_query_projector::Error, mentat_query_projector::ErrorKind);
         SqlError(mentat_sql::Error, mentat_sql::ErrorKind);

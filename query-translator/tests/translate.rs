@@ -43,7 +43,7 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 
 fn translate<T: Into<Option<u64>>>(schema: &Schema, input: &'static str, limit: T) -> SQLQuery {
     let parsed = parse_find_string(input).expect("parse failed");
-    let mut algebrized = algebrize(schema, parsed);
+    let mut algebrized = algebrize(schema, parsed).expect("algebrize failed");
     algebrized.apply_limit(limit.into());
     let select = query_to_select(algebrized);
     select.query.to_sql_query().unwrap()
@@ -168,7 +168,7 @@ fn test_unknown_ident() {
 
     let impossible = r#"[:find ?x :where [?x :db/ident :no/exist]]"#;
     let parsed = parse_find_string(impossible).expect("parse failed");
-    let algebrized = algebrize(&schema, parsed);
+    let algebrized = algebrize(&schema, parsed).expect("algebrize failed");
 
     // This query cannot return results: the ident doesn't resolve for a ref-typed attribute.
     assert!(algebrized.is_known_empty());
@@ -177,4 +177,51 @@ fn test_unknown_ident() {
     let select = query_to_select(algebrized);
     let sql = select.query.to_sql_query().unwrap().sql;
     assert_eq!("SELECT 1 LIMIT 0", sql);
+}
+
+#[test]
+fn test_numeric_less_than_unknown_attribute() {
+    let schema = Schema::default();
+
+    let input = r#"[:find ?x :where [?x _ ?y] [(< ?y 10)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, input, None);
+
+    // TODO: we don't infer numeric types from numeric predicates, because the _SQL_ type code
+    // is a single value (5), but the Datalog types are a set (Double and Long).
+    // When we do, this will correctly use `datoms` instead of `all_datoms`.
+    assert_eq!(sql, "SELECT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v < 10");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_numeric_gte_known_attribute() {
+    let mut schema = Schema::default();
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+    add_attribute(&mut schema, 99, Attribute {
+        value_type: ValueType::Double,
+        ..Default::default()
+    });
+
+
+    let input = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, input, None);
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
+    assert_eq!(args, vec![]);
+}
+
+
+#[test]
+fn test_numeric_not_equals_known_attribute() {
+    let mut schema = Schema::default();
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+    add_attribute(&mut schema, 99, Attribute {
+        value_type: ValueType::Long,
+        ..Default::default()
+    });
+
+
+    let input = r#"[:find ?x :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, input, None);
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v <> 12");
+    assert_eq!(args, vec![]);
 }
