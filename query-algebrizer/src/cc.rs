@@ -804,7 +804,7 @@ impl ConjoiningClauses {
 
     }
 
-    pub fn apply_pattern<'s, 'p>(&mut self, schema: &'s Schema, pattern: &'p Pattern) {
+    pub fn apply_pattern<'s, 'p>(&mut self, schema: &'s Schema, pattern: Pattern) {
         // For now we only support the default source.
         match pattern.source {
             Some(SrcVar::DefaultSrc) | None => (),
@@ -812,7 +812,7 @@ impl ConjoiningClauses {
         };
 
         if let Some(alias) = self.alias_table(schema, &pattern) {
-            self.apply_pattern_clause_for_alias(schema, pattern, &alias);
+            self.apply_pattern_clause_for_alias(schema, &pattern, &alias);
             self.from.push(alias);
         } else {
             // We didn't determine a table, likely because there was a mismatch
@@ -844,7 +844,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -862,7 +862,7 @@ mod testing {
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
 
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -885,7 +885,7 @@ mod testing {
         });
 
         let x = Variable(PlainSymbol::new("?x"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -925,7 +925,7 @@ mod testing {
         let schema = Schema::default();
 
         let x = Variable(PlainSymbol::new("?x"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -974,7 +974,7 @@ mod testing {
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), TypedValue::Keyword(NamespacedKeyword::new("foo", "bar")));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -1013,7 +1013,7 @@ mod testing {
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), hello.clone());
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -1035,7 +1035,7 @@ mod testing {
         let x = Variable(PlainSymbol::new("?x"));
         let a = Variable(PlainSymbol::new("?a"));
         let v = Variable(PlainSymbol::new("?v"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -1065,7 +1065,7 @@ mod testing {
         let schema = Schema::default();
 
         let x = Variable(PlainSymbol::new("?x"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -1115,14 +1115,14 @@ mod testing {
 
         let x = Variable(PlainSymbol::new("?x"));
         let y = Variable(PlainSymbol::new("?y"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "roz")),
             value: PatternValuePlace::Constant(NonIntegerConstant::Text("idgoeshere".to_string())),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -1187,7 +1187,7 @@ mod testing {
             vec![(y.clone(), TypedValue::Boolean(true))].into_iter().collect();
         let mut cc = ConjoiningClauses::with_value_bindings(b);
 
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -1232,7 +1232,7 @@ mod testing {
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
         let mut cc = ConjoiningClauses::with_value_bindings(b);
 
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -1264,7 +1264,7 @@ mod testing {
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
         let mut cc = ConjoiningClauses::with_value_bindings(b);
 
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -1298,14 +1298,14 @@ mod testing {
 
         let x = Variable(PlainSymbol::new("?x"));
         let y = Variable(PlainSymbol::new("?y"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "roz")),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
@@ -1336,14 +1336,14 @@ mod testing {
         let x = Variable(PlainSymbol::new("?x"));
         let y = Variable(PlainSymbol::new("?y"));
         let z = Variable(PlainSymbol::new("?z"));
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(y.clone()),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, &Pattern {
+        cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(z.clone()),
             attribute: PatternNonValuePlace::Variable(y.clone()),

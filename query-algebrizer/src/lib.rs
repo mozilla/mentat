@@ -69,7 +69,7 @@ pub fn algebrize(schema: &Schema, parsed: FindQuery) -> AlgebraicQuery {
     let where_clauses = parsed.where_clauses;
     for where_clause in where_clauses {
         if let WhereClause::Pattern(p) = where_clause {
-            cc.apply_pattern(schema, &p);
+            cc.apply_pattern(schema, p);
         } else {
             unimplemented!();
         }
