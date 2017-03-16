@@ -158,6 +158,7 @@ impl FromValue<FnArg> for FnArg {
                  .or_else(||
             match v {
                 &edn::Value::Integer(i) => Some(FnArg::EntidOrInteger(i)),
+                &edn::Value::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
                 _ => unimplemented!(),
             })
     }
