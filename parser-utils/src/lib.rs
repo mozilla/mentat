@@ -76,7 +76,7 @@ macro_rules! def_parser_fn {
                 fn inner<I: Stream<Item = $item_type>>($input: I) -> ParseResult<$result_type, I> {
                     $body
                 }
-                parser(inner as fn(I) -> ParseResult<$result_type, I>).expected("$name")
+                parser(inner as fn(I) -> ParseResult<$result_type, I>).expected(stringify!($name))
             }
         }
     }
