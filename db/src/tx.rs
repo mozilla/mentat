@@ -202,8 +202,15 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             Ok(lookup_refs.intern((lr_a, lr_typed_value)))
         };
 
-        entities.into_iter()
-            .map(|entity: Entity| -> Result<TermWithTempIdsAndLookupRefs> {
+        // We want to handle entities in the order they're given to us, while also "exploding" some
+        // entities into many.  We therefore push the initial entities onto the stack, reverse the
+        // entire stack, take from the back (top) of the stack, and explode onto the top.
+        let mut stack: Vec<Entity> = entities.into_iter().collect();
+        stack.reverse();
+
+        let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(stack.len());
+
+        while let Some(entity) = stack.pop() {
                 match entity {
                     Entity::AddOrRetract { op, e, a, v } => {
                         let a: i64 = match a {
@@ -252,12 +259,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             },
                         };
 
-                        Ok(Term::AddOrRetract(op, e, a, v))
+                        terms.push(Term::AddOrRetract(op, e, a, v));
                     },
                 }
-            })
-            .collect::<Result<Vec<_>>>()
-            .map(|terms| (terms, temp_ids, lookup_refs))
+        };
+        Ok((terms, temp_ids, lookup_refs))
     }
 
     /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
