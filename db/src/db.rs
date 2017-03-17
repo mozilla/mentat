@@ -1837,4 +1837,119 @@ mod tests {
                           [301 :test/fulltext 2]
                           [301 :test/other 3]]");
     }
+
+    #[test]
+    fn test_lookup_refs_entity_column() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/unique_value]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 111 :db/unique :db.unique/value]
+                                 [:db/add 111 :db/index true]
+                                 [:db/add 222 :db/ident :test/unique_identity]
+                                 [:db/add 222 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/unique :db.unique/identity]
+                                 [:db/add 222 :db/index true]
+                                 [:db/add 333 :db/ident :test/not_unique]
+                                 [:db/add 333 :db/cardinality :db.cardinality/one]
+                                 [:db/add 333 :db/valueType :db.type/keyword]
+                                 [:db/add 333 :db/index true]]");
+
+        // And a few datoms to match against.
+        assert_transact!(conn, "[[:db/add 501 :test/unique_value \"test this\"]
+                                 [:db/add 502 :test/unique_value \"other\"]
+                                 [:db/add 503 :test/unique_identity -10]
+                                 [:db/add 504 :test/unique_identity -20]
+                                 [:db/add 505 :test/not_unique :test/keyword]
+                                 [:db/add 506 :test/not_unique :test/keyword]]");
+
+        // We can resolve lookup refs in the entity column, referring to the attribute as an entid or an ident.
+        assert_transact!(conn, "[[:db/add (lookup-ref :test/unique_value \"test this\") :test/not_unique :test/keyword]
+                                 [:db/add (lookup-ref 111 \"other\") :test/not_unique :test/keyword]
+                                 [:db/add (lookup-ref :test/unique_identity -10) :test/not_unique :test/keyword]
+                                 [:db/add (lookup-ref 222 -20) :test/not_unique :test/keyword]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[501 :test/not_unique :test/keyword ?tx true]
+                          [502 :test/not_unique :test/keyword ?tx true]
+                          [503 :test/not_unique :test/keyword ?tx true]
+                          [504 :test/not_unique :test/keyword ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // We cannot resolve lookup refs that aren't :db/unique.
+        assert_transact!(conn,
+                         "[[:db/add (lookup-ref :test/not_unique :test/keyword) :test/not_unique :test/keyword]]",
+                         Err("not yet implemented: Cannot resolve (lookup-ref 333 :test/keyword) with attribute that is not :db/unique"));
+
+        // We type check the lookup ref's value against the lookup ref's attribute.
+        assert_transact!(conn,
+                         "[[:db/add (lookup-ref :test/unique_value :test/not_a_string) :test/not_unique :test/keyword]]",
+                         Err("EDN value \':test/not_a_string\' is not the expected Mentat value type String"));
+
+        // Each lookup ref in the entity column must resolve
+        assert_transact!(conn,
+                         "[[:db/add (lookup-ref :test/unique_value \"unmatched string value\") :test/not_unique :test/keyword]]",
+                         Err("no entid found for ident: couldn\'t lookup [a v]: (111, String(\"unmatched string value\"))"));
+    }
+
+    #[test]
+    fn test_lookup_refs_value_column() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/unique_value]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 111 :db/unique :db.unique/value]
+                                 [:db/add 111 :db/index true]
+                                 [:db/add 222 :db/ident :test/unique_identity]
+                                 [:db/add 222 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/unique :db.unique/identity]
+                                 [:db/add 222 :db/index true]
+                                 [:db/add 333 :db/ident :test/not_unique]
+                                 [:db/add 333 :db/cardinality :db.cardinality/one]
+                                 [:db/add 333 :db/valueType :db.type/keyword]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 444 :db/ident :test/ref]
+                                 [:db/add 444 :db/valueType :db.type/ref]
+                                 [:db/add 444 :db/unique :db.unique/identity]
+                                 [:db/add 444 :db/index true]]");
+
+        // And a few datoms to match against.
+        assert_transact!(conn, "[[:db/add 501 :test/unique_value \"test this\"]
+                                 [:db/add 502 :test/unique_value \"other\"]
+                                 [:db/add 503 :test/unique_identity -10]
+                                 [:db/add 504 :test/unique_identity -20]
+                                 [:db/add 505 :test/not_unique :test/keyword]
+                                 [:db/add 506 :test/not_unique :test/keyword]]");
+
+        // We can resolve lookup refs in the entity column, referring to the attribute as an entid or an ident.
+        assert_transact!(conn, "[[:db/add 601 :test/ref (lookup-ref :test/unique_value \"test this\")]
+                                 [:db/add 602 :test/ref (lookup-ref 111 \"other\")]
+                                 [:db/add 603 :test/ref (lookup-ref :test/unique_identity -10)]
+                                 [:db/add 604 :test/ref (lookup-ref 222 -20)]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[601 :test/ref 501 ?tx true]
+                          [602 :test/ref 502 ?tx true]
+                          [603 :test/ref 503 ?tx true]
+                          [604 :test/ref 504 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // We cannot resolve lookup refs for attributes that aren't :db/ref.
+        assert_transact!(conn,
+                         "[[:db/add \"t\" :test/not_unique (lookup-ref :test/unique_value \"test this\")]]",
+                         Err("not yet implemented: Cannot resolve value lookup ref for attribute 333 that is not :db/valueType :db.type/ref"));
+
+        // If a value column lookup ref resolves, we can upsert against it.  Here, the lookup ref
+        // resolves to 501, which upserts "t" to 601.
+        assert_transact!(conn, "[[:db/add \"t\" :test/ref (lookup-ref :test/unique_value \"test this\")]
+                                 [:db/add \"t\" :test/not_unique :test/keyword]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[601 :test/not_unique :test/keyword ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Each lookup ref in the value column must resolve
+        assert_transact!(conn,
+                         "[[:db/add \"t\" :test/ref (lookup-ref :test/unique_value \"unmatched string value\")]]",
+                         Err("no entid found for ident: couldn\'t lookup [a v]: (111, String(\"unmatched string value\"))"));
+    }
 }

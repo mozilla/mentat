@@ -35,7 +35,7 @@ error_chain! {
         /// We've been given an EDN value that isn't the correct Mentat type.
         BadEDNValuePair(value: edn::types::Value, value_type: ValueType) {
             description("EDN value is not the expected Mentat value type")
-            display("EDN value '{:?}' is not the expected Mentat value type {:?}", value, value_type)
+            display("EDN value '{}' is not the expected Mentat value type {:?}", value, value_type)
         }
 
         /// We've got corrupt data in the SQL store: a value and value_type_tag don't line up.

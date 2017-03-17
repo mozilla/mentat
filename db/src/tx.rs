@@ -60,6 +60,7 @@ use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
     Either,
+    LookupRef,
     LookupRefOrTempId,
     TempId,
     TempIdMap,
@@ -183,9 +184,23 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
     fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<String>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
-        let mut temp_ids = intern_set::InternSet::new();
-        // #183: We don't yet support lookup refs, so this isn't mutable.  Later, it'll be mutable.
-        let lookup_refs = intern_set::InternSet::new();
+        let mut temp_ids: intern_set::InternSet<String> = intern_set::InternSet::new();
+        let mut lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
+
+        let intern_lookup_ref = |lookup_refs: &mut intern_set::InternSet<AVPair>, lookup_ref: entmod::LookupRef| -> Result<LookupRef> {
+            let lr_a: i64 = match lookup_ref.a {
+                entmod::Entid::Entid(ref a) => *a,
+                entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+            };
+            let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
+
+            if lr_attribute.unique.is_none() {
+                bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
+            }
+
+            let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, &lr_attribute)?;
+            Ok(lookup_refs.intern((lr_a, lr_typed_value)))
+        };
 
         entities.into_iter()
             .map(|entity: Entity| -> Result<TermWithTempIdsAndLookupRefs> {
@@ -211,9 +226,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
                             },
 
-                            entmod::EntidOrLookupRefOrTempId::LookupRef(_) => {
-                                // TODO: reference entity and initial input.
-                                bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
+                            entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
+                                Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
                             },
                         };
 
@@ -229,11 +243,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                     Either::Left(typed_value)
                                 }
                             },
-                            entmod::AtomOrLookupRef::LookupRef(_) => {
+                            entmod::AtomOrLookupRef::LookupRef(lookup_ref) => {
                                 if attribute.value_type != ValueType::Ref {
-                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot transact lookup-ref for attribute {} that is not :db/valueType :db.type/ref", a)))
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                                 }
-                                bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
+
+                                Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
                             },
                         };
 
