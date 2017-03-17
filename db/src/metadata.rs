@@ -37,6 +37,7 @@ use entids;
 use errors::{
     ErrorKind,
     Result,
+    ResultExt,
 };
 use mentat_core;
 use mentat_core::{
@@ -178,16 +179,14 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
     for (entid, builder) in builders.into_iter() {
         match schema_map.entry(entid) {
             Entry::Vacant(entry) => {
-                if !builder.is_valid_install_attribute() {
-                    bail!(ErrorKind::BadSchemaAssertion(format!("Schema attribute for new attribute with entid {} does not set :db/valueType", entid)));
-                }
+                builder.validate_install_attribute()
+                    .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for new attribute with entid {} is not valid", entid)))?;
                 entry.insert(builder.build());
                 attributes_installed.insert(entid);
             },
             Entry::Occupied(mut entry) => {
-                if !builder.is_valid_alter_attribute() {
-                    bail!(ErrorKind::BadSchemaAssertion(format!("Schema alteration for existing attribute with entid {} must not set :db/valueType", entid)));
-                }
+                builder.validate_alter_attribute()
+                    .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for existing attribute with entid {} is not valid", entid)))?;
                 let mutations = builder.mutate(entry.get_mut());
                 attributes_altered.insert(entid, mutations);
             },

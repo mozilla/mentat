@@ -98,12 +98,21 @@ impl AttributeBuilder {
         self
     }
 
-    pub fn is_valid_install_attribute(&self) -> bool {
-        self.value_type.is_some()
+    pub fn validate_install_attribute(&self) -> Result<()> {
+        if self.value_type.is_none() {
+            bail!(ErrorKind::BadSchemaAssertion("Schema attribute for new attribute does not set :db/valueType".into()));
+        }
+        Ok(())
     }
 
-    pub fn is_valid_alter_attribute(&self) -> bool {
-        self.value_type.is_none() && self.fulltext.is_none()
+    pub fn validate_alter_attribute(&self) -> Result<()> {
+        if self.value_type.is_some() {
+            bail!(ErrorKind::BadSchemaAssertion("Schema alteration must not set :db/valueType".into()));
+        }
+        if self.fulltext.is_some() {
+            bail!(ErrorKind::BadSchemaAssertion("Schema alteration must not set :db/fulltext".into()));
+        }
+        Ok(())
     }
 
     pub fn build(&self) -> Attribute {

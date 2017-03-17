@@ -1394,8 +1394,7 @@ mod tests {
 
         // Trying to alter the :db/valueType will fail.
         assert_transact!(conn, "[[:db/add 100 :db/valueType :db.type/long]]",
-                         // TODO: give the user's input back rather than internal entids (like 16).
-                         Err("bad schema assertion: Schema alteration for existing attribute with entid 100 must not set :db/valueType"));
+                         Err("bad schema assertion: Schema alteration for existing attribute with entid 100 is not valid"));
 
         // But we can alter the cardinality.
         assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/many]]");
