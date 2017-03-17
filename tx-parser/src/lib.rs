@@ -22,7 +22,10 @@ extern crate mentat_parser_utils;
 
 use combine::{any, eof, many, parser, satisfy_map, token, Parser, ParseResult, Stream};
 use combine::combinator::{Expected, FnParser};
-use edn::symbols::NamespacedKeyword;
+use edn::symbols::{
+    NamespacedKeyword,
+    PlainSymbol,
+};
 use edn::types::Value;
 use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, LookupRef, OpType};
 use mentat_parser_utils::{ResultParser, ValueParseError};
@@ -55,20 +58,19 @@ def_parser_fn!(Tx, entid, Value, Entid, input, {
         .into()
 });
 
-def_parser_fn!(Tx, lookup_ref, Value, LookupRef, input, {
-    satisfy_map(|x: Value| if let Value::Vector(y) = x {
-            let mut p = (Tx::<&[Value]>::entid(), any(), eof())
-                .map(|(a, v, _)| LookupRef { a: a, v: v });
-            let r = p.parse_lazy(&y[..]).into();
-            match r {
-                Ok((r, _)) => Some(r),
-                _ => None,
-            }
-        } else {
-            None
-        })
-        .parse_stream(input)
-});
+fn value_to_lookup_ref(val: &Value) -> Option<LookupRef> {
+    val.as_list().and_then(|list| {
+        let vs: Vec<Value> = list.into_iter().cloned().collect();
+        let mut p = (token(Value::PlainSymbol(PlainSymbol::new("lookup-ref"))),
+                     Tx::<&[Value]>::entid(),
+                     any(),
+                     eof())
+            .map(|(_, a, v, _)| LookupRef { a: a, v: v });
+        let r: ParseResult<LookupRef, _> = p.parse_lazy(&vs[..]).into();
+        r.ok().map(|x| x.0)
+    })
+}
+def_value_satisfy_parser_fn!(Tx, lookup_ref, LookupRef, value_to_lookup_ref);
 
 def_parser_fn!(Tx, entid_or_lookup_ref_or_temp_id, Value, EntidOrLookupRefOrTempId, input, {
     Tx::<I>::entid().map(|x| EntidOrLookupRefOrTempId::Entid(x))
@@ -140,6 +142,7 @@ impl<'a> Tx<&'a [edn::Value]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::LinkedList;
     use combine::Parser;
     use edn::symbols::NamespacedKeyword;
     use edn::types::Value;
@@ -188,9 +191,13 @@ mod tests {
 
     #[test]
     fn test_lookup_ref() {
+        let mut list = LinkedList::new();
+        list.push_back(Value::PlainSymbol(PlainSymbol::new("lookup-ref")));
+        list.push_back(kw("test", "a1"));
+        list.push_back(Value::Text("v1".into()));
+
         let input = [Value::Vector(vec![kw("db", "add"),
-                                        Value::Vector(vec![kw("test", "a1"),
-                                                           Value::Text("v1".into())]),
+                                        Value::List(list),
                                         kw("test", "a"),
                                         Value::Text("v".into())])];
         let mut parser = Tx::entity();
