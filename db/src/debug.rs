@@ -21,13 +21,20 @@ use rusqlite::types::{ToSql};
 use tabwriter::TabWriter;
 
 use bootstrap;
+use db::TypedSQLValue;
 use edn;
 use entids;
-use mentat_core::TypedValue;
-use mentat_tx::entities::{Entid};
-use db::TypedSQLValue;
-use types::Schema;
 use errors::Result;
+use mentat_core::{
+    SQLValueType,
+    TypedValue,
+    ValueType,
+};
+use mentat_tx::entities::{Entid};
+use schema::{
+    SchemaBuilding,
+};
+use types::Schema;
 
 /// Represents a *datom* (assertion) in the store.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
@@ -54,6 +61,9 @@ pub struct Datoms(pub Vec<Datom>);
 /// internal value that is not exposed but is deterministic, and `added` is ordered such that
 /// retracted assertions appear before added assertions.
 pub struct Transactions(pub Vec<Datoms>);
+
+/// Represents the fulltext values in the store.
+pub struct FulltextValues(pub Vec<(i64, String)>);
 
 impl Datom {
     pub fn into_edn(&self) -> edn::Value {
@@ -83,6 +93,12 @@ impl Datoms {
 impl Transactions {
     pub fn into_edn(&self) -> edn::Value {
         edn::Value::Vector((&self.0).into_iter().map(|x| x.into_edn()).collect())
+    }
+}
+
+impl FulltextValues {
+    pub fn into_edn(&self) -> edn::Value {
+        edn::Value::Vector((&self.0).into_iter().map(|&(x, ref y)| edn::Value::Vector(vec![edn::Value::Integer(x), edn::Value::Text(y.clone())])).collect())
     }
 }
 
@@ -132,6 +148,9 @@ pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, 
         let v: rusqlite::types::Value = row.get_checked(2)?;
         let value_type_tag: i32 = row.get_checked(3)?;
 
+        let attribute = borrowed_schema.require_attribute_for_entid(a)?;
+        let value_type_tag = if !attribute.fulltext { value_type_tag } else { ValueType::Long.value_type_tag() };
+
         let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?.map_ident(borrowed_schema);
         let (value, _) = typed_value.to_edn_value_pair();
 
@@ -165,6 +184,9 @@ pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema
         let v: rusqlite::types::Value = row.get_checked(2)?;
         let value_type_tag: i32 = row.get_checked(3)?;
 
+        let attribute = borrowed_schema.require_attribute_for_entid(a)?;
+        let value_type_tag = if !attribute.fulltext { value_type_tag } else { ValueType::Long.value_type_tag() };
+
         let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?.map_ident(borrowed_schema);
         let (value, _) = typed_value.to_edn_value_pair();
 
@@ -183,6 +205,19 @@ pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema
     // Group by tx.
     let r: Vec<Datoms> = r?.into_iter().group_by(|x| x.tx).into_iter().map(|(_key, group)| Datoms(group.collect())).collect();
     Ok(Transactions(r))
+}
+
+/// Return the set of fulltext values in the store, ordered by rowid.
+pub fn fulltext_values(conn: &rusqlite::Connection) -> Result<FulltextValues> {
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT rowid, text FROM fulltext_values ORDER BY rowid")?;
+
+    let r: Result<Vec<_>> = stmt.query_and_then(&[], |row| {
+        let rowid: i64 = row.get_checked(0)?;
+        let text: String = row.get_checked(1)?;
+        Ok((rowid, text))
+    })?.collect();
+
+    r.map(FulltextValues)
 }
 
 /// Execute the given `sql` query with the given `params` and format the results as a
