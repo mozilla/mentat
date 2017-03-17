@@ -220,24 +220,6 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
-                    let e = match e {
-                        entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                            let e: i64 = match e {
-                                entmod::Entid::Entid(ref e) => *e,
-                                entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
-                            };
-                            Either::Left(e)
-                        },
-
-                        entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                            Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
-                        },
-
-                        entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
-                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
-                        },
-                    };
-
                     let v = match v {
                         entmod::AtomOrLookupRef::Atom(v) => {
                             if attribute.value_type == ValueType::Ref && v.is_text() {
@@ -255,6 +237,24 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                             }
 
+                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                        },
+                    };
+
+                    let e = match e {
+                        entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                            let e: i64 = match e {
+                                entmod::Entid::Entid(ref e) => *e,
+                                entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                            };
+                            Either::Left(e)
+                        },
+
+                        entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                            Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                        },
+
+                        entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
                             Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
                         },
                     };
