@@ -30,9 +30,10 @@ pub struct LookupRef {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum AtomOrLookupRef {
+pub enum AtomOrLookupRefOrVector {
     Atom(Value),
     LookupRef(LookupRef),
+    Vector(Vec<AtomOrLookupRefOrVector>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -54,6 +55,6 @@ pub enum Entity {
         op: OpType,
         e: EntidOrLookupRefOrTempId,
         a: Entid,
-        v: AtomOrLookupRef,
+        v: AtomOrLookupRefOrVector,
     },
 }

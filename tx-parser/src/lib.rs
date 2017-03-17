@@ -33,7 +33,7 @@ use mentat_tx::entities::{
     Entity,
     LookupRef,
     OpType,
-    AtomOrLookupRef,
+    AtomOrLookupRefOrVector,
 };
 use mentat_parser_utils::{ResultParser, ValueParseError};
 
@@ -97,9 +97,21 @@ def_parser_fn!(Tx, atom, Value, Value, input, {
         .parse_stream(input)
 });
 
-def_parser_fn!(Tx, atom_or_lookup_ref, Value, AtomOrLookupRef, input, {
-    Tx::<I>::lookup_ref().map(AtomOrLookupRef::LookupRef)
-        .or(Tx::<I>::atom().map(AtomOrLookupRef::Atom))
+fn value_to_nested_vector(val: &Value) -> Option<Vec<AtomOrLookupRefOrVector>> {
+    val.as_vector().and_then(|vs| {
+        let mut p = (many(Tx::<&[Value]>::atom_or_lookup_ref_or_vector()),
+                     eof())
+            .map(|(vs, _)| vs);
+        let r: ParseResult<Vec<AtomOrLookupRefOrVector>, _> =  p.parse_lazy(&vs[..]).into();
+        r.map(|x| x.0).ok()
+    })
+}
+def_value_satisfy_parser_fn!(Tx, nested_vector, Vec<AtomOrLookupRefOrVector>, value_to_nested_vector);
+
+def_parser_fn!(Tx, atom_or_lookup_ref_or_vector, Value, AtomOrLookupRefOrVector, input, {
+    Tx::<I>::lookup_ref().map(AtomOrLookupRefOrVector::LookupRef)
+        .or(Tx::<I>::nested_vector().map(AtomOrLookupRefOrVector::Vector))
+        .or(Tx::<I>::atom().map(AtomOrLookupRefOrVector::Atom))
         .parse_lazy(input)
         .into()
 });
@@ -113,7 +125,7 @@ fn value_to_add_or_retract(val: &Value) -> Option<Entity> {
         let mut p = (add.or(retract),
                      Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
                      Tx::<&[Value]>::entid(),
-                     Tx::<&[Value]>::atom_or_lookup_ref(),
+                     Tx::<&[Value]>::atom_or_lookup_ref_or_vector(),
                      eof())
             .map(|(op, e, a, v, _)| {
                 Entity::AddOrRetract {
@@ -169,7 +181,7 @@ mod tests {
         Entity,
         LookupRef,
         OpType,
-        AtomOrLookupRef,
+        AtomOrLookupRefOrVector,
     };
 
     fn kw(namespace: &str, name: &str) -> Value {
@@ -190,7 +202,7 @@ mod tests {
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Ident(NamespacedKeyword::new("test",
                                                                                               "entid"))),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -208,7 +220,7 @@ mod tests {
                        op: OpType::Retract,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -234,7 +246,34 @@ mod tests {
                            v: Value::Text("v1".into()),
                        }),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
+                   },
+                       &[][..])));
+    }
+
+    #[test]
+    fn test_nested_vector() {
+        let mut list = LinkedList::new();
+        list.push_back(Value::PlainSymbol(PlainSymbol::new("lookup-ref")));
+        list.push_back(kw("test", "a1"));
+        list.push_back(Value::Text("v1".into()));
+
+        let input = [Value::Vector(vec![kw("db", "add"),
+                                        Value::List(list),
+                                        kw("test", "a"),
+                                        Value::Vector(vec![Value::Text("v1".into()), Value::Text("v2".into())])])];
+        let mut parser = Tx::entity();
+        let result = parser.parse(&input[..]);
+        assert_eq!(result,
+                   Ok((Entity::AddOrRetract {
+                       op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
+                           a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
+                           v: Value::Text("v1".into()),
+                       }),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: AtomOrLookupRefOrVector::Vector(vec![AtomOrLookupRefOrVector::Atom(Value::Text("v1".into())),
+                                                               AtomOrLookupRefOrVector::Atom(Value::Text("v2".into()))]),
                    },
                        &[][..])));
     }

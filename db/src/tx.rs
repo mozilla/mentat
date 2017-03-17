@@ -221,7 +221,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                     let v = match v {
-                        entmod::AtomOrLookupRef::Atom(v) => {
+                        entmod::AtomOrLookupRefOrVector::Atom(v) => {
                             if attribute.value_type == ValueType::Ref && v.is_text() {
                                 Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
                             } else {
@@ -232,12 +232,27 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 Either::Left(typed_value)
                             }
                         },
-                        entmod::AtomOrLookupRef::LookupRef(lookup_ref) => {
+                        entmod::AtomOrLookupRefOrVector::LookupRef(lookup_ref) => {
                             if attribute.value_type != ValueType::Ref {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                             }
 
                             Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                        },
+                        entmod::AtomOrLookupRefOrVector::Vector(vs) => {
+                            if !attribute.multival {
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
+                            }
+
+                            for vv in vs {
+                                stack.push(Entity::AddOrRetract {
+                                    op: op.clone(),
+                                    e: e.clone(),
+                                    a: entmod::Entid::Entid(a),
+                                    v: vv,
+                                });
+                            }
+                            continue
                         },
                     };
 

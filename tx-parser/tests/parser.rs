@@ -17,7 +17,7 @@ use edn::parse;
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
 use mentat_tx::entities::{
-    AtomOrLookupRef,
+    AtomOrLookupRefOrVector,
     Entid,
     EntidOrLookupRefOrTempId,
     Entity,
@@ -42,19 +42,19 @@ fn test_entities() {
                        op: OpType::Add,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
                    },
                    Entity::AddOrRetract {
                        op: OpType::Add,
                        e: EntidOrLookupRefOrTempId::TempId("tempid".into()),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
                    },
                    Entity::AddOrRetract {
                        op: OpType::Retract,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(102)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "b")),
-                       v: AtomOrLookupRef::Atom(Value::Text("w".into())),
+                       v: AtomOrLookupRefOrVector::Atom(Value::Text("w".into())),
                    },
                ]);
 }

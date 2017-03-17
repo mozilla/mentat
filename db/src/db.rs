@@ -1952,4 +1952,58 @@ mod tests {
                          "[[:db/add \"t\" :test/ref (lookup-ref :test/unique_value \"unmatched string value\")]]",
                          Err("no entid found for ident: couldn\'t lookup [a v]: (111, String(\"unmatched string value\"))"));
     }
+
+    #[test]
+    fn test_explode_value_lists() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/one]
+                                 [:db/add 222 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/cardinality :db.cardinality/one]]");
+
+        // Check that we can explode vectors for :db.cardinality/many attributes.
+        assert_transact!(conn, "[[:db/add 501 :test/many [1]]
+                                 [:db/add 502 :test/many [2 3]]
+                                 [:db/add 503 :test/many [4 5 6]]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[501 :test/many 1 ?tx true]
+                          [502 :test/many 2 ?tx true]
+                          [502 :test/many 3 ?tx true]
+                          [503 :test/many 4 ?tx true]
+                          [503 :test/many 5 ?tx true]
+                          [503 :test/many 6 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Check that we can explode nested vectors for :db.cardinality/many attributes.
+        assert_transact!(conn, "[[:db/add 600 :test/many [1 [2] [[3] [4]] []]]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[600 :test/many 1 ?tx true]
+                          [600 :test/many 2 ?tx true]
+                          [600 :test/many 3 ?tx true]
+                          [600 :test/many 4 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Check that we cannot explode vectors for :db.cardinality/one attributes.
+        assert_transact!(conn,
+                         "[[:db/add 501 :test/one [1]]]",
+                         Err("not yet implemented: Cannot explode vector value for attribute 222 that is not :db.cardinality :db.cardinality/many"));
+        assert_transact!(conn,
+                         "[[:db/add 501 :test/one [2 3]]]",
+                         Err("not yet implemented: Cannot explode vector value for attribute 222 that is not :db.cardinality :db.cardinality/many"));
+
+        // // Check that we cannot explode nested vectors that aren't lookup refs.
+        // assert_transact!(conn,
+        //                  "[[:db/add 501 :test/many [[1]]]]",
+        //                  Err("not yet implemented: Cannot explode vector value [ [ 1 ] ] that contains nested vector [ 1 ] for attribute 111"));
+        // assert_transact!(conn,
+        //                  "[[:db/add 501 :test/many [[1 2 3]]]]",
+        //                  Err("not yet implemented: Cannot explode vector value [ [ 1 2 3 ] ] that contains nested vector [ 1 2 3 ] for attribute 111"));
+        // assert_transact!(conn,
+        //                  "[[:db/add 501 :test/many [[1] 2 3]]]",
+        //                  Err("not yet implemented: Cannot explode vector value [ [ 1 ] 2 3 ] that contains nested vector [ 1 ] for attribute 111"));
+    }
 }
