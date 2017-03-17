@@ -1095,7 +1095,9 @@ mod tests {
     macro_rules! assert_matches {
         ( $input: expr, $expected: expr ) => {{
             // Failure to parse the expected pattern is a coding error, so we unwrap.
-            let pattern_value = edn::parse::value($expected.borrow()).unwrap().without_spans();
+            let pattern_value = edn::parse::value($expected.borrow())
+                .expect(format!("to be able to parse expected {}", $expected).as_str())
+                .without_spans();
             assert!($input.matches(&pattern_value),
                     "Expected value:\n{}\nto match pattern:\n{}\n",
                     $input.to_pretty(120).unwrap(),
@@ -1137,8 +1139,8 @@ mod tests {
 
         fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
             // Failure to parse the transaction is a coding error, so we unwrap.
-            let assertions = edn::parse::value(transaction.borrow()).unwrap().without_spans();
-            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
+            let assertions = edn::parse::value(transaction.borrow()).expect(format!("to be able to parse {} into EDN", transaction.borrow()).as_str()).without_spans();
+            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions.clone()][..]).expect(format!("to be able to parse {} into entities", assertions).as_str());
 
             let details = {
                 // The block scopes the borrow of self.sqlite.
