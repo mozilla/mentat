@@ -211,57 +211,57 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(stack.len());
 
         while let Some(entity) = stack.pop() {
-                match entity {
-                    Entity::AddOrRetract { op, e, a, v } => {
-                        let a: i64 = match a {
-                            entmod::Entid::Entid(ref a) => *a,
-                            entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-                        };
+            match entity {
+                Entity::AddOrRetract { op, e, a, v } => {
+                    let a: i64 = match a {
+                        entmod::Entid::Entid(ref a) => *a,
+                        entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                    };
 
-                        let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
+                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
-                        let e = match e {
-                            entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                                let e: i64 = match e {
-                                    entmod::Entid::Entid(ref e) => *e,
-                                    entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
-                                };
-                                Either::Left(e)
-                            },
+                    let e = match e {
+                        entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                            let e: i64 = match e {
+                                entmod::Entid::Entid(ref e) => *e,
+                                entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                            };
+                            Either::Left(e)
+                        },
 
-                            entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
-                            },
+                        entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                            Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                        },
 
-                            entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
-                                Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
-                            },
-                        };
+                        entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
+                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                        },
+                    };
 
-                        let v = match v {
-                            entmod::AtomOrLookupRef::Atom(v) => {
-                                if attribute.value_type == ValueType::Ref && v.is_text() {
-                                    Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
-                                } else {
-                                    // Here is where we do schema-aware typechecking: we either assert that
-                                    // the given value is in the attribute's value set, or (in limited
-                                    // cases) coerce the value into the attribute's value set.
-                                    let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
-                                    Either::Left(typed_value)
-                                }
-                            },
-                            entmod::AtomOrLookupRef::LookupRef(lookup_ref) => {
-                                if attribute.value_type != ValueType::Ref {
-                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
-                                }
+                    let v = match v {
+                        entmod::AtomOrLookupRef::Atom(v) => {
+                            if attribute.value_type == ValueType::Ref && v.is_text() {
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
+                            } else {
+                                // Here is where we do schema-aware typechecking: we either assert that
+                                // the given value is in the attribute's value set, or (in limited
+                                // cases) coerce the value into the attribute's value set.
+                                let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
+                                Either::Left(typed_value)
+                            }
+                        },
+                        entmod::AtomOrLookupRef::LookupRef(lookup_ref) => {
+                            if attribute.value_type != ValueType::Ref {
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
+                            }
 
-                                Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
-                            },
-                        };
+                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                        },
+                    };
 
-                        terms.push(Term::AddOrRetract(op, e, a, v));
-                    },
-                }
+                    terms.push(Term::AddOrRetract(op, e, a, v));
+                },
+            }
         };
         Ok((terms, temp_ids, lookup_refs))
     }
