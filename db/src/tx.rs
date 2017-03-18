@@ -70,11 +70,13 @@ use internal_types::{
     TermWithoutTempIds,
     replace_lookup_ref};
 use mentat_core::{
+    attribute,
     intern_set,
     Schema,
 };
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
+use mentat_tx_parser;
 use metadata;
 use rusqlite;
 use schema::{
@@ -92,6 +94,8 @@ use types::{
     ValueType,
 };
 use upsert_resolution::Generation;
+
+const MENTAT_TEMPID_PREFIX: &'static str = "mentat_";
 
 /// A transaction on its way to being applied.
 #[derive(Debug)]
@@ -208,10 +212,34 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let mut stack: Vec<Entity> = entities.into_iter().collect();
         stack.reverse();
 
+        // Allocate private tempids reserved for Mentat.
+        let mut mentat_id_count = 0;
+        let mut allocate_mentat_id = move || {
+            mentat_id_count += 1;
+            entmod::EntidOrLookupRefOrTempId::TempId(format!("{}{}", MENTAT_TEMPID_PREFIX, mentat_id_count))
+        };
+
         let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(stack.len());
 
         while let Some(entity) = stack.pop() {
             match entity {
+                Entity::MapNotation(mut map_notation) => {
+                    // :db/id is optional; if it's not given, we generate a special internal tempid
+                    // to use for upserting.  This tempid will not be reported in the TxReport.
+                    let db_id: entmod::EntidOrLookupRefOrTempId = mentat_tx_parser::remove_db_id(&mut map_notation)?.unwrap_or_else(&mut allocate_mentat_id);
+
+                    // We're not nested, so :db/isComponent is not relevant.  We just explode the
+                    // map notation.
+                    for (a, v) in map_notation {
+                        stack.push(Entity::AddOrRetract {
+                            op: OpType::Add,
+                            e: db_id.clone(),
+                            a: a,
+                            v: v,
+                        });
+                    }
+                },
+
                 Entity::AddOrRetract { op, e, a, v } => {
                     let a: i64 = match a {
                         entmod::Entid::Entid(ref a) => *a,
@@ -221,7 +249,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
 
                     let v = match v {
-                        entmod::AtomOrLookupRefOrVector::Atom(v) => {
+                        entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
                             if attribute.value_type == ValueType::Ref && v.is_text() {
                                 Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
                             } else {
@@ -232,14 +260,16 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 Either::Left(typed_value)
                             }
                         },
-                        entmod::AtomOrLookupRefOrVector::LookupRef(lookup_ref) => {
+
+                        entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(lookup_ref) => {
                             if attribute.value_type != ValueType::Ref {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                             }
 
                             Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
                         },
-                        entmod::AtomOrLookupRefOrVector::Vector(vs) => {
+
+                        entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) => {
                             if !attribute.multival {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
                             }
@@ -253,6 +283,83 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 });
                             }
                             continue
+                        },
+
+                        entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(mut map_notation) => {
+                            // TODO: consider handling this at the tx-parser level.  That would be
+                            // more strict and expressive, but it would lead to splitting
+                            // AddOrRetract, which proliferates types and code, or only handling
+                            // nested maps rather than map values, like Datomic does.
+                            if op != OpType::Add {
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value in :db/retract for attribute {}", a)));
+                            }
+
+                            if attribute.value_type != ValueType::Ref {
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref", a)))
+                            }
+
+                            // :db/id is optional; if it's not given, we generate a special internal tempid
+                            // to use for upserting.  This tempid will not be reported in the TxReport.
+                            let db_id: Option<entmod::EntidOrLookupRefOrTempId> = mentat_tx_parser::remove_db_id(&mut map_notation)?;
+                            let mut dangling = db_id.is_none();
+                            let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(&mut allocate_mentat_id);
+
+                            // We're nested, so we want to ensure we're not creating "dangling"
+                            // entities that can't be reached.  If we're :db/isComponent, then this
+                            // is not dangling.  Otherwise, the resulting map needs to have a
+                            // :db/unique :db.unique/identity [a v] pair, so that it's reachable.
+                            // Per http://docs.datomic.com/transactions.html: "Either the reference
+                            // to the nested map must be a component attribute, or the nested map
+                            // must include a unique attribute. This constraint prevents the
+                            // accidental creation of easily-orphaned entities that have no identity
+                            // or relation to other entities."
+                            if attribute.component {
+                                dangling = false;
+                            }
+
+                            for (inner_a, inner_v) in map_notation {
+                                let inner_entid: i64 = match inner_a {
+                                    entmod::Entid::Entid(ref a) => *a,
+                                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                                };
+
+                                let inner_attribute: &Attribute = self.schema.require_attribute_for_entid(inner_entid)?;
+                                if inner_attribute.unique == Some(attribute::Unique::Identity) {
+                                    dangling = false;
+                                }
+
+                                stack.push(Entity::AddOrRetract {
+                                    op: OpType::Add,
+                                    e: db_id.clone(),
+                                    a: entmod::Entid::Entid(inner_entid),
+                                    v: inner_v,
+                                });
+                            }
+
+                            if dangling {
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value that would lead to dangling entity for attribute {}", a)));
+                            }
+
+                            // Similar, but not identical, to the expansion of the entity position e
+                            // below.  This returns Either::Left(TypedValue) instances; that returns
+                            // Either::Left(i64) instances.
+                            match db_id {
+                                entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                                    let e: i64 = match e {
+                                        entmod::Entid::Entid(ref e) => *e,
+                                        entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                                    };
+                                    Either::Left(TypedValue::Ref(e))
+                                },
+
+                                entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                                    Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                                },
+
+                                entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
+                                    Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                                },
+                            }
                         },
                     };
 
@@ -364,6 +471,10 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             assert!(tempids.contains_key(&**tempid));
         }
 
+        // Any tempid starting with MENTAT_TEMPID_PREFIX has been allocated by the system and is a private
+        // implementation detail; it shouldn't be exposed in the final transaction report.
+        let tempids = tempids.into_iter().filter(|&(ref tempid, _)| !tempid.starts_with(MENTAT_TEMPID_PREFIX)).collect();
+
         // A transaction might try to add or retract :db/ident assertions or other metadata mutating
         // assertions , but those assertions might not make it to the store.  If we see a possible
         // metadata mutation, we will figure out if any assertions made it through later.  This is
@@ -437,7 +548,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         self.store.commit_transaction(self.tx_id)?;
-    }
+        }
 
         db::update_partition_map(self.store, &self.partition_map)?;
 

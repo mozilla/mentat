@@ -12,16 +12,18 @@
 
 extern crate edn;
 
+use std::collections::BTreeMap;
+
 use self::edn::types::Value;
 use self::edn::symbols::NamespacedKeyword;
 
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Entid {
     Entid(i64),
     Ident(NamespacedKeyword),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct LookupRef {
     pub a: Entid,
     // In theory we could allow nested lookup-refs.  In practice this would require us to process
@@ -29,14 +31,17 @@ pub struct LookupRef {
     pub v: Value, // An atom.
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum AtomOrLookupRefOrVector {
+pub type MapNotation = BTreeMap<Entid, AtomOrLookupRefOrVectorOrMapNotation>;
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum AtomOrLookupRefOrVectorOrMapNotation {
     Atom(Value),
     LookupRef(LookupRef),
-    Vector(Vec<AtomOrLookupRefOrVector>),
+    Vector(Vec<AtomOrLookupRefOrVectorOrMapNotation>),
+    MapNotation(MapNotation),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntidOrLookupRefOrTempId {
     Entid(Entid),
     LookupRef(LookupRef),
@@ -49,12 +54,15 @@ pub enum OpType {
     Retract,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Entity {
+    // Like [:db/add|:db/retract e a v].
     AddOrRetract {
         op: OpType,
         e: EntidOrLookupRefOrTempId,
         a: Entid,
-        v: AtomOrLookupRefOrVector,
+        v: AtomOrLookupRefOrVectorOrMapNotation,
     },
+    // Like {:db/id "tempid" a1 v1 a2 v2}.
+    MapNotation(MapNotation),
 }

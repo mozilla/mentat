@@ -13,6 +13,7 @@
 use edn;
 use rusqlite;
 
+use mentat_tx_parser;
 use types::{Entid, ValueType};
 
 error_chain! {
@@ -22,6 +23,10 @@ error_chain! {
 
     foreign_links {
         Rusqlite(rusqlite::Error);
+    }
+
+    links {
+        TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
     }
 
     errors {
@@ -44,12 +49,12 @@ error_chain! {
             display("bad SQL (value_type_tag, value) pair: ({}, {:?})", value_type_tag, value.data_type())
         }
 
-        /// The SQLite store user_version isn't recognized.  This could be an old version of Mentat
-        /// trying to open a newer version SQLite store; or it could be a corrupt file; or ...
-        BadSQLiteStoreVersion(version: i32) {
-            description("bad SQL store user_version")
-            display("bad SQL store user_version: {}", version)
-        }
+        // /// The SQLite store user_version isn't recognized.  This could be an old version of Mentat
+        // /// trying to open a newer version SQLite store; or it could be a corrupt file; or ...
+        // BadSQLiteStoreVersion(version: i32) {
+        //     description("bad SQL store user_version")
+        //     display("bad SQL store user_version: {}", version)
+        // }
 
         /// A bootstrap definition couldn't be parsed or installed.  This is a programmer error, not
         /// a runtime error.

@@ -320,21 +320,6 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
 //         (<? (<update-from-version db v bootstrapper))))))
 // */
 
-pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32) -> Result<i32> {
-    if current_version < 0 || CURRENT_VERSION <= current_version {
-        bail!(ErrorKind::BadSQLiteStoreVersion(current_version))
-    }
-
-    let tx = conn.transaction()?;
-    // TODO: actually implement upgrade.
-    set_user_version(&tx, CURRENT_VERSION)?;
-    let user_version = get_user_version(&tx)?;
-    // TODO: use the drop semantics to do this automagically?
-    tx.commit()?;
-
-    Ok(user_version)
-}
-
 pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     if rusqlite::version_number() < MIN_SQLITE_VERSION {
         panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
@@ -796,7 +781,7 @@ impl MentatStoring for rusqlite::Connection {
                                                 .chain(once(flags as &ToSql))))))
             }).collect();
 
-            // TODO: cache this for selected values of count.            
+            // TODO: cache this for selected values of count.
             assert!(bindings_per_statement * count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, count, max_vars);
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
@@ -1994,16 +1979,83 @@ mod tests {
         assert_transact!(conn,
                          "[[:db/add 501 :test/one [2 3]]]",
                          Err("not yet implemented: Cannot explode vector value for attribute 222 that is not :db.cardinality :db.cardinality/many"));
+    }
 
-        // // Check that we cannot explode nested vectors that aren't lookup refs.
-        // assert_transact!(conn,
-        //                  "[[:db/add 501 :test/many [[1]]]]",
-        //                  Err("not yet implemented: Cannot explode vector value [ [ 1 ] ] that contains nested vector [ 1 ] for attribute 111"));
-        // assert_transact!(conn,
-        //                  "[[:db/add 501 :test/many [[1 2 3]]]]",
-        //                  Err("not yet implemented: Cannot explode vector value [ [ 1 2 3 ] ] that contains nested vector [ 1 2 3 ] for attribute 111"));
-        // assert_transact!(conn,
-        //                  "[[:db/add 501 :test/many [[1] 2 3]]]",
-        //                  Err("not yet implemented: Cannot explode vector value [ [ 1 ] 2 3 ] that contains nested vector [ 1 ] for attribute 111"));
+    #[test]
+    fn test_explode_map_notation() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/component]
+                                 [:db/add 222 :db/isComponent true]
+                                 [:db/add 222 :db/valueType :db.type/ref]
+                                 [:db/add 333 :db/ident :test/unique]
+                                 [:db/add 333 :db/unique :db.unique/identity]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 333 :db/valueType :db.type/long]
+                                 [:db/add 444 :db/ident :test/dangling]
+                                 [:db/add 444 :db/valueType :db.type/ref]]");
+
+        // Check that we can explode map notation without :db/id.
+        let report = assert_transact!(conn, "[{:test/many 1}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/many 1 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode map notation with :db/id, as an entid, ident, and tempid.
+        let report = assert_transact!(conn, "[{:db/id :db/ident :test/many 1}
+                                              {:db/id 500 :test/many 2}
+                                              {:db/id \"t\" :test/many 3}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[1 :test/many 1 ?tx true]
+                          [500 :test/many 2 ?tx true]
+                          [?e :test/many 3 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{\"t\" 65537}");
+
+        // Check that we can explode map notation with nested vector values.
+        let report = assert_transact!(conn, "[{:test/many [1 2]}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/many 1 ?tx true]
+                          [?e :test/many 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode map notation with nested maps if the attribute is
+        // :db/isComponent true.
+        let report = assert_transact!(conn, "[{:test/component {:test/many 1}}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/component ?f ?tx true]
+                          [?f :test/many 1 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode map notation with nested maps if the inner map contains a
+        // :db/unique :db.unique/identity attribute.
+        let report = assert_transact!(conn, "[{:test/dangling {:test/unique 10}}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/dangling ?f ?tx true]
+                          [?f :test/unique 10 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Verify that we can't explode map notation with nested maps if the inner map would be
+        // dangling.
+        assert_transact!(conn,
+                         "[{:test/dangling {:test/many 11}}]",
+                         Err("not yet implemented: Cannot explode nested map value that would lead to dangling entity for attribute 444"));
+
+        // Verify that we can explode map notation with nested maps, even if the inner map would be
+        // dangling, if we give a :db/id explicitly.
+        assert_transact!(conn, "[{:test/dangling {:db/id \"t\" :test/many 11}}]");
     }
 }

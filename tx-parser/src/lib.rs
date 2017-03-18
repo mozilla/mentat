@@ -10,6 +10,8 @@
 
 #![allow(dead_code)]
 
+use std::iter::once;
+
 extern crate combine;
 #[macro_use]
 extern crate error_chain;
@@ -28,12 +30,13 @@ use edn::symbols::{
 };
 use edn::types::Value;
 use mentat_tx::entities::{
+    AtomOrLookupRefOrVectorOrMapNotation,
     Entid,
     EntidOrLookupRefOrTempId,
     Entity,
     LookupRef,
+    MapNotation,
     OpType,
-    AtomOrLookupRefOrVector,
 };
 use mentat_parser_utils::{ResultParser, ValueParseError};
 
@@ -97,21 +100,22 @@ def_parser_fn!(Tx, atom, Value, Value, input, {
         .parse_stream(input)
 });
 
-fn value_to_nested_vector(val: &Value) -> Option<Vec<AtomOrLookupRefOrVector>> {
+fn value_to_nested_vector(val: &Value) -> Option<Vec<AtomOrLookupRefOrVectorOrMapNotation>> {
     val.as_vector().and_then(|vs| {
         let mut p = (many(Tx::<&[Value]>::atom_or_lookup_ref_or_vector()),
                      eof())
             .map(|(vs, _)| vs);
-        let r: ParseResult<Vec<AtomOrLookupRefOrVector>, _> =  p.parse_lazy(&vs[..]).into();
+        let r: ParseResult<Vec<AtomOrLookupRefOrVectorOrMapNotation>, _> =  p.parse_lazy(&vs[..]).into();
         r.map(|x| x.0).ok()
     })
 }
-def_value_satisfy_parser_fn!(Tx, nested_vector, Vec<AtomOrLookupRefOrVector>, value_to_nested_vector);
+def_value_satisfy_parser_fn!(Tx, nested_vector, Vec<AtomOrLookupRefOrVectorOrMapNotation>, value_to_nested_vector);
 
-def_parser_fn!(Tx, atom_or_lookup_ref_or_vector, Value, AtomOrLookupRefOrVector, input, {
-    Tx::<I>::lookup_ref().map(AtomOrLookupRefOrVector::LookupRef)
-        .or(Tx::<I>::nested_vector().map(AtomOrLookupRefOrVector::Vector))
-        .or(Tx::<I>::atom().map(AtomOrLookupRefOrVector::Atom))
+def_parser_fn!(Tx, atom_or_lookup_ref_or_vector, Value, AtomOrLookupRefOrVectorOrMapNotation, input, {
+    Tx::<I>::lookup_ref().map(AtomOrLookupRefOrVectorOrMapNotation::LookupRef)
+        .or(Tx::<I>::nested_vector().map(AtomOrLookupRefOrVectorOrMapNotation::Vector))
+        .or(Tx::<I>::map_notation().map(AtomOrLookupRefOrVectorOrMapNotation::MapNotation))
+        .or(Tx::<I>::atom().map(AtomOrLookupRefOrVectorOrMapNotation::Atom))
         .parse_lazy(input)
         .into()
 });
@@ -141,8 +145,28 @@ fn value_to_add_or_retract(val: &Value) -> Option<Entity> {
 }
 def_value_satisfy_parser_fn!(Tx, add_or_retract, Entity, value_to_add_or_retract);
 
+fn value_to_map_notation(val: &Value) -> Option<MapNotation> {
+    val.as_map().cloned().and_then(|map| {
+        // Parsing pairs is tricky; parsing sequences is easy.
+        let avseq: Vec<Value> = map.into_iter().flat_map(|(a, v)| once(a).chain(once(v))).collect();
+
+        let av = (Tx::<&[Value]>::entid(),
+                  Tx::<&[Value]>::atom_or_lookup_ref_or_vector())
+            .map(|(a, v)| -> (Entid, AtomOrLookupRefOrVectorOrMapNotation) { (a, v) });
+        let mut p = (many(av),
+                     eof())
+            .map(|(avs, _): (Vec<(Entid, AtomOrLookupRefOrVectorOrMapNotation)>, _)| -> MapNotation {
+                avs.into_iter().collect()
+            });
+        let r: ParseResult<MapNotation, _> =  p.parse_lazy(&avseq[..]).into();
+        r.map(|x| x.0).ok()
+    })
+}
+def_value_satisfy_parser_fn!(Tx, map_notation, MapNotation, value_to_map_notation);
+
 def_parser_fn!(Tx, entity, Value, Entity, input, {
-    let mut p = Tx::<I>::add_or_retract();
+    let mut p = Tx::<I>::add_or_retract()
+        .or(Tx::<I>::map_notation().map(Entity::MapNotation));
     p.parse_stream(input)
 });
 
@@ -168,6 +192,45 @@ impl<'a> Tx<&'a [edn::Value]> {
     }
 }
 
+impl<'a> Tx<&'a [edn::Value]> {
+    pub fn parse_entid_or_lookup_ref_or_temp_id(input: &'a [edn::Value]) -> std::result::Result<EntidOrLookupRefOrTempId, errors::Error> {
+        (Tx::<_>::entid_or_lookup_ref_or_temp_id(), eof())
+            .map(|(es, _)| es)
+            .parse(input)
+            .map(|x| x.0)
+            .map_err::<ValueParseError, _>(|e| e.translate_position(input).into())
+            .map_err(|e| Error::from_kind(ErrorKind::ParseError(e)))
+    }
+}
+
+/// Remove any :db/id value from the given map notation, converting the returned value into
+/// something suitable for the entity position rather than something suitable for a value position.
+///
+/// This is here simply to not expose some of the internal APIs of the tx-parser.
+pub fn remove_db_id(map: &mut MapNotation) -> std::result::Result<Option<EntidOrLookupRefOrTempId>, errors::Error> {
+    // TODO: extract lazy defined constant.
+    let db_id_key = Entid::Ident(edn::NamespacedKeyword::new("db", "id"));
+
+    let db_id: Option<EntidOrLookupRefOrTempId> = if let Some(id) = map.remove(&db_id_key) {
+        match id {
+            AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
+                let db_id = Tx::<_>::parse_entid_or_lookup_ref_or_temp_id(&[v][..])
+                    .chain_err(|| Error::from(ErrorKind::DbIdError))?;
+                Some(db_id)
+            },
+            AtomOrLookupRefOrVectorOrMapNotation::LookupRef(_) |
+            AtomOrLookupRefOrVectorOrMapNotation::Vector(_) |
+            AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) => {
+                bail!(ErrorKind::DbIdError)
+            },
+        }
+    } else {
+        None
+    };
+
+    Ok(db_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -181,8 +244,9 @@ mod tests {
         Entity,
         LookupRef,
         OpType,
-        AtomOrLookupRefOrVector,
+        AtomOrLookupRefOrVectorOrMapNotation,
     };
+    use std::collections::BTreeMap;
 
     fn kw(namespace: &str, name: &str) -> Value {
         Value::NamespacedKeyword(NamespacedKeyword::new(namespace, name))
@@ -202,7 +266,7 @@ mod tests {
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Ident(NamespacedKeyword::new("test",
                                                                                               "entid"))),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -220,7 +284,7 @@ mod tests {
                        op: OpType::Retract,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -246,7 +310,7 @@ mod tests {
                            v: Value::Text("v1".into()),
                        }),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRefOrVector::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -272,9 +336,26 @@ mod tests {
                            v: Value::Text("v1".into()),
                        }),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRefOrVector::Vector(vec![AtomOrLookupRefOrVector::Atom(Value::Text("v1".into())),
-                                                               AtomOrLookupRefOrVector::Atom(Value::Text("v2".into()))]),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Vector(vec![AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v1".into())),
+                                                                            AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v2".into()))]),
                    },
+                       &[][..])));
+    }
+
+    #[test]
+    fn test_map_notation() {
+        let mut expected: MapNotation = BTreeMap::default();
+        expected.insert(Entid::Ident(NamespacedKeyword::new("db", "id")), AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("t".to_string())));
+        expected.insert(Entid::Ident(NamespacedKeyword::new("db", "ident")), AtomOrLookupRefOrVectorOrMapNotation::Atom(kw("test", "attribute")));
+
+        let mut map: BTreeMap<Value, Value> = BTreeMap::default();
+        map.insert(kw("db", "id"), Value::Text("t".to_string()));
+        map.insert(kw("db", "ident"), kw("test", "attribute"));
+        let input = [Value::Map(map.clone())];
+        let mut parser = Tx::entity();
+        let result = parser.parse(&input[..]);
+        assert_eq!(result,
+                   Ok((Entity::MapNotation(expected),
                        &[][..])));
     }
 }
