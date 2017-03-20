@@ -20,14 +20,21 @@ extern crate mentat_tx;
 #[macro_use]
 extern crate mentat_parser_utils;
 
-use combine::{any, eof, many, parser, satisfy_map, token, Parser, ParseResult, Stream};
+use combine::{eof, many, parser, satisfy_map, token, Parser, ParseResult, Stream};
 use combine::combinator::{Expected, FnParser};
 use edn::symbols::{
     NamespacedKeyword,
     PlainSymbol,
 };
 use edn::types::Value;
-use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, LookupRef, OpType};
+use mentat_tx::entities::{
+    Entid,
+    EntidOrLookupRefOrTempId,
+    Entity,
+    LookupRef,
+    OpType,
+    AtomOrLookupRef,
+};
 use mentat_parser_utils::{ResultParser, ValueParseError};
 
 pub mod errors;
@@ -63,7 +70,7 @@ fn value_to_lookup_ref(val: &Value) -> Option<LookupRef> {
         let vs: Vec<Value> = list.into_iter().cloned().collect();
         let mut p = (token(Value::PlainSymbol(PlainSymbol::new("lookup-ref"))),
                      Tx::<&[Value]>::entid(),
-                     any(),
+                     Tx::<&[Value]>::atom(),
                      eof())
             .map(|(_, a, v, _)| LookupRef { a: a, v: v });
         let r: ParseResult<LookupRef, _> = p.parse_lazy(&vs[..]).into();
@@ -85,6 +92,17 @@ def_parser_fn!(Tx, temp_id, Value, String, input, {
         .parse_stream(input)
 });
 
+def_parser_fn!(Tx, atom, Value, Value, input, {
+    satisfy_map(|x: Value| if x.is_atom() { Some(x) } else { None })
+        .parse_stream(input)
+});
+
+def_parser_fn!(Tx, atom_or_lookup_ref, Value, AtomOrLookupRef, input, {
+    Tx::<I>::lookup_ref().map(AtomOrLookupRef::LookupRef)
+        .or(Tx::<I>::atom().map(AtomOrLookupRef::Atom))
+        .parse_lazy(input)
+        .into()
+});
 
 fn value_to_add_or_retract(val: &Value) -> Option<Entity> {
     val.as_vector().and_then(|vs| {
@@ -95,8 +113,7 @@ fn value_to_add_or_retract(val: &Value) -> Option<Entity> {
         let mut p = (add.or(retract),
                      Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
                      Tx::<&[Value]>::entid(),
-                     // TODO: handle lookup-ref.
-                     any(),
+                     Tx::<&[Value]>::atom_or_lookup_ref(),
                      eof())
             .map(|(op, e, a, v, _)| {
                 Entity::AddOrRetract {
@@ -146,7 +163,14 @@ mod tests {
     use combine::Parser;
     use edn::symbols::NamespacedKeyword;
     use edn::types::Value;
-    use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, LookupRef, OpType};
+    use mentat_tx::entities::{
+        Entid,
+        EntidOrLookupRefOrTempId,
+        Entity,
+        LookupRef,
+        OpType,
+        AtomOrLookupRef,
+    };
 
     fn kw(namespace: &str, name: &str) -> Value {
         Value::NamespacedKeyword(NamespacedKeyword::new(namespace, name))
@@ -166,7 +190,7 @@ mod tests {
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Ident(NamespacedKeyword::new("test",
                                                                                               "entid"))),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: Value::Text("v".into()),
+                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -184,7 +208,7 @@ mod tests {
                        op: OpType::Retract,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: Value::Text("v".into()),
+                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }
@@ -210,7 +234,7 @@ mod tests {
                            v: Value::Text("v1".into()),
                        }),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: Value::Text("v".into()),
+                       v: AtomOrLookupRef::Atom(Value::Text("v".into())),
                    },
                        &[][..])));
     }

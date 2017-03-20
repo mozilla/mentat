@@ -217,19 +217,24 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             },
                         };
 
-                        let v = {
-                            if attribute.value_type == ValueType::Ref && v.is_text() {
-                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
-                            } else if attribute.value_type == ValueType::Ref && v.is_vector() && v.as_vector().unwrap().len() == 2 {
+                        let v = match v {
+                            entmod::AtomOrLookupRef::Atom(v) => {
+                                if attribute.value_type == ValueType::Ref && v.is_text() {
+                                    Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
+                                } else {
+                                    // Here is where we do schema-aware typechecking: we either assert that
+                                    // the given value is in the attribute's value set, or (in limited
+                                    // cases) coerce the value into the attribute's value set.
+                                    let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
+                                    Either::Left(typed_value)
+                                }
+                            },
+                            entmod::AtomOrLookupRef::LookupRef(_) => {
+                                if attribute.value_type != ValueType::Ref {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot transact lookup-ref for attribute {} that is not :db/valueType :db.type/ref", a)))
+                                }
                                 bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
-                            } else {
-                                // Here is where we do schema-aware typechecking: we either assert that
-                                // the given value is in the attribute's value set, or (in limited
-                                // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
-
-                                Either::Left(typed_value)
-                            }
+                            },
                         };
 
                         Ok(Term::AddOrRetract(op, e, a, v))

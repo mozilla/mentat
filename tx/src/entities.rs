@@ -24,13 +24,14 @@ pub enum Entid {
 #[derive(Clone, Debug, PartialEq)]
 pub struct LookupRef {
     pub a: Entid,
-    // TODO: consider boxing to allow recursive lookup refs.
-    pub v: Value,
+    // In theory we could allow nested lookup-refs.  In practice this would require us to process
+    // lookup-refs in multiple phases, like how we resolve tempids, which isn't worth the effort.
+    pub v: Value, // An atom.
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum EntidOrLookupRef {
-    Entid(Entid),
+pub enum AtomOrLookupRef {
+    Atom(Value),
     LookupRef(LookupRef),
 }
 
@@ -53,6 +54,6 @@ pub enum Entity {
         op: OpType,
         e: EntidOrLookupRefOrTempId,
         a: Entid,
-        v: Value,
+        v: AtomOrLookupRef,
     },
 }
