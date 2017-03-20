@@ -217,8 +217,6 @@ fn version_number_from_string(version_string: &'static str) -> i32 {
 
 // TODO: rename "SQL" functions to align with "datoms" functions.
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
-    writeln!(&mut io::stderr(), "current rusqlite version is {}", rusqlite::version()).unwrap();
-
     if rusqlite::version_number() < version_number_from_string(MIN_SQLITE_VERSION) {
         writeln!(&mut io::stderr(), "Mentat requires at least sqlite {}", MIN_SQLITE_VERSION).unwrap();
         exit(1)
