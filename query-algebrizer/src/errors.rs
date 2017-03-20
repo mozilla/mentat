@@ -35,6 +35,11 @@ error_chain! {
             description("unbound variable in function call")
             display("unbound variable: {}", var.0)
         }
+
+        NonNumericArgument(function: PlainSymbol, position: usize) {
+            description("invalid argument")
+            display("invalid argument to {}: expected numeric in position {}.", function, position)
+        }
     }
 }
 
