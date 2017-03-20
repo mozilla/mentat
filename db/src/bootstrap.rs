@@ -38,7 +38,7 @@ lazy_static! {
              (ns_keyword!("db.part", "db"),           entids::DB_PART_DB),
              (ns_keyword!("db", "txInstant"),         entids::DB_TX_INSTANT),
              (ns_keyword!("db.install", "partition"), entids::DB_INSTALL_PARTITION),
-             (ns_keyword!("db.install", "valueType"), entids::DB_INSTALL_VALUETYPE),
+             (ns_keyword!("db.install", "valueType"), entids::DB_INSTALL_VALUE_TYPE),
              (ns_keyword!("db.install", "attribute"), entids::DB_INSTALL_ATTRIBUTE),
              (ns_keyword!("db", "valueType"),         entids::DB_VALUE_TYPE),
              (ns_keyword!("db", "cardinality"),       entids::DB_CARDINALITY),
@@ -97,6 +97,7 @@ lazy_static! {
         let s = r#"
 {:db/ident             {:db/valueType   :db.type/keyword
                         :db/cardinality :db.cardinality/one
+                        :db/index       true
                         :db/unique      :db.unique/identity}
  :db.install/partition {:db/valueType   :db.type/ref
                         :db/cardinality :db.cardinality/many}
@@ -142,6 +143,7 @@ lazy_static! {
  ;; unique-value because an attribute can only belong to a single
  ;; schema fragment.
  :db.schema/attribute  {:db/valueType   :db.type/ref
+                        :db/index       true
                         :db/unique      :db.unique/value
                         :db/cardinality :db.cardinality/many}}"#;
         let right = edn::parse::value(s)
@@ -169,8 +171,8 @@ fn idents_to_assertions(idents: &[(symbols::NamespacedKeyword, i64)]) -> Vec<Val
 /// Convert {:ident {:key :value ...} ...} to
 /// vec![(symbols::NamespacedKeyword(:ident), symbols::NamespacedKeyword(:key), TypedValue(:value)), ...].
 ///
-/// Such triples are closer to what the transactor will produce when processing
-/// :db.install/attribute assertions.
+/// Such triples are closer to what the transactor will produce when processing attribute
+/// assertions.
 fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>> {
     // Failure here is a coding error, not a runtime error.
     let mut triples: Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)> = vec![];
@@ -221,17 +223,12 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
 }
 
 /// Convert {IDENT {:key :value ...} ...} to [[:db/add IDENT :key :value] ...].
-/// In addition, add [:db.add :db.part/db :db.install/attribute IDENT] installation assertions.
 fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> {
     // Failure here is a coding error, not a runtime error.
     let mut assertions: Vec<Value> = vec![];
     match *symbolic_schema {
         Value::Map(ref m) => {
             for (ident, mp) in m {
-                assertions.push(Value::Vector(vec![values::DB_ADD.clone(),
-                                                   values::DB_PART_DB.clone(),
-                                                   values::DB_INSTALL_ATTRIBUTE.clone(),
-                                                   ident.clone()]));
                 match *mp {
                     Value::Map(ref mpp) => {
                         for (attr, value) in mpp {

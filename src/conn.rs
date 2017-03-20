@@ -147,7 +147,7 @@ impl Conn {
         };
 
         // The transaction is processed while the mutex is not held.
-        let (report, next_partition_map, next_schema) = transact(&tx, current_partition_map, &*current_schema, entities)?;
+        let (report, next_partition_map, next_schema) = transact(&tx, current_partition_map, &*current_schema, &*current_schema, entities)?;
 
         {
             // The mutex is taken during this block.

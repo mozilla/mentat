@@ -1178,7 +1178,6 @@ mod testing {
         });
         add_attribute(&mut schema, 98, Attribute {
             value_type: ValueType::String,
-            unique_identity: true,
             ..Default::default()
         });
 

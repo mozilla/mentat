@@ -21,7 +21,7 @@ pub const DB_IDENT: Entid = 1;
 pub const DB_PART_DB: Entid = 2;
 pub const DB_TX_INSTANT: Entid = 3;
 pub const DB_INSTALL_PARTITION: Entid = 4;
-pub const DB_INSTALL_VALUETYPE: Entid = 5;
+pub const DB_INSTALL_VALUE_TYPE: Entid = 5;
 pub const DB_INSTALL_ATTRIBUTE: Entid = 6;
 pub const DB_VALUE_TYPE: Entid = 7;
 pub const DB_CARDINALITY: Entid = 8;
@@ -56,3 +56,58 @@ pub const DB_DOC: Entid = 35;
 // Added in SQL schema v2.
 pub const DB_SCHEMA_VERSION: Entid = 36;
 pub const DB_SCHEMA_ATTRIBUTE: Entid = 37;
+
+/// Return `false` if the given attribute will not change the metadata: recognized idents, schema,
+/// partitions in the partition map.
+pub fn might_update_metadata(attribute: Entid) -> bool {
+    if attribute > DB_DOC {
+        return false
+    }
+    match attribute {
+        // Idents.
+        DB_IDENT |
+        // Schema.
+        DB_CARDINALITY |
+        DB_DOC |
+        DB_FULLTEXT |
+        DB_INDEX |
+        DB_IS_COMPONENT |
+        DB_UNIQUE |
+        DB_VALUE_TYPE =>
+            true,
+        _ => false,
+    }
+}
+
+lazy_static! {
+    /// Attributes that are "ident related".  These might change the "idents" materialized view.
+    pub static ref IDENTS_SQL_LIST: String = {
+        format!("({})",
+                DB_IDENT)
+    };
+
+    /// Attributes that are "schema related".  These might change the "schema" materialized view.
+    pub static ref SCHEMA_SQL_LIST: String = {
+        format!("({}, {}, {}, {}, {}, {}, {})",
+                DB_CARDINALITY,
+                DB_DOC,
+                DB_FULLTEXT,
+                DB_INDEX,
+                DB_IS_COMPONENT,
+                DB_UNIQUE,
+                DB_VALUE_TYPE)
+    };
+
+    /// Attributes that are "metadata" related.  These might change one of the materialized views.
+    pub static ref METADATA_SQL_LIST: String = {
+        format!("({}, {}, {}, {}, {}, {}, {}, {})",
+                DB_CARDINALITY,
+                DB_DOC,
+                DB_FULLTEXT,
+                DB_IDENT,
+                DB_INDEX,
+                DB_IS_COMPONENT,
+                DB_UNIQUE,
+                DB_VALUE_TYPE)
+    };
+}

@@ -45,14 +45,12 @@
 //! names -- `TermWithTempIdsAndLookupRefs`, anyone? -- and strongly typed stage functions will help
 //! keep everything straight.
 
-use std;
 use std::borrow::Cow;
 use std::collections::{
     BTreeMap,
     BTreeSet,
 };
 
-use ::{to_namespaced_keyword};
 use db;
 use db::{
     MentatStoring,
@@ -61,6 +59,7 @@ use db::{
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
+    Either,
     LookupRefOrTempId,
     TempId,
     TempIdMap,
@@ -75,6 +74,7 @@ use mentat_core::{
 };
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{Entity, OpType};
+use metadata;
 use rusqlite;
 use schema::{
     SchemaBuilding,
@@ -104,10 +104,16 @@ pub struct Tx<'conn, 'a> {
     /// allocates at least one tx ID, so we own and modify our own partition map.
     partition_map: PartitionMap,
 
+    /// The schema to update from the transaction entities.
+    ///
+    /// Transactions only update the schema infrequently, so we borrow this schema until we need to
+    /// modify it.
+    schema_for_mutation: Cow<'a, Schema>,
+
     /// The schema to use when interpreting the transaction entities.
     ///
-    /// The schema is infrequently updated, so we borrow a schema until we need to modify it.
-    schema: Cow<'a, Schema>,
+    /// This schema is not updated, so we just borrow it.
+    schema: &'a Schema,
 
     /// The transaction ID of the transaction.
     tx_id: Entid,
@@ -120,11 +126,18 @@ pub struct Tx<'conn, 'a> {
 }
 
 impl<'conn, 'a> Tx<'conn, 'a> {
-    pub fn new(store: &'conn rusqlite::Connection, partition_map: PartitionMap, schema: &'a Schema, tx_id: Entid, tx_instant: i64) -> Tx<'conn, 'a> {
+    pub fn new(
+        store: &'conn rusqlite::Connection,
+        partition_map: PartitionMap,
+        schema_for_mutation: &'a Schema,
+        schema: &'a Schema,
+        tx_id: Entid,
+        tx_instant: i64) -> Tx<'conn, 'a> {
         Tx {
             store: store,
             partition_map: partition_map,
-            schema: Cow::Borrowed(schema),
+            schema_for_mutation: Cow::Borrowed(schema_for_mutation),
+            schema: schema,
             tx_id: tx_id,
             tx_instant: tx_instant,
         }
@@ -191,11 +204,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                     entmod::Entid::Entid(ref e) => *e,
                                     entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
                                 };
-                                std::result::Result::Ok(e)
+                                Either::Left(e)
                             },
 
                             entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
                             },
 
                             entmod::EntidOrLookupRefOrTempId::LookupRef(_) => {
@@ -206,7 +219,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
                         let v = {
                             if attribute.value_type == ValueType::Ref && v.is_text() {
-                                std::result::Result::Err(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
                             } else if attribute.value_type == ValueType::Ref && v.is_vector() && v.as_vector().unwrap().len() == 2 {
                                 bail!(ErrorKind::NotYetImplemented(format!("Transacting lookup-refs is not yet implemented")))
                             } else {
@@ -215,7 +228,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 // cases) coerce the value into the attribute's value set.
                                 let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
 
-                                std::result::Result::Ok(typed_value)
+                                Either::Left(typed_value)
                             }
                         };
 
@@ -310,6 +323,14 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             assert!(tempids.contains_key(&**tempid));
         }
 
+        // A transaction might try to add or retract :db/ident assertions or other metadata mutating
+        // assertions , but those assertions might not make it to the store.  If we see a possible
+        // metadata mutation, we will figure out if any assertions made it through later.  This is
+        // strictly an optimization: it would be correct to _always_ check what made it to the
+        // store.
+        let mut tx_might_update_metadata = false;
+
+{
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
 
@@ -331,6 +352,10 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                         bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented"))) // TODO: reference original input.  Difficult!
                     }
 
+                    if entids::might_update_metadata(a) {
+                        tx_might_update_metadata = true;
+                    }
+
                     let added = op == OpType::Add;
                     if attribute.multival {
                         non_fts_many.push((e, a, attribute, v, added));
@@ -345,8 +370,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // TODO: allow this to be present in the transaction data.
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
-                          // TODO: extract this to a constant.
-                          self.schema.require_attribute_for_entid(self.schema.require_entid(&to_namespaced_keyword(":db/txInstant").unwrap())?)?,
+                          self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
                           TypedValue::Long(self.tx_instant),
                           true));
 
@@ -359,9 +383,28 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         self.store.commit_transaction(self.tx_id)?;
+    }
 
-        // TODO: update idents and schema materialized views.
         db::update_partition_map(self.store, &self.partition_map)?;
+
+        if tx_might_update_metadata {
+            // Extract changes to metadata from the store.
+            let metadata_assertions = self.store.committed_metadata_assertions(self.tx_id)?;
+
+            let mut new_schema = (*self.schema_for_mutation).clone(); // Clone the underlying Schema for modification.
+            let metadata_report = metadata::update_schema_from_entid_quadruples(&mut new_schema, metadata_assertions)?;
+
+            // We might not have made any changes to the schema, even though it looked like we
+            // would.  This should not happen, even during bootstrapping: we mutate an empty
+            // `Schema` in this case specifically to run the bootstrapped assertions through the
+            // regular transactor code paths, updating the schema and materialized views uniformly.
+            // But, belt-and-braces: handle it gracefully.
+            if new_schema != *self.schema_for_mutation {
+                let old_schema = (*self.schema_for_mutation).clone(); // Clone the original Schema for comparison.
+                *self.schema_for_mutation.to_mut() = new_schema; // Store the new Schema.
+                db::update_metadata(self.store, &old_schema, &*self.schema_for_mutation, &metadata_report)?;
+            }
+        }
 
         Ok(TxReport {
             tx_id: self.tx_id,
@@ -375,7 +418,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
-pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, mut partition_map: PartitionMap, schema: &'a Schema, entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
+pub fn transact<'conn, 'a, I>(
+    conn: &'conn rusqlite::Connection,
+    mut partition_map: PartitionMap,
+    schema_for_mutation: &'a Schema,
+    schema: &'a Schema,
+    entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
     // Eventually, this function will be responsible for managing a SQLite transaction.  For
     // now, it's just about the tx details.
 
@@ -384,12 +432,12 @@ pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection, mut partition_m
 
     conn.begin_transaction()?;
 
-    let mut tx = Tx::new(conn, partition_map, schema, tx_id, tx_instant);
+    let mut tx = Tx::new(conn, partition_map, schema_for_mutation, schema, tx_id, tx_instant);
 
     let report = tx.transact_entities(entities)?;
 
     // If the schema has moved on, return it.
-    let next_schema = match tx.schema {
+    let next_schema = match tx.schema_for_mutation {
         Cow::Borrowed(_) => None,
         Cow::Owned(next_schema) => Some(next_schema),
     };
