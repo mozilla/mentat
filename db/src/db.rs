@@ -885,7 +885,14 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
     let mut insert_stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SQL_LIST.as_str()).as_str())?;
     let mut index_stmt = conn.prepare("UPDATE datoms SET index_avet = ? WHERE a = ?")?;
     let mut unique_value_stmt = conn.prepare("UPDATE datoms SET unique_value = ? WHERE a = ?")?;
-    let mut cardinality_stmt = conn.prepare("SELECT e FROM datoms WHERE a = ? GROUP BY e HAVING COUNT(*) > 1 LIMIT 1")?;
+    let mut cardinality_stmt = conn.prepare(r#"
+SELECT EXISTS
+    (SELECT 1
+        FROM datoms AS left, datoms AS right
+        WHERE left.a = ? AND
+        left.a = right.a AND
+        left.e = right.e AND
+        left.v <> right.v)"#)?;
 
     for (&entid, alterations) in &metadata_report.attributes_altered {
         delete_stmt.execute(&[&entid as &ToSql])?;
