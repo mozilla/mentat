@@ -271,7 +271,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             generation = generation.evolve_one_step(&temp_id_map);
 
             // Report each tempid that resolves via upsert.
-            for (tempid, &entid) in &temp_id_map {
+            for (tempid, entid) in temp_id_map {
                 // Every tempid should be resolved at most once.  Prima facie, we might expect a
                 // tempid to be resolved in two different generations.  However, that is not so: the
                 // keys of temp_id_map are unique between generations.Suppose that id->e and id->e*
@@ -282,8 +282,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 // successfully upsert the same tempid in more than one generation step.  (We might
                 // upsert the same tempid to multiple entids via distinct `[a v]` pairs in a single
                 // generation step; in this case, the transaction will fail.)
-                assert!(!tempids.contains_key(&**tempid));
-                tempids.insert((**tempid).clone(), entid);
+                let previous = tempids.insert((*tempid).clone(), entid);
+                assert!(previous.is_none());
             }
         }
 
