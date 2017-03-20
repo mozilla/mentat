@@ -219,7 +219,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                 let qa = columns[0].clone();
                 let name = column_name(var);
 
-                if let Some(t) = query.cc.known_types.get(var) {
+                if let Some(t) = query.cc.known_type(var) {
                     cols.push(ProjectedColumn(ColumnOrExpression::Column(qa), name));
                     let tag = t.value_type_tag();
                     templates.push(TypedIndex::Known(i, tag));

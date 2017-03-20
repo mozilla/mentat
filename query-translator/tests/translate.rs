@@ -186,9 +186,8 @@ fn test_numeric_less_than_unknown_attribute() {
     let input = r#"[:find ?x :where [?x _ ?y] [(< ?y 10)]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
 
-    // TODO: we don't infer numeric types from numeric predicates, because the _SQL_ type code
-    // is a single value (5), but the Datalog types are a set (Double and Long).
-    // When we do, this will correctly use `datoms` instead of `all_datoms`.
+    // Although we infer numericness from numeric predicates, we've already assigned a table to the
+    // first pattern, and so this is _still_ `all_datoms`.
     assert_eq!(sql, "SELECT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v < 10");
     assert_eq!(args, vec![]);
 }
@@ -202,13 +201,11 @@ fn test_numeric_gte_known_attribute() {
         ..Default::default()
     });
 
-
     let input = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
     assert_eq!(args, vec![]);
 }
-
 
 #[test]
 fn test_numeric_not_equals_known_attribute() {
@@ -218,7 +215,6 @@ fn test_numeric_not_equals_known_attribute() {
         value_type: ValueType::Long,
         ..Default::default()
     });
-
 
     let input = r#"[:find ?x :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
