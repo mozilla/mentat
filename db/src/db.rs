@@ -815,7 +815,7 @@ impl MentatStoring for rusqlite::Connection {
 
     fn committed_metadata_assertions(&self, tx_id: Entid) -> Result<Vec<(Entid, Entid, TypedValue, bool)>> {
         // TODO: use concat! to avoid creating String instances.
-        let mut stmt = self.prepare_cached(format!("SELECT e, a, v, value_type_tag, added FROM transactions WHERE tx = ? AND a IN {} ORDER BY e, a, v, value_type_tag, added", entids::METADATA_SET.as_str()).as_str())?;
+        let mut stmt = self.prepare_cached(format!("SELECT e, a, v, value_type_tag, added FROM transactions WHERE tx = ? AND a IN {} ORDER BY e, a, v, value_type_tag, added", entids::METADATA_SQL_LIST.as_str()).as_str())?;
         let params = [&tx_id as &ToSql];
         let m: Result<Vec<_>> = stmt.query_and_then(&params[..], |row| -> Result<(Entid, Entid, TypedValue, bool)> {
             Ok((row.get_checked(0)?,
@@ -876,13 +876,13 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
     }
 
 
-    let mut stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str())?;
+    let mut stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SQL_LIST.as_str()).as_str())?;
     for &entid in &metadata_report.attributes_installed {
         stmt.execute(&[&entid as &ToSql])?;
     }
 
-    let mut delete_stmt = conn.prepare(format!("DELETE FROM schema WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str())?;
-    let mut insert_stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SET.as_str()).as_str())?;
+    let mut delete_stmt = conn.prepare(format!("DELETE FROM schema WHERE e = ? AND a IN {}", entids::SCHEMA_SQL_LIST.as_str()).as_str())?;
+    let mut insert_stmt = conn.prepare(format!("INSERT INTO schema SELECT e, a, v, value_type_tag FROM datoms WHERE e = ? AND a IN {}", entids::SCHEMA_SQL_LIST.as_str()).as_str())?;
     let mut index_stmt = conn.prepare("UPDATE datoms SET index_avet = ? WHERE a = ?")?;
     let mut unique_value_stmt = conn.prepare("UPDATE datoms SET unique_value = ? WHERE a = ?")?;
     let mut cardinality_stmt = conn.prepare("SELECT e FROM datoms WHERE a = ? GROUP BY e HAVING COUNT(*) > 1 LIMIT 1")?;

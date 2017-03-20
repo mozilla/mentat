@@ -81,13 +81,13 @@ pub fn might_update_metadata(attribute: Entid) -> bool {
 
 lazy_static! {
     /// Attributes that are "ident related".  These might change the "idents" materialized view.
-    pub static ref IDENTS_SET: String = {
+    pub static ref IDENTS_SQL_LIST: String = {
         format!("({})",
                 DB_IDENT)
     };
 
     /// Attributes that are "schema related".  These might change the "schema" materialized view.
-    pub static ref SCHEMA_SET: String = {
+    pub static ref SCHEMA_SQL_LIST: String = {
         format!("({}, {}, {}, {}, {}, {}, {})",
                 DB_CARDINALITY,
                 DB_DOC,
@@ -99,7 +99,7 @@ lazy_static! {
     };
 
     /// Attributes that are "metadata" related.  These might change one of the materialized views.
-    pub static ref METADATA_SET: String = {
+    pub static ref METADATA_SQL_LIST: String = {
         format!("({}, {}, {}, {}, {}, {}, {}, {})",
                 DB_CARDINALITY,
                 DB_DOC,
