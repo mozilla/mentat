@@ -27,8 +27,8 @@ use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
 use edn::types::Value;
 use entids;
-use mentat_core;
 use mentat_core::{
+    attribute,
     Attribute,
     AttributeBitFlags,
     Entid,
@@ -911,8 +911,8 @@ SELECT EXISTS
                     // error message in this case.
                     if unique_value_stmt.execute(&[to_bool_ref(attribute.unique.is_some()), &entid as &ToSql]).is_err() {
                         match attribute.unique {
-                            Some(mentat_core::Unique::Value) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
-                            Some(mentat_core::Unique::Identity) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
+                            Some(attribute::Unique::Value) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
+                            Some(attribute::Unique::Identity) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
                             None => unreachable!(), // This shouldn't happen, even after we support removing :db/unique.
                         }
                     }

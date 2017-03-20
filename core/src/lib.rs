@@ -138,10 +138,12 @@ pub enum AttributeBitFlags {
     UniqueValue   = 1 << 3,
 }
 
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub enum Unique {
-    Value,
-    Identity,
+pub mod attribute {
+    #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+    pub enum Unique {
+        Value,
+        Identity,
+    }
 }
 
 /// A Mentat schema attribute has a value type and several other flags determining how assertions
@@ -160,20 +162,20 @@ pub struct Attribute {
 
     /// `None` if this attribute is neither unique-value nor unique-identity.
     ///
-    /// `Some(Unique::Value)` if this attribute is unique-value, i.e., it is `:db/unique
+    /// `Some(attribute::Unique::Value)` if this attribute is unique-value, i.e., it is `:db/unique
     /// :db.unique/value`.
     ///
     /// *Unique-value* means that there is at most one assertion with the attribute and a
-    /// particular value in the datom store.
+    /// particular value in the datom store.  Unique-value attributes can be used in lookup-refs.
     ///
-    /// `Some(Unique::Identity)` if this attribute is unique-identity, i.e., it is `:db/unique
+    /// `Some(attribute::Unique::Identity)` if this attribute is unique-identity, i.e., it is `:db/unique
     /// :db.unique/identity`.
     ///
     /// Unique-identity attributes always have value type `Ref`.
     ///
     /// *Unique-identity* means that the attribute is *unique-value* and that they can be used in
     /// lookup-refs and will automatically upsert where appropriate.
-    pub unique: Option<Unique>,
+    pub unique: Option<attribute::Unique>,
 
     /// `true` if this attribute is automatically indexed, i.e., it is `:db/indexing true`.
     pub index: bool,
@@ -315,7 +317,7 @@ mod test {
             index: false,
             value_type: ValueType::Boolean,
             fulltext: true,
-            unique: Some(Unique::Value),
+            unique: Some(attribute::Unique::Value),
             multival: false,
             component: false,
         };
@@ -329,7 +331,7 @@ mod test {
             index: false,
             value_type: ValueType::Boolean,
             fulltext: true,
-            unique: Some(Unique::Identity),
+            unique: Some(attribute::Unique::Identity),
             multival: false,
             component: false,
         };

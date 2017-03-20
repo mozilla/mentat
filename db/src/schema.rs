@@ -15,6 +15,7 @@ use edn;
 use errors::{ErrorKind, Result};
 use edn::symbols;
 use mentat_core::{
+    attribute,
     Attribute,
     Entid,
     EntidMap,
@@ -22,7 +23,6 @@ use mentat_core::{
     Schema,
     SchemaMap,
     TypedValue,
-    Unique,
     ValueType,
 };
 use metadata;
@@ -34,10 +34,10 @@ use metadata::{
 fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<()> {
     for (entid, attribute) in schema_map {
         let ident = || entid_map.get(entid).map(|ident| ident.to_string()).unwrap_or(entid.to_string());
-        if attribute.unique == Some(Unique::Value) && !attribute.index {
+        if attribute.unique == Some(attribute::Unique::Value) && !attribute.index {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value without :db/index true for entid: {}", ident())))
         }
-        if attribute.unique == Some(Unique::Identity) && !attribute.index {
+        if attribute.unique == Some(attribute::Unique::Identity) && !attribute.index {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/index true for entid: {}", ident())))
         }
         if attribute.fulltext && attribute.value_type != ValueType::String {
@@ -61,7 +61,7 @@ fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<(
 pub struct AttributeBuilder {
     value_type: Option<ValueType>,
     multival: Option<bool>,
-    unique: Option<Option<Unique>>,
+    unique: Option<Option<attribute::Unique>>,
     index: Option<bool>,
     fulltext: Option<bool>,
     component: Option<bool>,
@@ -78,7 +78,7 @@ impl AttributeBuilder {
         self
     }
 
-    pub fn unique<'a>(&'a mut self, unique: Option<Unique>) -> &'a mut Self {
+    pub fn unique<'a>(&'a mut self, unique: Option<attribute::Unique>) -> &'a mut Self {
         self.unique = Some(unique);
         self
     }

@@ -39,8 +39,8 @@ use errors::{
     Result,
     ResultExt,
 };
-use mentat_core;
 use mentat_core::{
+    attribute,
     Entid,
     Schema,
     SchemaMap,
@@ -140,8 +140,8 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
                     //     builder.unique_value(false);
                     //     builder.unique_identity(false);
                     // },
-                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(Some(mentat_core::Unique::Value)); },
-                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(Some(mentat_core::Unique::Identity)); },
+                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(Some(attribute::Unique::Value)); },
+                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(Some(attribute::Unique::Identity)); },
                     _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
                 }
             },

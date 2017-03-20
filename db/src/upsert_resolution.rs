@@ -30,11 +30,11 @@ use internal_types::{
 };
 use internal_types::Either::*;
 use mentat_core::{
+    attribute,
     Attribute,
     Entid,
     Schema,
     TypedValue,
-    Unique,
 };
 use mentat_tx::entities::OpType;
 use schema::SchemaBuilding;
@@ -97,7 +97,7 @@ impl Generation {
 
         let is_unique = |a: Entid| -> errors::Result<bool> {
             let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
-            Ok(attribute.unique == Some(Unique::Identity))
+            Ok(attribute.unique == Some(attribute::Unique::Identity))
         };
 
         for term in terms.into_iter() {
