@@ -83,68 +83,35 @@ def_parser_fn!(Tx, temp_id, Value, String, input, {
         .parse_stream(input)
 });
 
-// TODO: abstract the "match Vector, parse internal stream" pattern to remove this boilerplate.
-def_parser_fn!(Tx, add, Value, Entity, input, {
-    satisfy_map(|x: Value| -> Option<Entity> {
-            if let Value::Vector(y) = x {
-                let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "add"))),
-                             Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
-                             Tx::<&[Value]>::entid(),
-                             // TODO: handle lookup-ref.
-                             any(),
-                             eof())
-                    .map(|(_, e, a, v, _)| {
-                        Entity::AddOrRetract {
-                            op: OpType::Add,
-                            e: e,
-                            a: a,
-                            v: v,
-                        }
-                    });
-                // TODO: use ok() with a type annotation rather than explicit match.
-                match p.parse_lazy(&y[..]).into() {
-                    Ok((r, _)) => Some(r),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        })
-        .parse_stream(input)
-});
 
-def_parser_fn!(Tx, retract, Value, Entity, input, {
-    satisfy_map(|x: Value| -> Option<Entity> {
-            if let Value::Vector(y) = x {
-                let mut p = (token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "retract"))),
-                             Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
-                             Tx::<&[Value]>::entid(),
-                             // TODO: handle lookup-ref.
-                             any(),
-                             eof())
-                    .map(|(_, e, a, v, _)| {
-                        Entity::AddOrRetract {
-                            op: OpType::Retract,
-                            e: e,
-                            a: a,
-                            v: v,
-                        }
-                    });
-                // TODO: use ok() with a type annotation rather than explicit match.
-                match p.parse_lazy(&y[..]).into() {
-                    Ok((r, _)) => Some(r),
-                    _ => None,
+fn value_to_add_or_retract(val: &Value) -> Option<Entity> {
+    val.as_vector().and_then(|vs| {
+        let add = token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "add")))
+            .map(|_| OpType::Add);
+        let retract = token(Value::NamespacedKeyword(NamespacedKeyword::new("db", "retract")))
+            .map(|_| OpType::Retract);
+        let mut p = (add.or(retract),
+                     Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
+                     Tx::<&[Value]>::entid(),
+                     // TODO: handle lookup-ref.
+                     any(),
+                     eof())
+            .map(|(op, e, a, v, _)| {
+                Entity::AddOrRetract {
+                    op: op,
+                    e: e,
+                    a: a,
+                    v: v,
                 }
-            } else {
-                None
-            }
-        })
-        .parse_stream(input)
-});
+            });
+        let r: ParseResult<Entity, _> =  p.parse_lazy(&vs[..]).into();
+        r.map(|x| x.0).ok()
+    })
+}
+def_value_satisfy_parser_fn!(Tx, add_or_retract, Entity, value_to_add_or_retract);
 
 def_parser_fn!(Tx, entity, Value, Entity, input, {
-    let mut p = Tx::<I>::add()
-        .or(Tx::<I>::retract());
+    let mut p = Tx::<I>::add_or_retract();
     p.parse_stream(input)
 });
 
