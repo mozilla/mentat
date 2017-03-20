@@ -1062,4 +1062,14 @@ mod tests {
         conn.set_limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER, 222);
         assert_eq!(222, conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER));
     }
+
+    #[test]
+    fn test_version_number_from_string() {
+        assert_eq!(3000000, version_number_from_string("3.0.0"));
+        assert_eq!(3008000, version_number_from_string("3.8.0"));
+        assert_eq!(3017000, version_number_from_string("3.17.0"));
+        assert_eq!(3017008, version_number_from_string("3.17.8"));
+        assert_eq!(3017012, version_number_from_string("3.17.12"));
+        assert_eq!(13017012, version_number_from_string("13.17.12"));
+    }
 }
