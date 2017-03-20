@@ -868,13 +868,10 @@ pub fn update_metadata(conn: &rusqlite::Connection, _old_schema: &Schema, new_sc
     // TODO: consider doing this in fewer SQLite execute() invocations.
     // TODO: use concat! to avoid creating String instances.
     if !metadata_report.idents_altered.is_empty() {
-        // Idents is the materialized view of the [entid :db/ident ident _ added] slice of
-        // transactions.  This keeps outdated idents around, just like Datomic does.
+        // Idents is the materialized view of the [entid :db/ident ident] slice of datoms.
         conn.execute(format!("DELETE FROM idents").as_str(),
                      &[])?;
-        // Take the last, as determined by tx, added [e :db/ident v _ true].  This will pick up
-        // :db/idents that have been retracted and/or re-purposed.
-        conn.execute(format!("INSERT INTO idents SELECT e, a, v, value_type_tag FROM datoms WHERE a IN {}", entids::IDENTS_SET.as_str()).as_str(),
+        conn.execute(format!("INSERT INTO idents SELECT e, a, v, value_type_tag FROM datoms WHERE a IN {}", entids::IDENTS_SQL_LIST.as_str()).as_str(),
                      &[])?;
     }
 
