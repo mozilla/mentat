@@ -626,7 +626,62 @@ impl ConjoiningClauses {
     }
 }
 
-/// Application.
+/// Argument resolution.
+impl ConjoiningClauses {
+    /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
+    /// constraint.
+    /// Additionally, do two things:
+    /// - Mark the pattern as known-empty if any argument is known non-numeric.
+    /// - Mark any variables encountered as numeric.
+    fn resolve_numeric_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
+        use self::FnArg::*;
+        match arg {
+            FnArg::Variable(var) => {
+                self.constrain_var_to_numeric(var.clone());
+                self.column_bindings
+                    .get(&var)
+                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
+            },
+            // Can't be an entid.
+            EntidOrInteger(i) => Ok(QueryValue::TypedValue(TypedValue::Long(i))),
+            Ident(_) |
+            SrcVar(_) |
+            Constant(NonIntegerConstant::Boolean(_)) |
+            Constant(NonIntegerConstant::Text(_)) |
+            Constant(NonIntegerConstant::BigInteger(_)) => {
+                self.mark_known_empty(EmptyBecause::NonNumericArgument);
+                bail!(ErrorKind::NonNumericArgument(function.clone(), position));
+            },
+            Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
+        }
+    }
+
+
+    /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
+    /// constraint.
+    #[allow(dead_code)]
+    fn resolve_argument(&self, arg: FnArg) -> Result<QueryValue> {
+        use self::FnArg::*;
+        match arg {
+            FnArg::Variable(var) => {
+                self.column_bindings
+                    .get(&var)
+                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
+            },
+            EntidOrInteger(i) => Ok(QueryValue::PrimitiveLong(i)),
+            Ident(_) => unimplemented!(),     // TODO
+            Constant(NonIntegerConstant::Boolean(val)) => Ok(QueryValue::TypedValue(TypedValue::Boolean(val))),
+            Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
+            Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::String(s.clone()))),
+            Constant(NonIntegerConstant::BigInteger(_)) => unimplemented!(),
+            SrcVar(_) => unimplemented!(),
+        }
+    }
+}
+
+/// Application of patterns.
 impl ConjoiningClauses {
 
     /// Apply the constraints in the provided pattern to this CC.
@@ -854,60 +909,10 @@ impl ConjoiningClauses {
             return;
         }
     }
+}
 
-    /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
-    /// constraint.
-    /// Additionally, do two things:
-    /// - Mark the pattern as known-empty if any argument is known non-numeric.
-    /// - Mark any variables encountered as numeric.
-    fn resolve_numeric_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
-        use self::FnArg::*;
-        match arg {
-            FnArg::Variable(var) => {
-                self.constrain_var_to_numeric(var.clone());
-                self.column_bindings
-                    .get(&var)
-                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
-            },
-            // Can't be an entid.
-            EntidOrInteger(i) => Ok(QueryValue::TypedValue(TypedValue::Long(i))),
-            Ident(_) |
-            SrcVar(_) |
-            Constant(NonIntegerConstant::Boolean(_)) |
-            Constant(NonIntegerConstant::Text(_)) |
-            Constant(NonIntegerConstant::BigInteger(_)) => {
-                self.mark_known_empty(EmptyBecause::NonNumericArgument);
-                // We use Double because… well, we only have one slot!
-                bail!(ErrorKind::NonNumericArgument(function.clone(), position));
-            },
-            Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
-        }
-    }
-
-
-    /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
-    /// constraint.
-    #[allow(dead_code)]
-    fn resolve_argument(&self, arg: FnArg) -> Result<QueryValue> {
-        use self::FnArg::*;
-        match arg {
-            FnArg::Variable(var) => {
-                self.column_bindings
-                    .get(&var)
-                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
-            },
-            EntidOrInteger(i) => Ok(QueryValue::PrimitiveLong(i)),
-            Ident(ref i) => unimplemented!(),     // TODO
-            Constant(NonIntegerConstant::Boolean(val)) => Ok(QueryValue::TypedValue(TypedValue::Boolean(val))),
-            Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
-            Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::String(s.clone()))),
-            Constant(NonIntegerConstant::BigInteger(_)) => unimplemented!(),
-            SrcVar(_) => unimplemented!(),
-        }
-    }
-
+/// Application of predicates.
+impl ConjoiningClauses {
     /// There are several kinds of predicates/functions in our Datalog:
     /// - A limited set of binary comparison operators: < > <= >= !=.
     ///   These are converted into SQLite binary comparisons and some type constraints.
