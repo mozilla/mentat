@@ -16,8 +16,6 @@ use std::fmt::Display;
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
-use std::process::exit;
-use std::io::{self, Write};
 
 use itertools;
 use itertools::Itertools;
@@ -75,7 +73,7 @@ pub const CURRENT_VERSION: i32 = 2;
 
 /// MIN_SQLITE_VERSION should be changed when there's a new minimum version of sqlite required
 /// to build the project.
-const MIN_SQLITE_VERSION: &'static str = "3.8.0";
+const MIN_SQLITE_VERSION: i32 = 3008000;
 
 const TRUE: &'static bool = &true;
 const FALSE: &'static bool = &false;
@@ -197,29 +195,10 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
         .chain_err(|| "Could not get_user_version")
 }
 
-/// Returns the rusqlite version number for a version string
-///
-/// Rusqlite version numbers are created with a 0 for each '.' in the version string
-/// and with each part of the version number, except for the major version, at least 2 characters long.
-/// If a part of the version string is only one character long then it is padded to 2 characters with 0's.
-fn version_number_from_string(version_string: &'static str) -> i32 {
-    let split = version_string.split(".");
-    let mut version_number: String = "".to_owned();
-    for s in split {
-        version_number.push_str("0");
-        if s.chars().count() < 2 {
-            version_number.push_str("0")
-        }
-        version_number.push_str(s);
-    }
-    return version_number.parse::<i32>().unwrap();
-}
-
 // TODO: rename "SQL" functions to align with "datoms" functions.
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
-    if rusqlite::version_number() < version_number_from_string(MIN_SQLITE_VERSION) {
-        writeln!(&mut io::stderr(), "Mentat requires at least sqlite {}", MIN_SQLITE_VERSION).unwrap();
-        exit(1)
+    if rusqlite::version_number() < MIN_SQLITE_VERSION {
+        panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
     }
     let tx = conn.transaction()?;
 
@@ -1059,15 +1038,5 @@ mod tests {
         // Make sure setting works.
         conn.set_limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER, 222);
         assert_eq!(222, conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER));
-    }
-
-    #[test]
-    fn test_version_number_from_string() {
-        assert_eq!(3000000, version_number_from_string("3.0.0"));
-        assert_eq!(3008000, version_number_from_string("3.8.0"));
-        assert_eq!(3017000, version_number_from_string("3.17.0"));
-        assert_eq!(3017008, version_number_from_string("3.17.8"));
-        assert_eq!(3017012, version_number_from_string("3.17.12"));
-        assert_eq!(13017012, version_number_from_string("13.17.12"));
     }
 }
