@@ -76,6 +76,10 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 ///    the part range here; tie bootstrapping to the SQLite user_version.
 pub const CURRENT_VERSION: i32 = 2;
 
+/// MIN_SQLITE_VERSION should be changed when there's a new minimum version of sqlite required
+/// for the project to work.
+const MIN_SQLITE_VERSION: i32 = 3008000;
+
 const TRUE: &'static bool = &true;
 const FALSE: &'static bool = &false;
 
@@ -332,6 +336,10 @@ pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32
 }
 
 pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
+    if rusqlite::version_number() < MIN_SQLITE_VERSION {
+        panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
+    }
+
     let user_version = get_user_version(&conn)?;
     match user_version {
         0 => create_current_version(conn),
