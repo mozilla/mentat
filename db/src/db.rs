@@ -508,6 +508,7 @@ pub trait MentatStoring {
 
     // TODO: this is not a reasonable abstraction, but I don't want to really consider non-SQL storage just yet.
     fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
+    fn insert_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
 
     /// Finalize the underlying storage layer after a Mentat transaction.
     ///
@@ -814,6 +815,104 @@ impl MentatStoring for rusqlite::Connection {
         results.map(|_| ())
     }
 
+    /// Insert search rows into temporary search tables.
+    ///
+    /// Eventually, the details of this approach will be captured in
+    /// https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
+    fn insert_fts_searches<'a>(&self, entities: &'a [ReducedEntity<'a>], search_type: SearchType) -> Result<()> {
+        let max_vars = self.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER) as usize;
+        let bindings_per_statement = 6;
+
+        let mut outer_searchid = 2000;
+
+        let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(max_vars / bindings_per_statement);
+
+        // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
+        let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {
+            let mut count = 0;
+
+            // We must keep these computed values somewhere to reference them later, so we can't
+            // combine this map and the subsequent flat_map.
+            // (e0, a0, v0, value_type_tag0, added0, flags0)
+            let block: Result<Vec<(i64 /* e */,
+                                   i64 /* a */,
+                                   ToSqlOutput<'a> /* value */,
+                                   i32 /* value_type_tag */,
+                                   bool /* added0 */,
+                                   u8 /* flags0 */,
+                                   i64 /* searchid */)>> = chunk.map(|&(e, a, ref attribute, ref typed_value, added)| {
+                if typed_value.value_type() != ValueType::String {
+                    bail!("Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string");
+                }
+
+                count += 1;
+                outer_searchid += 1;
+
+                // Now we can represent the typed value as an SQL value.
+                let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
+
+                Ok((e, a, value, value_type_tag, added, attribute.flags(), outer_searchid))
+            }).collect();
+            let block = block?;
+
+            // First, insert all fulltext string values.
+            // `fts_params` reference computed values in `block`.
+            let fts_params: Vec<&ToSql> = block.iter().flat_map(|&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref searchid)| {
+                // Avoid inner heap allocation.
+                once(value as &ToSql)
+                    .chain(once(searchid as &ToSql))
+            }).collect();
+
+            // TODO: make this maximally efficient.  It's not terribly inefficient right now.
+            let fts_values: String = repeat_values(2, count);
+            let fts_s: String = format!("INSERT INTO fulltext_values_view (text, searchid) VALUES {}", fts_values);
+
+            // TODO: consider ensuring we inserted the expected number of rows.
+            let mut stmt = self.prepare_cached(fts_s.as_str())?;
+            stmt.execute(&fts_params)
+                .map(|_c| ())
+                .chain_err(|| "Could not insert fts values into fts table!")?;
+
+            // Second, insert searches.
+            // `params` reference computed values in `block`.
+            let params: Vec<&ToSql> = block.iter().flat_map(|&(ref e, ref a, ref _value, ref value_type_tag, added, ref flags, ref searchid)| {
+                // Avoid inner heap allocation.
+                // TODO: extract some finite length iterator to make this less indented!
+                once(e as &ToSql)
+                    .chain(once(a as &ToSql)
+                           .chain(once(searchid as &ToSql)
+                                  .chain(once(value_type_tag as &ToSql)
+                                         .chain(once(to_bool_ref(added) as &ToSql)
+                                                .chain(once(flags as &ToSql))))))
+            }).collect();
+
+            // TODO: cache this for selected values of count.
+            assert!(bindings_per_statement * count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, count, max_vars);
+            let inner = "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, ?, ?)".to_string();
+            // Like "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, ?, ?), (?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, ?, ?)".
+            let fts_values: String = repeat(inner).take(count).join(", ");
+            let s: String = if search_type == SearchType::Exact {
+                format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", fts_values)
+            } else {
+                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", fts_values)
+            };
+
+            // TODO: consider ensuring we inserted the expected number of rows.
+            let mut stmt = self.prepare_cached(s.as_str())?;
+            stmt.execute(&params)
+                .map(|_c| ())
+                .chain_err(|| "Could not insert fts statements into temporary search table!")
+        }).collect::<Result<Vec<()>>>();
+
+        // Finally, clean up temporary searchids.
+        let mut stmt = self.prepare_cached("UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL")?;
+        stmt.execute(&[])
+            .map(|_c| ())
+            .chain_err(|| "Could not drop fts search ids!")?;
+
+        results.map(|_| ())
+    }
+
     fn commit_transaction(&self, tx_id: Entid) -> Result<()> {
         search(&self)?;
         insert_transaction(&self, tx_id)?;
@@ -979,6 +1078,9 @@ mod tests {
     use bootstrap;
     use debug;
     use edn;
+    use mentat_core::{
+        attribute,
+    };
     use mentat_tx_parser;
     use rusqlite;
     use std::collections::{
@@ -1064,11 +1166,15 @@ mod tests {
         }
 
         fn last_transaction(&self) -> edn::Value {
-            debug::transactions_after(&self.sqlite, &self.schema, self.last_tx_id() - 1).unwrap().0[0].into_edn()
+            debug::transactions_after(&self.sqlite, &self.schema, self.last_tx_id() - 1).expect("last_transaction").0[0].into_edn()
         }
 
         fn datoms(&self) -> edn::Value {
-            debug::datoms_after(&self.sqlite, &self.schema, bootstrap::TX0).unwrap().into_edn()
+            debug::datoms_after(&self.sqlite, &self.schema, bootstrap::TX0).expect("datoms").into_edn()
+        }
+
+        fn fulltext_values(&self) -> edn::Value {
+            debug::fulltext_values(&self.sqlite).expect("fulltext_values").into_edn()
         }
     }
 
@@ -1554,5 +1660,179 @@ mod tests {
         assert_transact!(conn, "[[:db/add :test/ident :db/index true]
                                  [:db/add :test/ident :db/unique :db.unique/value]
                                  [:db/add :db.part/db :db.alter/attribute 100]]");
+    }
+
+    /// Verify that we can't alter :db/fulltext schema characteristics at all.
+    #[test]
+    fn test_db_alter_fulltext() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a :db/fulltext true and a :db/fulltext unset attribute.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/fulltext]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 111 :db/unique :db.unique/identity]
+                                 [:db/add 111 :db/index true]
+                                 [:db/add 111 :db/fulltext true]
+                                 [:db/add 222 :db/ident :test/string]
+                                 [:db/add 222 :db/cardinality :db.cardinality/one]
+                                 [:db/add 222 :db/valueType :db.type/string]
+                                 [:db/add 222 :db/index true]]");
+
+        assert_transact!(conn,
+                         "[[:db/retract 111 :db/fulltext true]]",
+                         Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[111 12]]"));
+
+        assert_transact!(conn,
+                         "[[:db/add 222 :db/fulltext true]]",
+                         Err("bad schema assertion: Schema alteration for existing attribute with entid 222 is not valid"));
+    }
+
+    #[test]
+    fn test_db_fulltext() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few :db/fulltext true attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/fulltext]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 111 :db/unique :db.unique/identity]
+                                 [:db/add 111 :db/index true]
+                                 [:db/add 111 :db/fulltext true]
+                                 [:db/add 222 :db/ident :test/other]
+                                 [:db/add 222 :db/cardinality :db.cardinality/one]
+                                 [:db/add 222 :db/valueType :db.type/string]
+                                 [:db/add 222 :db/index true]
+                                 [:db/add 222 :db/fulltext true]]");
+
+        // Let's check we actually have the schema characteristics we expect.
+        let fulltext = conn.schema.attribute_for_entid(111).cloned().expect(":test/fulltext");
+        assert_eq!(fulltext.value_type, ValueType::String);
+        assert_eq!(fulltext.fulltext, true);
+        assert_eq!(fulltext.multival, false);
+        assert_eq!(fulltext.unique, Some(attribute::Unique::Identity));
+
+        let other = conn.schema.attribute_for_entid(222).cloned().expect(":test/other");
+        assert_eq!(other.value_type, ValueType::String);
+        assert_eq!(other.fulltext, true);
+        assert_eq!(other.multival, false);
+        assert_eq!(other.unique, None);
+
+        // We can add fulltext indexed datoms.
+        assert_transact!(conn, "[[:db/add 301 :test/fulltext \"test this\"]]");
+        // value column is rowid into fulltext table.
+        assert_matches!(conn.fulltext_values(),
+                        "[[1 \"test this\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[301 :test/fulltext 1 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[111 :db/ident :test/fulltext]
+                          [111 :db/valueType :db.type/string]
+                          [111 :db/unique :db.unique/identity]
+                          [111 :db/index true]
+                          [111 :db/fulltext true]
+                          [222 :db/ident :test/other]
+                          [222 :db/valueType :db.type/string]
+                          [222 :db/cardinality :db.cardinality/one]
+                          [222 :db/index true]
+                          [222 :db/fulltext true]
+                          [301 :test/fulltext 1]]");
+
+        // We can replace existing fulltext indexed datoms.
+        assert_transact!(conn, "[[:db/add 301 :test/fulltext \"alternate thing\"]]");
+        // value column is rowid into fulltext table.
+        assert_matches!(conn.fulltext_values(),
+                        "[[1 \"test this\"]
+                          [2 \"alternate thing\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[301 :test/fulltext 1 ?tx false]
+                          [301 :test/fulltext 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[111 :db/ident :test/fulltext]
+                          [111 :db/valueType :db.type/string]
+                          [111 :db/unique :db.unique/identity]
+                          [111 :db/index true]
+                          [111 :db/fulltext true]
+                          [222 :db/ident :test/other]
+                          [222 :db/valueType :db.type/string]
+                          [222 :db/cardinality :db.cardinality/one]
+                          [222 :db/index true]
+                          [222 :db/fulltext true]
+                          [301 :test/fulltext 2]]");
+
+        // We can upsert keyed by fulltext indexed datoms.
+        assert_transact!(conn, "[[:db/add \"t\" :test/fulltext \"alternate thing\"]
+                                 [:db/add \"t\" :test/other \"other\"]]");
+        // value column is rowid into fulltext table.
+        assert_matches!(conn.fulltext_values(),
+                        "[[1 \"test this\"]
+                          [2 \"alternate thing\"]
+                          [3 \"other\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[301 :test/other 3 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[111 :db/ident :test/fulltext]
+                          [111 :db/valueType :db.type/string]
+                          [111 :db/unique :db.unique/identity]
+                          [111 :db/index true]
+                          [111 :db/fulltext true]
+                          [222 :db/ident :test/other]
+                          [222 :db/valueType :db.type/string]
+                          [222 :db/cardinality :db.cardinality/one]
+                          [222 :db/index true]
+                          [222 :db/fulltext true]
+                          [301 :test/fulltext 2]
+                          [301 :test/other 3]]");
+
+        // We can re-use fulltext values; they won't be added to the fulltext values table twice.
+        assert_transact!(conn, "[[:db/add 302 :test/other \"alternate thing\"]]");
+        // value column is rowid into fulltext table.
+        assert_matches!(conn.fulltext_values(),
+                        "[[1 \"test this\"]
+                          [2 \"alternate thing\"]
+                          [3 \"other\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[302 :test/other 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[111 :db/ident :test/fulltext]
+                          [111 :db/valueType :db.type/string]
+                          [111 :db/unique :db.unique/identity]
+                          [111 :db/index true]
+                          [111 :db/fulltext true]
+                          [222 :db/ident :test/other]
+                          [222 :db/valueType :db.type/string]
+                          [222 :db/cardinality :db.cardinality/one]
+                          [222 :db/index true]
+                          [222 :db/fulltext true]
+                          [301 :test/fulltext 2]
+                          [301 :test/other 3]
+                          [302 :test/other 2]]");
+
+        // We can retract fulltext indexed datoms.  The underlying fulltext value remains -- indeed,
+        // it might still be in use.
+        assert_transact!(conn, "[[:db/retract 302 :test/other \"alternate thing\"]]");
+        // value column is rowid into fulltext table.
+        assert_matches!(conn.fulltext_values(),
+                        "[[1 \"test this\"]
+                          [2 \"alternate thing\"]
+                          [3 \"other\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[302 :test/other 2 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[111 :db/ident :test/fulltext]
+                          [111 :db/valueType :db.type/string]
+                          [111 :db/unique :db.unique/identity]
+                          [111 :db/index true]
+                          [111 :db/fulltext true]
+                          [222 :db/ident :test/other]
+                          [222 :db/valueType :db.type/string]
+                          [222 :db/cardinality :db.cardinality/one]
+                          [222 :db/index true]
+                          [222 :db/fulltext true]
+                          [301 :test/fulltext 2]
+                          [301 :test/other 3]]");
     }
 }

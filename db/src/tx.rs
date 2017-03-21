@@ -330,16 +330,23 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // store.
         let mut tx_might_update_metadata = false;
 
-{
+        let final_terms: Vec<TermWithoutTempIds> = [final_populations.resolved,
+                                                    final_populations.allocated,
+                                                    inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
+
+        { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
+
         /// Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
 
         /// Assertions that are :db.cardinality/many and not :db.fulltext.
         let mut non_fts_many: Vec<db::ReducedEntity> = vec![];
 
-        let final_terms: Vec<TermWithoutTempIds> = [final_populations.resolved,
-                                                    final_populations.allocated,
-                                                    inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
+        /// Assertions that are :db.cardinality/one and :db.fulltext.
+        let mut fts_one: Vec<db::ReducedEntity> = vec![];
+
+        /// Assertions that are :db.cardinality/many and :db.fulltext.
+        let mut fts_many: Vec<db::ReducedEntity> = vec![];
 
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
@@ -348,19 +355,17 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             match term {
                 Term::AddOrRetract(op, e, a, v) => {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                    if attribute.fulltext {
-                        bail!(ErrorKind::NotYetImplemented(format!("Transacting :db/fulltext entities is not yet implemented"))) // TODO: reference original input.  Difficult!
-                    }
-
                     if entids::might_update_metadata(a) {
                         tx_might_update_metadata = true;
                     }
 
                     let added = op == OpType::Add;
-                    if attribute.multival {
-                        non_fts_many.push((e, a, attribute, v, added));
-                    } else {
-                        non_fts_one.push((e, a, attribute, v, added));
+                    let reduced = (e, a, attribute, v, added);
+                    match (attribute.fulltext, attribute.multival) {
+                        (false, true) => non_fts_many.push(reduced),
+                        (false, false) => non_fts_one.push(reduced),
+                        (true, false) => fts_one.push(reduced),
+                        (true, true) => fts_many.push(reduced),
                     }
                 },
             }
@@ -380,6 +385,14 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         if !non_fts_many.is_empty() {
             self.store.insert_non_fts_searches(&non_fts_many[..], db::SearchType::Exact)?;
+        }
+
+        if !fts_one.is_empty() {
+            self.store.insert_fts_searches(&fts_one[..], db::SearchType::Inexact)?;
+        }
+
+        if !fts_many.is_empty() {
+            self.store.insert_fts_searches(&fts_many[..], db::SearchType::Exact)?;
         }
 
         self.store.commit_transaction(self.tx_id)?;
