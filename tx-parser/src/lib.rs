@@ -115,21 +115,16 @@ def_parser_fn!(Tx, entity, Value, Entity, input, {
     p.parse_stream(input)
 });
 
-def_parser_fn!(Tx, entities, Value, Vec<Entity>, input, {
-    satisfy_map(|x: Value| -> Option<Vec<Entity>> {
-            if let Value::Vector(y) = x {
-                let mut p = (many(Tx::<&[Value]>::entity()), eof()).map(|(es, _)| es);
-                // TODO: use ok() with a type annotation rather than explicit match.
-                match p.parse_lazy(&y[..]).into() {
-                    Ok((r, _)) => Some(r),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        })
-        .parse_stream(input)
-});
+fn value_to_entities(val: &Value) -> Option<Vec<Entity>> {
+    val.as_vector().and_then(|vs| {
+        let mut p = (many(Tx::<&[Value]>::entity()), eof())
+            .map(|(es, _)| es);
+        let r: ParseResult<Vec<Entity>, _> = p.parse_lazy(&vs[..]).into();
+        r.ok().map(|x| x.0)
+    })
+}
+
+def_value_satisfy_parser_fn!(Tx, entities, Vec<Entity>, value_to_entities);
 
 impl<'a> Tx<&'a [edn::Value]> {
     pub fn parse(input: &'a [edn::Value]) -> std::result::Result<Vec<Entity>, errors::Error> {
