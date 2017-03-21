@@ -72,13 +72,11 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 pub const CURRENT_VERSION: i32 = 2;
 
 /// MIN_SQLITE_VERSION should be changed when there's a new minimum version of sqlite required
-/// to build the project.
+/// for the project to work.
 const MIN_SQLITE_VERSION: i32 = 3008000;
 
 const TRUE: &'static bool = &true;
 const FALSE: &'static bool = &false;
-
-
 
 /// Turn an owned bool into a static reference to a bool.
 ///
@@ -197,9 +195,6 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 
 // TODO: rename "SQL" functions to align with "datoms" functions.
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
-    if rusqlite::version_number() < MIN_SQLITE_VERSION {
-        panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
-    }
     let tx = conn.transaction()?;
 
     for statement in (&V2_STATEMENTS).iter() {
@@ -333,6 +328,10 @@ pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32
 }
 
 pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
+    if rusqlite::version_number() < MIN_SQLITE_VERSION {
+        panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
+    }
+
     let user_version = get_user_version(&conn)?;
     match user_version {
         0 => create_current_version(conn),
