@@ -75,6 +75,26 @@ impl fmt::Debug for Variable {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PredicateFn(pub PlainSymbol);
+
+impl FromValue<PredicateFn> for PredicateFn {
+    fn from_value(v: &edn::Value) -> Option<PredicateFn> {
+        if let edn::Value::PlainSymbol(ref s) = *v {
+            PredicateFn::from_symbol(s)
+        } else {
+            None
+        }
+    }
+}
+
+impl PredicateFn {
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<PredicateFn> {
+        // TODO: validate the acceptable set of function names.
+        Some(PredicateFn(sym.clone()))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SrcVar {
     DefaultSrc,
@@ -121,12 +141,27 @@ impl NonIntegerConstant {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FnArg {
     Variable(Variable),
     SrcVar(SrcVar),
     EntidOrInteger(i64),
     Ident(NamespacedKeyword),
     Constant(NonIntegerConstant),
+}
+
+impl FromValue<FnArg> for FnArg {
+    fn from_value(v: &edn::Value) -> Option<FnArg> {
+        // TODO: support SrcVars.
+        Variable::from_value(v)
+                 .and_then(|v| Some(FnArg::Variable(v)))
+                 .or_else(||
+            match v {
+                &edn::Value::Integer(i) => Some(FnArg::EntidOrInteger(i)),
+                &edn::Value::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
+                _ => unimplemented!(),
+            })
+    }
 }
 
 /// e, a, tx can't be values -- no strings, no floats -- and so
@@ -433,6 +468,11 @@ impl Pattern {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Predicate {
+    pub operator: PlainSymbol,
+    pub args: Vec<FnArg>,
+}
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -441,7 +481,7 @@ pub enum WhereClause {
     NotJoin,
     Or,
     OrJoin,
-    Pred,
+    Pred(Predicate),
     WhereFn,
     RuleExpr,
     Pattern(Pattern),

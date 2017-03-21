@@ -21,6 +21,7 @@ use mentat_core::{
 use mentat_query_algebrizer::{
     DatomsColumn,
     QualifiedAlias,
+    QueryValue,
     SourceAlias,
 };
 
@@ -45,7 +46,20 @@ pub enum ColumnOrExpression {
     Column(QualifiedAlias),
     Entid(Entid),       // Because it's so common.
     Integer(i32),       // We use these for type codes etc.
+    Long(i64),
     Value(TypedValue),
+}
+
+/// `QueryValue` and `ColumnOrExpression` are almost identical… merge somehow?
+impl From<QueryValue> for ColumnOrExpression {
+    fn from(v: QueryValue) -> Self {
+        match v {
+            QueryValue::Column(c) => ColumnOrExpression::Column(c),
+            QueryValue::Entid(e) => ColumnOrExpression::Entid(e),
+            QueryValue::PrimitiveLong(v) => ColumnOrExpression::Long(v),
+            QueryValue::TypedValue(v) => ColumnOrExpression::Value(v),
+        }
+    }
 }
 
 pub type Name = String;
@@ -59,7 +73,7 @@ pub enum Projection {
 }
 
 #[derive(Copy, Clone)]
-pub struct Op(&'static str);      // TODO: we can do better than this!
+pub struct Op(pub &'static str);      // TODO: we can do better than this!
 
 pub enum Constraint {
     Infix {
@@ -187,6 +201,10 @@ impl QueryFragment for ColumnOrExpression {
             },
             &Integer(integer) => {
                 out.push_sql(integer.to_string().as_str());
+                Ok(())
+            },
+            &Long(long) => {
+                out.push_sql(long.to_string().as_str());
                 Ok(())
             },
             &Value(ref v) => {

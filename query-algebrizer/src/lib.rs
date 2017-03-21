@@ -8,9 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use]
+extern crate error_chain;
+
 extern crate mentat_core;
 extern crate mentat_query;
 
+mod errors;
+mod types;
 mod cc;
 
 use mentat_core::{
@@ -22,6 +27,12 @@ use mentat_query::{
     FindSpec,
     SrcVar,
     WhereClause,
+};
+
+pub use errors::{
+    Error,
+    ErrorKind,
+    Result,
 };
 
 #[allow(dead_code)]
@@ -57,37 +68,42 @@ impl AlgebraicQuery {
 }
 
 #[allow(dead_code)]
-pub fn algebrize(schema: &Schema, parsed: FindQuery) -> AlgebraicQuery {
+pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
     let mut cc = cc::ConjoiningClauses::default();
     let where_clauses = parsed.where_clauses;
     for where_clause in where_clauses {
-        if let WhereClause::Pattern(p) = where_clause {
-            cc.apply_pattern(schema, &p);
-        } else {
-            unimplemented!();
+        match where_clause {
+            WhereClause::Pattern(p) => {
+                cc.apply_pattern(schema, p);
+            },
+            WhereClause::Pred(p) => {
+                cc.apply_predicate(schema, p)?;
+            },
+            _ => unimplemented!(),
         }
     }
 
-    AlgebraicQuery {
+    Ok(AlgebraicQuery {
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
         has_aggregates: false,           // TODO: we don't parse them yet.
         limit: None,
         cc: cc,
-    }
+    })
 }
 
 pub use cc::{
-    ColumnConstraint,
     ConjoiningClauses,
 };
 
-pub use cc::{
+pub use types::{
+    ColumnConstraint,
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,
+    QueryValue,
     SourceAlias,
     TableAlias,
 };

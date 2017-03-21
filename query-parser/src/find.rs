@@ -41,16 +41,20 @@ use std::collections::BTreeMap;
 
 use self::mentat_query::{
     FindQuery,
+    FnArg,
     FromValue,
+    Predicate,
+    PredicateFn,
     SrcVar,
     Variable,
 };
+
 use self::mentat_parser_utils::ValueParseError;
 
 use super::parse::{
-    Result,
     ErrorKind,
     QueryParseResult,
+    Result,
     clause_seq_to_patterns,
 };
 
@@ -106,8 +110,8 @@ fn parse_find_parts(find: &[edn::Value],
                 find_spec: spec,
                 default_source: source,
                 with: with_vars,
-                in_vars: vec!(),       // TODO
-                in_sources: vec!(),    // TODO
+                in_vars: vec![],       // TODO
+                in_sources: vec![],    // TODO
                 where_clauses: where_clauses,
             }
         })
@@ -201,25 +205,21 @@ mod test_parse {
         let truncated_input = edn::Value::Vector(vec![Value::from_keyword(None, "find")]);
         assert!(parse_find(truncated_input).is_err());
 
-        let input = edn::Value::Vector(vec![
-                                       Value::from_keyword(None, "find"),
-                                       Value::from_symbol(None, "?x"),
-                                       Value::from_symbol(None, "?y"),
-                                       Value::from_keyword(None, "where"),
-                                       edn::Value::Vector(vec![
-                                                          Value::from_symbol(None, "?x"),
-                                                          Value::from_keyword("foo", "bar"),
-                                                          Value::from_symbol(None, "?y"),
-                                       ]),
-        ]);
+        let input =
+            edn::Value::Vector(vec![Value::from_keyword(None, "find"),
+                                    Value::from_symbol(None, "?x"),
+                                    Value::from_symbol(None, "?y"),
+                                    Value::from_keyword(None, "where"),
+                                    edn::Value::Vector(vec![Value::from_symbol(None, "?x"),
+                                                            Value::from_keyword("foo", "bar"),
+                                                            Value::from_symbol(None, "?y")])]);
 
         let parsed = parse_find(input).unwrap();
         if let FindSpec::FindRel(elems) = parsed.find_spec {
             assert_eq!(2, elems.len());
-            assert_eq!(vec![
-                       Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
-                       Element::Variable(Variable(edn::PlainSymbol::new("?y"))),
-            ], elems);
+            assert_eq!(vec![Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
+                            Element::Variable(Variable(edn::PlainSymbol::new("?y")))],
+                       elems);
         } else {
             panic!("Expected FindRel.");
         }
@@ -234,6 +234,26 @@ mod test_parse {
                        value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
                        tx: PatternNonValuePlace::Placeholder,
                    })]);
+    }
 
+    #[test]
+    fn test_parse_predicate() {
+        let input = "[:find ?x :where [?x :foo/bar ?y] [[< ?y 10]]]";
+        let parsed = parse_find_string(input).unwrap();
+        assert_eq!(parsed.where_clauses,
+                   vec![
+                      WhereClause::Pattern(Pattern {
+                          source: None,
+                          entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                          attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+                          value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                          tx: PatternNonValuePlace::Placeholder,
+                      }),
+                      WhereClause::Pred(Predicate {
+                          operator: PlainSymbol::new("<"),
+                          args: vec![FnArg::Variable(Variable(PlainSymbol::new("?y"))),
+                                     FnArg::EntidOrInteger(10)],
+                      }),
+                  ]);
     }
 }

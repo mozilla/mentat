@@ -30,6 +30,7 @@ use mentat_query_algebrizer::{
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,
+    QueryValue,
     SourceAlias,
 };
 
@@ -44,6 +45,7 @@ use mentat_query_sql::{
     Constraint,
     FromClause,
     Name,
+    Op,
     Projection,
     ProjectedColumn,
     SelectQuery,
@@ -68,18 +70,18 @@ impl ToConstraint for ColumnConstraint {
     fn to_constraint(self) -> Constraint {
         use self::ColumnConstraint::*;
         match self {
-            EqualsEntity(qa, entid) =>
+            Equals(qa, QueryValue::Entid(entid)) =>
                 Constraint::equal(qa.to_column(), ColumnOrExpression::Entid(entid)),
 
-            EqualsValue(qa, tv) =>
+            Equals(qa, QueryValue::TypedValue(tv)) =>
                 Constraint::equal(qa.to_column(), ColumnOrExpression::Value(tv)),
 
-            EqualsColumn(left, right) =>
+            Equals(left, QueryValue::Column(right)) =>
                 Constraint::equal(left.to_column(), right.to_column()),
 
-            EqualsPrimitiveLong(table, value) => {
-                let value_column = QualifiedAlias(table.clone(), DatomsColumn::Value).to_column();
-                let tag_column = QualifiedAlias(table, DatomsColumn::ValueTypeTag).to_column();
+            Equals(qa, QueryValue::PrimitiveLong(value)) => {
+                let tag_column = qa.for_type_tag().to_column();
+                let value_column = qa.to_column();
 
                 /// A bare long in a query might match a ref, an instant, a long (obviously), or a
                 /// double. If it's negative, it can't match a ref, but that's OK -- it won't!
@@ -106,6 +108,14 @@ impl ToConstraint for ColumnConstraint {
                     }
                 } else {
                     Constraint::equal(value_column, ColumnOrExpression::Value(TypedValue::Long(value)))
+                }
+            },
+
+            NumericInequality { operator, left, right } => {
+                Constraint::Infix {
+                    op: Op(operator.to_sql_operator()),
+                    left: left.into(),
+                    right: right.into(),
                 }
             },
 
