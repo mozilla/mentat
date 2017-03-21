@@ -380,7 +380,7 @@ macro_rules! def_common_value_display {
                 }
             }
             // TODO: EDN escaping.
-            $t::Text(ref v) => write!($f, "{}", v),
+            $t::Text(ref v) => write!($f, "\"{}\"", v),
             $t::PlainSymbol(ref v) => v.fmt($f),
             $t::NamespacedSymbol(ref v) => v.fmt($f),
             $t::Keyword(ref v) => v.fmt($f),
