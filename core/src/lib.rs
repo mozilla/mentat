@@ -14,9 +14,6 @@ extern crate ordered_float;
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
-use self::edn::types::Value;
-
-use std::io::{self, Write};
 
 /// Core types defining a Mentat knowledge base.
 
@@ -299,15 +296,15 @@ impl Schema {
         let mut s = "[ ".to_string(); 
         for (entid, attribute) in &self.schema_map {
             s.push_str("{");
-            s.push_str(&format!("\t:db/id     :{:?}", entid));
+            s.push_str(&format!(" :db/id :{:?}", entid));
             let some_ident = self.get_ident(entid.clone());
             if some_ident.is_some() {
                 let ident = some_ident.unwrap();
-                s.push_str(&format!("\n\t:db/ident     :{}/{}", ident.namespace, ident.name));
+                s.push_str(&format!(" :db/ident :{}/{}", ident.namespace, ident.name));
             }
             let value_type = format!("{:?}", attribute.value_type).to_lowercase();
-            s.push_str(&format!("\n\t:db/valueType :db.type/{}", value_type));
-            s.push_str("\n\t:db/cardinality :db.cardinality/");
+            s.push_str(&format!(" :db/valueType :db.type/{}", value_type));
+            s.push_str(" :db/cardinality :db.cardinality/");
 
             if attribute.multival {
                 s.push_str("many");
@@ -316,22 +313,21 @@ impl Schema {
             }
 
             if attribute.unique == Some(attribute::Unique::Value) {
-                s.push_str("\n\t:db/unique :db.unique/identity");
+                s.push_str(" :db/unique :db.unique/identity");
             }
 
             if attribute.index {
-                s.push_str("\n\t:db/index true");
+                s.push_str(" :db/index true");
             }
             if attribute.fulltext {
-                s.push_str("\n\t:db/fulltext true");
+                s.push_str(" :db/fulltext true");
             }
             if attribute.component {
-                s.push_str("\n\t:db/isComponent true");
+                s.push_str(" :db/isComponent true");
             }
             s.push_str(" },");  
         }
         s.push_str(" ]");
-        writeln!(&mut io::stderr(), "{}", s).unwrap();    
         edn::parse::value(&s).unwrap().without_spans()
     }
 }
