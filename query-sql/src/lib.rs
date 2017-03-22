@@ -142,6 +142,7 @@ pub enum FromClause {
 }
 
 pub struct SelectQuery {
+    pub distinct: bool,
     pub projection: Projection,
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
@@ -348,7 +349,11 @@ impl QueryFragment for FromClause {
 
 impl QueryFragment for SelectQuery {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
-        out.push_sql("SELECT ");
+        if self.distinct {
+            out.push_sql("SELECT DISTINCT ");
+        } else {
+            out.push_sql("SELECT ");
+        }
         self.projection.push_sql(out)?;
         self.from.push_sql(out)?;
 
@@ -444,7 +449,6 @@ mod tests {
 
     #[test]
     fn test_end_to_end() {
-
         // [:find ?x :where [?x 65537 ?v] [?x 65536 ?v]]
         let datoms00 = "datoms00".to_string();
         let datoms01 = "datoms01".to_string();
@@ -453,7 +457,9 @@ mod tests {
             SourceAlias(DatomsTable::Datoms, datoms00.clone()),
             SourceAlias(DatomsTable::Datoms, datoms01.clone()),
         ];
-        let query = SelectQuery {
+
+        let mut query = SelectQuery {
+            distinct: true,
             projection: Projection::Columns(
                             vec![
                                 ProjectedColumn(
@@ -483,7 +489,15 @@ mod tests {
 
         let SQLQuery { sql, args } = query.to_sql_query().unwrap();
         println!("{}", sql);
+        assert_eq!("SELECT DISTINCT `datoms00`.e AS `x` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` WHERE `datoms01`.v = `datoms00`.v AND `datoms00`.a = 65537 AND `datoms01`.a = 65536", sql);
+        assert!(args.is_empty());
+
+        // And without distinct…
+        query.distinct = false;
+        let SQLQuery { sql, args } = query.to_sql_query().unwrap();
+        println!("{}", sql);
         assert_eq!("SELECT `datoms00`.e AS `x` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` WHERE `datoms01`.v = `datoms00`.v AND `datoms00`.a = 65537 AND `datoms01`.a = 65536", sql);
         assert!(args.is_empty());
+
     }
 }

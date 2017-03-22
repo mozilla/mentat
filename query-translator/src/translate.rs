@@ -135,20 +135,23 @@ pub struct ProjectedSelect{
 /// Returns a `SelectQuery` that queries for the provided `cc`. Note that this _always_ returns a
 /// query that runs SQL. The next level up the call stack can check for known-empty queries if
 /// needed.
-fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: ConjoiningClauses, limit: T) -> SelectQuery {
+fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: ConjoiningClauses, distinct: bool, limit: T) -> SelectQuery {
     let from = if cc.from.is_empty() {
         FromClause::Nothing
     } else {
         FromClause::TableList(TableList(cc.from))
     };
+
+    let limit = if cc.is_known_empty { Some(0) } else { limit.into() };
     SelectQuery {
+        distinct: distinct,
         projection: projection,
         from: from,
         constraints: cc.wheres
                        .into_iter()
                        .map(|c| c.to_constraint())
                        .collect(),
-        limit: if cc.is_known_empty { Some(0) } else { limit.into() },
+        limit: limit,
     }
 }
 
@@ -158,28 +161,25 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
     if cc.is_known_empty {
         // In this case we can produce a very simple query that returns no results.
         SelectQuery {
+            distinct: false,
             projection: Projection::One,
             from: FromClause::Nothing,
             constraints: vec![],
             limit: Some(0),
         }
     } else {
-        cc_to_select_query(Projection::One, cc, 1)
-    }
-}
-
-/// Consume a provided `ConjoiningClauses` to yield a new
-/// `ProjectedSelect`. A projection list must also be provided.
-fn cc_to_select(projection: CombinedProjection, cc: ConjoiningClauses, limit: Option<u64>) -> ProjectedSelect {
-    let CombinedProjection { sql_projection, datalog_projector } = projection;
-    ProjectedSelect {
-        query: cc_to_select_query(sql_projection, cc, limit),
-        projector: datalog_projector,
+        cc_to_select_query(Projection::One, cc, false, 1)
     }
 }
 
 /// Consume a provided `AlgebraicQuery` to yield a new
 /// `ProjectedSelect`.
 pub fn query_to_select(query: AlgebraicQuery) -> ProjectedSelect {
-    cc_to_select(query_projection(&query), query.cc, query.limit)
+    // TODO: we can't pass `query.limit` here if we aggregate during projection.
+    // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
+    let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query);
+    ProjectedSelect {
+        query: cc_to_select_query(sql_projection, query.cc, distinct, query.limit),
+        projector: datalog_projector,
+    }
 }

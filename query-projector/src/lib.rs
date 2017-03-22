@@ -280,6 +280,7 @@ impl ScalarProjector {
         CombinedProjection {
             sql_projection: sql,
             datalog_projector: Box::new(ScalarProjector::with_template(template)),
+            distinct: false,
         }
     }
 }
@@ -324,6 +325,7 @@ impl TupleProjector {
         CombinedProjection {
             sql_projection: sql,
             datalog_projector: Box::new(p),
+            distinct: false,
         }
     }
 }
@@ -371,6 +373,7 @@ impl RelProjector {
         CombinedProjection {
             sql_projection: sql,
             datalog_projector: Box::new(p),
+            distinct: true,
         }
     }
 }
@@ -405,6 +408,7 @@ impl CollProjector {
         CombinedProjection {
             sql_projection: sql,
             datalog_projector: Box::new(CollProjector::with_template(template)),
+            distinct: true,
         }
     }
 }
@@ -431,6 +435,18 @@ pub struct CombinedProjection {
     /// A Datalog projection. This consumes rows of the appropriate shape (as defined by
     /// the SQL projection) to yield one of the four kinds of Datalog query result.
     pub datalog_projector: Box<Projector>,
+
+    /// True if this query requires the SQL query to include DISTINCT.
+    pub distinct: bool,
+}
+
+impl CombinedProjection {
+    fn flip_distinct_for_limit(mut self, limit: Option<u64>) -> Self {
+        if limit == Some(1) {
+            self.distinct = false;
+        }
+        self
+    }
 }
 
 /// Compute a suitable SQL projection for an algebrized query.
@@ -450,14 +466,14 @@ pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
         let constant_projector = ConstantProjector::new(empty);
         CombinedProjection {
             sql_projection: Projection::One,
-
             datalog_projector: Box::new(constant_projector),
+            distinct: false,
         }
     } else {
         match query.find_spec {
             FindColl(ref element) => {
                 let (cols, templates) = project_elements(1, iter::once(element), query);
-                CollProjector::combine(cols, templates)
+                CollProjector::combine(cols, templates).flip_distinct_for_limit(query.limit)
             },
 
             FindScalar(ref element) => {
@@ -468,7 +484,7 @@ pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
             FindRel(ref elements) => {
                 let column_count = query.find_spec.expected_column_count();
                 let (cols, templates) = project_elements(column_count, elements, query);
-                RelProjector::combine(column_count, cols, templates)
+                RelProjector::combine(column_count, cols, templates).flip_distinct_for_limit(query.limit)
             },
 
             FindTuple(ref elements) => {
@@ -479,4 +495,3 @@ pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
         }
     }
 }
-
