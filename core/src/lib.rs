@@ -308,7 +308,6 @@ impl Schema {
             let value_type = format!("{:?}", attribute.value_type);
             attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "valueType")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.type", &value_type.to_lowercase())));
 
-
             let cardinality = if attribute.multival { "many" } else { "one" };
             attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "cardinality")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.cardinality", &cardinality)));
 
@@ -400,10 +399,10 @@ mod test {
 
         let attr2 = Attribute {
             index: false,
-            value_type: ValueType::Boolean,
+            value_type: ValueType::String,
             fulltext: true,
             unique: Some(attribute::Unique::Value),
-            multival: false,
+            multival: true,
             component: false,
         };
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bas"), 98);
@@ -412,16 +411,35 @@ mod test {
         let attr3 = Attribute {
             index: false,
             value_type: ValueType::Boolean,
-            fulltext: true,
+            fulltext: false,
             unique: Some(attribute::Unique::Identity),
             multival: false,
-            component: false,
+            component: true,
         };
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bat"), 99);
         add_attribute(&mut schema, 99, attr3);
 
         let value = schema.as_edn_value();
+
+        let expected_output = r#"[ {   :db/id     :97
+    :db/ident     :foo/bar
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/index true },
+{   :db/id     :98
+    :db/ident     :foo/bas
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/many
+    :db/unique :db.unique/identity
+    :db/fulltext true },
+{   :db/id     :99
+    :db/ident     :foo/bat
+    :db/valueType :db.type/boolean
+    :db/cardinality :db.cardinality/one
+    :db/component true }, ]"#;
+        let expected_value = edn::parse::value(&expected_output).unwrap().without_spans();
+        assert_eq!(expected_value, value);
     }
 
     fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
