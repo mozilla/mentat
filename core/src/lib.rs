@@ -14,6 +14,9 @@ extern crate ordered_float;
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
+use self::edn::types::Value;
+
+use std::io::{self, Write};
 
 /// Core types defining a Mentat knowledge base.
 
@@ -291,6 +294,43 @@ impl Schema {
     pub fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
+
+    pub fn as_edn_value(&self) -> edn::Value {
+        let mut s = "[ ".to_string(); 
+        for (entid, attribute) in &self.schema_map {
+            let ident = self.get_ident(entid.clone()).unwrap();
+            s.push_str("{");
+            s.push_str(&format!("\t:db/id     :{:?}", entid));
+            s.push_str(&format!("\n\t:db/ident     :{}/{}", ident.namespace, ident.name));
+            let value_type = format!("{:?}", attribute.value_type).to_lowercase();
+            s.push_str(&format!("\n\t:db/valueType :db.type/{}", value_type));
+            s.push_str("\n\t:db/cardinality :db.cardinality/");
+
+            if attribute.multival {
+                s.push_str("many");
+            } else {
+                s.push_str("one");
+            }
+
+            if attribute.unique == Some(attribute::Unique::Value) {
+                s.push_str("\n\t:db/unique :db.unique/identity");
+            }
+
+            if attribute.index {
+                s.push_str("\n\t:db/index true");
+            }
+            if attribute.fulltext {
+                s.push_str("\n\t:db/fulltext true");
+            }
+            if attribute.component {
+                s.push_str("\n\t:db/isComponent true");
+            }
+            s.push_str(" },");  
+        }
+        s.push_str(" ]");
+        writeln!(&mut io::stderr(), "{}", s).unwrap();    
+        edn::parse::value(&s).unwrap().without_spans()
+    }
 }
 
 #[cfg(test)]
@@ -341,6 +381,57 @@ mod test {
         assert!(attr3.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
         assert!(attr3.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
     }
+
+    #[test]
+    fn test_as_edn_value() {
+        let mut schema = Schema::default();
+
+        let attr1 = Attribute {
+            index: true,
+            value_type: ValueType::Ref,
+            fulltext: false,
+            unique: None,
+            multival: false,
+            component: false,
+        };
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 97);
+        add_attribute(&mut schema, 97, attr1);
+
+        let attr2 = Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: true,
+            unique: Some(attribute::Unique::Value),
+            multival: false,
+            component: false,
+        };
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bas"), 98);
+        add_attribute(&mut schema, 98, attr2);
+
+        let attr3 = Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: true,
+            unique: Some(attribute::Unique::Identity),
+            multival: false,
+            component: false,
+        };
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bat"), 99);
+        add_attribute(&mut schema, 99, attr3);
+
+        let value = schema.as_edn_value();
+    }
+
+    fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+        schema.entid_map.insert(e, i.clone());
+        schema.ident_map.insert(i.clone(), e);
+    }
+
+    fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
+        schema.schema_map.insert(e, a);
+    }
+
 }
 
 pub mod intern_set;
