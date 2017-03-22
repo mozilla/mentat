@@ -14,6 +14,7 @@ extern crate ordered_float;
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
+use self::edn::Keyword;
 
 /// Core types defining a Mentat knowledge base.
 
@@ -293,42 +294,43 @@ impl Schema {
     }
 
     pub fn as_edn_value(&self) -> edn::Value {
-        let mut s = "[ ".to_string(); 
+        let mut all_values = Vec::new();
         for (entid, attribute) in &self.schema_map {
-            s.push_str("{");
-            s.push_str(&format!(" :db/id :{:?}", entid));
+            let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
+            attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "id")), edn::Value::Keyword(Keyword::new(entid.to_string())));
+
             let some_ident = self.get_ident(entid.clone());
             if some_ident.is_some() {
                 let ident = some_ident.unwrap();
-                s.push_str(&format!(" :db/ident :{}/{}", ident.namespace, ident.name));
+                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "ident")), edn::Value::NamespacedKeyword(ident.clone()));
             }
-            let value_type = format!("{:?}", attribute.value_type).to_lowercase();
-            s.push_str(&format!(" :db/valueType :db.type/{}", value_type));
-            s.push_str(" :db/cardinality :db.cardinality/");
 
-            if attribute.multival {
-                s.push_str("many");
-            } else {
-                s.push_str("one");
-            }
+            let value_type = format!("{:?}", attribute.value_type);
+            attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "valueType")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.type", &value_type.to_lowercase())));
+
+
+            let cardinality = if attribute.multival { "many" } else { "one" };
+            attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "cardinality")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.cardinality", &cardinality)));
 
             if attribute.unique == Some(attribute::Unique::Value) {
-                s.push_str(" :db/unique :db.unique/identity");
+                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "unique")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.unique", "identity")));
+            }
+            
+            if attribute.index {
+                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "index")), edn::Value::Boolean(true));
             }
 
-            if attribute.index {
-                s.push_str(" :db/index true");
-            }
             if attribute.fulltext {
-                s.push_str(" :db/fulltext true");
+                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "fulltext")), edn::Value::Boolean(true));
             }
+
             if attribute.component {
-                s.push_str(" :db/isComponent true");
+                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "component")), edn::Value::Boolean(true));
             }
-            s.push_str(" },");  
+
+            all_values.push(edn::Value::Map(attribute_map));
         }
-        s.push_str(" ]");
-        edn::parse::value(&s).unwrap().without_spans()
+        edn::Value::Vector(all_values)
     }
 }
 
