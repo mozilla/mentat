@@ -396,19 +396,11 @@ impl ConjoiningClauses {
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
-        if let Some(existing) = self.known_types.get(&variable).cloned() {
-            // If so, the types must match.
+        if let Some(existing) = self.known_types.insert(variable.clone(), unit_type_set(this_type)) {
+            // There was an existing mapping. Does this type match?
             if !existing.contains(&this_type) {
                 self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type));
-            } else {
-                if existing.len() > 1 {
-                    // Narrow.
-                    self.known_types.insert(variable, unit_type_set(this_type));
-                }
             }
-        } else {
-            // If not, record the one we just determined.
-            self.known_types.insert(variable, unit_type_set(this_type));
         }
     }
 
