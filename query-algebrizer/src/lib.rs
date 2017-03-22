@@ -85,11 +85,12 @@ pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
         }
     }
 
+    let limit = if parsed.find_spec.is_unit_limited() { Some(1) } else { None };
     Ok(AlgebraicQuery {
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
         has_aggregates: false,           // TODO: we don't parse them yet.
-        limit: None,
+        limit: limit,
         cc: cc,
     })
 }
