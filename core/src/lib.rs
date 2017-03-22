@@ -298,10 +298,13 @@ impl Schema {
     pub fn as_edn_value(&self) -> edn::Value {
         let mut s = "[ ".to_string(); 
         for (entid, attribute) in &self.schema_map {
-            let ident = self.get_ident(entid.clone()).unwrap();
             s.push_str("{");
             s.push_str(&format!("\t:db/id     :{:?}", entid));
-            s.push_str(&format!("\n\t:db/ident     :{}/{}", ident.namespace, ident.name));
+            let some_ident = self.get_ident(entid.clone());
+            if some_ident.is_some() {
+                let ident = some_ident.unwrap();
+                s.push_str(&format!("\n\t:db/ident     :{}/{}", ident.namespace, ident.name));
+            }
             let value_type = format!("{:?}", attribute.value_type).to_lowercase();
             s.push_str(&format!("\n\t:db/valueType :db.type/{}", value_type));
             s.push_str("\n\t:db/cardinality :db.cardinality/");
