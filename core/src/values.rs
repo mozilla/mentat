@@ -42,8 +42,11 @@ lazy_static_namespaced_keyword_value!(DB_ALTER_ATTRIBUTE, "db.alter", "attribute
 lazy_static_namespaced_keyword_value!(DB_CARDINALITY, "db", "cardinality");
 lazy_static_namespaced_keyword_value!(DB_CARDINALITY_MANY, "db.cardinality", "many");
 lazy_static_namespaced_keyword_value!(DB_CARDINALITY_ONE, "db.cardinality", "one");
+lazy_static_namespaced_keyword_value!(DB_FULLTEXT, "db", "fulltext");
 lazy_static_namespaced_keyword_value!(DB_IDENT, "db", "ident");
+lazy_static_namespaced_keyword_value!(DB_INDEX, "db", "index");
 lazy_static_namespaced_keyword_value!(DB_INSTALL_ATTRIBUTE, "db.install", "attribute");
+lazy_static_namespaced_keyword_value!(DB_IS_COMPONENT, "db", "component");
 lazy_static_namespaced_keyword_value!(DB_PART_DB, "db.part", "db");
 lazy_static_namespaced_keyword_value!(DB_RETRACT, "db", "retract");
 lazy_static_namespaced_keyword_value!(DB_TYPE_BOOLEAN, "db.type", "boolean");

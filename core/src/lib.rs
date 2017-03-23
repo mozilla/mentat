@@ -10,6 +10,11 @@
 
 extern crate edn;
 extern crate ordered_float;
+#[macro_use]
+extern crate lazy_static;
+
+pub mod values;
+
 
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
@@ -293,38 +298,37 @@ impl Schema {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 
-    pub fn as_edn_value(&self) -> edn::Value {
+    pub fn to_edn_value(&self) -> edn::Value {
         let mut all_values = Vec::new();
         for (entid, attribute) in &self.schema_map {
             let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
-            attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "id")), edn::Value::Keyword(Keyword::new(entid.to_string())));
-
             let some_ident = self.get_ident(entid.clone());
             if some_ident.is_some() {
                 let ident = some_ident.unwrap();
-                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "ident")), edn::Value::NamespacedKeyword(ident.clone()));
+                attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident.clone()));
+            } else {
+                attribute_map.insert(values::DB_IDENT.clone(), edn::Value::Keyword(Keyword::new(entid.to_string())));
             }
 
             let value_type = format!("{:?}", attribute.value_type);
-            attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "valueType")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.type", &value_type.to_lowercase())));
+            attribute_map.insert(values::DB_VALUE_TYPE.clone(), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.type", &value_type.to_lowercase())));
 
-            let cardinality = if attribute.multival { "many" } else { "one" };
-            attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "cardinality")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.cardinality", &cardinality)));
+            attribute_map.insert(values::DB_CARDINALITY.clone(), if attribute.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
 
             if attribute.unique == Some(attribute::Unique::Value) {
-                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "unique")), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.unique", "identity")));
+                attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone());
             }
             
             if attribute.index {
-                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "index")), edn::Value::Boolean(true));
+                attribute_map.insert(values::DB_INDEX.clone(), edn::Value::Boolean(true));
             }
 
             if attribute.fulltext {
-                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "fulltext")), edn::Value::Boolean(true));
+                attribute_map.insert(values::DB_FULLTEXT.clone(), edn::Value::Boolean(true));
             }
 
             if attribute.component {
-                attribute_map.insert(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "component")), edn::Value::Boolean(true));
+                attribute_map.insert(values::DB_IS_COMPONENT.clone(), edn::Value::Boolean(true));
             }
 
             all_values.push(edn::Value::Map(attribute_map));
@@ -336,6 +340,15 @@ impl Schema {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+        schema.entid_map.insert(e, i.clone());
+        schema.ident_map.insert(i.clone(), e);
+    }
+
+    fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
+        schema.schema_map.insert(e, a);
+    }
 
     #[test]
     fn test_attribute_flags() {
@@ -420,35 +433,23 @@ mod test {
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bat"), 99);
         add_attribute(&mut schema, 99, attr3);
 
-        let value = schema.as_edn_value();
+        let value = schema.to_edn_value();
 
-        let expected_output = r#"[ {   :db/id     :97
-    :db/ident     :foo/bar
+        let expected_output = r#"[ {   :db/ident     :foo/bar
     :db/valueType :db.type/ref
     :db/cardinality :db.cardinality/one
     :db/index true },
-{   :db/id     :98
-    :db/ident     :foo/bas
+{   :db/ident     :foo/bas
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/many
     :db/unique :db.unique/identity
     :db/fulltext true },
-{   :db/id     :99
-    :db/ident     :foo/bat
+{   :db/ident     :foo/bat
     :db/valueType :db.type/boolean
     :db/cardinality :db.cardinality/one
     :db/component true }, ]"#;
-        let expected_value = edn::parse::value(&expected_output).unwrap().without_spans();
+        let expected_value = edn::parse::value(&expected_output).expect("to be able to parse").without_spans();
         assert_eq!(expected_value, value);
-    }
-
-    fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
-        schema.entid_map.insert(e, i.clone());
-        schema.ident_map.insert(i.clone(), e);
-    }
-
-    fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
-        schema.schema_map.insert(e, a);
     }
 
 }
