@@ -298,6 +298,7 @@ impl Schema {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 
+    /// Returns an edn::Value::Vector representation of the schema map.
     pub fn to_edn_value(&self) -> edn::Value {
         let mut all_values = Vec::new();
         for (entid, attribute) in &self.schema_map {
