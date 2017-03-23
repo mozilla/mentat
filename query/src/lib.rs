@@ -474,13 +474,30 @@ pub struct Predicate {
     pub args: Vec<FnArg>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UnifyVars {
+    Implicit,
+    Explicit(Vec<Variable>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OrWhereClause {
+    Clause(WhereClause),
+    And(Vec<WhereClause>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OrJoin {
+    pub unify_vars: UnifyVars,
+    pub clauses: Vec<OrWhereClause>,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
     Not,
     NotJoin,
-    Or,
-    OrJoin,
+    OrJoin(OrJoin),
     Pred(Predicate),
     WhereFn,
     RuleExpr,

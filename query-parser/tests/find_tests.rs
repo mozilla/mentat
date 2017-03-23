@@ -12,16 +12,22 @@ extern crate mentat_query_parser;
 extern crate mentat_query;
 extern crate edn;
 
-use edn::PlainSymbol;
+use edn::{
+    NamespacedKeyword,
+    PlainSymbol,
+};
 
 use mentat_query::{
     Element,
     FindSpec,
     FnArg,
+    OrJoin,
+    OrWhereClause,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
     Predicate,
+    UnifyVars,
     Variable,
     WhereClause,
 };
@@ -52,5 +58,148 @@ fn can_parse_predicates() {
                    WhereClause::Pred(Predicate { operator: PlainSymbol::new("<"), args: vec![
                        FnArg::Variable(Variable(PlainSymbol::new("?y"))), FnArg::EntidOrInteger(10),
                    ]}),
+               ]);
+}
+
+#[test]
+fn can_parse_simple_or() {
+    let s = "[:find ?x . :where (or [?x _ 10] [?x _ 15])]";
+    let p = parse_find_string(s).unwrap();
+
+    assert_eq!(p.find_spec,
+               FindSpec::FindScalar(Element::Variable(Variable(PlainSymbol::new("?x")))));
+    assert_eq!(p.where_clauses,
+               vec![
+                   WhereClause::OrJoin(OrJoin {
+                       unify_vars: UnifyVars::Implicit,
+                       clauses: vec![
+                           OrWhereClause::Clause(
+                               WhereClause::Pattern(Pattern {
+                                   source: None,
+                                   entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                   attribute: PatternNonValuePlace::Placeholder,
+                                   value: PatternValuePlace::EntidOrInteger(10),
+                                   tx: PatternNonValuePlace::Placeholder,
+                               })),
+                           OrWhereClause::Clause(
+                               WhereClause::Pattern(Pattern {
+                                   source: None,
+                                   entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                   attribute: PatternNonValuePlace::Placeholder,
+                                   value: PatternValuePlace::EntidOrInteger(15),
+                                   tx: PatternNonValuePlace::Placeholder,
+                               })),
+                       ],
+                   }),
+               ]);
+}
+
+#[test]
+fn can_parse_unit_or_join() {
+    let s = "[:find ?x . :where (or-join [?x] [?x _ 15])]";
+    let p = parse_find_string(s).unwrap();
+
+    assert_eq!(p.find_spec,
+               FindSpec::FindScalar(Element::Variable(Variable(PlainSymbol::new("?x")))));
+    assert_eq!(p.where_clauses,
+               vec![
+                   WhereClause::OrJoin(OrJoin {
+                       unify_vars: UnifyVars::Explicit(vec![Variable(PlainSymbol::new("?x"))]),
+                       clauses: vec![
+                           OrWhereClause::Clause(
+                               WhereClause::Pattern(Pattern {
+                                   source: None,
+                                   entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                   attribute: PatternNonValuePlace::Placeholder,
+                                   value: PatternValuePlace::EntidOrInteger(15),
+                                   tx: PatternNonValuePlace::Placeholder,
+                               })),
+                       ],
+                   }),
+               ]);
+}
+
+#[test]
+fn can_parse_simple_or_join() {
+    let s = "[:find ?x . :where (or-join [?x] [?x _ 10] [?x _ 15])]";
+    let p = parse_find_string(s).unwrap();
+
+    assert_eq!(p.find_spec,
+               FindSpec::FindScalar(Element::Variable(Variable(PlainSymbol::new("?x")))));
+    assert_eq!(p.where_clauses,
+               vec![
+                   WhereClause::OrJoin(OrJoin {
+                       unify_vars: UnifyVars::Explicit(vec![Variable(PlainSymbol::new("?x"))]),
+                       clauses: vec![
+                           OrWhereClause::Clause(
+                               WhereClause::Pattern(Pattern {
+                                   source: None,
+                                   entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                   attribute: PatternNonValuePlace::Placeholder,
+                                   value: PatternValuePlace::EntidOrInteger(10),
+                                   tx: PatternNonValuePlace::Placeholder,
+                               })),
+                           OrWhereClause::Clause(
+                               WhereClause::Pattern(Pattern {
+                                   source: None,
+                                   entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                   attribute: PatternNonValuePlace::Placeholder,
+                                   value: PatternValuePlace::EntidOrInteger(15),
+                                   tx: PatternNonValuePlace::Placeholder,
+                               })),
+                       ],
+                   }),
+               ]);
+}
+
+#[test]
+fn can_parse_simple_or_and_join() {
+    let s = "[:find ?x . :where (or [?x _ 10] (and (or [?x :foo/bar ?y] [?x :foo/baz ?y]) [(< ?y 1)]))]";
+    let p = parse_find_string(s).unwrap();
+
+    assert_eq!(p.find_spec,
+               FindSpec::FindScalar(Element::Variable(Variable(PlainSymbol::new("?x")))));
+    assert_eq!(p.where_clauses,
+               vec![
+                   WhereClause::OrJoin(OrJoin {
+                       unify_vars: UnifyVars::Implicit,
+                       clauses: vec![
+                           OrWhereClause::Clause(
+                               WhereClause::Pattern(Pattern {
+                                   source: None,
+                                   entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                   attribute: PatternNonValuePlace::Placeholder,
+                                   value: PatternValuePlace::EntidOrInteger(10),
+                                   tx: PatternNonValuePlace::Placeholder,
+                               })),
+                           OrWhereClause::And(
+                               vec![
+                                   WhereClause::OrJoin(OrJoin {
+                                       unify_vars: UnifyVars::Implicit,
+                                       clauses: vec![
+                                           OrWhereClause::Clause(WhereClause::Pattern(Pattern {
+                                               source: None,
+                                               entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                               attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+                                               value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                                               tx: PatternNonValuePlace::Placeholder,
+                                           })),
+                                           OrWhereClause::Clause(WhereClause::Pattern(Pattern {
+                                               source: None,
+                                               entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+                                               attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "baz")),
+                                               value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                                               tx: PatternNonValuePlace::Placeholder,
+                                           })),
+                                       ],
+                                   }),
+
+                                   WhereClause::Pred(Predicate { operator: PlainSymbol::new("<"), args: vec![
+                                       FnArg::Variable(Variable(PlainSymbol::new("?y"))), FnArg::EntidOrInteger(1),
+                                   ]}),
+                               ],
+                           )
+                       ],
+                   }),
                ]);
 }
