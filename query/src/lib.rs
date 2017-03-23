@@ -474,13 +474,53 @@ pub struct Predicate {
     pub args: Vec<FnArg>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UnifyVars {
+    /// `Implicit` means the variables in an `or` or `not` are derived from the enclosed pattern.
+    /// DataScript regards these vars as 'free': these variables don't need to be bound by the
+    /// enclosing environment.
+    ///
+    /// Datomic's documentation implies that all implicit variables are required:
+    ///
+    /// > Datomic will attempt to push the or clause down until all necessary variables are bound,
+    /// > and will throw an exception if that is not possible.
+    ///
+    /// but that would render top-level `or` expressions (as used in Datomic's own examples!)
+    /// impossible, so we assume that this is an error in the documentation.
+    ///
+    /// All contained 'arms' in an `or` with implicit variables must bind the same vars.
+    Implicit,
+
+    /// `Explicit` means the variables in an `or-join` or `not-join` are explicitly listed,
+    /// specified with `required-vars` syntax.
+    ///
+    /// DataScript parses these as free, but allows (incorrectly) the use of more complicated
+    /// `rule-vars` syntax.
+    ///
+    /// Only the named variables will be unified with the enclosing query.
+    ///
+    /// Every 'arm' in an `or-join` must mention the entire set of explicit vars.
+    Explicit(Vec<Variable>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OrWhereClause {
+    Clause(WhereClause),
+    And(Vec<WhereClause>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OrJoin {
+    pub unify_vars: UnifyVars,
+    pub clauses: Vec<OrWhereClause>,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
     Not,
     NotJoin,
-    Or,
-    OrJoin,
+    OrJoin(OrJoin),
     Pred(Predicate),
     WhereFn,
     RuleExpr,

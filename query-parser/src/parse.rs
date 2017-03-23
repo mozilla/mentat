@@ -27,12 +27,15 @@ use self::mentat_query::{
     FindSpec,
     FnArg,
     FromValue,
+    OrJoin,
+    OrWhereClause,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
     Predicate,
     PredicateFn,
     SrcVar,
+    UnifyVars,
     Variable,
     WhereClause,
 };
@@ -110,20 +113,104 @@ def_value_satisfy_parser_fn!(Where,
                              PatternNonValuePlace,
                              PatternNonValuePlace::from_value);
 
+fn seq<T: Into<Option<edn::Value>>>(x: T) -> Option<Vec<edn::Value>> {
+    match x.into() {
+        Some(edn::Value::List(items)) => Some(items.into_iter().collect()),
+        Some(edn::Value::Vector(items)) => Some(items),
+        _ => None,
+    }
+}
+
 /// Take a vector Value containing one vector Value, and return the `Vec` inside the inner vector.
 /// Also accepts an inner list, returning it as a `Vec`.
 fn unwrap_nested(x: edn::Value) -> Option<Vec<edn::Value>> {
     match x {
         edn::Value::Vector(mut v) => {
-            match v.pop() {
-                Some(edn::Value::List(items)) => Some(items.into_iter().collect()),
-                Some(edn::Value::Vector(items)) => Some(items),
-                _ => None,
-            }
+            seq(v.pop())
         }
         _ => None,
     }
 }
+
+def_value_parser_fn!(Where, and, (), input, {
+    matches_plain_symbol!("and", input)
+});
+
+def_value_parser_fn!(Where, or, (), input, {
+    matches_plain_symbol!("or", input)
+});
+
+def_value_parser_fn!(Where, or_join, (), input, {
+    matches_plain_symbol!("or-join", input)
+});
+
+def_value_parser_fn!(Where, rule_vars, Vec<Variable>, input, {
+    satisfy_map(|x: edn::Value| {
+        seq(x).and_then(|items| {
+            let mut p = many1(Query::variable()).skip(eof());
+            Query::to_parsed_value(p.parse_lazy(&items[..]).into())
+        })}).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, or_pattern_clause, OrWhereClause, input, {
+    Where::clause().map(|clause| OrWhereClause::Clause(clause)).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, or_and_clause, OrWhereClause, input, {
+    satisfy_map(|x: edn::Value| {
+        seq(x).and_then(|items| {
+            let mut p = Where::and()
+                        .with(many1(Where::clause()))
+                        .skip(eof())
+                        .map(OrWhereClause::And);
+            let r: ParseResult<OrWhereClause, _> = p.parse_lazy(&items[..]).into();
+            Query::to_parsed_value(r)
+        })
+    }).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, or_where_clause, OrWhereClause, input, {
+    choice([Where::or_pattern_clause(), Where::or_and_clause()]).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, or_clause, WhereClause, input, {
+    satisfy_map(|x: edn::Value| {
+        seq(x).and_then(|items| {
+            let mut p = Where::or()
+                        .with(many1(Where::or_where_clause()))
+                        .skip(eof())
+                        .map(|clauses| {
+                            WhereClause::OrJoin(
+                               OrJoin {
+                                   unify_vars: UnifyVars::Implicit,
+                                   clauses: clauses,
+                               })
+                        });
+            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
+            Query::to_parsed_value(r)
+        })
+    }).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, or_join_clause, WhereClause, input, {
+    satisfy_map(|x: edn::Value| {
+        seq(x).and_then(|items| {
+            let mut p = Where::or_join()
+                        .with(Where::rule_vars())
+                        .and(many1(Where::or_where_clause()))
+                        .skip(eof())
+                        .map(|(vars, clauses)| {
+                            WhereClause::OrJoin(
+                               OrJoin {
+                                   unify_vars: UnifyVars::Explicit(vars),
+                                   clauses: clauses,
+                               })
+                        });
+            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
+            Query::to_parsed_value(r)
+        })
+    }).parse_stream(input)
+});
 
 /// A vector containing just a parenthesized filter expression.
 def_value_parser_fn!(Where, pred, WhereClause, input, {
@@ -131,7 +218,9 @@ def_value_parser_fn!(Where, pred, WhereClause, input, {
         // Accept either a list or a vector here:
         // `[(foo ?x ?y)]` or `[[foo ?x ?y]]`
         unwrap_nested(x).and_then(|items| {
-            let mut p = (Query::predicate_fn(), Query::arguments(), eof()).map(|(f, args, _)| {
+            let mut p = (Query::predicate_fn(), Query::arguments())
+                        .skip(eof())
+                        .map(|(f, args)| {
                 WhereClause::Pred(
                     Predicate {
                         operator: f.0,
@@ -154,9 +243,9 @@ def_value_parser_fn!(Where, pattern, WhereClause, input, {
                          Where::pattern_non_value_place(),           // e
                          Where::pattern_non_value_place(),           // a
                          optional(Where::pattern_value_place()),     // v
-                         optional(Where::pattern_non_value_place()), // tx
-                         eof())
-                    .map(|(src, e, a, v, tx, _)| {
+                         optional(Where::pattern_non_value_place())) // tx
+                    .skip(eof())
+                    .map(|(src, e, a, v, tx)| {
                         let v = v.unwrap_or(PatternValuePlace::Placeholder);
                         let tx = tx.unwrap_or(PatternNonValuePlace::Placeholder);
 
@@ -190,15 +279,28 @@ def_value_parser_fn!(Where, pattern, WhereClause, input, {
 });
 
 def_value_parser_fn!(Query, arguments, Vec<FnArg>, input, {
-    (many::<Vec<FnArg>, _>(Query::fn_arg()), eof())
-        .map(|(args, _)| { args })
+    (many::<Vec<FnArg>, _>(Query::fn_arg()))
+    .skip(eof())
     .parse_stream(input)
+});
+
+def_value_parser_fn!(Where, clause, WhereClause, input, {
+    choice([Where::pattern(),
+            Where::pred(),
+            // It's either
+            //   (or-join [vars] clauses…)
+            // or
+            //   (or clauses…)
+            // We don't yet handle source vars.
+            Where::or_join_clause(),
+            Where::or_clause(),
+    ]).parse_stream(input)
 });
 
 def_value_parser_fn!(Where, clauses, Vec<WhereClause>, input, {
     // Right now we only support patterns and predicates. See #239 for more.
-    (many1::<Vec<WhereClause>, _>(choice([Where::pattern(), Where::pred()])), eof())
-        .map(|(patterns, _)| { patterns })
+    (many1::<Vec<WhereClause>, _>(Where::clause()))
+    .skip(eof())
     .parse_stream(input)
 });
 
@@ -213,15 +315,19 @@ def_value_parser_fn!(Find, ellipsis, (), input, {
 });
 
 def_value_parser_fn!(Find, find_scalar, FindSpec, input, {
-    (Query::variable(), Find::period(), eof())
-        .map(|(var, _, _)| FindSpec::FindScalar(Element::Variable(var)))
+    Query::variable()
+        .skip(Find::period())
+        .skip(eof())
+        .map(|var| FindSpec::FindScalar(Element::Variable(var)))
         .parse_stream(input)
 });
 
 def_value_parser_fn!(Find, find_coll, FindSpec, input, {
     satisfy_unwrap!(edn::Value::Vector, y, {
-            let mut p = (Query::variable(), Find::ellipsis(), eof())
-                .map(|(var, _, _)| FindSpec::FindColl(Element::Variable(var)));
+            let mut p = Query::variable()
+                        .skip(Find::ellipsis())
+                        .skip(eof())
+                        .map(|var| FindSpec::FindColl(Element::Variable(var)));
             let r: ParseResult<FindSpec, _> = p.parse_lazy(&y[..]).into();
             Query::to_parsed_value(r)
         })
@@ -229,8 +335,8 @@ def_value_parser_fn!(Find, find_coll, FindSpec, input, {
 });
 
 def_value_parser_fn!(Find, elements, Vec<Element>, input, {
-    (many1::<Vec<Variable>, _>(Query::variable()), eof())
-        .map(|(vars, _)| {
+    many1::<Vec<Variable>, _>(Query::variable()).skip(eof())
+        .map(|vars| {
             vars.into_iter()
                 .map(Element::Variable)
                 .collect()
@@ -390,6 +496,67 @@ mod test {
             value: PatternValuePlace::Placeholder,
             tx: PatternNonValuePlace::Variable(Variable(tx)),
         }));
+    }
+
+    #[test]
+    fn test_rule_vars() {
+        let e = edn::PlainSymbol::new("?e");
+        let input = [edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())])];
+        assert_parses_to!(Where::rule_vars, input,
+                          vec![Variable(e.clone())]);
+    }
+
+    #[test]
+    fn test_or() {
+        let oj = edn::PlainSymbol::new("or");
+        let e = edn::PlainSymbol::new("?e");
+        let a = edn::PlainSymbol::new("?a");
+        let v = edn::PlainSymbol::new("?v");
+        let input = [edn::Value::List(
+            vec![edn::Value::PlainSymbol(oj),
+                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
+                                         edn::Value::PlainSymbol(a.clone()),
+                                         edn::Value::PlainSymbol(v.clone())])].into_iter().collect())];
+        assert_parses_to!(Where::or_clause, input,
+                          WhereClause::OrJoin(
+                              OrJoin {
+                                  unify_vars: UnifyVars::Implicit,
+                                  clauses: vec![OrWhereClause::Clause(
+                                      WhereClause::Pattern(Pattern {
+                                          source: None,
+                                          entity: PatternNonValuePlace::Variable(Variable(e)),
+                                          attribute: PatternNonValuePlace::Variable(Variable(a)),
+                                          value: PatternValuePlace::Variable(Variable(v)),
+                                          tx: PatternNonValuePlace::Placeholder,
+                                      }))],
+                              }));
+    }
+
+    #[test]
+    fn test_or_join() {
+        let oj = edn::PlainSymbol::new("or-join");
+        let e = edn::PlainSymbol::new("?e");
+        let a = edn::PlainSymbol::new("?a");
+        let v = edn::PlainSymbol::new("?v");
+        let input = [edn::Value::List(
+            vec![edn::Value::PlainSymbol(oj),
+                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]),
+                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
+                                         edn::Value::PlainSymbol(a.clone()),
+                                         edn::Value::PlainSymbol(v.clone())])].into_iter().collect())];
+        assert_parses_to!(Where::or_join_clause, input,
+                          WhereClause::OrJoin(
+                              OrJoin {
+                                  unify_vars: UnifyVars::Explicit(vec![Variable(e.clone())]),
+                                  clauses: vec![OrWhereClause::Clause(
+                                      WhereClause::Pattern(Pattern {
+                                          source: None,
+                                          entity: PatternNonValuePlace::Variable(Variable(e)),
+                                          attribute: PatternNonValuePlace::Variable(Variable(a)),
+                                          value: PatternValuePlace::Variable(Variable(v)),
+                                          tx: PatternNonValuePlace::Placeholder,
+                                      }))],
+                              }));
     }
 
     #[test]
