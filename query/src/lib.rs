@@ -33,6 +33,7 @@
 extern crate edn;
 extern crate mentat_core;
 
+use std::collections::BTreeSet;
 use std::fmt;
 use edn::{BigInt, OrderedFloat};
 pub use edn::{NamespacedKeyword, PlainSymbol};
@@ -537,4 +538,80 @@ pub struct FindQuery {
     pub in_sources: Vec<SrcVar>,
     pub where_clauses: Vec<WhereClause>,
     // TODO: in_rules;
+}
+
+pub trait ContainsVariables {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>);
+    fn collect_mentioned_variables(&self) -> BTreeSet<Variable> {
+        let mut out = BTreeSet::new();
+        self.accumulate_mentioned_variables(&mut out);
+        out
+    }
+}
+
+impl ContainsVariables for WhereClause {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        use WhereClause::*;
+        match self {
+            &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
+            &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
+            &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
+            &Not            => (),
+            &NotJoin        => (),
+            &WhereFn        => (),
+            &RuleExpr       => (),
+        }
+    }
+}
+
+impl ContainsVariables for OrWhereClause {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        use OrWhereClause::*;
+        match self {
+            &And(ref clauses) => for clause in clauses { clause.accumulate_mentioned_variables(acc) },
+            &Clause(ref clause) => clause.accumulate_mentioned_variables(acc),
+        }
+    }
+}
+
+impl ContainsVariables for OrJoin {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for clause in &self.clauses {
+            clause.accumulate_mentioned_variables(acc);
+        }
+    }
+}
+
+impl ContainsVariables for Predicate {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for arg in &self.args {
+            if let &FnArg::Variable(ref v) = arg {
+                acc_ref(acc, v)
+            }
+        }
+    }
+}
+
+fn acc_ref<T: Clone + Ord>(acc: &mut BTreeSet<T>, v: &T) {
+    // Roll on, reference entries!
+    if !acc.contains(v) {
+        acc.insert(v.clone());
+    }
+}
+
+impl ContainsVariables for Pattern {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        if let PatternNonValuePlace::Variable(ref v) = self.entity {
+            acc_ref(acc, v)
+        }
+        if let PatternNonValuePlace::Variable(ref v) = self.attribute {
+            acc_ref(acc, v)
+        }
+        if let PatternValuePlace::Variable(ref v) = self.value {
+            acc_ref(acc, v)
+        }
+        if let PatternNonValuePlace::Variable(ref v) = self.tx {
+            acc_ref(acc, v)
+        }
+    }
 }

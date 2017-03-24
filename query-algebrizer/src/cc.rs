@@ -8,9 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate mentat_core;
-extern crate mentat_query;
-
 use std::fmt::{
     Debug,
     Formatter,
@@ -24,7 +21,7 @@ use std::collections::{
 
 use std::collections::btree_map::Entry;
 
-use self::mentat_core::{
+use mentat_core::{
     Attribute,
     Entid,
     Schema,
@@ -32,7 +29,7 @@ use self::mentat_core::{
     ValueType,
 };
 
-use self::mentat_query::{
+use mentat_query::{
     FnArg,
     NamespacedKeyword,
     NonIntegerConstant,
@@ -43,6 +40,7 @@ use self::mentat_query::{
     Predicate,
     SrcVar,
     Variable,
+    WhereClause,
 };
 
 use errors::{
@@ -61,6 +59,8 @@ use types::{
     SourceAlias,
     TableAlias,
 };
+
+use validate::validate_or_join;
 
 /// A thing that's capable of aliasing a table name for us.
 /// This exists so that we can obtain predictable names in tests.
@@ -955,6 +955,27 @@ impl ConjoiningClauses {
         };
         self.wheres.push(constraint);
         Ok(())
+    }
+}
+
+impl ConjoiningClauses {
+    // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
+    // and so on.
+    pub fn apply_clause(&mut self, schema: &Schema, where_clause: WhereClause) -> Result<()> {
+        match where_clause {
+            WhereClause::Pattern(p) => {
+                self.apply_pattern(schema, p);
+                Ok(())
+            },
+            WhereClause::Pred(p) => {
+                self.apply_predicate(schema, p)
+            },
+            WhereClause::OrJoin(o) => {
+                validate_or_join(&o)
+                // TODO: apply.
+            },
+            _ => unimplemented!(),
+        }
     }
 }
 
