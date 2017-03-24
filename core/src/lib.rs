@@ -8,13 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate edn;
-extern crate ordered_float;
 #[macro_use]
 extern crate lazy_static;
+extern crate ordered_float;
+
+extern crate edn;
 
 pub mod values;
-
 
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
@@ -41,6 +41,20 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+}
+
+impl ValueType {
+    pub fn to_edn_value(&self) -> edn::Value {
+        match self {
+            &ValueType::Ref => values::DB_TYPE_REF.clone(),
+            &ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
+            &ValueType::Instant => values::DB_TYPE_INSTANT.clone(),
+            &ValueType::Long => values::DB_TYPE_LONG.clone(),
+            &ValueType::Double => values::DB_TYPE_DOUBLE.clone(),
+            &ValueType::String => values::DB_TYPE_STRING.clone(),
+            &ValueType::Keyword => values::DB_TYPE_KEYWORD.clone(),
+        }
+    }
 }
 
 /// Represents a Mentat value in a particular value set.
@@ -219,6 +233,35 @@ impl Attribute {
         }
         flags
     }
+
+    pub fn to_edn_value(&self, ident: Option<&NamespacedKeyword>) -> edn::Value {
+        let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
+        if let Some(ident) = ident {
+            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident.clone()));
+        }
+
+        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.to_edn_value());
+
+        attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
+
+        if self.unique == Some(attribute::Unique::Value) {
+            attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone());
+        }
+        
+        if self.index {
+            attribute_map.insert(values::DB_INDEX.clone(), edn::Value::Boolean(true));
+        }
+
+        if self.fulltext {
+            attribute_map.insert(values::DB_FULLTEXT.clone(), edn::Value::Boolean(true));
+        }
+
+        if self.component {
+            attribute_map.insert(values::DB_IS_COMPONENT.clone(), edn::Value::Boolean(true));
+        }
+
+        edn::Value::Map(attribute_map)
+    }
 }
 
 impl Default for Attribute {
@@ -300,37 +343,10 @@ impl Schema {
 
     /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
     pub fn to_edn_value(&self) -> edn::Value {
-        let mut all_values = Vec::new();
-        for (entid, attribute) in &self.schema_map {
-            let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
-            if let Some(ident) = self.get_ident(*entid) {
-                attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident.clone()));
-            }
-
-            let value_type = format!("{:?}", attribute.value_type);
-            attribute_map.insert(values::DB_VALUE_TYPE.clone(), edn::Value::NamespacedKeyword(NamespacedKeyword::new("db.type", &value_type.to_lowercase())));
-
-            attribute_map.insert(values::DB_CARDINALITY.clone(), if attribute.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
-
-            if attribute.unique == Some(attribute::Unique::Value) {
-                attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone());
-            }
-            
-            if attribute.index {
-                attribute_map.insert(values::DB_INDEX.clone(), edn::Value::Boolean(true));
-            }
-
-            if attribute.fulltext {
-                attribute_map.insert(values::DB_FULLTEXT.clone(), edn::Value::Boolean(true));
-            }
-
-            if attribute.component {
-                attribute_map.insert(values::DB_IS_COMPONENT.clone(), edn::Value::Boolean(true));
-            }
-
-            all_values.push(edn::Value::Map(attribute_map));
-        }
-        edn::Value::Vector(all_values)
+        edn::Value::Vector((&self.schema_map).into_iter()
+            .map(|(entid, attribute)| 
+                attribute.to_edn_value(self.get_ident(*entid)))
+            .collect::<Vec<_>>())
     }
 }
 
