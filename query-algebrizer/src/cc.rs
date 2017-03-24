@@ -40,6 +40,7 @@ use mentat_query::{
     Predicate,
     SrcVar,
     Variable,
+    WhereClause,
 };
 
 use errors::{
@@ -952,6 +953,23 @@ impl ConjoiningClauses {
         };
         self.wheres.push(constraint);
         Ok(())
+    }
+}
+
+impl ConjoiningClauses {
+    // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
+    // and so on.
+    pub fn apply_clause(&mut self, schema: &Schema, where_clause: WhereClause) -> Result<()> {
+        match where_clause {
+            WhereClause::Pattern(p) => {
+                self.apply_pattern(schema, p);
+                Ok(())
+            },
+            WhereClause::Pred(p) => {
+                self.apply_predicate(schema, p)
+            },
+            _ => unimplemented!(),
+        }
     }
 }
 
