@@ -298,17 +298,13 @@ impl Schema {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 
-    /// Returns an edn::Value::Vector representation of the schema map.
+    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
     pub fn to_edn_value(&self) -> edn::Value {
         let mut all_values = Vec::new();
         for (entid, attribute) in &self.schema_map {
             let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
-            let some_ident = self.get_ident(entid.clone());
-            if some_ident.is_some() {
-                let ident = some_ident.unwrap();
+            if let Some(ident) = self.get_ident(*entid) {
                 attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident.clone()));
-            } else {
-                attribute_map.insert(values::DB_IDENT.clone(), edn::Value::Keyword(Keyword::new(entid.to_string())));
             }
 
             let value_type = format!("{:?}", attribute.value_type);
