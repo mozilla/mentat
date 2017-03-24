@@ -19,7 +19,6 @@ pub mod values;
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
-use self::edn::Keyword;
 
 /// Core types defining a Mentat knowledge base.
 
@@ -234,10 +233,10 @@ impl Attribute {
         flags
     }
 
-    pub fn to_edn_value(&self, ident: Option<&NamespacedKeyword>) -> edn::Value {
+    pub fn to_edn_value(&self, ident: Option<NamespacedKeyword>) -> edn::Value {
         let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
         if let Some(ident) = ident {
-            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident.clone()));
+            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident));
         }
 
         attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.to_edn_value());
@@ -345,8 +344,8 @@ impl Schema {
     pub fn to_edn_value(&self) -> edn::Value {
         edn::Value::Vector((&self.schema_map).into_iter()
             .map(|(entid, attribute)| 
-                attribute.to_edn_value(self.get_ident(*entid)))
-            .collect::<Vec<_>>())
+                attribute.to_edn_value(self.get_ident(*entid).cloned()))
+            .collect())
     }
 }
 
@@ -356,7 +355,7 @@ mod test {
 
     fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
         schema.entid_map.insert(e, i.clone());
-        schema.ident_map.insert(i.clone(), e);
+        schema.ident_map.insert(i, e);
     }
 
     fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
