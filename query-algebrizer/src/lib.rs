@@ -16,6 +16,7 @@ extern crate mentat_query;
 
 mod errors;
 mod types;
+mod validate;
 mod cc;
 
 use mentat_core::{

@@ -11,3 +11,7 @@ path = "../core"
 
 [dependencies.mentat_query]
 path = "../query"
+
+# Only for tests.
+[dev-dependencies.mentat_query_parser]
+path = "../query-parser"
