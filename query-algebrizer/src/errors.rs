@@ -40,6 +40,12 @@ error_chain! {
             description("invalid argument")
             display("invalid argument to {}: expected numeric in position {}.", function, position)
         }
+
+        NonMatchingVariablesInOrClause {
+            // TODO: flesh out.
+            description("non-matching variables in 'or' clause")
+            display("non-matching variables in 'or' clause")
+        }
     }
 }
 
