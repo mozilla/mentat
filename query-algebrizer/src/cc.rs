@@ -60,6 +60,8 @@ use types::{
     TableAlias,
 };
 
+use validate::validate_or_join;
+
 /// A thing that's capable of aliasing a table name for us.
 /// This exists so that we can obtain predictable names in tests.
 pub type TableAliaser = Box<FnMut(DatomsTable) -> TableAlias>;
@@ -967,6 +969,10 @@ impl ConjoiningClauses {
             },
             WhereClause::Pred(p) => {
                 self.apply_predicate(schema, p)
+            },
+            WhereClause::OrJoin(o) => {
+                validate_or_join(&o)
+                // TODO: apply.
             },
             _ => unimplemented!(),
         }
