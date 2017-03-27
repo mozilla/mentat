@@ -23,14 +23,17 @@ use types::{
     Entid,
     TypedValue,
 };
-use mentat_tx::entities::OpType;
+use mentat_tx::entities::{
+    OpType,
+    TempId,
+};
 
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Term<E, V> {
     AddOrRetract(OpType, E, Entid, V),
 }
 
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Either<L, R> {
     Left(L),
     Right(R),
@@ -41,7 +44,7 @@ use self::Either::*;
 pub type EntidOr<T> = Either<Entid, T>;
 pub type TypedValueOr<T> = Either<TypedValue, T>;
 
-pub type TempIdHandle = Rc<String>;
+pub type TempIdHandle = Rc<TempId>;
 pub type TempIdMap = HashMap<TempIdHandle, Entid>;
 
 pub type LookupRef = Rc<AVPair>;

@@ -76,7 +76,11 @@ use mentat_core::{
     Schema,
 };
 use mentat_tx::entities as entmod;
-use mentat_tx::entities::{Entity, OpType};
+use mentat_tx::entities::{
+    Entity,
+    OpType,
+    TempId,
+};
 use mentat_tx_parser;
 use metadata;
 use rusqlite;
@@ -95,8 +99,6 @@ use types::{
     ValueType,
 };
 use upsert_resolution::Generation;
-
-const MENTAT_TEMPID_PREFIX: &'static str = "mentat_";
 
 /// A transaction on its way to being applied.
 #[derive(Debug)]
@@ -188,8 +190,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     ///
     /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
-    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<String>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
-        let mut temp_ids: intern_set::InternSet<String> = intern_set::InternSet::new();
+    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<TempId>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
+        let mut temp_ids: intern_set::InternSet<TempId> = intern_set::InternSet::new();
         let mut lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
 
         let intern_lookup_ref = |lookup_refs: &mut intern_set::InternSet<AVPair>, lookup_ref: entmod::LookupRef| -> Result<LookupRef> {
@@ -213,11 +215,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let mut deque: VecDeque<Entity> = VecDeque::default();
         deque.extend(entities);
 
-        // Allocate private tempids reserved for Mentat.
+        // Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
+        // unique within one transaction; they should never escape a transaction.
         let mut mentat_id_count = 0;
         let mut allocate_mentat_id = move || {
             mentat_id_count += 1;
-            entmod::EntidOrLookupRefOrTempId::TempId(format!("{}{}", MENTAT_TEMPID_PREFIX, mentat_id_count))
+            entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(mentat_id_count))
         };
 
         let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(deque.len());
@@ -252,7 +255,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     let v = match v {
                         entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
                             if attribute.value_type == ValueType::Ref && v.is_text() {
-                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().unwrap().clone())))
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().cloned().map(TempId::External).unwrap())))
                             } else {
                                 // Here is where we do schema-aware typechecking: we either assert that
                                 // the given value is in the attribute's value set, or (in limited
@@ -411,7 +414,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     // TODO: move this to the transactor layer.
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         // TODO: push these into an internal transaction report?
-        let mut tempids: BTreeMap<String, Entid> = BTreeMap::default();
+        let mut tempids: BTreeMap<TempId, Entid> = BTreeMap::default();
 
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
@@ -472,9 +475,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             assert!(tempids.contains_key(&**tempid));
         }
 
-        // Any tempid starting with MENTAT_TEMPID_PREFIX has been allocated by the system and is a private
-        // implementation detail; it shouldn't be exposed in the final transaction report.
-        let tempids = tempids.into_iter().filter(|&(ref tempid, _)| !tempid.starts_with(MENTAT_TEMPID_PREFIX)).collect();
+        // Any internal tempid has been allocated by the system and is a private implementation
+        // detail; it shouldn't be exposed in the final transaction report.
+        let tempids = tempids.into_iter().filter_map(|(tempid, e)| tempid.into_external().map(|s| (s, e))).collect();
 
         // A transaction might try to add or retract :db/ident assertions or other metadata mutating
         // assertions , but those assertions might not make it to the store.  If we see a possible

@@ -22,6 +22,7 @@ use mentat_tx::entities::{
     EntidOrLookupRefOrTempId,
     Entity,
     OpType,
+    TempId,
 };
 use mentat_tx_parser::Tx;
 
@@ -46,7 +47,7 @@ fn test_entities() {
                    },
                    Entity::AddOrRetract {
                        op: OpType::Add,
-                       e: EntidOrLookupRefOrTempId::TempId("tempid".into()),
+                       e: EntidOrLookupRefOrTempId::TempId(TempId::External("tempid".into())),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
                    },

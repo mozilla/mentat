@@ -37,6 +37,7 @@ use mentat_tx::entities::{
     LookupRef,
     MapNotation,
     OpType,
+    TempId,
 };
 use mentat_parser_utils::{ResultParser, ValueParseError};
 
@@ -83,15 +84,15 @@ fn value_to_lookup_ref(val: &Value) -> Option<LookupRef> {
 def_value_satisfy_parser_fn!(Tx, lookup_ref, LookupRef, value_to_lookup_ref);
 
 def_parser_fn!(Tx, entid_or_lookup_ref_or_temp_id, Value, EntidOrLookupRefOrTempId, input, {
-    Tx::<I>::entid().map(|x| EntidOrLookupRefOrTempId::Entid(x))
-        .or(Tx::<I>::lookup_ref().map(|x| EntidOrLookupRefOrTempId::LookupRef(x)))
-        .or(Tx::<I>::temp_id().map(|x| EntidOrLookupRefOrTempId::TempId(x)))
+    Tx::<I>::entid().map(EntidOrLookupRefOrTempId::Entid)
+        .or(Tx::<I>::lookup_ref().map(EntidOrLookupRefOrTempId::LookupRef))
+        .or(Tx::<I>::temp_id().map(EntidOrLookupRefOrTempId::TempId))
         .parse_lazy(input)
         .into()
 });
 
-def_parser_fn!(Tx, temp_id, Value, String, input, {
-    satisfy_map(|x: Value| x.into_text())
+def_parser_fn!(Tx, temp_id, Value, TempId, input, {
+    satisfy_map(|x: Value| x.into_text().map(TempId::External))
         .parse_stream(input)
 });
 
