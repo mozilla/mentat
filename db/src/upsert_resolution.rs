@@ -22,7 +22,7 @@ use types::{
 };
 use internal_types::{
     Population,
-    TempId,
+    TempIdHandle,
     TempIdMap,
     Term,
     TermWithoutTempIds,
@@ -41,11 +41,11 @@ use schema::SchemaBuilding;
 
 /// A "Simple upsert" that looks like [:db/add TEMPID a v], where a is :db.unique/identity.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-struct UpsertE(TempId, Entid, TypedValue);
+struct UpsertE(TempIdHandle, Entid, TypedValue);
 
 /// A "Complex upsert" that looks like [:db/add TEMPID a OTHERID], where a is :db.unique/identity
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-struct UpsertEV(TempId, Entid, TempId);
+struct UpsertEV(TempIdHandle, Entid, TempIdHandle);
 
 /// A generation collects entities into populations at a single evolutionary step in the upsert
 /// resolution evolution process.
@@ -194,8 +194,8 @@ impl Generation {
     }
 
     // Collect id->[a v] pairs that might upsert at this evolutionary step.
-    pub fn temp_id_avs<'a>(&'a self) -> Vec<(TempId, AVPair)> {
-        let mut temp_id_avs: Vec<(TempId, AVPair)> = vec![];
+    pub fn temp_id_avs<'a>(&'a self) -> Vec<(TempIdHandle, AVPair)> {
+        let mut temp_id_avs: Vec<(TempIdHandle, AVPair)> = vec![];
         // TODO: map/collect.
         for &UpsertE(ref t, ref a, ref v) in &self.upserts_e {
             // TODO: figure out how to make this less expensive, i.e., don't require
@@ -208,11 +208,11 @@ impl Generation {
     /// After evolution is complete, yield the set of tempids that require entid allocation.  These
     /// are the tempids that appeared in [:db/add ...] entities, but that didn't upsert to existing
     /// entids.
-    pub fn temp_ids_in_allocations(&self) -> BTreeSet<TempId> {
+    pub fn temp_ids_in_allocations(&self) -> BTreeSet<TempIdHandle> {
         assert!(self.upserts_e.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
         assert!(self.upserts_ev.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
 
-        let mut temp_ids: BTreeSet<TempId> = BTreeSet::default();
+        let mut temp_ids: BTreeSet<TempIdHandle> = BTreeSet::default();
 
         for term in self.allocations.iter() {
             match term {

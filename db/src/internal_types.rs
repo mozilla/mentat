@@ -41,8 +41,8 @@ use self::Either::*;
 pub type EntidOr<T> = Either<Entid, T>;
 pub type TypedValueOr<T> = Either<TypedValue, T>;
 
-pub type TempId = Rc<String>;
-pub type TempIdMap = HashMap<TempId, Entid>;
+pub type TempIdHandle = Rc<String>;
+pub type TempIdMap = HashMap<TempIdHandle, Entid>;
 
 pub type LookupRef = Rc<AVPair>;
 
@@ -52,11 +52,11 @@ pub type LookupRef = Rc<AVPair>;
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub enum LookupRefOrTempId {
     LookupRef(LookupRef),
-    TempId(TempId)
+    TempId(TempIdHandle)
 }
 
 pub type TermWithTempIdsAndLookupRefs = Term<EntidOr<LookupRefOrTempId>, TypedValueOr<LookupRefOrTempId>>;
-pub type TermWithTempIds = Term<EntidOr<TempId>, TypedValueOr<TempId>>;
+pub type TermWithTempIds = Term<EntidOr<TempIdHandle>, TypedValueOr<TempIdHandle>>;
 pub type TermWithoutTempIds = Term<Entid, TypedValue>;
 pub type Population = Vec<TermWithTempIds>;
 
@@ -81,7 +81,7 @@ impl TermWithTempIds {
 /// The reason for this awkward expression is that we're parameterizing over the _type constructor_
 /// (`EntidOr` or `TypedValueOr`), which is not trivial to express in Rust.  This only works because
 /// they're both the same `Result<...>` type with different parameterizations.
-pub fn replace_lookup_ref<T, U>(lookup_map: &AVMap, desired_or: Either<T, LookupRefOrTempId>, lift: U) -> errors::Result<Either<T, TempId>> where U: FnOnce(Entid) -> T {
+pub fn replace_lookup_ref<T, U>(lookup_map: &AVMap, desired_or: Either<T, LookupRefOrTempId>, lift: U) -> errors::Result<Either<T, TempIdHandle>> where U: FnOnce(Entid) -> T {
     match desired_or {
         Left(desired) => Ok(Left(desired)), // N.b., must unwrap here -- the ::Left types are different!
         Right(other) => {

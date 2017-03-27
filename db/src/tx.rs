@@ -63,7 +63,7 @@ use internal_types::{
     Either,
     LookupRef,
     LookupRefOrTempId,
-    TempId,
+    TempIdHandle,
     TempIdMap,
     Term,
     TermWithTempIdsAndLookupRefs,
@@ -152,7 +152,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// Given a collection of tempids and the [a v] pairs that they might upsert to, resolve exactly
     /// which [a v] pairs do upsert to entids, and map each tempid that upserts to the upserted
     /// entid.  The keys of the resulting map are exactly those tempids that upserted.
-    pub fn resolve_temp_id_avs<'b>(&self, temp_id_avs: &'b [(TempId, AVPair)]) -> Result<TempIdMap> {
+    pub fn resolve_temp_id_avs<'b>(&self, temp_id_avs: &'b [(TempIdHandle, AVPair)]) -> Result<TempIdMap> {
         if temp_id_avs.is_empty() {
             return Ok(TempIdMap::default());
         }
@@ -450,7 +450,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         // Allocate entids for tempids that didn't upsert.  BTreeSet rather than HashSet so this is deterministic.
-        let unresolved_temp_ids: BTreeSet<TempId> = generation.temp_ids_in_allocations();
+        let unresolved_temp_ids: BTreeSet<TempIdHandle> = generation.temp_ids_in_allocations();
 
         // TODO: track partitions for temporary IDs.
         let entids = self.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
