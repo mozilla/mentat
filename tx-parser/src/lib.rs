@@ -71,11 +71,11 @@ def_parser_fn!(Tx, entid, Value, Entid, input, {
 fn value_to_lookup_ref(val: &Value) -> Option<LookupRef> {
     val.as_list().and_then(|list| {
         let vs: Vec<Value> = list.into_iter().cloned().collect();
-        let mut p = (token(Value::PlainSymbol(PlainSymbol::new("lookup-ref"))),
-                     Tx::<&[Value]>::entid(),
-                     Tx::<&[Value]>::atom(),
-                     eof())
-            .map(|(_, a, v, _)| LookupRef { a: a, v: v });
+        let mut p = token(Value::PlainSymbol(PlainSymbol::new("lookup-ref")))
+            .with((Tx::<&[Value]>::entid(),
+                   Tx::<&[Value]>::atom()))
+            .skip(eof())
+            .map(|(a, v)| LookupRef { a: a, v: v });
         let r: ParseResult<LookupRef, _> = p.parse_lazy(&vs[..]).into();
         r.ok().map(|x| x.0)
     })
@@ -102,9 +102,7 @@ def_parser_fn!(Tx, atom, Value, Value, input, {
 
 fn value_to_nested_vector(val: &Value) -> Option<Vec<AtomOrLookupRefOrVectorOrMapNotation>> {
     val.as_vector().and_then(|vs| {
-        let mut p = (many(Tx::<&[Value]>::atom_or_lookup_ref_or_vector()),
-                     eof())
-            .map(|(vs, _)| vs);
+        let mut p = many(Tx::<&[Value]>::atom_or_lookup_ref_or_vector()).skip(eof());
         let r: ParseResult<Vec<AtomOrLookupRefOrVectorOrMapNotation>, _> =  p.parse_lazy(&vs[..]).into();
         r.map(|x| x.0).ok()
     })
@@ -129,9 +127,9 @@ fn value_to_add_or_retract(val: &Value) -> Option<Entity> {
         let mut p = (add.or(retract),
                      Tx::<&[Value]>::entid_or_lookup_ref_or_temp_id(),
                      Tx::<&[Value]>::entid(),
-                     Tx::<&[Value]>::atom_or_lookup_ref_or_vector(),
-                     eof())
-            .map(|(op, e, a, v, _)| {
+                     Tx::<&[Value]>::atom_or_lookup_ref_or_vector())
+            .skip(eof())
+            .map(|(op, e, a, v)| {
                 Entity::AddOrRetract {
                     op: op,
                     e: e,
@@ -153,9 +151,9 @@ fn value_to_map_notation(val: &Value) -> Option<MapNotation> {
         let av = (Tx::<&[Value]>::entid(),
                   Tx::<&[Value]>::atom_or_lookup_ref_or_vector())
             .map(|(a, v)| -> (Entid, AtomOrLookupRefOrVectorOrMapNotation) { (a, v) });
-        let mut p = (many(av),
-                     eof())
-            .map(|(avs, _): (Vec<(Entid, AtomOrLookupRefOrVectorOrMapNotation)>, _)| -> MapNotation {
+        let mut p = many(av)
+            .skip(eof())
+            .map(|avs: Vec<(Entid, AtomOrLookupRefOrVectorOrMapNotation)>| -> MapNotation {
                 avs.into_iter().collect()
             });
         let r: ParseResult<MapNotation, _> =  p.parse_lazy(&avseq[..]).into();
@@ -172,8 +170,8 @@ def_parser_fn!(Tx, entity, Value, Entity, input, {
 
 fn value_to_entities(val: &Value) -> Option<Vec<Entity>> {
     val.as_vector().and_then(|vs| {
-        let mut p = (many(Tx::<&[Value]>::entity()), eof())
-            .map(|(es, _)| es);
+        let mut p = many(Tx::<&[Value]>::entity())
+            .skip(eof());
         let r: ParseResult<Vec<Entity>, _> = p.parse_lazy(&vs[..]).into();
         r.ok().map(|x| x.0)
     })
@@ -183,8 +181,8 @@ def_value_satisfy_parser_fn!(Tx, entities, Vec<Entity>, value_to_entities);
 
 impl<'a> Tx<&'a [edn::Value]> {
     pub fn parse(input: &'a [edn::Value]) -> std::result::Result<Vec<Entity>, errors::Error> {
-        (Tx::<_>::entities(), eof())
-            .map(|(es, _)| es)
+        Tx::<_>::entities()
+            .skip(eof())
             .parse(input)
             .map(|x| x.0)
             .map_err::<ValueParseError, _>(|e| e.translate_position(input).into())
@@ -194,8 +192,8 @@ impl<'a> Tx<&'a [edn::Value]> {
 
 impl<'a> Tx<&'a [edn::Value]> {
     pub fn parse_entid_or_lookup_ref_or_temp_id(input: &'a [edn::Value]) -> std::result::Result<EntidOrLookupRefOrTempId, errors::Error> {
-        (Tx::<_>::entid_or_lookup_ref_or_temp_id(), eof())
-            .map(|(es, _)| es)
+        Tx::<_>::entid_or_lookup_ref_or_temp_id()
+            .skip(eof())
             .parse(input)
             .map(|x| x.0)
             .map_err::<ValueParseError, _>(|e| e.translate_position(input).into())
