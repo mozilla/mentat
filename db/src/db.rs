@@ -320,21 +320,6 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
 //         (<? (<update-from-version db v bootstrapper))))))
 // */
 
-pub fn update_from_version(conn: &mut rusqlite::Connection, current_version: i32) -> Result<i32> {
-    if current_version < 0 || CURRENT_VERSION <= current_version {
-        bail!(ErrorKind::BadSQLiteStoreVersion(current_version))
-    }
-
-    let tx = conn.transaction()?;
-    // TODO: actually implement upgrade.
-    set_user_version(&tx, CURRENT_VERSION)?;
-    let user_version = get_user_version(&tx)?;
-    // TODO: use the drop semantics to do this automagically?
-    tx.commit()?;
-
-    Ok(user_version)
-}
-
 pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     if rusqlite::version_number() < MIN_SQLITE_VERSION {
         panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
@@ -796,7 +781,7 @@ impl MentatStoring for rusqlite::Connection {
                                                 .chain(once(flags as &ToSql))))))
             }).collect();
 
-            // TODO: cache this for selected values of count.            
+            // TODO: cache this for selected values of count.
             assert!(bindings_per_statement * count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, count, max_vars);
             let values: String = repeat_values(bindings_per_statement, count);
             let s: String = if search_type == SearchType::Exact {
@@ -1095,7 +1080,9 @@ mod tests {
     macro_rules! assert_matches {
         ( $input: expr, $expected: expr ) => {{
             // Failure to parse the expected pattern is a coding error, so we unwrap.
-            let pattern_value = edn::parse::value($expected.borrow()).unwrap().without_spans();
+            let pattern_value = edn::parse::value($expected.borrow())
+                .expect(format!("to be able to parse expected {}", $expected).as_str())
+                .without_spans();
             assert!($input.matches(&pattern_value),
                     "Expected value:\n{}\nto match pattern:\n{}\n",
                     $input.to_pretty(120).unwrap(),
@@ -1137,8 +1124,8 @@ mod tests {
 
         fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
             // Failure to parse the transaction is a coding error, so we unwrap.
-            let assertions = edn::parse::value(transaction.borrow()).unwrap().without_spans();
-            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions][..]).unwrap();
+            let assertions = edn::parse::value(transaction.borrow()).expect(format!("to be able to parse {} into EDN", transaction.borrow()).as_str()).without_spans();
+            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions.clone()][..]).expect(format!("to be able to parse {} into entities", assertions).as_str());
 
             let details = {
                 // The block scopes the borrow of self.sqlite.
@@ -1834,5 +1821,241 @@ mod tests {
                           [222 :db/fulltext true]
                           [301 :test/fulltext 2]
                           [301 :test/other 3]]");
+    }
+
+    #[test]
+    fn test_lookup_refs_entity_column() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/unique_value]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 111 :db/unique :db.unique/value]
+                                 [:db/add 111 :db/index true]
+                                 [:db/add 222 :db/ident :test/unique_identity]
+                                 [:db/add 222 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/unique :db.unique/identity]
+                                 [:db/add 222 :db/index true]
+                                 [:db/add 333 :db/ident :test/not_unique]
+                                 [:db/add 333 :db/cardinality :db.cardinality/one]
+                                 [:db/add 333 :db/valueType :db.type/keyword]
+                                 [:db/add 333 :db/index true]]");
+
+        // And a few datoms to match against.
+        assert_transact!(conn, "[[:db/add 501 :test/unique_value \"test this\"]
+                                 [:db/add 502 :test/unique_value \"other\"]
+                                 [:db/add 503 :test/unique_identity -10]
+                                 [:db/add 504 :test/unique_identity -20]
+                                 [:db/add 505 :test/not_unique :test/keyword]
+                                 [:db/add 506 :test/not_unique :test/keyword]]");
+
+        // We can resolve lookup refs in the entity column, referring to the attribute as an entid or an ident.
+        assert_transact!(conn, "[[:db/add (lookup-ref :test/unique_value \"test this\") :test/not_unique :test/keyword]
+                                 [:db/add (lookup-ref 111 \"other\") :test/not_unique :test/keyword]
+                                 [:db/add (lookup-ref :test/unique_identity -10) :test/not_unique :test/keyword]
+                                 [:db/add (lookup-ref 222 -20) :test/not_unique :test/keyword]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[501 :test/not_unique :test/keyword ?tx true]
+                          [502 :test/not_unique :test/keyword ?tx true]
+                          [503 :test/not_unique :test/keyword ?tx true]
+                          [504 :test/not_unique :test/keyword ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // We cannot resolve lookup refs that aren't :db/unique.
+        assert_transact!(conn,
+                         "[[:db/add (lookup-ref :test/not_unique :test/keyword) :test/not_unique :test/keyword]]",
+                         Err("not yet implemented: Cannot resolve (lookup-ref 333 :test/keyword) with attribute that is not :db/unique"));
+
+        // We type check the lookup ref's value against the lookup ref's attribute.
+        assert_transact!(conn,
+                         "[[:db/add (lookup-ref :test/unique_value :test/not_a_string) :test/not_unique :test/keyword]]",
+                         Err("EDN value \':test/not_a_string\' is not the expected Mentat value type String"));
+
+        // Each lookup ref in the entity column must resolve
+        assert_transact!(conn,
+                         "[[:db/add (lookup-ref :test/unique_value \"unmatched string value\") :test/not_unique :test/keyword]]",
+                         Err("no entid found for ident: couldn\'t lookup [a v]: (111, String(\"unmatched string value\"))"));
+    }
+
+    #[test]
+    fn test_lookup_refs_value_column() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/unique_value]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 111 :db/unique :db.unique/value]
+                                 [:db/add 111 :db/index true]
+                                 [:db/add 222 :db/ident :test/unique_identity]
+                                 [:db/add 222 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/unique :db.unique/identity]
+                                 [:db/add 222 :db/index true]
+                                 [:db/add 333 :db/ident :test/not_unique]
+                                 [:db/add 333 :db/cardinality :db.cardinality/one]
+                                 [:db/add 333 :db/valueType :db.type/keyword]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 444 :db/ident :test/ref]
+                                 [:db/add 444 :db/valueType :db.type/ref]
+                                 [:db/add 444 :db/unique :db.unique/identity]
+                                 [:db/add 444 :db/index true]]");
+
+        // And a few datoms to match against.
+        assert_transact!(conn, "[[:db/add 501 :test/unique_value \"test this\"]
+                                 [:db/add 502 :test/unique_value \"other\"]
+                                 [:db/add 503 :test/unique_identity -10]
+                                 [:db/add 504 :test/unique_identity -20]
+                                 [:db/add 505 :test/not_unique :test/keyword]
+                                 [:db/add 506 :test/not_unique :test/keyword]]");
+
+        // We can resolve lookup refs in the entity column, referring to the attribute as an entid or an ident.
+        assert_transact!(conn, "[[:db/add 601 :test/ref (lookup-ref :test/unique_value \"test this\")]
+                                 [:db/add 602 :test/ref (lookup-ref 111 \"other\")]
+                                 [:db/add 603 :test/ref (lookup-ref :test/unique_identity -10)]
+                                 [:db/add 604 :test/ref (lookup-ref 222 -20)]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[601 :test/ref 501 ?tx true]
+                          [602 :test/ref 502 ?tx true]
+                          [603 :test/ref 503 ?tx true]
+                          [604 :test/ref 504 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // We cannot resolve lookup refs for attributes that aren't :db/ref.
+        assert_transact!(conn,
+                         "[[:db/add \"t\" :test/not_unique (lookup-ref :test/unique_value \"test this\")]]",
+                         Err("not yet implemented: Cannot resolve value lookup ref for attribute 333 that is not :db/valueType :db.type/ref"));
+
+        // If a value column lookup ref resolves, we can upsert against it.  Here, the lookup ref
+        // resolves to 501, which upserts "t" to 601.
+        assert_transact!(conn, "[[:db/add \"t\" :test/ref (lookup-ref :test/unique_value \"test this\")]
+                                 [:db/add \"t\" :test/not_unique :test/keyword]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[601 :test/not_unique :test/keyword ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Each lookup ref in the value column must resolve
+        assert_transact!(conn,
+                         "[[:db/add \"t\" :test/ref (lookup-ref :test/unique_value \"unmatched string value\")]]",
+                         Err("no entid found for ident: couldn\'t lookup [a v]: (111, String(\"unmatched string value\"))"));
+    }
+
+    #[test]
+    fn test_explode_value_lists() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/one]
+                                 [:db/add 222 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/cardinality :db.cardinality/one]]");
+
+        // Check that we can explode vectors for :db.cardinality/many attributes.
+        assert_transact!(conn, "[[:db/add 501 :test/many [1]]
+                                 [:db/add 502 :test/many [2 3]]
+                                 [:db/add 503 :test/many [4 5 6]]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[501 :test/many 1 ?tx true]
+                          [502 :test/many 2 ?tx true]
+                          [502 :test/many 3 ?tx true]
+                          [503 :test/many 4 ?tx true]
+                          [503 :test/many 5 ?tx true]
+                          [503 :test/many 6 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Check that we can explode nested vectors for :db.cardinality/many attributes.
+        assert_transact!(conn, "[[:db/add 600 :test/many [1 [2] [[3] [4]] []]]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[600 :test/many 1 ?tx true]
+                          [600 :test/many 2 ?tx true]
+                          [600 :test/many 3 ?tx true]
+                          [600 :test/many 4 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Check that we cannot explode vectors for :db.cardinality/one attributes.
+        assert_transact!(conn,
+                         "[[:db/add 501 :test/one [1]]]",
+                         Err("not yet implemented: Cannot explode vector value for attribute 222 that is not :db.cardinality :db.cardinality/many"));
+        assert_transact!(conn,
+                         "[[:db/add 501 :test/one [2 3]]]",
+                         Err("not yet implemented: Cannot explode vector value for attribute 222 that is not :db.cardinality :db.cardinality/many"));
+    }
+
+    #[test]
+    fn test_explode_map_notation() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/component]
+                                 [:db/add 222 :db/isComponent true]
+                                 [:db/add 222 :db/valueType :db.type/ref]
+                                 [:db/add 333 :db/ident :test/unique]
+                                 [:db/add 333 :db/unique :db.unique/identity]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 333 :db/valueType :db.type/long]
+                                 [:db/add 444 :db/ident :test/dangling]
+                                 [:db/add 444 :db/valueType :db.type/ref]]");
+
+        // Check that we can explode map notation without :db/id.
+        let report = assert_transact!(conn, "[{:test/many 1}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/many 1 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode map notation with :db/id, as an entid, ident, and tempid.
+        let report = assert_transact!(conn, "[{:db/id :db/ident :test/many 1}
+                                              {:db/id 500 :test/many 2}
+                                              {:db/id \"t\" :test/many 3}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[1 :test/many 1 ?tx true]
+                          [500 :test/many 2 ?tx true]
+                          [?e :test/many 3 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{\"t\" 65537}");
+
+        // Check that we can explode map notation with nested vector values.
+        let report = assert_transact!(conn, "[{:test/many [1 2]}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/many 1 ?tx true]
+                          [?e :test/many 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode map notation with nested maps if the attribute is
+        // :db/isComponent true.
+        let report = assert_transact!(conn, "[{:test/component {:test/many 1}}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/component ?f ?tx true]
+                          [?f :test/many 1 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode map notation with nested maps if the inner map contains a
+        // :db/unique :db.unique/identity attribute.
+        let report = assert_transact!(conn, "[{:test/dangling {:test/unique 10}}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :test/dangling ?f ?tx true]
+                          [?f :test/unique 10 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Verify that we can't explode map notation with nested maps if the inner map would be
+        // dangling.
+        assert_transact!(conn,
+                         "[{:test/dangling {:test/many 11}}]",
+                         Err("not yet implemented: Cannot explode nested map value that would lead to dangling entity for attribute 444"));
+
+        // Verify that we can explode map notation with nested maps, even if the inner map would be
+        // dangling, if we give a :db/id explicitly.
+        assert_transact!(conn, "[{:test/dangling {:db/id \"t\" :test/many 11}}]");
     }
 }

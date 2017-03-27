@@ -16,7 +16,14 @@ extern crate mentat_tx_parser;
 use edn::parse;
 use edn::symbols::NamespacedKeyword;
 use edn::types::Value;
-use mentat_tx::entities::{Entid, EntidOrLookupRefOrTempId, Entity, OpType};
+use mentat_tx::entities::{
+    AtomOrLookupRefOrVectorOrMapNotation,
+    Entid,
+    EntidOrLookupRefOrTempId,
+    Entity,
+    OpType,
+    TempId,
+};
 use mentat_tx_parser::Tx;
 
 #[test]
@@ -36,19 +43,19 @@ fn test_entities() {
                        op: OpType::Add,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: Value::Text("v".into()),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
                    },
                    Entity::AddOrRetract {
                        op: OpType::Add,
-                       e: EntidOrLookupRefOrTempId::TempId("tempid".into()),
+                       e: EntidOrLookupRefOrTempId::TempId(TempId::External("tempid".into())),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: Value::Text("v".into()),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
                    },
                    Entity::AddOrRetract {
                        op: OpType::Retract,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(102)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "b")),
-                       v: Value::Text("w".into()),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("w".into())),
                    },
                ]);
 }

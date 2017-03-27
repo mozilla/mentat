@@ -22,5 +22,10 @@ error_chain! {
             description("error parsing edn values")
             display("error parsing edn values:\n{}", value_parse_error)
         }
+
+        DbIdError {
+            description("bad :db/id in map notation")
+            display("bad :db/id in map notation: must either be not present or be an entid, an ident, or a tempid")
+        }
     }
 }

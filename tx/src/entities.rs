@@ -12,33 +12,74 @@
 
 extern crate edn;
 
+use std::collections::BTreeMap;
+use std::fmt;
+
 use self::edn::types::Value;
 use self::edn::symbols::NamespacedKeyword;
 
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+/// A tempid, either an external tempid given in a transaction (usually as an `edn::Value::Text`),
+/// or an internal tempid allocated by Mentat itself.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum TempId {
+    External(String),
+    Internal(i64),
+}
+
+impl TempId {
+    pub fn into_external(self) -> Option<String> {
+        match self {
+            TempId::External(s) => Some(s),
+            TempId::Internal(_) => None,
+        }
+    }
+
+    pub fn into_internal(self) -> Option<i64> {
+        match self {
+            TempId::Internal(x) => Some(x),
+            TempId::External(_) => None,
+        }
+    }
+}
+
+impl fmt::Display for TempId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            &TempId::External(ref s) => write!(f, "{}", s),
+            &TempId::Internal(x) => write!(f, "<tempid {}>", x),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Entid {
     Entid(i64),
     Ident(NamespacedKeyword),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct LookupRef {
     pub a: Entid,
-    // TODO: consider boxing to allow recursive lookup refs.
-    pub v: Value,
+    // In theory we could allow nested lookup-refs.  In practice this would require us to process
+    // lookup-refs in multiple phases, like how we resolve tempids, which isn't worth the effort.
+    pub v: Value, // An atom.
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum EntidOrLookupRef {
-    Entid(Entid),
+pub type MapNotation = BTreeMap<Entid, AtomOrLookupRefOrVectorOrMapNotation>;
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum AtomOrLookupRefOrVectorOrMapNotation {
+    Atom(Value),
     LookupRef(LookupRef),
+    Vector(Vec<AtomOrLookupRefOrVectorOrMapNotation>),
+    MapNotation(MapNotation),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntidOrLookupRefOrTempId {
     Entid(Entid),
     LookupRef(LookupRef),
-    TempId(String),
+    TempId(TempId),
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
@@ -47,12 +88,15 @@ pub enum OpType {
     Retract,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Entity {
+    // Like [:db/add|:db/retract e a v].
     AddOrRetract {
         op: OpType,
         e: EntidOrLookupRefOrTempId,
         a: Entid,
-        v: Value,
+        v: AtomOrLookupRefOrVectorOrMapNotation,
     },
+    // Like {:db/id "tempid" a1 v1 a2 v2}.
+    MapNotation(MapNotation),
 }

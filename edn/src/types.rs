@@ -307,6 +307,37 @@ macro_rules! def_common_value_methods {
                 $t::Map(_) => 13,
             }
         }
+
+        pub fn is_collection(&self) -> bool {
+            match *self {
+                $t::Nil => false,
+                $t::Boolean(_) => false,
+                $t::Integer(_) => false,
+                $t::BigInteger(_) => false,
+                $t::Float(_) => false,
+                $t::Text(_) => false,
+                $t::PlainSymbol(_) => false,
+                $t::NamespacedSymbol(_) => false,
+                $t::Keyword(_) => false,
+                $t::NamespacedKeyword(_) => false,
+                $t::Vector(_) => true,
+                $t::List(_) => true,
+                $t::Set(_) => true,
+                $t::Map(_) => true,
+            }
+        }
+
+        pub fn is_atom(&self) -> bool {
+            !self.is_collection()
+        }
+
+        pub fn into_atom(self) -> Option<$t> {
+            if self.is_atom() {
+                Some(self)
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -357,7 +388,7 @@ macro_rules! def_common_value_display {
                 }
             }
             // TODO: EDN escaping.
-            $t::Text(ref v) => write!($f, "{}", v),
+            $t::Text(ref v) => write!($f, "\"{}\"", v),
             $t::PlainSymbol(ref v) => v.fmt($f),
             $t::NamespacedSymbol(ref v) => v.fmt($f),
             $t::Keyword(ref v) => v.fmt($f),
