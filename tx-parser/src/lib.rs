@@ -96,7 +96,7 @@ def_parser_fn!(Tx, temp_id, Value, String, input, {
 });
 
 def_parser_fn!(Tx, atom, Value, Value, input, {
-    satisfy_map(|x: Value| if x.is_atom() { Some(x) } else { None })
+    satisfy_map(|x: Value| x.into_atom())
         .parse_stream(input)
 });
 

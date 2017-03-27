@@ -328,7 +328,15 @@ macro_rules! def_common_value_methods {
         }
 
         pub fn is_atom(&self) -> bool {
-            return !self.is_collection()
+            !self.is_collection()
+        }
+
+        pub fn into_atom(self) -> Option<$t> {
+            if self.is_atom() {
+                Some(self)
+            } else {
+                None
+            }
         }
     }
 }
