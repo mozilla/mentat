@@ -49,6 +49,7 @@ use std::borrow::Cow;
 use std::collections::{
     BTreeMap,
     BTreeSet,
+    VecDeque,
 };
 
 use db;
@@ -207,10 +208,10 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         };
 
         // We want to handle entities in the order they're given to us, while also "exploding" some
-        // entities into many.  We therefore push the initial entities onto the stack, reverse the
-        // entire stack, take from the back (top) of the stack, and explode onto the top.
-        let mut stack: Vec<Entity> = entities.into_iter().collect();
-        stack.reverse();
+        // entities into many.  We therefore push the initial entities onto the back of the deque,
+        // take from the front of the deque, and explode onto the front as well.
+        let mut deque: VecDeque<Entity> = VecDeque::default();
+        deque.extend(entities);
 
         // Allocate private tempids reserved for Mentat.
         let mut mentat_id_count = 0;
@@ -219,9 +220,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             entmod::EntidOrLookupRefOrTempId::TempId(format!("{}{}", MENTAT_TEMPID_PREFIX, mentat_id_count))
         };
 
-        let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(stack.len());
+        let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(deque.len());
 
-        while let Some(entity) = stack.pop() {
+        while let Some(entity) = deque.pop_front() {
             match entity {
                 Entity::MapNotation(mut map_notation) => {
                     // :db/id is optional; if it's not given, we generate a special internal tempid
@@ -231,7 +232,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     // We're not nested, so :db/isComponent is not relevant.  We just explode the
                     // map notation.
                     for (a, v) in map_notation {
-                        stack.push(Entity::AddOrRetract {
+                        deque.push_front(Entity::AddOrRetract {
                             op: OpType::Add,
                             e: db_id.clone(),
                             a: a,
@@ -275,7 +276,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             }
 
                             for vv in vs {
-                                stack.push(Entity::AddOrRetract {
+                                deque.push_front(Entity::AddOrRetract {
                                     op: op.clone(),
                                     e: e.clone(),
                                     a: entmod::Entid::Entid(a),
@@ -328,7 +329,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                     dangling = false;
                                 }
 
-                                stack.push(Entity::AddOrRetract {
+                                deque.push_front(Entity::AddOrRetract {
                                     op: OpType::Add,
                                     e: db_id.clone(),
                                     a: entmod::Entid::Entid(inner_entid),
