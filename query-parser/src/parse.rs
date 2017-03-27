@@ -147,7 +147,7 @@ def_value_parser_fn!(Where, or_join, (), input, {
 def_value_parser_fn!(Where, rule_vars, Vec<Variable>, input, {
     satisfy_map(|x: edn::Value| {
         seq(x).and_then(|items| {
-            let mut p = (many1(Query::variable()), eof()).map(|(vars, _)| vars);
+            let mut p = many1(Query::variable()).skip(eof());
             Query::to_parsed_value(p.parse_lazy(&items[..]).into())
         })}).parse_stream(input)
 });
@@ -159,11 +159,10 @@ def_value_parser_fn!(Where, or_pattern_clause, OrWhereClause, input, {
 def_value_parser_fn!(Where, or_and_clause, OrWhereClause, input, {
     satisfy_map(|x: edn::Value| {
         seq(x).and_then(|items| {
-            let mut p = (Where::and(),
-                         many1(Where::clause()),
-                         eof()).map(|(_, clauses, _)| {
-                             OrWhereClause::And(clauses)
-                         });
+            let mut p = Where::and()
+                        .with(many1(Where::clause()))
+                        .skip(eof())
+                        .map(OrWhereClause::And);
             let r: ParseResult<OrWhereClause, _> = p.parse_lazy(&items[..]).into();
             Query::to_parsed_value(r)
         })
@@ -177,15 +176,16 @@ def_value_parser_fn!(Where, or_where_clause, OrWhereClause, input, {
 def_value_parser_fn!(Where, or_clause, WhereClause, input, {
     satisfy_map(|x: edn::Value| {
         seq(x).and_then(|items| {
-            let mut p = (Where::or(),
-                         many1(Where::or_where_clause()),
-                         eof()).map(|(_, clauses, _)| {
-                             WhereClause::OrJoin(
-                                OrJoin {
-                                    unify_vars: UnifyVars::Implicit,
-                                    clauses: clauses,
-                                })
-                         });
+            let mut p = Where::or()
+                        .with(many1(Where::or_where_clause()))
+                        .skip(eof())
+                        .map(|clauses| {
+                            WhereClause::OrJoin(
+                               OrJoin {
+                                   unify_vars: UnifyVars::Implicit,
+                                   clauses: clauses,
+                               })
+                        });
             let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
             Query::to_parsed_value(r)
         })
@@ -195,16 +195,17 @@ def_value_parser_fn!(Where, or_clause, WhereClause, input, {
 def_value_parser_fn!(Where, or_join_clause, WhereClause, input, {
     satisfy_map(|x: edn::Value| {
         seq(x).and_then(|items| {
-            let mut p = (Where::or_join(),
-                         Where::rule_vars(),
-                         many1(Where::or_where_clause()),
-                         eof()).map(|(_, vars, clauses, _)| {
-                             WhereClause::OrJoin(
-                                OrJoin {
-                                    unify_vars: UnifyVars::Explicit(vars),
-                                    clauses: clauses,
-                                })
-                         });
+            let mut p = Where::or_join()
+                        .with(Where::rule_vars())
+                        .and(many1(Where::or_where_clause()))
+                        .skip(eof())
+                        .map(|(vars, clauses)| {
+                            WhereClause::OrJoin(
+                               OrJoin {
+                                   unify_vars: UnifyVars::Explicit(vars),
+                                   clauses: clauses,
+                               })
+                        });
             let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
             Query::to_parsed_value(r)
         })
@@ -217,7 +218,9 @@ def_value_parser_fn!(Where, pred, WhereClause, input, {
         // Accept either a list or a vector here:
         // `[(foo ?x ?y)]` or `[[foo ?x ?y]]`
         unwrap_nested(x).and_then(|items| {
-            let mut p = (Query::predicate_fn(), Query::arguments(), eof()).map(|(f, args, _)| {
+            let mut p = (Query::predicate_fn(), Query::arguments())
+                        .skip(eof())
+                        .map(|(f, args)| {
                 WhereClause::Pred(
                     Predicate {
                         operator: f.0,
@@ -240,9 +243,9 @@ def_value_parser_fn!(Where, pattern, WhereClause, input, {
                          Where::pattern_non_value_place(),           // e
                          Where::pattern_non_value_place(),           // a
                          optional(Where::pattern_value_place()),     // v
-                         optional(Where::pattern_non_value_place()), // tx
-                         eof())
-                    .map(|(src, e, a, v, tx, _)| {
+                         optional(Where::pattern_non_value_place())) // tx
+                    .skip(eof())
+                    .map(|(src, e, a, v, tx)| {
                         let v = v.unwrap_or(PatternValuePlace::Placeholder);
                         let tx = tx.unwrap_or(PatternNonValuePlace::Placeholder);
 
@@ -276,8 +279,8 @@ def_value_parser_fn!(Where, pattern, WhereClause, input, {
 });
 
 def_value_parser_fn!(Query, arguments, Vec<FnArg>, input, {
-    (many::<Vec<FnArg>, _>(Query::fn_arg()), eof())
-        .map(|(args, _)| { args })
+    (many::<Vec<FnArg>, _>(Query::fn_arg()))
+    .skip(eof())
     .parse_stream(input)
 });
 
@@ -296,8 +299,8 @@ def_value_parser_fn!(Where, clause, WhereClause, input, {
 
 def_value_parser_fn!(Where, clauses, Vec<WhereClause>, input, {
     // Right now we only support patterns and predicates. See #239 for more.
-    (many1::<Vec<WhereClause>, _>(Where::clause()), eof())
-    .map(|(patterns, _)| { patterns })
+    (many1::<Vec<WhereClause>, _>(Where::clause()))
+    .skip(eof())
     .parse_stream(input)
 });
 
@@ -312,15 +315,19 @@ def_value_parser_fn!(Find, ellipsis, (), input, {
 });
 
 def_value_parser_fn!(Find, find_scalar, FindSpec, input, {
-    (Query::variable(), Find::period(), eof())
-        .map(|(var, _, _)| FindSpec::FindScalar(Element::Variable(var)))
+    Query::variable()
+        .skip(Find::period())
+        .skip(eof())
+        .map(|var| FindSpec::FindScalar(Element::Variable(var)))
         .parse_stream(input)
 });
 
 def_value_parser_fn!(Find, find_coll, FindSpec, input, {
     satisfy_unwrap!(edn::Value::Vector, y, {
-            let mut p = (Query::variable(), Find::ellipsis(), eof())
-                .map(|(var, _, _)| FindSpec::FindColl(Element::Variable(var)));
+            let mut p = Query::variable()
+                        .skip(Find::ellipsis())
+                        .skip(eof())
+                        .map(|var| FindSpec::FindColl(Element::Variable(var)));
             let r: ParseResult<FindSpec, _> = p.parse_lazy(&y[..]).into();
             Query::to_parsed_value(r)
         })
@@ -328,8 +335,8 @@ def_value_parser_fn!(Find, find_coll, FindSpec, input, {
 });
 
 def_value_parser_fn!(Find, elements, Vec<Element>, input, {
-    (many1::<Vec<Variable>, _>(Query::variable()), eof())
-        .map(|(vars, _)| {
+    many1::<Vec<Variable>, _>(Query::variable()).skip(eof())
+        .map(|vars| {
             vars.into_iter()
                 .map(Element::Variable)
                 .collect()
