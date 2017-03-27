@@ -541,21 +541,21 @@ pub struct FindQuery {
 }
 
 pub trait ContainsVariables {
-    fn acc_mentioned_variables(&self, acc: &mut BTreeSet<Variable>);
-    fn mentioned_variables(&self) -> BTreeSet<Variable> {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>);
+    fn collect_mentioned_variables(&self) -> BTreeSet<Variable> {
         let mut out = BTreeSet::new();
-        self.acc_mentioned_variables(&mut out);
+        self.accumulate_mentioned_variables(&mut out);
         out
     }
 }
 
 impl ContainsVariables for WhereClause {
-    fn acc_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         use WhereClause::*;
         match self {
-            &OrJoin(ref o)  => o.acc_mentioned_variables(acc),
-            &Pred(ref p)    => p.acc_mentioned_variables(acc),
-            &Pattern(ref p) => p.acc_mentioned_variables(acc),
+            &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
+            &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
+            &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
             &Not            => (),
             &NotJoin        => (),
             &WhereFn        => (),
@@ -565,25 +565,25 @@ impl ContainsVariables for WhereClause {
 }
 
 impl ContainsVariables for OrWhereClause {
-    fn acc_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         use OrWhereClause::*;
         match self {
-            &And(ref clauses) => for clause in clauses { clause.acc_mentioned_variables(acc) },
-            &Clause(ref clause) => clause.acc_mentioned_variables(acc),
+            &And(ref clauses) => for clause in clauses { clause.accumulate_mentioned_variables(acc) },
+            &Clause(ref clause) => clause.accumulate_mentioned_variables(acc),
         }
     }
 }
 
 impl ContainsVariables for OrJoin {
-    fn acc_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         for clause in &self.clauses {
-            clause.acc_mentioned_variables(acc);
+            clause.accumulate_mentioned_variables(acc);
         }
     }
 }
 
 impl ContainsVariables for Predicate {
-    fn acc_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         for arg in &self.args {
             if let &FnArg::Variable(ref v) = arg {
                 acc_ref(acc, v)
@@ -600,7 +600,7 @@ fn acc_ref<T: Clone + Ord>(acc: &mut BTreeSet<T>, v: &T) {
 }
 
 impl ContainsVariables for Pattern {
-    fn acc_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         if let PatternNonValuePlace::Variable(ref v) = self.entity {
             acc_ref(acc, v)
         }
