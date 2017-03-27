@@ -125,15 +125,13 @@ mod tests {
                         :where (or [?artist :artist/type :artist.type/group]
                                    (and [?artist :artist/type :artist.type/person]
                                         [?artist :artist/gender :artist.gender/female]))]"#;
-        let parsed = parse_find_string(query).unwrap();
+        let parsed = parse_find_string(query).expect("expected successful parse");
         let clauses = valid_or_join(parsed, UnifyVars::Implicit);
 
         // Let's do some detailed parse checks.
         let mut arms = clauses.into_iter();
         match (arms.next(), arms.next(), arms.next()) {
-            (Some(left),
-            Some(right),
-            None) => {
+            (Some(left), Some(right), None) => {
                 assert_eq!(
                     left,
                     OrWhereClause::Clause(WhereClause::Pattern(Pattern {
@@ -173,8 +171,8 @@ mod tests {
         let query = r#"[:find [?artist ...]
                         :where (or [?artist :artist/type :artist.type/group]
                                    [?artist :artist/type ?type])]"#;
-        let parsed = parse_find_string(query).unwrap();
-        match parsed.where_clauses.into_iter().next().unwrap() {
+        let parsed = parse_find_string(query).expect("expected successful parse");
+        match parsed.where_clauses.into_iter().next().expect("expected at least one clause") {
             WhereClause::OrJoin(or_join) => assert!(validate_or_join(&or_join).is_err()),
             _ => panic!(),
         }
@@ -189,15 +187,13 @@ mod tests {
                                    [?artist :artist/type :artist.type/group]
                                    (and [?artist :artist/type ?type]
                                         [?type :artist/role :artist.role/parody]))]"#;
-        let parsed = parse_find_string(query).unwrap();
+        let parsed = parse_find_string(query).expect("expected successful parse");
         let clauses = valid_or_join(parsed, UnifyVars::Explicit(vec![Variable(PlainSymbol::new("?artist"))]));
 
         // Let's do some detailed parse checks.
         let mut arms = clauses.into_iter();
         match (arms.next(), arms.next(), arms.next()) {
-            (Some(left),
-            Some(right),
-            None) => {
+            (Some(left), Some(right), None) => {
                 assert_eq!(
                     left,
                     OrWhereClause::Clause(WhereClause::Pattern(Pattern {
