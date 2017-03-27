@@ -13,7 +13,6 @@ use std::collections::BTreeSet;
 use mentat_query::{
     ContainsVariables,
     OrJoin,
-    Pattern,
     Variable,
     WhereClause,
     UnifyVars,
@@ -54,9 +53,9 @@ pub fn validate_or_join(or_join: &OrJoin) -> Result<()> {
                 Ok(())
             } else {
                 let mut clauses = or_join.clauses.iter();
-                let template = clauses.next().unwrap().mentioned_variables();
+                let template = clauses.next().unwrap().collect_mentioned_variables();
                 for clause in clauses {
-                    if template != clause.mentioned_variables() {
+                    if template != clause.collect_mentioned_variables() {
                         bail!(ErrorKind::NonMatchingVariablesInOrClause);
                     }
                 }
@@ -67,7 +66,7 @@ pub fn validate_or_join(or_join: &OrJoin) -> Result<()> {
             // Each leg must use the joined vars.
             let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
             for clause in &or_join.clauses {
-                if !var_set.is_subset(&clause.mentioned_variables()) {
+                if !var_set.is_subset(&clause.collect_mentioned_variables()) {
                     bail!(ErrorKind::NonMatchingVariablesInOrClause);
                 }
             }
