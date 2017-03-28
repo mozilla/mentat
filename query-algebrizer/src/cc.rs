@@ -76,11 +76,11 @@ pub fn default_table_aliaser() -> TableAliaser {
 }
 
 trait OptionEffect<T> {
-    fn when_not<F: FnOnce()>(self, f: F) -> Option<T>;
+    fn when_not<F: FnOnce()>(self, f: F) -> Self;
 }
 
 impl<T> OptionEffect<T> for Option<T> {
-    fn when_not<F: FnOnce()>(self, f: F) -> Option<T> {
+    fn when_not<F: FnOnce()>(self, f: F) -> Self {
         if self.is_none() {
             f();
         }
