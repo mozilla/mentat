@@ -465,8 +465,11 @@ mod test {
     :db/component true }, ]"#;
         let expected_value = edn::parse::value(&expected_output).expect("to be able to parse").without_spans();
         assert_eq!(expected_value, value);
-    }
 
+        // let's compare the whole thing again, just to make sure we are not changing anything when we convert to edn.
+        let value2 = schema.to_edn_value();
+        assert_eq!(expected_value, value2);
+    }
 }
 
 pub mod intern_set;
