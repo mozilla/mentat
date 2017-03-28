@@ -173,6 +173,9 @@ impl Debug for EmptyBecause {
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")
             },
+            &NonStringFulltextValue => {
+                write!(f, "Non-string argument for fulltext attribute")
+            },
             &UnresolvedIdent(ref kw) => {
                 write!(f, "Couldn't resolve keyword {}", kw)
             },
