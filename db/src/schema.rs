@@ -250,3 +250,88 @@ impl SchemaTypeChecking for Schema {
         }
     }
 }
+
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use self::edn::NamespacedKeyword;
+
+    fn add_attribute(schema: &mut Schema, 
+            ident: NamespacedKeyword, 
+            entid: Entid, 
+            index: bool,
+            value_type: ValueType,
+            fulltext: bool,
+            unique: Option<attribute::Unique>,
+            multival: bool,
+            component: bool) {
+
+        schema.entid_map.insert(entid, ident.clone());
+        schema.ident_map.insert(ident.clone(), entid);
+
+        schema.schema_map.insert(entid, Attribute {
+            index: index,
+            value_type: value_type,
+            fulltext: fulltext,
+            unique: unique,
+            multival: multival,
+            component: component,
+        });
+    }
+
+    #[test]
+    fn validate_schema_map_success() {
+        let mut schema = Schema::default();
+        // attribute that is not an index has no uniqueness
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 97, false, ValueType::Boolean, false, None, false, false);
+        // attribute is unique by value and an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "baz"), 98, true, ValueType::Long, false, Some(attribute::Unique::Value), false, false);
+        // attribue is unique by identity and an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bat"), 99, true, ValueType::Ref, false, Some(attribute::Unique::Identity), false, false);
+        // attribute is a components and a `Ref`
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bak"), 100, false, ValueType::Ref, false, None, false, true);
+        // fulltext attribute is a string and an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bap"), 101, true, ValueType::String, true, None, false, false);
+
+        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_ok());
+    }
+
+    #[test]
+    fn invalid_schema_unique_not_index() {
+        let mut schema = Schema::default();
+        // attribute unique by value but not index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 97, false, ValueType::Boolean, false, Some(attribute::Unique::Value), false, false);
+        // attribute is unique by identity but not index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "baz"), 98, false, ValueType::Long, false, Some(attribute::Unique::Identity), false, false);
+        
+        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_err());
+    }
+
+    #[test]
+    fn invalid_schema_component_not_ref() {
+        let mut schema = Schema::default();
+        // attribute that is a component is not a `Ref`
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 97, false, ValueType::Boolean, false, None, false, true);
+        
+        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_err());
+    }
+
+    #[test]
+    fn invalid_schema_fulltext_not_index() {
+        let mut schema = Schema::default();
+        // attribute that is fulltext is not an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bap"), 101, false, ValueType::String, true, None, false, false);
+        
+        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_err());
+    }
+
+    fn invalid_schema_fulltext_index_not_string() {
+        let mut schema = Schema::default();
+        // attribute that is fulltext and not a `String`
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bap"), 101, true, ValueType::Long, true, None, false, false);
+        
+        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_err());
+    }
+}
