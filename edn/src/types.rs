@@ -77,6 +77,37 @@ pub struct ValueAndSpan {
     pub span: Span,
 }
 
+impl ValueAndSpan {
+    pub fn new<I>(spanned_value: SpannedValue, span: I) -> ValueAndSpan where I: Into<Option<Span>> {
+        ValueAndSpan {
+            inner: spanned_value,
+            span: span.into().unwrap_or(Span(0, 0)), // Think about this.
+        }
+    }
+
+    pub fn into_atom(self) -> Option<ValueAndSpan> {
+        if self.inner.is_atom() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_text(self) -> Option<String> {
+        self.inner.into_text()
+    }
+}
+
+impl Value {
+    pub fn with_spans(self) -> ValueAndSpan {
+        let s = self.to_pretty(120).unwrap();
+        use ::parse;
+        let with_spans = parse::value(&s).unwrap();
+        assert_eq!(self, with_spans.clone().without_spans());
+        with_spans
+    }
+}
+
 impl From<SpannedValue> for Value {
     fn from(src: SpannedValue) -> Value {
         match src {
