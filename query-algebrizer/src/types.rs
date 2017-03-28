@@ -194,6 +194,90 @@ pub enum ColumnConstraint {
     HasType(TableAlias, ValueType),
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum ColumnConstraintOrAlternation {
+    Constraint(ColumnConstraint),
+    Alternation(ColumnAlternation),
+}
+
+impl From<ColumnConstraint> for ColumnConstraintOrAlternation {
+    fn from(thing: ColumnConstraint) -> Self {
+        ColumnConstraintOrAlternation::Constraint(thing)
+    }
+}
+
+/// A `ColumnIntersection` constraint is satisfied if all of its inner constraints are satisfied.
+/// An empty intersection is always satisfied.
+#[derive(PartialEq, Eq)]
+pub struct ColumnIntersection(pub Vec<ColumnConstraintOrAlternation>);
+
+impl From<Vec<ColumnConstraint>> for ColumnIntersection {
+    fn from(thing: Vec<ColumnConstraint>) -> Self {
+        ColumnIntersection(thing.into_iter().map(|x| x.into()).collect())
+    }
+}
+
+impl Default for ColumnIntersection {
+    fn default() -> Self {
+        ColumnIntersection(vec![])
+    }
+}
+
+impl IntoIterator for ColumnIntersection {
+    type Item = ColumnConstraintOrAlternation;
+    type IntoIter = ::std::vec::IntoIter<ColumnConstraintOrAlternation>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl ColumnIntersection {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn also(&mut self, constraint: ColumnConstraint) {
+        self.0.push(ColumnConstraintOrAlternation::Constraint(constraint));
+    }
+}
+
+/// A `ColumnAlternation` constraint is satisfied if at least one of its inner constraints is
+/// satisfied. An empty `ColumnAlternation` is never satisfied.
+#[derive(PartialEq, Eq, Debug)]
+pub struct ColumnAlternation(pub Vec<ColumnIntersection>);
+
+impl Default for ColumnAlternation {
+    fn default() -> Self {
+        ColumnAlternation(vec![])
+    }
+}
+
+impl IntoIterator for ColumnAlternation {
+    type Item = ColumnIntersection;
+    type IntoIter = ::std::vec::IntoIter<ColumnIntersection>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl ColumnAlternation {
+    pub fn instead(&mut self, intersection: ColumnIntersection) {
+        self.0.push(intersection);
+    }
+}
+
+impl Debug for ColumnIntersection {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
 impl Debug for ColumnConstraint {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::ColumnConstraint::*;

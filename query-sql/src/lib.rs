@@ -81,6 +81,9 @@ pub enum Constraint {
         left: ColumnOrExpression,
         right: ColumnOrExpression,
     },
+    Or {
+        constraints: Vec<Constraint>,
+    },
     And {
         constraints: Vec<Constraint>,
     },
@@ -260,6 +263,11 @@ impl QueryFragment for Constraint {
             },
 
             &And { ref constraints } => {
+                // An empty intersection is true.
+                if constraints.is_empty() {
+                    out.push_sql("1");
+                    return Ok(())
+                }
                 out.push_sql("(");
                 interpose!(constraint, constraints,
                            { constraint.push_sql(out)? },
@@ -267,6 +275,20 @@ impl QueryFragment for Constraint {
                 out.push_sql(")");
                 Ok(())
             },
+
+            &Or { ref constraints } => {
+                // An empty alternation is false.
+                if constraints.is_empty() {
+                    out.push_sql("0");
+                    return Ok(())
+                }
+                out.push_sql("(");
+                interpose!(constraint, constraints,
+                           { constraint.push_sql(out)? },
+                           { out.push_sql(" OR ") });
+                out.push_sql(")");
+                Ok(())
+            }
 
             &In { ref left, ref list } => {
                 left.push_sql(out)?;
