@@ -81,7 +81,7 @@ impl ValueAndSpan {
     pub fn new<I>(spanned_value: SpannedValue, span: I) -> ValueAndSpan where I: Into<Option<Span>> {
         ValueAndSpan {
             inner: spanned_value,
-            span: span.into().unwrap_or(Span(0, 0)), // Think about this.
+            span: span.into().unwrap_or(Span(0, 0)), // TODO: consider if this has implications.
         }
     }
 
@@ -99,6 +99,9 @@ impl ValueAndSpan {
 }
 
 impl Value {
+    /// For debug use only!
+    ///
+    /// But right now, it's used in the bootstrapper.  We'll fix that soon.
     pub fn with_spans(self) -> ValueAndSpan {
         let s = self.to_pretty(120).unwrap();
         use ::parse;
