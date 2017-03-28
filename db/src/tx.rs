@@ -254,13 +254,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
                     let v = match v {
                         entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
-                            if attribute.value_type == ValueType::Ref && v.is_text() {
-                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.as_text().cloned().map(TempId::External).unwrap())))
+                            if attribute.value_type == ValueType::Ref && v.inner.is_text() {
+                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.inner.as_text().cloned().map(TempId::External).unwrap())))
                             } else {
                                 // Here is where we do schema-aware typechecking: we either assert that
                                 // the given value is in the attribute's value set, or (in limited
                                 // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.schema.to_typed_value(&v, &attribute)?;
+                                let typed_value: TypedValue = self.schema.to_typed_value(&v.without_spans(), &attribute)?;
                                 Either::Left(typed_value)
                             }
                         },

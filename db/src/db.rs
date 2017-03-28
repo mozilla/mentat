@@ -1125,8 +1125,8 @@ mod tests {
 
         fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
             // Failure to parse the transaction is a coding error, so we unwrap.
-            let assertions = edn::parse::value(transaction.borrow()).expect(format!("to be able to parse {} into EDN", transaction.borrow()).as_str()).without_spans();
-            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&[assertions.clone()][..]).expect(format!("to be able to parse {} into entities", assertions).as_str());
+            let assertions = edn::parse::value(transaction.borrow()).expect(format!("to be able to parse {} into EDN", transaction.borrow()).as_str());
+            let entities: Vec<_> = mentat_tx_parser::Tx::parse(assertions.clone()).expect(format!("to be able to parse {} into entities", assertions).as_str());
 
             let details = {
                 // The block scopes the borrow of self.sqlite.
