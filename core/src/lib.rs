@@ -243,10 +243,10 @@ impl Attribute {
 
         attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
 
-        if self.unique == Some(attribute::Unique::Value) {
-            attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_VALUE.clone());
-        } else if self.unique == Some(attribute::Unique::Identity) {
-            attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone());
+        match self.unique {
+            Some(attribute::Unique::Value) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_VALUE.clone()); },
+            Some(attribute::Unique::Identity) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone()); },
+            None => (), 
         }
         
         if self.index {
@@ -344,7 +344,7 @@ impl Schema {
 
     /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
     pub fn to_edn_value(&self) -> edn::Value {
-        edn::Value::Vector((&self.schema_map).into_iter()
+        edn::Value::Vector((&self.schema_map).iter()
             .map(|(entid, attribute)| 
                 attribute.to_edn_value(self.get_ident(*entid).cloned()))
             .collect())
