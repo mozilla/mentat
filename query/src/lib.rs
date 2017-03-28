@@ -504,10 +504,29 @@ pub enum UnifyVars {
     Explicit(Vec<Variable>),
 }
 
+impl WhereClause {
+    pub fn is_pattern(&self) -> bool {
+        match self {
+            &WhereClause::Pattern(_) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OrWhereClause {
     Clause(WhereClause),
     And(Vec<WhereClause>),
+}
+
+impl OrWhereClause {
+    pub fn is_pattern_or_patterns(&self) -> bool {
+        match self {
+            &OrWhereClause::Clause(WhereClause::Pattern(_)) => true,
+            &OrWhereClause::And(ref clauses) => clauses.iter().all(|clause| clause.is_pattern()),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
