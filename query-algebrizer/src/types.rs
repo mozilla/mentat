@@ -295,11 +295,12 @@ impl Debug for ColumnConstraint {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
     // Var, existing, desired.
     TypeMismatch(Variable, HashSet<ValueType>, ValueType),
     NonNumericArgument,
+    NonStringFulltextValue,
     UnresolvedIdent(NamespacedKeyword),
     InvalidAttributeIdent(NamespacedKeyword),
     InvalidAttributeEntid(Entid),
