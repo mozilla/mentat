@@ -53,6 +53,7 @@ use types::{
     ColumnConstraint,
     DatomsColumn,
     DatomsTable,
+    EmptyBecause,
     NumericComparison,
     QualifiedAlias,
     QueryValue,
@@ -158,19 +159,6 @@ pub struct ConjoiningClauses {
     /// A mapping, similar to `column_bindings`, but used to pull type tags out of the store at runtime.
     /// If a var isn't present in `known_types`, it should be present here.
     extracted_types: BTreeMap<Variable, QualifiedAlias>,
-}
-
-#[derive(PartialEq)]
-pub enum EmptyBecause {
-    // Var, existing, desired.
-    TypeMismatch(Variable, HashSet<ValueType>, ValueType),
-    NonNumericArgument,
-    UnresolvedIdent(NamespacedKeyword),
-    InvalidAttributeIdent(NamespacedKeyword),
-    InvalidAttributeEntid(Entid),
-    InvalidBinding(DatomsColumn, TypedValue),
-    ValueTypeMismatch(ValueType, TypedValue),
-    AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
 }
 
 impl Debug for EmptyBecause {

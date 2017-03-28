@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::collections::HashSet;
+
 use std::fmt::{
     Debug,
     Formatter,
@@ -19,6 +21,12 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
+
+use mentat_query::{
+    NamespacedKeyword,
+    Variable,
+};
+
 /// This enum models the fixed set of default tables we have -- two
 /// tables and two views.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -203,4 +211,17 @@ impl Debug for ColumnConstraint {
             },
         }
     }
+}
+
+#[derive(PartialEq)]
+pub enum EmptyBecause {
+    // Var, existing, desired.
+    TypeMismatch(Variable, HashSet<ValueType>, ValueType),
+    NonNumericArgument,
+    UnresolvedIdent(NamespacedKeyword),
+    InvalidAttributeIdent(NamespacedKeyword),
+    InvalidAttributeEntid(Entid),
+    InvalidBinding(DatomsColumn, TypedValue),
+    ValueTypeMismatch(ValueType, TypedValue),
+    AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
 }
