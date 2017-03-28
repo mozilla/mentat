@@ -51,6 +51,7 @@ use errors::{
 
 use types::{
     ColumnConstraint,
+    ColumnIntersection,
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
@@ -129,7 +130,7 @@ pub struct ConjoiningClauses {
     pub from: Vec<SourceAlias>,
 
     /// A list of fragments that can be joined by `AND`.
-    pub wheres: Vec<ColumnConstraint>,
+    pub wheres: ColumnIntersection,
 
     /// A map from var to qualified columns. Used to project.
     pub column_bindings: BTreeMap<Variable, Vec<QualifiedAlias>>,
@@ -218,7 +219,7 @@ impl Default for ConjoiningClauses {
             empty_because: None,
             aliaser: default_table_aliaser(),
             from: vec![],
-            wheres: vec![],
+            wheres: ColumnIntersection::default(),
             input_variables: BTreeSet::new(),
             column_bindings: BTreeMap::new(),
             value_bindings: BTreeMap::new(),
@@ -318,11 +319,11 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_column_to_constant(&mut self, table: TableAlias, column: DatomsColumn, constant: TypedValue) {
-        self.wheres.push(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+        self.wheres.also(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
     }
 
     pub fn constrain_column_to_entity(&mut self, table: TableAlias, column: DatomsColumn, entity: Entid) {
-        self.wheres.push(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
+        self.wheres.also(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
     }
 
     pub fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
@@ -330,7 +331,7 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
-        self.wheres.push(ColumnConstraint::Equals(
+        self.wheres.also(ColumnConstraint::Equals(
             QualifiedAlias(table, DatomsColumn::Value),
             QueryValue::PrimitiveLong(value)))
     }
@@ -577,7 +578,7 @@ impl ConjoiningClauses {
                     // TODO: if both primary and secondary are .v, should we make sure
                     // the type tag columns also match?
                     // We don't do so in the ClojureScript version.
-                    self.wheres.push(ColumnConstraint::Equals(primary.clone(), QueryValue::Column(secondary.clone())));
+                    self.wheres.also(ColumnConstraint::Equals(primary.clone(), QueryValue::Column(secondary.clone())));
                 }
             }
         }
@@ -827,7 +828,7 @@ impl ConjoiningClauses {
                 } else {
                     // It must be a keyword.
                     self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, TypedValue::Keyword(kw.clone()));
-                    self.wheres.push(ColumnConstraint::HasType(col.clone(), ValueType::Keyword));
+                    self.wheres.also(ColumnConstraint::HasType(col.clone(), ValueType::Keyword));
                 };
             },
             PatternValuePlace::Constant(ref c) => {
@@ -863,7 +864,7 @@ impl ConjoiningClauses {
                 // Because everything we handle here is unambiguous, we generate a single type
                 // restriction from the value type of the typed value.
                 if value_type.is_none() {
-                    self.wheres.push(ColumnConstraint::HasType(col.clone(), typed_value_type));
+                    self.wheres.also(ColumnConstraint::HasType(col.clone(), typed_value_type));
                 }
 
             },
@@ -941,7 +942,7 @@ impl ConjoiningClauses {
             left: left,
             right: right,
         };
-        self.wheres.push(constraint);
+        self.wheres.also(constraint);
         Ok(())
     }
 }
@@ -1059,7 +1060,7 @@ mod testing {
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_a, QueryValue::Entid(99)),
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
-        ]);
+        ].into());
     }
 
     #[test]
@@ -1097,7 +1098,7 @@ mod testing {
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
                    ColumnConstraint::HasType("datoms00".to_string(), ValueType::Boolean),
-        ]);
+        ].into());
     }
 
     /// This test ensures that we do less work if we know the attribute thanks to a var lookup.
@@ -1140,7 +1141,7 @@ mod testing {
         assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_a, QueryValue::Entid(99)),
-        ]);
+        ].into());
     }
 
     /// Queries that bind non-entity values to entity places can't return results.
@@ -1198,7 +1199,7 @@ mod testing {
 
         // ?x is bound to datoms0.e.
         assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
-        assert_eq!(cc.wheres, vec![]);
+        assert_eq!(cc.wheres, vec![].into());
     }
 
     /// This test ensures that we query all_datoms if we're looking for a string.
@@ -1237,7 +1238,7 @@ mod testing {
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("hello".to_string()))),
                    ColumnConstraint::HasType("all_datoms00".to_string(), ValueType::String),
-        ]);
+        ].into());
     }
 
     #[test]
@@ -1310,7 +1311,7 @@ mod testing {
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("idgoeshere".to_string()))),
                    ColumnConstraint::Equals(d1_a, QueryValue::Entid(99)),
                    ColumnConstraint::Equals(d0_e, QueryValue::Column(d1_e)),
-        ]);
+        ].into());
     }
 
     #[test]
@@ -1346,7 +1347,7 @@ mod testing {
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_a, QueryValue::Entid(99)),
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
-        ]);
+        ].into());
 
         // There is no binding for ?y.
         assert!(!cc.column_bindings.contains_key(&y));
@@ -1466,11 +1467,11 @@ mod testing {
 
         let clauses = cc.wheres;
         assert_eq!(clauses.len(), 1);
-        assert_eq!(clauses[0], ColumnConstraint::NumericInequality {
+        assert_eq!(clauses.0[0], ColumnConstraint::NumericInequality {
             operator: NumericComparison::LessThan,
             left: QueryValue::Column(cc.column_bindings.get(&y).unwrap()[0].clone()),
             right: QueryValue::TypedValue(TypedValue::Long(10)),
-        });
+        }.into());
     }
 
     #[test]

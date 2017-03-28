@@ -93,7 +93,10 @@ pub use cc::{
 };
 
 pub use types::{
+    ColumnAlternation,
     ColumnConstraint,
+    ColumnConstraintOrAlternation,
+    ColumnIntersection,
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,

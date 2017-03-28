@@ -81,6 +81,9 @@ pub enum Constraint {
         left: ColumnOrExpression,
         right: ColumnOrExpression,
     },
+    Or {
+        constraints: Vec<Constraint>,
+    },
     And {
         constraints: Vec<Constraint>,
     },
@@ -267,6 +270,15 @@ impl QueryFragment for Constraint {
                 out.push_sql(")");
                 Ok(())
             },
+
+            &Or { ref constraints } => {
+                out.push_sql("(");
+                interpose!(constraint, constraints,
+                           { constraint.push_sql(out)? },
+                           { out.push_sql(" OR ") });
+                out.push_sql(")");
+                Ok(())
+            }
 
             &In { ref left, ref list } => {
                 left.push_sql(out)?;
