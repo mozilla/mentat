@@ -14,7 +14,6 @@ use mentat_query::{
     ContainsVariables,
     OrJoin,
     Variable,
-    WhereClause,
     UnifyVars,
 };
 
@@ -89,7 +88,6 @@ mod tests {
         PatternNonValuePlace,
         PatternValuePlace,
         PlainSymbol,
-        SrcVar,
         UnifyVars,
         Variable,
         WhereClause,
