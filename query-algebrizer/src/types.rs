@@ -310,3 +310,40 @@ pub enum EmptyBecause {
     ValueTypeMismatch(ValueType, TypedValue),
     AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
 }
+
+impl Debug for EmptyBecause {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        use self::EmptyBecause::*;
+        match self {
+            &TypeMismatch(ref var, ref existing, ref desired) => {
+                write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
+                       var, desired, existing)
+            },
+            &NonNumericArgument => {
+                write!(f, "Non-numeric argument in numeric place")
+            },
+            &NonStringFulltextValue => {
+                write!(f, "Non-string argument for fulltext attribute")
+            },
+            &UnresolvedIdent(ref kw) => {
+                write!(f, "Couldn't resolve keyword {}", kw)
+            },
+            &InvalidAttributeIdent(ref kw) => {
+                write!(f, "{} does not name an attribute", kw)
+            },
+            &InvalidAttributeEntid(entid) => {
+                write!(f, "{} is not an attribute", entid)
+            },
+            &InvalidBinding(ref column, ref tv) => {
+                write!(f, "{:?} cannot name column {:?}", tv, column)
+            },
+            &ValueTypeMismatch(value_type, ref typed_value) => {
+                write!(f, "Type mismatch: {:?} doesn't match attribute type {:?}",
+                       typed_value, value_type)
+            },
+            &AttributeLookupFailed => {
+                write!(f, "Attribute lookup failed")
+            },
+        }
+    }
+}
