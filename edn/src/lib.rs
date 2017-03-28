@@ -26,5 +26,5 @@ pub mod parse {
 pub use num::BigInt;
 pub use ordered_float::OrderedFloat;
 pub use parse::ParseError;
-pub use types::Value;
+pub use types::{Span, SpannedValue, Value, ValueAndSpan};
 pub use symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};
