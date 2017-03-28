@@ -244,6 +244,8 @@ impl Attribute {
         attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
 
         if self.unique == Some(attribute::Unique::Value) {
+            attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_VALUE.clone());
+        } else if self.unique == Some(attribute::Unique::Identity) {
             attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone());
         }
         
@@ -454,11 +456,12 @@ mod test {
 {   :db/ident     :foo/bas
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/many
-    :db/unique :db.unique/identity
+    :db/unique :db.unique/value
     :db/fulltext true },
 {   :db/ident     :foo/bat
     :db/valueType :db.type/boolean
     :db/cardinality :db.cardinality/one
+    :db/unique :db.unique/identity
     :db/component true }, ]"#;
         let expected_value = edn::parse::value(&expected_output).expect("to be able to parse").without_spans();
         assert_eq!(expected_value, value);
