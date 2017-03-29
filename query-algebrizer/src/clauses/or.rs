@@ -90,24 +90,28 @@ pub enum DeconstructedOrJoin {
 
 /// Application of `or`. Note that this is recursive!
 impl ConjoiningClauses {
+    fn apply_or_where_clause(&mut self, schema: &Schema, clause: OrWhereClause) -> Result<()> {
+        match clause {
+            OrWhereClause::Clause(clause) => self.apply_clause(schema, clause),
+
+            // A query might be:
+            // [:find ?x :where (or (and [?x _ 5] [?x :foo/bar 7]))]
+            // which is equivalent to dropping the `or` _and_ the `and`!
+            OrWhereClause::And(clauses) => {
+                for clause in clauses {
+                    self.apply_clause(schema, clause)?;
+                }
+                Ok(())
+            },
+        }
+    }
+
     fn apply_or_join(&mut self, schema: &Schema, mut or_join: OrJoin) -> Result<()> {
         // Simple optimization. Empty `or` clauses disappear. Unit `or` clauses
         // are equivalent to just the inner clause.
         match or_join.clauses.len() {
             0 => Ok(()),
-            1 => match or_join.clauses.pop().unwrap() {
-                OrWhereClause::Clause(clause) => self.apply_clause(schema, clause),
-
-                // A query might be:
-                // [:find ?x :where (or (and [?x _ 5] [?x :foo/bar 7]))]
-                // which is equivalent to dropping the `or` _and_ the `and`!
-                OrWhereClause::And(clauses) => {
-                    for clause in clauses {
-                        self.apply_clause(schema, clause)?;
-                    }
-                    Ok(())
-                },
-            },
+            1 => self.apply_or_where_clause(schema, or_join.clauses.pop().unwrap()),
             _ => self.apply_non_trivial_or_join(schema, or_join),
         }
     }
@@ -122,7 +126,7 @@ impl ConjoiningClauses {
     ///
     /// Like this:
     ///
-    /// ```
+    /// ```edn
     /// [:find ?x
     ///  :where (or [?x :foo/knows "John"]
     ///             [?x :foo/parent "Ámbar"]
@@ -133,7 +137,7 @@ impl ConjoiningClauses {
     /// - No patterns can match: the enclosing CC is known-empty.
     /// - Some patterns can't match: they are discarded.
     /// - Only one pattern can match: the `or` can be simplified away.
-    fn deconstruct_or_join(&self, schema: &Schema, mut or_join: OrJoin) -> DeconstructedOrJoin {
+    fn deconstruct_or_join(&self, schema: &Schema, or_join: OrJoin) -> DeconstructedOrJoin {
         // If we have explicit non-maximal unify-vars, we *can't* simply run this as a
         // single pattern --
         // ```
@@ -157,12 +161,19 @@ impl ConjoiningClauses {
 
             // It's safe to simply 'leak' the entire clause, because we know every var in it is
             // supposed to unify with the enclosing form.
-            1 => DeconstructedOrJoin::Unit(or_join.clauses.pop().unwrap()),
+            1 => DeconstructedOrJoin::Unit(or_join.clauses.into_iter().next().unwrap()),
             _ => self._deconstruct_or_join(schema, or_join),
         }
     }
 
-    fn _deconstruct_or_join(&self, schema: &Schema, mut or_join: OrJoin) -> DeconstructedOrJoin {
+    /// This helper does the work of taking a known-non-trivial `or` or `or-join`,
+    /// walking the contained patterns to decide whether it can be translated simply
+    /// -- as a collection of constraints on a single table alias -- or if it needs to
+    /// be implemented as a `UNION`.
+    ///
+    /// See the description of `deconstruct_or_join` for more details. This method expects
+    /// to be called _only_ by `deconstruct_or_join`.
+    fn _deconstruct_or_join(&self, schema: &Schema, or_join: OrJoin) -> DeconstructedOrJoin {
         // Preconditions enforced by `deconstruct_or_join`.
         assert_eq!(or_join.unify_vars, UnifyVars::Implicit);
         assert!(or_join.clauses.len() >= 2);
@@ -202,18 +213,17 @@ impl ConjoiningClauses {
                     },
                     Ok(table) => {
                         // Check the shape of the pattern against a previous pattern.
-                        let same_shape: bool;
-                        if patterns.is_empty() {
-                            same_shape = true;
-                        } else {
-                            let template = patterns.get(0);
-                            same_shape =
+                        let same_shape =
+                            if let Some(template) = patterns.get(0) {
                                 template.source == p.source &&     // or-arms all use the same source anyway.
                                 _simply_matches_place(&template.entity, &p.entity) &&
                                 _simply_matches_place(&template.attribute, &p.attribute) &&
                                 _simply_matches_value_place(&template.value, &p.value) &&
-                                _simply_matches_place(&template.tx, &p.tx);
-                        }
+                                _simply_matches_place(&template.tx, &p.tx)
+                            } else {
+                                // No previous pattern.
+                                true
+                            };
 
                         // All of our clauses that _do_ yield a table -- that are possible --
                         // must use the same table in order for this to be a simple `or`!
@@ -271,25 +281,23 @@ impl ConjoiningClauses {
         assert!(or_join.clauses.len() >= 2);
 
         match self.deconstruct_or_join(schema, or_join) {
+            DeconstructedOrJoin::KnownSuccess => {
+                // The pattern came to us empty -- `(or)`. Do nothing.
+                Ok(())
+            },
             DeconstructedOrJoin::KnownEmpty(reason) => {
                 // There were no arms of the join that could be mapped to a table.
-                // The entire `or` can yield no results.
+                // The entire `or`, and thus the CC, cannot yield results.
                 self.mark_known_empty(reason);
                 Ok(())
             },
-            DeconstructedOrJoin::KnownSuccess => {
-                // Do nothing.
-                Ok(())
-            },
             DeconstructedOrJoin::Unit(clause) => {
-                // There was only one clause. If we're unifying all variables, we can just apply here.
-                // Otherwise, we need a partial join against the rest of the CC.
-                // TODO
-                Ok(())
+                // There was only one clause. We're unifying all variables, so we can just apply here.
+                self.apply_or_where_clause(schema, clause)
             },
             DeconstructedOrJoin::UnitPattern(pattern) => {
                 // Same, but simpler.
-                // TODO
+                self.apply_pattern(schema, pattern);
                 Ok(())
             },
             DeconstructedOrJoin::Simple(patterns) => {
@@ -299,9 +307,9 @@ impl ConjoiningClauses {
                 // TODO
                 self.apply_simple_or_join(schema, patterns)
             },
-            DeconstructedOrJoin::Complex(or_join) => {
+            DeconstructedOrJoin::Complex(_) => {
                 // Do this the hard way. TODO
-                Ok(())
+                unimplemented!();
             },
         }
     }
@@ -340,6 +348,7 @@ impl ConjoiningClauses {
         // Each constant attribute might _expand_ the set of possible types of the value-place
         // variable. We thus generate a set of possible types, and we intersect it with the
         // types already possible in the CC. If the resultant set is empty, the pattern cannot match.
+        // If the final set isn't unit, we must project a type tag column.
         // If one of the alternations requires a type that is impossible in the CC, then we can
         // discard that alternate:
         //
@@ -361,6 +370,13 @@ impl ConjoiningClauses {
         // Similarly, if the value place is constant, it must be of a type that doesn't determine
         // a different table for any of the patterns.
         // TODO
+
+        // Begin by building a base CC that we'll use to produce constraints from each pattern.
+        // Populate this base CC with whatever variables are already known from the CC to which
+        // we're applying this `or`.
+        // This will give us any applicable type constraints or column mappings.
+        // Then generate a single table alias, based on the first pattern, and use that to make any
+        // new variable mappings we will need to extract values.
         Ok(())
     }
 }
