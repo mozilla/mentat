@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::rc::Rc;
+
 use mentat_core::{
     TypedValue,
 };
@@ -46,7 +48,7 @@ impl ConjoiningClauses {
                 self.column_bindings
                     .get(&var)
                     .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
             },
             // Can't be an entid.
             EntidOrInteger(i) => Ok(QueryValue::TypedValue(TypedValue::Long(i))),
@@ -73,13 +75,13 @@ impl ConjoiningClauses {
                 self.column_bindings
                     .get(&var)
                     .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var)))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
             },
             EntidOrInteger(i) => Ok(QueryValue::PrimitiveLong(i)),
             Ident(_) => unimplemented!(),     // TODO
             Constant(NonIntegerConstant::Boolean(val)) => Ok(QueryValue::TypedValue(TypedValue::Boolean(val))),
             Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
-            Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::String(s.clone()))),
+            Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::String(Rc::new(s.clone())))),
             Constant(NonIntegerConstant::BigInteger(_)) => unimplemented!(),
             SrcVar(_) => unimplemented!(),
         }

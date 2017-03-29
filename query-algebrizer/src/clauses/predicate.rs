@@ -88,6 +88,7 @@ mod testing {
     use super::*;
 
     use std::collections::HashSet;
+    use std::rc::Rc;
 
     use mentat_core::attribute::Unique;
     use mentat_core::{
@@ -117,6 +118,9 @@ mod testing {
         QueryValue,
     };
 
+    fn variable_named(s: &'static str) -> Variable {
+        Variable(Rc::new(PlainSymbol::new(s)))
+    }
 
     #[test]
     /// Apply two patterns: a pattern and a numeric predicate.
@@ -132,8 +136,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = variable_named("?x");
+        let y = variable_named("?y");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -148,7 +152,7 @@ mod testing {
         assert!(cc.apply_numeric_predicate(&schema, comp, Predicate {
              operator: op,
              args: vec![
-                FnArg::Variable(Variable(PlainSymbol::new("?y"))), FnArg::EntidOrInteger(10),
+                FnArg::Variable(variable_named("?y")), FnArg::EntidOrInteger(10),
             ]}).is_ok());
 
         assert!(!cc.is_known_empty);
@@ -192,8 +196,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = variable_named("?x");
+        let y = variable_named("?y");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -208,7 +212,7 @@ mod testing {
         assert!(cc.apply_numeric_predicate(&schema, comp, Predicate {
              operator: op,
              args: vec![
-                FnArg::Variable(Variable(PlainSymbol::new("?y"))), FnArg::EntidOrInteger(10),
+                FnArg::Variable(variable_named("?y")), FnArg::EntidOrInteger(10),
             ]}).is_ok());
 
         assert!(!cc.is_known_empty);
