@@ -185,6 +185,8 @@ pub fn parse_find(expr: edn::Value) -> QueryParseResult {
 mod test_parse {
     extern crate edn;
 
+    use std::rc::Rc;
+
     use self::edn::{NamespacedKeyword, PlainSymbol};
     use self::edn::types::Value;
     use super::mentat_query::{
@@ -217,8 +219,8 @@ mod test_parse {
         let parsed = parse_find(input).unwrap();
         if let FindSpec::FindRel(elems) = parsed.find_spec {
             assert_eq!(2, elems.len());
-            assert_eq!(vec![Element::Variable(Variable(edn::PlainSymbol::new("?x"))),
-                            Element::Variable(Variable(edn::PlainSymbol::new("?y")))],
+            assert_eq!(vec![Element::Variable(Variable::from_valid_name("?x")),
+                            Element::Variable(Variable::from_valid_name("?y"))],
                        elems);
         } else {
             panic!("Expected FindRel.");
@@ -229,9 +231,9 @@ mod test_parse {
                    vec![
                    WhereClause::Pattern(Pattern {
                        source: None,
-                       entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
-                       attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
-                       value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                       entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                       attribute: PatternNonValuePlace::Ident(Rc::new(NamespacedKeyword::new("foo", "bar"))),
+                       value: PatternValuePlace::Variable(Variable::from_valid_name("?y")),
                        tx: PatternNonValuePlace::Placeholder,
                    })]);
     }
@@ -244,14 +246,14 @@ mod test_parse {
                    vec![
                       WhereClause::Pattern(Pattern {
                           source: None,
-                          entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
-                          attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
-                          value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?y"))),
+                          entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                          attribute: PatternNonValuePlace::Ident(Rc::new(NamespacedKeyword::new("foo", "bar"))),
+                          value: PatternValuePlace::Variable(Variable::from_valid_name("?y")),
                           tx: PatternNonValuePlace::Placeholder,
                       }),
                       WhereClause::Pred(Predicate {
                           operator: PlainSymbol::new("<"),
-                          args: vec![FnArg::Variable(Variable(PlainSymbol::new("?y"))),
+                          args: vec![FnArg::Variable(Variable::from_valid_name("?y")),
                                      FnArg::EntidOrInteger(10)],
                       }),
                   ]);

@@ -62,6 +62,17 @@ mod resolve;
 
 use validate::validate_or_join;
 
+// We do this a lot for errors.
+trait RcCloned<T> {
+    fn cloned(&self) -> T;
+}
+
+impl<T: Clone> RcCloned<T> for ::std::rc::Rc<T> {
+    fn cloned(&self) -> T {
+        self.as_ref().clone()
+    }
+}
+
 /// A thing that's capable of aliasing a table name for us.
 /// This exists so that we can obtain predictable names in tests.
 pub type TableAliaser = Box<FnMut(DatomsTable) -> TableAlias>;
@@ -231,7 +242,7 @@ impl ConjoiningClauses {
                             // For attributes this shouldn't occur, because we check the binding in
                             // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
                             // attribute then we should have already marked the pattern as empty.
-                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.clone()));
+                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
                         }
                     },
                     TypedValue::Ref(entid) => {
@@ -438,7 +449,7 @@ impl ConjoiningClauses {
         match attribute {
             &PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw)
-                      .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.clone()))
+                      .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             &PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
@@ -461,7 +472,7 @@ impl ConjoiningClauses {
                     Some(TypedValue::Keyword(ref kw)) =>
                         // Don't recurse: avoid needing to clone the keyword.
                         schema.attribute_for_ident(kw)
-                              .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.clone()))
+                              .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
                               .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
                     Some(v) => {
                         // This pattern cannot match: the caller has bound a non-entity value to an
@@ -590,4 +601,9 @@ fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
 #[cfg(test)]
 fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
     schema.schema_map.insert(e, a);
+}
+
+#[cfg(test)]
+pub fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
+    PatternNonValuePlace::Ident(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
 }

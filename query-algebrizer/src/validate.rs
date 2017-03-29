@@ -87,7 +87,6 @@ mod tests {
         Pattern,
         PatternNonValuePlace,
         PatternValuePlace,
-        PlainSymbol,
         UnifyVars,
         Variable,
         WhereClause,
@@ -95,7 +94,13 @@ mod tests {
 
     use self::mentat_query_parser::parse_find_string;
 
+    use clauses::ident;
+
     use super::validate_or_join;
+
+    fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
+        PatternValuePlace::IdentOrKeyword(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
+    }
 
     /// Tests that the top-level form is a valid `or`, returning the clauses.
     fn valid_or_join(parsed: FindQuery, expected_unify: UnifyVars) -> Vec<OrWhereClause> {
@@ -134,9 +139,9 @@ mod tests {
                     left,
                     OrWhereClause::Clause(WhereClause::Pattern(Pattern {
                         source: None,
-                        entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?artist"))),
-                        attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("artist", "type")),
-                        value: PatternValuePlace::IdentOrKeyword(NamespacedKeyword::new("artist.type", "group")),
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?artist")),
+                        attribute: ident("artist", "type"),
+                        value: value_ident("artist.type", "group"),
                         tx: PatternNonValuePlace::Placeholder,
                     })));
                 assert_eq!(
@@ -145,16 +150,16 @@ mod tests {
                         vec![
                             WhereClause::Pattern(Pattern {
                                 source: None,
-                                entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?artist"))),
-                                attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("artist", "type")),
-                                value: PatternValuePlace::IdentOrKeyword(NamespacedKeyword::new("artist.type", "person")),
+                                entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?artist")),
+                                attribute: ident("artist", "type"),
+                                value: value_ident("artist.type", "person"),
                                 tx: PatternNonValuePlace::Placeholder,
                             }),
                             WhereClause::Pattern(Pattern {
                                 source: None,
-                                entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?artist"))),
-                                attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("artist", "gender")),
-                                value: PatternValuePlace::IdentOrKeyword(NamespacedKeyword::new("artist.gender", "female")),
+                                entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?artist")),
+                                attribute: ident("artist", "gender"),
+                                value: value_ident("artist.gender", "female"),
                                 tx: PatternNonValuePlace::Placeholder,
                             }),
                         ]));
@@ -186,7 +191,7 @@ mod tests {
                                    (and [?artist :artist/type ?type]
                                         [?type :artist/role :artist.role/parody]))]"#;
         let parsed = parse_find_string(query).expect("expected successful parse");
-        let clauses = valid_or_join(parsed, UnifyVars::Explicit(vec![Variable(PlainSymbol::new("?artist"))]));
+        let clauses = valid_or_join(parsed, UnifyVars::Explicit(vec![Variable::from_valid_name("?artist")]));
 
         // Let's do some detailed parse checks.
         let mut arms = clauses.into_iter();
@@ -196,9 +201,9 @@ mod tests {
                     left,
                     OrWhereClause::Clause(WhereClause::Pattern(Pattern {
                         source: None,
-                        entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?artist"))),
-                        attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("artist", "type")),
-                        value: PatternValuePlace::IdentOrKeyword(NamespacedKeyword::new("artist.type", "group")),
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?artist")),
+                        attribute: ident("artist", "type"),
+                        value: value_ident("artist.type", "group"),
                         tx: PatternNonValuePlace::Placeholder,
                     })));
                 assert_eq!(
@@ -207,16 +212,16 @@ mod tests {
                         vec![
                             WhereClause::Pattern(Pattern {
                                 source: None,
-                                entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?artist"))),
-                                attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("artist", "type")),
-                                value: PatternValuePlace::Variable(Variable(PlainSymbol::new("?type"))),
+                                entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?artist")),
+                                attribute: ident("artist", "type"),
+                                value: PatternValuePlace::Variable(Variable::from_valid_name("?type")),
                                 tx: PatternNonValuePlace::Placeholder,
                             }),
                             WhereClause::Pattern(Pattern {
                                 source: None,
-                                entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?type"))),
-                                attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("artist", "role")),
-                                value: PatternValuePlace::IdentOrKeyword(NamespacedKeyword::new("artist.role", "parody")),
+                                entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?type")),
+                                attribute: ident("artist", "role"),
+                                value: value_ident("artist.role", "parody"),
                                 tx: PatternNonValuePlace::Placeholder,
                             }),
                         ]));

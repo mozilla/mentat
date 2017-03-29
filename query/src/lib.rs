@@ -35,6 +35,7 @@ extern crate mentat_core;
 
 use std::collections::BTreeSet;
 use std::fmt;
+use std::rc::Rc;
 use edn::{BigInt, OrderedFloat};
 pub use edn::{NamespacedKeyword, PlainSymbol};
 use mentat_core::TypedValue;
@@ -42,26 +43,26 @@ use mentat_core::TypedValue;
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Variable(pub PlainSymbol);
+pub struct Variable(pub Rc<PlainSymbol>);
 
 impl Variable {
     pub fn as_str(&self) -> &str {
-        (self.0).0.as_str()
+        self.0.as_ref().0.as_str()
     }
 
     pub fn to_string(&self) -> String {
-        (self.0).0.clone()
+        self.0.as_ref().0.clone()
     }
 
     pub fn name(&self) -> PlainSymbol {
-        self.0.clone()
+        self.0.as_ref().clone()
     }
 
     /// Return a new `Variable`, assuming that the provided string is a valid name.
     pub fn from_valid_name(name: &str) -> Variable {
         let s = PlainSymbol::new(name);
         assert!(s.is_var_symbol());
-        Variable(s)
+        Variable(Rc::new(s))
     }
 }
 
@@ -71,6 +72,7 @@ pub trait FromValue<T> {
 
 /// If the provided EDN value is a PlainSymbol beginning with '?', return
 /// it wrapped in a Variable. If not, return None.
+/// TODO: intern strings. #398.
 impl FromValue<Variable> for Variable {
     fn from_value(v: &edn::Value) -> Option<Variable> {
         if let edn::Value::PlainSymbol(ref s) = *v {
@@ -82,9 +84,18 @@ impl FromValue<Variable> for Variable {
 }
 
 impl Variable {
-    pub fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+    pub fn from_rc(sym: Rc<PlainSymbol>) -> Option<Variable> {
         if sym.is_var_symbol() {
             Some(Variable(sym.clone()))
+        } else {
+            None
+        }
+    }
+
+    /// TODO: intern strings. #398.
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+        if sym.is_var_symbol() {
+            Some(Variable(Rc::new(sym.clone())))
         } else {
             None
         }
@@ -149,7 +160,7 @@ pub enum NonIntegerConstant {
     Boolean(bool),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
-    Text(String),
+    Text(Rc<String>),
 }
 
 impl NonIntegerConstant {
@@ -197,7 +208,7 @@ pub enum PatternNonValuePlace {
     Placeholder,
     Variable(Variable),
     Entid(i64),                       // Will always be +ve. See #190.
-    Ident(NamespacedKeyword),
+    Ident(Rc<NamespacedKeyword>),
 }
 
 impl PatternNonValuePlace {
@@ -240,7 +251,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
                 }
             },
             &edn::Value::NamespacedKeyword(ref x) =>
-                Some(PatternNonValuePlace::Ident(x.clone())),
+                Some(PatternNonValuePlace::Ident(Rc::new(x.clone()))),
             _ => None,
         }
     }
@@ -248,7 +259,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IdentOrEntid {
-    Ident(NamespacedKeyword),
+    Ident(Rc<NamespacedKeyword>),
     Entid(i64),
 }
 
@@ -260,7 +271,7 @@ pub enum PatternValuePlace {
     Placeholder,
     Variable(Variable),
     EntidOrInteger(i64),
-    IdentOrKeyword(NamespacedKeyword),
+    IdentOrKeyword(Rc<NamespacedKeyword>),
     Constant(NonIntegerConstant),
 }
 
@@ -271,10 +282,10 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::EntidOrInteger(x)),
             &edn::Value::PlainSymbol(ref x) if x.0.as_str() == "_" =>
                 Some(PatternValuePlace::Placeholder),
-            &edn::Value::PlainSymbol(ref x) if x.is_var_symbol() =>
-                Some(PatternValuePlace::Variable(Variable(x.clone()))),
+            &edn::Value::PlainSymbol(ref x) =>
+                Variable::from_symbol(x).map(PatternValuePlace::Variable),
             &edn::Value::NamespacedKeyword(ref x) =>
-                Some(PatternValuePlace::IdentOrKeyword(x.clone())),
+                Some(PatternValuePlace::IdentOrKeyword(Rc::new(x.clone()))),
             &edn::Value::Boolean(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
             &edn::Value::Float(x) =>
@@ -282,7 +293,8 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
             &edn::Value::BigInteger(ref x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::BigInteger(x.clone()))),
             &edn::Value::Text(ref x) =>
-                Some(PatternValuePlace::Constant(NonIntegerConstant::Text(x.clone()))),
+                // TODO: intern strings. #398.
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
             _ => None,
         }
     }
@@ -359,14 +371,15 @@ pub enum Element {
 /// ```rust
 /// # extern crate edn;
 /// # extern crate mentat_query;
+/// # use std::rc::Rc;
 /// # use edn::PlainSymbol;
 /// # use mentat_query::{Element, FindSpec, Variable};
 ///
 /// # fn main() {
 ///
 ///   let elements = vec![
-///     Element::Variable(Variable(PlainSymbol("?foo".to_string()))),
-///     Element::Variable(Variable(PlainSymbol("?bar".to_string()))),
+///     Element::Variable(Variable::from_valid_name("?foo")),
+///     Element::Variable(Variable::from_valid_name("?bar")),
 ///   ];
 ///   let rel = FindSpec::FindRel(elements);
 ///
@@ -471,7 +484,7 @@ impl Pattern {
                     return Some(Pattern {
                         source: src,
                         entity: v_e,
-                        attribute: PatternNonValuePlace::Ident(k.to_reversed()),
+                        attribute: PatternNonValuePlace::Ident(Rc::new(k.to_reversed())),
                         value: e_v,
                         tx: tx,
                     });

@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::rc::Rc;
+
 use mentat_core::{
     Schema,
     TypedValue,
@@ -20,6 +22,8 @@ use mentat_query::{
     PatternNonValuePlace,
     SrcVar,
 };
+
+use super::RcCloned;
 
 use clauses::ConjoiningClauses;
 
@@ -94,11 +98,11 @@ impl ConjoiningClauses {
             PatternNonValuePlace::Entid(entid) =>
                 self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid),
             PatternNonValuePlace::Ident(ref ident) => {
-                if let Some(entid) = self.entid_for_ident(schema, ident) {
+                if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
                     self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid)
                 } else {
                     // A resolution failure means we're done here.
-                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.clone()));
+                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
                     return;
                 }
             }
@@ -123,12 +127,12 @@ impl ConjoiningClauses {
                     self.constrain_attribute(col.clone(), entid);
 
                     if !schema.is_attribute(entid) {
-                        self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(ident.clone()));
+                        self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(ident.cloned()));
                         return;
                     }
                 } else {
                     // A resolution failure means we're done here.
-                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.clone()));
+                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
                     return;
                 }
             }
@@ -190,7 +194,7 @@ impl ConjoiningClauses {
                     } else {
                         // A resolution failure means we're done here: this attribute must have an
                         // entity value.
-                        self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.clone()));
+                        self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
                         return;
                     }
                 } else {
@@ -237,7 +241,6 @@ impl ConjoiningClauses {
 
             },
         }
-
     }
 
     pub fn apply_pattern<'s, 'p>(&mut self, schema: &'s Schema, pattern: Pattern) {
@@ -274,13 +277,13 @@ mod testing {
     use mentat_query::{
         NamespacedKeyword,
         NonIntegerConstant,
-        PlainSymbol,
         Variable,
     };
 
     use clauses::{
         add_attribute,
         associate_ident,
+        ident,
         unit_type_set,
     };
 
@@ -299,8 +302,8 @@ mod testing {
 
         cc.apply_pattern(&schema, Pattern {
             source: None,
-            entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -317,8 +320,8 @@ mod testing {
 
         cc.apply_pattern(&schema, Pattern {
             source: None,
-            entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -337,11 +340,11 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
+        let x = Variable::from_valid_name("?x");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -377,7 +380,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
+        let x = Variable::from_valid_name("?x");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -421,12 +424,12 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let a = Variable(PlainSymbol::new("?a"));
-        let v = Variable(PlainSymbol::new("?v"));
+        let x = Variable::from_valid_name("?x");
+        let a = Variable::from_valid_name("?a");
+        let v = Variable::from_valid_name("?v");
 
         cc.input_variables.insert(a.clone());
-        cc.value_bindings.insert(a.clone(), TypedValue::Keyword(NamespacedKeyword::new("foo", "bar")));
+        cc.value_bindings.insert(a.clone(), TypedValue::Keyword(Rc::new(NamespacedKeyword::new("foo", "bar"))));
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -459,10 +462,10 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let a = Variable(PlainSymbol::new("?a"));
-        let v = Variable(PlainSymbol::new("?v"));
-        let hello = TypedValue::String("hello".to_string());
+        let x = Variable::from_valid_name("?x");
+        let a = Variable::from_valid_name("?a");
+        let v = Variable::from_valid_name("?v");
+        let hello = TypedValue::typed_string("hello");
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), hello.clone());
@@ -485,9 +488,9 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let a = Variable(PlainSymbol::new("?a"));
-        let v = Variable(PlainSymbol::new("?v"));
+        let x = Variable::from_valid_name("?x");
+        let a = Variable::from_valid_name("?a");
+        let v = Variable::from_valid_name("?v");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -517,12 +520,12 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
+        let x = Variable::from_valid_name("?x");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
-            value: PatternValuePlace::Constant(NonIntegerConstant::Text("hello".to_string())),
+            value: PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new("hello".to_string()))),
             tx: PatternNonValuePlace::Placeholder,
         });
 
@@ -545,7 +548,7 @@ mod testing {
         // - datoms0.value_type_tag = string
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("hello".to_string()))),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String(Rc::new("hello".to_string())))),
                    ColumnConstraint::HasType("all_datoms00".to_string(), ValueType::String),
         ].into());
     }
@@ -566,19 +569,19 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "roz")),
-            value: PatternValuePlace::Constant(NonIntegerConstant::Text("idgoeshere".to_string())),
+            attribute: ident("foo", "roz"),
+            value: PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new("idgoeshere".to_string()))),
             tx: PatternNonValuePlace::Placeholder,
         });
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -617,7 +620,7 @@ mod testing {
         // - datoms1.e = datoms0.e
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_a, QueryValue::Entid(98)),
-                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("idgoeshere".to_string()))),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::typed_string("idgoeshere"))),
                    ColumnConstraint::Equals(d1_a, QueryValue::Entid(99)),
                    ColumnConstraint::Equals(d0_e, QueryValue::Column(d1_e)),
         ].into());
@@ -633,8 +636,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Boolean(true))].into_iter().collect();
@@ -643,7 +646,7 @@ mod testing {
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -678,8 +681,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
@@ -688,7 +691,7 @@ mod testing {
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -710,8 +713,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
@@ -720,7 +723,7 @@ mod testing {
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -749,19 +752,19 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "roz")),
+            attribute: ident("foo", "roz"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
-            attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
+            attribute: ident("foo", "bar"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
@@ -786,9 +789,9 @@ mod testing {
         // [:find ?x :where
         //  [?x ?y true]
         //  [?z ?y ?x]]
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
-        let z = Variable(PlainSymbol::new("?z"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
+        let z = Variable::from_valid_name("?z");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
