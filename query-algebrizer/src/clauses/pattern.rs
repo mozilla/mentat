@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::rc::Rc;
+
 use mentat_core::{
     Schema,
     TypedValue,
@@ -195,7 +197,7 @@ impl ConjoiningClauses {
                     }
                 } else {
                     // It must be a keyword.
-                    self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, TypedValue::Keyword(kw.clone()));
+                    self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, TypedValue::Keyword(Rc::new(kw.clone())));
                     self.wheres.add_intersection(ColumnConstraint::HasType(col.clone(), ValueType::Keyword));
                 };
             },
@@ -274,7 +276,6 @@ mod testing {
     use mentat_query::{
         NamespacedKeyword,
         NonIntegerConstant,
-        PlainSymbol,
         Variable,
     };
 
@@ -299,7 +300,7 @@ mod testing {
 
         cc.apply_pattern(&schema, Pattern {
             source: None,
-            entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
@@ -317,7 +318,7 @@ mod testing {
 
         cc.apply_pattern(&schema, Pattern {
             source: None,
-            entity: PatternNonValuePlace::Variable(Variable(PlainSymbol::new("?x"))),
+            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
             attribute: PatternNonValuePlace::Ident(NamespacedKeyword::new("foo", "bar")),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
@@ -337,7 +338,7 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
+        let x = Variable::from_valid_name("?x");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -377,7 +378,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
+        let x = Variable::from_valid_name("?x");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -421,12 +422,12 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let a = Variable(PlainSymbol::new("?a"));
-        let v = Variable(PlainSymbol::new("?v"));
+        let x = Variable::from_valid_name("?x");
+        let a = Variable::from_valid_name("?a");
+        let v = Variable::from_valid_name("?v");
 
         cc.input_variables.insert(a.clone());
-        cc.value_bindings.insert(a.clone(), TypedValue::Keyword(NamespacedKeyword::new("foo", "bar")));
+        cc.value_bindings.insert(a.clone(), TypedValue::Keyword(Rc::new(NamespacedKeyword::new("foo", "bar"))));
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -459,10 +460,10 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let a = Variable(PlainSymbol::new("?a"));
-        let v = Variable(PlainSymbol::new("?v"));
-        let hello = TypedValue::String("hello".to_string());
+        let x = Variable::from_valid_name("?x");
+        let a = Variable::from_valid_name("?a");
+        let v = Variable::from_valid_name("?v");
+        let hello = TypedValue::typed_string("hello");
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), hello.clone());
@@ -485,9 +486,9 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let a = Variable(PlainSymbol::new("?a"));
-        let v = Variable(PlainSymbol::new("?v"));
+        let x = Variable::from_valid_name("?x");
+        let a = Variable::from_valid_name("?a");
+        let v = Variable::from_valid_name("?v");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -517,7 +518,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
 
-        let x = Variable(PlainSymbol::new("?x"));
+        let x = Variable::from_valid_name("?x");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -545,7 +546,7 @@ mod testing {
         // - datoms0.value_type_tag = string
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("hello".to_string()))),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String(Rc::new("hello".to_string())))),
                    ColumnConstraint::HasType("all_datoms00".to_string(), ValueType::String),
         ].into());
     }
@@ -566,8 +567,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -617,7 +618,7 @@ mod testing {
         // - datoms1.e = datoms0.e
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_a, QueryValue::Entid(98)),
-                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String("idgoeshere".to_string()))),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::typed_string("idgoeshere"))),
                    ColumnConstraint::Equals(d1_a, QueryValue::Entid(99)),
                    ColumnConstraint::Equals(d0_e, QueryValue::Column(d1_e)),
         ].into());
@@ -633,8 +634,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Boolean(true))].into_iter().collect();
@@ -678,8 +679,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
@@ -710,8 +711,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
@@ -749,8 +750,8 @@ mod testing {
             ..Default::default()
         });
 
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -786,9 +787,9 @@ mod testing {
         // [:find ?x :where
         //  [?x ?y true]
         //  [?z ?y ?x]]
-        let x = Variable(PlainSymbol::new("?x"));
-        let y = Variable(PlainSymbol::new("?y"));
-        let z = Variable(PlainSymbol::new("?z"));
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
+        let z = Variable::from_valid_name("?z");
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),

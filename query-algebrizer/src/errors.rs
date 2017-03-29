@@ -12,7 +12,6 @@ extern crate mentat_query;
 
 use self::mentat_query::{
     PlainSymbol,
-    Variable,
 };
 
 error_chain! {
@@ -31,9 +30,9 @@ error_chain! {
             display("invalid number of arguments to {}: expected {}, got {}.", name, expected, number)
         }
 
-        UnboundVariable(var: Variable) {
+        UnboundVariable(name: PlainSymbol) {
             description("unbound variable in function call")
-            display("unbound variable: {}", var.0)
+            display("unbound variable: {}", name)
         }
 
         NonNumericArgument(function: PlainSymbol, position: usize) {

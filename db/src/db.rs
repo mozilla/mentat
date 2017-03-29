@@ -16,6 +16,7 @@ use std::fmt::Display;
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
+use std::rc::Rc;
 
 use itertools;
 use itertools::Itertools;
@@ -350,9 +351,9 @@ impl TypedSQLValue for TypedValue {
             // share a tag.
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
             (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
-            (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(x)),
+            (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(Rc::new(x))),
             (13, rusqlite::types::Value::Text(x)) => {
-                to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(k))
+                to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(Rc::new(k)))
             },
             (_, value) => bail!(ErrorKind::BadSQLValuePair(value, value_type_tag)),
         }
@@ -370,8 +371,8 @@ impl TypedSQLValue for TypedValue {
             &Value::Boolean(x) => Some(TypedValue::Boolean(x)),
             &Value::Integer(x) => Some(TypedValue::Long(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
-            &Value::Text(ref x) => Some(TypedValue::String(x.clone())),
-            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(x.clone())),
+            &Value::Text(ref x) => Some(TypedValue::String(Rc::new(x.clone()))),
+            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(Rc::new(x.clone()))),
             _ => None
         }
     }
@@ -396,8 +397,8 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Boolean(x) => (Value::Boolean(x), ValueType::Boolean),
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
-            &TypedValue::String(ref x) => (Value::Text(x.clone()), ValueType::String),
-            &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.clone()), ValueType::Keyword),
+            &TypedValue::String(ref x) => (Value::Text(x.as_ref().clone()), ValueType::String),
+            &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.as_ref().clone()), ValueType::Keyword),
         }
     }
 }
@@ -434,7 +435,7 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
             bail!(ErrorKind::NotYetImplemented(format!("bad idents materialized view: expected :db/ident but got {}", a)));
         }
         if let TypedValue::Keyword(keyword) = typed_value {
-            Ok((keyword, e))
+            Ok((keyword.as_ref().clone(), e))
         } else {
             bail!(ErrorKind::NotYetImplemented(format!("bad idents materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]", typed_value)));
         }

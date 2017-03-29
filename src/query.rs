@@ -84,7 +84,7 @@ pub fn q_once<'sqlite, 'schema, 'query, T, U>
     } else {
         let refs: Vec<(&str, &ToSql)> =
             args.iter()
-                .map(|&(ref k, ref v)| (k.as_str(), v as &ToSql))
+                .map(|&(ref k, ref v)| (k.as_str(), v.as_ref() as &ToSql))
                 .collect();
         statement.query_named(refs.as_slice())?
     };

@@ -20,7 +20,6 @@ extern crate mentat_query_sql;
 extern crate mentat_sql;
 
 use std::iter;
-
 use rusqlite::{
     Row,
     Rows,
@@ -38,7 +37,6 @@ use mentat_db::{
 use mentat_query::{
     Element,
     FindSpec,
-    PlainSymbol,
     Variable,
 };
 
@@ -172,13 +170,11 @@ impl TypedIndex {
 }
 
 fn column_name(var: &Variable) -> Name {
-    let &Variable(PlainSymbol(ref s)) = var;
-    s.clone()
+    var.to_string()
 }
 
 fn value_type_tag_name(var: &Variable) -> Name {
-    let &Variable(PlainSymbol(ref s)) = var;
-    format!("{}_value_type_tag", s)
+    format!("{}_value_type_tag", var.as_str())
 }
 
 /// Walk an iterator of `Element`s, collecting projector templates and columns.

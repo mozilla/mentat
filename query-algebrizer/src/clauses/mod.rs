@@ -231,7 +231,7 @@ impl ConjoiningClauses {
                             // For attributes this shouldn't occur, because we check the binding in
                             // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
                             // attribute then we should have already marked the pattern as empty.
-                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.clone()));
+                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.as_ref().clone()));
                         }
                     },
                     TypedValue::Ref(entid) => {
@@ -461,7 +461,7 @@ impl ConjoiningClauses {
                     Some(TypedValue::Keyword(ref kw)) =>
                         // Don't recurse: avoid needing to clone the keyword.
                         schema.attribute_for_ident(kw)
-                              .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.clone()))
+                              .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.as_ref().clone()))
                               .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
                     Some(v) => {
                         // This pattern cannot match: the caller has bound a non-entity value to an
