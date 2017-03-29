@@ -580,6 +580,24 @@ pub struct FindQuery {
     // TODO: in_rules;
 }
 
+impl OrJoin {
+    /// Return true if either the `OrJoin` is `UnifyVars::Implicit`, or if
+    /// every variable mentioned inside the join is also mentioned in the `UnifyVars` list.
+    pub fn is_fully_unified(&self) -> bool {
+        match &self.unify_vars {
+            &UnifyVars::Implicit => true,
+            &UnifyVars::Explicit(ref vars) => {
+                // We know that the join list must be a subset of the vars in the pattern, or
+                // it would have failed validation. That allows us to simply compare counts here.
+                // TODO: in debug mode, do a full intersection, and verify that our count check
+                // returns the same results.
+                let mentioned = self.collect_mentioned_variables();
+                vars.len() == mentioned.len()
+            }
+        }
+    }
+}
+
 pub trait ContainsVariables {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>);
     fn collect_mentioned_variables(&self) -> BTreeSet<Variable> {
