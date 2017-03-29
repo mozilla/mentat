@@ -430,31 +430,31 @@ impl ConjoiningClauses {
         schema.get_entid(&ident)
     }
 
-    fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a PatternValuePlace) -> Option<DatomsTable> {
+    fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         if attribute.fulltext {
             match value {
                 &PatternValuePlace::Placeholder =>
-                    Some(DatomsTable::Datoms),            // We don't need the value.
+                    Ok(DatomsTable::Datoms),            // We don't need the value.
 
                 // TODO: an existing non-string binding can cause this pattern to fail.
                 &PatternValuePlace::Variable(_) =>
-                    Some(DatomsTable::AllDatoms),
+                    Ok(DatomsTable::AllDatoms),
 
                 &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>
-                    Some(DatomsTable::AllDatoms),
+                    Ok(DatomsTable::AllDatoms),
 
                 _ => {
                     // We can't succeed if there's a non-string constant value for a fulltext
                     // field.
-                    None
-                }
+                    Err(EmptyBecause::NonStringFulltextValue)
+                },
             }
         } else {
-            Some(DatomsTable::Datoms)
+            Ok(DatomsTable::Datoms)
         }
     }
 
-    fn table_for_unknown_attribute<'s, 'a>(&self, value: &'a PatternValuePlace) -> Option<DatomsTable> {
+    fn table_for_unknown_attribute<'s, 'a>(&self, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         // If the value is known to be non-textual, we can simply use the regular datoms
         // table (TODO: and exclude on `index_fulltext`!).
         //
@@ -463,7 +463,7 @@ impl ConjoiningClauses {
         //
         // If the value is a variable or string, we must use `all_datoms`, or do the join
         // ourselves, because we'll need to either extract or compare on the string.
-        Some(
+        Ok(
             match value {
                 // TODO: see if the variable is projected, aggregated, or compared elsewhere in
                 // the query. If it's not, we don't need to use all_datoms here.
@@ -484,17 +484,17 @@ impl ConjoiningClauses {
 
     /// Decide which table to use for the provided attribute and value.
     /// If the attribute input or value binding doesn't name an attribute, or doesn't name an
-    /// attribute that is congruent with the supplied value, we mark the CC as known-empty and
-    /// return `None`.
-    fn table_for_places<'s, 'a>(&mut self, schema: &'s Schema, attribute: &'a PatternNonValuePlace, value: &'a PatternValuePlace) -> Option<DatomsTable> {
+    /// attribute that is congruent with the supplied value, we return an `EmptyBecause`.
+    /// The caller is responsible for marking the CC as known-empty if this is a fatal failure.
+    fn table_for_places<'s, 'a>(&self, schema: &'s Schema, attribute: &'a PatternNonValuePlace, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         match attribute {
             &PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw)
-                      .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(kw.clone())))
+                      .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.clone()))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             &PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
-                      .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(id)))
+                      .ok_or_else(|| EmptyBecause::InvalidAttributeEntid(id))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             // TODO: In a prepared context, defer this decision until a second algebrizing phase.
             // #278.
@@ -513,18 +513,15 @@ impl ConjoiningClauses {
                     Some(TypedValue::Keyword(ref kw)) =>
                         // Don't recurse: avoid needing to clone the keyword.
                         schema.attribute_for_ident(kw)
-                              .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(kw.clone())))
+                              .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.clone()))
                               .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
                     Some(v) => {
                         // This pattern cannot match: the caller has bound a non-entity value to an
-                        // attribute place. Return `None` and invalidate this CC.
-                        self.mark_known_empty(EmptyBecause::InvalidBinding(DatomsColumn::Attribute,
-                                                                           v.clone()));
-                        None
+                        // attribute place.
+                        Err(EmptyBecause::InvalidBinding(DatomsColumn::Attribute, v.clone()))
                     },
                 }
             },
-
         }
     }
 
@@ -534,8 +531,11 @@ impl ConjoiningClauses {
     /// `is_known_empty`.
     fn alias_table<'s, 'a>(&mut self, schema: &'s Schema, pattern: &'a Pattern) -> Option<SourceAlias> {
         self.table_for_places(schema, &pattern.attribute, &pattern.value)
-            .when_not(|| assert!(self.is_known_empty))   // table_for_places should have flipped this.
+            .map_err(|reason| {
+                self.mark_known_empty(reason);
+            })
             .map(|table| SourceAlias(table, (self.aliaser)(table)))
+            .ok()
     }
 
     fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<&'s Attribute> {
