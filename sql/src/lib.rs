@@ -13,6 +13,8 @@ extern crate error_chain;
 extern crate ordered_float;
 extern crate mentat_core;
 
+use std::rc::Rc;
+
 use ordered_float::OrderedFloat;
 
 use mentat_core::TypedValue;
@@ -45,7 +47,7 @@ pub struct SQLQuery {
     pub sql: String,
 
     /// These will eventually perhaps be rusqlite `ToSql` instances.
-    pub args: Vec<(String, String)>,
+    pub args: Vec<(String, Rc<String>)>,
 }
 
 /// Gratefully based on Diesel's QueryBuilder trait:
@@ -86,7 +88,7 @@ pub struct SQLiteQueryBuilder {
 
     arg_prefix: String,
     arg_counter: i64,
-    args: Vec<(String, String)>,
+    args: Vec<(String, Rc<String>)>,
 }
 
 impl SQLiteQueryBuilder {
@@ -103,7 +105,7 @@ impl SQLiteQueryBuilder {
         }
     }
 
-    fn push_static_arg(&mut self, val: String) {
+    fn push_static_arg(&mut self, val: Rc<String>) {
         let arg = format!("{}{}", self.arg_prefix, self.arg_counter);
         self.arg_counter = self.arg_counter + 1;
         self.push_named_arg(arg.as_str());
@@ -134,8 +136,11 @@ impl QueryBuilder for SQLiteQueryBuilder {
             &Boolean(v) => self.push_sql(if v { "1" } else { "0" }),
             &Long(v) => self.push_sql(v.to_string().as_str()),
             &Double(OrderedFloat(v)) => self.push_sql(v.to_string().as_str()),
+
+            // These are both `Rc`. We can just clone an `Rc<String>`, but we
+            // must make a new single `String`, wrapped in an `Rc`, for keywords.
             &String(ref s) => self.push_static_arg(s.clone()),
-            &Keyword(ref s) => self.push_static_arg(s.to_string()),
+            &Keyword(ref s) => self.push_static_arg(Rc::new(s.as_ref().to_string())),
         }
         Ok(())
     }
@@ -183,14 +188,14 @@ mod tests {
         s.push_sql(" WHERE ");
         s.push_identifier("bar").unwrap();
         s.push_sql(" = ");
-        s.push_static_arg("frobnicate".to_string());
+        s.push_static_arg(Rc::new("frobnicate".to_string()));
         s.push_sql(" OR ");
-        s.push_static_arg("swoogle".to_string());
+        s.push_static_arg(Rc::new("swoogle".to_string()));
         let q = s.finish();
 
         assert_eq!(q.sql.as_str(), "SELECT `foo` WHERE `bar` = $v0 OR $v1");
         assert_eq!(q.args,
-                   vec![("$v0".to_string(), "frobnicate".to_string()),
-                        ("$v1".to_string(), "swoogle".to_string())]);
+                   vec![("$v0".to_string(), Rc::new("frobnicate".to_string())),
+                        ("$v1".to_string(), Rc::new("swoogle".to_string()))]);
     }
 }
