@@ -44,6 +44,27 @@ pub type SrcVarName = String;          // Do not include the required syntactic 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Variable(pub PlainSymbol);
 
+impl Variable {
+    pub fn as_str(&self) -> &str {
+        (self.0).0.as_str()
+    }
+
+    pub fn to_string(&self) -> String {
+        (self.0).0.clone()
+    }
+
+    pub fn name(&self) -> PlainSymbol {
+        self.0.clone()
+    }
+
+    /// Return a new `Variable`, assuming that the provided string is a valid name.
+    pub fn from_valid_name(name: &str) -> Variable {
+        let s = PlainSymbol::new(name);
+        assert!(s.is_var_symbol());
+        Variable(s)
+    }
+}
+
 pub trait FromValue<T> {
     fn from_value(v: &edn::Value) -> Option<T>;
 }
