@@ -16,17 +16,24 @@ use combine::{
     ConsumedResult,
     ParseError,
     Parser,
+    ParseResult,
     StreamOnce,
     eof,
+    many,
+    many1,
+    parser,
     satisfy,
     satisfy_map,
 };
-use combine::primitives;
+use combine::primitives; // To not shadow Error
 use combine::primitives::{
+    Consumed,
     FastResult,
 };
 use combine::combinator::{
     Eof,
+    Expected,
+    FnParser,
     Skip,
 };
 
@@ -266,6 +273,10 @@ pub fn map() -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
     satisfy(|v: edn::ValueAndSpan| v.inner.is_map()).boxed()
 }
 
+pub fn seq() -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
+    satisfy(|v: edn::ValueAndSpan| v.inner.is_list() || v.inner.is_vector()).boxed()
+}
+
 pub fn integer() -> Box<Parser<Input=Stream, Output=i64>> {
     satisfy_map(|v: edn::ValueAndSpan| v.inner.as_integer()).boxed()
 }
@@ -279,4 +290,108 @@ pub fn value(value: edn::Value) -> Box<Parser<Input=Stream, Output=edn::ValueAnd
     // TODO: make this comparison faster.  Right now, we drop all the spans; if we walked the value
     // trees together, we could avoid creating garbage.
     satisfy(move |v: edn::ValueAndSpan| value == v.inner.into()).boxed()
+}
+
+pub fn keyword_map_(input: Stream) -> ParseResult<edn::ValueAndSpan, Stream>
+{
+    // One run is a keyword followed by at one or more non-keywords.
+    let run = (satisfy(|v: edn::ValueAndSpan| v.inner.is_keyword()),
+               many1(satisfy(|v: edn::ValueAndSpan| !v.inner.is_keyword()))
+               .map(|vs: Vec<edn::ValueAndSpan>| {
+                   // TODO: extract "spanning".
+                   let beg = vs.first().unwrap().span.0;
+                   let end = vs.last().unwrap().span.1;
+                   edn::ValueAndSpan {
+                       inner: edn::SpannedValue::Vector(vs),
+                       span: edn::Span(beg, end),
+                   }
+               }));
+
+    let mut runs = vector().of(many::<Vec<_>, _>(run));
+
+    let (data, input) = try!(runs.parse_lazy(input).into());
+
+    let mut m: std::collections::BTreeMap<edn::ValueAndSpan, edn::ValueAndSpan> = std::collections::BTreeMap::default();
+    for (k, vs) in data {
+        if m.insert(k, vs).is_some() {
+            // TODO: improve this message.
+            return Err(Consumed::Empty(ParseError::from_errors(input.into_inner().position(), Vec::new())))
+        }
+    }
+
+    let map = edn::ValueAndSpan {
+        inner: edn::SpannedValue::Map(m),
+        span: edn::Span(0, 0), // TODO: fix this.
+    };
+
+    Ok((map, input))
+}
+
+/// Turn a vector of keywords and non-keyword values into a map.  As an example, turn
+/// ```edn
+/// [:keyword1 value1 value2 ... :keyword2 value3 value4 ...]
+/// ```
+/// into
+/// ```edn
+/// {:keyword1 [value1 value2 ...] :keyword2 [value3 value4 ...]}
+/// ```.
+pub fn keyword_map() -> Expected<FnParser<Stream, fn(Stream) -> ParseResult<edn::ValueAndSpan, Stream>>>
+{
+    // The `as` work arounds https://github.com/rust-lang/rust/issues/20178.
+    parser(keyword_map_ as fn(Stream) -> ParseResult<edn::ValueAndSpan, Stream>).expected("keyword map")
+}
+
+#[cfg(test)]
+mod tests {
+    use combine::{eof};
+    use super::*;
+
+    /// Take a string `input` and a string `expected` and ensure that `input` parses to an
+    /// `edn::Value` keyword map equivalent to the `edn::Value` that `expected` parses to.
+    macro_rules! assert_keyword_map_eq {
+        ( $input: expr, $expected: expr ) => {{
+            let input = edn::parse::value($input).expect("to be able to parse input EDN");
+            let expected = $expected.map(|e| {
+                edn::parse::value(e).expect("to be able to parse expected EDN").without_spans()
+            });
+            let mut par = keyword_map().map(|x| x.without_spans()).skip(eof());
+            let result = par.parse(input.into_atom_stream()).map(|x| x.0);
+            assert_eq!(result.ok(), expected);
+        }}
+    }
+
+    #[test]
+    fn test_keyword_map() {
+        assert_keyword_map_eq!(
+            "[:foo 1 2 3 :bar 4]",
+            Some("{:foo [1 2 3] :bar [4]}"));
+
+        // Trailing keywords aren't allowed.
+        assert_keyword_map_eq!(
+            "[:foo]",
+            None);
+        assert_keyword_map_eq!(
+            "[:foo 2 :bar]",
+            None);
+
+        // Duplicate keywords aren't allowed.
+        assert_keyword_map_eq!(
+            "[:foo 2 :foo 1]",
+            None);
+
+        // Starting with anything but a keyword isn't allowed.
+        assert_keyword_map_eq!(
+            "[2 :foo 1]",
+            None);
+
+        // Consecutive keywords aren't allowed.
+        assert_keyword_map_eq!(
+            "[:foo :bar 1]",
+            None);
+
+        // Empty lists return an empty map.
+        assert_keyword_map_eq!(
+            "[]",
+            Some("{}"));
+    }
 }
