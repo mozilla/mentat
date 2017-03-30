@@ -39,7 +39,6 @@ mod schema;
 mod types;
 mod internal_types;
 mod upsert_resolution;
-mod values;
 mod tx;
 
 pub use db::{

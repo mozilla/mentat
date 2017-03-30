@@ -22,10 +22,10 @@ use mentat_core::{
     IdentMap,
     Schema,
     TypedValue,
+    values,
 };
 use schema::SchemaBuilding;
 use types::{Partition, PartitionMap};
-use values;
 
 /// The first transaction ID applied to the knowledge base.
 ///

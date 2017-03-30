@@ -8,8 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate edn;
+#[macro_use]
+extern crate lazy_static;
 extern crate ordered_float;
+
+extern crate edn;
+
+pub mod values;
 
 use std::collections::BTreeMap;
 use self::ordered_float::OrderedFloat;
@@ -35,6 +40,20 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+}
+
+impl ValueType {
+    pub fn to_edn_value(&self) -> edn::Value {
+        match self {
+            &ValueType::Ref => values::DB_TYPE_REF.clone(),
+            &ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
+            &ValueType::Instant => values::DB_TYPE_INSTANT.clone(),
+            &ValueType::Long => values::DB_TYPE_LONG.clone(),
+            &ValueType::Double => values::DB_TYPE_DOUBLE.clone(),
+            &ValueType::String => values::DB_TYPE_STRING.clone(),
+            &ValueType::Keyword => values::DB_TYPE_KEYWORD.clone(),
+        }
+    }
 }
 
 /// Represents a Mentat value in a particular value set.
@@ -213,6 +232,37 @@ impl Attribute {
         }
         flags
     }
+
+    pub fn to_edn_value(&self, ident: Option<NamespacedKeyword>) -> edn::Value {
+        let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
+        if let Some(ident) = ident {
+            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident));
+        }
+
+        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.to_edn_value());
+
+        attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
+
+        match self.unique {
+            Some(attribute::Unique::Value) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_VALUE.clone()); },
+            Some(attribute::Unique::Identity) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone()); },
+            None => (), 
+        }
+        
+        if self.index {
+            attribute_map.insert(values::DB_INDEX.clone(), edn::Value::Boolean(true));
+        }
+
+        if self.fulltext {
+            attribute_map.insert(values::DB_FULLTEXT.clone(), edn::Value::Boolean(true));
+        }
+
+        if self.component {
+            attribute_map.insert(values::DB_IS_COMPONENT.clone(), edn::Value::Boolean(true));
+        }
+
+        edn::Value::Map(attribute_map)
+    }
 }
 
 impl Default for Attribute {
@@ -291,11 +341,28 @@ impl Schema {
     pub fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
+
+    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
+    pub fn to_edn_value(&self) -> edn::Value {
+        edn::Value::Vector((&self.schema_map).iter()
+            .map(|(entid, attribute)| 
+                attribute.to_edn_value(self.get_ident(*entid).cloned()))
+            .collect())
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+        schema.entid_map.insert(e, i.clone());
+        schema.ident_map.insert(i, e);
+    }
+
+    fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
+        schema.schema_map.insert(e, a);
+    }
 
     #[test]
     fn test_attribute_flags() {
@@ -340,6 +407,68 @@ mod test {
         assert!(attr3.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
         assert!(attr3.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
         assert!(attr3.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
+    }
+
+    #[test]
+    fn test_as_edn_value() {
+        let mut schema = Schema::default();
+
+        let attr1 = Attribute {
+            index: true,
+            value_type: ValueType::Ref,
+            fulltext: false,
+            unique: None,
+            multival: false,
+            component: false,
+        };
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 97);
+        add_attribute(&mut schema, 97, attr1);
+
+        let attr2 = Attribute {
+            index: false,
+            value_type: ValueType::String,
+            fulltext: true,
+            unique: Some(attribute::Unique::Value),
+            multival: true,
+            component: false,
+        };
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bas"), 98);
+        add_attribute(&mut schema, 98, attr2);
+
+        let attr3 = Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: false,
+            unique: Some(attribute::Unique::Identity),
+            multival: false,
+            component: true,
+        };
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bat"), 99);
+        add_attribute(&mut schema, 99, attr3);
+
+        let value = schema.to_edn_value();
+
+        let expected_output = r#"[ {   :db/ident     :foo/bar
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/index true },
+{   :db/ident     :foo/bas
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/many
+    :db/unique :db.unique/value
+    :db/fulltext true },
+{   :db/ident     :foo/bat
+    :db/valueType :db.type/boolean
+    :db/cardinality :db.cardinality/one
+    :db/unique :db.unique/identity
+    :db/component true }, ]"#;
+        let expected_value = edn::parse::value(&expected_output).expect("to be able to parse").without_spans();
+        assert_eq!(expected_value, value);
+
+        // let's compare the whole thing again, just to make sure we are not changing anything when we convert to edn.
+        let value2 = schema.to_edn_value();
+        assert_eq!(expected_value, value2);
     }
 }
 
