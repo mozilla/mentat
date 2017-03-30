@@ -250,3 +250,185 @@ impl SchemaTypeChecking for Schema {
         }
     }
 }
+
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use self::edn::NamespacedKeyword;
+    use errors::Error;
+
+    fn add_attribute(schema: &mut Schema, 
+            ident: NamespacedKeyword, 
+            entid: Entid, 
+            attribute: Attribute) {
+
+        schema.entid_map.insert(entid, ident.clone());
+        schema.ident_map.insert(ident.clone(), entid);
+
+        schema.schema_map.insert(entid, attribute);
+    }
+
+    #[test]
+    fn validate_schema_map_success() {
+        let mut schema = Schema::default();
+        // attribute that is not an index has no uniqueness
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 97, Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: false,
+            unique: None,
+            multival: false,
+            component: false,
+        });
+        // attribute is unique by value and an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "baz"), 98, Attribute {
+            index: true,
+            value_type: ValueType::Long,
+            fulltext: false,
+            unique: Some(attribute::Unique::Value),
+            multival: false,
+            component: false,
+        });
+        // attribue is unique by identity and an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bat"), 99, Attribute {
+            index: true,
+            value_type: ValueType::Ref,
+            fulltext: false,
+            unique: Some(attribute::Unique::Identity),
+            multival: false,
+            component: false,
+        });
+        // attribute is a components and a `Ref`
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bak"), 100, Attribute {
+            index: false,
+            value_type: ValueType::Ref,
+            fulltext: false,
+            unique: None,
+            multival: false,
+            component: true,
+        });
+        // fulltext attribute is a string and an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bap"), 101, Attribute {
+            index: true,
+            value_type: ValueType::String,
+            fulltext: true,
+            unique: None,
+            multival: false,
+            component: false,
+        });
+
+        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_ok());
+    }
+
+    #[test]
+    fn invalid_schema_unique_value_not_index() {
+        let mut schema = Schema::default();
+        // attribute unique by value but not index
+        let ident = NamespacedKeyword::new("foo", "bar");
+        add_attribute(&mut schema, ident , 99, Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: false,
+            unique: Some(attribute::Unique::Value),
+            multival: false,
+            component: false,
+        });
+        
+        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        assert!(err.is_some());
+        
+        match err.unwrap() {
+            Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/unique :db/unique_value without :db/index true for entid: :foo/bar"); },
+            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn invalid_schema_unique_identity_not_index() {
+        let mut schema = Schema::default();
+        // attribute is unique by identity but not index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 99, Attribute {
+            index: false,
+            value_type: ValueType::Long,
+            fulltext: false,
+            unique: Some(attribute::Unique::Identity),
+            multival: false,
+            component: false,
+        });
+        
+        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        assert!(err.is_some());
+        
+        match err.unwrap() {
+            Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/unique :db/unique_identity without :db/index true for entid: :foo/bar"); },
+            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn invalid_schema_component_not_ref() {
+        let mut schema = Schema::default();
+        // attribute that is a component is not a `Ref`
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 99, Attribute {
+            index: false,
+            value_type: ValueType::Boolean,
+            fulltext: false,
+            unique: None,
+            multival: false,
+            component: true,
+        });
+        
+        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        assert!(err.is_some());
+        
+        match err.unwrap() {
+            Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/isComponent true without :db/valueType :db.type/ref for entid: :foo/bar"); },
+            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn invalid_schema_fulltext_not_index() {
+        let mut schema = Schema::default();
+        // attribute that is fulltext is not an index
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 99, Attribute {
+            index: false,
+            value_type: ValueType::String,
+            fulltext: true,
+            unique: None,
+            multival: false,
+            component: false,
+        });
+        
+        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        assert!(err.is_some());
+        
+        match err.unwrap() {
+            Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/fulltext true without :db/index true for entid: :foo/bar"); },
+            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
+        }
+    }
+
+    fn invalid_schema_fulltext_index_not_string() {
+        let mut schema = Schema::default();
+        // attribute that is fulltext and not a `String`
+        add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 99, Attribute {
+            index: true,
+            value_type: ValueType::Long,
+            fulltext: true,
+            unique: None,
+            multival: false,
+            component: false,
+        });
+        
+        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        assert!(err.is_some());
+        
+        match err.unwrap() {
+            Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/fulltext true without :db/valueType :db.type/string for entid: :foo/bar"); },
+            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
+        }
+    }
+}
