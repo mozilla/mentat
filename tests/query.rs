@@ -92,11 +92,11 @@ fn test_scalar() {
 
     assert_eq!(1, results.len());
 
-    if let QueryResults::Scalar(Some(TypedValue::Keyword(ref kw))) = results {
+    if let QueryResults::Scalar(Some(TypedValue::Keyword(ref rc))) = results {
         // Should be '24'.
-        assert_eq!(&NamespacedKeyword::new("db.type", "keyword"), kw);
+        assert_eq!(&NamespacedKeyword::new("db.type", "keyword"), rc.as_ref());
         assert_eq!(24,
-                   db.schema.get_entid(kw).unwrap());
+                   db.schema.get_entid(rc).unwrap());
     } else {
         panic!("Expected scalar.");
     }
