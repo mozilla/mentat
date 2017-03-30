@@ -17,6 +17,7 @@ extern crate edn;
 pub mod values;
 
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
 
@@ -66,8 +67,8 @@ pub enum TypedValue {
     Long(i64),
     Double(OrderedFloat<f64>),
     // TODO: &str throughout?
-    String(String),
-    Keyword(NamespacedKeyword),
+    String(Rc<String>),
+    Keyword(Rc<NamespacedKeyword>),
 }
 
 impl TypedValue {
@@ -141,9 +142,9 @@ impl SQLValueType for ValueType {
 fn test_typed_value() {
     assert!(TypedValue::Boolean(false).is_congruent_with(None));
     assert!(TypedValue::Boolean(false).is_congruent_with(ValueType::Boolean));
-    assert!(!TypedValue::String("foo".to_string()).is_congruent_with(ValueType::Boolean));
-    assert!(TypedValue::String("foo".to_string()).is_congruent_with(ValueType::String));
-    assert!(TypedValue::String("foo".to_string()).is_congruent_with(None));
+    assert!(!TypedValue::String(Rc::new("foo".to_string())).is_congruent_with(ValueType::Boolean));
+    assert!(TypedValue::String(Rc::new("foo".to_string())).is_congruent_with(ValueType::String));
+    assert!(TypedValue::String(Rc::new("foo".to_string())).is_congruent_with(None));
 }
 
 /// Bit flags used in `flags0` column in temporary tables created during search,

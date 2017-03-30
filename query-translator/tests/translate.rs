@@ -15,6 +15,8 @@ extern crate mentat_query_parser;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 
+use std::rc::Rc;
+
 use mentat_query::NamespacedKeyword;
 
 use mentat_core::{
@@ -59,6 +61,10 @@ fn prepopulated_schema() -> Schema {
     schema
 }
 
+fn make_arg(name: &'static str, value: &'static str) -> (String, Rc<String>) {
+    (name.to_string(), Rc::new(value.to_string()))
+}
+
 #[test]
 fn test_scalar() {
     let schema = prepopulated_schema();
@@ -66,7 +72,7 @@ fn test_scalar() {
     let input = r#"[:find ?x . :where [?x :foo/bar "yyy"]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
-    assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
 
 #[test]
@@ -76,7 +82,7 @@ fn test_tuple() {
     let input = r#"[:find [?x] :where [?x :foo/bar "yyy"]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
-    assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
 
 #[test]
@@ -86,7 +92,7 @@ fn test_coll() {
     let input = r#"[:find [?x ...] :where [?x :foo/bar "yyy"]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
-    assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
 
 #[test]
@@ -96,7 +102,7 @@ fn test_rel() {
     let input = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
-    assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
 
 #[test]
@@ -106,7 +112,7 @@ fn test_limit() {
     let input = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, 5);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 5");
-    assert_eq!(args, vec![("$v0".to_string(), "yyy".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
 
 #[test]
@@ -118,7 +124,7 @@ fn test_unknown_attribute_keyword_value() {
 
     // Only match keywords, not strings: tag = 13.
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = $v0 AND `datoms00`.value_type_tag = 13");
-    assert_eq!(args, vec![("$v0".to_string(), ":ab/yyy".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", ":ab/yyy")]);
 }
 
 #[test]
@@ -131,7 +137,7 @@ fn test_unknown_attribute_string_value() {
     // We expect all_datoms because we're querying for a string. Magic, that.
     // We don't want keywords etc., so tag = 10.
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v = $v0 AND `all_datoms00`.value_type_tag = 10");
-    assert_eq!(args, vec![("$v0".to_string(), "horses".to_string())]);
+    assert_eq!(args, vec![make_arg("$v0", "horses")]);
 }
 
 #[test]

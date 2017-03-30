@@ -14,10 +14,23 @@ extern crate mentat_db;
 extern crate ordered_float;
 extern crate rusqlite;
 
+use std::rc::Rc;
+
+use ordered_float::OrderedFloat;
+
+use edn::symbols;
+
 use mentat_core::{TypedValue, ValueType};
 use mentat_db::db::TypedSQLValue;
-use ordered_float::OrderedFloat;
-use edn::symbols;
+
+fn typed_keyword(ns: &'static str, name: &'static str) -> TypedValue {
+    TypedValue::Keyword(Rc::new(symbols::NamespacedKeyword::new(ns, name)))
+}
+
+fn typed_string(s: &'static str) -> TypedValue {
+    TypedValue::String(Rc::new(s.to_string()))
+}
+
 
 // It's not possible to test to_sql_value_pair since rusqlite::ToSqlOutput doesn't implement
 // PartialEq.
@@ -34,8 +47,8 @@ fn test_from_sql_value_pair() {
     assert_eq!(TypedValue::from_sql_value_pair(rusqlite::types::Value::Real(0.0), 5).unwrap(), TypedValue::Double(OrderedFloat(0.0)));
     assert_eq!(TypedValue::from_sql_value_pair(rusqlite::types::Value::Real(0.5), 5).unwrap(), TypedValue::Double(OrderedFloat(0.5)));
 
-    assert_eq!(TypedValue::from_sql_value_pair(rusqlite::types::Value::Text(":db/keyword".into()), 10).unwrap(), TypedValue::String(":db/keyword".into()));
-    assert_eq!(TypedValue::from_sql_value_pair(rusqlite::types::Value::Text(":db/keyword".into()), 13).unwrap(), TypedValue::Keyword(symbols::NamespacedKeyword::new("db", "keyword")));
+    assert_eq!(TypedValue::from_sql_value_pair(rusqlite::types::Value::Text(":db/keyword".into()), 10).unwrap(), typed_string(":db/keyword"));
+    assert_eq!(TypedValue::from_sql_value_pair(rusqlite::types::Value::Text(":db/keyword".into()), 13).unwrap(), typed_keyword("db", "keyword"));
 }
 
 #[test]
@@ -51,6 +64,6 @@ fn test_to_edn_value_pair() {
     assert_eq!(TypedValue::Double(OrderedFloat(0.0)).to_edn_value_pair(), (edn::Value::Float(OrderedFloat(0.0)), ValueType::Double));
     assert_eq!(TypedValue::Double(OrderedFloat(0.5)).to_edn_value_pair(), (edn::Value::Float(OrderedFloat(0.5)), ValueType::Double));
 
-    assert_eq!(TypedValue::String(":db/keyword".into()).to_edn_value_pair(), (edn::Value::Text(":db/keyword".into()), ValueType::String));
-    assert_eq!(TypedValue::Keyword(symbols::NamespacedKeyword::new("db", "keyword")).to_edn_value_pair(), (edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("db", "keyword")), ValueType::Keyword));
+    assert_eq!(typed_string(":db/keyword").to_edn_value_pair(), (edn::Value::Text(":db/keyword".into()), ValueType::String));
+    assert_eq!(typed_keyword("db", "keyword").to_edn_value_pair(), (edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::new("db", "keyword")), ValueType::Keyword));
 }

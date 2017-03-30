@@ -222,7 +222,7 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
         // Here we handle :db/ident assertions.
         if a == entids::DB_IDENT {
             if let TypedValue::Keyword(ref keyword) = typed_value {
-                ident_set.witness(e, keyword.clone(), added);
+                ident_set.witness(e, keyword.as_ref().clone(), added);
                 continue
             } else {
                 // Something is terribly wrong: the schema ensures we have a keyword.

@@ -35,6 +35,7 @@ extern crate mentat_core;
 
 use std::collections::BTreeSet;
 use std::fmt;
+use std::rc::Rc;
 use edn::{BigInt, OrderedFloat};
 pub use edn::{NamespacedKeyword, PlainSymbol};
 use mentat_core::TypedValue;
@@ -42,7 +43,21 @@ use mentat_core::TypedValue;
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Variable(pub PlainSymbol);
+pub struct Variable(pub Rc<PlainSymbol>);
+
+impl Variable {
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref().0.as_str()
+    }
+
+    pub fn to_string(&self) -> String {
+        self.0.as_ref().0.clone()
+    }
+
+    pub fn name(&self) -> PlainSymbol {
+        self.0.as_ref().clone()
+    }
+}
 
 pub trait FromValue<T> {
     fn from_value(v: &edn::Value) -> Option<T>;
@@ -61,9 +76,16 @@ impl FromValue<Variable> for Variable {
 }
 
 impl Variable {
-    pub fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+    pub fn from_rc(sym: Rc<PlainSymbol>) -> Option<Variable> {
         if sym.is_var_symbol() {
             Some(Variable(sym.clone()))
+        } else {
+            None
+        }
+    }
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<Variable> {
+        if sym.is_var_symbol() {
+            Some(Variable(Rc::new(sym.clone())))
         } else {
             None
         }
@@ -137,7 +159,7 @@ impl NonIntegerConstant {
             NonIntegerConstant::BigInteger(_) => unimplemented!(),     // TODO: #280.
             NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
             NonIntegerConstant::Float(v) => TypedValue::Double(v),
-            NonIntegerConstant::Text(v) => TypedValue::String(v),
+            NonIntegerConstant::Text(v) => TypedValue::String(Rc::new(v)),
         }
     }
 }
@@ -250,8 +272,8 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::EntidOrInteger(x)),
             &edn::Value::PlainSymbol(ref x) if x.0.as_str() == "_" =>
                 Some(PatternValuePlace::Placeholder),
-            &edn::Value::PlainSymbol(ref x) if x.is_var_symbol() =>
-                Some(PatternValuePlace::Variable(Variable(x.clone()))),
+            &edn::Value::PlainSymbol(ref x) =>
+                Variable::from_symbol(x).map(PatternValuePlace::Variable),
             &edn::Value::NamespacedKeyword(ref x) =>
                 Some(PatternValuePlace::IdentOrKeyword(x.clone())),
             &edn::Value::Boolean(x) =>
@@ -338,14 +360,15 @@ pub enum Element {
 /// ```rust
 /// # extern crate edn;
 /// # extern crate mentat_query;
+/// # use std::rc::Rc;
 /// # use edn::PlainSymbol;
 /// # use mentat_query::{Element, FindSpec, Variable};
 ///
 /// # fn main() {
 ///
 ///   let elements = vec![
-///     Element::Variable(Variable(PlainSymbol("?foo".to_string()))),
-///     Element::Variable(Variable(PlainSymbol("?bar".to_string()))),
+///     Element::Variable(Variable(Rc::new(PlainSymbol("?foo".to_string())))),
+///     Element::Variable(Variable(Rc::new(PlainSymbol("?bar".to_string())))),
 ///   ];
 ///   let rel = FindSpec::FindRel(elements);
 ///
@@ -504,10 +527,29 @@ pub enum UnifyVars {
     Explicit(Vec<Variable>),
 }
 
+impl WhereClause {
+    pub fn is_pattern(&self) -> bool {
+        match self {
+            &WhereClause::Pattern(_) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OrWhereClause {
     Clause(WhereClause),
     And(Vec<WhereClause>),
+}
+
+impl OrWhereClause {
+    pub fn is_pattern_or_patterns(&self) -> bool {
+        match self {
+            &OrWhereClause::Clause(WhereClause::Pattern(_)) => true,
+            &OrWhereClause::And(ref clauses) => clauses.iter().all(|clause| clause.is_pattern()),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -538,6 +580,22 @@ pub struct FindQuery {
     pub in_sources: Vec<SrcVar>,
     pub where_clauses: Vec<WhereClause>,
     // TODO: in_rules;
+}
+
+impl OrJoin {
+    /// Return true if either the `OrJoin` is `UnifyVars::Implicit`, or if
+    /// every variable mentioned inside the join is also mentioned in the `UnifyVars` list.
+    pub fn is_fully_unified(&self) -> bool {
+        match &self.unify_vars {
+            &UnifyVars::Implicit => true,
+            &UnifyVars::Explicit(ref vars) => {
+                // We know that the join list must be a subset of the vars in the pattern, or
+                // it would have failed validation. That allows us to simply compare counts here.
+                let mentioned = self.collect_mentioned_variables();
+                vars.len() == mentioned.len()
+            }
+        }
+    }
 }
 
 pub trait ContainsVariables {

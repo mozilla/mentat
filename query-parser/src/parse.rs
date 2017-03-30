@@ -97,6 +97,7 @@ impl<I> Query<I>
     }
 }
 
+// TODO: interning.
 def_value_satisfy_parser_fn!(Query, variable, Variable, Variable::from_value);
 def_value_satisfy_parser_fn!(Query, source_var, SrcVar, SrcVar::from_value);
 def_value_satisfy_parser_fn!(Query, predicate_fn, PredicateFn, PredicateFn::from_value);
@@ -405,6 +406,8 @@ mod test {
     extern crate edn;
     extern crate mentat_query;
 
+    use std::rc::Rc;
+
     use self::combine::Parser;
     use self::edn::OrderedFloat;
     use self::mentat_query::{
@@ -419,6 +422,10 @@ mod test {
     };
 
     use super::*;
+
+    fn variable(x: edn::PlainSymbol) -> Variable {
+        Variable(Rc::new(x))
+    }
 
     #[test]
     fn test_pattern_mixed() {
@@ -435,7 +442,7 @@ mod test {
             entity: PatternNonValuePlace::Placeholder,
             attribute: PatternNonValuePlace::Ident(a),
             value: PatternValuePlace::Constant(NonIntegerConstant::Float(v)),
-            tx: PatternNonValuePlace::Variable(Variable(tx)),
+            tx: PatternNonValuePlace::Variable(variable(tx)),
         }));
     }
 
@@ -453,10 +460,10 @@ mod test {
                  edn::Value::PlainSymbol(tx.clone())))];
         assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
             source: Some(SrcVar::NamedSrc("x".to_string())),
-            entity: PatternNonValuePlace::Variable(Variable(e)),
-            attribute: PatternNonValuePlace::Variable(Variable(a)),
-            value: PatternValuePlace::Variable(Variable(v)),
-            tx: PatternNonValuePlace::Variable(Variable(tx)),
+            entity: PatternNonValuePlace::Variable(variable(e)),
+            attribute: PatternNonValuePlace::Variable(variable(a)),
+            value: PatternValuePlace::Variable(variable(v)),
+            tx: PatternNonValuePlace::Variable(variable(tx)),
         }));
     }
 
@@ -491,10 +498,10 @@ mod test {
         // switched places.
         assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
             source: None,
-            entity: PatternNonValuePlace::Variable(Variable(v)),
+            entity: PatternNonValuePlace::Variable(variable(v)),
             attribute: PatternNonValuePlace::Ident(edn::NamespacedKeyword::new("foo", "bar")),
             value: PatternValuePlace::Placeholder,
-            tx: PatternNonValuePlace::Variable(Variable(tx)),
+            tx: PatternNonValuePlace::Variable(variable(tx)),
         }));
     }
 
@@ -503,7 +510,7 @@ mod test {
         let e = edn::PlainSymbol::new("?e");
         let input = [edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())])];
         assert_parses_to!(Where::rule_vars, input,
-                          vec![Variable(e.clone())]);
+                          vec![variable(e.clone())]);
     }
 
     #[test]
@@ -524,9 +531,9 @@ mod test {
                                   clauses: vec![OrWhereClause::Clause(
                                       WhereClause::Pattern(Pattern {
                                           source: None,
-                                          entity: PatternNonValuePlace::Variable(Variable(e)),
-                                          attribute: PatternNonValuePlace::Variable(Variable(a)),
-                                          value: PatternValuePlace::Variable(Variable(v)),
+                                          entity: PatternNonValuePlace::Variable(variable(e)),
+                                          attribute: PatternNonValuePlace::Variable(variable(a)),
+                                          value: PatternValuePlace::Variable(variable(v)),
                                           tx: PatternNonValuePlace::Placeholder,
                                       }))],
                               }));
@@ -547,13 +554,13 @@ mod test {
         assert_parses_to!(Where::or_join_clause, input,
                           WhereClause::OrJoin(
                               OrJoin {
-                                  unify_vars: UnifyVars::Explicit(vec![Variable(e.clone())]),
+                                  unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
                                   clauses: vec![OrWhereClause::Clause(
                                       WhereClause::Pattern(Pattern {
                                           source: None,
-                                          entity: PatternNonValuePlace::Variable(Variable(e)),
-                                          attribute: PatternNonValuePlace::Variable(Variable(a)),
-                                          value: PatternValuePlace::Variable(Variable(v)),
+                                          entity: PatternNonValuePlace::Variable(variable(e)),
+                                          attribute: PatternNonValuePlace::Variable(variable(a)),
+                                          value: PatternValuePlace::Variable(variable(v)),
                                           tx: PatternNonValuePlace::Placeholder,
                                       }))],
                               }));
@@ -563,7 +570,7 @@ mod test {
     fn test_find_sp_variable() {
         let sym = edn::PlainSymbol::new("?x");
         let input = [edn::Value::PlainSymbol(sym.clone())];
-        assert_parses_to!(Query::variable, input, Variable(sym));
+        assert_parses_to!(Query::variable, input, variable(sym));
     }
 
     #[test]
@@ -573,7 +580,7 @@ mod test {
         let input = [edn::Value::PlainSymbol(sym.clone()), edn::Value::PlainSymbol(period.clone())];
         assert_parses_to!(Find::find_scalar,
                           input,
-                          FindSpec::FindScalar(Element::Variable(Variable(sym))));
+                          FindSpec::FindScalar(Element::Variable(variable(sym))));
     }
 
     #[test]
@@ -584,7 +591,7 @@ mod test {
                                              edn::Value::PlainSymbol(period.clone())])];
         assert_parses_to!(Find::find_coll,
                           input,
-                          FindSpec::FindColl(Element::Variable(Variable(sym))));
+                          FindSpec::FindColl(Element::Variable(variable(sym))));
     }
 
     #[test]
@@ -594,8 +601,8 @@ mod test {
         let input = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
         assert_parses_to!(Find::find_rel,
                           input,
-                          FindSpec::FindRel(vec![Element::Variable(Variable(vx)),
-                                                 Element::Variable(Variable(vy))]));
+                          FindSpec::FindRel(vec![Element::Variable(variable(vx)),
+                                                 Element::Variable(variable(vy))]));
     }
 
     #[test]
@@ -606,8 +613,8 @@ mod test {
                                              edn::Value::PlainSymbol(vy.clone())])];
         assert_parses_to!(Find::find_tuple,
                           input,
-                          FindSpec::FindTuple(vec![Element::Variable(Variable(vx)),
-                                                   Element::Variable(Variable(vy))]));
+                          FindSpec::FindTuple(vec![Element::Variable(variable(vx)),
+                                                   Element::Variable(variable(vy))]));
     }
 
     #[test]
@@ -624,15 +631,15 @@ mod test {
                                             edn::Value::PlainSymbol(ellipsis.clone())])];
         let rel = [edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())];
 
-        assert_eq!(FindSpec::FindScalar(Element::Variable(Variable(vx.clone()))),
+        assert_eq!(FindSpec::FindScalar(Element::Variable(variable(vx.clone()))),
                    find_seq_to_find_spec(&scalar).unwrap());
-        assert_eq!(FindSpec::FindTuple(vec![Element::Variable(Variable(vx.clone())),
-                                            Element::Variable(Variable(vy.clone()))]),
+        assert_eq!(FindSpec::FindTuple(vec![Element::Variable(variable(vx.clone())),
+                                            Element::Variable(variable(vy.clone()))]),
                    find_seq_to_find_spec(&tuple).unwrap());
-        assert_eq!(FindSpec::FindColl(Element::Variable(Variable(vx.clone()))),
+        assert_eq!(FindSpec::FindColl(Element::Variable(variable(vx.clone()))),
                    find_seq_to_find_spec(&coll).unwrap());
-        assert_eq!(FindSpec::FindRel(vec![Element::Variable(Variable(vx.clone())),
-                                          Element::Variable(Variable(vy.clone()))]),
+        assert_eq!(FindSpec::FindRel(vec![Element::Variable(variable(vx.clone())),
+                                          Element::Variable(variable(vy.clone()))]),
                    find_seq_to_find_spec(&rel).unwrap());
     }
 }
