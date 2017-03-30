@@ -11,15 +11,19 @@
 extern crate combine;
 extern crate edn;
 
-pub mod value_and_span;
-
 use combine::{
     ParseResult,
-    Stream,
 };
 use combine::combinator::{
     Expected,
     FnParser,
+};
+
+pub mod log;
+pub mod value_and_span;
+
+pub use log::{
+    LogParsing,
 };
 
 /// A type definition for a function parser that either parses an `O` from an input stream of type
