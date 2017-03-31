@@ -270,11 +270,11 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_column_to_constant(&mut self, table: TableAlias, column: DatomsColumn, constant: TypedValue) {
-        self.wheres.also(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
     }
 
     pub fn constrain_column_to_entity(&mut self, table: TableAlias, column: DatomsColumn, entity: Entid) {
-        self.wheres.also(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
+        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
     }
 
     pub fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
@@ -282,7 +282,7 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
-        self.wheres.also(ColumnConstraint::Equals(
+        self.wheres.add_intersection(ColumnConstraint::Equals(
             QualifiedAlias(table, DatomsColumn::Value),
             QueryValue::PrimitiveLong(value)))
     }
@@ -529,7 +529,7 @@ impl ConjoiningClauses {
                     // TODO: if both primary and secondary are .v, should we make sure
                     // the type tag columns also match?
                     // We don't do so in the ClojureScript version.
-                    self.wheres.also(ColumnConstraint::Equals(primary.clone(), QueryValue::Column(secondary.clone())));
+                    self.wheres.add_intersection(ColumnConstraint::Equals(primary.clone(), QueryValue::Column(secondary.clone())));
                 }
             }
         }

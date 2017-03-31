@@ -78,7 +78,7 @@ impl ConjoiningClauses {
             left: left,
             right: right,
         };
-        self.wheres.also(constraint);
+        self.wheres.add_intersection(constraint);
         Ok(())
     }
 }

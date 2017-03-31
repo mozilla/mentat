@@ -241,7 +241,7 @@ impl ColumnIntersection {
         self.0.is_empty()
     }
 
-    pub fn also(&mut self, constraint: ColumnConstraint) {
+    pub fn add_intersection(&mut self, constraint: ColumnConstraint) {
         self.0.push(ColumnConstraintOrAlternation::Constraint(constraint));
     }
 }
@@ -267,7 +267,7 @@ impl IntoIterator for ColumnAlternation {
 }
 
 impl ColumnAlternation {
-    pub fn instead(&mut self, intersection: ColumnIntersection) {
+    pub fn add_alternate(&mut self, intersection: ColumnIntersection) {
         self.0.push(intersection);
     }
 }
