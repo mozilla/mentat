@@ -25,7 +25,10 @@ use mentat_query::{
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
+    ColumnAlternation,
     ColumnConstraint,
+    ColumnConstraintOrAlternation,
+    ColumnIntersection,
     ConjoiningClauses,
     DatomsColumn,
     DatomsTable,
@@ -63,6 +66,32 @@ trait ToColumn {
 impl ToColumn for QualifiedAlias {
     fn to_column(self) -> ColumnOrExpression {
         ColumnOrExpression::Column(self)
+    }
+}
+
+impl ToConstraint for ColumnIntersection {
+    fn to_constraint(self) -> Constraint {
+        Constraint::And {
+            constraints: self.into_iter().map(|x| x.to_constraint()).collect()
+        }
+    }
+}
+
+impl ToConstraint for ColumnAlternation {
+    fn to_constraint(self) -> Constraint {
+        Constraint::Or {
+            constraints: self.into_iter().map(|x| x.to_constraint()).collect()
+        }
+    }
+}
+
+impl ToConstraint for ColumnConstraintOrAlternation {
+    fn to_constraint(self) -> Constraint {
+        use self::ColumnConstraintOrAlternation::*;
+        match self {
+            Alternation(alt) => alt.to_constraint(),
+            Constraint(c) => c.to_constraint(),
+        }
     }
 }
 

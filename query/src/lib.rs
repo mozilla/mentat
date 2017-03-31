@@ -44,6 +44,27 @@ pub type SrcVarName = String;          // Do not include the required syntactic 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Variable(pub PlainSymbol);
 
+impl Variable {
+    pub fn as_str(&self) -> &str {
+        (self.0).0.as_str()
+    }
+
+    pub fn to_string(&self) -> String {
+        (self.0).0.clone()
+    }
+
+    pub fn name(&self) -> PlainSymbol {
+        self.0.clone()
+    }
+
+    /// Return a new `Variable`, assuming that the provided string is a valid name.
+    pub fn from_valid_name(name: &str) -> Variable {
+        let s = PlainSymbol::new(name);
+        assert!(s.is_var_symbol());
+        Variable(s)
+    }
+}
+
 pub trait FromValue<T> {
     fn from_value(v: &edn::Value) -> Option<T>;
 }
@@ -504,10 +525,29 @@ pub enum UnifyVars {
     Explicit(Vec<Variable>),
 }
 
+impl WhereClause {
+    pub fn is_pattern(&self) -> bool {
+        match self {
+            &WhereClause::Pattern(_) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OrWhereClause {
     Clause(WhereClause),
     And(Vec<WhereClause>),
+}
+
+impl OrWhereClause {
+    pub fn is_pattern_or_patterns(&self) -> bool {
+        match self {
+            &OrWhereClause::Clause(WhereClause::Pattern(_)) => true,
+            &OrWhereClause::And(ref clauses) => clauses.iter().all(|clause| clause.is_pattern()),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -538,6 +578,24 @@ pub struct FindQuery {
     pub in_sources: Vec<SrcVar>,
     pub where_clauses: Vec<WhereClause>,
     // TODO: in_rules;
+}
+
+impl OrJoin {
+    /// Return true if either the `OrJoin` is `UnifyVars::Implicit`, or if
+    /// every variable mentioned inside the join is also mentioned in the `UnifyVars` list.
+    pub fn is_fully_unified(&self) -> bool {
+        match &self.unify_vars {
+            &UnifyVars::Implicit => true,
+            &UnifyVars::Explicit(ref vars) => {
+                // We know that the join list must be a subset of the vars in the pattern, or
+                // it would have failed validation. That allows us to simply compare counts here.
+                // TODO: in debug mode, do a full intersection, and verify that our count check
+                // returns the same results.
+                let mentioned = self.collect_mentioned_variables();
+                vars.len() == mentioned.len()
+            }
+        }
+    }
 }
 
 pub trait ContainsVariables {

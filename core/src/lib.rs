@@ -93,6 +93,20 @@ impl TypedValue {
             &TypedValue::Keyword(_) => ValueType::Keyword,
         }
     }
+
+    /// Construct a new `TypedValue::Keyword` instance by cloning the provided
+    /// values. This is expensive, so this might
+    /// be best limited to tests.
+    pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
+        TypedValue::Keyword(NamespacedKeyword::new(ns, name))
+    }
+
+    /// Construct a new `TypedValue::String` instance by cloning the provided
+    /// value. This is expensive, so this might
+    /// be best limited to tests.
+    pub fn typed_string(s: &str) -> TypedValue {
+        TypedValue::String(s.to_string())
+    }
 }
 
 // Put this here rather than in `db` simply because it's widely needed.
@@ -141,9 +155,9 @@ impl SQLValueType for ValueType {
 fn test_typed_value() {
     assert!(TypedValue::Boolean(false).is_congruent_with(None));
     assert!(TypedValue::Boolean(false).is_congruent_with(ValueType::Boolean));
-    assert!(!TypedValue::String("foo".to_string()).is_congruent_with(ValueType::Boolean));
-    assert!(TypedValue::String("foo".to_string()).is_congruent_with(ValueType::String));
-    assert!(TypedValue::String("foo".to_string()).is_congruent_with(None));
+    assert!(!TypedValue::typed_string("foo").is_congruent_with(ValueType::Boolean));
+    assert!(TypedValue::typed_string("foo").is_congruent_with(ValueType::String));
+    assert!(TypedValue::typed_string("foo").is_congruent_with(None));
 }
 
 /// Bit flags used in `flags0` column in temporary tables created during search,
@@ -473,3 +487,4 @@ mod test {
 }
 
 pub mod intern_set;
+pub mod util;

@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::collections::HashSet;
+
 use std::fmt::{
     Debug,
     Formatter,
@@ -19,6 +21,12 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
+
+use mentat_query::{
+    NamespacedKeyword,
+    Variable,
+};
+
 /// This enum models the fixed set of default tables we have -- two
 /// tables and two views.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -186,6 +194,90 @@ pub enum ColumnConstraint {
     HasType(TableAlias, ValueType),
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum ColumnConstraintOrAlternation {
+    Constraint(ColumnConstraint),
+    Alternation(ColumnAlternation),
+}
+
+impl From<ColumnConstraint> for ColumnConstraintOrAlternation {
+    fn from(thing: ColumnConstraint) -> Self {
+        ColumnConstraintOrAlternation::Constraint(thing)
+    }
+}
+
+/// A `ColumnIntersection` constraint is satisfied if all of its inner constraints are satisfied.
+/// An empty intersection is always satisfied.
+#[derive(PartialEq, Eq)]
+pub struct ColumnIntersection(pub Vec<ColumnConstraintOrAlternation>);
+
+impl From<Vec<ColumnConstraint>> for ColumnIntersection {
+    fn from(thing: Vec<ColumnConstraint>) -> Self {
+        ColumnIntersection(thing.into_iter().map(|x| x.into()).collect())
+    }
+}
+
+impl Default for ColumnIntersection {
+    fn default() -> Self {
+        ColumnIntersection(vec![])
+    }
+}
+
+impl IntoIterator for ColumnIntersection {
+    type Item = ColumnConstraintOrAlternation;
+    type IntoIter = ::std::vec::IntoIter<ColumnConstraintOrAlternation>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl ColumnIntersection {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn add_intersection(&mut self, constraint: ColumnConstraint) {
+        self.0.push(ColumnConstraintOrAlternation::Constraint(constraint));
+    }
+}
+
+/// A `ColumnAlternation` constraint is satisfied if at least one of its inner constraints is
+/// satisfied. An empty `ColumnAlternation` is never satisfied.
+#[derive(PartialEq, Eq, Debug)]
+pub struct ColumnAlternation(pub Vec<ColumnIntersection>);
+
+impl Default for ColumnAlternation {
+    fn default() -> Self {
+        ColumnAlternation(vec![])
+    }
+}
+
+impl IntoIterator for ColumnAlternation {
+    type Item = ColumnIntersection;
+    type IntoIter = ::std::vec::IntoIter<ColumnIntersection>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl ColumnAlternation {
+    pub fn add_alternate(&mut self, intersection: ColumnIntersection) {
+        self.0.push(intersection);
+    }
+}
+
+impl Debug for ColumnIntersection {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
 impl Debug for ColumnConstraint {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::ColumnConstraint::*;
@@ -200,6 +292,57 @@ impl Debug for ColumnConstraint {
 
             &HasType(ref qa, value_type) => {
                 write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
+            },
+        }
+    }
+}
+
+#[derive(PartialEq, Clone)]
+pub enum EmptyBecause {
+    // Var, existing, desired.
+    TypeMismatch(Variable, HashSet<ValueType>, ValueType),
+    NonNumericArgument,
+    NonStringFulltextValue,
+    UnresolvedIdent(NamespacedKeyword),
+    InvalidAttributeIdent(NamespacedKeyword),
+    InvalidAttributeEntid(Entid),
+    InvalidBinding(DatomsColumn, TypedValue),
+    ValueTypeMismatch(ValueType, TypedValue),
+    AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
+}
+
+impl Debug for EmptyBecause {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+        use self::EmptyBecause::*;
+        match self {
+            &TypeMismatch(ref var, ref existing, ref desired) => {
+                write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
+                       var, desired, existing)
+            },
+            &NonNumericArgument => {
+                write!(f, "Non-numeric argument in numeric place")
+            },
+            &NonStringFulltextValue => {
+                write!(f, "Non-string argument for fulltext attribute")
+            },
+            &UnresolvedIdent(ref kw) => {
+                write!(f, "Couldn't resolve keyword {}", kw)
+            },
+            &InvalidAttributeIdent(ref kw) => {
+                write!(f, "{} does not name an attribute", kw)
+            },
+            &InvalidAttributeEntid(entid) => {
+                write!(f, "{} is not an attribute", entid)
+            },
+            &InvalidBinding(ref column, ref tv) => {
+                write!(f, "{:?} cannot name column {:?}", tv, column)
+            },
+            &ValueTypeMismatch(value_type, ref typed_value) => {
+                write!(f, "Type mismatch: {:?} doesn't match attribute type {:?}",
+                       typed_value, value_type)
+            },
+            &AttributeLookupFailed => {
+                write!(f, "Attribute lookup failed")
             },
         }
     }

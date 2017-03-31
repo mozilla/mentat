@@ -17,7 +17,8 @@ extern crate mentat_query;
 mod errors;
 mod types;
 mod validate;
-mod cc;
+mod clauses;
+
 
 use mentat_core::{
     Schema,
@@ -27,7 +28,6 @@ use mentat_query::{
     FindQuery,
     FindSpec,
     SrcVar,
-    WhereClause,
 };
 
 pub use errors::{
@@ -42,7 +42,7 @@ pub struct AlgebraicQuery {
     pub find_spec: FindSpec,
     has_aggregates: bool,
     pub limit: Option<u64>,
-    pub cc: cc::ConjoiningClauses,
+    pub cc: clauses::ConjoiningClauses,
 }
 
 impl AlgebraicQuery {
@@ -72,7 +72,7 @@ impl AlgebraicQuery {
 pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
-    let mut cc = cc::ConjoiningClauses::default();
+    let mut cc = clauses::ConjoiningClauses::default();
     let where_clauses = parsed.where_clauses;
     for where_clause in where_clauses {
         cc.apply_clause(schema, where_clause)?;
@@ -88,12 +88,15 @@ pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
     })
 }
 
-pub use cc::{
+pub use clauses::{
     ConjoiningClauses,
 };
 
 pub use types::{
+    ColumnAlternation,
     ColumnConstraint,
+    ColumnConstraintOrAlternation,
+    ColumnIntersection,
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,
