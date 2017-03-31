@@ -498,11 +498,11 @@ impl ConjoiningClauses {
         match attribute {
             &PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw)
-                      .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(kw.clone())))
+                      .(|| self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(kw.clone())))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             &PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
-                      .when_not(|| self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(id)))
+                      .(|| self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(id)))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             // TODO: In a prepared context, defer this decision until a second algebrizing phase.
             // #278.
@@ -972,6 +972,10 @@ impl ConjoiningClauses {
             },
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)
+                // TODO: apply.
+            },
+            WhereClause::NotJoin(n) => {
+                validate_not_join(&n)
                 // TODO: apply.
             },
             _ => unimplemented!(),

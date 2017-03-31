@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 use mentat_query::{
     ContainsVariables,
     OrJoin,
+    NotJoin,
     Variable,
     WhereClause,
     UnifyVars,
@@ -75,6 +76,37 @@ pub fn validate_or_join(or_join: &OrJoin) -> Result<()> {
     }
 }
 
+pub fn validate_not_join(no_join: &NotJoin) -> Result<()> {
+    // Grab our mentioned variables and ensure that the rules are followed.
+    match not_join.unify_vars {
+        UnifyVars::Implicit => {
+            // Each 'leg' must have the same variable set.
+            if not_join.clauses.len() < 2 {
+                Ok(())
+            } else {
+                let mut clauses = not_join.clauses.iter();
+                let template = clauses.next().unwrap().collect_mentioned_variables();
+                for clause in clauses {
+                    if template != clause.collect_mentioned_variables() {
+                        bail!(ErrorKind::NonMatchingVariablesInOrClause);
+                    }
+                }
+                Ok(())
+            }
+        },
+        UnifyVars::Explicit(ref vars) => {
+            // Each leg must use the joined vars.
+            let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
+            for clause in &not_join.clauses {
+                if !var_set.is_subset(&clause.collect_mentioned_variables()) {
+                    bail!(ErrorKind::NonMatchingVariablesInOrClause);
+                }
+            }
+            Ok(())
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate mentat_core;
@@ -93,6 +125,7 @@ mod tests {
         UnifyVars,
         Variable,
         WhereClause,
+        WhereNotClause,
     };
 
     use self::mentat_query_parser::parse_find_string;
