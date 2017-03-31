@@ -34,8 +34,27 @@ impl<T> InternSet<T> where T: Eq + Hash {
     }
 
     /// Intern a value, providing a ref-counted handle to the interned value.
-    pub fn intern(&mut self, value: T) -> Rc<T> {
-        let key = Rc::new(value);
+    ///
+    /// ```
+    /// use std::rc::Rc;
+    /// use mentat_core::intern_set::InternSet;
+    ///
+    /// let mut s = InternSet::new();
+    ///
+    /// let one = "foo".to_string();
+    /// let two = Rc::new("foo".to_string());
+    ///
+    /// let out_one = s.intern(one);
+    /// assert_eq!(out_one, two);
+    /// // assert!(!&out_one.ptr_eq(&two));      // Nightly-only.
+    ///
+    /// let out_two = s.intern(two);
+    /// assert_eq!(out_one, out_two);
+    /// assert_eq!(1, s.inner.len());
+    /// // assert!(&out_one.ptr_eq(&out_two));   // Nightly-only.
+    /// ```
+    pub fn intern<R: Into<Rc<T>>>(&mut self, value: R) -> Rc<T> {
+        let key: Rc<T> = value.into();
         if self.inner.insert(key.clone()) {
             key
         } else {
