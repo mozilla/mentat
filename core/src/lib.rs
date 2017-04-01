@@ -17,6 +17,7 @@ extern crate edn;
 pub mod values;
 
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
 
@@ -66,8 +67,8 @@ pub enum TypedValue {
     Long(i64),
     Double(OrderedFloat<f64>),
     // TODO: &str throughout?
-    String(String),
-    Keyword(NamespacedKeyword),
+    String(Rc<String>),
+    Keyword(Rc<NamespacedKeyword>),
 }
 
 impl TypedValue {
@@ -95,17 +96,17 @@ impl TypedValue {
     }
 
     /// Construct a new `TypedValue::Keyword` instance by cloning the provided
-    /// values. This is expensive, so this might
+    /// values and wrapping them in a new `Rc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        TypedValue::Keyword(NamespacedKeyword::new(ns, name))
+        TypedValue::Keyword(Rc::new(NamespacedKeyword::new(ns, name)))
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
-    /// value. This is expensive, so this might
+    /// value and wrapping it in a new `Rc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
-        TypedValue::String(s.to_string())
+        TypedValue::String(Rc::new(s.to_string()))
     }
 }
 
