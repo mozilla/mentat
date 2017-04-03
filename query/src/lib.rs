@@ -504,6 +504,25 @@ impl FindSpec {
     }
 }
 
+// Datomic accepts variable or placeholder.  DataScript accepts recursive bindings.  Mentat sticks
+// to the non-recursive form Datomic accepts, which is much simpler to process.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VariableOrPlaceholder {
+    Placeholder,
+    Variable(Variable),
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum Binding {
+    BindRel(Vec<VariableOrPlaceholder>),
+
+    BindColl(Variable),
+
+    BindTuple(Vec<VariableOrPlaceholder>),
+
+    BindScalar(Variable),
+}
+
 // Note that the "implicit blank" rule applies.
 // A pattern with a reversed attribute — :foo/_bar — is reversed
 // at the point of parsing. These `Pattern` instances only represent
@@ -557,6 +576,13 @@ impl Pattern {
 pub struct Predicate {
     pub operator: PlainSymbol,
     pub args: Vec<FnArg>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhereFn {
+    pub operator: PlainSymbol,
+    pub args: Vec<FnArg>,
+    pub binding: Binding,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -634,7 +660,7 @@ pub enum WhereClause {
     NotJoin(NotJoin),
     OrJoin(OrJoin),
     Pred(Predicate),
-    WhereFn,
+    WhereFn(WhereFn),
     RuleExpr,
     Pattern(Pattern),
 }
@@ -700,7 +726,7 @@ impl ContainsVariables for WhereClause {
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
             &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
-            &WhereFn        => (),
+            &WhereFn(_)     => (),
             &RuleExpr       => (),
         }
     }
