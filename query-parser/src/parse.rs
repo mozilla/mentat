@@ -26,7 +26,7 @@ use self::mentat_parser_utils::{
 use self::mentat_parser_utils::value_and_span::Stream as ValueStream;
 use self::mentat_parser_utils::value_and_span::{
     Item,
-    OfParsing,
+    OfExactlyParsing,
     keyword_map,
     list,
     map,
@@ -162,7 +162,7 @@ def_parser!(Where, or_join, edn::ValueAndSpan, {
 
 def_parser!(Where, rule_vars, Vec<Variable>, {
     seq()
-        .of(many1(Query::variable()))
+        .of_exactly(many1(Query::variable()))
 });
 
 def_parser!(Where, or_pattern_clause, OrWhereClause, {
@@ -171,7 +171,7 @@ def_parser!(Where, or_pattern_clause, OrWhereClause, {
 
 def_parser!(Where, or_and_clause, OrWhereClause, {
     seq()
-        .of(Where::and()
+        .of_exactly(Where::and()
             .with(many1(Where::clause()))
             .map(OrWhereClause::And))
 });
@@ -182,7 +182,7 @@ def_parser!(Where, or_where_clause, OrWhereClause, {
 
 def_parser!(Where, or_clause, WhereClause, {
     seq()
-        .of(Where::or()
+        .of_exactly(Where::or()
             .with(many1(Where::or_where_clause()))
             .map(|clauses| {
                 WhereClause::OrJoin(
@@ -195,7 +195,7 @@ def_parser!(Where, or_clause, WhereClause, {
 
 def_parser!(Where, or_join_clause, WhereClause, {
     seq()
-        .of(Where::or_join()
+        .of_exactly(Where::or_join()
             .with(Where::rule_vars())
             .and(many1(Where::or_where_clause()))
             .map(|(vars, clauses)| {
@@ -212,8 +212,8 @@ def_parser!(Where, pred, WhereClause, {
     // Accept either a nested list or a nested vector here:
     // `[(foo ?x ?y)]` or `[[foo ?x ?y]]`
     vector()
-        .of(seq()
-            .of((Query::predicate_fn(), Query::arguments())
+        .of_exactly(seq()
+            .of_exactly((Query::predicate_fn(), Query::arguments())
                 .map(|(f, args)| {
                     WhereClause::Pred(
                         Predicate {
@@ -225,7 +225,7 @@ def_parser!(Where, pred, WhereClause, {
 
 def_parser!(Where, pattern, WhereClause, {
     vector()
-        .of(
+        .of_exactly(
             // While *technically* Datomic allows you to have a query like:
             // [:find … :where [[?x]]]
             // We don't -- we require at least e, a.
@@ -313,7 +313,7 @@ def_parser!(Find, find_scalar, FindSpec, {
 
 def_parser!(Find, find_coll, FindSpec, {
     vector()
-        .of(Query::variable()
+        .of_exactly(Query::variable()
             .map(|var| FindSpec::FindColl(Element::Variable(var)))
             .skip(Find::ellipsis()))
 });
@@ -328,7 +328,7 @@ def_parser!(Find, find_rel, FindSpec, {
 
 def_parser!(Find, find_tuple, FindSpec, {
     vector()
-        .of(Find::elements().map(FindSpec::FindTuple))
+        .of_exactly(Find::elements().map(FindSpec::FindTuple))
 });
 
 /// Parse a stream values into one of four find specs.
@@ -395,16 +395,16 @@ enum FindQueryPart {
 /// construct a `FindQuery` from them.
 def_parser!(Find, query, FindQuery, {
     let p_find_spec = Find::literal_find()
-        .with(vector().of(Find::spec().map(FindQueryPart::FindSpec)));
+        .with(vector().of_exactly(Find::spec().map(FindQueryPart::FindSpec)));
 
     let p_with_vars = Find::literal_with()
-        .with(vector().of(many(Query::variable()).map(FindQueryPart::With)));
+        .with(vector().of_exactly(many(Query::variable()).map(FindQueryPart::With)));
 
     let p_where_clauses = Find::literal_where()
-        .with(vector().of(Where::clauses().map(FindQueryPart::WhereClauses))).expected(":where clauses");
+        .with(vector().of_exactly(Where::clauses().map(FindQueryPart::WhereClauses))).expected(":where clauses");
 
     (or(map(), keyword_map()))
-        .of(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 3], _>([
+        .of_exactly(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 3], _>([
             &mut try(p_find_spec),
             &mut try(p_with_vars),
             &mut try(p_where_clauses),
@@ -619,7 +619,7 @@ mod test {
     fn test_find_sp_variable() {
         let sym = edn::PlainSymbol::new("?x");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone())]);
-        assert_parses_to!(|| vector().of(Query::variable()), input, variable(sym));
+        assert_parses_to!(|| vector().of_exactly(Query::variable()), input, variable(sym));
     }
 
     #[test]
@@ -627,7 +627,7 @@ mod test {
         let sym = edn::PlainSymbol::new("?x");
         let period = edn::PlainSymbol::new(".");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone()), edn::Value::PlainSymbol(period.clone())]);
-        assert_parses_to!(|| vector().of(Find::find_scalar()),
+        assert_parses_to!(|| vector().of_exactly(Find::find_scalar()),
                           input,
                           FindSpec::FindScalar(Element::Variable(variable(sym))));
     }
@@ -648,7 +648,7 @@ mod test {
         let vx = edn::PlainSymbol::new("?x");
         let vy = edn::PlainSymbol::new("?y");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())]);
-        assert_parses_to!(|| vector().of(Find::find_rel()),
+        assert_parses_to!(|| vector().of_exactly(Find::find_rel()),
                           input,
                           FindSpec::FindRel(vec![Element::Variable(variable(vx)),
                                                  Element::Variable(variable(vy))]));

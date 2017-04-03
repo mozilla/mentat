@@ -45,7 +45,7 @@ use mentat_tx::entities::{
 use mentat_parser_utils::{ResultParser};
 use mentat_parser_utils::value_and_span::{
     Item,
-    OfParsing,
+    OfExactlyParsing,
     integer,
     list,
     map,
@@ -66,8 +66,8 @@ def_parser!(Tx, entid, Entid, {
 });
 
 def_parser!(Tx, lookup_ref, LookupRef, {
-    list()
-        .of(value(edn::Value::PlainSymbol(PlainSymbol::new("lookup-ref")))
+    list().of_exactly(
+        value(edn::Value::PlainSymbol(PlainSymbol::new("lookup-ref")))
             .with((Tx::entid(),
                    Tx::atom()))
             .map(|(a, v)| LookupRef { a: a, v: v.without_spans() }))
@@ -88,7 +88,7 @@ def_parser!(Tx, atom, edn::ValueAndSpan, {
 });
 
 def_parser!(Tx, nested_vector, Vec<AtomOrLookupRefOrVectorOrMapNotation>, {
-    vector().of(many(Tx::atom_or_lookup_ref_or_vector()))
+    vector().of_exactly(many(Tx::atom_or_lookup_ref_or_vector()))
 });
 
 def_parser!(Tx, atom_or_lookup_ref_or_vector, AtomOrLookupRefOrVectorOrMapNotation, {
@@ -116,12 +116,12 @@ def_parser!(Tx, add_or_retract, Entity, {
             }
         });
 
-    vector().of(p)
+    vector().of_exactly(p)
 });
 
 def_parser!(Tx, map_notation, MapNotation, {
     map()
-        .of(many((Tx::entid(), Tx::atom_or_lookup_ref_or_vector())))
+        .of_exactly(many((Tx::entid(), Tx::atom_or_lookup_ref_or_vector())))
         .map(|avs: Vec<(Entid, AtomOrLookupRefOrVectorOrMapNotation)>| -> MapNotation {
             avs.into_iter().collect()
         })
@@ -133,7 +133,7 @@ def_parser!(Tx, entity, Entity, {
 });
 
 def_parser!(Tx, entities, Vec<Entity>, {
-    vector().of(many(Tx::entity()))
+    vector().of_exactly(many(Tx::entity()))
 });
 
 impl Tx {
@@ -185,7 +185,9 @@ pub fn remove_db_id(map: &mut MapNotation) -> std::result::Result<Option<EntidOr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::LinkedList;
+
+    use std::collections::BTreeMap;
+
     use combine::Parser;
     use edn::symbols::NamespacedKeyword;
     use edn::{
@@ -198,11 +200,9 @@ mod tests {
         Entid,
         EntidOrLookupRefOrTempId,
         Entity,
-        LookupRef,
         OpType,
         AtomOrLookupRefOrVectorOrMapNotation,
     };
-    use std::collections::BTreeMap;
 
     fn kw(namespace: &str, name: &str) -> Value {
         Value::NamespacedKeyword(NamespacedKeyword::new(namespace, name))
@@ -213,9 +213,9 @@ mod tests {
         let input = Value::Vector(vec![kw("db", "add"),
                                        kw("test", "entid"),
                                        kw("test", "a"),
-                                       Value::Text("v".into())]).with_spans();
+                                       Value::Text("v".into())]);
         let mut parser = Tx::entity();
-        let result = parser.parse(input.into_atom_stream()).map(|x| x.0);
+        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
         assert_eq!(result,
                    Ok(Entity::AddOrRetract {
                        op: OpType::Add,
@@ -226,91 +226,82 @@ mod tests {
                    }));
     }
 
-    // #[test]
-    // fn test_retract() {
-    //     let input = [Value::Vector(vec![kw("db", "retract"),
-    //                                     Value::Integer(101),
-    //                                     kw("test", "a"),
-    //                                     Value::Text("v".into())])];
-    //     let mut parser = Tx::entity();
-    //     let result = parser.parse(&input[..]);
-    //     assert_eq!(result,
-    //                Ok((Entity::AddOrRetract {
-    //                    op: OpType::Retract,
-    //                    e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
-    //                    a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-    //                    v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
-    //                },
-    //                    &[][..])));
-    // }
+    #[test]
+    fn test_retract() {
+        let input = Value::Vector(vec![kw("db", "retract"),
+                                       Value::Integer(101),
+                                       kw("test", "a"),
+                                       Value::Text("v".into())]);
+        let mut parser = Tx::entity();
+        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+        assert_eq!(result,
+                   Ok(Entity::AddOrRetract {
+                       op: OpType::Retract,
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("v".into()), Span(25, 28))),
+                   }));
+    }
 
-    // #[test]
-    // fn test_lookup_ref() {
-    //     let mut list = LinkedList::new();
-    //     list.push_back(Value::PlainSymbol(PlainSymbol::new("lookup-ref")));
-    //     list.push_back(kw("test", "a1"));
-    //     list.push_back(Value::Text("v1".into()));
+    #[test]
+    fn test_lookup_ref() {
+        let input = Value::Vector(vec![kw("db", "add"),
+                                       Value::List(vec![Value::PlainSymbol(PlainSymbol::new("lookup-ref")),
+                                                        kw("test", "a1"),
+                                                        Value::Text("v1".into())].into_iter().collect()),
+                                       kw("test", "a"),
+                                       Value::Text("v".into())]);
+        let mut parser = Tx::entity();
+        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+        assert_eq!(result,
+                   Ok(Entity::AddOrRetract {
+                       op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
+                           a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
+                           v: Value::Text("v1".into()),
+                       }),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("v".into()), Span(44, 47))),
+                   }));
+    }
 
-    //     let input = [Value::Vector(vec![kw("db", "add"),
-    //                                     Value::List(list),
-    //                                     kw("test", "a"),
-    //                                     Value::Text("v".into())])];
-    //     let mut parser = Tx::entity();
-    //     let result = parser.parse(&input[..]);
-    //     assert_eq!(result,
-    //                Ok((Entity::AddOrRetract {
-    //                    op: OpType::Add,
-    //                    e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
-    //                        a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
-    //                        v: Value::Text("v1".into()),
-    //                    }),
-    //                    a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-    //                    v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
-    //                },
-    //                    &[][..])));
-    // }
+    #[test]
+    fn test_nested_vector() {
+        let input = Value::Vector(vec![kw("db", "add"),
+                                       Value::List(vec![Value::PlainSymbol(PlainSymbol::new("lookup-ref")),
+                                                        kw("test", "a1"),
+                                                        Value::Text("v1".into())].into_iter().collect()),
+                                       kw("test", "a"),
+                                       Value::Vector(vec![Value::Text("v1".into()), Value::Text("v2".into())])]);
+        let mut parser = Tx::entity();
+        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+        assert_eq!(result,
+                   Ok(Entity::AddOrRetract {
+                       op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
+                           a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
+                           v: Value::Text("v1".into()),
+                       }),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Vector(vec![AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("v1".into()), Span(45, 49))),
+                                                                            AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("v2".into()), Span(50, 54)))]),
+                   }));
+    }
 
-    // #[test]
-    // fn test_nested_vector() {
-    //     let mut list = LinkedList::new();
-    //     list.push_back(Value::PlainSymbol(PlainSymbol::new("lookup-ref")));
-    //     list.push_back(kw("test", "a1"));
-    //     list.push_back(Value::Text("v1".into()));
+    #[test]
+    fn test_map_notation() {
+        let mut expected: MapNotation = BTreeMap::default();
+        expected.insert(Entid::Ident(NamespacedKeyword::new("db", "id")), AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("t".to_string()), Span(8, 11))));
+        expected.insert(Entid::Ident(NamespacedKeyword::new("db", "ident")), AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::NamespacedKeyword(NamespacedKeyword::new("test", "attribute")), Span(22, 37))));
 
-    //     let input = [Value::Vector(vec![kw("db", "add"),
-    //                                     Value::List(list),
-    //                                     kw("test", "a"),
-    //                                     Value::Vector(vec![Value::Text("v1".into()), Value::Text("v2".into())])])];
-    //     let mut parser = Tx::entity();
-    //     let result = parser.parse(&input[..]);
-    //     assert_eq!(result,
-    //                Ok((Entity::AddOrRetract {
-    //                    op: OpType::Add,
-    //                    e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
-    //                        a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
-    //                        v: Value::Text("v1".into()),
-    //                    }),
-    //                    a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-    //                    v: AtomOrLookupRefOrVectorOrMapNotation::Vector(vec![AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v1".into())),
-    //                                                                         AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v2".into()))]),
-    //                },
-    //                    &[][..])));
-    // }
+        let mut map: BTreeMap<Value, Value> = BTreeMap::default();
+        map.insert(kw("db", "id"), Value::Text("t".to_string()));
+        map.insert(kw("db", "ident"), kw("test", "attribute"));
+        let input = Value::Map(map.clone());
 
-    // #[test]
-    // fn test_map_notation() {
-    //     let mut expected: MapNotation = BTreeMap::default();
-    //     expected.insert(Entid::Ident(NamespacedKeyword::new("db", "id")), AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("t".to_string())));
-    //     expected.insert(Entid::Ident(NamespacedKeyword::new("db", "ident")), AtomOrLookupRefOrVectorOrMapNotation::Atom(kw("test", "attribute")));
-
-    //     let mut map: BTreeMap<Value, Value> = BTreeMap::default();
-    //     map.insert(kw("db", "id"), Value::Text("t".to_string()));
-    //     map.insert(kw("db", "ident"), kw("test", "attribute"));
-    //     let input = [Value::Map(map.clone())];
-    //     let mut parser = Tx::entity();
-    //     let result = parser.parse(&input[..]);
-    //     assert_eq!(result,
-    //                Ok((Entity::MapNotation(expected),
-    //                    &[][..])));
-    // }
+        let mut parser = Tx::entity();
+        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+        assert_eq!(result,
+                   Ok(Entity::MapNotation(expected)));
+    }
 }

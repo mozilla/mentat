@@ -22,7 +22,6 @@ use combine::{
     Parser,
     ParseResult,
     StreamOnce,
-    eof,
     many,
     many1,
     parser,
@@ -35,10 +34,8 @@ use combine::primitives::{
     FastResult,
 };
 use combine::combinator::{
-    Eof,
     Expected,
     FnParser,
-    Skip,
 };
 
 use edn;
@@ -165,9 +162,9 @@ impl Item for edn::ValueAndSpan {
     }
 }
 
-/// `Of` and `of` allow us to express nested parsers naturally.
+/// `OfExactly` and `of_exactly` allow us to express nested parsers naturally.
 ///
-/// For example, `vector().of(many(list()))` parses a vector-of-lists, like [(1 2) (:a :b) ("test") ()].
+/// For example, `vector().of_exactly(many(list()))` parses a vector-of-lists, like [(1 2) (:a :b) ("test") ()].
 ///
 /// The "outer" parser `P` and the "nested" parser `N` must be compatible: `P` must produce an
 /// output `edn::ValueAndSpan` which can itself be turned into a stream of child elements; and `N`
@@ -175,9 +172,9 @@ impl Item for edn::ValueAndSpan {
 /// nested parser to the outer parser, which is part of what has made parsing `&'a [edn::Value]`
 /// difficult.
 #[derive(Clone)]
-pub struct Of<P, N>(P, N);
+pub struct OfExactly<P, N>(P, N);
 
-impl<P, N, O> Parser for Of<P, N>
+impl<P, N, O> Parser for OfExactly<P, N>
     where P: Parser<Input=Stream, Output=edn::ValueAndSpan>,
           N: Parser<Input=Stream, Output=O>,
 {
@@ -190,7 +187,12 @@ impl<P, N, O> Parser for Of<P, N>
         match self.0.parse_lazy(input) {
             ConsumedOk((outer_value, outer_input)) => {
                 match self.1.parse_lazy(outer_value.into_child_stream()) {
-                    ConsumedOk((inner_value, _)) | EmptyOk((inner_value, _)) => ConsumedOk((inner_value, outer_input)),
+                    ConsumedOk((inner_value, mut inner_input)) | EmptyOk((inner_value, mut inner_input)) => {
+                        match inner_input.uncons() {
+                            Err(ref err) if *err == primitives::Error::end_of_input() => ConsumedOk((inner_value, outer_input)),
+                            _ => EmptyErr(ParseError::empty(inner_input.position())),
+                        }
+                    },
                     // TODO: Improve the error output to reference the nested value (or span) in
                     // some way.  This seems surprisingly difficult to do, so we just surface the
                     // inner error message right now.  See also the comment below.
@@ -199,7 +201,12 @@ impl<P, N, O> Parser for Of<P, N>
             },
             EmptyOk((outer_value, outer_input)) => {
                 match self.1.parse_lazy(outer_value.into_child_stream()) {
-                    ConsumedOk((inner_value, _)) | EmptyOk((inner_value, _)) => EmptyOk((inner_value, outer_input)),
+                    ConsumedOk((inner_value, mut inner_input)) | EmptyOk((inner_value, mut inner_input)) => {
+                        match inner_input.uncons() {
+                            Err(ref err) if *err == primitives::Error::end_of_input() => EmptyOk((inner_value, outer_input)),
+                            _ => EmptyErr(ParseError::empty(inner_input.position())),
+                        }
+                    },
                     // TODO: Improve the error output.  See the comment above.
                     EmptyErr(e) | ConsumedErr(e) => EmptyErr(e),
                 }
@@ -215,27 +222,27 @@ impl<P, N, O> Parser for Of<P, N>
 }
 
 #[inline(always)]
-pub fn of<P, N, O>(p: P, n: N) -> Of<P, Skip<N, Eof<Stream>>>
+pub fn of_exactly<P, N, O>(p: P, n: N) -> OfExactly<P, N>
     where P: Parser<Input=Stream, Output=edn::ValueAndSpan>,
           N: Parser<Input=Stream, Output=O>,
 {
-    Of(p, n.skip(eof()))
+    OfExactly(p, n)
 }
 
 /// We need a trait to define `Parser.of` and have it live outside of the `combine` crate.
-pub trait OfParsing: Parser + Sized {
-    fn of<N, O>(self, n: N) -> Of<Self, Skip<N, Eof<Self::Input>>>
+pub trait OfExactlyParsing: Parser + Sized {
+    fn of_exactly<N, O>(self, n: N) -> OfExactly<Self, N>
         where Self: Sized,
               N: Parser<Input = Self::Input, Output=O>;
 }
 
-impl<P> OfParsing for P
+impl<P> OfExactlyParsing for P
     where P: Parser<Input=Stream, Output=edn::ValueAndSpan>
 {
-    fn of<N, O>(self, n: N) -> Of<P, Skip<N, Eof<Self::Input>>>
+    fn of_exactly<N, O>(self, n: N) -> OfExactly<P, N>
         where N: Parser<Input = Self::Input, Output=O>
     {
-        of(self, n)
+        of_exactly(self, n)
     }
 }
 
@@ -311,7 +318,7 @@ fn keyword_map_(input: Stream) -> ParseResult<edn::ValueAndSpan, Stream>
                    }
                }));
 
-    let mut runs = vector().of(many::<Vec<_>, _>(run));
+    let mut runs = vector().of_exactly(many::<Vec<_>, _>(run));
 
     let (data, input) = try!(runs.parse_lazy(input).into());
 
