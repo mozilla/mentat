@@ -9,7 +9,11 @@
 // specific language governing permissions and limitations under the License.
 
 use std;
-use std::fmt::{Display, Formatter};
+use std::fmt::{
+    Debug,
+    Display,
+    Formatter,
+};
 use std::cmp::Ordering;
 
 use combine::{
@@ -25,7 +29,7 @@ use combine::{
     satisfy,
     satisfy_map,
 };
-use combine::primitives; // To not shadow Error
+use combine::primitives; // To not shadow Error.
 use combine::primitives::{
     Consumed,
     FastResult,
@@ -40,12 +44,12 @@ use combine::combinator::{
 use edn;
 
 /// A wrapper to let us order `edn::Span` in whatever way is appropriate for parsing with `combine`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SpanPosition(edn::Span);
 
 impl Display for SpanPosition {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, "{:?}", self.0)
+        self.0.fmt(f)
     }
 }
 
@@ -292,9 +296,9 @@ pub fn value(value: edn::Value) -> Box<Parser<Input=Stream, Output=edn::ValueAnd
     satisfy(move |v: edn::ValueAndSpan| value == v.inner.into()).boxed()
 }
 
-pub fn keyword_map_(input: Stream) -> ParseResult<edn::ValueAndSpan, Stream>
+fn keyword_map_(input: Stream) -> ParseResult<edn::ValueAndSpan, Stream>
 {
-    // One run is a keyword followed by at one or more non-keywords.
+    // One run is a keyword followed by one or more non-keywords.
     let run = (satisfy(|v: edn::ValueAndSpan| v.inner.is_keyword()),
                many1(satisfy(|v: edn::ValueAndSpan| !v.inner.is_keyword()))
                .map(|vs: Vec<edn::ValueAndSpan>| {
