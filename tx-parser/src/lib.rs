@@ -24,13 +24,10 @@ use combine::{
     eof,
     many,
     parser,
+    satisfy,
     satisfy_map,
     Parser,
     ParseResult,
-};
-use edn::symbols::{
-    NamespacedKeyword,
-    PlainSymbol,
 };
 use mentat_tx::entities::{
     AtomOrLookupRefOrVectorOrMapNotation,
@@ -50,7 +47,6 @@ use mentat_parser_utils::value_and_span::{
     list,
     map,
     namespaced_keyword,
-    value,
     vector,
 };
 
@@ -65,9 +61,11 @@ def_parser!(Tx, entid, Entid, {
         .or(namespaced_keyword().map(|x| Entid::Ident(x)))
 });
 
+def_matches_plain_symbol!(Tx, literal_lookup_ref, "lookup-ref");
+
 def_parser!(Tx, lookup_ref, LookupRef, {
     list().of_exactly(
-        value(edn::Value::PlainSymbol(PlainSymbol::new("lookup-ref")))
+        Tx::literal_lookup_ref()
             .with((Tx::entid(),
                    Tx::atom()))
             .map(|(a, v)| LookupRef { a: a, v: v.without_spans() }))
@@ -84,7 +82,7 @@ def_parser!(Tx, temp_id, TempId, {
 });
 
 def_parser!(Tx, atom, edn::ValueAndSpan, {
-    satisfy_map(|x: edn::ValueAndSpan| x.into_atom().map(|v| v))
+    satisfy_map(|x: edn::ValueAndSpan| x.into_atom())
 });
 
 def_parser!(Tx, nested_vector, Vec<AtomOrLookupRefOrVectorOrMapNotation>, {
@@ -98,12 +96,13 @@ def_parser!(Tx, atom_or_lookup_ref_or_vector, AtomOrLookupRefOrVectorOrMapNotati
         .or(Tx::atom().map(AtomOrLookupRefOrVectorOrMapNotation::Atom))
 });
 
+def_matches_namespaced_keyword!(Tx, literal_db_add, "db", "add");
+
+def_matches_namespaced_keyword!(Tx, literal_db_retract, "db", "retract");
+
 def_parser!(Tx, add_or_retract, Entity, {
-    let add = value(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "add")))
-        .map(|_| OpType::Add);
-    let retract = value(edn::Value::NamespacedKeyword(NamespacedKeyword::new("db", "retract")))
-        .map(|_| OpType::Retract);
-    let p = (add.or(retract),
+    vector().of_exactly(
+        (Tx::literal_db_add().map(|_| OpType::Add).or(Tx::literal_db_retract().map(|_| OpType::Retract)),
              Tx::entid_or_lookup_ref_or_temp_id(),
              Tx::entid(),
              Tx::atom_or_lookup_ref_or_vector())
@@ -114,9 +113,7 @@ def_parser!(Tx, add_or_retract, Entity, {
                 a: a,
                 v: v,
             }
-        });
-
-    vector().of_exactly(p)
+        }))
 });
 
 def_parser!(Tx, map_notation, MapNotation, {
@@ -189,8 +186,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use combine::Parser;
-    use edn::symbols::NamespacedKeyword;
     use edn::{
+        NamespacedKeyword,
+        PlainSymbol,
         Span,
         SpannedValue,
         Value,

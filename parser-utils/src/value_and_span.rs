@@ -352,6 +352,59 @@ pub fn keyword_map() -> Expected<FnParser<Stream, fn(Stream) -> ParseResult<edn:
     parser(keyword_map_ as fn(Stream) -> ParseResult<edn::ValueAndSpan, Stream>).expected("keyword map")
 }
 
+/// Generate a `satisfy` expression that matches a `PlainSymbol` value with the given name.
+///
+/// We do this rather than using `combine::token` so that we don't need to allocate a new `String`
+/// inside a `PlainSymbol` inside a `SpannedValue` inside a `ValueAndSpan` just to match input.
+#[macro_export]
+macro_rules! def_matches_plain_symbol {
+    ( $parser: ident, $name: ident, $input: expr ) => {
+        def_parser!($parser, $name, edn::ValueAndSpan, {
+            satisfy(|v: edn::ValueAndSpan| {
+                match v.inner {
+                    edn::SpannedValue::PlainSymbol(ref s) => s.0.as_str() == $input,
+                    _ => false,
+                }
+            })
+        });
+    }
+}
+
+/// Generate a `satisfy` expression that matches a `Keyword` value with the given name.
+///
+/// We do this rather than using `combine::token` to save allocations.
+#[macro_export]
+macro_rules! def_matches_keyword {
+    ( $parser: ident, $name: ident, $input: expr ) => {
+        def_parser!($parser, $name, edn::ValueAndSpan, {
+            satisfy(|v: edn::ValueAndSpan| {
+                match v.inner {
+                    edn::SpannedValue::Keyword(ref s) => s.0.as_str() == $input,
+                    _ => false,
+                }
+            })
+        });
+    }
+}
+
+/// Generate a `satisfy` expression that matches a `NamespacedKeyword` value with the given
+/// namespace and name.
+///
+/// We do this rather than using `combine::token` to save allocations.
+#[macro_export]
+macro_rules! def_matches_namespaced_keyword {
+    ( $parser: ident, $name: ident, $input_namespace: expr, $input_name: expr ) => {
+        def_parser!($parser, $name, edn::ValueAndSpan, {
+            satisfy(|v: edn::ValueAndSpan| {
+                match v.inner {
+                    edn::SpannedValue::NamespacedKeyword(ref s) => s.namespace.as_str() == $input_namespace && s.name.as_str() == $input_name,
+                    _ => false,
+                }
+            })
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use combine::{eof};
