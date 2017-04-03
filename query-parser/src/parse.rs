@@ -264,16 +264,16 @@ def_matches_plain_symbol!(Find, ellipsis, "...");
 
 def_parser!(Find, find_scalar, FindSpec, {
     Query::variable()
-        .map(|var| FindSpec::FindScalar(Element::Variable(var)))
         .skip(Find::period())
         .skip(eof())
+        .map(|var| FindSpec::FindScalar(Element::Variable(var)))
 });
 
 def_parser!(Find, find_coll, FindSpec, {
     vector()
         .of_exactly(Query::variable()
-            .map(|var| FindSpec::FindColl(Element::Variable(var)))
             .skip(Find::ellipsis()))
+            .map(|var| FindSpec::FindColl(Element::Variable(var)))
 });
 
 def_parser!(Find, elements, Vec<Element>, {
@@ -289,7 +289,7 @@ def_parser!(Find, find_tuple, FindSpec, {
         .of_exactly(Find::elements().map(FindSpec::FindTuple))
 });
 
-/// Parse a stream values into one of four find specs.
+/// Parse a stream of values into one of four find specs.
 ///
 /// `:find` must be an array of plain var symbols (?foo), pull expressions, and aggregates.  For now
 /// we only support variables and the annotations necessary to declare which flavor of :find we
