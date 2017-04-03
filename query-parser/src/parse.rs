@@ -129,36 +129,11 @@ def_parser!(Where, pattern_non_value_place, PatternNonValuePlace, {
     satisfy_map(PatternNonValuePlace::from_value)
 });
 
+def_matches_plain_symbol!(Where, and, "and");
 
-def_parser!(Where, and, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
-            s.0.as_str() == "and"
-        } else {
-            false
-        }
-    })
-});
+def_matches_plain_symbol!(Where, or, "or");
 
-def_parser!(Where, or, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
-            s.0.as_str() == "or"
-        } else {
-            false
-        }
-    })
-});
-
-def_parser!(Where, or_join, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
-            s.0.as_str() == "or-join"
-        } else {
-            false
-        }
-    })
-});
+def_matches_plain_symbol!(Where, or_join, "or-join");
 
 def_parser!(Where, rule_vars, Vec<Variable>, {
     seq()
@@ -283,26 +258,9 @@ def_parser!(Where, clauses, Vec<WhereClause>, {
 
 pub struct Find;
 
-/// TODO: extract macro for matching these `PlainSymbol` instances.
-def_parser!(Find, period, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
-            s.0.as_str() == "."
-        } else {
-            false
-        }
-    })
-});
+def_matches_plain_symbol!(Find, period, ".");
 
-def_parser!(Find, ellipsis, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
-            s.0.as_str() == "..."
-        } else {
-            false
-        }
-    })
-});
+def_matches_plain_symbol!(Find, ellipsis, "...");
 
 def_parser!(Find, find_scalar, FindSpec, {
     Query::variable()
@@ -352,36 +310,11 @@ def_parser!(Find, spec, FindSpec, {
           &mut try(Find::find_rel())])
 });
 
-/// TODO: extract macro for matching these `Keyword` instances.
-def_parser!(Find, literal_find, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::Keyword(ref s) = v.inner {
-            s.0.as_str() == "find"
-        } else {
-            false
-        }
-    })
-});
+def_matches_keyword!(Find, literal_find, "find");
 
-def_parser!(Find, literal_with, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::Keyword(ref s) = v.inner {
-            s.0.as_str() == "with"
-        } else {
-            false
-        }
-    })
-});
+def_matches_keyword!(Find, literal_with, "with");
 
-def_parser!(Find, literal_where, edn::ValueAndSpan, {
-    satisfy(|v: edn::ValueAndSpan| {
-        if let edn::SpannedValue::Keyword(ref s) = v.inner {
-            s.0.as_str() == "where"
-        } else {
-            false
-        }
-    })
-});
+def_matches_keyword!(Find, literal_where, "where");
 
 /// Express something close to a builder pattern for a `FindQuery`.
 enum FindQueryPart {
