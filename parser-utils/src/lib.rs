@@ -38,8 +38,20 @@ pub type ResultParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
 #[macro_export]
 macro_rules! assert_parses_to {
     ( $parser: expr, $input: expr, $expected: expr ) => {{
-        let mut par = $parser();
-        let result = par.parse($input.with_spans().into_atom_stream()).map(|x| x.0); // TODO: check remainder of stream.
+        let par = $parser();
+        let result = par.skip(eof()).parse($input.with_spans().into_atom_stream()).map(|x| x.0);
+        assert_eq!(result, Ok($expected));
+    }}
+}
+
+/// `assert_edn_parses_to!` simplifies some of the boilerplate around running a parser function
+/// against string input and expecting a certain result.
+#[macro_export]
+macro_rules! assert_edn_parses_to {
+    ( $parser: expr, $input: expr, $expected: expr ) => {{
+        let par = $parser();
+        let input = edn::parse::value($input).expect("to be able to parse input as EDN");
+        let result = par.skip(eof()).parse(input.into_atom_stream()).map(|x| x.0);
         assert_eq!(result, Ok($expected));
     }}
 }
