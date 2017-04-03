@@ -304,28 +304,7 @@ impl ConjoiningClauses {
         numeric_types.insert(ValueType::Double);
         numeric_types.insert(ValueType::Long);
 
-        let entry = self.known_types.entry(variable);
-        match entry {
-            Entry::Vacant(vacant) => {
-                vacant.insert(numeric_types);
-            },
-            Entry::Occupied(mut occupied) => {
-                let narrowed: HashSet<ValueType> = numeric_types.intersection(occupied.get()).cloned().collect();
-                match narrowed.len() {
-                    0 => {
-                        // TODO: can't borrow as mutable more than once!
-                        //self.mark_known_empty(EmptyBecause::TypeMismatch(occupied.key().clone(), occupied.get().clone(), ValueType::Double));   // I know…
-                    },
-                    1 => {
-                        // Hooray!
-                        self.extracted_types.remove(occupied.key());
-                    },
-                    _ => {
-                    },
-                };
-                occupied.insert(narrowed);
-            },
-        }
+        self.narrow_types_for_var(variable, numeric_types);
     }
 
     /// Constrains the var if there's no existing type.
@@ -351,6 +330,73 @@ impl ConjoiningClauses {
             // There was an existing mapping. Does this type match?
             if !existing.contains(&this_type) {
                 self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type));
+            }
+        }
+    }
+
+    /// Like `constrain_var_to_type` but in reverse: this expands the set of types
+    /// with which a variable is associated.
+    fn broaden_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
+        for (var, new_types) in additional_types {
+            match self.known_types.entry(var) {
+                Entry::Vacant(e) => {
+                    if new_types.len() == 1 {
+                        self.extracted_types.remove(e.key());
+                    }
+                    e.insert(new_types);
+                },
+                Entry::Occupied(mut e) => {
+                    e.get_mut().extend(new_types.into_iter());
+                },
+            }
+        }
+    }
+
+    fn narrow_types_for_var(&mut self, var: Variable, types: HashSet<ValueType>) {
+        if types.is_empty() {
+            // We hope this never occurs; we should catch this case earlier.
+            self.mark_known_empty(EmptyBecause::NoValidTypes(var));
+            return;
+        }
+
+        if types.len() == 1 {
+            self.extracted_types.remove(&var);
+        }
+
+        let mut empty_because: Option<EmptyBecause> = None;
+        match self.known_types.entry(var) {
+            Entry::Vacant(e) => {
+                e.insert(types);
+            },
+            Entry::Occupied(mut e) => {
+                // TODO: we shouldn't need to clone here.
+                let intersected: HashSet<_> = types.intersection(e.get()).cloned().collect();
+                if intersected.is_empty() {
+                    empty_because = Some(EmptyBecause::TypeMismatch(e.key().clone(),
+                                                                    e.get().clone(),
+                                                                    types.iter()
+                                                                            .next()
+                                                                            .cloned()
+                                                                             .unwrap()));
+                } else {
+                    e.insert(intersected);
+                }
+            },
+        }
+
+        if let Some(e) = empty_because {
+            self.mark_known_empty(e);
+        }
+    }
+
+    fn narrow_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
+        if additional_types.is_empty() {
+            return;
+        }
+        for (var, new_types) in additional_types {
+            self.narrow_types_for_var(var, new_types);
+            if self.is_known_empty {
+                return;
             }
         }
     }
