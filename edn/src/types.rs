@@ -66,8 +66,14 @@ pub enum SpannedValue {
 }
 
 /// Span represents the current offset (start, end) into the input string.
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct Span(pub usize, pub usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct Span(pub u32, pub u32);
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Span {
+        Span(start as u32, end as u32)
+    }
+}
 
 /// A wrapper type around `SpannedValue` and `Span`, representing some EDN value
 /// and the parsing offset (start, end) in the original EDN string.
