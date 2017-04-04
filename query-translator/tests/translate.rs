@@ -51,14 +51,18 @@ fn translate<T: Into<Option<u64>>>(schema: &Schema, input: &'static str, limit: 
     select.query.to_sql_query().unwrap()
 }
 
-fn prepopulated_schema() -> Schema {
+fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
     let mut schema = Schema::default();
     associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
     add_attribute(&mut schema, 99, Attribute {
-        value_type: ValueType::String,
+        value_type: foo_type,
         ..Default::default()
     });
     schema
+}
+
+fn prepopulated_schema() -> Schema {
+    prepopulated_typed_schema(ValueType::String)
 }
 
 fn make_arg(name: &'static str, value: &'static str) -> (String, Rc<String>) {
@@ -215,13 +219,7 @@ fn test_numeric_less_than_unknown_attribute() {
 
 #[test]
 fn test_numeric_gte_known_attribute() {
-    let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
-    add_attribute(&mut schema, 99, Attribute {
-        value_type: ValueType::Double,
-        ..Default::default()
-    });
-
+    let schema = prepopulated_typed_schema(ValueType::Double);
     let input = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
@@ -230,15 +228,34 @@ fn test_numeric_gte_known_attribute() {
 
 #[test]
 fn test_numeric_not_equals_known_attribute() {
-    let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
-    add_attribute(&mut schema, 99, Attribute {
-        value_type: ValueType::Long,
-        ..Default::default()
-    });
-
+    let schema = prepopulated_typed_schema(ValueType::Long);
     let input = r#"[:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v <> 12 LIMIT 1");
     assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_simple_or_join() {
+    let mut schema = Schema::default();
+    associate_ident(&mut schema, NamespacedKeyword::new("page", "url"), 97);
+    associate_ident(&mut schema, NamespacedKeyword::new("page", "title"), 98);
+    associate_ident(&mut schema, NamespacedKeyword::new("page", "description"), 99);
+    for x in 97..100 {
+        add_attribute(&mut schema, x, Attribute {
+            value_type: ValueType::String,
+            ..Default::default()
+        });
+    }
+
+    let input = r#"[:find [?url ?description]
+                    :where
+                    (or-join [?page]
+                      [?page :page/url "http://foo.com/"]
+                      [?page :page/title "Foo"])
+                    [?page :page/url ?url]
+                    [?page :page/description ?description]]"#;
+    let SQLQuery { sql, args } = translate(&schema, input, None);
+    assert_eq!(sql, "SELECT `datoms01`.v AS `?url`, `datoms02`.v AS `?description` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE ((`datoms00`.a = 97 AND `datoms00`.v = $v0) OR (`datoms00`.a = 98 AND `datoms00`.v = $v1)) AND `datoms01`.a = 97 AND `datoms02`.a = 99 AND `datoms00`.e = `datoms01`.e AND `datoms00`.e = `datoms02`.e LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "http://foo.com/"), make_arg("$v1", "Foo")]);
 }

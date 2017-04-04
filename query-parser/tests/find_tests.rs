@@ -70,9 +70,9 @@ fn can_parse_simple_or() {
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
     assert_eq!(p.where_clauses,
                vec![
-                   WhereClause::OrJoin(OrJoin {
-                       unify_vars: UnifyVars::Implicit,
-                       clauses: vec![
+                   WhereClause::OrJoin(OrJoin::new(
+                       UnifyVars::Implicit,
+                       vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
                                    source: None,
@@ -90,7 +90,7 @@ fn can_parse_simple_or() {
                                    tx: PatternNonValuePlace::Placeholder,
                                })),
                        ],
-                   }),
+                   )),
                ]);
 }
 
@@ -103,9 +103,9 @@ fn can_parse_unit_or_join() {
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
     assert_eq!(p.where_clauses,
                vec![
-                   WhereClause::OrJoin(OrJoin {
-                       unify_vars: UnifyVars::Explicit(vec![Variable::from_valid_name("?x")]),
-                       clauses: vec![
+                   WhereClause::OrJoin(OrJoin::new(
+                       UnifyVars::Explicit(vec![Variable::from_valid_name("?x")]),
+                       vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
                                    source: None,
@@ -115,7 +115,7 @@ fn can_parse_unit_or_join() {
                                    tx: PatternNonValuePlace::Placeholder,
                                })),
                        ],
-                   }),
+                   )),
                ]);
 }
 
@@ -128,9 +128,9 @@ fn can_parse_simple_or_join() {
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
     assert_eq!(p.where_clauses,
                vec![
-                   WhereClause::OrJoin(OrJoin {
-                       unify_vars: UnifyVars::Explicit(vec![Variable::from_valid_name("?x")]),
-                       clauses: vec![
+                   WhereClause::OrJoin(OrJoin::new(
+                       UnifyVars::Explicit(vec![Variable::from_valid_name("?x")]),
+                       vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
                                    source: None,
@@ -148,7 +148,7 @@ fn can_parse_simple_or_join() {
                                    tx: PatternNonValuePlace::Placeholder,
                                })),
                        ],
-                   }),
+                   )),
                ]);
 }
 
@@ -166,9 +166,9 @@ fn can_parse_simple_or_and_join() {
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
     assert_eq!(p.where_clauses,
                vec![
-                   WhereClause::OrJoin(OrJoin {
-                       unify_vars: UnifyVars::Implicit,
-                       clauses: vec![
+                   WhereClause::OrJoin(OrJoin::new(
+                       UnifyVars::Implicit,
+                       vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
                                    source: None,
@@ -179,9 +179,9 @@ fn can_parse_simple_or_and_join() {
                                })),
                            OrWhereClause::And(
                                vec![
-                                   WhereClause::OrJoin(OrJoin {
-                                       unify_vars: UnifyVars::Implicit,
-                                       clauses: vec![
+                                   WhereClause::OrJoin(OrJoin::new(
+                                       UnifyVars::Implicit,
+                                       vec![
                                            OrWhereClause::Clause(WhereClause::Pattern(Pattern {
                                                source: None,
                                                entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
@@ -197,7 +197,7 @@ fn can_parse_simple_or_and_join() {
                                                tx: PatternNonValuePlace::Placeholder,
                                            })),
                                        ],
-                                   }),
+                                   )),
 
                                    WhereClause::Pred(Predicate { operator: PlainSymbol::new("<"), args: vec![
                                        FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(1),
@@ -205,6 +205,6 @@ fn can_parse_simple_or_and_join() {
                                ],
                            )
                        ],
-                   }),
+                   )),
                ]);
 }

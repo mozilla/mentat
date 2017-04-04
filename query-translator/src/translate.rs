@@ -8,19 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![allow(dead_code, unused_imports)]
-
 use mentat_core::{
     SQLValueType,
     TypedValue,
     ValueType,
-};
-
-use mentat_query::{
-    Element,
-    FindSpec,
-    PlainSymbol,
-    Variable,
 };
 
 use mentat_query_algebrizer::{
@@ -31,10 +22,8 @@ use mentat_query_algebrizer::{
     ColumnIntersection,
     ConjoiningClauses,
     DatomsColumn,
-    DatomsTable,
     QualifiedAlias,
     QueryValue,
-    SourceAlias,
 };
 
 use mentat_query_projector::{
@@ -47,10 +36,8 @@ use mentat_query_sql::{
     ColumnOrExpression,
     Constraint,
     FromClause,
-    Name,
     Op,
     Projection,
-    ProjectedColumn,
     SelectQuery,
     TableList,
 };
