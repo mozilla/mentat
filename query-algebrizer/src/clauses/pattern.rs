@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::rc::Rc;
-
 use mentat_core::{
     Schema,
     TypedValue,
@@ -70,7 +68,9 @@ impl ConjoiningClauses {
     ///
     /// - A unique-valued attribute can sometimes be rewritten into an
     ///   existence subquery instead of a join.
-    fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
+    ///
+    /// This method is only public for use from `or.rs`.
+    pub fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
         if self.is_known_empty {
             return;
         }
@@ -268,6 +268,7 @@ mod testing {
     use super::*;
 
     use std::collections::BTreeMap;
+    use std::rc::Rc;
 
     use mentat_core::attribute::Unique;
     use mentat_core::{

@@ -160,11 +160,7 @@ def_parser!(Where, or_clause, WhereClause, {
         .of_exactly(Where::or()
             .with(many1(Where::or_where_clause()))
             .map(|clauses| {
-                WhereClause::OrJoin(
-                    OrJoin {
-                        unify_vars: UnifyVars::Implicit,
-                        clauses: clauses,
-                    })
+                WhereClause::OrJoin(OrJoin::new(UnifyVars::Implicit, clauses))
             }))
 });
 
@@ -174,11 +170,7 @@ def_parser!(Where, or_join_clause, WhereClause, {
             .with(Where::rule_vars())
             .and(many1(Where::or_where_clause()))
             .map(|(vars, clauses)| {
-                WhereClause::OrJoin(
-                    OrJoin {
-                        unify_vars: UnifyVars::Explicit(vars),
-                        clauses: clauses,
-                    })
+                WhereClause::OrJoin(OrJoin::new(UnifyVars::Explicit(vars), clauses))
             }))
 });
 
@@ -508,17 +500,15 @@ mod test {
                                          edn::Value::PlainSymbol(v.clone())])].into_iter().collect());
         assert_parses_to!(Where::or_clause, input,
                           WhereClause::OrJoin(
-                              OrJoin {
-                                  unify_vars: UnifyVars::Implicit,
-                                  clauses: vec![OrWhereClause::Clause(
-                                      WhereClause::Pattern(Pattern {
-                                          source: None,
-                                          entity: PatternNonValuePlace::Variable(variable(e)),
-                                          attribute: PatternNonValuePlace::Variable(variable(a)),
-                                          value: PatternValuePlace::Variable(variable(v)),
-                                          tx: PatternNonValuePlace::Placeholder,
-                                      }))],
-                              }));
+                              OrJoin::new(UnifyVars::Implicit,
+                                          vec![OrWhereClause::Clause(
+                                              WhereClause::Pattern(Pattern {
+                                                  source: None,
+                                                  entity: PatternNonValuePlace::Variable(variable(e)),
+                                                  attribute: PatternNonValuePlace::Variable(variable(a)),
+                                                  value: PatternValuePlace::Variable(variable(v)),
+                                                  tx: PatternNonValuePlace::Placeholder,
+                                              }))])));
     }
 
     #[test]
@@ -535,17 +525,15 @@ mod test {
                                          edn::Value::PlainSymbol(v.clone())])].into_iter().collect());
         assert_parses_to!(Where::or_join_clause, input,
                           WhereClause::OrJoin(
-                              OrJoin {
-                                  unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
-                                  clauses: vec![OrWhereClause::Clause(
-                                      WhereClause::Pattern(Pattern {
-                                          source: None,
-                                          entity: PatternNonValuePlace::Variable(variable(e)),
-                                          attribute: PatternNonValuePlace::Variable(variable(a)),
-                                          value: PatternValuePlace::Variable(variable(v)),
-                                          tx: PatternNonValuePlace::Placeholder,
-                                      }))],
-                              }));
+                              OrJoin::new(UnifyVars::Explicit(vec![variable(e.clone())]),
+                                          vec![OrWhereClause::Clause(
+                                              WhereClause::Pattern(Pattern {
+                                                  source: None,
+                                                  entity: PatternNonValuePlace::Variable(variable(e)),
+                                                  attribute: PatternNonValuePlace::Variable(variable(a)),
+                                                  value: PatternValuePlace::Variable(variable(v)),
+                                                  tx: PatternNonValuePlace::Placeholder,
+                                              }))])));
     }
 
     #[test]

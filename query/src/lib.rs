@@ -568,6 +568,9 @@ impl OrWhereClause {
 pub struct OrJoin {
     pub unify_vars: UnifyVars,
     pub clauses: Vec<OrWhereClause>,
+
+    /// Caches the result of `collect_mentioned_variables`.
+    mentioned_vars: Option<BTreeSet<Variable>>,
 }
 
 #[allow(dead_code)]
@@ -595,6 +598,14 @@ pub struct FindQuery {
 }
 
 impl OrJoin {
+    pub fn new(unify_vars: UnifyVars, clauses: Vec<OrWhereClause>) -> OrJoin {
+        OrJoin {
+            unify_vars: unify_vars,
+            clauses: clauses,
+            mentioned_vars: None,
+        }
+    }
+
     /// Return true if either the `OrJoin` is `UnifyVars::Implicit`, or if
     /// every variable mentioned inside the join is also mentioned in the `UnifyVars` list.
     pub fn is_fully_unified(&self) -> bool {
@@ -605,8 +616,12 @@ impl OrJoin {
                 // it would have failed validation. That allows us to simply compare counts here.
                 // TODO: in debug mode, do a full intersection, and verify that our count check
                 // returns the same results.
-                let mentioned = self.collect_mentioned_variables();
-                vars.len() == mentioned.len()
+                // Use the cached list if we have one.
+                if let Some(ref mentioned) = self.mentioned_vars {
+                    vars.len() == mentioned.len()
+                } else {
+                    vars.len() == self.collect_mentioned_variables().len()
+                }
             }
         }
     }
@@ -650,6 +665,28 @@ impl ContainsVariables for OrJoin {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         for clause in &self.clauses {
             clause.accumulate_mentioned_variables(acc);
+        }
+    }
+}
+
+impl OrJoin {
+    pub fn dismember(self) -> (Vec<OrWhereClause>, BTreeSet<Variable>) {
+        let vars = match self.mentioned_vars {
+                       Some(m) => m,
+                       None => self.collect_mentioned_variables(),
+                   };
+        (self.clauses, vars)
+    }
+
+    pub fn mentioned_variables<'a>(&'a mut self) -> &'a BTreeSet<Variable> {
+        if self.mentioned_vars.is_none() {
+            let m = self.collect_mentioned_variables();
+            self.mentioned_vars = Some(m);
+        }
+        if let Some(ref mentioned) = self.mentioned_vars {
+            mentioned
+        } else {
+            panic!()
         }
     }
 }

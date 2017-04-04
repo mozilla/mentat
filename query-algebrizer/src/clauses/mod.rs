@@ -8,11 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::fmt::{
-    Debug,
-    Formatter,
-};
-
 use std::collections::{
     BTreeMap,
     BTreeSet,
@@ -20,6 +15,11 @@ use std::collections::{
 };
 
 use std::collections::btree_map::Entry;
+
+use std::fmt::{
+    Debug,
+    Formatter,
+};
 
 use mentat_core::{
     Attribute,
@@ -89,6 +89,33 @@ fn unit_type_set(t: ValueType) -> HashSet<ValueType> {
     let mut s = HashSet::with_capacity(1);
     s.insert(t);
     s
+}
+
+trait Contains<K, T> {
+    fn contains_then<F: FnOnce() -> T>(&self, k: &K, f: F) -> Option<T>;
+}
+
+trait Intersection<K> {
+    fn with_intersected_keys(&self, ks: &BTreeSet<K>) -> Self;
+}
+
+impl<K: Ord, T> Contains<K, T> for BTreeSet<K> {
+    fn contains_then<F: FnOnce() -> T>(&self, k: &K, f: F) -> Option<T> {
+        if self.contains(k) {
+            Some(f())
+        } else {
+            None
+        }
+    }
+}
+
+impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
+    /// Return a clone of the map with only keys that are present in `ks`.
+    fn with_intersected_keys(&self, ks: &BTreeSet<K>) -> Self {
+        self.iter()
+            .filter_map(|(k, v)| ks.contains_then(k, || (k.clone(), v.clone())))
+            .collect()
+    }
 }
 
 /// A `ConjoiningClauses` (CC) is a collection of clauses that are combined with `JOIN`.
@@ -191,6 +218,38 @@ impl Default for ConjoiningClauses {
     }
 }
 
+/// Cloning.
+impl ConjoiningClauses {
+    fn make_receptacle(&self) -> ConjoiningClauses {
+        let mut concrete = ConjoiningClauses::default();
+        concrete.is_known_empty = self.is_known_empty;
+        concrete.empty_because = self.empty_because.clone();
+
+        concrete.input_variables = self.input_variables.clone();
+        concrete.value_bindings = self.value_bindings.clone();
+        concrete.known_types = self.known_types.clone();
+        concrete.extracted_types = self.extracted_types.clone();
+
+        concrete
+    }
+
+    /// Make a new CC populated with the relevant variable associations in this CC.
+    /// Note that the CC's table aliaser is not yet usable. That's not a problem for templating for
+    /// simple `or`.
+    fn use_as_template(&self, vars: &BTreeSet<Variable>) -> ConjoiningClauses {
+        let mut template = ConjoiningClauses::default();
+        template.is_known_empty = self.is_known_empty;
+        template.empty_because = self.empty_because.clone();
+
+        template.input_variables = self.input_variables.intersection(vars).cloned().collect();
+        template.value_bindings = self.value_bindings.with_intersected_keys(&vars);
+        template.known_types = self.known_types.with_intersected_keys(&vars);
+        template.extracted_types = self.extracted_types.with_intersected_keys(&vars);
+
+        template
+    }
+}
+
 impl ConjoiningClauses {
     #[allow(dead_code)]
     fn with_value_bindings(bindings: BTreeMap<Variable, TypedValue>) -> ConjoiningClauses {
@@ -201,7 +260,8 @@ impl ConjoiningClauses {
 
         // Pre-fill our type mappings with the types of the input bindings.
         cc.known_types
-          .extend(cc.value_bindings.iter()
+          .extend(cc.value_bindings
+                    .iter()
                     .map(|(k, v)| (k.clone(), unit_type_set(v.value_type()))));
         cc
     }
@@ -311,18 +371,6 @@ impl ConjoiningClauses {
     /// Marks as known-empty if it's impossible for this type to apply because there's a conflicting
     /// type already known.
     fn constrain_var_to_type(&mut self, variable: Variable, this_type: ValueType) {
-        // If this variable now has a known attribute, we can unhook extracted types for
-        // any other instances of that variable.
-        // For example, given
-        //
-        // ```edn
-        // [:find ?v :where [?x ?a ?v] [?y :foo/int ?v]]
-        // ```
-        //
-        // we will initially choose to extract the type tag for `?v`, but on encountering
-        // the second pattern we can avoid that.
-        self.extracted_types.remove(&variable);
-
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
@@ -336,7 +384,12 @@ impl ConjoiningClauses {
 
     /// Like `constrain_var_to_type` but in reverse: this expands the set of types
     /// with which a variable is associated.
-    fn broaden_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
+    ///
+    /// N.B.,: if we ever call `broaden_types` after `is_known_empty` has been set, we might
+    /// actually move from a state in which a variable can have no type to one that can
+    /// yield results! We never do so at present -- we carefully set-union types before we
+    /// set-intersect them -- but this is worth bearing in mind.
+    pub fn broaden_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
         for (var, new_types) in additional_types {
             match self.known_types.entry(var) {
                 Entry::Vacant(e) => {
@@ -346,12 +399,20 @@ impl ConjoiningClauses {
                     e.insert(new_types);
                 },
                 Entry::Occupied(mut e) => {
+                    if e.get().is_empty() && self.is_known_empty {
+                        panic!("Uh oh: we failed this pattern, probably because {:?} couldn't match, but now we're broadening its type.",
+                               e.get());
+                    }
                     e.get_mut().extend(new_types.into_iter());
                 },
             }
         }
     }
 
+    /// Restrict the known types for `var` to intersect with `types`.
+    /// If no types are already known -- `var` could have any type -- then this is equivalent to
+    /// simply setting the known types to `types`.
+    /// If the known types don't intersect with `types`, mark the pattern as known-empty.
     fn narrow_types_for_var(&mut self, var: Variable, types: HashSet<ValueType>) {
         if types.is_empty() {
             // We hope this never occurs; we should catch this case earlier.
@@ -359,10 +420,7 @@ impl ConjoiningClauses {
             return;
         }
 
-        if types.len() == 1 {
-            self.extracted_types.remove(&var);
-        }
-
+        // We can't mutate `empty_because` while we're working with the `Entry`, so do this instead.
         let mut empty_because: Option<EmptyBecause> = None;
         match self.known_types.entry(var) {
             Entry::Vacant(e) => {
@@ -372,15 +430,14 @@ impl ConjoiningClauses {
                 // TODO: we shouldn't need to clone here.
                 let intersected: HashSet<_> = types.intersection(e.get()).cloned().collect();
                 if intersected.is_empty() {
-                    empty_because = Some(EmptyBecause::TypeMismatch(e.key().clone(),
-                                                                    e.get().clone(),
-                                                                    types.iter()
-                                                                            .next()
-                                                                            .cloned()
-                                                                             .unwrap()));
-                } else {
-                    e.insert(intersected);
+                    let mismatching_type = types.iter().next().unwrap().clone();
+                    let reason = EmptyBecause::TypeMismatch(e.key().clone(),
+                                                            e.get().clone(),
+                                                            mismatching_type);
+                    empty_because = Some(reason);
                 }
+                // Always insert, even if it's empty!
+                e.insert(intersected);
             },
         }
 
@@ -389,15 +446,14 @@ impl ConjoiningClauses {
         }
     }
 
-    fn narrow_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
+    /// Restrict the sets of types for the provided vars to the provided types.
+    /// See `narrow_types_for_var`.
+    pub fn narrow_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
         if additional_types.is_empty() {
             return;
         }
         for (var, new_types) in additional_types {
             self.narrow_types_for_var(var, new_types);
-            if self.is_known_empty {
-                return;
-            }
         }
     }
 
@@ -628,9 +684,8 @@ impl ConjoiningClauses {
                 self.apply_predicate(schema, p)
             },
             WhereClause::OrJoin(o) => {
-                validate_or_join(&o)
-                //?;
-                //self.apply_or_join(schema, o)
+                validate_or_join(&o)?;
+                self.apply_or_join(schema, o)
             },
             _ => unimplemented!(),
         }

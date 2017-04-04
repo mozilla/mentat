@@ -100,7 +100,7 @@ impl QualifiedAlias {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum QueryValue {
     Column(QualifiedAlias),
     Entid(Entid),
@@ -233,16 +233,28 @@ impl IntoIterator for ColumnIntersection {
 }
 
 impl ColumnIntersection {
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
+    #[inline]
+    pub fn add(&mut self, constraint: ColumnConstraintOrAlternation) {
+        self.0.push(constraint);
+    }
+
+    #[inline]
     pub fn add_intersection(&mut self, constraint: ColumnConstraint) {
-        self.0.push(ColumnConstraintOrAlternation::Constraint(constraint));
+        self.add(ColumnConstraintOrAlternation::Constraint(constraint));
+    }
+
+    pub fn append(&mut self, other: &mut Self) {
+        self.0.append(&mut other.0)
     }
 }
 
@@ -301,6 +313,7 @@ impl Debug for ColumnConstraint {
 pub enum EmptyBecause {
     // Var, existing, desired.
     TypeMismatch(Variable, HashSet<ValueType>, ValueType),
+    NoValidTypes(Variable),
     NonNumericArgument,
     NonStringFulltextValue,
     UnresolvedIdent(NamespacedKeyword),
@@ -318,6 +331,9 @@ impl Debug for EmptyBecause {
             &TypeMismatch(ref var, ref existing, ref desired) => {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)
+            },
+            &NoValidTypes(ref var) => {
+                write!(f, "Type mismatch: {:?} has no valid types", var)
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")
