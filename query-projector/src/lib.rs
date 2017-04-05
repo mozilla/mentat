@@ -210,7 +210,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                 let columns = query.cc
                                    .column_bindings
                                    .get(var)
-                                   .expect("Every variable has a binding");
+                                   .expect(format!("Every variable should have a binding, but {} does not", var.as_str()).as_str());
 
                 let qa = columns[0].clone();
                 let name = column_name(var);

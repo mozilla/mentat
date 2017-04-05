@@ -254,8 +254,8 @@ fn test_numeric_not_equals_known_attribute() {
 fn test_fulltext() {
     let schema = prepopulated_schema();
 
-    let input = r#"[:find ?x . :where [(fulltext $ :foo/fts "yyy") [?x]]]"#;
+    let input = r#"[:find ?entity ?value ?tx ?score :where [(fulltext $ :foo/fts "needle") [?entity ?value ?tx ?score]]]"#;
     let SQLQuery { sql, args } = translate(&schema, input, None);
-    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
-    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?entity`, `datoms00`.v AS `?value`, `datoms00`.tx AS `?tx`, 0.0 AS `?score` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "needle")]);
 }

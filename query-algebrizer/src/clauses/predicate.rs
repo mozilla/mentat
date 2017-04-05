@@ -11,13 +11,16 @@
 use mentat_core::{
     Schema,
     TypedValue,
+    ValueType,
 };
 
 use mentat_query::{
+    Binding,
     FnArg,
     NonIntegerConstant,
     Predicate,
     SrcVar,
+    VariableOrPlaceholder,
     WhereFn,
 };
 
@@ -118,6 +121,17 @@ impl ConjoiningClauses {
             bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
         }
 
+        // TODO: binding-specific error messages.
+        let mut bindings = match where_fn.binding {
+            Binding::BindRel(bindings) => {
+                if bindings.len() > 4 {
+                    bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), bindings.len(), 4));
+                }
+                bindings.into_iter()
+            },
+            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "bindings".into(), 999)),
+        };
+
         // Go from arguments -- parser output -- to columns or values.
         // Any variables that aren't bound by this point in the linear processing of clauses will
         // cause the application of the predicate to fail.
@@ -155,7 +169,7 @@ impl ConjoiningClauses {
         self.constrain_attribute(datoms_table_alias.clone(), a);
 
         self.wheres.add_intersection(ColumnConstraint::Equals(
-            QualifiedAlias(datoms_table_alias, DatomsColumn::Value),
+            QualifiedAlias(datoms_table_alias.clone(), DatomsColumn::Value),
             QueryValue::FulltextColumn(FulltextQualifiedAlias(fulltext_values_alias.clone(), FulltextColumn::Rowid))));
 
         // search is either text or a variable.
@@ -177,7 +191,61 @@ impl ConjoiningClauses {
         let constraint = ColumnConstraint::Matches(FulltextQualifiedAlias(fulltext_values_alias.clone(), FulltextColumn::Text), search);
         self.wheres.add_intersection(constraint);
 
-        // TODO: process bindings!
+        if let Some(VariableOrPlaceholder::Variable(var)) = bindings.next() {
+            // TODO: can we just check for late binding here?
+            // Do we have, or will we have, an external binding for this variable?
+            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
+                // That's a paddlin'!
+                bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "illegal bound variable".into(), 999))
+            }
+            self.constrain_var_to_type(var.clone(), ValueType::Ref);
+
+            let entity_alias = QualifiedAlias(datoms_table_alias.clone(), DatomsColumn::Entity);
+            self.column_bindings.entry(var).or_insert(vec![]).push(entity_alias);
+        }
+
+        if let Some(VariableOrPlaceholder::Variable(var)) = bindings.next() {
+            // TODO: can we just check for late binding here?
+            // Do we have, or will we have, an external binding for this variable?
+            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
+                // That's a paddlin'!
+                bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "illegal bound variable".into(), 999))
+            }
+            self.constrain_var_to_type(var.clone(), ValueType::String);
+
+            // TODO: figure out how to represent a FulltextQualifiedAlias.
+            // let value_alias = FulltextQualifiedAlias(fulltext_values_alias.clone(), FulltextColumn::Text);
+            // self.column_bindings.entry(var).or_insert(vec![]).push(value_alias);
+        }
+
+        if let Some(VariableOrPlaceholder::Variable(var)) = bindings.next() {
+            // TODO: can we just check for late binding here?
+            // Do we have, or will we have, an external binding for this variable?
+            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
+                // That's a paddlin'!
+                bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "illegal bound variable".into(), 999))
+            }
+            self.constrain_var_to_type(var.clone(), ValueType::Ref);
+
+            let tx_alias = QualifiedAlias(datoms_table_alias.clone(), DatomsColumn::Tx);
+            self.column_bindings.entry(var).or_insert(vec![]).push(tx_alias);
+        }
+
+        if let Some(VariableOrPlaceholder::Variable(var)) = bindings.next() {
+            // TODO: can we just check for late binding here?
+            // Do we have, or will we have, an external binding for this variable?
+            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
+                // That's a paddlin'!
+                bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "illegal bound variable".into(), 999))
+            }
+            self.constrain_var_to_type(var.clone(), ValueType::Double);
+
+            // TODO: produce this using SQLite's matchinfo.
+            self.value_bindings.insert(var.clone(), TypedValue::Double(0.0.into()));
+
+            // TODO: figure out how to represent a constant binding.
+            // self.column_bindings.entry(var).or_insert(vec![]).push(score_alias);
+        }
 
         Ok(())
     }
@@ -207,6 +275,7 @@ mod testing {
         PlainSymbol,
         SrcVar,
         Variable,
+        VariableOrPlaceholder,
     };
 
     use clauses::{
@@ -355,7 +424,10 @@ mod testing {
                 FnArg::Ident(NamespacedKeyword::new("foo", "fts")),
                 FnArg::Constant(NonIntegerConstant::Text(Rc::new("needle".into()))),
             ],
-            binding: Binding::BindScalar(Variable::from_valid_name("?z")),
+            binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),
+                                           VariableOrPlaceholder::Variable(Variable::from_valid_name("?value")),
+                                           VariableOrPlaceholder::Variable(Variable::from_valid_name("?tx")),
+                                           VariableOrPlaceholder::Variable(Variable::from_valid_name("?score"))]),
         }).expect("to be able to apply_fulltext");
 
         assert!(!cc.is_known_empty);
@@ -374,6 +446,24 @@ mod testing {
         assert_eq!(clauses.0[2], ColumnConstraint::Matches(FulltextQualifiedAlias("fulltext_values00".to_string(), FulltextColumn::Text),
                                                            QueryValue::TypedValue(TypedValue::String(Rc::new("needle".into())))).into());
 
-        // TODO: make assertions about types of columns.
+        let bindings = cc.column_bindings;
+        assert_eq!(bindings.len(), 2);
+
+        assert_eq!(bindings.get(&Variable::from_valid_name("?entity")).expect("column binding for ?entity").clone(),
+                   vec![QualifiedAlias("datoms01".to_string(), DatomsColumn::Entity)]);
+        assert_eq!(bindings.get(&Variable::from_valid_name("?tx")).expect("column binding for ?tx").clone(),
+                   vec![QualifiedAlias("datoms01".to_string(), DatomsColumn::Tx)]);
+
+        let known_types = cc.known_types;
+        assert_eq!(known_types.len(), 4);
+
+        assert_eq!(known_types.get(&Variable::from_valid_name("?entity")).expect("known types for ?entity").clone(),
+                   vec![ValueType::Ref].into_iter().collect());
+        assert_eq!(known_types.get(&Variable::from_valid_name("?value")).expect("known types for ?value").clone(),
+                   vec![ValueType::String].into_iter().collect());
+        assert_eq!(known_types.get(&Variable::from_valid_name("?tx")).expect("known types for ?tx").clone(),
+                   vec![ValueType::Ref].into_iter().collect());
+        assert_eq!(known_types.get(&Variable::from_valid_name("?score")).expect("known types for ?score").clone(),
+                   vec![ValueType::Double].into_iter().collect());
     }
 }
