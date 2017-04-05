@@ -310,6 +310,8 @@ def_matches_plain_symbol!(Find, period, ".");
 
 def_matches_plain_symbol!(Find, ellipsis, "...");
 
+def_matches_plain_symbol!(Find, placeholder, "_");
+
 def_parser!(Find, find_scalar, FindSpec, {
     Query::variable()
         .skip(Find::period())
@@ -416,10 +418,6 @@ def_parser!(Find, query, FindQuery, {
 
 pub struct Bind;
 
-def_matches_plain_symbol!(Bind, placeholder, "_");
-
-def_matches_plain_symbol!(Bind, ellipsis, "...");
-
 def_parser!(Bind, bind_scalar, Binding, {
     Query::variable()
         .skip(eof())
@@ -428,13 +426,13 @@ def_parser!(Bind, bind_scalar, Binding, {
 
 def_parser!(Bind, variable_or_placeholder, VariableOrPlaceholder, {
     Query::variable().map(VariableOrPlaceholder::Variable)
-        .or(Bind::placeholder().map(|_| VariableOrPlaceholder::Placeholder))
+        .or(Find::placeholder().map(|_| VariableOrPlaceholder::Placeholder))
 });
 
 def_parser!(Bind, bind_coll, Binding, {
     vector()
         .of_exactly(Query::variable()
-            .skip(Bind::ellipsis()))
+            .skip(Find::ellipsis()))
             .map(Binding::BindColl)
 });
 
