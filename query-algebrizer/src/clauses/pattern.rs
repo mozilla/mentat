@@ -460,8 +460,12 @@ mod testing {
         assert!(!cc.is_known_empty);
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
-        // ?x must be a ref.
-        assert_eq!(cc.known_type(&x).unwrap(), ValueType::Ref);
+        // ?x must be a ref, and ?v a boolean.
+        assert_eq!(cc.known_type(&x), Some(ValueType::Ref));
+
+        // We don't need to extract a type for ?v, because the attribute is known.
+        assert!(!cc.extracted_types.contains_key(&v));
+        assert_eq!(cc.known_type(&v), Some(ValueType::Boolean));
 
         // ?x is bound to datoms0.e.
         assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);

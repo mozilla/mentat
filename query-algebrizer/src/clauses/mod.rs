@@ -599,12 +599,26 @@ impl ConjoiningClauses {
             .ok()
     }
 
+    fn get_attribute_for_value<'s>(&self, schema: &'s Schema, value: &TypedValue) -> Option<&'s Attribute> {
+        match value {
+            &TypedValue::Ref(id) => schema.attribute_for_entid(id),
+            &TypedValue::Keyword(ref kw) => schema.attribute_for_ident(kw),
+            _ => None,
+        }
+    }
+
     fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<&'s Attribute> {
         match pattern.attribute {
             PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id),
             PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw),
+            PatternNonValuePlace::Variable(ref var) =>
+                // If the pattern has a variable, we've already determined that the binding -- if
+                // any -- is acceptable and yields a table. Here, simply look to see if it names
+                // an attribute so we can find out the type.
+                self.value_bindings.get(var)
+                                   .and_then(|val| self.get_attribute_for_value(schema, val)),
             _ =>
                 None,
         }
