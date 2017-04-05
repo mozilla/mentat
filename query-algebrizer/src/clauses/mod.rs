@@ -648,6 +648,19 @@ impl ConjoiningClauses {
         }
     }
 
+    /// Eliminate any type extractions for variables whose types are definitely known.
+    pub fn prune_extracted_types(&mut self) {
+        if self.extracted_types.is_empty() || self.known_types.is_empty() {
+            return;
+        }
+        for (var, types) in self.known_types.iter() {
+            if types.len() == 1 {
+                self.extracted_types.remove(var);
+            }
+        }
+    }
+
+
     /// When a CC has accumulated all patterns, generate value_type_tag entries in `wheres`
     /// to refine value types for which two things are true:
     ///

@@ -265,6 +265,8 @@ impl ConjoiningClauses {
 
 #[cfg(test)]
 mod testing {
+    extern crate mentat_query_parser;
+
     use super::*;
 
     use std::collections::BTreeMap;
@@ -281,6 +283,10 @@ mod testing {
         Variable,
     };
 
+    use self::mentat_query_parser::{
+        parse_find_string,
+    };
+
     use clauses::{
         add_attribute,
         associate_ident,
@@ -295,6 +301,13 @@ mod testing {
         QueryValue,
         SourceAlias,
     };
+
+    use algebrize;
+
+    fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+        let parsed = parse_find_string(input).expect("parse failed");
+        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+    }
 
     #[test]
     fn test_unknown_ident() {
@@ -814,5 +827,23 @@ mod testing {
         assert!(cc.is_known_empty);
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(x.clone(), unit_type_set(ValueType::Ref), ValueType::Boolean));
+    }
+
+    #[test]
+    fn ensure_extracted_types_is_cleared() {
+        let query = r#"[:find ?e ?v :where [_ _ ?v] [?e :foo/bar ?v]]"#;
+        let mut schema = Schema::default();
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::Boolean,
+            ..Default::default()
+        });
+        let e = Variable::from_valid_name("?e");
+        let v = Variable::from_valid_name("?v");
+        let cc = alg(&schema, query);
+        assert_eq!(cc.known_types.get(&e), Some(&unit_type_set(ValueType::Ref)));
+        assert_eq!(cc.known_types.get(&v), Some(&unit_type_set(ValueType::Boolean)));
+        assert!(!cc.extracted_types.contains_key(&e));
+        assert!(!cc.extracted_types.contains_key(&v));
     }
 }
