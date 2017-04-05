@@ -10,35 +10,45 @@
 
 use mentat_core::{
     Schema,
+    TypedValue,
 };
 
 use mentat_query::{
+    FnArg,
+    NonIntegerConstant,
     Predicate,
+    SrcVar,
+    WhereFn,
 };
 
 use clauses::ConjoiningClauses;
 
 use errors::{
-    Result,
+    Error,
     ErrorKind,
+    Result,
 };
 
 use types::{
     ColumnConstraint,
+    DatomsColumn,
+    DatomsTable,
+    FulltextColumn,
+    FulltextQualifiedAlias,
     NumericComparison,
+    QualifiedAlias,
+    QueryValue,
 };
 
 /// Application of predicates.
 impl ConjoiningClauses {
-    /// There are several kinds of predicates/functions in our Datalog:
+    /// There are several kinds of predicates in our Datalog:
     /// - A limited set of binary comparison operators: < > <= >= !=.
     ///   These are converted into SQLite binary comparisons and some type constraints.
-    /// - A set of predicates like `fulltext` and `get-else` that are translated into
-    ///   SQL `MATCH`es or joins, yielding bindings.
     /// - In the future, some predicates that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only the five built-in comparison binary operators.
-    pub fn apply_predicate<'s, 'p>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
+    pub fn apply_predicate<'s>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
         // Because we'll be growing the set of built-in predicates, handling each differently,
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
         if let Some(op) = NumericComparison::from_datalog_operator(predicate.operator.0.as_str()) {
@@ -53,7 +63,7 @@ impl ConjoiningClauses {
     /// - Ensures that the predicate functions name a known operator.
     /// - Accumulates a `NumericInequality` constraint into the `wheres` list.
     #[allow(unused_variables)]
-    pub fn apply_numeric_predicate<'s, 'p>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
+    pub fn apply_numeric_predicate<'s>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }
@@ -81,6 +91,96 @@ impl ConjoiningClauses {
         self.wheres.add_intersection(constraint);
         Ok(())
     }
+
+
+    /// There are several kinds of functions binding variables in our Datalog:
+    /// - A set of functions like `fulltext` and `get-else` that are translated into
+    ///   SQL `MATCH`es or joins, yielding bindings.
+    /// - In the future, some functions that are implemented via function calls in SQLite.
+    ///
+    /// At present we have implemented only the `fulltext` operator.
+    pub fn apply_where_fn<'s>(&mut self, schema: &'s Schema, where_fn: WhereFn) -> Result<()> {
+        // Because we'll be growing the set of built-in functions, handling each differently, and
+        // ultimately allowing user-specified functions, we match on the function name first.
+        match where_fn.operator.0.as_str() {
+            "fulltext" => self.apply_fulltext(schema, where_fn),
+            _ => bail!(ErrorKind::UnknownFunction(where_fn.operator.clone())),
+        }
+    }
+
+    /// This function:
+    /// - Resolves variables and converts types to those more amenable to SQL.
+    /// - Ensures that the predicate functions name a known operator.
+    /// - Accumulates a `NumericInequality` constraint into the `wheres` list.
+    #[allow(unused_variables)]
+    pub fn apply_fulltext<'s>(&mut self, schema: &'s Schema, where_fn: WhereFn) -> Result<()> {
+        if where_fn.args.len() != 3 {
+            bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
+        }
+
+        // Go from arguments -- parser output -- to columns or values.
+        // Any variables that aren't bound by this point in the linear processing of clauses will
+        // cause the application of the predicate to fail.
+        let mut args = where_fn.args.into_iter();
+
+        // TODO: process source variables.
+        match args.next().unwrap() {
+            FnArg::SrcVar(SrcVar::DefaultSrc) => {},
+            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable".into(), 0)),
+        }
+
+        // TODO: accept placeholder and set of attributes.  Alternately, consider putting the search
+        // term before the attribute arguments and collect the (variadic) attributes into a set.
+        // let a: Entid  = self.resolve_attribute_argument(&where_fn.operator, 1, args.next().unwrap())?;
+        //
+        // TODO: allow non-constant attributes.
+        // TODO: improve the expression of this matching, possibly by using attribute_for_* uniformly.
+        let a = match args.next().unwrap() {
+            FnArg::Ident(i) => schema.get_entid(&i),
+            // Must be an entid.
+            FnArg::EntidOrInteger(e) => Some(e),
+            _ => None,
+        };
+
+        let a = a.ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
+        let attribute = schema.attribute_for_entid(a).cloned().ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
+
+        let fulltext_values = DatomsTable::FulltextValues;
+        let datoms_table = DatomsTable::Datoms;
+
+        let fulltext_values_alias = (self.aliaser)(fulltext_values);
+        let datoms_table_alias = (self.aliaser)(datoms_table);
+
+        // TODO: constrain types in more general cases?
+        self.constrain_attribute(datoms_table_alias.clone(), a);
+
+        self.wheres.add_intersection(ColumnConstraint::Equals(
+            QualifiedAlias(datoms_table_alias, DatomsColumn::Value),
+            QueryValue::FulltextColumn(FulltextQualifiedAlias(fulltext_values_alias.clone(), FulltextColumn::Rowid))));
+
+        // search is either text or a variable.
+        // TODO: should this just use `resolve_argument`?  Should it add a new `resolve_*` function?
+        let search = match args.next().unwrap() {
+            FnArg::Variable(var) => {
+                self.column_bindings
+                    .get(&var)
+                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))?
+            },
+            FnArg::Constant(NonIntegerConstant::Text(s)) => {
+                QueryValue::TypedValue(TypedValue::typed_string(s.as_str()))
+            },
+            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
+        };
+
+        // TODO: should we build the FQA in ::Matches, preventing nonsense like matching on ::Rowid?
+        let constraint = ColumnConstraint::Matches(FulltextQualifiedAlias(fulltext_values_alias.clone(), FulltextColumn::Text), search);
+        self.wheres.add_intersection(constraint);
+
+        // TODO: process bindings!
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -88,6 +188,8 @@ mod testing {
     use super::*;
 
     use std::collections::HashSet;
+    use std::rc::Rc;
+
     use mentat_core::attribute::Unique;
     use mentat_core::{
         Attribute,
@@ -96,12 +198,14 @@ mod testing {
     };
 
     use mentat_query::{
+        Binding,
         FnArg,
         NamespacedKeyword,
         Pattern,
         PatternNonValuePlace,
         PatternValuePlace,
         PlainSymbol,
+        SrcVar,
         Variable,
     };
 
@@ -228,5 +332,48 @@ mod testing {
                                               vec![ValueType::Double, ValueType::Long].into_iter()
                                                                                       .collect(),
                                               ValueType::String));
+    }
+
+    #[test]
+    fn test_apply_fulltext() {
+        let mut cc = ConjoiningClauses::default();
+        let mut schema = Schema::default();
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
+        add_attribute(&mut schema, 100, Attribute {
+            value_type: ValueType::String,
+            index: true,
+            fulltext: true,
+            ..Default::default()
+        });
+
+        let op = PlainSymbol::new("fulltext");
+        cc.apply_fulltext(&schema, WhereFn {
+            operator: op,
+            args: vec![
+                FnArg::SrcVar(SrcVar::DefaultSrc),
+                FnArg::Ident(NamespacedKeyword::new("foo", "fts")),
+                FnArg::Constant(NonIntegerConstant::Text(Rc::new("needle".into()))),
+            ],
+            binding: Binding::BindScalar(Variable::from_valid_name("?z")),
+        }).expect("to be able to apply_fulltext");
+
+        assert!(!cc.is_known_empty);
+
+        // Finally, expand column bindings.
+        cc.expand_column_bindings();
+        assert!(!cc.is_known_empty);
+
+        let clauses = cc.wheres;
+        assert_eq!(clauses.len(), 3);
+
+        assert_eq!(clauses.0[0], ColumnConstraint::Equals(QualifiedAlias("datoms01".to_string(), DatomsColumn::Attribute),
+                                                          QueryValue::Entid(100)).into());
+        assert_eq!(clauses.0[1], ColumnConstraint::Equals(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value),
+                                                          QueryValue::FulltextColumn(FulltextQualifiedAlias("fulltext_values00".to_string(), FulltextColumn::Rowid))).into());
+        assert_eq!(clauses.0[2], ColumnConstraint::Matches(FulltextQualifiedAlias("fulltext_values00".to_string(), FulltextColumn::Text),
+                                                           QueryValue::TypedValue(TypedValue::String(Rc::new("needle".into())))).into());
+
+        // TODO: make assertions about types of columns.
     }
 }

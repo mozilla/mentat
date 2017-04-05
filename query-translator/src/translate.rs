@@ -32,6 +32,8 @@ use mentat_query_algebrizer::{
     ConjoiningClauses,
     DatomsColumn,
     DatomsTable,
+    FulltextColumn,
+    FulltextQualifiedAlias,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -66,6 +68,12 @@ trait ToColumn {
 impl ToColumn for QualifiedAlias {
     fn to_column(self) -> ColumnOrExpression {
         ColumnOrExpression::Column(self)
+    }
+}
+
+impl ToColumn for FulltextQualifiedAlias {
+    fn to_column(self) -> ColumnOrExpression {
+        ColumnOrExpression::FulltextColumn(self)
     }
 }
 
@@ -108,6 +116,11 @@ impl ToConstraint for ColumnConstraint {
             Equals(left, QueryValue::Column(right)) =>
                 Constraint::equal(left.to_column(), right.to_column()),
 
+            Equals(left, QueryValue::FulltextColumn(right)) =>
+                // TODO: figure out if this is the correct abstraction.  Can we make it so that
+                // FulltextColumns::Text is not accepted here?
+                Constraint::equal(left.to_column(), right.to_column()),
+
             Equals(qa, QueryValue::PrimitiveLong(value)) => {
                 let tag_column = qa.for_type_tag().to_column();
                 let value_column = qa.to_column();
@@ -144,6 +157,14 @@ impl ToConstraint for ColumnConstraint {
                 Constraint::Infix {
                     op: Op(operator.to_sql_operator()),
                     left: left.into(),
+                    right: right.into(),
+                }
+            },
+
+            Matches(left, right) => {
+                Constraint::Infix {
+                    op: Op("MATCH"),
+                    left: ColumnOrExpression::FulltextColumn(left),
                     right: right.into(),
                 }
             },

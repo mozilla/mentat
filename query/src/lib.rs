@@ -192,7 +192,10 @@ impl FromValue<FnArg> for FnArg {
                           println!("from_value {}", v.inner);
             match v.inner {
                 edn::SpannedValue::Integer(i) => Some(FnArg::EntidOrInteger(i)),
+                edn::SpannedValue::Boolean(b) => Some(FnArg::Constant(NonIntegerConstant::Boolean(b))),
+                edn::SpannedValue::BigInteger(x) => Some(FnArg::Constant(NonIntegerConstant::BigInteger(x))),
                 edn::SpannedValue::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
+                edn::SpannedValue::Text(ref s) => Some(FnArg::Constant(NonIntegerConstant::Text(Rc::new(s.clone())))),
                 _ => unimplemented!(),
             }})
     }

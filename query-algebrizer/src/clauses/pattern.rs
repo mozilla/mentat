@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::rc::Rc;
-
 use mentat_core::{
     Schema,
     TypedValue,
@@ -268,6 +266,7 @@ mod testing {
     use super::*;
 
     use std::collections::BTreeMap;
+    use std::rc::Rc;
 
     use mentat_core::attribute::Unique;
     use mentat_core::{
