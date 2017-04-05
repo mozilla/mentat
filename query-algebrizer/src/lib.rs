@@ -78,6 +78,7 @@ pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
         cc.apply_clause(schema, where_clause)?;
     }
     cc.expand_column_bindings();
+    cc.prune_extracted_types();
 
     let limit = if parsed.find_spec.is_unit_limited() { Some(1) } else { None };
     Ok(AlgebraicQuery {
