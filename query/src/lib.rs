@@ -174,7 +174,11 @@ impl FromValue<SrcVar> for SrcVar {
 impl SrcVar {
     pub fn from_symbol(sym: &PlainSymbol) -> Option<SrcVar> {
         if sym.is_src_symbol() {
-            Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+            if sym.0 == "$" {
+                Some(SrcVar::DefaultSrc)
+            } else {
+                Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+            }
         } else {
             None
         }
@@ -210,22 +214,44 @@ pub enum FnArg {
     Variable(Variable),
     SrcVar(SrcVar),
     EntidOrInteger(i64),
-    Ident(NamespacedKeyword),
+    IdentOrKeyword(NamespacedKeyword),
     Constant(NonIntegerConstant),
 }
 
 impl FromValue<FnArg> for FnArg {
     fn from_value(v: &edn::ValueAndSpan) -> Option<FnArg> {
-        // TODO: support SrcVars.
-        Variable::from_value(v)
-                 .and_then(|v| Some(FnArg::Variable(v)))
-                 .or_else(|| {
-                          println!("from_value {}", v.inner);
-            match v.inner {
-                edn::SpannedValue::Integer(i) => Some(FnArg::EntidOrInteger(i)),
-                edn::SpannedValue::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
-                _ => unimplemented!(),
-            }})
+        use edn::SpannedValue::*;
+        match v.inner {
+            Integer(x) =>
+                Some(FnArg::EntidOrInteger(x)),
+            PlainSymbol(ref x) if x.is_src_symbol() =>
+                SrcVar::from_symbol(x).map(FnArg::SrcVar),
+            PlainSymbol(ref x) if x.is_var_symbol() =>
+                Variable::from_symbol(x).map(FnArg::Variable),
+            PlainSymbol(_) => None,
+            NamespacedKeyword(ref x) =>
+                Some(FnArg::IdentOrKeyword(x.clone())),
+            Instant(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Instant(x))),
+            Uuid(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Uuid(x))),
+            Boolean(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Boolean(x))),
+            Float(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Float(x))),
+            BigInteger(ref x) =>
+                Some(FnArg::Constant(NonIntegerConstant::BigInteger(x.clone()))),
+            Text(ref x) =>
+                // TODO: intern strings. #398.
+                Some(FnArg::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+            Nil |
+            NamespacedSymbol(_) |
+            Keyword(_) |
+            Vector(_) |
+            List(_) |
+            Set(_) |
+            Map(_) => None,
+        }
     }
 }
 
