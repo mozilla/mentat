@@ -50,7 +50,7 @@ impl ConjoiningClauses {
             },
             // Can't be an entid.
             EntidOrInteger(i) => Ok(QueryValue::TypedValue(TypedValue::Long(i))),
-            Ident(_) |
+            IdentOrKeyword(_) |
             SrcVar(_) |
             Constant(NonIntegerConstant::Boolean(_)) |
             Constant(NonIntegerConstant::Text(_)) |
@@ -78,7 +78,7 @@ impl ConjoiningClauses {
                     .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
             },
             EntidOrInteger(i) => Ok(QueryValue::PrimitiveLong(i)),
-            Ident(_) => unimplemented!(),     // TODO
+            IdentOrKeyword(_) => unimplemented!(),     // TODO
             Constant(NonIntegerConstant::Boolean(val)) => Ok(QueryValue::TypedValue(TypedValue::Boolean(val))),
             Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
             Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::typed_string(s.as_str()))),
