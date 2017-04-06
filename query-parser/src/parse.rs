@@ -43,6 +43,8 @@ use self::mentat_query::{
     FromValue,
     OrJoin,
     OrWhereClause,
+    NotJoin,
+    WhereNotClause,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
@@ -163,6 +165,10 @@ def_parser!(Where, or_join, edn::ValueAndSpan, {
     })
 });
 
+def_matches_plain_symbol!(Where, or_join, "not");
+
+def_matches_plain_symbol!(Where, or_join, "not-join");
+
 def_parser!(Where, rule_vars, Vec<Variable>, {
     seq()
         .of_exactly(many1(Query::variable()))
@@ -208,6 +214,53 @@ def_parser!(Where, or_join_clause, WhereClause, {
                         clauses: clauses,
                     })
             }))
+});
+
+def_value_parser_fn!(Where, not_pattern_clause, WhereNotClause, input, {
+    Where::clause().map(|clause| WhereNotClause::Clause(clause)).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, where_not_clause, WhereNotClause, input, {
+    choice([Where::not_pattern_clause()]).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, not_clause, WhereClause, input, {
+    satisfy_map(|x: edn::Value| {
+        seq(x).and_then(|items| {
+            let mut p = Where::not()
+                        .with(many1(Where::where_not_clause()))
+                        .skip(eof())
+                        .map(|clauses| {
+                            WhereClause::NotJoin(
+                               NotJoin {
+                                   unify_vars: UnifyVars::Implicit,
+                                   clauses: clauses,
+                               })
+                        });
+            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
+            Query::to_parsed_value(r)
+        })
+    }).parse_stream(input)
+});
+
+def_value_parser_fn!(Where, not_join_clause, WhereClause, input, {
+    satisfy_map(|x: edn::Value| {
+        seq(x).and_then(|items| {
+            let mut p = Where::not_join()
+                        .with(Where::rule_vars())
+                        .and(many1(Where::where_not_clause()))
+                        .skip(eof())
+                        .map(|(vars, clauses)| {
+                            WhereClause::NotJoin(
+                               NotJoin {
+                                   unify_vars: UnifyVars::Explicit(vars),
+                                   clauses: clauses,
+                               })
+                        });
+            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
+            Query::to_parsed_value(r)
+        })
+    }).parse_stream(input)
 });
 
 /// A vector containing just a parenthesized filter expression.
@@ -293,6 +346,8 @@ def_parser!(Where, clause, WhereClause, {
             // We don't yet handle source vars.
             try(Where::or_join_clause()),
             try(Where::or_clause()),
+            try(Where::not_join_clause()),
+            try(Where::not_clause()),
 
             try(Where::pred()),
             try(Where::where_fn()),
@@ -631,6 +686,59 @@ mod test {
                               OrJoin {
                                   unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
                                   clauses: vec![OrWhereClause::Clause(
+                                      WhereClause::Pattern(Pattern {
+                                          source: None,
+                                          entity: PatternNonValuePlace::Variable(variable(e)),
+                                          attribute: PatternNonValuePlace::Variable(variable(a)),
+                                          value: PatternValuePlace::Variable(variable(v)),
+                                          tx: PatternNonValuePlace::Placeholder,
+                                      }))],
+                              }));
+    }
+
+    #[test]
+    fn test_not() {
+        let oj = edn::PlainSymbol::new("not");
+        let e = edn::PlainSymbol::new("?e");
+        let a = edn::PlainSymbol::new("?a");
+        let v = edn::PlainSymbol::new("?v");
+        let input = [edn::Value::List(
+            vec![edn::Value::PlainSymbol(oj),
+                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
+                                         edn::Value::PlainSymbol(a.clone()),
+                                         edn::Value::PlainSymbol(v.clone())])].into_iter().collect())];
+        assert_parses_to!(Where::not_clause, input,
+                          WhereClause::NotJoin(
+                              NotJoin {
+                                  unify_vars: UnifyVars::Implicit,
+                                  clauses: vec![WhereNotClause::Clause(
+                                      WhereClause::Pattern(Pattern {
+                                          source: None,
+                                          entity: PatternNonValuePlace::Variable(variable(e)),
+                                          attribute: PatternNonValuePlace::Variable(variable(a)),
+                                          value: PatternValuePlace::Variable(variable(v)),
+                                          tx: PatternNonValuePlace::Placeholder,
+                                      }))],
+                              }));
+    }
+
+    #[test]
+    fn test_not_join() {
+        let oj = edn::PlainSymbol::new("not-join");
+        let e = edn::PlainSymbol::new("?e");
+        let a = edn::PlainSymbol::new("?a");
+        let v = edn::PlainSymbol::new("?v");
+        let input = [edn::Value::List(
+            vec![edn::Value::PlainSymbol(oj),
+                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]),
+                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
+                                         edn::Value::PlainSymbol(a.clone()),
+                                         edn::Value::PlainSymbol(v.clone())])].into_iter().collect())];
+        assert_parses_to!(Where::not_join_clause, input,
+                          WhereClause::NotJoin(
+                              NotJoin {
+                                  unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
+                                  clauses: vec![WhereNotClause::Clause(
                                       WhereClause::Pattern(Pattern {
                                           source: None,
                                           entity: PatternNonValuePlace::Variable(variable(e)),

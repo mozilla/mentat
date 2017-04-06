@@ -189,18 +189,6 @@ pub enum FnArg {
 
 impl FromValue<FnArg> for FnArg {
     fn from_value(v: edn::ValueAndSpan) -> Option<FnArg> {
-<<<<<<< HEAD
-        // TODO: support SrcVars.
-        Variable::from_value(v.clone()) // TODO: don't clone!
-                 .and_then(|v| Some(FnArg::Variable(v)))
-                 .or_else(|| {
-                          println!("from_value {}", v.inner);
-            match v.inner {
-                edn::SpannedValue::Integer(i) => Some(FnArg::EntidOrInteger(i)),
-                edn::SpannedValue::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
-                _ => unimplemented!(),
-            }})
-=======
         use edn::SpannedValue::*;
         match v.inner {
             Integer(x) =>
@@ -229,7 +217,6 @@ impl FromValue<FnArg> for FnArg {
             Set(_) |
             Map(_) => None,
         }
->>>>>>> 71d3aa29ed3b383f030e9b3d13eeef5a12820be1
     }
 }
 
@@ -631,11 +618,30 @@ pub struct OrJoin {
     pub clauses: Vec<OrWhereClause>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum WhereNotClause {
+    Clause(WhereClause),
+}
+
+impl WhereNotClause {
+    pub fn is_pattern_or_patterns(&self) -> bool {
+        match self {
+            &WhereNotClause::Clause(WhereClause::Pattern(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NotJoin {
+    pub unify_vars: UnifyVars,
+    pub clauses: Vec<WhereNotClause>,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
-    Not,
-    NotJoin,
+    NotJoin(NotJoin),
     OrJoin(OrJoin),
     Pred(Predicate),
     WhereFn(WhereFn),
@@ -689,9 +695,14 @@ impl ContainsVariables for WhereClause {
             &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
+<<<<<<< HEAD
             &Not            => (),
             &NotJoin        => (),
             &WhereFn(_)     => (),
+=======
+            &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
+            &WhereFn        => (),
+>>>>>>> Part 1 - Parse `not` and `not-join`
             &RuleExpr       => (),
         }
     }
@@ -711,6 +722,23 @@ impl ContainsVariables for OrJoin {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         for clause in &self.clauses {
             clause.accumulate_mentioned_variables(acc);
+        }
+    }
+}
+
+impl ContainsVariables for NotJoin {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for clause in &self.clauses {
+            clause.accumulate_mentioned_variables(acc);
+        }
+    }
+}
+
+impl ContainsVariables for WhereNotClause {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        use WhereNotClause::*;
+        match self {
+            &Clause(ref clause) => clause.accumulate_mentioned_variables(acc),
         }
     }
 }
