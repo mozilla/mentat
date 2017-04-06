@@ -362,7 +362,7 @@ impl ConjoiningClauses {
     /// ```
     ///
     fn apply_simple_or_join(&mut self, schema: &Schema, patterns: Vec<Pattern>, mentioned_vars: BTreeSet<Variable>) -> Result<()> {
-        if self.is_known_empty {
+        if self.is_known_empty() {
             return Ok(())
         }
 
@@ -411,7 +411,7 @@ impl ConjoiningClauses {
                             let mut receptacle = template.make_receptacle();
                             println!("Applying pattern with attribute {:?}", pattern.attribute);
                             receptacle.apply_pattern_clause_for_alias(schema, &pattern, &source_alias);
-                            if receptacle.is_known_empty {
+                            if receptacle.is_known_empty() {
                                 println!("Receptacle is empty.");
                                 let reason = receptacle.empty_because;
                                 None
@@ -491,8 +491,7 @@ impl ConjoiningClauses {
     }
 
     fn intersect(&mut self, mut cc: ConjoiningClauses) -> Result<()> {
-        if cc.is_known_empty {
-            self.is_known_empty = true;
+        if cc.is_known_empty() {
             self.empty_because = cc.empty_because;
         }
         self.wheres.append(&mut cc.wheres);
@@ -595,7 +594,7 @@ mod testing {
                         [?x :foo/nope2 "Ámbar"]
                         [?x :foo/nope3 "Daphne"])]"#;
         let cc = alg(&schema, query);
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because, Some(EmptyBecause::InvalidAttributeIdent(NamespacedKeyword::new("foo", "nope3"))));
     }
 
@@ -609,7 +608,7 @@ mod testing {
                         [?x :foo/parent "Ámbar"]
                         [?x :foo/nope "Daphne"])]"#;
         let cc = alg(&schema, query);
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         compare_ccs(cc, alg(&schema, r#"[:find ?x :where [?x :foo/parent "Ámbar"]]"#));
     }
 
@@ -634,7 +633,7 @@ mod testing {
         let ambar = QueryValue::TypedValue(TypedValue::typed_string("Ámbar"));
         let daphne = QueryValue::TypedValue(TypedValue::typed_string("Daphne"));
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Alternation(
                 ColumnAlternation(vec![
@@ -681,7 +680,7 @@ mod testing {
         let ambar = QueryValue::TypedValue(TypedValue::typed_string("Ámbar"));
         let daphne = QueryValue::TypedValue(TypedValue::typed_string("Daphne"));
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), name.clone())),
             ColumnConstraintOrAlternation::Alternation(
@@ -731,7 +730,7 @@ mod testing {
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
         let daphne = QueryValue::TypedValue(TypedValue::typed_string("Daphne"));
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), age.clone())),
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NumericInequality {
@@ -780,7 +779,7 @@ mod testing {
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows.clone())),
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), parent.clone())),
