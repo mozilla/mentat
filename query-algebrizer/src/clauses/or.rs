@@ -304,7 +304,6 @@ impl ConjoiningClauses {
                 // Hooray! Fully unified and plain ol' patterns that all use the same table.
                 // Go right ahead and produce a set of constraint alternations that we can collect,
                 // using a single table alias.
-                // TODO
                 self.apply_simple_or_join(schema, patterns, mentioned_vars)
             },
             DeconstructedOrJoin::Complex(_) => {
