@@ -387,19 +387,23 @@ impl ConjoiningClauses {
             // ```
             let mut receptacles =
                 patterns.into_iter()
-                        .filter_map(|pattern| {
+                        .map(|pattern| {
                             let mut receptacle = template.make_receptacle();
                             println!("Applying pattern with attribute {:?}", pattern.attribute);
                             receptacle.apply_pattern_clause_for_alias(schema, &pattern, &source_alias);
-                            if receptacle.is_known_empty() {
-                                println!("Receptacle is empty.");
-                                let reason = receptacle.empty_because;
-                                None
-                            } else {
-                                Some(receptacle)
-                            }
+                            receptacle
                         })
                         .peekable();
+
+            // Let's see if we can grab a reason if every pattern failed.
+            // If every pattern failed, we can just take the first!
+            let reason = receptacles.peek()
+                                    .map(|r| r.empty_because.clone())
+                                    .unwrap_or(None);
+
+            // Filter out empties.
+            let mut receptacles = receptacles.filter(|receptacle| !receptacle.is_known_empty())
+                                             .peekable();
 
             // We need to copy the column bindings from one of the receptacles. Because this is a simple
             // or, we know that they're all the same.
@@ -419,8 +423,7 @@ impl ConjoiningClauses {
                 }
             } else {
                 // No non-empty receptacles? The destination CC is known-empty, because or([]) is false.
-                // TODO: get the reason out.
-                self.mark_known_empty(EmptyBecause::AttributeLookupFailed);
+                self.mark_known_empty(reason.unwrap_or(EmptyBecause::AttributeLookupFailed));
                 return Ok(());
             }
 
