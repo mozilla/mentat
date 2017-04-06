@@ -63,11 +63,15 @@ use types::{
 
 mod inputs;
 mod or;
+mod not;
 mod pattern;
 mod predicate;
 mod resolve;
 
-use validate::validate_or_join;
+use validate::{
+    validate_or_join,
+    validate_not_join,
+};
 
 pub use self::inputs::QueryInputs;
 
@@ -811,6 +815,9 @@ impl ConjoiningClauses {
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)?;
                 self.apply_or_join(schema, o)
+            },
+            WhereClause::NotJoin(n) => {
+                validate_not_join(&n)
             },
             _ => unimplemented!(),
         }
