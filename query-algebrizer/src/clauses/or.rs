@@ -8,29 +8,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-// WIP
-#![allow(dead_code, unused_imports, unused_variables)]
-
 use std::collections::btree_map::Entry;
 use std::collections::BTreeSet;
 
 use mentat_core::{
-    Entid,
     Schema,
-    TypedValue,
-    ValueType,
 };
 
 use mentat_query::{
-    NonIntegerConstant,
     OrJoin,
     OrWhereClause,
     Pattern,
     PatternValuePlace,
     PatternNonValuePlace,
-    PlainSymbol,
-    Predicate,
-    SrcVar,
     UnifyVars,
     Variable,
     WhereClause,
@@ -40,23 +30,14 @@ use clauses::ConjoiningClauses;
 
 use errors::{
     Result,
-    Error,
-    ErrorKind,
 };
 
 use types::{
-    ColumnConstraint,
     ColumnConstraintOrAlternation,
     ColumnAlternation,
     ColumnIntersection,
-    DatomsColumn,
     DatomsTable,
     EmptyBecause,
-    NumericComparison,
-    QualifiedAlias,
-    QueryValue,
-    SourceAlias,
-    TableAlias,
 };
 
 /// Return true if both left and right are the same variable or both are non-variable.
@@ -509,16 +490,14 @@ mod testing {
 
     use super::*;
 
-    use std::collections::BTreeMap;
-
-    use mentat_core::attribute::Unique;
     use mentat_core::{
         Attribute,
+        TypedValue,
+        ValueType,
     };
 
     use mentat_query::{
         NamespacedKeyword,
-        NonIntegerConstant,
         Variable,
     };
 
@@ -529,13 +508,13 @@ mod testing {
     use clauses::{
         add_attribute,
         associate_ident,
-        ident,
-        unit_type_set,
     };
 
     use types::{
         ColumnConstraint,
+        DatomsColumn,
         DatomsTable,
+        NumericComparison,
         QualifiedAlias,
         QueryValue,
         SourceAlias,
@@ -667,12 +646,10 @@ mod testing {
                  [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);
         let vx = Variable::from_valid_name("?x");
-        let vname = Variable::from_valid_name("?name");
         let d0 = "datoms00".to_string();
         let d1 = "datoms01".to_string();
         let d0e = QualifiedAlias(d0.clone(), DatomsColumn::Entity);
         let d0a = QualifiedAlias(d0.clone(), DatomsColumn::Attribute);
-        let d0v = QualifiedAlias(d0.clone(), DatomsColumn::Value);
         let d1e = QualifiedAlias(d1.clone(), DatomsColumn::Entity);
         let d1a = QualifiedAlias(d1.clone(), DatomsColumn::Attribute);
         let d1v = QualifiedAlias(d1.clone(), DatomsColumn::Value);
@@ -719,7 +696,6 @@ mod testing {
                  [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);
         let vx = Variable::from_valid_name("?x");
-        let vage = Variable::from_valid_name("?age");
         let d0 = "datoms00".to_string();
         let d1 = "datoms01".to_string();
         let d0e = QualifiedAlias(d0.clone(), DatomsColumn::Entity);
@@ -778,7 +754,6 @@ mod testing {
         let d0v = QualifiedAlias(d0.clone(), DatomsColumn::Value);
         let d1e = QualifiedAlias(d1.clone(), DatomsColumn::Entity);
         let d1a = QualifiedAlias(d1.clone(), DatomsColumn::Attribute);
-        let d1v = QualifiedAlias(d1.clone(), DatomsColumn::Value);
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
 
@@ -837,6 +812,7 @@ mod testing {
     /// but that would be a fair amount of analysis work, I think.
     #[test]
     #[should_panic(expected = "not yet implemented")]
+    #[allow(dead_code, unused_variables)]
     fn test_alternation_with_and() {
         let schema = prepopulated_schema();
         let query = r#"
