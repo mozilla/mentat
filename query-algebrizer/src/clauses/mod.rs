@@ -56,11 +56,15 @@ use types::{
 };
 
 mod or;
+mod not;
 mod pattern;
 mod predicate;
 mod resolve;
 
-use validate::validate_or_join;
+use validate::{
+    validate_or_join,
+    validate_not_join,
+};
 
 // We do this a lot for errors.
 trait RcCloned<T> {
@@ -589,6 +593,9 @@ impl ConjoiningClauses {
                 validate_or_join(&o)
                 //?;
                 //self.apply_or_join(schema, o)
+            },
+            WhereClause::NotJoin(n) => {
+                validate_not_join(&n)
             },
             _ => unimplemented!(),
         }
