@@ -597,11 +597,30 @@ pub struct OrJoin {
     mentioned_vars: Option<BTreeSet<Variable>>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum WhereNotClause {
+    Clause(WhereClause),
+}
+
+impl WhereNotClause {
+    pub fn is_pattern_or_patterns(&self) -> bool {
+        match self {
+            &WhereNotClause::Clause(WhereClause::Pattern(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NotJoin {
+    pub unify_vars: UnifyVars,
+    pub clauses: Vec<WhereNotClause>,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
-    Not,
-    NotJoin,
+    NotJoin(NotJoin),
     OrJoin(OrJoin),
     Pred(Predicate),
     WhereFn,
@@ -669,8 +688,7 @@ impl ContainsVariables for WhereClause {
             &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
-            &Not            => (),
-            &NotJoin        => (),
+            &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
             &WhereFn        => (),
             &RuleExpr       => (),
         }
@@ -713,6 +731,23 @@ impl OrJoin {
             mentioned
         } else {
             panic!()
+        }
+    }
+}
+
+impl ContainsVariables for NotJoin {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for clause in &self.clauses {
+            clause.accumulate_mentioned_variables(acc);
+        }
+    }
+}
+
+impl ContainsVariables for WhereNotClause {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        use WhereNotClause::*;
+        match self {
+            &Clause(ref clause) => clause.accumulate_mentioned_variables(acc),
         }
     }
 }
