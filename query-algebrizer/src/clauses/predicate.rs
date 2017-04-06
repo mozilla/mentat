@@ -140,7 +140,7 @@ mod testing {
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
 
         let op = PlainSymbol::new("<");
         let comp = NumericComparison::from_datalog_operator(op.plain_name()).unwrap();
@@ -150,11 +150,11 @@ mod testing {
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
             ]}).is_ok());
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
 
         // Finally, expand column bindings to get the overlaps for ?x.
         cc.expand_column_bindings();
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
 
         // After processing those two clauses, we know that ?y must be numeric, but not exactly
         // which type it must be.
@@ -200,7 +200,7 @@ mod testing {
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
 
         let op = PlainSymbol::new(">=");
         let comp = NumericComparison::from_datalog_operator(op.plain_name()).unwrap();
@@ -210,7 +210,7 @@ mod testing {
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
             ]}).is_ok());
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         cc.apply_pattern(&schema, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
@@ -222,7 +222,7 @@ mod testing {
         // Finally, expand column bindings to get the overlaps for ?x.
         cc.expand_column_bindings();
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(y.clone(),
                                               vec![ValueType::Double, ValueType::Long].into_iter()

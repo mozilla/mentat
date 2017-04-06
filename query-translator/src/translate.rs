@@ -158,7 +158,7 @@ fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: Conjoini
         FromClause::TableList(TableList(cc.from))
     };
 
-    let limit = if cc.is_known_empty { Some(0) } else { limit.into() };
+    let limit = if cc.empty_because.is_some() { Some(0) } else { limit.into() };
     SelectQuery {
         distinct: distinct,
         projection: projection,
@@ -174,7 +174,7 @@ fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: Conjoini
 /// Return a query that projects `1` if the `cc` matches the store, and returns no results
 /// if it doesn't.
 pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
-    if cc.is_known_empty {
+    if cc.is_known_empty() {
         // In this case we can produce a very simple query that returns no results.
         SelectQuery {
             distinct: false,

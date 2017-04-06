@@ -41,7 +41,7 @@ impl ConjoiningClauses {
     /// account all information spread across two patterns.
     ///
     /// If the constraints cannot be satisfied -- for example, if this pattern includes a numeric
-    /// attribute and a string value -- then the `is_known_empty` field on the CC is flipped and
+    /// attribute and a string value -- then the `empty_because` field on the CC is flipped and
     /// the function returns.
     ///
     /// A pattern being impossible to satisfy isn't necessarily a bad thing -- this query might
@@ -71,7 +71,7 @@ impl ConjoiningClauses {
     ///
     /// This method is only public for use from `or.rs`.
     pub fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
-        if self.is_known_empty {
+        if self.is_known_empty() {
             return;
         }
 
@@ -154,7 +154,7 @@ impl ConjoiningClauses {
                     // Wouldn't it be nice if we didn't need to clone in the found case?
                     // It doesn't matter too much: collisons won't be too frequent.
                     self.constrain_var_to_type(v.clone(), this_type);
-                    if self.is_known_empty {
+                    if self.is_known_empty() {
                         return;
                     }
                 }
@@ -322,7 +322,7 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -340,7 +340,7 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -370,7 +370,7 @@ mod testing {
         let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
 
         // After this, we know a lot of things:
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -408,7 +408,7 @@ mod testing {
         let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
         let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -457,7 +457,7 @@ mod testing {
         let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
         let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
         // ?x must be a ref, and ?v a boolean.
@@ -495,7 +495,7 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(), EmptyBecause::InvalidBinding(DatomsColumn::Attribute, hello));
     }
 
@@ -521,7 +521,7 @@ mod testing {
 
         let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -552,7 +552,7 @@ mod testing {
         let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
         let d0_v = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Value);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -615,7 +615,7 @@ mod testing {
         let d1_e = QualifiedAlias("datoms01".to_string(), DatomsColumn::Entity);
         let d1_a = QualifiedAlias("datoms01".to_string(), DatomsColumn::Attribute);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![
                    SourceAlias(DatomsTable::Datoms, "datoms00".to_string()),
                    SourceAlias(DatomsTable::Datoms, "datoms01".to_string()),
@@ -715,7 +715,7 @@ mod testing {
         });
 
         // The type of the provided binding doesn't match the type of the attribute.
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -747,7 +747,7 @@ mod testing {
         });
 
         // The type of the provided binding doesn't match the type of the attribute.
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -790,13 +790,13 @@ mod testing {
         // Finally, expand column bindings to get the overlaps for ?x.
         cc.expand_column_bindings();
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(y.clone(), unit_type_set(ValueType::String), ValueType::Boolean));
     }
 
     #[test]
-    #[should_panic(expected = "assertion failed: cc.is_known_empty")]
+    #[should_panic(expected = "assertion failed: cc.is_known_empty()")]
     /// This test needs range inference in order to succeed: we must deduce that ?y must
     /// simultaneously be a boolean-valued attribute and a ref-valued attribute, and thus
     /// the CC can never return results.
@@ -828,7 +828,7 @@ mod testing {
         // Finally, expand column bindings to get the overlaps for ?x.
         cc.expand_column_bindings();
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(x.clone(), unit_type_set(ValueType::Ref), ValueType::Boolean));
     }

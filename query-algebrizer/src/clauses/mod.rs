@@ -142,8 +142,7 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
 ///   * Inline expressions?
 ///---------------------------------------------------------------------------------------
 pub struct ConjoiningClauses {
-    /// `true` if this set of clauses cannot yield results in the context of the current schema.
-    pub is_known_empty: bool,
+    /// `Some` if this set of clauses cannot yield results in the context of the current schema.
     pub empty_because: Option<EmptyBecause>,
 
     /// A function used to generate an alias for a table -- e.g., from "datoms" to "datoms123".
@@ -188,7 +187,7 @@ pub struct ConjoiningClauses {
 impl Debug for ConjoiningClauses {
     fn fmt(&self, fmt: &mut Formatter) -> ::std::fmt::Result {
         fmt.debug_struct("ConjoiningClauses")
-            .field("is_known_empty", &self.is_known_empty)
+            .field("empty_because", &self.empty_because)
             .field("from", &self.from)
             .field("wheres", &self.wheres)
             .field("column_bindings", &self.column_bindings)
@@ -204,7 +203,6 @@ impl Debug for ConjoiningClauses {
 impl Default for ConjoiningClauses {
     fn default() -> ConjoiningClauses {
         ConjoiningClauses {
-            is_known_empty: false,
             empty_because: None,
             aliaser: default_table_aliaser(),
             from: vec![],
@@ -222,7 +220,6 @@ impl Default for ConjoiningClauses {
 impl ConjoiningClauses {
     fn make_receptacle(&self) -> ConjoiningClauses {
         let mut concrete = ConjoiningClauses::default();
-        concrete.is_known_empty = self.is_known_empty;
         concrete.empty_because = self.empty_because.clone();
 
         concrete.input_variables = self.input_variables.clone();
@@ -238,7 +235,6 @@ impl ConjoiningClauses {
     /// simple `or`.
     fn use_as_template(&self, vars: &BTreeSet<Variable>) -> ConjoiningClauses {
         let mut template = ConjoiningClauses::default();
-        template.is_known_empty = self.is_known_empty;
         template.empty_because = self.empty_because.clone();
 
         template.input_variables = self.input_variables.intersection(vars).cloned().collect();
@@ -385,7 +381,7 @@ impl ConjoiningClauses {
     /// Like `constrain_var_to_type` but in reverse: this expands the set of types
     /// with which a variable is associated.
     ///
-    /// N.B.,: if we ever call `broaden_types` after `is_known_empty` has been set, we might
+    /// N.B.,: if we ever call `broaden_types` after `empty_because` has been set, we might
     /// actually move from a state in which a variable can have no type to one that can
     /// yield results! We never do so at present -- we carefully set-union types before we
     /// set-intersect them -- but this is worth bearing in mind.
@@ -399,7 +395,7 @@ impl ConjoiningClauses {
                     e.insert(new_types);
                 },
                 Entry::Occupied(mut e) => {
-                    if e.get().is_empty() && self.is_known_empty {
+                    if e.get().is_empty() && self.empty_because.is_some() {
                         panic!("Uh oh: we failed this pattern, probably because {:?} couldn't match, but now we're broadening its type.",
                                e.get());
                     }
@@ -478,8 +474,12 @@ impl ConjoiningClauses {
         }
     }
 
+    #[inline]
+    pub fn is_known_empty(&self) -> bool {
+        self.empty_because.is_some()
+    }
+
     fn mark_known_empty(&mut self, why: EmptyBecause) {
-        self.is_known_empty = true;
         if self.empty_because.is_some() {
             return;
         }
@@ -589,7 +589,7 @@ impl ConjoiningClauses {
     /// Produce a (table, alias) pair to handle the provided pattern.
     /// This is a mutating method because it mutates the aliaser function!
     /// Note that if this function decides that a pattern cannot match, it will flip
-    /// `is_known_empty`.
+    /// `empty_because`.
     fn alias_table<'s, 'a>(&mut self, schema: &'s Schema, pattern: &'a Pattern) -> Option<SourceAlias> {
         self.table_for_places(schema, &pattern.attribute, &pattern.value)
             .map_err(|reason| {

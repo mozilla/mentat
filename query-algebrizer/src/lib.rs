@@ -63,8 +63,9 @@ impl AlgebraicQuery {
         };
     }
 
+    #[inline]
     pub fn is_known_empty(&self) -> bool {
-        self.cc.is_known_empty
+        self.cc.is_known_empty()
     }
 }
 
