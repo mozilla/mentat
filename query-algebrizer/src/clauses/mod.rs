@@ -62,8 +62,8 @@ mod predicate;
 mod resolve;
 
 use validate::{
-    validate_or_join,
     validate_not_join,
+    validate_or_join,
 };
 
 // We do this a lot for errors.
