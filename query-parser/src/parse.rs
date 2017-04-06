@@ -43,7 +43,6 @@ use self::mentat_query::{
     OrJoin,
     OrWhereClause,
     NotJoin,
-    WhereNotClause,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
@@ -188,19 +187,11 @@ def_parser!(Where, or_join_clause, WhereClause, {
             }))
 });
 
-def_value_parser_fn!(Where, not_pattern_clause, WhereNotClause, input, {
-    Where::clause().map(|clause| WhereNotClause::Clause(clause)).parse_stream(input)
-});
-
-def_value_parser_fn!(Where, where_not_clause, WhereNotClause, input, {
-    choice([Where::not_pattern_clause()]).parse_stream(input)
-});
-
 def_value_parser_fn!(Where, not_clause, WhereClause, input, {
     satisfy_map(|x: edn::Value| {
         seq(x).and_then(|items| {
             let mut p = Where::not()
-                        .with(many1(Where::where_not_clause()))
+                        .with(many1(Where::clause()))
                         .skip(eof())
                         .map(|clauses| {
                             WhereClause::NotJoin(
@@ -220,7 +211,7 @@ def_value_parser_fn!(Where, not_join_clause, WhereClause, input, {
         seq(x).and_then(|items| {
             let mut p = Where::not_join()
                         .with(Where::rule_vars())
-                        .and(many1(Where::where_not_clause()))
+                        .and(many1(Where::clause()))
                         .skip(eof())
                         .map(|(vars, clauses)| {
                             WhereClause::NotJoin(
@@ -618,14 +609,14 @@ mod test {
                           WhereClause::NotJoin(
                               NotJoin {
                                   unify_vars: UnifyVars::Implicit,
-                                  clauses: vec![WhereNotClause::Clause(
+                                  clauses: vec![
                                       WhereClause::Pattern(Pattern {
                                           source: None,
                                           entity: PatternNonValuePlace::Variable(variable(e)),
                                           attribute: PatternNonValuePlace::Variable(variable(a)),
                                           value: PatternValuePlace::Variable(variable(v)),
                                           tx: PatternNonValuePlace::Placeholder,
-                                      }))],
+                                      })],
                               }));
     }
 
@@ -645,14 +636,13 @@ mod test {
                           WhereClause::NotJoin(
                               NotJoin {
                                   unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
-                                  clauses: vec![WhereNotClause::Clause(
-                                      WhereClause::Pattern(Pattern {
+                                  clauses: vec![WhereClause::Pattern(Pattern {
                                           source: None,
                                           entity: PatternNonValuePlace::Variable(variable(e)),
                                           attribute: PatternNonValuePlace::Variable(variable(a)),
                                           value: PatternValuePlace::Variable(variable(v)),
                                           tx: PatternNonValuePlace::Placeholder,
-                                      }))],
+                                      })],
                               }));
     }
 

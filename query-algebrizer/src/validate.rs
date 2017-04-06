@@ -79,36 +79,13 @@ pub fn validate_not_join(not_join: &NotJoin) -> Result<()> {
     // Grab our mentioned variables and ensure that the rules are followed.
     match not_join.unify_vars {
         UnifyVars::Implicit => {
-            if not_join.clauses.len() < 2 {
-                Ok(())
-            } else {
-                let mut clauses = not_join.clauses.iter();
-                let template = clauses.next().unwrap().collect_mentioned_variables();
-                for clause in clauses {
-                    if template != clause.collect_mentioned_variables() {
-                        bail!(ErrorKind::NonMatchingVariablesInNotClause);
-                    }
-                }
-                Ok(())
-            }
+            Ok(())
         },
         UnifyVars::Explicit(ref vars) => {
             // The joined vars must each appear somewhere in the clauses mentioned variables.
             let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
-            for var in &var_set {
-                if !&not_join.clauses.iter().any(|clause| clause.collect_mentioned_variables().contains(&var))  {
-                    bail!(ErrorKind::NonMatchingVariablesInNotClause);
-                }
-            }
-
-            // any other mentioned variables must also unify
-            let mut clauses = not_join.clauses.iter();
-            let template: BTreeSet<Variable> = clauses.next().unwrap().collect_mentioned_variables().difference(&var_set).cloned().collect();
-            for clause in clauses {
-                let mentioned_vars = clause.collect_mentioned_variables().difference(&var_set).cloned().collect();
-                if template != mentioned_vars {
-                    bail!(ErrorKind::NonMatchingVariablesInOrClause);
-                }
+            if !var_set.is_subset(&not_join.collect_mentioned_variables()) {
+                bail!(ErrorKind::NonMatchingVariablesInNotClause);
             }
             Ok(())
         },
@@ -125,7 +102,6 @@ mod tests {
         FindQuery,
         NamespacedKeyword,
         OrWhereClause,
-        WhereNotClause,
         Pattern,
         PatternNonValuePlace,
         PatternValuePlace,
@@ -139,8 +115,8 @@ mod tests {
     use clauses::ident;
 
     use super::{
-        validate_or_join,
         validate_not_join,
+        validate_or_join,
     };
 
     fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
@@ -277,15 +253,15 @@ mod tests {
 
 
     /// Tests that the top-level form is a valid `not`, returning the clauses.
-    fn valid_not_join(parsed: FindQuery, expected_unify: UnifyVars) -> Vec<WhereNotClause> {
-        // filter all the not clauses
-        let mut nots = parsed.where_clauses.iter().filter(|&x| match *x {
-            WhereClause::NotJoin(_) => true,
+    fn valid_not_join(parsed: FindQuery, expected_unify: UnifyVars) -> Vec<WhereClause> {
+        // Filter out all the clauses that are not `not`s.
+        let mut nots = parsed.where_clauses.into_iter().filter(|x| match x {
+            &WhereClause::NotJoin(_) => true,
             _ => false,
         });
 
-        // there should be only one not clause
-        let clause = nots.next().unwrap().clone();
+        // There should be only one not clause.
+        let clause = nots.next().unwrap();
         assert_eq!(None, nots.next());
 
         match clause {
@@ -299,7 +275,7 @@ mod tests {
         }
     }
 
-    /// Test that a `not` is valid if all of its arms refer to the same variables.
+    /// Test that a `not` is valid if it is implicit.
     #[test]
     fn test_success_not() {
         let query = r#"[:find ?name
@@ -315,52 +291,25 @@ mod tests {
             (Some(clause1), Some(clause2), None) => {
                 assert_eq!(
                     clause1,
-                    WhereNotClause::Clause(
-                        WhereClause::Pattern(Pattern {
-                            source: None,
-                            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?id")),
-                            attribute: ident("artist", "country"),
-                            value: value_ident("country", "CA"),
-                            tx: PatternNonValuePlace::Placeholder,
-                        }),
-                    ));
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?id")),
+                        attribute: ident("artist", "country"),
+                        value: value_ident("country", "CA"),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
                 assert_eq!(
                     clause2,
-                    WhereNotClause::Clause(
-                        WhereClause::Pattern(Pattern {
-                            source: None,
-                            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?id")),
-                            attribute: ident("artist", "country"),
-                            value: value_ident("country", "GB"),
-                            tx: PatternNonValuePlace::Placeholder,
-                        }),
-                    ));
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?id")),
+                        attribute: ident("artist", "country"),
+                        value: value_ident("country", "GB"),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
             },
             _ => panic!(),
         };
-    }
-
-
-    /// Test that a `not` with differing variable sets in each body part will fail to validate.
-    #[test]
-    fn test_invalid_implicit_not() {
-        let query = r#"[:find ?name
-                        :where [?id :artist/name ?name]
-                            (not [?id :artist/country :country/CA]
-                                 [?release :release/year 1970])]"#;
-        let parsed = parse_find_string(query).expect("expected successful parse");
-        let mut nots = parsed.where_clauses.iter().filter(|&x| match *x {
-            WhereClause::NotJoin(_) => true,
-            _ => false,
-        });
-
-        let clause = nots.next().unwrap().clone();
-        assert_eq!(None, nots.next());
-
-        match clause {
-            WhereClause::NotJoin(not_join) => assert!(validate_not_join(&not_join).is_err()),
-            _ => panic!(),
-        }
     }
 
     #[test]
@@ -373,30 +322,28 @@ mod tests {
         let parsed = parse_find_string(query).expect("expected successful parse");
         let clauses = valid_not_join(parsed, UnifyVars::Explicit(vec![Variable::from_valid_name("?artist")]));
 
-        // // Let's do some detailed parse checks.
+        // Let's do some detailed parse checks.
         let mut parts = clauses.into_iter();
         match (parts.next(), parts.next(), parts.next()) {
             (Some(clause1), Some(clause2), None) => {
                 assert_eq!(
                     clause1,
-                    WhereNotClause::Clause(
-                        WhereClause::Pattern(Pattern {
-                            source: None,
-                            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?release")),
-                            attribute: ident("release", "artists"),
-                            value: PatternValuePlace::Variable(Variable::from_valid_name("?artist")),
-                            tx: PatternNonValuePlace::Placeholder,
-                        })));
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?release")),
+                        attribute: ident("release", "artists"),
+                        value: PatternValuePlace::Variable(Variable::from_valid_name("?artist")),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
                 assert_eq!(
                     clause2,
-                    WhereNotClause::Clause(
-                        WhereClause::Pattern(Pattern {
-                            source: None,
-                            entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?release")),
-                            attribute: ident("release", "year"),
-                            value: PatternValuePlace::EntidOrInteger(1970),
-                            tx: PatternNonValuePlace::Placeholder,
-                        })));
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?release")),
+                        attribute: ident("release", "year"),
+                        value: PatternValuePlace::EntidOrInteger(1970),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
             },
             _ => panic!(),
         };
@@ -424,27 +371,4 @@ mod tests {
             _ => panic!(),
         }
     }    
-    
-    /// Test that a `not-join` that does not match any vars declared inside it fails to validate.
-    #[test]
-    fn test_invalid_explicit_not_join_non_matching_internal_vars() {
-        let query = r#"[:find ?artist
-                        :where [?artist :artist/name]
-                               (not-join [?artist]
-                                   [?release :release/artists ?artist]
-                                   [?year :release/year 1970])]"#;
-        let parsed = parse_find_string(query).expect("expected successful parse");
-        let mut nots = parsed.where_clauses.iter().filter(|&x| match *x {
-            WhereClause::NotJoin(_) => true,
-            _ => false,
-        });
-
-        let clause = nots.next().unwrap().clone();
-        assert_eq!(None, nots.next());
-
-        match clause {
-            WhereClause::NotJoin(not_join) => assert!(validate_not_join(&not_join).is_err()),
-            _ => panic!(),
-        }
-    }
 }
