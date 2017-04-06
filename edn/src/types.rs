@@ -66,8 +66,14 @@ pub enum SpannedValue {
 }
 
 /// Span represents the current offset (start, end) into the input string.
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct Span(pub usize, pub usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct Span(pub u32, pub u32);
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Span {
+        Span(start as u32, end as u32)
+    }
+}
 
 /// A wrapper type around `SpannedValue` and `Span`, representing some EDN value
 /// and the parsing offset (start, end) in the original EDN string.
@@ -75,6 +81,40 @@ pub struct Span(pub usize, pub usize);
 pub struct ValueAndSpan {
     pub inner: SpannedValue,
     pub span: Span,
+}
+
+impl ValueAndSpan {
+    pub fn new<I>(spanned_value: SpannedValue, span: I) -> ValueAndSpan where I: Into<Option<Span>> {
+        ValueAndSpan {
+            inner: spanned_value,
+            span: span.into().unwrap_or(Span(0, 0)), // TODO: consider if this has implications.
+        }
+    }
+
+    pub fn into_atom(self) -> Option<ValueAndSpan> {
+        if self.inner.is_atom() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_text(self) -> Option<String> {
+        self.inner.into_text()
+    }
+}
+
+impl Value {
+    /// For debug use only!
+    ///
+    /// But right now, it's used in the bootstrapper.  We'll fix that soon.
+    pub fn with_spans(self) -> ValueAndSpan {
+        let s = self.to_pretty(120).unwrap();
+        use ::parse;
+        let with_spans = parse::value(&s).unwrap();
+        assert_eq!(self, with_spans.clone().without_spans());
+        with_spans
+    }
 }
 
 impl From<SpannedValue> for Value {

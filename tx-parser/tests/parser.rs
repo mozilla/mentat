@@ -15,7 +15,6 @@ extern crate mentat_tx_parser;
 
 use edn::parse;
 use edn::symbols::NamespacedKeyword;
-use edn::types::Value;
 use mentat_tx::entities::{
     AtomOrLookupRefOrVectorOrMapNotation,
     Entid,
@@ -33,29 +32,28 @@ fn test_entities() {
  [:db/add "tempid" :test/a "v"]
  [:db/retract 102 :test/b "w"]]"#;
 
-    let edn = parse::value(input).unwrap().without_spans();
-    let input = [edn];
+    let edn = parse::value(input).expect("to parse test input");
 
-    let result = Tx::parse(&input[..]);
+    let result = Tx::parse(edn);
     assert_eq!(result.unwrap(),
                vec![
                    Entity::AddOrRetract {
                        op: OpType::Add,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(edn::ValueAndSpan::new(edn::SpannedValue::Text("v".into()), edn::Span(23, 26))),
                    },
                    Entity::AddOrRetract {
                        op: OpType::Add,
                        e: EntidOrLookupRefOrTempId::TempId(TempId::External("tempid".into())),
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
-                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("v".into())),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(edn::ValueAndSpan::new(edn::SpannedValue::Text("v".into()), edn::Span(55, 58))),
                    },
                    Entity::AddOrRetract {
                        op: OpType::Retract,
                        e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(102)),
                        a: Entid::Ident(NamespacedKeyword::new("test", "b")),
-                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(Value::Text("w".into())),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(edn::ValueAndSpan::new(edn::SpannedValue::Text("w".into()), edn::Span(86, 89))),
                    },
                ]);
 }

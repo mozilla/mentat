@@ -129,9 +129,8 @@ impl Conn {
                     sqlite: &mut rusqlite::Connection,
                     transaction: &str) -> Result<TxReport> {
 
-        let assertion_vector = edn::parse::value(transaction)
-            .map(|x| x.without_spans())?;
-        let entities = mentat_tx_parser::Tx::parse(&[assertion_vector][..])?;
+        let assertion_vector = edn::parse::value(transaction)?;
+        let entities = mentat_tx_parser::Tx::parse(assertion_vector)?;
 
         let tx = sqlite.transaction()?;
 
@@ -178,7 +177,6 @@ mod tests {
     use super::*;
 
     extern crate mentat_parser_utils;
-    use self::mentat_parser_utils::ValueParseError;
 
     #[test]
     fn test_transact_errors() {
@@ -203,7 +201,7 @@ mod tests {
         // Bad transaction data: missing leading :db/add.
         let report = conn.transact(&mut sqlite, "[[\"t\" :db/ident :b/keyword]]");
         match report.unwrap_err() {
-            Error(ErrorKind::TxParseError(::mentat_tx_parser::errors::ErrorKind::ParseError(ValueParseError { .. })), _) => { },
+            Error(ErrorKind::TxParseError(::mentat_tx_parser::errors::ErrorKind::ParseError(_)), _) => { },
             x => panic!("expected EDN parse error, got {:?}", x),
         }
 

@@ -11,8 +11,20 @@
 extern crate combine;
 extern crate edn;
 
-use combine::ParseResult;
-use combine::combinator::{Expected, FnParser};
+use combine::{
+    ParseResult,
+};
+use combine::combinator::{
+    Expected,
+    FnParser,
+};
+
+pub mod log;
+pub mod value_and_span;
+
+pub use log::{
+    LogParsing,
+};
 
 /// A type definition for a function parser that either parses an `O` from an input stream of type
 /// `I`, or fails with an "expected" failure.
@@ -25,10 +37,10 @@ pub type ResultParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
 /// parser function against input and expecting a certain result.
 #[macro_export]
 macro_rules! assert_parses_to {
-    ( $parser: path, $input: expr, $expected: expr ) => {{
+    ( $parser: expr, $input: expr, $expected: expr ) => {{
         let mut par = $parser();
-        let result = par.parse(&$input[..]);
-        assert_eq!(result, Ok(($expected, &[][..])));
+        let result = par.parse($input.with_spans().into_atom_stream()).map(|x| x.0); // TODO: check remainder of stream.
+        assert_eq!(result, Ok($expected));
     }}
 }
 
@@ -77,6 +89,20 @@ macro_rules! def_parser_fn {
                     $body
                 }
                 parser(inner as fn(I) -> ParseResult<$result_type, I>).expected(stringify!($name))
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! def_parser {
+    ( $parser: ident, $name: ident, $result_type: ty, $body: block ) => {
+        impl $parser {
+            fn $name() -> ResultParser<$result_type, $crate::value_and_span::Stream> {
+                fn inner(input: $crate::value_and_span::Stream) -> ParseResult<$result_type, $crate::value_and_span::Stream> {
+                    $body.parse_lazy(input).into()
+                }
+                parser(inner as fn($crate::value_and_span::Stream) -> ParseResult<$result_type, $crate::value_and_span::Stream>).expected(stringify!($name))
             }
         }
     }

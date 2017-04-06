@@ -97,7 +97,7 @@ fn can_parse_simple_or() {
 #[test]
 fn can_parse_unit_or_join() {
     let s = "[:find ?x . :where (or-join [?x] [?x _ 15])]";
-    let p = parse_find_string(s).unwrap();
+    let p = parse_find_string(s).expect("to be able to parse find");
 
     assert_eq!(p.find_spec,
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));

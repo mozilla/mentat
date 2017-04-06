@@ -21,19 +21,12 @@ extern crate edn;
 #[macro_use]
 extern crate mentat_parser_utils;
 
-mod util;
 mod parse;
-pub mod find;
-
-pub use find::{
-    parse_find,
-    parse_find_string,
-};
 
 pub use parse::{
     Error,
     ErrorKind,
-    QueryParseResult,
     Result,
     ResultExt,
+    parse_find_string,
 };

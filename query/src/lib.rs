@@ -67,15 +67,15 @@ impl Variable {
 }
 
 pub trait FromValue<T> {
-    fn from_value(v: &edn::Value) -> Option<T>;
+    fn from_value(v: edn::ValueAndSpan) -> Option<T>;
 }
 
 /// If the provided EDN value is a PlainSymbol beginning with '?', return
 /// it wrapped in a Variable. If not, return None.
 /// TODO: intern strings. #398.
 impl FromValue<Variable> for Variable {
-    fn from_value(v: &edn::Value) -> Option<Variable> {
-        if let edn::Value::PlainSymbol(ref s) = *v {
+    fn from_value(v: edn::ValueAndSpan) -> Option<Variable> {
+        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
             Variable::from_symbol(s)
         } else {
             None
@@ -112,8 +112,8 @@ impl fmt::Debug for Variable {
 pub struct PredicateFn(pub PlainSymbol);
 
 impl FromValue<PredicateFn> for PredicateFn {
-    fn from_value(v: &edn::Value) -> Option<PredicateFn> {
-        if let edn::Value::PlainSymbol(ref s) = *v {
+    fn from_value(v: edn::ValueAndSpan) -> Option<PredicateFn> {
+        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
             PredicateFn::from_symbol(s)
         } else {
             None
@@ -135,8 +135,8 @@ pub enum SrcVar {
 }
 
 impl FromValue<SrcVar> for SrcVar {
-    fn from_value(v: &edn::Value) -> Option<SrcVar> {
-        if let edn::Value::PlainSymbol(ref s) = *v {
+    fn from_value(v: edn::ValueAndSpan) -> Option<SrcVar> {
+        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
             SrcVar::from_symbol(s)
         } else {
             None
@@ -184,16 +184,17 @@ pub enum FnArg {
 }
 
 impl FromValue<FnArg> for FnArg {
-    fn from_value(v: &edn::Value) -> Option<FnArg> {
+    fn from_value(v: edn::ValueAndSpan) -> Option<FnArg> {
         // TODO: support SrcVars.
-        Variable::from_value(v)
+        Variable::from_value(v.clone()) // TODO: don't clone!
                  .and_then(|v| Some(FnArg::Variable(v)))
-                 .or_else(||
-            match v {
-                &edn::Value::Integer(i) => Some(FnArg::EntidOrInteger(i)),
-                &edn::Value::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
+                 .or_else(|| {
+                          println!("from_value {}", v.inner);
+            match v.inner {
+                edn::SpannedValue::Integer(i) => Some(FnArg::EntidOrInteger(i)),
+                edn::SpannedValue::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
                 _ => unimplemented!(),
-            })
+            }})
     }
 }
 
@@ -234,14 +235,14 @@ impl PatternNonValuePlace {
 }
 
 impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
-    fn from_value(v: &edn::Value) -> Option<PatternNonValuePlace> {
-        match v {
-            &edn::Value::Integer(x) => if x >= 0 {
+    fn from_value(v: edn::ValueAndSpan) -> Option<PatternNonValuePlace> {
+        match v.inner {
+            edn::SpannedValue::Integer(x) => if x >= 0 {
                 Some(PatternNonValuePlace::Entid(x))
             } else {
                 None
             },
-            &edn::Value::PlainSymbol(ref x) => if x.0.as_str() == "_" {
+            edn::SpannedValue::PlainSymbol(ref x) => if x.0.as_str() == "_" {
                 Some(PatternNonValuePlace::Placeholder)
             } else {
                 if let Some(v) = Variable::from_symbol(x) {
@@ -250,7 +251,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
                     None
                 }
             },
-            &edn::Value::NamespacedKeyword(ref x) =>
+            edn::SpannedValue::NamespacedKeyword(ref x) =>
                 Some(PatternNonValuePlace::Ident(Rc::new(x.clone()))),
             _ => None,
         }
@@ -276,23 +277,23 @@ pub enum PatternValuePlace {
 }
 
 impl FromValue<PatternValuePlace> for PatternValuePlace {
-    fn from_value(v: &edn::Value) -> Option<PatternValuePlace> {
-        match v {
-            &edn::Value::Integer(x) =>
+    fn from_value(v: edn::ValueAndSpan) -> Option<PatternValuePlace> {
+        match v.inner {
+            edn::SpannedValue::Integer(x) =>
                 Some(PatternValuePlace::EntidOrInteger(x)),
-            &edn::Value::PlainSymbol(ref x) if x.0.as_str() == "_" =>
+            edn::SpannedValue::PlainSymbol(ref x) if x.0.as_str() == "_" =>
                 Some(PatternValuePlace::Placeholder),
-            &edn::Value::PlainSymbol(ref x) =>
+            edn::SpannedValue::PlainSymbol(ref x) =>
                 Variable::from_symbol(x).map(PatternValuePlace::Variable),
-            &edn::Value::NamespacedKeyword(ref x) =>
+            edn::SpannedValue::NamespacedKeyword(ref x) =>
                 Some(PatternValuePlace::IdentOrKeyword(Rc::new(x.clone()))),
-            &edn::Value::Boolean(x) =>
+            edn::SpannedValue::Boolean(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
-            &edn::Value::Float(x) =>
+            edn::SpannedValue::Float(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Float(x))),
-            &edn::Value::BigInteger(ref x) =>
+            edn::SpannedValue::BigInteger(ref x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::BigInteger(x.clone()))),
-            &edn::Value::Text(ref x) =>
+            edn::SpannedValue::Text(ref x) =>
                 // TODO: intern strings. #398.
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
             _ => None,

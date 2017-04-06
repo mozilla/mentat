@@ -32,7 +32,7 @@ pub nil -> ValueAndSpan =
     start:#position "nil" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Nil,
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -40,7 +40,7 @@ pub nan -> ValueAndSpan =
     start:#position "#f" whitespace+ "NaN" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Float(OrderedFloat(NAN)),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -48,7 +48,7 @@ pub infinity -> ValueAndSpan =
     start:#position "#f" whitespace+ s:$(sign) "Infinity" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY })),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -56,13 +56,13 @@ pub boolean -> ValueAndSpan =
     start:#position "true" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Boolean(true),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     } /
     start:#position "false" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Boolean(false),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -77,7 +77,7 @@ pub bigint -> ValueAndSpan =
     start:#position b:$( sign? digit+ ) "N" end:#position {
         ValueAndSpan {
             inner: SpannedValue::BigInteger(b.parse::<BigInt>().unwrap()),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -85,7 +85,7 @@ pub octalinteger -> ValueAndSpan =
     start:#position "0" i:$( octaldigit+ ) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Integer(i64::from_str_radix(i, 8).unwrap()),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -93,7 +93,7 @@ pub hexinteger -> ValueAndSpan =
     start:#position "0x" i:$( hex+ ) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Integer(i64::from_str_radix(i, 16).unwrap()),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -102,7 +102,7 @@ pub basedinteger -> ValueAndSpan =
     start:#position b:$( validbase ) "r" i:$( alphanumeric+ ) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap()),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -110,7 +110,7 @@ pub integer -> ValueAndSpan =
     start:#position i:$( sign? digit+ ) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Integer(i.parse::<i64>().unwrap()),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -124,7 +124,7 @@ pub float -> ValueAndSpan =
     start:#position f:$( frac_exp / exp / frac ) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -138,7 +138,7 @@ pub text -> ValueAndSpan =
     start:#position "\"" t:$( char* ) "\"" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Text(t.to_string()),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -164,7 +164,7 @@ pub symbol -> ValueAndSpan =
     end:#position {
         ValueAndSpan {
             inner: SpannedValue::from_symbol(ns, n),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -176,7 +176,7 @@ pub keyword -> ValueAndSpan =
     end:#position {
         ValueAndSpan {
             inner: SpannedValue::from_keyword(ns, n),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -184,7 +184,7 @@ pub list -> ValueAndSpan =
     start:#position "(" __ v:(value)* __ ")" end:#position {
         ValueAndSpan {
             inner: SpannedValue::List(LinkedList::from_iter(v)),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -192,7 +192,7 @@ pub vector -> ValueAndSpan =
     start:#position "[" __ v:(value)* __ "]" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Vector(v),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -200,7 +200,7 @@ pub set -> ValueAndSpan =
     start:#position "#{" __ v:(value)* __ "}" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Set(BTreeSet::from_iter(v)),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 
@@ -213,7 +213,7 @@ pub map -> ValueAndSpan =
     start:#position "{" __ v:(pair)* __ "}" end:#position {
         ValueAndSpan {
             inner: SpannedValue::Map(BTreeMap::from_iter(v)),
-            span: Span(start, end)
+            span: Span::new(start, end)
         }
     }
 

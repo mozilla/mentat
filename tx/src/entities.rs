@@ -15,7 +15,6 @@ extern crate edn;
 use std::collections::BTreeMap;
 use std::fmt;
 
-use self::edn::types::Value;
 use self::edn::symbols::NamespacedKeyword;
 
 /// A tempid, either an external tempid given in a transaction (usually as an `edn::Value::Text`),
@@ -62,14 +61,14 @@ pub struct LookupRef {
     pub a: Entid,
     // In theory we could allow nested lookup-refs.  In practice this would require us to process
     // lookup-refs in multiple phases, like how we resolve tempids, which isn't worth the effort.
-    pub v: Value, // An atom.
+    pub v: edn::Value, // An atom.
 }
 
 pub type MapNotation = BTreeMap<Entid, AtomOrLookupRefOrVectorOrMapNotation>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum AtomOrLookupRefOrVectorOrMapNotation {
-    Atom(Value),
+    Atom(edn::ValueAndSpan),
     LookupRef(LookupRef),
     Vector(Vec<AtomOrLookupRefOrVectorOrMapNotation>),
     MapNotation(MapNotation),

@@ -10,7 +10,8 @@
 
 #![allow(dead_code)]
 
-use mentat_parser_utils::ValueParseError;
+use combine;
+use mentat_parser_utils::value_and_span::Stream;
 
 error_chain! {
     types {
@@ -18,9 +19,9 @@ error_chain! {
     }
 
     errors {
-        ParseError(value_parse_error: ValueParseError) {
+        ParseError(parse_error: combine::ParseError<Stream>) {
             description("error parsing edn values")
-            display("error parsing edn values:\n{}", value_parse_error)
+            display("error parsing edn values:\n{}", parse_error)
         }
 
         DbIdError {
