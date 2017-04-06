@@ -69,8 +69,8 @@ mod predicate;
 mod resolve;
 
 use validate::{
-    validate_or_join,
     validate_not_join,
+    validate_or_join,
 };
 
 pub use self::inputs::QueryInputs;
