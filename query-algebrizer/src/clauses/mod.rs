@@ -96,6 +96,7 @@ fn unit_type_set(t: ValueType) -> HashSet<ValueType> {
 ///
 /// - Ordinary pattern clauses turn into `FROM` parts and `WHERE` parts using `=`.
 /// - Predicate clauses turn into the same, but with other functions.
+/// - Function clauses turn `WHERE` parts using function-specific comparisons.
 /// - `not` turns into `NOT EXISTS` with `WHERE` clauses inside the subquery to
 ///   bind it to the outer variables, or adds simple `WHERE` clauses to the outer
 ///   clause.
@@ -580,6 +581,9 @@ impl ConjoiningClauses {
             },
             WhereClause::Pred(p) => {
                 self.apply_predicate(schema, p)
+            },
+            WhereClause::WhereFn(f) => {
+                self.apply_where_fn(schema, f)
             },
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)

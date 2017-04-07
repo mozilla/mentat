@@ -99,6 +99,8 @@ pub use types::{
     ColumnIntersection,
     DatomsColumn,
     DatomsTable,
+    FulltextColumn,
+    FulltextQualifiedAlias,
     QualifiedAlias,
     QueryValue,
     SourceAlias,

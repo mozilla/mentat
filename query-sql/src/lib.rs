@@ -20,6 +20,8 @@ use mentat_core::{
 
 use mentat_query_algebrizer::{
     DatomsColumn,
+    FulltextColumn,
+    FulltextQualifiedAlias,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -44,6 +46,7 @@ use mentat_sql::{
 /// implementation for each storage backend. Passing `TypedValue`s here allows for that.
 pub enum ColumnOrExpression {
     Column(QualifiedAlias),
+    FulltextColumn(FulltextQualifiedAlias),
     Entid(Entid),       // Because it's so common.
     Integer(i32),       // We use these for type codes etc.
     Long(i64),
@@ -55,6 +58,7 @@ impl From<QueryValue> for ColumnOrExpression {
     fn from(v: QueryValue) -> Self {
         match v {
             QueryValue::Column(c) => ColumnOrExpression::Column(c),
+            QueryValue::FulltextColumn(c) => ColumnOrExpression::FulltextColumn(c),
             QueryValue::Entid(e) => ColumnOrExpression::Entid(e),
             QueryValue::PrimitiveLong(v) => ColumnOrExpression::Long(v),
             QueryValue::TypedValue(v) => ColumnOrExpression::Value(v),
@@ -109,6 +113,14 @@ impl Constraint {
             right: right,
         }
     }
+
+    pub fn fulltext_match(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
+        Constraint::Infix {
+            op: Op("MATCH"), // SQLite specific!
+            left: left,
+            right: right,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -157,6 +169,11 @@ fn push_column(qb: &mut QueryBuilder, col: &DatomsColumn) {
     qb.push_sql(col.as_str());
 }
 
+// We know that FulltextColumns are safe to serialize.
+fn push_fulltext_column(qb: &mut QueryBuilder, col: &FulltextColumn) {
+    qb.push_sql(col.as_str());
+}
+
 //---------------------------------------------------------
 // Turn that representation into SQL.
 
@@ -197,6 +214,12 @@ impl QueryFragment for ColumnOrExpression {
                 out.push_identifier(table.as_str())?;
                 out.push_sql(".");
                 push_column(out, column);
+                Ok(())
+            },
+            &FulltextColumn(FulltextQualifiedAlias(ref table, ref column)) => {
+                out.push_identifier(table.as_str())?;
+                out.push_sql(".");
+                push_fulltext_column(out, column);
                 Ok(())
             },
             &Entid(entid) => {
@@ -406,13 +429,20 @@ impl SelectQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::rc::Rc;
+
     use mentat_query_algebrizer::DatomsTable;
 
-    fn build_constraint(c: Constraint) -> String {
+    fn build_constraint_query(c: Constraint) -> SQLQuery {
         let mut builder = SQLiteQueryBuilder::new();
         c.push_sql(&mut builder)
          .map(|_| builder.finish())
-         .unwrap().sql
+         .expect("to produce a query for the given constraint")
+    }
+
+    fn build_constraint(c: Constraint) -> String {
+        build_constraint_query(c).sql
     }
 
     #[test]
@@ -467,6 +497,25 @@ mod tests {
         // Two sets of parens: the outermost AND only has one child,
         // but still contributes parens.
         assert_eq!("((123 = 456 AND 789 = 246))", build_constraint(c));
+    }
+
+    #[test]
+    fn test_matches_constraint() {
+        let c = Constraint::Infix {
+            op: Op("MATCHES"),
+            left: ColumnOrExpression::FulltextColumn(FulltextQualifiedAlias("fulltext01".to_string(), FulltextColumn::Text)),
+            right: ColumnOrExpression::Value(TypedValue::String(Rc::new("needle".to_string()))),
+        };
+        let q = build_constraint_query(c);
+        assert_eq!("`fulltext01`.text MATCHES $v0", q.sql);
+        assert_eq!(vec![("$v0".to_string(), Rc::new("needle".to_string()))], q.args);
+
+        let c = Constraint::Infix {
+            op: Op("="),
+            left: ColumnOrExpression::FulltextColumn(FulltextQualifiedAlias("fulltext01".to_string(), FulltextColumn::Rowid)),
+            right: ColumnOrExpression::Column(QualifiedAlias("datoms02".to_string(), DatomsColumn::Value)),
+        };
+        assert_eq!("`fulltext01`.rowid = `datoms02`.v", build_constraint(c));
     }
 
     #[test]

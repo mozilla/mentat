@@ -71,6 +71,23 @@ impl DatomsColumn {
     }
 }
 
+/// One of the named columns of our fulltext values table.
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum FulltextColumn {
+    Rowid,
+    Text,
+}
+
+impl FulltextColumn {
+    pub fn as_str(&self) -> &'static str {
+        use self::FulltextColumn::*;
+        match *self {
+            Rowid => "rowid",
+            Text => "text",
+        }
+    }
+}
+
 /// A specific instance of a table within a query. E.g., "datoms123".
 pub type TableAlias = String;
 
@@ -94,6 +111,16 @@ impl Debug for QualifiedAlias {
     }
 }
 
+/// A particular column of a particular aliased fulltext table. E.g., "fulltext_values123", Rowid.
+#[derive(PartialEq, Eq, Clone)]
+pub struct FulltextQualifiedAlias(pub TableAlias, pub FulltextColumn);
+
+impl Debug for FulltextQualifiedAlias {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}.{}", self.0, self.1.as_str())
+    }
+}
+
 impl QualifiedAlias {
     pub fn for_type_tag(&self) -> QualifiedAlias {
         QualifiedAlias(self.0.clone(), DatomsColumn::ValueTypeTag)
@@ -103,6 +130,7 @@ impl QualifiedAlias {
 #[derive(PartialEq, Eq)]
 pub enum QueryValue {
     Column(QualifiedAlias),
+    FulltextColumn(FulltextQualifiedAlias),
     Entid(Entid),
     TypedValue(TypedValue),
 
@@ -118,6 +146,9 @@ impl Debug for QueryValue {
         use self::QueryValue::*;
         match self {
             &Column(ref qa) => {
+                write!(f, "{:?}", qa)
+            },
+            &FulltextColumn(ref qa) => {
                 write!(f, "{:?}", qa)
             },
             &Entid(ref entid) => {
@@ -192,6 +223,9 @@ pub enum ColumnConstraint {
         right: QueryValue,
     },
     HasType(TableAlias, ValueType),
+    // TODO: Merge this with NumericInequality?  I expect the fine-grained information to be
+    // valuable when optimizing.
+    Matches(FulltextQualifiedAlias, QueryValue),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -290,6 +324,10 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?} {:?} {:?}", left, operator, right)
             },
 
+            &Matches(ref qa, ref thing) => {
+                write!(f, "{:?} MATCHES {:?}", qa, thing)
+            },
+
             &HasType(ref qa, value_type) => {
                 write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
             },
@@ -301,6 +339,7 @@ impl Debug for ColumnConstraint {
 pub enum EmptyBecause {
     // Var, existing, desired.
     TypeMismatch(Variable, HashSet<ValueType>, ValueType),
+    NonAttributeArgument,
     NonNumericArgument,
     NonStringFulltextValue,
     UnresolvedIdent(NamespacedKeyword),
@@ -318,6 +357,9 @@ impl Debug for EmptyBecause {
             &TypeMismatch(ref var, ref existing, ref desired) => {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)
+            },
+            &NonAttributeArgument => {
+                write!(f, "Non-attribute argument in attribute place")
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")

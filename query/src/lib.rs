@@ -147,7 +147,11 @@ impl FromValue<SrcVar> for SrcVar {
 impl SrcVar {
     pub fn from_symbol(sym: &PlainSymbol) -> Option<SrcVar> {
         if sym.is_src_symbol() {
-            Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+            if sym.0 == "$" {
+                Some(SrcVar::DefaultSrc)
+            } else {
+                Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+            }
         } else {
             None
         }
@@ -185,6 +189,7 @@ pub enum FnArg {
 
 impl FromValue<FnArg> for FnArg {
     fn from_value(v: edn::ValueAndSpan) -> Option<FnArg> {
+<<<<<<< HEAD
         // TODO: support SrcVars.
         Variable::from_value(v.clone()) // TODO: don't clone!
                  .and_then(|v| Some(FnArg::Variable(v)))
@@ -195,6 +200,36 @@ impl FromValue<FnArg> for FnArg {
                 edn::SpannedValue::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
                 _ => unimplemented!(),
             }})
+=======
+        use edn::SpannedValue::*;
+        match v.inner {
+            Integer(x) =>
+                Some(FnArg::EntidOrInteger(x)),
+            PlainSymbol(ref x) if x.is_src_symbol() =>
+                SrcVar::from_symbol(x).map(FnArg::SrcVar),
+            PlainSymbol(ref x) if x.is_var_symbol() =>
+                Variable::from_symbol(x).map(FnArg::Variable),
+            PlainSymbol(_) => None,
+            NamespacedKeyword(ref x) =>
+                Some(FnArg::Ident(x.clone())),
+            Boolean(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Boolean(x))),
+            Float(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Float(x))),
+            BigInteger(ref x) =>
+                Some(FnArg::Constant(NonIntegerConstant::BigInteger(x.clone()))),
+            Text(ref x) =>
+                // TODO: intern strings. #398.
+                Some(FnArg::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+            Nil |
+            NamespacedSymbol(_) |
+            Keyword(_) |
+            Vector(_) |
+            List(_) |
+            Set(_) |
+            Map(_) => None,
+        }
+>>>>>>> 71d3aa29ed3b383f030e9b3d13eeef5a12820be1
     }
 }
 
@@ -455,6 +490,25 @@ impl FindSpec {
     }
 }
 
+// Datomic accepts variable or placeholder.  DataScript accepts recursive bindings.  Mentat sticks
+// to the non-recursive form Datomic accepts, which is much simpler to process.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VariableOrPlaceholder {
+    Placeholder,
+    Variable(Variable),
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum Binding {
+    BindRel(Vec<VariableOrPlaceholder>),
+
+    BindColl(Variable),
+
+    BindTuple(Vec<VariableOrPlaceholder>),
+
+    BindScalar(Variable),
+}
+
 // Note that the "implicit blank" rule applies.
 // A pattern with a reversed attribute — :foo/_bar — is reversed
 // at the point of parsing. These `Pattern` instances only represent
@@ -508,6 +562,13 @@ impl Pattern {
 pub struct Predicate {
     pub operator: PlainSymbol,
     pub args: Vec<FnArg>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhereFn {
+    pub operator: PlainSymbol,
+    pub args: Vec<FnArg>,
+    pub binding: Binding,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -577,7 +638,7 @@ pub enum WhereClause {
     NotJoin,
     OrJoin(OrJoin),
     Pred(Predicate),
-    WhereFn,
+    WhereFn(WhereFn),
     RuleExpr,
     Pattern(Pattern),
 }
@@ -630,7 +691,7 @@ impl ContainsVariables for WhereClause {
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
             &Not            => (),
             &NotJoin        => (),
-            &WhereFn        => (),
+            &WhereFn(_)     => (),
             &RuleExpr       => (),
         }
     }

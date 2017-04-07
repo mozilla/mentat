@@ -35,6 +35,7 @@ use self::mentat_parser_utils::value_and_span::{
 };
 
 use self::mentat_query::{
+    Binding,
     Element,
     FindQuery,
     FindSpec,
@@ -50,7 +51,9 @@ use self::mentat_query::{
     SrcVar,
     UnifyVars,
     Variable,
+    VariableOrPlaceholder,
     WhereClause,
+    WhereFn,
 };
 
 error_chain! {
@@ -129,11 +132,36 @@ def_parser!(Where, pattern_non_value_place, PatternNonValuePlace, {
     satisfy_map(PatternNonValuePlace::from_value)
 });
 
-def_matches_plain_symbol!(Where, and, "and");
 
-def_matches_plain_symbol!(Where, or, "or");
+def_parser!(Where, and, edn::ValueAndSpan, {
+    satisfy(|v: edn::ValueAndSpan| {
+        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
+            s.0.as_str() == "and"
+        } else {
+            false
+        }
+    })
+});
 
-def_matches_plain_symbol!(Where, or_join, "or-join");
+def_parser!(Where, or, edn::ValueAndSpan, {
+    satisfy(|v: edn::ValueAndSpan| {
+        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
+            s.0.as_str() == "or"
+        } else {
+            false
+        }
+    })
+});
+
+def_parser!(Where, or_join, edn::ValueAndSpan, {
+    satisfy(|v: edn::ValueAndSpan| {
+        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
+            s.0.as_str() == "or-join"
+        } else {
+            false
+        }
+    })
+});
 
 def_parser!(Where, rule_vars, Vec<Variable>, {
     seq()
@@ -198,6 +226,25 @@ def_parser!(Where, pred, WhereClause, {
                 })))
 });
 
+/// A vector containing a parenthesized function expression and a binding.
+def_parser!(Where, where_fn, WhereClause, {
+    // Accept either a nested list or a nested vector here:
+    // `[(foo ?x ?y) binding]` or `[[foo ?x ?y] binding]`
+    vector()
+        .of_exactly(
+            (seq().of_exactly(
+                (Query::predicate_fn(), Query::arguments())),
+             Bind::binding())
+                    .map(|((f, args), binding)| {
+                        WhereClause::WhereFn(
+                            WhereFn {
+                                operator: f.0,
+                                args: args,
+                                binding: binding,
+                            })
+                    }))
+});
+
 def_parser!(Where, pattern, WhereClause, {
     vector()
         .of_exactly(
@@ -248,6 +295,7 @@ def_parser!(Where, clause, WhereClause, {
             try(Where::or_clause()),
 
             try(Where::pred()),
+            try(Where::where_fn()),
     ])
 });
 
@@ -261,6 +309,8 @@ pub struct Find;
 def_matches_plain_symbol!(Find, period, ".");
 
 def_matches_plain_symbol!(Find, ellipsis, "...");
+
+def_matches_plain_symbol!(Find, placeholder, "_");
 
 def_parser!(Find, find_scalar, FindSpec, {
     Query::variable()
@@ -366,6 +416,47 @@ def_parser!(Find, query, FindQuery, {
         })
 });
 
+pub struct Bind;
+
+def_parser!(Bind, bind_scalar, Binding, {
+    Query::variable()
+        .skip(eof())
+        .map(|var: Variable| -> Binding { Binding::BindScalar(var) })
+});
+
+def_parser!(Bind, variable_or_placeholder, VariableOrPlaceholder, {
+    Query::variable().map(VariableOrPlaceholder::Variable)
+        .or(Find::placeholder().map(|_| VariableOrPlaceholder::Placeholder))
+});
+
+def_parser!(Bind, bind_coll, Binding, {
+    vector()
+        .of_exactly(Query::variable()
+            .skip(Find::ellipsis()))
+            .map(Binding::BindColl)
+});
+
+def_parser!(Bind, bind_rel, Binding, {
+    vector().of_exactly(
+        many1::<Vec<VariableOrPlaceholder>, _>(Bind::variable_or_placeholder())
+            .map(Binding::BindRel))
+});
+
+def_parser!(Bind, bind_tuple, Binding, {
+    many1::<Vec<VariableOrPlaceholder>, _>(Bind::variable_or_placeholder())
+        .skip(eof())
+        .map(Binding::BindTuple)
+});
+
+def_parser!(Bind, binding, Binding, {
+    // Any one of the four binding types might apply, so we combine them with `choice`.  Our parsers
+    // consume input, so we need to wrap them in `try` so that they operate independently.
+    choice([try(Bind::bind_scalar()),
+            try(Bind::bind_coll()),
+            try(Bind::bind_tuple()),
+            try(Bind::bind_rel())])
+});
+
 pub fn parse_find_string(string: &str) -> Result<FindQuery> {
     let expr = edn::parse::value(string)?;
     Find::query()
@@ -385,6 +476,7 @@ mod test {
     use self::combine::Parser;
     use self::edn::OrderedFloat;
     use self::mentat_query::{
+        Binding,
         Element,
         FindSpec,
         NonIntegerConstant,
@@ -393,6 +485,7 @@ mod test {
         PatternValuePlace,
         SrcVar,
         Variable,
+        VariableOrPlaceholder,
     };
 
     use super::*;
@@ -597,5 +690,87 @@ mod test {
                           input,
                           FindSpec::FindTuple(vec![Element::Variable(variable(vx)),
                                                    Element::Variable(variable(vy))]));
+    }
+
+    #[test]
+    fn test_bind_scalar() {
+        let vx = edn::PlainSymbol::new("?x");
+        assert_edn_parses_to!(|| vector().of_exactly(Bind::binding()),
+                              "[?x]",
+                              Binding::BindScalar(variable(vx)));
+    }
+
+    #[test]
+    fn test_bind_coll() {
+        let vx = edn::PlainSymbol::new("?x");
+        assert_edn_parses_to!(|| vector().of_exactly(Bind::binding()),
+                              "[[?x ...]]",
+                              Binding::BindColl(variable(vx)));
+    }
+
+    #[test]
+    fn test_bind_rel() {
+        let vx = edn::PlainSymbol::new("?x");
+        let vy = edn::PlainSymbol::new("?y");
+        let vw = edn::PlainSymbol::new("?w");
+        assert_edn_parses_to!(|| vector().of_exactly(Bind::binding()),
+                              "[[?x ?y _ ?w]]",
+                              Binding::BindRel(vec![VariableOrPlaceholder::Variable(variable(vx)),
+                                                    VariableOrPlaceholder::Variable(variable(vy)),
+                                                    VariableOrPlaceholder::Placeholder,
+                                                    VariableOrPlaceholder::Variable(variable(vw)),
+                              ]));
+    }
+
+    #[test]
+    fn test_bind_tuple() {
+        let vx = edn::PlainSymbol::new("?x");
+        let vy = edn::PlainSymbol::new("?y");
+        let vw = edn::PlainSymbol::new("?w");
+        assert_edn_parses_to!(|| vector().of_exactly(Bind::binding()),
+                              "[?x ?y _ ?w]",
+                              Binding::BindTuple(vec![VariableOrPlaceholder::Variable(variable(vx)),
+                                                      VariableOrPlaceholder::Variable(variable(vy)),
+                                                      VariableOrPlaceholder::Placeholder,
+                                                      VariableOrPlaceholder::Variable(variable(vw)),
+                              ]));
+    }
+
+    #[test]
+    fn test_where_fn() {
+        assert_edn_parses_to!(Where::where_fn,
+                              "[(f ?x 1) ?y]",
+                              WhereClause::WhereFn(WhereFn {
+                                  operator: edn::PlainSymbol::new("f"),
+                                  args: vec![FnArg::Variable(Variable::from_valid_name("?x")),
+                                             FnArg::EntidOrInteger(1)],
+                                  binding: Binding::BindScalar(Variable::from_valid_name("?y")),
+                              }));
+
+        assert_edn_parses_to!(Where::where_fn,
+                              "[(f ?x) [?y ...]]",
+                              WhereClause::WhereFn(WhereFn {
+                                  operator: edn::PlainSymbol::new("f"),
+                                  args: vec![FnArg::Variable(Variable::from_valid_name("?x"))],
+                                  binding: Binding::BindColl(Variable::from_valid_name("?y")),
+                              }));
+
+        // assert_edn_parses_to!(Where::where_fn,
+        //                       "[(f) [?y _]]",
+        //                       WhereClause::WhereFn(WhereFn {
+        //                           operator: edn::PlainSymbol::new("f"),
+        //                           args: vec![],
+        //                           binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?y")),
+        //                                                          VariableOrPlaceholder::Placeholder]),
+        //                       }));
+
+        assert_edn_parses_to!(Where::where_fn,
+                              "[(f) _ ?y]",
+                              WhereClause::WhereFn(WhereFn {
+                                  operator: edn::PlainSymbol::new("f"),
+                                  args: vec![],
+                                  binding: Binding::BindTuple(vec![VariableOrPlaceholder::Placeholder,
+                                                                   VariableOrPlaceholder::Variable(Variable::from_valid_name("?y"))]),
+                              }));
     }
 }
