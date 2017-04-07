@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::rc::Rc;
-
 use mentat_core::{
     Schema,
     TypedValue,
@@ -43,7 +41,7 @@ impl ConjoiningClauses {
     /// account all information spread across two patterns.
     ///
     /// If the constraints cannot be satisfied -- for example, if this pattern includes a numeric
-    /// attribute and a string value -- then the `is_known_empty` field on the CC is flipped and
+    /// attribute and a string value -- then the `empty_because` field on the CC is flipped and
     /// the function returns.
     ///
     /// A pattern being impossible to satisfy isn't necessarily a bad thing -- this query might
@@ -70,8 +68,10 @@ impl ConjoiningClauses {
     ///
     /// - A unique-valued attribute can sometimes be rewritten into an
     ///   existence subquery instead of a join.
-    fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
-        if self.is_known_empty {
+    ///
+    /// This method is only public for use from `or.rs`.
+    pub fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
+        if self.is_known_empty() {
             return;
         }
 
@@ -154,7 +154,7 @@ impl ConjoiningClauses {
                     // Wouldn't it be nice if we didn't need to clone in the found case?
                     // It doesn't matter too much: collisons won't be too frequent.
                     self.constrain_var_to_type(v.clone(), this_type);
-                    if self.is_known_empty {
+                    if self.is_known_empty() {
                         return;
                     }
                 }
@@ -265,9 +265,12 @@ impl ConjoiningClauses {
 
 #[cfg(test)]
 mod testing {
+    extern crate mentat_query_parser;
+
     use super::*;
 
     use std::collections::BTreeMap;
+    use std::rc::Rc;
 
     use mentat_core::attribute::Unique;
     use mentat_core::{
@@ -278,6 +281,10 @@ mod testing {
         NamespacedKeyword,
         NonIntegerConstant,
         Variable,
+    };
+
+    use self::mentat_query_parser::{
+        parse_find_string,
     };
 
     use clauses::{
@@ -295,6 +302,13 @@ mod testing {
         SourceAlias,
     };
 
+    use algebrize;
+
+    fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+        let parsed = parse_find_string(input).expect("parse failed");
+        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+    }
+
     #[test]
     fn test_unknown_ident() {
         let mut cc = ConjoiningClauses::default();
@@ -308,7 +322,7 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -326,7 +340,7 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -356,7 +370,7 @@ mod testing {
         let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
 
         // After this, we know a lot of things:
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -394,7 +408,7 @@ mod testing {
         let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
         let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -443,11 +457,15 @@ mod testing {
         let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
         let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
 
-        // ?x must be a ref.
-        assert_eq!(cc.known_type(&x).unwrap(), ValueType::Ref);
+        // ?x must be a ref, and ?v a boolean.
+        assert_eq!(cc.known_type(&x), Some(ValueType::Ref));
+
+        // We don't need to extract a type for ?v, because the attribute is known.
+        assert!(!cc.extracted_types.contains_key(&v));
+        assert_eq!(cc.known_type(&v), Some(ValueType::Boolean));
 
         // ?x is bound to datoms0.e.
         assert_eq!(cc.column_bindings.get(&x).unwrap(), &vec![d0_e.clone()]);
@@ -477,7 +495,7 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(), EmptyBecause::InvalidBinding(DatomsColumn::Attribute, hello));
     }
 
@@ -503,7 +521,7 @@ mod testing {
 
         let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -534,7 +552,7 @@ mod testing {
         let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
         let d0_v = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Value);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
 
         // ?x must be a ref.
@@ -597,7 +615,7 @@ mod testing {
         let d1_e = QualifiedAlias("datoms01".to_string(), DatomsColumn::Entity);
         let d1_a = QualifiedAlias("datoms01".to_string(), DatomsColumn::Attribute);
 
-        assert!(!cc.is_known_empty);
+        assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![
                    SourceAlias(DatomsTable::Datoms, "datoms00".to_string()),
                    SourceAlias(DatomsTable::Datoms, "datoms01".to_string()),
@@ -697,7 +715,7 @@ mod testing {
         });
 
         // The type of the provided binding doesn't match the type of the attribute.
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -729,7 +747,7 @@ mod testing {
         });
 
         // The type of the provided binding doesn't match the type of the attribute.
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
     }
 
     #[test]
@@ -772,13 +790,13 @@ mod testing {
         // Finally, expand column bindings to get the overlaps for ?x.
         cc.expand_column_bindings();
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(y.clone(), unit_type_set(ValueType::String), ValueType::Boolean));
     }
 
     #[test]
-    #[should_panic(expected = "assertion failed: cc.is_known_empty")]
+    #[should_panic(expected = "assertion failed: cc.is_known_empty()")]
     /// This test needs range inference in order to succeed: we must deduce that ?y must
     /// simultaneously be a boolean-valued attribute and a ref-valued attribute, and thus
     /// the CC can never return results.
@@ -810,8 +828,26 @@ mod testing {
         // Finally, expand column bindings to get the overlaps for ?x.
         cc.expand_column_bindings();
 
-        assert!(cc.is_known_empty);
+        assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(x.clone(), unit_type_set(ValueType::Ref), ValueType::Boolean));
+    }
+
+    #[test]
+    fn ensure_extracted_types_is_cleared() {
+        let query = r#"[:find ?e ?v :where [_ _ ?v] [?e :foo/bar ?v]]"#;
+        let mut schema = Schema::default();
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::Boolean,
+            ..Default::default()
+        });
+        let e = Variable::from_valid_name("?e");
+        let v = Variable::from_valid_name("?v");
+        let cc = alg(&schema, query);
+        assert_eq!(cc.known_types.get(&e), Some(&unit_type_set(ValueType::Ref)));
+        assert_eq!(cc.known_types.get(&v), Some(&unit_type_set(ValueType::Boolean)));
+        assert!(!cc.extracted_types.contains_key(&e));
+        assert!(!cc.extracted_types.contains_key(&v));
     }
 }

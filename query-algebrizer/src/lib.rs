@@ -63,8 +63,9 @@ impl AlgebraicQuery {
         };
     }
 
+    #[inline]
     pub fn is_known_empty(&self) -> bool {
-        self.cc.is_known_empty
+        self.cc.is_known_empty()
     }
 }
 
@@ -77,6 +78,8 @@ pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
     for where_clause in where_clauses {
         cc.apply_clause(schema, where_clause)?;
     }
+    cc.expand_column_bindings();
+    cc.prune_extracted_types();
 
     let limit = if parsed.find_spec.is_unit_limited() { Some(1) } else { None };
     Ok(AlgebraicQuery {
