@@ -29,6 +29,8 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_core::counter::RcCounter;
+
 use mentat_query::{
     NamespacedKeyword,
     NonIntegerConstant,
@@ -71,18 +73,6 @@ impl<T: Clone> RcCloned<T> for ::std::rc::Rc<T> {
     fn cloned(&self) -> T {
         self.as_ref().clone()
     }
-}
-
-/// A thing that's capable of aliasing a table name for us.
-/// This exists so that we can obtain predictable names in tests.
-pub type TableAliaser = Box<FnMut(DatomsTable) -> TableAlias>;
-
-pub fn default_table_aliaser() -> TableAliaser {
-    let mut i = -1;
-    Box::new(move |table| {
-        i += 1;
-        format!("{}{:02}", table.name(), i)
-    })
 }
 
 fn unit_type_set(t: ValueType) -> HashSet<ValueType> {
@@ -145,8 +135,8 @@ pub struct ConjoiningClauses {
     /// `Some` if this set of clauses cannot yield results in the context of the current schema.
     pub empty_because: Option<EmptyBecause>,
 
-    /// A function used to generate an alias for a table -- e.g., from "datoms" to "datoms123".
-    aliaser: TableAliaser,
+    /// A data source used to generate an alias for a table -- e.g., from "datoms" to "datoms123".
+    alias_counter: RcCounter,
 
     /// A vector of source/alias pairs used to construct a SQL `FROM` list.
     pub from: Vec<SourceAlias>,
@@ -204,7 +194,7 @@ impl Default for ConjoiningClauses {
     fn default() -> ConjoiningClauses {
         ConjoiningClauses {
             empty_because: None,
-            aliaser: default_table_aliaser(),
+            alias_counter: RcCounter::new(),
             from: vec![],
             wheres: ColumnIntersection::default(),
             input_variables: BTreeSet::new(),
@@ -231,10 +221,10 @@ impl ConjoiningClauses {
     }
 
     /// Make a new CC populated with the relevant variable associations in this CC.
-    /// Note that the CC's table aliaser is not yet usable. That's not a problem for templating for
-    /// simple `or`.
+    /// The CC shares an alias count with all of its copies.
     fn use_as_template(&self, vars: &BTreeSet<Variable>) -> ConjoiningClauses {
         let mut template = ConjoiningClauses::default();
+        template.alias_counter = self.alias_counter.clone();     // Rc ftw.
         template.empty_because = self.empty_because.clone();
 
         template.input_variables = self.input_variables.intersection(vars).cloned().collect();
@@ -586,6 +576,10 @@ impl ConjoiningClauses {
         }
     }
 
+    pub fn next_alias_for_table(&mut self, table: DatomsTable) -> TableAlias {
+        format!("{}{:02}", table.name(), self.alias_counter.next())
+    }
+
     /// Produce a (table, alias) pair to handle the provided pattern.
     /// This is a mutating method because it mutates the aliaser function!
     /// Note that if this function decides that a pattern cannot match, it will flip
@@ -595,7 +589,7 @@ impl ConjoiningClauses {
             .map_err(|reason| {
                 self.mark_known_empty(reason);
             })
-            .map(|table| SourceAlias(table, (self.aliaser)(table)))
+            .map(|table: DatomsTable| SourceAlias(table, self.next_alias_for_table(table)))
             .ok()
     }
 
@@ -734,4 +728,22 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 #[cfg(test)]
 pub fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
     PatternNonValuePlace::Ident(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Our alias counter is shared between CCs.
+    #[test]
+    fn test_aliasing_through_template() {
+        let mut starter = ConjoiningClauses::default();
+        let alias_zero = starter.next_alias_for_table(DatomsTable::Datoms);
+        let mut first = starter.use_as_template(&BTreeSet::new());
+        let mut second = starter.use_as_template(&BTreeSet::new());
+        let alias_one = first.next_alias_for_table(DatomsTable::Datoms);
+        let alias_two = second.next_alias_for_table(DatomsTable::Datoms);
+        assert!(alias_zero != alias_one);
+        assert!(alias_one != alias_two);
+    }
 }
