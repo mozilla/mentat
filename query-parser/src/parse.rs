@@ -136,9 +136,9 @@ def_matches_plain_symbol!(Where, or, "or");
 
 def_matches_plain_symbol!(Where, or_join, "or-join");
 
-def_matches_plain_symbol!(Where, or_join, "not");
+def_matches_plain_symbol!(Where, not, "not");
 
-def_matches_plain_symbol!(Where, or_join, "not-join");
+def_matches_plain_symbol!(Where, not_join, "not-join");
 
 def_parser!(Where, rule_vars, Vec<Variable>, {
     seq()
@@ -187,43 +187,31 @@ def_parser!(Where, or_join_clause, WhereClause, {
             }))
 });
 
-def_value_parser_fn!(Where, not_clause, WhereClause, input, {
-    satisfy_map(|x: edn::Value| {
-        seq(x).and_then(|items| {
-            let mut p = Where::not()
-                        .with(many1(Where::clause()))
-                        .skip(eof())
-                        .map(|clauses| {
-                            WhereClause::NotJoin(
-                               NotJoin {
-                                   unify_vars: UnifyVars::Implicit,
-                                   clauses: clauses,
-                               })
-                        });
-            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
-            Query::to_parsed_value(r)
-        })
-    }).parse_stream(input)
+def_parser!(Where, not_clause, WhereClause, {
+    seq()
+        .of_exactly(Where::not()
+            .with(many1(Where::clause()))
+            .map(|clauses| {
+                WhereClause::NotJoin(
+                    NotJoin {
+                        unify_vars: UnifyVars::Implicit,
+                        clauses: clauses,
+                    })
+            }))
 });
 
-def_value_parser_fn!(Where, not_join_clause, WhereClause, input, {
-    satisfy_map(|x: edn::Value| {
-        seq(x).and_then(|items| {
-            let mut p = Where::not_join()
-                        .with(Where::rule_vars())
-                        .and(many1(Where::clause()))
-                        .skip(eof())
-                        .map(|(vars, clauses)| {
-                            WhereClause::NotJoin(
-                               NotJoin {
-                                   unify_vars: UnifyVars::Explicit(vars),
-                                   clauses: clauses,
-                               })
-                        });
-            let r: ParseResult<WhereClause, _> = p.parse_lazy(&items[..]).into();
-            Query::to_parsed_value(r)
-        })
-    }).parse_stream(input)
+def_parser!(Where, not_join_clause, WhereClause, {
+    seq()
+        .of_exactly(Where::not_join()
+            .with(Where::rule_vars())
+            .and(many1(Where::clause()))
+            .map(|(vars, clauses)| {
+                WhereClause::NotJoin(
+                    NotJoin {
+                        unify_vars: UnifyVars::Explicit(vars),
+                        clauses: clauses,
+                    })
+            }))
 });
 
 /// A vector containing just a parenthesized filter expression.
@@ -596,17 +584,13 @@ mod test {
 
     #[test]
     fn test_not() {
-        let oj = edn::PlainSymbol::new("not");
         let e = edn::PlainSymbol::new("?e");
         let a = edn::PlainSymbol::new("?a");
         let v = edn::PlainSymbol::new("?v");
-        let input = [edn::Value::List(
-            vec![edn::Value::PlainSymbol(oj),
-                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
-                                         edn::Value::PlainSymbol(a.clone()),
-                                         edn::Value::PlainSymbol(v.clone())])].into_iter().collect())];
-        assert_parses_to!(Where::not_clause, input,
-                          WhereClause::NotJoin(
+
+        assert_edn_parses_to!(Where::not_clause,
+                              "(not [?e ?a ?v])",
+                              WhereClause::NotJoin(
                               NotJoin {
                                   unify_vars: UnifyVars::Implicit,
                                   clauses: vec![
@@ -622,18 +606,13 @@ mod test {
 
     #[test]
     fn test_not_join() {
-        let oj = edn::PlainSymbol::new("not-join");
         let e = edn::PlainSymbol::new("?e");
         let a = edn::PlainSymbol::new("?a");
         let v = edn::PlainSymbol::new("?v");
-        let input = [edn::Value::List(
-            vec![edn::Value::PlainSymbol(oj),
-                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]),
-                 edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
-                                         edn::Value::PlainSymbol(a.clone()),
-                                         edn::Value::PlainSymbol(v.clone())])].into_iter().collect())];
-        assert_parses_to!(Where::not_join_clause, input,
-                          WhereClause::NotJoin(
+        
+        assert_edn_parses_to!(Where::not_join_clause,
+                              "(not-join [?e] [?e ?a ?v])",
+                              WhereClause::NotJoin(
                               NotJoin {
                                   unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
                                   clauses: vec![WhereClause::Pattern(Pattern {
