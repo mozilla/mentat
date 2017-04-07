@@ -681,14 +681,8 @@ impl ContainsVariables for WhereClause {
             &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
-<<<<<<< HEAD
-            &Not            => (),
-            &NotJoin        => (),
-            &WhereFn(_)     => (),
-=======
             &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
-            &WhereFn        => (),
->>>>>>> Part 1 - Parse `not` and `not-join`
+            &WhereFn(_)     => (),
             &RuleExpr       => (),
         }
     }
