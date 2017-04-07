@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::collections::BTreeSet;
 use std::collections::HashSet;
 
 use std::fmt::{
@@ -28,13 +29,24 @@ use mentat_query::{
 };
 
 /// This enum models the fixed set of default tables we have -- two
-/// tables and two views.
+/// tables and two views -- and computed tables defined in the enclosing CC.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum DatomsTable {
     Datoms,             // The non-fulltext datoms table.
     FulltextValues,     // The virtual table mapping IDs to strings.
     FulltextDatoms,     // The fulltext-datoms view.
     AllDatoms,          // Fulltext and non-fulltext datoms.
+    Computed(usize),    // A computed table, tracked elsewhere in the query.
+}
+
+/// A source of rows that isn't a named table -- typically a subquery or union.
+pub enum ComputedTable {
+    // Subquery(BTreeSet<Variable>, ::clauses::ConjoiningClauses),
+    Union {
+        projection: BTreeSet<Variable>,
+        type_extraction: BTreeSet<Variable>,
+        arms: Vec<::clauses::ConjoiningClauses>,
+    },
 }
 
 impl DatomsTable {
@@ -44,6 +56,7 @@ impl DatomsTable {
             DatomsTable::FulltextValues => "fulltext_values",
             DatomsTable::FulltextDatoms => "fulltext_datoms",
             DatomsTable::AllDatoms => "all_datoms",
+            DatomsTable::Computed(_) => "c",
         }
     }
 }

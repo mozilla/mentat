@@ -110,6 +110,7 @@ pub use types::{
     ColumnConstraint,
     ColumnConstraintOrAlternation,
     ColumnIntersection,
+    ComputedTable,
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,

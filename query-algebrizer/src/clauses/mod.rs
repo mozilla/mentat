@@ -48,6 +48,7 @@ use errors::{
 use types::{
     ColumnConstraint,
     ColumnIntersection,
+    ComputedTable,
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
@@ -141,6 +142,10 @@ pub struct ConjoiningClauses {
     /// A vector of source/alias pairs used to construct a SQL `FROM` list.
     pub from: Vec<SourceAlias>,
 
+    /// A vector of computed tables (typically subqueries). The index into this vector is used as
+    /// an identifier in a `DatomsTable::Computed(c)` table reference.
+    pub computed_tables: Vec<ComputedTable>,
+
     /// A list of fragments that can be joined by `AND`.
     pub wheres: ColumnIntersection,
 
@@ -196,6 +201,7 @@ impl Default for ConjoiningClauses {
             empty_because: None,
             alias_counter: RcCounter::new(),
             from: vec![],
+            computed_tables: vec![],
             wheres: ColumnIntersection::default(),
             input_variables: BTreeSet::new(),
             column_bindings: BTreeMap::new(),
@@ -588,7 +594,12 @@ impl ConjoiningClauses {
     }
 
     pub fn next_alias_for_table(&mut self, table: DatomsTable) -> TableAlias {
-        format!("{}{:02}", table.name(), self.alias_counter.next())
+        match table {
+            DatomsTable::Computed(u) =>
+                format!("{}{:02}", table.name(), u),
+            _ =>
+                format!("{}{:02}", table.name(), self.alias_counter.next()),
+        }
     }
 
     /// Produce a (table, alias) pair to handle the provided pattern.
