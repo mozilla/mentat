@@ -9,6 +9,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::rc::Rc;
+
+use std::sync::atomic::{
+    AtomicUsize,
+    Ordering,
+};
+
 /// Side-effect chaining on `Result`.
 pub trait ResultEffect<T> {
     /// Invoke `f` if `self` is `Ok`, returning `self`.
@@ -56,5 +63,36 @@ impl<T> OptionEffect<T> for Option<T> {
             f();
         }
         self
+    }
+}
+
+#[derive(Clone)]
+pub struct RcCounter {
+    c: Rc<AtomicUsize>,
+}
+
+impl RcCounter {
+    pub fn new() -> Self {
+        RcCounter { c: Rc::new(AtomicUsize::new(0)) }
+    }
+
+    pub fn next(&self) -> usize {
+        self.c.fetch_add(1, Ordering::SeqCst)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RcCounter;
+
+    #[test]
+    fn test_rc_counter() {
+        let c = RcCounter::new();
+        assert_eq!(c.next(), 0);
+        assert_eq!(c.next(), 1);
+
+        let d = c.clone();
+        assert_eq!(d.next(), 2);
+        assert_eq!(c.next(), 3);
     }
 }
