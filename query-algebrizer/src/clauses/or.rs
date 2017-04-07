@@ -176,7 +176,7 @@ impl ConjoiningClauses {
     /// to be called _only_ by `deconstruct_or_join`.
     fn _deconstruct_or_join(&self, schema: &Schema, or_join: OrJoin) -> DeconstructedOrJoin {
         // Preconditions enforced by `deconstruct_or_join`.
-        assert_eq!(or_join.unify_vars, UnifyVars::Implicit);
+        assert!(or_join.is_fully_unified());
         assert!(or_join.clauses.len() >= 2);
 
         // We're going to collect into this.
