@@ -82,7 +82,7 @@ pub fn validate_not_join(not_join: &NotJoin) -> Result<()> {
             Ok(())
         },
         UnifyVars::Explicit(ref vars) => {
-            // The joined vars must each appear somewhere in the clauses mentioned variables.
+            // The joined vars must each appear somewhere in the clauses' mentioned variables.
             let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
             if !var_set.is_subset(&not_join.collect_mentioned_variables()) {
                 bail!(ErrorKind::NonMatchingVariablesInNotClause);
@@ -113,6 +113,11 @@ mod tests {
     use self::mentat_query_parser::parse_find_string;
 
     use clauses::ident;
+    
+    use errors::{
+        Error,
+        ErrorKind,
+    };
 
     use super::{
         validate_not_join,
@@ -367,7 +372,13 @@ mod tests {
         assert_eq!(None, nots.next());
 
         match clause {
-            WhereClause::NotJoin(not_join) => assert!(validate_not_join(&not_join).is_err()),
+            WhereClause::NotJoin(not_join) => { let result = validate_not_join(&not_join); 
+                assert!(result.is_err());
+                match result.err().unwrap() {
+                    Error(ErrorKind::NonMatchingVariablesInNotClause, _) => { assert!(true); },
+                    x => panic!("expected NonMatchingVariablesInNotClause error, got {:?}", x),
+                }
+            },
             _ => panic!(),
         }
     }    
