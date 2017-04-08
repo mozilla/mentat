@@ -20,10 +20,14 @@ use mentat_query_algebrizer::{
     ColumnConstraint,
     ColumnConstraintOrAlternation,
     ColumnIntersection,
+    ComputedTable,
     ConjoiningClauses,
     DatomsColumn,
+    DatomsTable,
     QualifiedAlias,
     QueryValue,
+    SourceAlias,
+    TableAlias,
 };
 
 use mentat_query_projector::{
@@ -37,9 +41,11 @@ use mentat_query_sql::{
     Constraint,
     FromClause,
     Op,
+    ProjectedColumn,
     Projection,
     SelectQuery,
     TableList,
+    TableOrSubquery,
 };
 
 trait ToConstraint {
@@ -136,7 +142,7 @@ impl ToConstraint for ColumnConstraint {
             },
 
             HasType(table, value_type) => {
-                let column = QualifiedAlias(table, DatomsColumn::ValueTypeTag).to_column();
+                let column = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag).to_column();
                 Constraint::equal(column, ColumnOrExpression::Integer(value_type.value_type_tag()))
             },
         }
@@ -148,6 +154,46 @@ pub struct ProjectedSelect{
     pub projector: Box<Projector>,
 }
 
+// Nasty little hack to let us move out of indexed context.
+struct ConsumableVec<T> {
+    inner: Vec<Option<T>>,
+}
+
+impl<T> From<Vec<T>> for ConsumableVec<T> {
+    fn from(vec: Vec<T>) -> ConsumableVec<T> {
+        ConsumableVec { inner: vec.into_iter().map(|x| Some(x)).collect() }
+    }
+}
+
+impl<T> ConsumableVec<T> {
+    fn take_dangerously(&mut self, i: usize) -> T {
+        ::std::mem::replace(&mut self.inner[i], None).expect("each value to only be fetched once")
+    }
+}
+
+fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubquery {
+    match computed {
+        ComputedTable::Union {
+            projection, type_extraction, arms,
+        } => {
+            // The projection list for each CC must have the same shape and the same names.
+            // The values we project might be fixed or they might be columns, and of course
+            // each arm will have different columns.
+            // TODO: type extraction.
+            let queries = arms.into_iter()
+                              .map(|cc| {
+                                    let var_columns = projection.iter().map(|var| {
+                                        let col = cc.column_bindings.get(&var).unwrap()[0].clone();
+                                        ProjectedColumn(ColumnOrExpression::Column(col), var.to_string())
+                                    }).collect();
+                                    let projection = Projection::Columns(var_columns);
+                                    cc_to_select_query(projection, cc, false, None)
+                            }).collect();
+            TableOrSubquery::Union(queries, alias)
+        },
+    }
+}
+
 /// Returns a `SelectQuery` that queries for the provided `cc`. Note that this _always_ returns a
 /// query that runs SQL. The next level up the call stack can check for known-empty queries if
 /// needed.
@@ -155,7 +201,24 @@ fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: Conjoini
     let from = if cc.from.is_empty() {
         FromClause::Nothing
     } else {
-        FromClause::TableList(TableList(cc.from))
+        // Move these out of the CC.
+        let from = cc.from;
+        let mut computed: ConsumableVec<_> = cc.computed_tables.into();
+
+        let tables =
+            from.into_iter().map(|source_alias| {
+                match source_alias {
+                    SourceAlias(DatomsTable::Computed(i), alias) => {
+                        let comp = computed.take_dangerously(i);
+                        table_for_computed(comp, alias)
+                    },
+                    _ => {
+                        TableOrSubquery::Table(source_alias)
+                    }
+                }
+            });
+
+        FromClause::TableList(TableList(tables.collect()))
     };
 
     let limit = if cc.empty_because.is_some() { Some(0) } else { limit.into() };

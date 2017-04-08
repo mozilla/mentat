@@ -49,6 +49,7 @@ use types::{
     ColumnConstraint,
     ColumnIntersection,
     ComputedTable,
+    Column,
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
@@ -286,35 +287,62 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn bind_column_to_var(&mut self, schema: &Schema, table: TableAlias, column: DatomsColumn, var: Variable) {
+    pub fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
+        let column = column.into();
         // Do we have an external binding for this?
         if let Some(bound_val) = self.bound_value(&var) {
             // Great! Use that instead.
             // We expect callers to do things like bind keywords here; we need to translate these
             // before they hit our constraints.
-            // TODO: recognize when the valueType might be a ref and also translate entids there.
-            if column == DatomsColumn::Value {
-                self.constrain_column_to_constant(table, column, bound_val);
-            } else {
-                match bound_val {
-                    TypedValue::Keyword(ref kw) => {
-                        if let Some(entid) = self.entid_for_ident(schema, kw) {
+            match column {
+                Column::Variable(_) => {
+                    // We don't need to handle expansion of attributes here. The subquery that
+                    // produces the variable projection will do so.
+                    self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                Column::Fixed(DatomsColumn::ValueTypeTag) => {
+                    // I'm pretty sure this is meaningless right now, because we will never bind
+                    // a type tag to a variable -- there's no syntax for doing so.
+                    // In the future we might expose a way to do so, perhaps something like:
+                    // ```
+                    // [:find ?x
+                    //  :where [?x _ ?y]
+                    //         [(= (typeof ?y) :db.valueType/double)]]
+                    // ```
+                    unimplemented!();
+                },
+
+                // TODO: recognize when the valueType might be a ref and also translate entids there.
+                Column::Fixed(DatomsColumn::Value) => {
+                    self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                // These columns can only be entities, so attempt to translate keywords. If we can't
+                // get an entity out of the bound value, the pattern cannot produce results.
+                Column::Fixed(DatomsColumn::Attribute) |
+                Column::Fixed(DatomsColumn::Entity) |
+                Column::Fixed(DatomsColumn::Tx) => {
+                    match bound_val {
+                        TypedValue::Keyword(ref kw) => {
+                            if let Some(entid) = self.entid_for_ident(schema, kw) {
+                                self.constrain_column_to_entity(table, column, entid);
+                            } else {
+                                // Impossible.
+                                // For attributes this shouldn't occur, because we check the binding in
+                                // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
+                                // attribute then we should have already marked the pattern as empty.
+                                self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
+                            }
+                        },
+                        TypedValue::Ref(entid) => {
                             self.constrain_column_to_entity(table, column, entid);
-                        } else {
-                            // Impossible.
-                            // For attributes this shouldn't occur, because we check the binding in
-                            // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
-                            // attribute then we should have already marked the pattern as empty.
-                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
-                        }
-                    },
-                    TypedValue::Ref(entid) => {
-                        self.constrain_column_to_entity(table, column, entid);
-                    },
-                    _ => {
-                        // One can't bind an e, a, or tx to something other than an entity.
-                        self.mark_known_empty(EmptyBecause::InvalidBinding(column, bound_val));
-                    },
+                        },
+                        _ => {
+                            // One can't bind an e, a, or tx to something other than an entity.
+                            self.mark_known_empty(EmptyBecause::InvalidBinding(column, bound_val));
+                        },
+                    }
                 }
             }
 
@@ -328,10 +356,12 @@ impl ConjoiningClauses {
         // If this is a value, and we don't already know its type or where
         // to get its type, record that we can get it from this table.
         let needs_type_extraction =
-            !late_binding &&                           // Never need to extract for bound vars.
-            column == DatomsColumn::Value &&           // Never need to extract types for refs.
-            self.known_type(&var).is_none() &&         // Don't need to extract if we know a single type.
-            !self.extracted_types.contains_key(&var);  // We're already extracting the type.
+            !late_binding &&                                // Never need to extract for bound vars.
+            // Never need to extract types for refs, and var columns are handled elsewhere:
+            // a subquery will be projecting a type tag.
+            column == Column::Fixed(DatomsColumn::Value) &&
+            self.known_type(&var).is_none() &&              // Don't need to extract if we know a single type.
+            !self.extracted_types.contains_key(&var);       // We're already extracting the type.
 
         let alias = QualifiedAlias(table, column);
 
@@ -343,11 +373,13 @@ impl ConjoiningClauses {
         self.column_bindings.entry(var).or_insert(vec![]).push(alias);
     }
 
-    pub fn constrain_column_to_constant(&mut self, table: TableAlias, column: DatomsColumn, constant: TypedValue) {
+    pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
+        let column = column.into();
         self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
     }
 
-    pub fn constrain_column_to_entity(&mut self, table: TableAlias, column: DatomsColumn, entity: Entid) {
+    pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {
+        let column = column.into();
         self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
     }
 
@@ -357,7 +389,7 @@ impl ConjoiningClauses {
 
     pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
         self.wheres.add_intersection(ColumnConstraint::Equals(
-            QualifiedAlias(table, DatomsColumn::Value),
+            QualifiedAlias(table, Column::Fixed(DatomsColumn::Value)),
             QueryValue::PrimitiveLong(value)))
     }
 
@@ -586,7 +618,7 @@ impl ConjoiningClauses {
                     Some(v) => {
                         // This pattern cannot match: the caller has bound a non-entity value to an
                         // attribute place.
-                        Err(EmptyBecause::InvalidBinding(DatomsColumn::Attribute, v.clone()))
+                        Err(EmptyBecause::InvalidBinding(Column::Fixed(DatomsColumn::Attribute), v.clone()))
                     },
                 }
             },

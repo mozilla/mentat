@@ -228,7 +228,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
                     // Also project the type from the SQL query.
                     let type_name = value_type_tag_name(var);
-                    let type_qa = QualifiedAlias(table, DatomsColumn::ValueTypeTag);
+                    let type_qa = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag);
                     cols.push(ProjectedColumn(ColumnOrExpression::Column(type_qa), type_name));
                 }
             }
