@@ -61,14 +61,42 @@ impl DatomsTable {
     }
 }
 
+pub trait ColumnName {
+    fn column_name(&self) -> String;
+}
+
 /// One of the named columns of our tables.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum DatomsColumn {
     Entity,
     Attribute,
     Value,
     Tx,
     ValueTypeTag,
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum VariableColumn {
+    Variable(Variable),
+    VariableTypeTag(Variable),
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum Column {
+    Fixed(DatomsColumn),
+    Variable(VariableColumn),
+}
+
+impl From<DatomsColumn> for Column {
+    fn from(from: DatomsColumn) -> Column {
+        Column::Fixed(from)
+    }
+}
+
+impl From<VariableColumn> for Column {
+    fn from(from: VariableColumn) -> Column {
+        Column::Variable(from)
+    }
 }
 
 impl DatomsColumn {
@@ -80,6 +108,46 @@ impl DatomsColumn {
             Value => "v",
             Tx => "tx",
             ValueTypeTag => "value_type_tag",
+        }
+    }
+}
+
+impl ColumnName for DatomsColumn {
+    fn column_name(&self) -> String {
+        self.as_str().to_string()
+    }
+}
+
+impl ColumnName for VariableColumn {
+    fn column_name(&self) -> String {
+        match self {
+            &VariableColumn::Variable(ref v) => v.to_string(),
+            &VariableColumn::VariableTypeTag(ref v) => format!("{}_value_type_tag", v.as_str()),
+        }
+    }
+}
+
+impl Debug for VariableColumn {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            // These should agree with VariableColumn::column_name.
+            &VariableColumn::Variable(ref v) => write!(f, "{}", v.as_str()),
+            &VariableColumn::VariableTypeTag(ref v) => write!(f, "{}_value_type_tag", v.as_str()),
+        }
+    }
+}
+
+impl Debug for DatomsColumn {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Debug for Column {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            &Column::Fixed(ref c) => c.fmt(f),
+            &Column::Variable(ref v) => v.fmt(f),
         }
     }
 }
@@ -99,17 +167,22 @@ impl Debug for SourceAlias {
 
 /// A particular column of a particular aliased table. E.g., "datoms123", Attribute.
 #[derive(PartialEq, Eq, Clone)]
-pub struct QualifiedAlias(pub TableAlias, pub DatomsColumn);
+pub struct QualifiedAlias(pub TableAlias, pub Column);
 
 impl Debug for QualifiedAlias {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}.{}", self.0, self.1.as_str())
+        write!(f, "{}.{:?}", self.0, self.1)
     }
 }
 
 impl QualifiedAlias {
+    pub fn new<C: Into<Column>>(table: TableAlias, column: C) -> Self {
+        QualifiedAlias(table, column.into())
+    }
+
     pub fn for_type_tag(&self) -> QualifiedAlias {
-        QualifiedAlias(self.0.clone(), DatomsColumn::ValueTypeTag)
+        // TODO: this only makes sense for `DatomsColumn` tables.
+        QualifiedAlias(self.0.clone(), Column::Fixed(DatomsColumn::ValueTypeTag))
     }
 }
 
@@ -332,7 +405,7 @@ pub enum EmptyBecause {
     UnresolvedIdent(NamespacedKeyword),
     InvalidAttributeIdent(NamespacedKeyword),
     InvalidAttributeEntid(Entid),
-    InvalidBinding(DatomsColumn, TypedValue),
+    InvalidBinding(Column, TypedValue),
     ValueTypeMismatch(ValueType, TypedValue),
     AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
 }

@@ -106,10 +106,12 @@ pub use clauses::{
 };
 
 pub use types::{
+    Column,
     ColumnAlternation,
     ColumnConstraint,
     ColumnConstraintOrAlternation,
     ColumnIntersection,
+    ColumnName,
     ComputedTable,
     DatomsColumn,
     DatomsTable,
@@ -117,5 +119,6 @@ pub use types::{
     QueryValue,
     SourceAlias,
     TableAlias,
+    VariableColumn,
 };
 
