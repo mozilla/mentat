@@ -171,7 +171,7 @@ pub struct ConjoiningClauses {
 
     /// A mapping, similar to `column_bindings`, but used to pull type tags out of the store at runtime.
     /// If a var isn't present in `known_types`, it should be present here.
-    extracted_types: BTreeMap<Variable, QualifiedAlias>,
+    pub extracted_types: BTreeMap<Variable, QualifiedAlias>,
 }
 
 impl Debug for ConjoiningClauses {
