@@ -212,6 +212,7 @@ impl ConjoiningClauses {
         let mut concrete = ConjoiningClauses::default();
         concrete.empty_because = self.empty_because.clone();
 
+        concrete.alias_counter = self.alias_counter.clone();
         concrete.input_variables = self.input_variables.clone();
         concrete.value_bindings = self.value_bindings.clone();
         concrete.known_types = self.known_types.clone();
