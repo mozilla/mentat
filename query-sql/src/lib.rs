@@ -430,7 +430,10 @@ impl SelectQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mentat_query_algebrizer::DatomsTable;
+    use mentat_query_algebrizer::{
+        DatomsColumn,
+        DatomsTable,
+    };
 
     fn build_constraint(c: Constraint) -> String {
         let mut builder = SQLiteQueryBuilder::new();
@@ -442,19 +445,19 @@ mod tests {
     #[test]
     fn test_in_constraint() {
         let none = Constraint::In {
-            left: ColumnOrExpression::Column(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value)),
+            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Value)),
             list: vec![],
         };
 
         let one = Constraint::In {
-            left: ColumnOrExpression::Column(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value)),
+            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Value)),
             list: vec![
                 ColumnOrExpression::Entid(123),
             ],
         };
 
         let three = Constraint::In {
-            left: ColumnOrExpression::Column(QualifiedAlias("datoms01".to_string(), DatomsColumn::Value)),
+            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Value)),
             list: vec![
                 ColumnOrExpression::Entid(123),
                 ColumnOrExpression::Entid(456),
@@ -509,24 +512,24 @@ mod tests {
             projection: Projection::Columns(
                             vec![
                                 ProjectedColumn(
-                                    ColumnOrExpression::Column(QualifiedAlias(datoms00.clone(), DatomsColumn::Entity)),
+                                    ColumnOrExpression::Column(QualifiedAlias::new(datoms00.clone(), DatomsColumn::Entity)),
                                     "x".to_string()),
                             ]),
             from: FromClause::TableList(TableList(source_aliases)),
             constraints: vec![
                 Constraint::Infix {
                     op: eq.clone(),
-                    left: ColumnOrExpression::Column(QualifiedAlias(datoms01.clone(), DatomsColumn::Value)),
-                    right: ColumnOrExpression::Column(QualifiedAlias(datoms00.clone(), DatomsColumn::Value)),
+                    left: ColumnOrExpression::Column(QualifiedAlias::new(datoms01.clone(), DatomsColumn::Value)),
+                    right: ColumnOrExpression::Column(QualifiedAlias::new(datoms00.clone(), DatomsColumn::Value)),
                 },
                 Constraint::Infix {
                     op: eq.clone(),
-                    left: ColumnOrExpression::Column(QualifiedAlias(datoms00.clone(), DatomsColumn::Attribute)),
+                    left: ColumnOrExpression::Column(QualifiedAlias::new(datoms00.clone(), DatomsColumn::Attribute)),
                     right: ColumnOrExpression::Entid(65537),
                 },
                 Constraint::Infix {
                     op: eq.clone(),
-                    left: ColumnOrExpression::Column(QualifiedAlias(datoms01.clone(), DatomsColumn::Attribute)),
+                    left: ColumnOrExpression::Column(QualifiedAlias::new(datoms01.clone(), DatomsColumn::Attribute)),
                     right: ColumnOrExpression::Entid(65536),
                 },
             ],
