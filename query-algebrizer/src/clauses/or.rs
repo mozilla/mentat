@@ -710,11 +710,21 @@ mod testing {
         SourceAlias,
     };
 
-    use algebrize;
+    use {
+        algebrize,
+        algebrize_with_counter,
+    };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
         algebrize(schema.into(), parsed).expect("algebrize failed").cc
+    }
+
+    /// Algebrize with a starting counter, so we can compare inner queries by algebrizing a
+    /// simpler version.
+    fn alg_c(schema: &Schema, counter: usize, input: &str) -> ConjoiningClauses {
+        let parsed = parse_find_string(input).expect("parse failed");
+        algebrize_with_counter(schema.into(), parsed, counter).expect("algebrize failed").cc
     }
 
     fn compare_ccs(left: ConjoiningClauses, right: ConjoiningClauses) {
@@ -927,8 +937,6 @@ mod testing {
     // These two are not equivalent:
     // [:find ?x :where [?x :foo/bar ?y] (or-join [?x] [?x :foo/baz ?y])]
     // [:find ?x :where [?x :foo/bar ?y] [?x :foo/baz ?y]]
-    // TODO: fixme
-    /*
     #[test]
     fn test_unit_or_join_doesnt_flatten() {
         let schema = prepopulated_schema();
@@ -939,30 +947,27 @@ mod testing {
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
         let d0 = "datoms00".to_string();
-        let d1 = "datoms01".to_string();
+        let c0 = "c00".to_string();
+        let c0x = QualifiedAlias::new(c0.clone(), VariableColumn::Variable(vx.clone()));
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
         let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
         let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
-        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
-        let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
         let knows = QueryValue::Entid(66);
-        let parent = QueryValue::Entid(67);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows.clone())),
             // The outer pattern joins against the `or` on the entity, but not value -- ?y means
             // different things in each place.
-            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(QualifiedAlias::new("c00".to_string(), VariableColumn::Variable(vx.clone()))))),
+            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(c0x.clone()))),
         ]));
-        assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e, d1e]));
+        assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e, c0x]));
 
         // ?y does not have a binding in the `or-join` pattern.
         assert_eq!(cc.column_bindings.get(&vy), Some(&vec![d0v]));
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0),
-                                 SourceAlias(DatomsTable::Datoms, d1)]);
+                                 SourceAlias(DatomsTable::Computed(0), c0)]);
     }
-    */
 
     // These two are equivalent:
     // [:find ?x :where [?x :foo/bar ?y] (or [?x :foo/baz ?y])]
@@ -1002,8 +1007,6 @@ mod testing {
     /// Strictly speaking this can be implemented with a `NOT EXISTS` clause for the second pattern,
     /// but that would be a fair amount of analysis work, I think.
     #[test]
-    #[allow(dead_code, unused_variables)]
-    // TODO: flesh this out.
     fn test_alternation_with_and() {
         let schema = prepopulated_schema();
         let query = r#"
@@ -1012,6 +1015,34 @@ mod testing {
                              [?x :foo/parent "Ámbar"])
                         [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);
+        let mut tables = cc.computed_tables.into_iter();
+        match (tables.next(), tables.next()) {
+            (Some(ComputedTable::Union { projection, type_extraction, arms }), None) => {
+                assert_eq!(projection, vec![Variable::from_valid_name("?x")].into_iter().collect());
+                assert!(type_extraction.is_empty());
+
+                let mut arms = arms.into_iter();
+                match (arms.next(), arms.next(), arms.next()) {
+                    (Some(and), Some(pattern), None) => {
+                        let expected_and = alg_c(&schema,
+                                                 0,  // The first pattern to be processed.
+                                                 r#"[:find ?x :where [?x :foo/knows "John"] [?x :foo/parent "Ámbar"]]"#);
+                        compare_ccs(and, expected_and);
+
+                        let expected_pattern = alg_c(&schema,
+                                                     2,      // Two aliases taken by the other arm.
+                                                     r#"[:find ?x :where [?x :foo/knows "Daphne"]]"#);
+                        compare_ccs(pattern, expected_pattern);
+                    },
+                    _ => {
+                        panic!("Expected two arms");
+                    }
+                }
+            },
+            _ => {
+                panic!("Didn't get two inner tables.");
+            },
+        }
     }
 
     #[test]
