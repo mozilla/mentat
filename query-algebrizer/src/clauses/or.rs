@@ -36,8 +36,12 @@ use types::{
     ColumnConstraintOrAlternation,
     ColumnAlternation,
     ColumnIntersection,
+    ComputedTable,
     DatomsTable,
     EmptyBecause,
+    QualifiedAlias,
+    SourceAlias,
+    VariableColumn,
 };
 
 /// Return true if both left and right are the same variable or both are non-variable.
@@ -63,6 +67,18 @@ fn _simply_matches_value_place(left: &PatternValuePlace, right: &PatternValuePla
         (&PatternValuePlace::Placeholder, _) => false,
         (_, &PatternValuePlace::Placeholder) => false,
         _ => true,
+    }
+}
+
+trait PushComputed {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable;
+}
+
+impl PushComputed for Vec<ComputedTable> {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable {
+        let next_index = self.len();
+        self.push(item);
+        DatomsTable::Computed(next_index)
     }
 }
 
@@ -176,6 +192,8 @@ impl ConjoiningClauses {
     /// to be called _only_ by `deconstruct_or_join`.
     fn _deconstruct_or_join(&self, schema: &Schema, or_join: OrJoin) -> DeconstructedOrJoin {
         // Preconditions enforced by `deconstruct_or_join`.
+        // Note that a fully unified explicit `or-join` can arrive here, and might leave as
+        // an implicit `or`.
         assert!(or_join.is_fully_unified());
         assert!(or_join.clauses.len() >= 2);
 
@@ -193,7 +211,7 @@ impl ConjoiningClauses {
         let mut empty_because: Option<EmptyBecause> = None;
 
         // Walk each clause in turn, bailing as soon as we know this can't be simple.
-        let (join_clauses, mentioned_vars) = or_join.dismember();
+        let (join_clauses, _unify_vars, mentioned_vars) = or_join.dismember();
         let mut clauses = join_clauses.into_iter();
         while let Some(clause) = clauses.next() {
             // If we fail half-way through processing, we want to reconstitute the input.
@@ -306,9 +324,9 @@ impl ConjoiningClauses {
                 // using a single table alias.
                 self.apply_simple_or_join(schema, patterns, mentioned_vars)
             },
-            DeconstructedOrJoin::Complex(_) => {
-                // Do this the hard way. TODO
-                unimplemented!();
+            DeconstructedOrJoin::Complex(or_join) => {
+                // Do this the hard way.
+                self.apply_complex_or_join(schema, or_join)
             },
         }
     }
@@ -341,7 +359,11 @@ impl ConjoiningClauses {
     ///    OR (datoms00.a = 98 AND datoms00.v = 'Peter')
     /// ```
     ///
-    fn apply_simple_or_join(&mut self, schema: &Schema, patterns: Vec<Pattern>, mentioned_vars: BTreeSet<Variable>) -> Result<()> {
+    fn apply_simple_or_join(&mut self,
+                            schema: &Schema,
+                            patterns: Vec<Pattern>,
+                            mentioned_vars: BTreeSet<Variable>)
+                            -> Result<()> {
         if self.is_known_empty() {
             return Ok(())
         }
@@ -479,6 +501,175 @@ impl ConjoiningClauses {
         }
         self.wheres.append(&mut cc.wheres);
         self.narrow_types(cc.known_types);
+        Ok(())
+    }
+
+    /// Apply a provided `or` or `or-join` to this `ConjoiningClauses`. If you're calling this
+    /// rather than another `or`-applier, it's assumed that the contents of the `or` are relatively
+    /// complex: perhaps its arms consist of more than just patterns, or perhaps each arm includes
+    /// different variables in different places.
+    ///
+    /// Step one (not yet implemented): any clauses that are standalone patterns might differ only
+    /// in attribute. In that case, we can treat them as a 'simple or' -- a single pattern with a
+    /// WHERE clause that alternates on the attribute. Pull those out first.
+    ///
+    /// Step two: for each cluster of patterns, and for each `and`, recursively build a CC and
+    /// simple projection. The projection must be the same for each CC, because we will concatenate
+    /// these with a `UNION`. This is one reason why we require each pattern in the `or` to unify
+    /// the same variables!
+    ///
+    /// Finally, we alias this entire UNION block as a FROM; it can be stitched into the outer query
+    /// by looking at the projection.
+    ///
+    /// For example,
+    ///
+    /// ```edn
+    ///   [:find ?page :in $ ?string :where
+    ///    (or [?page :page/title ?string]
+    ///        [?page :page/excerpt ?string]
+    ///        (and [?save :save/string ?string]
+    ///             [?page :page/save ?save]))]
+    /// ```edn
+    ///
+    /// would expand to something like
+    ///
+    /// ```sql
+    /// SELECT or123.page AS page FROM
+    ///  (SELECT datoms124.e AS page FROM datoms AS datoms124
+    ///   WHERE datoms124.v = ? AND
+    ///         (datoms124.a = :page/title OR
+    ///          datoms124.a = :page/excerpt)
+    ///   UNION
+    ///   SELECT datoms126.e AS page FROM datoms AS datoms125, datoms AS datoms126
+    ///   WHERE datoms125.a = :save/string AND
+    ///         datoms125.v = ? AND
+    ///         datoms126.v = datoms125.e AND
+    ///         datoms126.a = :page/save)
+    ///  AS or123
+    /// ```
+    ///
+    /// Note that a top-level standalone `or` doesn't really need to be aliased, but
+    /// it shouldn't do any harm.
+    fn apply_complex_or_join(&mut self, schema: &Schema, or_join: OrJoin) -> Result<()> {
+        // N.B., a solitary pattern here *cannot* be simply applied to the enclosing CC. We don't
+        // want to join all the vars, and indeed if it were safe to do so, we wouldn't have ended up
+        // in this function!
+        let (join_clauses, unify_vars, mentioned_vars) = or_join.dismember();
+        let projected = match unify_vars {
+            UnifyVars::Implicit => mentioned_vars.into_iter().collect(),
+            UnifyVars::Explicit(vs) => vs.into_iter().collect(),
+        };
+
+        let template = self.use_as_template(&projected);
+
+        let mut acc = Vec::with_capacity(join_clauses.len());
+        let mut empty_because: Option<EmptyBecause> = None;
+
+        for clause in join_clauses.into_iter() {
+            let mut receptacle = template.make_receptacle();
+            match clause {
+                OrWhereClause::And(clauses) => {
+                    for clause in clauses {
+                        receptacle.apply_clause(&schema, clause)?;
+                    }
+                },
+                OrWhereClause::Clause(clause) => {
+                    receptacle.apply_clause(&schema, clause)?;
+                },
+            }
+            if receptacle.is_known_empty() {
+                empty_because = receptacle.empty_because;
+            } else {
+                receptacle.expand_column_bindings();
+                receptacle.prune_extracted_types();
+                acc.push(receptacle);
+            }
+        }
+
+        if acc.is_empty() {
+            self.mark_known_empty(empty_because.expect("empty for a reason"));
+            return Ok(());
+        }
+
+        // TODO: optimize the case of a single element in `acc`?
+
+        // Now `acc` contains a sequence of CCs that were all prepared with the same types,
+        // each ready to project the same variables.
+        // At this point we can lift out any common type information (and even constraints) to the
+        // destination CC.
+        // We must also contribute type extraction information for any variables that aren't
+        // concretely typed for all union arms.
+        //
+        // We walk the list of variables to unify -- which will become our projection
+        // list -- to find out its type info in each CC. We might:
+        //
+        // 1. Know the type concretely from the enclosing CC. Don't project a type tag from the
+        //    union. Example:
+        //    ```
+        //    [:find ?x ?y
+        //     :where [?x :foo/int ?y]
+        //            (or [(< ?y 10)]
+        //                [_ :foo/verified ?y])]
+        //    ```
+        // 2. Not know the type, but every CC bound it to the same single type. Don't project a type
+        //    tag; we simply contribute the single type to the enclosing CC. Example:
+        //    ```
+        //    [:find ?x ?y
+        //     :where (or [?x :foo/length ?y]
+        //                [?x :foo/width ?y])]
+        //    ```
+        // 3. (a) Have every CC come up with a non-unit type set for the var. Every CC will project
+        //        a type tag column from one of its internal bindings, and the union will project it
+        //        onwards. Example:
+        //        ```
+        //        [:find ?x ?y ?z
+        //         :where [?x :foo/knows ?y]
+        //                (or [?x _ ?z]
+        //                    [?y _ ?z])]
+        //        ```
+        // 3. (b) Have some or all CCs come up with a unit type set. Every CC will project a type
+        //        tag column, and those with a unit type set will project a fixed constant value.
+        //        Again, the union will pass this on.
+        //        ```
+        //        [:find ?x ?y
+        //         :where (or [?x :foo/length ?y]
+        //                    [?x _ ?y])]
+        //        ```
+        let projection: BTreeSet<Variable> = projected.into_iter().collect();
+        let mut type_needed: BTreeSet<Variable> = BTreeSet::default();
+
+        // For any variable which has an imprecise type anywhere in the UNION, add it to the
+        // set that needs type extraction. All UNION arms must project the same columns.
+        for var in projection.iter() {
+            if acc.iter().any(|cc| !cc.known_type(var).is_some()) {
+                type_needed.insert(var.clone());
+            }
+        }
+
+        // Hang on to these so we can stuff them in our column bindings.
+        let var_associations: Vec<Variable>;
+        let type_associations: Vec<Variable>;
+        {
+            var_associations = projection.iter().cloned().collect();
+            type_associations = type_needed.iter().cloned().collect();
+        }
+
+        let union = ComputedTable::Union {
+            projection: projection,
+            type_extraction: type_needed,
+            arms: acc,
+        };
+        let table = self.computed_tables.push_computed(union);
+        let alias = self.next_alias_for_table(table);
+
+        // Stitch the computed table into column_bindings, so we get cross-linking.
+        for var in var_associations.into_iter() {
+            self.bind_column_to_var(schema, alias.clone(), VariableColumn::Variable(var.clone()), var);
+        }
+        for var in type_associations.into_iter() {
+            self.extracted_types.insert(var.clone(), QualifiedAlias::new(alias.clone(), VariableColumn::VariableTypeTag(var)));
+        }
+        self.from.push(SourceAlias(table, alias));
         Ok(())
     }
 }
