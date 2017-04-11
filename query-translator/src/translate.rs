@@ -20,6 +20,7 @@ use mentat_query_algebrizer::{
     ColumnConstraint,
     ColumnConstraintOrAlternation,
     ColumnIntersection,
+    ColumnName,
     ComputedTable,
     ConjoiningClauses,
     DatomsColumn,
@@ -28,6 +29,7 @@ use mentat_query_algebrizer::{
     QueryValue,
     SourceAlias,
     TableAlias,
+    VariableColumn,
 };
 
 use mentat_query_projector::{
@@ -175,19 +177,53 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
             projection, type_extraction, arms,
         } => {
             // The projection list for each CC must have the same shape and the same names.
-            // The values we project might be fixed or they might be columns, and of course
-            // each arm will have different columns.
-            // TODO: type extraction.
-            let queries = arms.into_iter()
-                              .map(|cc| {
-                                    let var_columns = projection.iter().map(|var| {
-                                        let col = cc.column_bindings.get(&var).unwrap()[0].clone();
-                                        ProjectedColumn(ColumnOrExpression::Column(col), var.to_string())
-                                    }).collect();
-                                    let projection = Projection::Columns(var_columns);
-                                    cc_to_select_query(projection, cc, false, None)
-                            }).collect();
-            TableOrSubquery::Union(queries, alias)
+            // The values we project might be fixed or they might be columns.
+            TableOrSubquery::Union(
+                arms.into_iter()
+                    .map(|cc| {
+                        // We're going to end up with the variables being projected and also some
+                        // type tag columns.
+                        let mut columns: Vec<ProjectedColumn> = Vec::with_capacity(projection.len() + type_extraction.len());
+
+                        // For each variable, find out which column it maps to within this arm, and
+                        // project it as the variable name.
+                        // E.g., SELECT datoms03.v AS `?x`.
+                        for var in projection.iter() {
+                            let col = cc.column_bindings.get(&var).unwrap()[0].clone();
+                            let proj = ProjectedColumn(ColumnOrExpression::Column(col), var.to_string());
+                            columns.push(proj);
+                        }
+
+                        // Similarly, project type tags if they're not known conclusively in the
+                        // outer query.
+                        for var in type_extraction.iter() {
+                            let expression =
+                                if let Some(known) = cc.known_type(var) {
+                                    // If we know the type for sure, just project the constant.
+                                    // SELECT datoms03.v AS `?x`, 10 AS `?x_value_type_tag`
+                                    ColumnOrExpression::Integer(known.value_type_tag())
+                                } else {
+                                    // Otherwise, we'll have an established type binding! This'll be
+                                    // either a datoms table or, recursively, a subquery. Project
+                                    // this:
+                                    // SELECT datoms03.v AS `?x`,
+                                    //        datoms03.value_type_tag AS `?x_value_type_tag`
+                                    let extract = cc.extracted_types
+                                                    .get(var)
+                                                    .expect("Expected variable to have a known type or an extracted type");
+                                    ColumnOrExpression::Column(extract.clone())
+                                };
+                            let type_column = VariableColumn::VariableTypeTag(var.clone());
+                            let proj = ProjectedColumn(expression, type_column.column_name());
+                            columns.push(proj);
+                        }
+
+                        // Each arm simply turns into a subquery.
+                        // The SQL translation will stuff "UNION" between each arm.
+                        let projection = Projection::Columns(columns);
+                        cc_to_select_query(projection, cc, false, None)
+                  }).collect(),
+                alias)
         },
     }
 }
@@ -203,6 +239,10 @@ fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: Conjoini
         let from = cc.from;
         let mut computed = ConsumableVec::with_vec(cc.computed_tables);
 
+        // Why do we put computed tables directly into the `FROM` clause? The alternative is to use
+        // a CTE (`WITH`). They're typically equivalent, but some SQL systems (notably Postgres)
+        // treat CTEs as optimization barriers, so a `WITH` can be significantly slower. Given that
+        // this is easy enough to change later, we'll opt for using direct inclusion in `FROM`.
         let tables =
             from.into_iter().map(|source_alias| {
                 match source_alias {
