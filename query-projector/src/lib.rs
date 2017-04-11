@@ -37,33 +37,18 @@ use mentat_db::{
 use mentat_query::{
     Element,
     FindSpec,
-    Variable,
 };
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
-    DatomsColumn,
-    QualifiedAlias,
-    /*
-    ConjoiningClauses,
-    DatomsTable,
-    SourceAlias,
-    */
+    ColumnName,
+    VariableColumn,
 };
 
 use mentat_query_sql::{
     ColumnOrExpression,
-    /*
-    Constraint,
-    FromClause,
-    */
-    Name,
     Projection,
     ProjectedColumn,
-    /*
-    SelectQuery,
-    TableList,
-    */
 };
 
 error_chain! {
@@ -169,14 +154,6 @@ impl TypedIndex {
     }
 }
 
-fn column_name(var: &Variable) -> Name {
-    var.to_string()
-}
-
-fn value_type_tag_name(var: &Variable) -> Name {
-    format!("{}_value_type_tag", var.as_str())
-}
-
 /// Walk an iterator of `Element`s, collecting projector templates and columns.
 ///
 /// Returns a pair: the SQL projection (which should always be a `Projection::Columns`)
@@ -213,7 +190,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                                    .expect("Every variable has a binding");
 
                 let qa = columns[0].clone();
-                let name = column_name(var);
+                let name = VariableColumn::Variable(var.clone()).column_name();
 
                 if let Some(t) = query.cc.known_type(var) {
                     cols.push(ProjectedColumn(ColumnOrExpression::Column(qa), name));
@@ -221,15 +198,17 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     templates.push(TypedIndex::Known(i, tag));
                     i += 1;     // We used one SQL column.
                 } else {
-                    let table = qa.0.clone();
                     cols.push(ProjectedColumn(ColumnOrExpression::Column(qa), name));
                     templates.push(TypedIndex::Unknown(i, i + 1));
                     i += 2;     // We used two SQL columns.
 
                     // Also project the type from the SQL query.
-                    let type_name = value_type_tag_name(var);
-                    let type_qa = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag);
-                    cols.push(ProjectedColumn(ColumnOrExpression::Column(type_qa), type_name));
+                    let extracted_alias = query.cc
+                                               .extracted_types
+                                               .get(var)
+                                               .expect("Every variable has a known type or an extracted type");
+                    let type_name = VariableColumn::VariableTypeTag(var.clone()).column_name();
+                    cols.push(ProjectedColumn(ColumnOrExpression::Column(extracted_alias.clone()), type_name));
                 }
             }
         }
