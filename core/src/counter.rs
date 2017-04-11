@@ -22,6 +22,10 @@ pub struct RcCounter {
 
 /// A simple shared counter.
 impl RcCounter {
+    pub fn with_initial(value: usize) -> Self {
+        RcCounter { c: Rc::new(AtomicUsize::new(value)) }
+    }
+
     pub fn new() -> Self {
         RcCounter { c: Rc::new(AtomicUsize::new(0)) }
     }

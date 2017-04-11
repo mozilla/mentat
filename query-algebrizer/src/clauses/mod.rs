@@ -206,6 +206,18 @@ impl Default for ConjoiningClauses {
     }
 }
 
+impl ConjoiningClauses {
+    /// Construct a new `ConjoiningClauses` with the provided alias counter. This allows a caller
+    /// to share a counter with an enclosing scope, and to start counting at a particular offset
+    /// for testing.
+    pub fn with_alias_counter(counter: RcCounter) -> ConjoiningClauses {
+        ConjoiningClauses {
+            alias_counter: counter,
+            ..Default::default()
+        }
+    }
+}
+
 /// Cloning.
 impl ConjoiningClauses {
     fn make_receptacle(&self) -> ConjoiningClauses {
