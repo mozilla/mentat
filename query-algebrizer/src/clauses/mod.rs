@@ -221,31 +221,29 @@ impl ConjoiningClauses {
 /// Cloning.
 impl ConjoiningClauses {
     fn make_receptacle(&self) -> ConjoiningClauses {
-        let mut concrete = ConjoiningClauses::default();
-        concrete.empty_because = self.empty_because.clone();
-
-        concrete.alias_counter = self.alias_counter.clone();
-        concrete.input_variables = self.input_variables.clone();
-        concrete.value_bindings = self.value_bindings.clone();
-        concrete.known_types = self.known_types.clone();
-        concrete.extracted_types = self.extracted_types.clone();
-
-        concrete
+        ConjoiningClauses {
+            alias_counter: self.alias_counter.clone(),
+            empty_because: self.empty_because.clone(),
+            input_variables: self.input_variables.clone(),
+            value_bindings: self.value_bindings.clone(),
+            known_types: self.known_types.clone(),
+            extracted_types: self.extracted_types.clone(),
+            ..Default::default()
+        }
     }
 
     /// Make a new CC populated with the relevant variable associations in this CC.
     /// The CC shares an alias count with all of its copies.
     fn use_as_template(&self, vars: &BTreeSet<Variable>) -> ConjoiningClauses {
-        let mut template = ConjoiningClauses::default();
-        template.alias_counter = self.alias_counter.clone();     // Rc ftw.
-        template.empty_because = self.empty_because.clone();
-
-        template.input_variables = self.input_variables.intersection(vars).cloned().collect();
-        template.value_bindings = self.value_bindings.with_intersected_keys(&vars);
-        template.known_types = self.known_types.with_intersected_keys(&vars);
-        template.extracted_types = self.extracted_types.with_intersected_keys(&vars);
-
-        template
+        ConjoiningClauses {
+            alias_counter: self.alias_counter.clone(),
+            empty_because: self.empty_because.clone(),
+            input_variables: self.input_variables.intersection(vars).cloned().collect(),
+            value_bindings: self.value_bindings.with_intersected_keys(&vars),
+            known_types: self.known_types.with_intersected_keys(&vars),
+            extracted_types: self.extracted_types.with_intersected_keys(&vars),
+            ..Default::default()
+        }
     }
 }
 
