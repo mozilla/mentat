@@ -19,10 +19,11 @@ mod types;
 mod validate;
 mod clauses;
 
-
 use mentat_core::{
     Schema,
 };
+
+use mentat_core::counter::RcCounter;
 
 use mentat_query::{
     FindQuery,
@@ -69,11 +70,20 @@ impl AlgebraicQuery {
     }
 }
 
-#[allow(dead_code)]
+pub fn algebrize_with_counter(schema: &Schema, parsed: FindQuery, counter: usize) -> Result<AlgebraicQuery> {
+    let alias_counter = RcCounter::with_initial(counter);
+    let cc = clauses::ConjoiningClauses::with_alias_counter(alias_counter);
+    algebrize_with_cc(schema, parsed, cc)
+}
+
 pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
+    algebrize_with_cc(schema, parsed, clauses::ConjoiningClauses::default())
+}
+
+#[allow(dead_code)]
+pub fn algebrize_with_cc(schema: &Schema, parsed: FindQuery, mut cc: ConjoiningClauses) -> Result<AlgebraicQuery> {
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
-    let mut cc = clauses::ConjoiningClauses::default();
     let where_clauses = parsed.where_clauses;
     for where_clause in where_clauses {
         cc.apply_clause(schema, where_clause)?;
@@ -96,15 +106,19 @@ pub use clauses::{
 };
 
 pub use types::{
+    Column,
     ColumnAlternation,
     ColumnConstraint,
     ColumnConstraintOrAlternation,
     ColumnIntersection,
+    ColumnName,
+    ComputedTable,
     DatomsColumn,
     DatomsTable,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
     TableAlias,
+    VariableColumn,
 };
 

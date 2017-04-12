@@ -36,8 +36,12 @@ use types::{
     ColumnConstraintOrAlternation,
     ColumnAlternation,
     ColumnIntersection,
+    ComputedTable,
     DatomsTable,
     EmptyBecause,
+    QualifiedAlias,
+    SourceAlias,
+    VariableColumn,
 };
 
 /// Return true if both left and right are the same variable or both are non-variable.
@@ -63,6 +67,18 @@ fn _simply_matches_value_place(left: &PatternValuePlace, right: &PatternValuePla
         (&PatternValuePlace::Placeholder, _) => false,
         (_, &PatternValuePlace::Placeholder) => false,
         _ => true,
+    }
+}
+
+trait PushComputed {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable;
+}
+
+impl PushComputed for Vec<ComputedTable> {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable {
+        let next_index = self.len();
+        self.push(item);
+        DatomsTable::Computed(next_index)
     }
 }
 
@@ -176,6 +192,8 @@ impl ConjoiningClauses {
     /// to be called _only_ by `deconstruct_or_join`.
     fn _deconstruct_or_join(&self, schema: &Schema, or_join: OrJoin) -> DeconstructedOrJoin {
         // Preconditions enforced by `deconstruct_or_join`.
+        // Note that a fully unified explicit `or-join` can arrive here, and might leave as
+        // an implicit `or`.
         assert!(or_join.is_fully_unified());
         assert!(or_join.clauses.len() >= 2);
 
@@ -193,7 +211,7 @@ impl ConjoiningClauses {
         let mut empty_because: Option<EmptyBecause> = None;
 
         // Walk each clause in turn, bailing as soon as we know this can't be simple.
-        let (join_clauses, mentioned_vars) = or_join.dismember();
+        let (join_clauses, _unify_vars, mentioned_vars) = or_join.dismember();
         let mut clauses = join_clauses.into_iter();
         while let Some(clause) = clauses.next() {
             // If we fail half-way through processing, we want to reconstitute the input.
@@ -306,9 +324,9 @@ impl ConjoiningClauses {
                 // using a single table alias.
                 self.apply_simple_or_join(schema, patterns, mentioned_vars)
             },
-            DeconstructedOrJoin::Complex(_) => {
-                // Do this the hard way. TODO
-                unimplemented!();
+            DeconstructedOrJoin::Complex(or_join) => {
+                // Do this the hard way.
+                self.apply_complex_or_join(schema, or_join)
             },
         }
     }
@@ -341,7 +359,11 @@ impl ConjoiningClauses {
     ///    OR (datoms00.a = 98 AND datoms00.v = 'Peter')
     /// ```
     ///
-    fn apply_simple_or_join(&mut self, schema: &Schema, patterns: Vec<Pattern>, mentioned_vars: BTreeSet<Variable>) -> Result<()> {
+    fn apply_simple_or_join(&mut self,
+                            schema: &Schema,
+                            patterns: Vec<Pattern>,
+                            mentioned_vars: BTreeSet<Variable>)
+                            -> Result<()> {
         if self.is_known_empty() {
             return Ok(())
         }
@@ -481,6 +503,151 @@ impl ConjoiningClauses {
         self.narrow_types(cc.known_types);
         Ok(())
     }
+
+    /// Apply a provided `or` or `or-join` to this `ConjoiningClauses`. If you're calling this
+    /// rather than another `or`-applier, it's assumed that the contents of the `or` are relatively
+    /// complex: perhaps its arms consist of more than just patterns, or perhaps each arm includes
+    /// different variables in different places.
+    ///
+    /// Step one (not yet implemented): any clauses that are standalone patterns might differ only
+    /// in attribute. In that case, we can treat them as a 'simple or' -- a single pattern with a
+    /// WHERE clause that alternates on the attribute. Pull those out first.
+    ///
+    /// Step two: for each cluster of patterns, and for each `and`, recursively build a CC and
+    /// simple projection. The projection must be the same for each CC, because we will concatenate
+    /// these with a `UNION`. This is one reason why we require each pattern in the `or` to unify
+    /// the same variables!
+    ///
+    /// Finally, we alias this entire UNION block as a FROM; it can be stitched into the outer query
+    /// by looking at the projection.
+    ///
+    /// For example,
+    ///
+    /// ```edn
+    ///   [:find ?page :in $ ?string :where
+    ///    (or [?page :page/title ?string]
+    ///        [?page :page/excerpt ?string]
+    ///        (and [?save :save/string ?string]
+    ///             [?page :page/save ?save]))]
+    /// ```edn
+    ///
+    /// would expand to something like
+    ///
+    /// ```sql
+    /// SELECT or123.page AS page FROM
+    ///  (SELECT datoms124.e AS page FROM datoms AS datoms124
+    ///   WHERE datoms124.v = ? AND
+    ///         (datoms124.a = :page/title OR
+    ///          datoms124.a = :page/excerpt)
+    ///   UNION
+    ///   SELECT datoms126.e AS page FROM datoms AS datoms125, datoms AS datoms126
+    ///   WHERE datoms125.a = :save/string AND
+    ///         datoms125.v = ? AND
+    ///         datoms126.v = datoms125.e AND
+    ///         datoms126.a = :page/save)
+    ///  AS or123
+    /// ```
+    ///
+    /// Note that a top-level standalone `or` doesn't really need to be aliased, but
+    /// it shouldn't do any harm.
+    fn apply_complex_or_join(&mut self, schema: &Schema, or_join: OrJoin) -> Result<()> {
+        // N.B., a solitary pattern here *cannot* be simply applied to the enclosing CC. We don't
+        // want to join all the vars, and indeed if it were safe to do so, we wouldn't have ended up
+        // in this function!
+        let (join_clauses, unify_vars, mentioned_vars) = or_join.dismember();
+        let projected = match unify_vars {
+            UnifyVars::Implicit => mentioned_vars.into_iter().collect(),
+            UnifyVars::Explicit(vs) => vs.into_iter().collect(),
+        };
+
+        let template = self.use_as_template(&projected);
+
+        let mut acc = Vec::with_capacity(join_clauses.len());
+        let mut empty_because: Option<EmptyBecause> = None;
+
+        for clause in join_clauses.into_iter() {
+            let mut receptacle = template.make_receptacle();
+            match clause {
+                OrWhereClause::And(clauses) => {
+                    for clause in clauses {
+                        receptacle.apply_clause(&schema, clause)?;
+                    }
+                },
+                OrWhereClause::Clause(clause) => {
+                    receptacle.apply_clause(&schema, clause)?;
+                },
+            }
+            if receptacle.is_known_empty() {
+                empty_because = receptacle.empty_because;
+            } else {
+                receptacle.expand_column_bindings();
+                receptacle.prune_extracted_types();
+                acc.push(receptacle);
+            }
+        }
+
+        if acc.is_empty() {
+            self.mark_known_empty(empty_because.expect("empty for a reason"));
+            return Ok(());
+        }
+
+        // TODO: optimize the case of a single element in `acc`?
+
+        // Now `acc` contains a sequence of CCs that were all prepared with the same types,
+        // each ready to project the same variables.
+        // At this point we can lift out any common type information (and even constraints) to the
+        // destination CC.
+        // We must also contribute type extraction information for any variables that aren't
+        // concretely typed for all union arms.
+        //
+        // For each variable in the list of variables to unify -- which will become our projection
+        // list -- find out its type info. This might be:
+        // 1. We knew the type from the outset.
+        // 2. We didn't, but each arm bound it to a single known type.
+        //    Contribute this type to the destination CC, and don't project a type column.
+        // 3. We didn't find out a type in any arm, but we can agree on a set of types it might be.
+        //    Contribute those types, and mark the variable as needing extraction from the union.
+        //    Each arm will project its type tag column.
+        // 4. One or more arms know the type, and one or more arms do not.
+        //    Some of the arms will need to project a constant as the type tag, and some will
+        //    project a column.
+        let projection: BTreeSet<Variable> = projected.into_iter().collect();
+        let mut type_needed: BTreeSet<Variable> = BTreeSet::default();
+
+        // For any variable which has an imprecise type anywhere in the UNION, add it to the
+        // set that needs type extraction. All UNION arms must project the same columns.
+        for var in projection.iter() {
+            if acc.iter().any(|cc| !cc.known_type(var).is_some()) {
+                type_needed.insert(var.clone());
+            }
+        }
+
+        // Hang on to these so we can stuff them in our column bindings.
+        let var_associations: Vec<Variable>;
+        let type_associations: Vec<Variable>;
+        {
+            var_associations = projection.iter().cloned().collect();
+            type_associations = type_needed.iter().cloned().collect();
+        }
+
+        let union = ComputedTable::Union {
+            projection: projection,
+            type_extraction: type_needed,
+            arms: acc,
+        };
+        let table = self.computed_tables.push_computed(union);
+        let alias = self.next_alias_for_table(table);
+
+        // Stitch the computed table into column_bindings, so we get cross-linking.
+        for var in var_associations.into_iter() {
+            self.bind_column_to_var(schema, alias.clone(), VariableColumn::Variable(var.clone()), var);
+        }
+        for var in type_associations.into_iter() {
+            self.extracted_types.insert(var.clone(), QualifiedAlias::new(alias.clone(), VariableColumn::VariableTypeTag(var)));
+        }
+        self.from.push(SourceAlias(table, alias));
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -519,11 +686,21 @@ mod testing {
         SourceAlias,
     };
 
-    use algebrize;
+    use {
+        algebrize,
+        algebrize_with_counter,
+    };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
         algebrize(schema.into(), parsed).expect("algebrize failed").cc
+    }
+
+    /// Algebrize with a starting counter, so we can compare inner queries by algebrizing a
+    /// simpler version.
+    fn alg_c(schema: &Schema, counter: usize, input: &str) -> ConjoiningClauses {
+        let parsed = parse_find_string(input).expect("parse failed");
+        algebrize_with_counter(schema.into(), parsed, counter).expect("algebrize failed").cc
     }
 
     fn compare_ccs(left: ConjoiningClauses, right: ConjoiningClauses) {
@@ -605,9 +782,9 @@ mod testing {
         let cc = alg(&schema, query);
         let vx = Variable::from_valid_name("?x");
         let d0 = "datoms00".to_string();
-        let d0e = QualifiedAlias(d0.clone(), DatomsColumn::Entity);
-        let d0a = QualifiedAlias(d0.clone(), DatomsColumn::Attribute);
-        let d0v = QualifiedAlias(d0.clone(), DatomsColumn::Value);
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
@@ -647,11 +824,11 @@ mod testing {
         let vx = Variable::from_valid_name("?x");
         let d0 = "datoms00".to_string();
         let d1 = "datoms01".to_string();
-        let d0e = QualifiedAlias(d0.clone(), DatomsColumn::Entity);
-        let d0a = QualifiedAlias(d0.clone(), DatomsColumn::Attribute);
-        let d1e = QualifiedAlias(d1.clone(), DatomsColumn::Entity);
-        let d1a = QualifiedAlias(d1.clone(), DatomsColumn::Attribute);
-        let d1v = QualifiedAlias(d1.clone(), DatomsColumn::Value);
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
         let name = QueryValue::Entid(65);
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
@@ -697,12 +874,12 @@ mod testing {
         let vx = Variable::from_valid_name("?x");
         let d0 = "datoms00".to_string();
         let d1 = "datoms01".to_string();
-        let d0e = QualifiedAlias(d0.clone(), DatomsColumn::Entity);
-        let d0a = QualifiedAlias(d0.clone(), DatomsColumn::Attribute);
-        let d0v = QualifiedAlias(d0.clone(), DatomsColumn::Value);
-        let d1e = QualifiedAlias(d1.clone(), DatomsColumn::Entity);
-        let d1a = QualifiedAlias(d1.clone(), DatomsColumn::Attribute);
-        let d1v = QualifiedAlias(d1.clone(), DatomsColumn::Value);
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
         let knows = QueryValue::Entid(66);
         let age = QueryValue::Entid(68);
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
@@ -737,7 +914,6 @@ mod testing {
     // [:find ?x :where [?x :foo/bar ?y] (or-join [?x] [?x :foo/baz ?y])]
     // [:find ?x :where [?x :foo/bar ?y] [?x :foo/baz ?y]]
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn test_unit_or_join_doesnt_flatten() {
         let schema = prepopulated_schema();
         let query = r#"[:find ?x
@@ -747,29 +923,26 @@ mod testing {
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
         let d0 = "datoms00".to_string();
-        let d1 = "datoms01".to_string();
-        let d0e = QualifiedAlias(d0.clone(), DatomsColumn::Entity);
-        let d0a = QualifiedAlias(d0.clone(), DatomsColumn::Attribute);
-        let d0v = QualifiedAlias(d0.clone(), DatomsColumn::Value);
-        let d1e = QualifiedAlias(d1.clone(), DatomsColumn::Entity);
-        let d1a = QualifiedAlias(d1.clone(), DatomsColumn::Attribute);
+        let c0 = "c00".to_string();
+        let c0x = QualifiedAlias::new(c0.clone(), VariableColumn::Variable(vx.clone()));
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
         let knows = QueryValue::Entid(66);
-        let parent = QueryValue::Entid(67);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows.clone())),
-            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), parent.clone())),
             // The outer pattern joins against the `or` on the entity, but not value -- ?y means
             // different things in each place.
-            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(c0x.clone()))),
         ]));
-        assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e, d1e]));
+        assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e, c0x]));
 
         // ?y does not have a binding in the `or-join` pattern.
         assert_eq!(cc.column_bindings.get(&vy), Some(&vec![d0v]));
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0),
-                                 SourceAlias(DatomsTable::Datoms, d1)]);
+                                 SourceAlias(DatomsTable::Computed(0), c0)]);
     }
 
     // These two are equivalent:
@@ -810,8 +983,6 @@ mod testing {
     /// Strictly speaking this can be implemented with a `NOT EXISTS` clause for the second pattern,
     /// but that would be a fair amount of analysis work, I think.
     #[test]
-    #[should_panic(expected = "not yet implemented")]
-    #[allow(dead_code, unused_variables)]
     fn test_alternation_with_and() {
         let schema = prepopulated_schema();
         let query = r#"
@@ -820,6 +991,34 @@ mod testing {
                              [?x :foo/parent "Ámbar"])
                         [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);
+        let mut tables = cc.computed_tables.into_iter();
+        match (tables.next(), tables.next()) {
+            (Some(ComputedTable::Union { projection, type_extraction, arms }), None) => {
+                assert_eq!(projection, vec![Variable::from_valid_name("?x")].into_iter().collect());
+                assert!(type_extraction.is_empty());
+
+                let mut arms = arms.into_iter();
+                match (arms.next(), arms.next(), arms.next()) {
+                    (Some(and), Some(pattern), None) => {
+                        let expected_and = alg_c(&schema,
+                                                 0,  // The first pattern to be processed.
+                                                 r#"[:find ?x :where [?x :foo/knows "John"] [?x :foo/parent "Ámbar"]]"#);
+                        compare_ccs(and, expected_and);
+
+                        let expected_pattern = alg_c(&schema,
+                                                     2,      // Two aliases taken by the other arm.
+                                                     r#"[:find ?x :where [?x :foo/knows "Daphne"]]"#);
+                        compare_ccs(pattern, expected_pattern);
+                    },
+                    _ => {
+                        panic!("Expected two arms");
+                    }
+                }
+            },
+            _ => {
+                panic!("Didn't get two inner tables.");
+            },
+        }
     }
 
     #[test]
