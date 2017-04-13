@@ -1,5 +1,10 @@
 language: rust
+rust:
+  - stable
+  - nightly
 script:
   - cargo test --verbose --all
 after_success:
-  - cargo bench --package mentat_tx_parser
+  - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
+      cargo bench --package mentat_tx_parser
+    fi
