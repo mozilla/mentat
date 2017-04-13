@@ -7,5 +7,5 @@ script:
   - cargo test --verbose --all
 after_success:
   - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
-      cargo bench --package mentat_tx_parser
+        cargo bench --package mentat_tx_parser;
     fi
