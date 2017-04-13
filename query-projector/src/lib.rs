@@ -199,6 +199,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     let mut cols = Vec::with_capacity(count);
     let mut i: i32 = 0;
     let mut templates = vec![];
+    let mut with = query.with.clone();
 
     for e in elements {
         match e {
@@ -206,6 +207,8 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             // into the SQL projection, aliased to the name of the variable,
             // and we push an annotated index into the projector.
             &Element::Variable(ref var) => {
+                // If we're projecting this, we don't need it in :with.
+                with.remove(var);
 
                 let (column, name) = candidate_column(query, var);
                 cols.push(ProjectedColumn(column, name));
@@ -222,6 +225,18 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     cols.push(ProjectedColumn(type_column, type_name));
                 }
             }
+        }
+    }
+
+    for var in with {
+        // We need to collect these into the SQL column list, but they don't affect projection.
+        // If a variable is of a non-fixed type, also project the type tag column, so we don't
+        // accidentally unify across types when considering uniqueness!
+        let (column, name) = candidate_column(query, &var);
+        cols.push(ProjectedColumn(column, name));
+        if query.cc.known_type(&var).is_none() {
+            let (type_column, type_name) = candidate_type_column(query, &var);
+            cols.push(ProjectedColumn(type_column, type_name));
         }
     }
 
