@@ -14,6 +14,8 @@ extern crate error_chain;
 extern crate mentat_core;
 extern crate mentat_query;
 
+use std::collections::BTreeSet;
+
 mod errors;
 mod types;
 mod validate;
@@ -29,6 +31,7 @@ use mentat_query::{
     FindQuery,
     FindSpec,
     SrcVar,
+    Variable,
 };
 
 pub use errors::{
@@ -41,6 +44,7 @@ pub use errors::{
 pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: FindSpec,
+    pub with: BTreeSet<Variable>,
     has_aggregates: bool,
     pub limit: Option<u64>,
     pub cc: clauses::ConjoiningClauses,
@@ -96,6 +100,7 @@ pub fn algebrize_with_cc(schema: &Schema, parsed: FindQuery, mut cc: ConjoiningC
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
         has_aggregates: false,           // TODO: we don't parse them yet.
+        with: parsed.with.into_iter().collect(),
         limit: limit,
         cc: cc,
     })
