@@ -3,7 +3,7 @@ rust:
   - stable
   - nightly-2017-04-11 # workaround until https://github.com/rust-lang-nursery/rustup.rs/issues/1062 is resolved
 script:
-  - cargo build --verbose
+  - cargo build
   - cargo test --verbose --all
 after_success:
   - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
