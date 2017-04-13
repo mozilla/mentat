@@ -3,6 +3,7 @@ rust:
   - stable
   - nightly
 script:
+  - cargo build --verbose
   - cargo test --verbose --all
 after_success:
   - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
