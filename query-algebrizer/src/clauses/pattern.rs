@@ -295,6 +295,7 @@ mod testing {
     };
 
     use types::{
+        Column,
         ColumnConstraint,
         DatomsTable,
         QualifiedAlias,
@@ -365,9 +366,9 @@ mod testing {
 
         // println!("{:#?}", cc);
 
-        let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
-        let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
-        let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
+        let d0_e = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Entity);
+        let d0_a = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Attribute);
+        let d0_v = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Value);
 
         // After this, we know a lot of things:
         assert!(!cc.is_known_empty());
@@ -405,8 +406,8 @@ mod testing {
 
         // println!("{:#?}", cc);
 
-        let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
-        let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
+        let d0_e = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Entity);
+        let d0_v = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Value);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
@@ -454,8 +455,8 @@ mod testing {
 
         // println!("{:#?}", cc);
 
-        let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
-        let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
+        let d0_e = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Entity);
+        let d0_a = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Attribute);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, "datoms00".to_string())]);
@@ -496,7 +497,7 @@ mod testing {
         });
 
         assert!(cc.is_known_empty());
-        assert_eq!(cc.empty_because.unwrap(), EmptyBecause::InvalidBinding(DatomsColumn::Attribute, hello));
+        assert_eq!(cc.empty_because.unwrap(), EmptyBecause::InvalidBinding(Column::Fixed(DatomsColumn::Attribute), hello));
     }
 
 
@@ -519,7 +520,7 @@ mod testing {
 
         // println!("{:#?}", cc);
 
-        let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
+        let d0_e = QualifiedAlias::new("all_datoms00".to_string(), DatomsColumn::Entity);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
@@ -549,8 +550,8 @@ mod testing {
 
         // println!("{:#?}", cc);
 
-        let d0_e = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Entity);
-        let d0_v = QualifiedAlias("all_datoms00".to_string(), DatomsColumn::Value);
+        let d0_e = QualifiedAlias::new("all_datoms00".to_string(), DatomsColumn::Entity);
+        let d0_v = QualifiedAlias::new("all_datoms00".to_string(), DatomsColumn::Value);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::AllDatoms, "all_datoms00".to_string())]);
@@ -609,11 +610,11 @@ mod testing {
 
         println!("{:#?}", cc);
 
-        let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
-        let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
-        let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
-        let d1_e = QualifiedAlias("datoms01".to_string(), DatomsColumn::Entity);
-        let d1_a = QualifiedAlias("datoms01".to_string(), DatomsColumn::Attribute);
+        let d0_e = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Entity);
+        let d0_a = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Attribute);
+        let d0_v = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Value);
+        let d1_e = QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Entity);
+        let d1_a = QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Attribute);
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.from, vec![
@@ -669,9 +670,9 @@ mod testing {
             tx: PatternNonValuePlace::Placeholder,
         });
 
-        let d0_e = QualifiedAlias("datoms00".to_string(), DatomsColumn::Entity);
-        let d0_a = QualifiedAlias("datoms00".to_string(), DatomsColumn::Attribute);
-        let d0_v = QualifiedAlias("datoms00".to_string(), DatomsColumn::Value);
+        let d0_e = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Entity);
+        let d0_a = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Attribute);
+        let d0_v = QualifiedAlias::new("datoms00".to_string(), DatomsColumn::Value);
 
         // ?y has been expanded into `true`.
         assert_eq!(cc.wheres, vec![

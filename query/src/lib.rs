@@ -670,12 +670,12 @@ impl ContainsVariables for OrJoin {
 }
 
 impl OrJoin {
-    pub fn dismember(self) -> (Vec<OrWhereClause>, BTreeSet<Variable>) {
+    pub fn dismember(self) -> (Vec<OrWhereClause>, UnifyVars, BTreeSet<Variable>) {
         let vars = match self.mentioned_vars {
                        Some(m) => m,
                        None => self.collect_mentioned_variables(),
                    };
-        (self.clauses, vars)
+        (self.clauses, self.unify_vars, vars)
     }
 
     pub fn mentioned_variables<'a>(&'a mut self) -> &'a BTreeSet<Variable> {
