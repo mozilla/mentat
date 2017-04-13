@@ -1,3 +1,5 @@
 language: rust
 script:
   - cargo test --verbose --all
+after_success:
+  - cargo bench --package mentat_tx_parser
