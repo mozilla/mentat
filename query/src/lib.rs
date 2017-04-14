@@ -129,6 +129,15 @@ impl PredicateFn {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Direction {
+    Ascending,
+    Descending,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Order(pub Direction, pub Variable);   // Future: Element instead of Variable?
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SrcVar {
     DefaultSrc,
     NamedSrc(SrcVarName),

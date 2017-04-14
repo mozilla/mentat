@@ -35,11 +35,13 @@ use self::mentat_parser_utils::value_and_span::{
 };
 
 use self::mentat_query::{
+    Direction,
     Element,
     FindQuery,
     FindSpec,
     FnArg,
     FromValue,
+    Order,
     OrJoin,
     OrWhereClause,
     Pattern,
@@ -117,6 +119,28 @@ def_parser!(Query, fn_arg, FnArg, {
 
 def_parser!(Query, arguments, Vec<FnArg>, {
     (many::<Vec<FnArg>, _>(Query::fn_arg()))
+});
+
+def_parser!(Query, direction, Direction, {
+    satisfy_map(|v: edn::ValueAndSpan| {
+        match v.inner {
+            edn::SpannedValue::PlainSymbol(ref s) => {
+                let name = s.0.as_str();
+                match name {
+                    "asc" => Some(Direction::Ascending),
+                    "desc" => Some(Direction::Descending),
+                    _ => None,
+                }
+            },
+            _ => None,
+        }
+    })
+});
+
+def_parser!(Query, order, Order, {
+    seq().of_exactly((Query::direction(), Query::variable()))
+         .map(|(d, v)| Order(d, v))
+         .or(Query::variable().map(|v| Order(Direction::Ascending, v)))
 });
 
 pub struct Where;
