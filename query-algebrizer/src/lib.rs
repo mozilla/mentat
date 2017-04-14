@@ -30,6 +30,7 @@ use mentat_core::counter::RcCounter;
 use mentat_query::{
     FindQuery,
     FindSpec,
+    Order,
     SrcVar,
     Variable,
 };
@@ -44,8 +45,9 @@ pub use errors::{
 pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: FindSpec,
-    pub with: BTreeSet<Variable>,
     has_aggregates: bool,
+    pub with: BTreeSet<Variable>,
+    pub order: Option<Vec<OrderBy>>,
     pub limit: Option<u64>,
     pub cc: clauses::ConjoiningClauses,
 }
@@ -84,6 +86,42 @@ pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
     algebrize_with_cc(schema, parsed, clauses::ConjoiningClauses::default())
 }
 
+/// Take an ordering list. Any variables that aren't fixed by the query are used to produce
+/// a vector of `OrderBy` instances, including type comparisons if necessary. This function also
+/// returns a set of variables that should be added to the `with` clause to make the ordering
+/// clauses possible.
+fn validate_and_simplify_order(cc: &ConjoiningClauses, order: Option<Vec<Order>>)
+    -> Result<(Option<Vec<OrderBy>>, BTreeSet<Variable>)> {
+    match order {
+        None => Ok((None, BTreeSet::default())),
+        Some(order) => {
+            let mut order_bys: Vec<OrderBy> = Vec::with_capacity(order.len() * 2);   // Space for tags.
+            let mut vars: BTreeSet<Variable> = BTreeSet::default();
+
+            for Order(direction, var) in order.into_iter() {
+                // Eliminate any ordering clauses that are bound to fixed values.
+                if cc.bound_value(&var).is_some() {
+                    continue;
+                }
+
+                // Fail if the var isn't bound by the query.
+                if !cc.column_bindings.contains_key(&var) {
+                    bail!(ErrorKind::UnboundVariable(var.name()));
+                }
+
+                // Otherwise, determine if we also need to order by type…
+                if cc.known_type(&var).is_none() {
+                    order_bys.push(OrderBy(direction.clone(), VariableColumn::VariableTypeTag(var.clone())));
+                }
+                order_bys.push(OrderBy(direction, VariableColumn::Variable(var.clone())));
+                vars.insert(var.clone());
+            }
+
+            Ok((if order_bys.is_empty() { None } else { Some(order_bys) }, vars))
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub fn algebrize_with_cc(schema: &Schema, parsed: FindQuery, mut cc: ConjoiningClauses) -> Result<AlgebraicQuery> {
     // TODO: integrate default source into pattern processing.
@@ -95,12 +133,15 @@ pub fn algebrize_with_cc(schema: &Schema, parsed: FindQuery, mut cc: ConjoiningC
     cc.expand_column_bindings();
     cc.prune_extracted_types();
 
+    let (order, extra_vars) = validate_and_simplify_order(&cc, parsed.order)?;
+    let with: BTreeSet<Variable> = parsed.with.into_iter().chain(extra_vars.into_iter()).collect();
     let limit = if parsed.find_spec.is_unit_limited() { Some(1) } else { None };
     Ok(AlgebraicQuery {
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
         has_aggregates: false,           // TODO: we don't parse them yet.
-        with: parsed.with.into_iter().collect(),
+        with: with,
+        order: order,
         limit: limit,
         cc: cc,
     })
@@ -120,6 +161,7 @@ pub use types::{
     ComputedTable,
     DatomsColumn,
     DatomsTable,
+    OrderBy,
     QualifiedAlias,
     QueryValue,
     SourceAlias,

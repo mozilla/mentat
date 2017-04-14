@@ -14,6 +14,11 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_query::{
+    Direction,
+    Variable,
+};
+
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     ColumnAlternation,
@@ -25,6 +30,7 @@ use mentat_query_algebrizer::{
     ConjoiningClauses,
     DatomsColumn,
     DatomsTable,
+    OrderBy,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -223,7 +229,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // Each arm simply turns into a subquery.
                         // The SQL translation will stuff "UNION" between each arm.
                         let projection = Projection::Columns(columns);
-                        cc_to_select_query(projection, cc, false, None)
+                        cc_to_select_query(projection, cc, false, None, None)
                   }).collect(),
                 alias)
         },
@@ -233,7 +239,11 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
 /// Returns a `SelectQuery` that queries for the provided `cc`. Note that this _always_ returns a
 /// query that runs SQL. The next level up the call stack can check for known-empty queries if
 /// needed.
-fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: ConjoiningClauses, distinct: bool, limit: T) -> SelectQuery {
+fn cc_to_select_query<T>(projection: Projection,
+                         cc: ConjoiningClauses,
+                         distinct: bool,
+                         order: Option<Vec<OrderBy>>,
+                         limit: T) -> SelectQuery where T: Into<Option<u64>> {
     let from = if cc.from.is_empty() {
         FromClause::Nothing
     } else {
@@ -261,6 +271,8 @@ fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: Conjoini
         FromClause::TableList(TableList(tables.collect()))
     };
 
+    // Turn the query-centric order clauses into column-orders.
+    let order = order.map_or(vec![], |vec| { vec.into_iter().map(|o| o.into()).collect() });
     let limit = if cc.empty_because.is_some() { Some(0) } else { limit.into() };
     SelectQuery {
         distinct: distinct,
@@ -270,6 +282,7 @@ fn cc_to_select_query<T: Into<Option<u64>>>(projection: Projection, cc: Conjoini
                        .into_iter()
                        .map(|c| c.to_constraint())
                        .collect(),
+        order: order,
         limit: limit,
     }
 }
@@ -284,10 +297,11 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
             projection: Projection::One,
             from: FromClause::Nothing,
             constraints: vec![],
+            order: vec![],
             limit: Some(0),
         }
     } else {
-        cc_to_select_query(Projection::One, cc, false, 1)
+        cc_to_select_query(Projection::One, cc, false, None, 1)
     }
 }
 
@@ -298,7 +312,7 @@ pub fn query_to_select(query: AlgebraicQuery) -> ProjectedSelect {
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
     let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query);
     ProjectedSelect {
-        query: cc_to_select_query(sql_projection, query.cc, distinct, query.limit),
+        query: cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit),
         projector: datalog_projector,
     }
 }

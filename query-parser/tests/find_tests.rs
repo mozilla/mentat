@@ -18,9 +18,11 @@ use edn::{
 };
 
 use mentat_query::{
+    Direction,
     Element,
     FindSpec,
     FnArg,
+    Order,
     OrJoin,
     OrWhereClause,
     Pattern,
@@ -207,4 +209,28 @@ fn can_parse_simple_or_and_join() {
                        ],
                    )),
                ]);
+}
+
+#[test]
+fn can_parse_order_by() {
+    let invalid = "[:find ?x :where [?x :foo/baz ?y] :order]";
+    assert!(parse_find_string(invalid).is_err());
+
+    // Defaults to ascending.
+    let default = "[:find ?x :where [?x :foo/baz ?y] :order ?y]";
+    assert_eq!(parse_find_string(default).unwrap().order,
+               Some(vec![Order(Direction::Ascending, Variable::from_valid_name("?y"))]));
+
+    let ascending = "[:find ?x :where [?x :foo/baz ?y] :order (asc ?y)]";
+    assert_eq!(parse_find_string(ascending).unwrap().order,
+               Some(vec![Order(Direction::Ascending, Variable::from_valid_name("?y"))]));
+
+    let descending = "[:find ?x :where [?x :foo/baz ?y] :order (desc ?y)]";
+    assert_eq!(parse_find_string(descending).unwrap().order,
+               Some(vec![Order(Direction::Descending, Variable::from_valid_name("?y"))]));
+
+    let mixed = "[:find ?x :where [?x :foo/baz ?y] :order (desc ?y) (asc ?x)]";
+    assert_eq!(parse_find_string(mixed).unwrap().order,
+               Some(vec![Order(Direction::Descending, Variable::from_valid_name("?y")),
+                         Order(Direction::Ascending, Variable::from_valid_name("?x"))]));
 }

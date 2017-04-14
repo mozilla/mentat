@@ -129,6 +129,16 @@ impl PredicateFn {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Direction {
+    Ascending,
+    Descending,
+}
+
+/// An abstract declaration of ordering: direction and variable.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Order(pub Direction, pub Variable);   // Future: Element instead of Variable?
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SrcVar {
     DefaultSrc,
     NamedSrc(SrcVarName),
@@ -594,6 +604,7 @@ pub struct FindQuery {
     pub in_vars: Vec<Variable>,
     pub in_sources: Vec<SrcVar>,
     pub where_clauses: Vec<WhereClause>,
+    pub order: Option<Vec<Order>>,
     // TODO: in_rules;
 }
 

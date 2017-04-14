@@ -24,7 +24,9 @@ use mentat_core::{
 };
 
 use mentat_query::{
+    Direction,
     NamespacedKeyword,
+    Order,
     Variable,
 };
 
@@ -217,6 +219,17 @@ impl Debug for QueryValue {
             },
 
         }
+    }
+}
+
+/// Represents an entry in the ORDER BY list: a variable or a variable's type tag.
+/// (We require order vars to be projected, so we can simply use a variable here.)
+pub struct OrderBy(pub Direction, pub VariableColumn);
+
+impl From<Order> for OrderBy {
+    fn from(item: Order) -> OrderBy {
+        let Order(direction, variable) = item;
+        OrderBy(direction, VariableColumn::Variable(variable))
     }
 }
 

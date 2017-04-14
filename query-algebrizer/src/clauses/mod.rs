@@ -272,7 +272,7 @@ impl ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
-    fn bound_value(&self, var: &Variable) -> Option<TypedValue> {
+    pub fn bound_value(&self, var: &Variable) -> Option<TypedValue> {
         self.value_bindings.get(var).cloned()
     }
 

@@ -31,7 +31,7 @@ error_chain! {
         }
 
         UnboundVariable(name: PlainSymbol) {
-            description("unbound variable in function call")
+            description("unbound variable in order clause or function call")
             display("unbound variable: {}", name)
         }
 
