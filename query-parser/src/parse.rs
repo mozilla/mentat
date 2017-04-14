@@ -332,11 +332,14 @@ def_matches_keyword!(Find, literal_with, "with");
 
 def_matches_keyword!(Find, literal_where, "where");
 
+def_matches_keyword!(Find, literal_order, "order");
+
 /// Express something close to a builder pattern for a `FindQuery`.
 enum FindQueryPart {
     FindSpec(FindSpec),
     With(Vec<Variable>),
     WhereClauses(Vec<WhereClause>),
+    Order(Vec<Order>),
 }
 
 /// This is awkward, but will do for now.  We use `keyword_map()` to optionally accept vector find
@@ -352,22 +355,28 @@ def_parser!(Find, query, FindQuery, {
     let p_where_clauses = Find::literal_where()
         .with(vector().of_exactly(Where::clauses().map(FindQueryPart::WhereClauses))).expected(":where clauses");
 
+    let p_order_clauses = Find::literal_order()
+        .with(vector().of_exactly(many1(Query::order()).map(FindQueryPart::Order)));
+
     (or(map(), keyword_map()))
-        .of_exactly(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 3], _>([
+        .of_exactly(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 4], _>([
             &mut try(p_find_spec),
             &mut try(p_with_vars),
             &mut try(p_where_clauses),
+            &mut try(p_order_clauses),
         ])))
         .and_then(|parts: Vec<FindQueryPart>| -> std::result::Result<FindQuery, combine::primitives::Error<edn::ValueAndSpan, edn::ValueAndSpan>>  {
             let mut find_spec = None;
             let mut with_vars = None;
             let mut where_clauses = None;
+            let mut order_clauses = None;
 
             for part in parts {
                 match part {
                     FindQueryPart::FindSpec(x) => find_spec = Some(x),
                     FindQueryPart::With(x) => with_vars = Some(x),
                     FindQueryPart::WhereClauses(x) => where_clauses = Some(x),
+                    FindQueryPart::Order(x) => order_clauses = Some(x),
                 }
             }
 
@@ -377,6 +386,7 @@ def_parser!(Find, query, FindQuery, {
                 with: with_vars.unwrap_or(vec![]),
                 in_vars: vec![],       // TODO
                 in_sources: vec![],    // TODO
+                order: order_clauses,
                 where_clauses: where_clauses.ok_or(combine::primitives::Error::Unexpected("expected :where".into()))?,
             })
         })
