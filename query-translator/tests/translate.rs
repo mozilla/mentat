@@ -370,3 +370,24 @@ fn test_with_without_aggregate() {
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, `all_datoms00`.value_type_tag AS `?y_value_type_tag` FROM `all_datoms` AS `all_datoms00`");
     assert_eq!(args, vec![]);
 }
+
+#[test]
+fn test_order_by() {
+    let schema = prepopulated_schema();
+
+    // Known type.
+    let input = r#"[:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]"#;
+    let SQLQuery { sql, args } = translate(&schema, input, None);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                     ORDER BY `?y` DESC");
+
+    // Unknown type.
+    let input = r#"[:find ?x :with ?y :where [?x _ ?y] :order ?y ?x]"#;
+    let SQLQuery { sql, args } = translate(&schema, input, None);
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, \
+                                     `all_datoms00`.value_type_tag AS `?y_value_type_tag` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     ORDER BY `?y_value_type_tag` ASC, `?y` ASC, `?x` ASC");
+}
