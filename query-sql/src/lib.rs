@@ -18,8 +18,13 @@ use mentat_core::{
     TypedValue,
 };
 
+use mentat_query::{
+    Direction,
+};
+
 use mentat_query_algebrizer::{
     Column,
+    OrderBy,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -152,7 +157,19 @@ pub struct SelectQuery {
     pub projection: Projection,
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
+    pub order: Vec<OrderBy>,
     pub limit: Option<u64>,
+}
+
+fn push_variable_column(qb: &mut QueryBuilder, vc: &VariableColumn) -> BuildQueryResult {
+    match vc {
+        &VariableColumn::Variable(ref v) => {
+            qb.push_identifier(v.as_str())
+        },
+        &VariableColumn::VariableTypeTag(ref v) => {
+            qb.push_identifier(format!("{}_value_type_tag", v.name()).as_str())
+        },
+    }
 }
 
 fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
@@ -161,16 +178,7 @@ fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
             qb.push_sql(d.as_str());
             Ok(())
         },
-        &Column::Variable(ref vc) => {
-            match vc {
-                &VariableColumn::Variable(ref v) => {
-                    qb.push_identifier(v.as_str())
-                },
-                &VariableColumn::VariableTypeTag(ref v) => {
-                    qb.push_identifier(format!("{}_value_type_tag", v.name()).as_str())
-                },
-            }
-        },
+        &Column::Variable(ref vc) => push_variable_column(qb, vc),
     }
 }
 
@@ -195,7 +203,7 @@ fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
 ///
 /// without producing an intermediate string sequence.
 macro_rules! interpose {
-    ( $name: ident, $across: expr, $body: block, $inter: block ) => {
+    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
         let mut seq = $across.iter();
         if let Some($name) = seq.next() {
             $body;
@@ -410,6 +418,18 @@ impl QueryFragment for SelectQuery {
                        { out.push_sql(" AND ") });
         }
 
+        if !self.order.is_empty() {
+            out.push_sql(" ORDER BY ");
+            interpose!(&OrderBy(ref dir, ref var), self.order,
+                       { push_variable_column(out, var)?;
+                         match dir {
+                             &Direction::Ascending => { out.push_sql(" ASC"); },
+                             &Direction::Descending => { out.push_sql(" DESC"); },
+                         };
+                       },
+                       { out.push_sql(", ") });
+        }
+
         // Guaranteed to be positive: u64.
         if let Some(limit) = self.limit {
             out.push_sql(" LIMIT ");
@@ -533,6 +553,7 @@ mod tests {
                     right: ColumnOrExpression::Entid(65536),
                 },
             ],
+            order: vec![],
             limit: None,
         };
 
