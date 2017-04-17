@@ -16,18 +16,24 @@ use std::sync::{Arc, Mutex};
 use rusqlite;
 
 use edn;
-use errors::*;
+
 use mentat_core::{
     Schema,
     TypedValue,
 };
+
 use mentat_db::db;
 use mentat_db::{
     transact,
     PartitionMap,
     TxReport,
 };
+
+use mentat_query::Variable;
+
 use mentat_tx_parser;
+
+use errors::*;
 use query::{
     q_once,
     QueryResults,
@@ -112,7 +118,7 @@ impl Conn {
                      query: &str,
                      inputs: T,
                      limit: U) -> Result<QueryResults>
-        where T: Into<Option<HashMap<String, TypedValue>>>,
+        where T: Into<Option<HashMap<Variable, TypedValue>>>,
               U: Into<Option<u64>>
         {
 
