@@ -23,6 +23,7 @@ use mentat_query_algebrizer::algebrize;
 pub use mentat_query::{
     NamespacedKeyword,
     PlainSymbol,
+    Variable,
 };
 
 use mentat_query_parser::{
@@ -59,7 +60,7 @@ pub fn q_once<'sqlite, 'schema, 'query, T, U>
  query: &'query str,
  inputs: T,
  limit: U) -> QueryExecutionResult
-        where T: Into<Option<HashMap<String, TypedValue>>>,
+        where T: Into<Option<HashMap<Variable, TypedValue>>>,
               U: Into<Option<u64>>
 {
     // TODO: validate inputs.
