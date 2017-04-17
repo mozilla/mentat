@@ -270,6 +270,7 @@ mod testing {
     use super::*;
 
     use std::collections::BTreeMap;
+    use std::collections::BTreeSet;
     use std::rc::Rc;
 
     use mentat_core::attribute::Unique;
@@ -288,6 +289,7 @@ mod testing {
     };
 
     use clauses::{
+        QueryInputs,
         add_attribute,
         associate_ident,
         ident,
@@ -660,7 +662,9 @@ mod testing {
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Boolean(true))].into_iter().collect();
-        let mut cc = ConjoiningClauses::with_value_bindings(b);
+        let inputs = QueryInputs::with_values(b);
+        let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
+        let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
         cc.apply_pattern(&schema, Pattern {
             source: None,
@@ -705,7 +709,9 @@ mod testing {
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
-        let mut cc = ConjoiningClauses::with_value_bindings(b);
+        let inputs = QueryInputs::with_values(b);
+        let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
+        let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
         cc.apply_pattern(&schema, Pattern {
             source: None,
@@ -737,7 +743,9 @@ mod testing {
 
         let b: BTreeMap<Variable, TypedValue> =
             vec![(y.clone(), TypedValue::Long(42))].into_iter().collect();
-        let mut cc = ConjoiningClauses::with_value_bindings(b);
+        let inputs = QueryInputs::with_values(b);
+        let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
+        let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
         cc.apply_pattern(&schema, Pattern {
             source: None,

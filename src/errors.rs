@@ -12,6 +12,8 @@
 
 use rusqlite;
 
+use std::collections::BTreeSet;
+
 use edn;
 use mentat_db;
 use mentat_query_algebrizer;
@@ -40,6 +42,11 @@ error_chain! {
     }
 
     errors {
+        UnboundVariables(names: BTreeSet<String>) {
+            description("unbound variables at execution time")
+            display("variables {:?} unbound at execution time", names)
+        }
+
         InvalidArgumentName(name: String) {
             description("invalid argument name")
             display("invalid argument name: '{}'", name)

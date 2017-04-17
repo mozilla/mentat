@@ -21,9 +21,16 @@ use mentat_core::{
 
 use mentat::{
     NamespacedKeyword,
+    QueryInputs,
     QueryResults,
+    Variable,
     new_connection,
     q_once,
+};
+
+use mentat::errors::{
+    Error,
+    ErrorKind,
 };
 
 #[test]
@@ -159,3 +166,41 @@ fn test_coll() {
     println!("Coll took {}µs", start.to(end).num_microseconds().unwrap());
 }
 
+#[test]
+fn test_inputs() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
+
+    // entids::DB_INSTALL_VALUE_TYPE = 5.
+    let ee = (Variable::from_valid_name("?e"), TypedValue::Ref(5));
+    let inputs = QueryInputs::with_value_sequence(vec![ee]);
+    let results = q_once(&c, &db.schema,
+                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs, None)
+                        .expect("query to succeed");
+
+    if let QueryResults::Scalar(Some(TypedValue::Keyword(value))) = results {
+        assert_eq!(value.as_ref(), &NamespacedKeyword::new("db.install", "valueType"));
+    } else {
+        panic!("Expected scalar.");
+    }
+}
+
+/// Ensure that a query won't be run without all of its `:in` variables being bound.
+#[test]
+fn test_unbound_inputs() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let db = mentat_db::db::ensure_current_version(&mut c).expect("Couldn't open DB.");
+
+    // Bind the wrong var by 'mistake'.
+    let xx = (Variable::from_valid_name("?x"), TypedValue::Ref(5));
+    let inputs = QueryInputs::with_value_sequence(vec![xx]);
+    let results = q_once(&c, &db.schema,
+                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs, None);
+
+    match results {
+        Result::Err(Error(ErrorKind::UnboundVariables(vars), _)) => {
+            assert_eq!(vars, vec!["?e".to_string()].into_iter().collect());
+        },
+        _ => panic!("Expected unbound variables."),
+    }
+}

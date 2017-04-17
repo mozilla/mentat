@@ -34,7 +34,6 @@ extern crate edn;
 extern crate mentat_core;
 
 use std::collections::{
-    BTreeMap,
     BTreeSet,
 };
 
@@ -46,7 +45,6 @@ pub use edn::{NamespacedKeyword, PlainSymbol};
 
 use mentat_core::{
     TypedValue,
-    ValueType,
 };
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
