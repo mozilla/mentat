@@ -382,6 +382,7 @@ fn test_order_by() {
                      FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
                      ORDER BY `?y` DESC");
+    assert_eq!(args, vec![]);
 
     // Unknown type.
     let input = r#"[:find ?x :with ?y :where [?x _ ?y] :order ?y ?x]"#;
@@ -390,4 +391,5 @@ fn test_order_by() {
                                      `all_datoms00`.value_type_tag AS `?y_value_type_tag` \
                      FROM `all_datoms` AS `all_datoms00` \
                      ORDER BY `?y_value_type_tag` ASC, `?y` ASC, `?x` ASC");
+    assert_eq!(args, vec![]);
 }
