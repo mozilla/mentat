@@ -10,7 +10,6 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use rusqlite;
@@ -19,7 +18,6 @@ use edn;
 
 use mentat_core::{
     Schema,
-    TypedValue,
 };
 
 use mentat_db::db;
@@ -29,13 +27,12 @@ use mentat_db::{
     TxReport,
 };
 
-use mentat_query::Variable;
-
 use mentat_tx_parser;
 
 use errors::*;
 use query::{
     q_once,
+    QueryInputs,
     QueryResults,
 };
 
@@ -118,7 +115,7 @@ impl Conn {
                      query: &str,
                      inputs: T,
                      limit: U) -> Result<QueryResults>
-        where T: Into<Option<HashMap<Variable, TypedValue>>>,
+        where T: Into<Option<QueryInputs>>,
               U: Into<Option<u64>>
         {
 

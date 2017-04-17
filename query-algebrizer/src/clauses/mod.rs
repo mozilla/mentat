@@ -59,12 +59,15 @@ use types::{
     TableAlias,
 };
 
+mod inputs;
 mod or;
 mod pattern;
 mod predicate;
 mod resolve;
 
 use validate::validate_or_join;
+
+pub use self::inputs::QueryInputs;
 
 // We do this a lot for errors.
 trait RcCloned<T> {
@@ -240,6 +243,38 @@ impl ConjoiningClauses {
             ..Default::default()
         }
     }
+
+    pub fn with_inputs<T>(in_variables: BTreeSet<Variable>, inputs: T) -> ConjoiningClauses
+    where T: Into<Option<QueryInputs>> {
+        ConjoiningClauses::with_inputs_and_alias_counter(in_variables, inputs, RcCounter::new())
+    }
+
+    pub fn with_inputs_and_alias_counter<T>(in_variables: BTreeSet<Variable>,
+                                            inputs: T,
+                                            alias_counter: RcCounter) -> ConjoiningClauses
+    where T: Into<Option<QueryInputs>> {
+        match inputs.into() {
+            None => ConjoiningClauses::with_alias_counter(alias_counter),
+            Some(QueryInputs { mut types, mut values }) => {
+                // Discard any bindings not mentioned in our :in clause.
+                types.keep_intersected_keys(&in_variables);
+                values.keep_intersected_keys(&in_variables);
+
+                let mut cc = ConjoiningClauses {
+                    alias_counter: alias_counter,
+                    input_variables: in_variables,
+                    value_bindings: values,
+                    ..Default::default()
+                };
+
+                // Pre-fill our type mappings with the types of the input bindings.
+                cc.known_types
+                  .extend(types.iter()
+                               .map(|(k, v)| (k.clone(), unit_type_set(*v))));
+                cc
+            },
+        }
+    }
 }
 
 /// Cloning.
@@ -272,25 +307,13 @@ impl ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
-    #[allow(dead_code)]
-    fn with_value_bindings(bindings: BTreeMap<Variable, TypedValue>) -> ConjoiningClauses {
-        let mut cc = ConjoiningClauses {
-            value_bindings: bindings,
-            ..Default::default()
-        };
-
-        // Pre-fill our type mappings with the types of the input bindings.
-        cc.known_types
-          .extend(cc.value_bindings
-                    .iter()
-                    .map(|(k, v)| (k.clone(), unit_type_set(v.value_type()))));
-        cc
-    }
-}
-
-impl ConjoiningClauses {
     pub fn bound_value(&self, var: &Variable) -> Option<TypedValue> {
         self.value_bindings.get(var).cloned()
+    }
+
+    /// Return a set of the variables externally bound to values.
+    pub fn value_bound_variables(&self) -> BTreeSet<Variable> {
+        self.value_bindings.keys().cloned().collect()
     }
 
     /// Return a single `ValueType` if the given variable is known to have a precise type.

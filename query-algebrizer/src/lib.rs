@@ -15,6 +15,7 @@ extern crate mentat_core;
 extern crate mentat_query;
 
 use std::collections::BTreeSet;
+use std::ops::Sub;
 
 mod errors;
 mod types;
@@ -39,6 +40,10 @@ pub use errors::{
     Error,
     ErrorKind,
     Result,
+};
+
+pub use clauses::{
+    QueryInputs,
 };
 
 #[allow(dead_code)]
@@ -74,16 +79,20 @@ impl AlgebraicQuery {
     pub fn is_known_empty(&self) -> bool {
         self.cc.is_known_empty()
     }
+
+    /// Return a set of the input variables mentioned in the `:in` clause that have not yet been
+    /// bound. We do this by looking at the CC.
+    pub fn unbound_variables(&self) -> BTreeSet<Variable> {
+        self.cc.input_variables.sub(&self.cc.value_bound_variables())
+    }
 }
 
 pub fn algebrize_with_counter(schema: &Schema, parsed: FindQuery, counter: usize) -> Result<AlgebraicQuery> {
-    let alias_counter = RcCounter::with_initial(counter);
-    let cc = clauses::ConjoiningClauses::with_alias_counter(alias_counter);
-    algebrize_with_cc(schema, parsed, cc)
+    algebrize_with_inputs(schema, parsed, counter, QueryInputs::default())
 }
 
 pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
-    algebrize_with_cc(schema, parsed, clauses::ConjoiningClauses::default())
+    algebrize_with_inputs(schema, parsed, 0, QueryInputs::default())
 }
 
 /// Take an ordering list. Any variables that aren't fixed by the query are used to produce
@@ -122,8 +131,13 @@ fn validate_and_simplify_order(cc: &ConjoiningClauses, order: Option<Vec<Order>>
     }
 }
 
-#[allow(dead_code)]
-pub fn algebrize_with_cc(schema: &Schema, parsed: FindQuery, mut cc: ConjoiningClauses) -> Result<AlgebraicQuery> {
+pub fn algebrize_with_inputs(schema: &Schema,
+                             parsed: FindQuery,
+                             counter: usize,
+                             inputs: QueryInputs) -> Result<AlgebraicQuery> {
+    let alias_counter = RcCounter::with_initial(counter);
+    let mut cc = ConjoiningClauses::with_inputs_and_alias_counter(parsed.in_vars, inputs, alias_counter);
+
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
     let where_clauses = parsed.where_clauses;
