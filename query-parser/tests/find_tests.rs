@@ -8,9 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate mentat_query_parser;
-extern crate mentat_query;
 extern crate edn;
+extern crate mentat_query;
+extern crate mentat_query_parser;
 
 use edn::{
     NamespacedKeyword,
@@ -22,6 +22,7 @@ use mentat_query::{
     Element,
     FindSpec,
     FnArg,
+    Limit,
     Order,
     OrJoin,
     OrWhereClause,
@@ -123,7 +124,7 @@ fn can_parse_unit_or_join() {
 
 #[test]
 fn can_parse_simple_or_join() {
-    let s = "[:find ?x . :where (or-join [?x] [?x _ 10] [?x _ 15])]";
+    let s = "[:find ?x . :where (or-join [?x] [?x _ 10] [?x _ -15])]";
     let p = parse_find_string(s).unwrap();
 
     assert_eq!(p.find_spec,
@@ -146,7 +147,7 @@ fn can_parse_simple_or_join() {
                                    source: None,
                                    entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
                                    attribute: PatternNonValuePlace::Placeholder,
-                                   value: PatternValuePlace::EntidOrInteger(15),
+                                   value: PatternValuePlace::EntidOrInteger(-15),
                                    tx: PatternNonValuePlace::Placeholder,
                                })),
                        ],
@@ -233,4 +234,36 @@ fn can_parse_order_by() {
     assert_eq!(parse_find_string(mixed).unwrap().order,
                Some(vec![Order(Direction::Descending, Variable::from_valid_name("?y")),
                          Order(Direction::Ascending, Variable::from_valid_name("?x"))]));
+}
+
+#[test]
+fn can_parse_limit() {
+    let invalid = "[:find ?x :where [?x :foo/baz ?y] :limit]";
+    assert!(parse_find_string(invalid).is_err());
+
+    let zero_invalid = "[:find ?x :where [?x :foo/baz ?y] :limit 00]";
+    assert!(parse_find_string(zero_invalid).is_err());
+
+    let none = "[:find ?x :where [?x :foo/baz ?y]]";
+    assert_eq!(parse_find_string(none).unwrap().limit,
+               Limit::None);
+
+    let one = "[:find ?x :where [?x :foo/baz ?y] :limit 1]";
+    assert_eq!(parse_find_string(one).unwrap().limit,
+               Limit::Fixed(1));
+
+    let onethousand = "[:find ?x :where [?x :foo/baz ?y] :limit 1000]";
+    assert_eq!(parse_find_string(onethousand).unwrap().limit,
+               Limit::Fixed(1000));
+
+    let variable_with_in = "[:find ?x :in ?limit :where [?x :foo/baz ?y] :limit ?limit]";
+    assert_eq!(parse_find_string(variable_with_in).unwrap().limit,
+               Limit::Variable(Variable::from_valid_name("?limit")));
+
+    let variable_with_in_used = "[:find ?x :in ?limit :where [?x :foo/baz ?limit] :limit ?limit]";
+    assert_eq!(parse_find_string(variable_with_in_used).unwrap().limit,
+               Limit::Variable(Variable::from_valid_name("?limit")));
+
+    let variable_without_in = "[:find ?x :where [?x :foo/baz ?y] :limit ?limit]";
+    assert!(parse_find_string(variable_without_in).is_err());
 }

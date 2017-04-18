@@ -370,11 +370,18 @@ pub struct Aggregate {
 }
 */
 
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
     // Aggregate(Aggregate),   // TODO
     // Pull(Pull),             // TODO
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Limit {
+    None,
+    Fixed(u64),
+    Variable(Variable),
 }
 
 /// A definition of the first part of a find query: the
@@ -408,7 +415,7 @@ pub enum Element {
 /// # }
 /// ```
 ///
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FindSpec {
     /// Returns an array of arrays.
     FindRel(Vec<Element>),
@@ -610,6 +617,7 @@ pub struct FindQuery {
     pub with: BTreeSet<Variable>,
     pub in_vars: BTreeSet<Variable>,
     pub in_sources: BTreeSet<SrcVar>,
+    pub limit: Limit,
     pub where_clauses: Vec<WhereClause>,
     pub order: Option<Vec<Order>>,
     // TODO: in_rules;
