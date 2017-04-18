@@ -10,6 +10,8 @@
 
 extern crate mentat_query;
 
+use mentat_core::ValueType;
+
 use self::mentat_query::{
     PlainSymbol,
 };
@@ -20,6 +22,11 @@ error_chain! {
     }
 
     errors {
+        InputTypeDisagreement(var: PlainSymbol, declared: ValueType, provided: ValueType) {
+            description("input type disagreement")
+            display("value of type {} provided for var {}, expected {}", provided, var, declared)
+        }
+
         UnknownFunction(name: PlainSymbol) {
             description("no such function")
             display("no function named {}", name)

@@ -33,12 +33,19 @@
 extern crate edn;
 extern crate mentat_core;
 
-use std::collections::BTreeSet;
+use std::collections::{
+    BTreeSet,
+};
+
 use std::fmt;
 use std::rc::Rc;
+
 use edn::{BigInt, OrderedFloat};
 pub use edn::{NamespacedKeyword, PlainSymbol};
-use mentat_core::TypedValue;
+
+use mentat_core::{
+    TypedValue,
+};
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
@@ -138,7 +145,7 @@ pub enum Direction {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Order(pub Direction, pub Variable);   // Future: Element instead of Variable?
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SrcVar {
     DefaultSrc,
     NamedSrc(SrcVarName),
@@ -600,9 +607,9 @@ pub enum WhereClause {
 pub struct FindQuery {
     pub find_spec: FindSpec,
     pub default_source: SrcVar,
-    pub with: Vec<Variable>,
-    pub in_vars: Vec<Variable>,
-    pub in_sources: Vec<SrcVar>,
+    pub with: BTreeSet<Variable>,
+    pub in_vars: BTreeSet<Variable>,
+    pub in_sources: BTreeSet<SrcVar>,
     pub where_clauses: Vec<WhereClause>,
     pub order: Option<Vec<Order>>,
     // TODO: in_rules;

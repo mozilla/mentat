@@ -8,21 +8,25 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::HashMap;
-
 use rusqlite;
 use rusqlite::types::ToSql;
 
 use mentat_core::{
     Schema,
-    TypedValue,
 };
 
-use mentat_query_algebrizer::algebrize;
+use mentat_query_algebrizer::{
+    algebrize_with_inputs,
+};
+
+pub use mentat_query_algebrizer::{
+    QueryInputs,
+};
 
 pub use mentat_query::{
     NamespacedKeyword,
     PlainSymbol,
+    Variable,
 };
 
 use mentat_query_parser::{
@@ -41,31 +45,31 @@ pub use mentat_query_projector::{
     QueryResults,
 };
 
-use errors::Result;
+use errors::{
+    ErrorKind,
+    Result,
+};
 
 pub type QueryExecutionResult = Result<QueryResults>;
 
-/// Take an EDN query string, a reference to a open SQLite connection, a Mentat DB, and an optional
-/// collection of input bindings (which should be keyed by `"?varname"`), and execute the query
-/// immediately, blocking the current thread.
+/// Take an EDN query string, a reference to an open SQLite connection, a Mentat schema, and an
+/// optional collection of input bindings (which should be keyed by `"?varname"`), and execute the
+/// query immediately, blocking the current thread.
 /// Returns a structure that corresponds to the kind of input query, populated with `TypedValue`
 /// instances.
-/// The caller is responsible for ensuring that the SQLite connection is in a transaction if
+/// The caller is responsible for ensuring that the SQLite connection has an open transaction if
 /// isolation is required.
-#[allow(unused_variables)]
 pub fn q_once<'sqlite, 'schema, 'query, T, U>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
  query: &'query str,
  inputs: T,
  limit: U) -> QueryExecutionResult
-        where T: Into<Option<HashMap<String, TypedValue>>>,
+        where T: Into<Option<QueryInputs>>,
               U: Into<Option<u64>>
 {
-    // TODO: validate inputs.
-
     let parsed = parse_find_string(query)?;
-    let mut algebrized = algebrize(schema, parsed)?;
+    let mut algebrized = algebrize_with_inputs(schema, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
 
     if algebrized.is_known_empty() {
         // We don't need to do any SQL work at all.
@@ -74,6 +78,13 @@ pub fn q_once<'sqlite, 'schema, 'query, T, U>
 
     algebrized.apply_limit(limit.into());
 
+    // Because this is q_once, we can check that all of our `:in` variables are bound at this point.
+    // If they aren't, the user has made an error -- perhaps writing the wrong variable in `:in`, or
+    // not binding in the `QueryInput`.
+    let unbound = algebrized.unbound_variables();
+    if !unbound.is_empty() {
+        bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
+    }
     let select = query_to_select(algebrized);
     let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
