@@ -14,6 +14,8 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_query::Limit;
+
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     ColumnAlternation,
@@ -224,7 +226,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // Each arm simply turns into a subquery.
                         // The SQL translation will stuff "UNION" between each arm.
                         let projection = Projection::Columns(columns);
-                        cc_to_select_query(projection, cc, false, None, None)
+                        cc_to_select_query(projection, cc, false, None, Limit::None)
                   }).collect(),
                 alias)
         },
@@ -234,11 +236,11 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
 /// Returns a `SelectQuery` that queries for the provided `cc`. Note that this _always_ returns a
 /// query that runs SQL. The next level up the call stack can check for known-empty queries if
 /// needed.
-fn cc_to_select_query<T>(projection: Projection,
-                         cc: ConjoiningClauses,
-                         distinct: bool,
-                         order: Option<Vec<OrderBy>>,
-                         limit: T) -> SelectQuery where T: Into<Option<u64>> {
+fn cc_to_select_query(projection: Projection,
+                      cc: ConjoiningClauses,
+                      distinct: bool,
+                      order: Option<Vec<OrderBy>>,
+                      limit: Limit) -> SelectQuery {
     let from = if cc.from.is_empty() {
         FromClause::Nothing
     } else {
@@ -268,7 +270,7 @@ fn cc_to_select_query<T>(projection: Projection,
 
     // Turn the query-centric order clauses into column-orders.
     let order = order.map_or(vec![], |vec| { vec.into_iter().map(|o| o.into()).collect() });
-    let limit = if cc.empty_because.is_some() { Some(0) } else { limit.into() };
+    let limit = if cc.empty_because.is_some() { Limit::Fixed(0) } else { limit };
     SelectQuery {
         distinct: distinct,
         projection: projection,
@@ -293,10 +295,10 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
             from: FromClause::Nothing,
             constraints: vec![],
             order: vec![],
-            limit: Some(0),
+            limit: Limit::Fixed(0),
         }
     } else {
-        cc_to_select_query(Projection::One, cc, false, None, 1)
+        cc_to_select_query(Projection::One, cc, false, None, Limit::Fixed(1))
     }
 }
 

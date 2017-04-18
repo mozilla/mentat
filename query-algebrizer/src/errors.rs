@@ -47,6 +47,11 @@ error_chain! {
             display("invalid argument to {}: expected numeric in position {}.", function, position)
         }
 
+        InvalidLimit(val: String, kind: ValueType) {
+            description("invalid limit")
+            display("invalid limit {} of type {}: expected natural number.", val, kind)
+        }
+
         NonMatchingVariablesInOrClause {
             // TODO: flesh out.
             description("non-matching variables in 'or' clause")

@@ -21,6 +21,7 @@ use mentat_core::{
 
 use mentat_query::{
     Direction,
+    Limit,
     Variable,
 };
 
@@ -160,7 +161,7 @@ pub struct SelectQuery {
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
     pub order: Vec<OrderBy>,
-    pub limit: Option<u64>,
+    pub limit: Limit,
 }
 
 fn push_variable_column(qb: &mut QueryBuilder, vc: &VariableColumn) -> BuildQueryResult {
@@ -445,10 +446,18 @@ impl QueryFragment for SelectQuery {
                        { out.push_sql(", ") });
         }
 
-        // Guaranteed to be positive: u64.
-        if let Some(limit) = self.limit {
-            out.push_sql(" LIMIT ");
-            out.push_sql(limit.to_string().as_str());
+        match &self.limit {
+            &Limit::None => (),
+            &Limit::Fixed(limit) => {
+                // Guaranteed to be non-negative: u64.
+                out.push_sql(" LIMIT ");
+                out.push_sql(limit.to_string().as_str());
+            },
+            &Limit::Variable(ref var) => {
+                // Guess this wasn't bound yet. Produce an argument.
+                out.push_sql(" LIMIT ");
+                self.push_variable_param(var, out)?;
+            },
         }
 
         Ok(())
@@ -569,7 +578,7 @@ mod tests {
                 },
             ],
             order: vec![],
-            limit: None,
+            limit: Limit::None,
         };
 
         let SQLQuery { sql, args } = query.to_sql_query().unwrap();

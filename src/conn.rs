@@ -110,20 +110,17 @@ impl Conn {
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.
-    pub fn q_once<T, U>(&self,
+    pub fn q_once<T>(&self,
                      sqlite: &rusqlite::Connection,
                      query: &str,
-                     inputs: T,
-                     limit: U) -> Result<QueryResults>
-        where T: Into<Option<QueryInputs>>,
-              U: Into<Option<u64>>
+                     inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>>
         {
 
         q_once(sqlite,
                &*self.current_schema(),
                query,
-               inputs,
-               limit)
+               inputs)
     }
 
     /// Transact entities against the Mentat store, using the given connection and the current

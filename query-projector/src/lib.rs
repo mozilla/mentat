@@ -37,6 +37,7 @@ use mentat_db::{
 use mentat_query::{
     Element,
     FindSpec,
+    Limit,
     Variable,
 };
 
@@ -442,8 +443,8 @@ pub struct CombinedProjection {
 }
 
 impl CombinedProjection {
-    fn flip_distinct_for_limit(mut self, limit: Option<u64>) -> Self {
-        if limit == Some(1) {
+    fn flip_distinct_for_limit(mut self, limit: &Limit) -> Self {
+        if *limit == Limit::Fixed(1) {
             self.distinct = false;
         }
         self
@@ -474,7 +475,7 @@ pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
         match query.find_spec {
             FindColl(ref element) => {
                 let (cols, templates) = project_elements(1, iter::once(element), query);
-                CollProjector::combine(cols, templates).flip_distinct_for_limit(query.limit)
+                CollProjector::combine(cols, templates).flip_distinct_for_limit(&query.limit)
             },
 
             FindScalar(ref element) => {
@@ -485,7 +486,7 @@ pub fn query_projection(query: &AlgebraicQuery) -> CombinedProjection {
             FindRel(ref elements) => {
                 let column_count = query.find_spec.expected_column_count();
                 let (cols, templates) = project_elements(column_count, elements, query);
-                RelProjector::combine(column_count, cols, templates).flip_distinct_for_limit(query.limit)
+                RelProjector::combine(column_count, cols, templates).flip_distinct_for_limit(&query.limit)
             },
 
             FindTuple(ref elements) => {
