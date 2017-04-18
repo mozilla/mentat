@@ -89,6 +89,7 @@ trait Contains<K, T> {
 
 trait Intersection<K> {
     fn with_intersected_keys(&self, ks: &BTreeSet<K>) -> Self;
+    fn keep_intersected_keys(&mut self, ks: &BTreeSet<K>);
 }
 
 impl<K: Ord, T> Contains<K, T> for BTreeSet<K> {
@@ -107,6 +108,22 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
         self.iter()
             .filter_map(|(k, v)| ks.when_contains(k, || (k.clone(), v.clone())))
             .collect()
+    }
+
+    /// Remove all keys from the map that are not present in `ks`.
+    /// This implementation is terrible because there's no mutable iterator for BTreeMap.
+    fn keep_intersected_keys(&mut self, ks: &BTreeSet<K>) {
+        let mut to_remove = Vec::with_capacity(self.len() - ks.len());
+        {
+        for k in self.keys() {
+            if !ks.contains(k) {
+                to_remove.push(k.clone())
+            }
+        }
+        }
+        for k in to_remove.into_iter() {
+            self.remove(&k);
+        }
     }
 }
 
