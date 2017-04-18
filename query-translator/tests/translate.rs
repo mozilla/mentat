@@ -73,8 +73,8 @@ fn make_arg(name: &'static str, value: &'static str) -> (String, Rc<String>) {
 fn test_scalar() {
     let schema = prepopulated_schema();
 
-    let input = r#"[:find ?x . :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x . :where [?x :foo/bar "yyy"]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -83,8 +83,8 @@ fn test_scalar() {
 fn test_tuple() {
     let schema = prepopulated_schema();
 
-    let input = r#"[:find [?x] :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find [?x] :where [?x :foo/bar "yyy"]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -93,8 +93,8 @@ fn test_tuple() {
 fn test_coll() {
     let schema = prepopulated_schema();
 
-    let input = r#"[:find [?x ...] :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find [?x ...] :where [?x :foo/bar "yyy"]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -103,8 +103,8 @@ fn test_coll() {
 fn test_rel() {
     let schema = prepopulated_schema();
 
-    let input = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -113,8 +113,8 @@ fn test_rel() {
 fn test_limit() {
     let schema = prepopulated_schema();
 
-    let input = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, 5);
+    let query = r#"[:find ?x :where [?x :foo/bar "yyy"] :limit 5]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, 5);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 5");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -123,8 +123,8 @@ fn test_limit() {
 fn test_unknown_attribute_keyword_value() {
     let schema = Schema::default();
 
-    let input = r#"[:find ?x :where [?x _ :ab/yyy]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x _ :ab/yyy]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
 
     // Only match keywords, not strings: tag = 13.
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = $v0 AND `datoms00`.value_type_tag = 13");
@@ -135,8 +135,8 @@ fn test_unknown_attribute_keyword_value() {
 fn test_unknown_attribute_string_value() {
     let schema = Schema::default();
 
-    let input = r#"[:find ?x :where [?x _ "horses"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x _ "horses"]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
 
     // We expect all_datoms because we're querying for a string. Magic, that.
     // We don't want keywords etc., so tag = 10.
@@ -148,8 +148,8 @@ fn test_unknown_attribute_string_value() {
 fn test_unknown_attribute_double_value() {
     let schema = Schema::default();
 
-    let input = r#"[:find ?x :where [?x _ 9.95]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x _ 9.95]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
 
     // In general, doubles _could_ be 1.0, which might match a boolean or a ref. Set tag = 5 to
     // make sure we only match numbers.
@@ -208,8 +208,8 @@ fn test_unknown_ident() {
 fn test_numeric_less_than_unknown_attribute() {
     let schema = Schema::default();
 
-    let input = r#"[:find ?x :where [?x _ ?y] [(< ?y 10)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x _ ?y] [(< ?y 10)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
 
     // Although we infer numericness from numeric predicates, we've already assigned a table to the
     // first pattern, and so this is _still_ `all_datoms`.
@@ -220,8 +220,8 @@ fn test_numeric_less_than_unknown_attribute() {
 #[test]
 fn test_numeric_gte_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Double);
-    let input = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
     assert_eq!(args, vec![]);
 }
@@ -229,8 +229,8 @@ fn test_numeric_gte_known_attribute() {
 #[test]
 fn test_numeric_not_equals_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Long);
-    let input = r#"[:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v <> 12 LIMIT 1");
     assert_eq!(args, vec![]);
 }
@@ -248,14 +248,14 @@ fn test_simple_or_join() {
         });
     }
 
-    let input = r#"[:find [?url ?description]
+    let query = r#"[:find [?url ?description]
                     :where
                     (or-join [?page]
                       [?page :page/url "http://foo.com/"]
                       [?page :page/title "Foo"])
                     [?page :page/url ?url]
                     [?page :page/description ?description]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT `datoms01`.v AS `?url`, `datoms02`.v AS `?description` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE ((`datoms00`.a = 97 AND `datoms00`.v = $v0) OR (`datoms00`.a = 98 AND `datoms00`.v = $v1)) AND `datoms01`.a = 97 AND `datoms02`.a = 99 AND `datoms00`.e = `datoms01`.e AND `datoms00`.e = `datoms02`.e LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "http://foo.com/"), make_arg("$v1", "Foo")]);
 }
@@ -280,7 +280,7 @@ fn test_complex_or_join() {
         });
     }
 
-    let input = r#"[:find [?url ?description]
+    let query = r#"[:find [?url ?description]
                     :where
                     (or-join [?page]
                       [?page :page/url "http://foo.com/"]
@@ -290,7 +290,7 @@ fn test_complex_or_join() {
                         [?save :save/title "Foo"]))
                     [?page :page/url ?url]
                     [?page :page/description ?description]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT `datoms04`.v AS `?url`, \
                             `datoms05`.v AS `?description` \
                      FROM (SELECT `datoms00`.e AS `?page` \
@@ -332,12 +332,12 @@ fn test_complex_or_join_type_projection() {
         ..Default::default()
     });
 
-    let input = r#"[:find [?y]
+    let query = r#"[:find [?y]
                     :where
                     (or
                       [6 :page/title ?y]
                       [5 _ ?y])]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT `c00`.`?y` AS `?y`, \
                             `c00`.`?y_value_type_tag` AS `?y_value_type_tag` \
                        FROM (SELECT `datoms00`.v AS `?y`, \
@@ -359,14 +359,14 @@ fn test_with_without_aggregate() {
     let schema = prepopulated_schema();
 
     // Known type.
-    let input = r#"[:find ?x :with ?y :where [?x :foo/bar ?y]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :with ?y :where [?x :foo/bar ?y]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99");
     assert_eq!(args, vec![]);
 
     // Unknown type.
-    let input = r#"[:find ?x :with ?y :where [?x _ ?y]]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :with ?y :where [?x _ ?y]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, `all_datoms00`.value_type_tag AS `?y_value_type_tag` FROM `all_datoms` AS `all_datoms00`");
     assert_eq!(args, vec![]);
 }
@@ -376,8 +376,8 @@ fn test_order_by() {
     let schema = prepopulated_schema();
 
     // Known type.
-    let input = r#"[:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` \
                      FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
@@ -385,8 +385,8 @@ fn test_order_by() {
     assert_eq!(args, vec![]);
 
     // Unknown type.
-    let input = r#"[:find ?x :with ?y :where [?x _ ?y] :order ?y ?x]"#;
-    let SQLQuery { sql, args } = translate(&schema, input, None);
+    let query = r#"[:find ?x :with ?y :where [?x _ ?y] :order ?y ?x]"#;
+    let SQLQuery { sql, args } = translate(&schema, query, None);
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, \
                                      `all_datoms00`.value_type_tag AS `?y_value_type_tag` \
                      FROM `all_datoms` AS `all_datoms00` \
