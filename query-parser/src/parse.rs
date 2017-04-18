@@ -353,15 +353,15 @@ enum FindQueryPart {
 }
 
 def_parser!(Find, vars, BTreeSet<Variable>, {
-    vector().of_exactly(many(Query::variable()).map(|vars: Vec<Variable>| {
+    vector().of_exactly(many(Query::variable()).and_then(|vars: Vec<Variable>| {
             let given = vars.len();
             let set: BTreeSet<Variable> = vars.into_iter().collect();
             if given != set.len() {
                 // TODO: find out what the variable is!
                 // TODO: figure out how to use `and_then` to return an error here.
-                panic!(Error::from_kind(ErrorKind::DuplicateVariableError));
+                Err(combine::primitives::Error::Other(Box::new(Error::from_kind(ErrorKind::DuplicateVariableError))))
             } else {
-                set
+                Ok(set)
             }
     }))
 });
@@ -547,6 +547,33 @@ mod test {
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]);
         assert_parses_to!(Where::rule_vars, input,
                           vec![variable(e.clone())]);
+    }
+
+    #[test]
+    fn test_repeated_vars() {
+        let e = edn::PlainSymbol::new("?e");
+        let f = edn::PlainSymbol::new("?f");
+        let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
+                                            edn::Value::PlainSymbol(f.clone()),]);
+        assert_parses_to!(Find::vars, input,
+                          vec![variable(e.clone()), variable(f.clone())].into_iter().collect());
+
+        let g = edn::PlainSymbol::new("?g");
+        let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(g.clone()),
+                                            edn::Value::PlainSymbol(g.clone()),]);
+
+        let mut par = Find::vars();
+        let result = par.parse(input.with_spans().into_atom_stream())
+            .map(|x| x.0)
+            .map_err(|e| if let Some(combine::primitives::Error::Other(x)) = e.errors.into_iter().next() {
+                // Pattern matching on boxes is rocket science until Rust Nightly features hit
+                // stable.  ErrorKind isn't Clone, so convert to strings.  We could pattern match
+                // for exact comparison here.
+                x.downcast::<Error>().ok().map(|e| e.to_string())
+            } else {
+                None
+            });
+        assert_eq!(result, Err(Some("duplicates in variable list".to_string())));
     }
 
     #[test]
