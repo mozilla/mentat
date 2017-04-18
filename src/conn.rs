@@ -58,7 +58,7 @@ impl Metadata {
 }
 
 /// A mutable, safe reference to the current Mentat store.
-struct Conn {
+pub struct Conn {
     /// `Mutex` since all reads and writes need to be exclusive.  Internally, owned data for the
     /// volatile parts (generation and partition map), and `Arc` for the infrequently changing parts
     /// (schema) that we want to share across threads.  A consuming thread may use a shared
