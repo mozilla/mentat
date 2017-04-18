@@ -14,11 +14,6 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_query::{
-    Direction,
-    Variable,
-};
-
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     ColumnAlternation,

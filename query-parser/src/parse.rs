@@ -15,6 +15,8 @@ extern crate mentat_query;
 
 use std; // To refer to std::result::Result.
 
+use std::collections::BTreeSet;
+
 use self::combine::{eof, many, many1, optional, parser, satisfy, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{choice, or, try};
 
@@ -65,6 +67,11 @@ error_chain! {
     }
 
     errors {
+        DuplicateVariableError {
+            description("duplicate variable")
+            display("duplicates in variable list")
+        }
+
         NotAVariableError(value: edn::ValueAndSpan) {
             description("not a variable")
             display("not a variable: '{}'", value)
@@ -328,6 +335,8 @@ def_parser!(Find, spec, FindSpec, {
 
 def_matches_keyword!(Find, literal_find, "find");
 
+def_matches_keyword!(Find, literal_in, "in");
+
 def_matches_keyword!(Find, literal_with, "with");
 
 def_matches_keyword!(Find, literal_where, "where");
@@ -337,10 +346,25 @@ def_matches_keyword!(Find, literal_order, "order");
 /// Express something close to a builder pattern for a `FindQuery`.
 enum FindQueryPart {
     FindSpec(FindSpec),
-    With(Vec<Variable>),
+    With(BTreeSet<Variable>),
+    In(BTreeSet<Variable>),
     WhereClauses(Vec<WhereClause>),
     Order(Vec<Order>),
 }
+
+def_parser!(Find, vars, BTreeSet<Variable>, {
+    vector().of_exactly(many(Query::variable()).and_then(|vars: Vec<Variable>| {
+            let given = vars.len();
+            let set: BTreeSet<Variable> = vars.into_iter().collect();
+            if given != set.len() {
+                // TODO: find out what the variable is!
+                let e = Box::new(Error::from_kind(ErrorKind::DuplicateVariableError));
+                Err(combine::primitives::Error::Other(e))
+            } else {
+                Ok(set)
+            }
+    }))
+});
 
 /// This is awkward, but will do for now.  We use `keyword_map()` to optionally accept vector find
 /// queries, then we use `FindQueryPart` to collect parts that have heterogeneous types; and then we
@@ -349,8 +373,9 @@ def_parser!(Find, query, FindQuery, {
     let p_find_spec = Find::literal_find()
         .with(vector().of_exactly(Find::spec().map(FindQueryPart::FindSpec)));
 
-    let p_with_vars = Find::literal_with()
-        .with(vector().of_exactly(many(Query::variable()).map(FindQueryPart::With)));
+    let p_in_vars = Find::literal_in().with(Find::vars().map(FindQueryPart::In));
+
+    let p_with_vars = Find::literal_with().with(Find::vars().map(FindQueryPart::With));
 
     let p_where_clauses = Find::literal_where()
         .with(vector().of_exactly(Where::clauses().map(FindQueryPart::WhereClauses))).expected(":where clauses");
@@ -359,14 +384,16 @@ def_parser!(Find, query, FindQuery, {
         .with(vector().of_exactly(many1(Query::order()).map(FindQueryPart::Order)));
 
     (or(map(), keyword_map()))
-        .of_exactly(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 4], _>([
+        .of_exactly(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 5], _>([
             &mut try(p_find_spec),
+            &mut try(p_in_vars),
             &mut try(p_with_vars),
             &mut try(p_where_clauses),
             &mut try(p_order_clauses),
         ])))
         .and_then(|parts: Vec<FindQueryPart>| -> std::result::Result<FindQuery, combine::primitives::Error<edn::ValueAndSpan, edn::ValueAndSpan>>  {
             let mut find_spec = None;
+            let mut in_vars = None;
             let mut with_vars = None;
             let mut where_clauses = None;
             let mut order_clauses = None;
@@ -375,6 +402,7 @@ def_parser!(Find, query, FindQuery, {
                 match part {
                     FindQueryPart::FindSpec(x) => find_spec = Some(x),
                     FindQueryPart::With(x) => with_vars = Some(x),
+                    FindQueryPart::In(x) => in_vars = Some(x),
                     FindQueryPart::WhereClauses(x) => where_clauses = Some(x),
                     FindQueryPart::Order(x) => order_clauses = Some(x),
                 }
@@ -383,9 +411,9 @@ def_parser!(Find, query, FindQuery, {
             Ok(FindQuery {
                 find_spec: find_spec.clone().ok_or(combine::primitives::Error::Unexpected("expected :find".into()))?,
                 default_source: SrcVar::DefaultSrc,
-                with: with_vars.unwrap_or(vec![]),
-                in_vars: vec![],       // TODO
-                in_sources: vec![],    // TODO
+                with: with_vars.unwrap_or(BTreeSet::default()),
+                in_vars: in_vars.unwrap_or(BTreeSet::default()),
+                in_sources: BTreeSet::default(),    // TODO
                 order: order_clauses,
                 where_clauses: where_clauses.ok_or(combine::primitives::Error::Unexpected("expected :where".into()))?,
             })
@@ -519,6 +547,33 @@ mod test {
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]);
         assert_parses_to!(Where::rule_vars, input,
                           vec![variable(e.clone())]);
+    }
+
+    #[test]
+    fn test_repeated_vars() {
+        let e = edn::PlainSymbol::new("?e");
+        let f = edn::PlainSymbol::new("?f");
+        let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
+                                            edn::Value::PlainSymbol(f.clone()),]);
+        assert_parses_to!(Find::vars, input,
+                          vec![variable(e.clone()), variable(f.clone())].into_iter().collect());
+
+        let g = edn::PlainSymbol::new("?g");
+        let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(g.clone()),
+                                            edn::Value::PlainSymbol(g.clone()),]);
+
+        let mut par = Find::vars();
+        let result = par.parse(input.with_spans().into_atom_stream())
+            .map(|x| x.0)
+            .map_err(|e| if let Some(combine::primitives::Error::Other(x)) = e.errors.into_iter().next() {
+                // Pattern matching on boxes is rocket science until Rust Nightly features hit
+                // stable.  ErrorKind isn't Clone, so convert to strings.  We could pattern match
+                // for exact comparison here.
+                x.downcast::<Error>().ok().map(|e| e.to_string())
+            } else {
+                None
+            });
+        assert_eq!(result, Err(Some("duplicates in variable list".to_string())));
     }
 
     #[test]
