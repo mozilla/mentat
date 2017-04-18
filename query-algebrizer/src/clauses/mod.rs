@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::cmp;
+
 use std::collections::{
     BTreeMap,
     BTreeSet,
@@ -116,13 +118,19 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
     /// Remove all keys from the map that are not present in `ks`.
     /// This implementation is terrible because there's no mutable iterator for BTreeMap.
     fn keep_intersected_keys(&mut self, ks: &BTreeSet<K>) {
-        let mut to_remove = Vec::with_capacity(self.len() - ks.len());
-        {
+        if self.is_empty() {
+            return;
+        }
+        if ks.is_empty() {
+            self.clear();
+        }
+
+        let expected_remaining = cmp::max(0, self.len() - ks.len());
+        let mut to_remove = Vec::with_capacity(expected_remaining);
         for k in self.keys() {
             if !ks.contains(k) {
                 to_remove.push(k.clone())
             }
-        }
         }
         for k in to_remove.into_iter() {
             self.remove(&k);

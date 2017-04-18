@@ -19,8 +19,7 @@ use mentat_query::{
     Variable,
 };
 
-pub use errors::{
-    Error,
+use errors::{
     ErrorKind,
     Result,
 };
@@ -32,13 +31,17 @@ pub use errors::{
 /// When built correctly, `types` is guaranteed to contain the types of `values` -- use
 /// `QueryInputs::new` or `QueryInputs::with_values` to construct an instance.
 pub struct QueryInputs {
+    // These should be crate-private.
     pub types: BTreeMap<Variable, ValueType>,
     pub values: BTreeMap<Variable, TypedValue>,
 }
 
 impl Default for QueryInputs {
     fn default() -> Self {
-        QueryInputs { types: BTreeMap::default(), values: BTreeMap::default() }
+        QueryInputs {
+            types: BTreeMap::default(),
+            values: BTreeMap::default(),
+        }
     }
 }
 

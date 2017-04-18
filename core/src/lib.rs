@@ -61,13 +61,13 @@ impl ValueType {
 impl fmt::Display for ValueType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", match *self {
-            ValueType::Ref =>     "db.type/ref",
-            ValueType::Boolean => "db.type/boolean",
-            ValueType::Instant => "db.type/instant",
-            ValueType::Long =>    "db.type/long",
-            ValueType::Double =>  "db.type/double",
-            ValueType::String =>  "db.type/string",
-            ValueType::Keyword => "db.type/keyword",
+            ValueType::Ref =>     ":db.type/ref",
+            ValueType::Boolean => ":db.type/boolean",
+            ValueType::Instant => ":db.type/instant",
+            ValueType::Long =>    ":db.type/long",
+            ValueType::Double =>  ":db.type/double",
+            ValueType::String =>  ":db.type/string",
+            ValueType::Keyword => ":db.type/keyword",
         })
     }
 }

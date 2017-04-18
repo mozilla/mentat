@@ -43,8 +43,8 @@ error_chain! {
 
     errors {
         UnboundVariables(names: BTreeSet<String>) {
-            description("unbound variables at execution time")
-            display("variables {:?} unbound at execution time", names)
+            description("unbound variables at query execution time")
+            display("variables {:?} unbound at query execution time", names)
         }
 
         InvalidArgumentName(name: String) {
