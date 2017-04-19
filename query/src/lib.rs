@@ -216,6 +216,9 @@ pub enum FnArg {
     EntidOrInteger(i64),
     IdentOrKeyword(NamespacedKeyword),
     Constant(NonIntegerConstant),
+    // The collection values representable in EDN.  There's no advantage to destructuring up front,
+    // since consumers will need to handle arbitrarily nested EDN themselves anyway.
+    Vector(Vec<FnArg>),
 }
 
 impl FromValue<FnArg> for FnArg {
