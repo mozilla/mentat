@@ -56,7 +56,8 @@ impl ConjoiningClauses {
             Constant(NonIntegerConstant::Text(_)) |
             Constant(NonIntegerConstant::Uuid(_)) |
             Constant(NonIntegerConstant::Instant(_)) |        // Instants are covered elsewhere.
-            Constant(NonIntegerConstant::BigInteger(_)) => {
+            Constant(NonIntegerConstant::BigInteger(_)) |
+            Vector(_) => {
                 self.mark_known_empty(EmptyBecause::NonNumericArgument);
                 bail!(ErrorKind::NonNumericArgument(function.clone(), position));
             },
@@ -86,6 +87,7 @@ impl ConjoiningClauses {
             Constant(NonIntegerConstant::Instant(u)) => Ok(QueryValue::TypedValue(TypedValue::Instant(u))),
             Constant(NonIntegerConstant::BigInteger(_)) => unimplemented!(),
             SrcVar(_) => unimplemented!(),
+            Vector(_) => unimplemented!(),    // TODO
         }
     }
 }
