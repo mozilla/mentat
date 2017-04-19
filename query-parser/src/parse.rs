@@ -133,7 +133,7 @@ def_parser!(Query, predicate_fn, PredicateFn, {
 });
 
 def_parser!(Query, fn_arg, FnArg, {
-    satisfy_map(FnArg::from_value)
+    satisfy_map(FnArg::from_value).or(vector().of_exactly(many::<Vec<FnArg>, _>(Query::fn_arg())).map(FnArg::Vector))
 });
 
 def_parser!(Query, arguments, Vec<FnArg>, {
@@ -824,5 +824,19 @@ mod test {
 
         let mut par = Query::natural_number();
         assert_eq!(None, par.parse(pos.with_spans().into_atom_stream()).err());
+    }
+
+    #[test]
+    fn test_fn_arg_collections() {
+        let vx = edn::PlainSymbol::new("?x");
+        let vy = edn::PlainSymbol::new("?y");
+        let input = edn::Value::Vector(vec![edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
+                                            edn::Value::PlainSymbol(vy.clone())])]);
+
+        assert_parses_to!(|| vector().of_exactly(Query::fn_arg()),
+                          input,
+                          FnArg::Vector(vec![FnArg::Variable(variable(vx)),
+                                             FnArg::Variable(variable(vy)),
+                          ]));
     }
 }
