@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate regex;
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
@@ -20,6 +21,7 @@ use mentat_core::{
 
 use mentat_query::{
     Direction,
+    Variable,
 };
 
 use mentat_query_algebrizer::{
@@ -398,6 +400,19 @@ impl QueryFragment for FromClause {
             },
             &Nothing => Ok(()),
         }
+    }
+}
+
+impl SelectQuery {
+    fn push_variable_param(&self, var: &Variable, out: &mut QueryBuilder) -> BuildQueryResult {
+        // `var` is something like `?foo99-people`.
+        // Trim the `?` and escape the rest. Prepend `i` to distinguish from
+        // the inline value space `v`.
+        let re = regex::Regex::new("[^a-zA-Z_0-9]").unwrap();
+        let without_question = var.as_str().split_at(1).1;
+        let replaced = re.replace_all(without_question, "_");
+        let bind_param = format!("i{}", replaced);                 // We _could_ avoid this copying.
+        out.push_bind_param(bind_param.as_str())
     }
 }
 
