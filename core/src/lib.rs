@@ -17,6 +17,7 @@ extern crate edn;
 pub mod values;
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::rc::Rc;
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
@@ -44,16 +45,30 @@ pub enum ValueType {
 }
 
 impl ValueType {
-    pub fn to_edn_value(&self) -> edn::Value {
+    pub fn to_edn_value(self) -> edn::Value {
         match self {
-            &ValueType::Ref => values::DB_TYPE_REF.clone(),
-            &ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
-            &ValueType::Instant => values::DB_TYPE_INSTANT.clone(),
-            &ValueType::Long => values::DB_TYPE_LONG.clone(),
-            &ValueType::Double => values::DB_TYPE_DOUBLE.clone(),
-            &ValueType::String => values::DB_TYPE_STRING.clone(),
-            &ValueType::Keyword => values::DB_TYPE_KEYWORD.clone(),
+            ValueType::Ref => values::DB_TYPE_REF.clone(),
+            ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
+            ValueType::Instant => values::DB_TYPE_INSTANT.clone(),
+            ValueType::Long => values::DB_TYPE_LONG.clone(),
+            ValueType::Double => values::DB_TYPE_DOUBLE.clone(),
+            ValueType::String => values::DB_TYPE_STRING.clone(),
+            ValueType::Keyword => values::DB_TYPE_KEYWORD.clone(),
         }
+    }
+}
+
+impl fmt::Display for ValueType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match *self {
+            ValueType::Ref =>     ":db.type/ref",
+            ValueType::Boolean => ":db.type/boolean",
+            ValueType::Instant => ":db.type/instant",
+            ValueType::Long =>    ":db.type/long",
+            ValueType::Double =>  ":db.type/double",
+            ValueType::String =>  ":db.type/string",
+            ValueType::Keyword => ":db.type/keyword",
+        })
     }
 }
 

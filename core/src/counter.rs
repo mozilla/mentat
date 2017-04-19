@@ -20,11 +20,28 @@ pub struct RcCounter {
     c: Rc<AtomicUsize>,
 }
 
+/// A simple shared counter.
 impl RcCounter {
+    pub fn with_initial(value: usize) -> Self {
+        RcCounter { c: Rc::new(AtomicUsize::new(value)) }
+    }
+
     pub fn new() -> Self {
         RcCounter { c: Rc::new(AtomicUsize::new(0)) }
     }
 
+    /// Return the next value in the sequence.
+    ///
+    /// ```
+    /// use mentat_core::counter::RcCounter;
+    ///
+    /// let c = RcCounter::with_initial(3);
+    /// assert_eq!(c.next(), 3);
+    /// assert_eq!(c.next(), 4);
+    /// let d = c.clone();
+    /// assert_eq!(d.next(), 5);
+    /// assert_eq!(c.next(), 6);
+    /// ```
     pub fn next(&self) -> usize {
         self.c.fetch_add(1, Ordering::SeqCst)
     }

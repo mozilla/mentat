@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::collections::BTreeSet;
 use std::collections::HashSet;
 
 use std::fmt::{
@@ -23,18 +24,31 @@ use mentat_core::{
 };
 
 use mentat_query::{
+    Direction,
     NamespacedKeyword,
+    Order,
     Variable,
 };
 
 /// This enum models the fixed set of default tables we have -- two
-/// tables and two views.
+/// tables and two views -- and computed tables defined in the enclosing CC.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum DatomsTable {
     Datoms,             // The non-fulltext datoms table.
     FulltextValues,     // The virtual table mapping IDs to strings.
     FulltextDatoms,     // The fulltext-datoms view.
     AllDatoms,          // Fulltext and non-fulltext datoms.
+    Computed(usize),    // A computed table, tracked elsewhere in the query.
+}
+
+/// A source of rows that isn't a named table -- typically a subquery or union.
+pub enum ComputedTable {
+    // Subquery(BTreeSet<Variable>, ::clauses::ConjoiningClauses),
+    Union {
+        projection: BTreeSet<Variable>,
+        type_extraction: BTreeSet<Variable>,
+        arms: Vec<::clauses::ConjoiningClauses>,
+    },
 }
 
 impl DatomsTable {
@@ -44,18 +58,47 @@ impl DatomsTable {
             DatomsTable::FulltextValues => "fulltext_values",
             DatomsTable::FulltextDatoms => "fulltext_datoms",
             DatomsTable::AllDatoms => "all_datoms",
+            DatomsTable::Computed(_) => "c",
         }
     }
 }
 
+pub trait ColumnName {
+    fn column_name(&self) -> String;
+}
+
 /// One of the named columns of our tables.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum DatomsColumn {
     Entity,
     Attribute,
     Value,
     Tx,
     ValueTypeTag,
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum VariableColumn {
+    Variable(Variable),
+    VariableTypeTag(Variable),
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum Column {
+    Fixed(DatomsColumn),
+    Variable(VariableColumn),
+}
+
+impl From<DatomsColumn> for Column {
+    fn from(from: DatomsColumn) -> Column {
+        Column::Fixed(from)
+    }
+}
+
+impl From<VariableColumn> for Column {
+    fn from(from: VariableColumn) -> Column {
+        Column::Variable(from)
+    }
 }
 
 impl DatomsColumn {
@@ -67,6 +110,46 @@ impl DatomsColumn {
             Value => "v",
             Tx => "tx",
             ValueTypeTag => "value_type_tag",
+        }
+    }
+}
+
+impl ColumnName for DatomsColumn {
+    fn column_name(&self) -> String {
+        self.as_str().to_string()
+    }
+}
+
+impl ColumnName for VariableColumn {
+    fn column_name(&self) -> String {
+        match self {
+            &VariableColumn::Variable(ref v) => v.to_string(),
+            &VariableColumn::VariableTypeTag(ref v) => format!("{}_value_type_tag", v.as_str()),
+        }
+    }
+}
+
+impl Debug for VariableColumn {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            // These should agree with VariableColumn::column_name.
+            &VariableColumn::Variable(ref v) => write!(f, "{}", v.as_str()),
+            &VariableColumn::VariableTypeTag(ref v) => write!(f, "{}_value_type_tag", v.as_str()),
+        }
+    }
+}
+
+impl Debug for DatomsColumn {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Debug for Column {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            &Column::Fixed(ref c) => c.fmt(f),
+            &Column::Variable(ref v) => v.fmt(f),
         }
     }
 }
@@ -86,17 +169,22 @@ impl Debug for SourceAlias {
 
 /// A particular column of a particular aliased table. E.g., "datoms123", Attribute.
 #[derive(PartialEq, Eq, Clone)]
-pub struct QualifiedAlias(pub TableAlias, pub DatomsColumn);
+pub struct QualifiedAlias(pub TableAlias, pub Column);
 
 impl Debug for QualifiedAlias {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}.{}", self.0, self.1.as_str())
+        write!(f, "{}.{:?}", self.0, self.1)
     }
 }
 
 impl QualifiedAlias {
+    pub fn new<C: Into<Column>>(table: TableAlias, column: C) -> Self {
+        QualifiedAlias(table, column.into())
+    }
+
     pub fn for_type_tag(&self) -> QualifiedAlias {
-        QualifiedAlias(self.0.clone(), DatomsColumn::ValueTypeTag)
+        // TODO: this only makes sense for `DatomsColumn` tables.
+        QualifiedAlias(self.0.clone(), Column::Fixed(DatomsColumn::ValueTypeTag))
     }
 }
 
@@ -131,6 +219,17 @@ impl Debug for QueryValue {
             },
 
         }
+    }
+}
+
+/// Represents an entry in the ORDER BY list: a variable or a variable's type tag.
+/// (We require order vars to be projected, so we can simply use a variable here.)
+pub struct OrderBy(pub Direction, pub VariableColumn);
+
+impl From<Order> for OrderBy {
+    fn from(item: Order) -> OrderBy {
+        let Order(direction, variable) = item;
+        OrderBy(direction, VariableColumn::Variable(variable))
     }
 }
 
@@ -319,7 +418,7 @@ pub enum EmptyBecause {
     UnresolvedIdent(NamespacedKeyword),
     InvalidAttributeIdent(NamespacedKeyword),
     InvalidAttributeEntid(Entid),
-    InvalidBinding(DatomsColumn, TypedValue),
+    InvalidBinding(Column, TypedValue),
     ValueTypeMismatch(ValueType, TypedValue),
     AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
 }

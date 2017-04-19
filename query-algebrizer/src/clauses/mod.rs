@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::cmp;
+
 use std::collections::{
     BTreeMap,
     BTreeSet,
@@ -48,6 +50,8 @@ use errors::{
 use types::{
     ColumnConstraint,
     ColumnIntersection,
+    ComputedTable,
+    Column,
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
@@ -57,12 +61,15 @@ use types::{
     TableAlias,
 };
 
+mod inputs;
 mod or;
 mod pattern;
 mod predicate;
 mod resolve;
 
 use validate::validate_or_join;
+
+pub use self::inputs::QueryInputs;
 
 // We do this a lot for errors.
 trait RcCloned<T> {
@@ -87,6 +94,7 @@ trait Contains<K, T> {
 
 trait Intersection<K> {
     fn with_intersected_keys(&self, ks: &BTreeSet<K>) -> Self;
+    fn keep_intersected_keys(&mut self, ks: &BTreeSet<K>);
 }
 
 impl<K: Ord, T> Contains<K, T> for BTreeSet<K> {
@@ -105,6 +113,28 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
         self.iter()
             .filter_map(|(k, v)| ks.when_contains(k, || (k.clone(), v.clone())))
             .collect()
+    }
+
+    /// Remove all keys from the map that are not present in `ks`.
+    /// This implementation is terrible because there's no mutable iterator for BTreeMap.
+    fn keep_intersected_keys(&mut self, ks: &BTreeSet<K>) {
+        if self.is_empty() {
+            return;
+        }
+        if ks.is_empty() {
+            self.clear();
+        }
+
+        let expected_remaining = cmp::max(0, self.len() - ks.len());
+        let mut to_remove = Vec::with_capacity(expected_remaining);
+        for k in self.keys() {
+            if !ks.contains(k) {
+                to_remove.push(k.clone())
+            }
+        }
+        for k in to_remove.into_iter() {
+            self.remove(&k);
+        }
     }
 }
 
@@ -141,6 +171,10 @@ pub struct ConjoiningClauses {
     /// A vector of source/alias pairs used to construct a SQL `FROM` list.
     pub from: Vec<SourceAlias>,
 
+    /// A vector of computed tables (typically subqueries). The index into this vector is used as
+    /// an identifier in a `DatomsTable::Computed(c)` table reference.
+    pub computed_tables: Vec<ComputedTable>,
+
     /// A list of fragments that can be joined by `AND`.
     pub wheres: ColumnIntersection,
 
@@ -171,7 +205,7 @@ pub struct ConjoiningClauses {
 
     /// A mapping, similar to `column_bindings`, but used to pull type tags out of the store at runtime.
     /// If a var isn't present in `known_types`, it should be present here.
-    extracted_types: BTreeMap<Variable, QualifiedAlias>,
+    pub extracted_types: BTreeMap<Variable, QualifiedAlias>,
 }
 
 impl Debug for ConjoiningClauses {
@@ -196,6 +230,7 @@ impl Default for ConjoiningClauses {
             empty_because: None,
             alias_counter: RcCounter::new(),
             from: vec![],
+            computed_tables: vec![],
             wheres: ColumnIntersection::default(),
             input_variables: BTreeSet::new(),
             column_bindings: BTreeMap::new(),
@@ -206,56 +241,87 @@ impl Default for ConjoiningClauses {
     }
 }
 
+impl ConjoiningClauses {
+    /// Construct a new `ConjoiningClauses` with the provided alias counter. This allows a caller
+    /// to share a counter with an enclosing scope, and to start counting at a particular offset
+    /// for testing.
+    pub fn with_alias_counter(counter: RcCounter) -> ConjoiningClauses {
+        ConjoiningClauses {
+            alias_counter: counter,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_inputs<T>(in_variables: BTreeSet<Variable>, inputs: T) -> ConjoiningClauses
+    where T: Into<Option<QueryInputs>> {
+        ConjoiningClauses::with_inputs_and_alias_counter(in_variables, inputs, RcCounter::new())
+    }
+
+    pub fn with_inputs_and_alias_counter<T>(in_variables: BTreeSet<Variable>,
+                                            inputs: T,
+                                            alias_counter: RcCounter) -> ConjoiningClauses
+    where T: Into<Option<QueryInputs>> {
+        match inputs.into() {
+            None => ConjoiningClauses::with_alias_counter(alias_counter),
+            Some(QueryInputs { mut types, mut values }) => {
+                // Discard any bindings not mentioned in our :in clause.
+                types.keep_intersected_keys(&in_variables);
+                values.keep_intersected_keys(&in_variables);
+
+                let mut cc = ConjoiningClauses {
+                    alias_counter: alias_counter,
+                    input_variables: in_variables,
+                    value_bindings: values,
+                    ..Default::default()
+                };
+
+                // Pre-fill our type mappings with the types of the input bindings.
+                cc.known_types
+                  .extend(types.iter()
+                               .map(|(k, v)| (k.clone(), unit_type_set(*v))));
+                cc
+            },
+        }
+    }
+}
+
 /// Cloning.
 impl ConjoiningClauses {
     fn make_receptacle(&self) -> ConjoiningClauses {
-        let mut concrete = ConjoiningClauses::default();
-        concrete.empty_because = self.empty_because.clone();
-
-        concrete.input_variables = self.input_variables.clone();
-        concrete.value_bindings = self.value_bindings.clone();
-        concrete.known_types = self.known_types.clone();
-        concrete.extracted_types = self.extracted_types.clone();
-
-        concrete
+        ConjoiningClauses {
+            alias_counter: self.alias_counter.clone(),
+            empty_because: self.empty_because.clone(),
+            input_variables: self.input_variables.clone(),
+            value_bindings: self.value_bindings.clone(),
+            known_types: self.known_types.clone(),
+            extracted_types: self.extracted_types.clone(),
+            ..Default::default()
+        }
     }
 
     /// Make a new CC populated with the relevant variable associations in this CC.
     /// The CC shares an alias count with all of its copies.
     fn use_as_template(&self, vars: &BTreeSet<Variable>) -> ConjoiningClauses {
-        let mut template = ConjoiningClauses::default();
-        template.alias_counter = self.alias_counter.clone();     // Rc ftw.
-        template.empty_because = self.empty_because.clone();
-
-        template.input_variables = self.input_variables.intersection(vars).cloned().collect();
-        template.value_bindings = self.value_bindings.with_intersected_keys(&vars);
-        template.known_types = self.known_types.with_intersected_keys(&vars);
-        template.extracted_types = self.extracted_types.with_intersected_keys(&vars);
-
-        template
-    }
-}
-
-impl ConjoiningClauses {
-    #[allow(dead_code)]
-    fn with_value_bindings(bindings: BTreeMap<Variable, TypedValue>) -> ConjoiningClauses {
-        let mut cc = ConjoiningClauses {
-            value_bindings: bindings,
+        ConjoiningClauses {
+            alias_counter: self.alias_counter.clone(),
+            empty_because: self.empty_because.clone(),
+            input_variables: self.input_variables.intersection(vars).cloned().collect(),
+            value_bindings: self.value_bindings.with_intersected_keys(&vars),
+            known_types: self.known_types.with_intersected_keys(&vars),
+            extracted_types: self.extracted_types.with_intersected_keys(&vars),
             ..Default::default()
-        };
-
-        // Pre-fill our type mappings with the types of the input bindings.
-        cc.known_types
-          .extend(cc.value_bindings
-                    .iter()
-                    .map(|(k, v)| (k.clone(), unit_type_set(v.value_type()))));
-        cc
+        }
     }
 }
 
 impl ConjoiningClauses {
-    fn bound_value(&self, var: &Variable) -> Option<TypedValue> {
+    pub fn bound_value(&self, var: &Variable) -> Option<TypedValue> {
         self.value_bindings.get(var).cloned()
+    }
+
+    /// Return a set of the variables externally bound to values.
+    pub fn value_bound_variables(&self) -> BTreeSet<Variable> {
+        self.value_bindings.keys().cloned().collect()
     }
 
     /// Return a single `ValueType` if the given variable is known to have a precise type.
@@ -269,35 +335,62 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn bind_column_to_var(&mut self, schema: &Schema, table: TableAlias, column: DatomsColumn, var: Variable) {
+    pub fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
+        let column = column.into();
         // Do we have an external binding for this?
         if let Some(bound_val) = self.bound_value(&var) {
             // Great! Use that instead.
             // We expect callers to do things like bind keywords here; we need to translate these
             // before they hit our constraints.
-            // TODO: recognize when the valueType might be a ref and also translate entids there.
-            if column == DatomsColumn::Value {
-                self.constrain_column_to_constant(table, column, bound_val);
-            } else {
-                match bound_val {
-                    TypedValue::Keyword(ref kw) => {
-                        if let Some(entid) = self.entid_for_ident(schema, kw) {
+            match column {
+                Column::Variable(_) => {
+                    // We don't need to handle expansion of attributes here. The subquery that
+                    // produces the variable projection will do so.
+                    self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                Column::Fixed(DatomsColumn::ValueTypeTag) => {
+                    // I'm pretty sure this is meaningless right now, because we will never bind
+                    // a type tag to a variable -- there's no syntax for doing so.
+                    // In the future we might expose a way to do so, perhaps something like:
+                    // ```
+                    // [:find ?x
+                    //  :where [?x _ ?y]
+                    //         [(= (typeof ?y) :db.valueType/double)]]
+                    // ```
+                    unimplemented!();
+                },
+
+                // TODO: recognize when the valueType might be a ref and also translate entids there.
+                Column::Fixed(DatomsColumn::Value) => {
+                    self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                // These columns can only be entities, so attempt to translate keywords. If we can't
+                // get an entity out of the bound value, the pattern cannot produce results.
+                Column::Fixed(DatomsColumn::Attribute) |
+                Column::Fixed(DatomsColumn::Entity) |
+                Column::Fixed(DatomsColumn::Tx) => {
+                    match bound_val {
+                        TypedValue::Keyword(ref kw) => {
+                            if let Some(entid) = self.entid_for_ident(schema, kw) {
+                                self.constrain_column_to_entity(table, column, entid);
+                            } else {
+                                // Impossible.
+                                // For attributes this shouldn't occur, because we check the binding in
+                                // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
+                                // attribute then we should have already marked the pattern as empty.
+                                self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
+                            }
+                        },
+                        TypedValue::Ref(entid) => {
                             self.constrain_column_to_entity(table, column, entid);
-                        } else {
-                            // Impossible.
-                            // For attributes this shouldn't occur, because we check the binding in
-                            // `table_for_places`/`alias_table`, and if it didn't resolve to a valid
-                            // attribute then we should have already marked the pattern as empty.
-                            self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
-                        }
-                    },
-                    TypedValue::Ref(entid) => {
-                        self.constrain_column_to_entity(table, column, entid);
-                    },
-                    _ => {
-                        // One can't bind an e, a, or tx to something other than an entity.
-                        self.mark_known_empty(EmptyBecause::InvalidBinding(column, bound_val));
-                    },
+                        },
+                        _ => {
+                            // One can't bind an e, a, or tx to something other than an entity.
+                            self.mark_known_empty(EmptyBecause::InvalidBinding(column, bound_val));
+                        },
+                    }
                 }
             }
 
@@ -311,10 +404,12 @@ impl ConjoiningClauses {
         // If this is a value, and we don't already know its type or where
         // to get its type, record that we can get it from this table.
         let needs_type_extraction =
-            !late_binding &&                           // Never need to extract for bound vars.
-            column == DatomsColumn::Value &&           // Never need to extract types for refs.
-            self.known_type(&var).is_none() &&         // Don't need to extract if we know a single type.
-            !self.extracted_types.contains_key(&var);  // We're already extracting the type.
+            !late_binding &&                                // Never need to extract for bound vars.
+            // Never need to extract types for refs, and var columns are handled elsewhere:
+            // a subquery will be projecting a type tag.
+            column == Column::Fixed(DatomsColumn::Value) &&
+            self.known_type(&var).is_none() &&              // Don't need to extract if we know a single type.
+            !self.extracted_types.contains_key(&var);       // We're already extracting the type.
 
         let alias = QualifiedAlias(table, column);
 
@@ -326,11 +421,13 @@ impl ConjoiningClauses {
         self.column_bindings.entry(var).or_insert(vec![]).push(alias);
     }
 
-    pub fn constrain_column_to_constant(&mut self, table: TableAlias, column: DatomsColumn, constant: TypedValue) {
+    pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
+        let column = column.into();
         self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
     }
 
-    pub fn constrain_column_to_entity(&mut self, table: TableAlias, column: DatomsColumn, entity: Entid) {
+    pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {
+        let column = column.into();
         self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
     }
 
@@ -340,7 +437,7 @@ impl ConjoiningClauses {
 
     pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
         self.wheres.add_intersection(ColumnConstraint::Equals(
-            QualifiedAlias(table, DatomsColumn::Value),
+            QualifiedAlias(table, Column::Fixed(DatomsColumn::Value)),
             QueryValue::PrimitiveLong(value)))
     }
 
@@ -569,7 +666,7 @@ impl ConjoiningClauses {
                     Some(v) => {
                         // This pattern cannot match: the caller has bound a non-entity value to an
                         // attribute place.
-                        Err(EmptyBecause::InvalidBinding(DatomsColumn::Attribute, v.clone()))
+                        Err(EmptyBecause::InvalidBinding(Column::Fixed(DatomsColumn::Attribute), v.clone()))
                     },
                 }
             },
@@ -577,7 +674,12 @@ impl ConjoiningClauses {
     }
 
     pub fn next_alias_for_table(&mut self, table: DatomsTable) -> TableAlias {
-        format!("{}{:02}", table.name(), self.alias_counter.next())
+        match table {
+            DatomsTable::Computed(u) =>
+                format!("{}{:02}", table.name(), u),
+            _ =>
+                format!("{}{:02}", table.name(), self.alias_counter.next()),
+        }
     }
 
     /// Produce a (table, alias) pair to handle the provided pattern.

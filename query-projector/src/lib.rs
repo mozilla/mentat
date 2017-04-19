@@ -42,28 +42,15 @@ use mentat_query::{
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
-    DatomsColumn,
-    QualifiedAlias,
-    /*
-    ConjoiningClauses,
-    DatomsTable,
-    SourceAlias,
-    */
+    ColumnName,
+    VariableColumn,
 };
 
 use mentat_query_sql::{
     ColumnOrExpression,
-    /*
-    Constraint,
-    FromClause,
-    */
     Name,
     Projection,
     ProjectedColumn,
-    /*
-    SelectQuery,
-    TableList,
-    */
 };
 
 error_chain! {
@@ -169,12 +156,27 @@ impl TypedIndex {
     }
 }
 
-fn column_name(var: &Variable) -> Name {
-    var.to_string()
+fn candidate_column(query: &AlgebraicQuery, var: &Variable) -> (ColumnOrExpression, Name) {
+    // Every variable should be bound by the top-level CC to at least
+    // one column in the query. If that constraint is violated it's a
+    // bug in our code, so it's appropriate to panic here.
+    let columns = query.cc
+                       .column_bindings
+                       .get(var)
+                       .expect("Every variable has a binding");
+
+    let qa = columns[0].clone();
+    let name = VariableColumn::Variable(var.clone()).column_name();
+    (ColumnOrExpression::Column(qa), name)
 }
 
-fn value_type_tag_name(var: &Variable) -> Name {
-    format!("{}_value_type_tag", var.as_str())
+fn candidate_type_column(query: &AlgebraicQuery, var: &Variable) -> (ColumnOrExpression, Name) {
+    let extracted_alias = query.cc
+                               .extracted_types
+                               .get(var)
+                               .expect("Every variable has a known type or an extracted type");
+    let type_name = VariableColumn::VariableTypeTag(var.clone()).column_name();
+    (ColumnOrExpression::Column(extracted_alias.clone()), type_name)
 }
 
 /// Walk an iterator of `Element`s, collecting projector templates and columns.
@@ -197,6 +199,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     let mut cols = Vec::with_capacity(count);
     let mut i: i32 = 0;
     let mut templates = vec![];
+    let mut with = query.with.clone();
 
     for e in elements {
         match e {
@@ -204,34 +207,36 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             // into the SQL projection, aliased to the name of the variable,
             // and we push an annotated index into the projector.
             &Element::Variable(ref var) => {
-                // Every variable should be bound by the top-level CC to at least
-                // one column in the query. If that constraint is violated it's a
-                // bug in our code, so it's appropriate to panic here.
-                let columns = query.cc
-                                   .column_bindings
-                                   .get(var)
-                                   .expect("Every variable has a binding");
+                // If we're projecting this, we don't need it in :with.
+                with.remove(var);
 
-                let qa = columns[0].clone();
-                let name = column_name(var);
-
+                let (column, name) = candidate_column(query, var);
+                cols.push(ProjectedColumn(column, name));
                 if let Some(t) = query.cc.known_type(var) {
-                    cols.push(ProjectedColumn(ColumnOrExpression::Column(qa), name));
                     let tag = t.value_type_tag();
                     templates.push(TypedIndex::Known(i, tag));
                     i += 1;     // We used one SQL column.
                 } else {
-                    let table = qa.0.clone();
-                    cols.push(ProjectedColumn(ColumnOrExpression::Column(qa), name));
                     templates.push(TypedIndex::Unknown(i, i + 1));
                     i += 2;     // We used two SQL columns.
 
                     // Also project the type from the SQL query.
-                    let type_name = value_type_tag_name(var);
-                    let type_qa = QualifiedAlias(table, DatomsColumn::ValueTypeTag);
-                    cols.push(ProjectedColumn(ColumnOrExpression::Column(type_qa), type_name));
+                    let (type_column, type_name) = candidate_type_column(query, &var);
+                    cols.push(ProjectedColumn(type_column, type_name));
                 }
             }
+        }
+    }
+
+    for var in with {
+        // We need to collect these into the SQL column list, but they don't affect projection.
+        // If a variable is of a non-fixed type, also project the type tag column, so we don't
+        // accidentally unify across types when considering uniqueness!
+        let (column, name) = candidate_column(query, &var);
+        cols.push(ProjectedColumn(column, name));
+        if query.cc.known_type(&var).is_none() {
+            let (type_column, type_name) = candidate_type_column(query, &var);
+            cols.push(ProjectedColumn(type_column, type_name));
         }
     }
 

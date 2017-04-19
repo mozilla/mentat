@@ -10,26 +10,29 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use rusqlite;
 
 use edn;
-use errors::*;
+
 use mentat_core::{
     Schema,
-    TypedValue,
 };
+
 use mentat_db::db;
 use mentat_db::{
     transact,
     PartitionMap,
     TxReport,
 };
+
 use mentat_tx_parser;
+
+use errors::*;
 use query::{
     q_once,
+    QueryInputs,
     QueryResults,
 };
 
@@ -58,7 +61,7 @@ impl Metadata {
 }
 
 /// A mutable, safe reference to the current Mentat store.
-struct Conn {
+pub struct Conn {
     /// `Mutex` since all reads and writes need to be exclusive.  Internally, owned data for the
     /// volatile parts (generation and partition map), and `Arc` for the infrequently changing parts
     /// (schema) that we want to share across threads.  A consuming thread may use a shared
@@ -112,7 +115,7 @@ impl Conn {
                      query: &str,
                      inputs: T,
                      limit: U) -> Result<QueryResults>
-        where T: Into<Option<HashMap<String, TypedValue>>>,
+        where T: Into<Option<QueryInputs>>,
               U: Into<Option<u64>>
         {
 
