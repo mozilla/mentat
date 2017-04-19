@@ -24,6 +24,8 @@ mod clauses;
 
 use mentat_core::{
     Schema,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::counter::RcCounter;
@@ -31,6 +33,7 @@ use mentat_core::counter::RcCounter;
 use mentat_query::{
     FindQuery,
     FindSpec,
+    Limit,
     Order,
     SrcVar,
     Variable,
@@ -53,28 +56,11 @@ pub struct AlgebraicQuery {
     has_aggregates: bool,
     pub with: BTreeSet<Variable>,
     pub order: Option<Vec<OrderBy>>,
-    pub limit: Option<u64>,
+    pub limit: Limit,
     pub cc: clauses::ConjoiningClauses,
 }
 
 impl AlgebraicQuery {
-    /**
-     * Apply a new limit to this query, if one is provided and any existing limit is larger.
-     */
-    pub fn apply_limit(&mut self, limit: Option<u64>) {
-        match self.limit {
-            None => self.limit = limit,
-            Some(existing) =>
-                match limit {
-                    None => (),
-                    Some(new) =>
-                        if new < existing {
-                            self.limit = limit;
-                        },
-                },
-        };
-    }
-
     #[inline]
     pub fn is_known_empty(&self) -> bool {
         self.cc.is_known_empty()
@@ -131,12 +117,56 @@ fn validate_and_simplify_order(cc: &ConjoiningClauses, order: Option<Vec<Order>>
     }
 }
 
+
+fn simplify_limit(mut query: AlgebraicQuery) -> Result<AlgebraicQuery> {
+    // Unpack any limit variables in place.
+    let refined_limit =
+        match query.limit {
+            Limit::Variable(ref v) => {
+                match query.cc.bound_value(v) {
+                    Some(TypedValue::Long(n)) => {
+                        if n <= 0 {
+                            // User-specified limits should always be natural numbers (> 0).
+                            bail!(ErrorKind::InvalidLimit(n.to_string(), ValueType::Long));
+                        } else {
+                            Some(Limit::Fixed(n as u64))
+                        }
+                    },
+                    Some(val) => {
+                        // Same.
+                        bail!(ErrorKind::InvalidLimit(format!("{:?}", val), val.value_type()));
+                    },
+                    None => {
+                        // We know that the limit variable is mentioned in `:in`.
+                        // That it's not bound here implies that we haven't got all the variables
+                        // we'll need to run the query yet.
+                        // (We should never hit this in `q_once`.)
+                        // Simply pass the `Limit` through to `SelectQuery` untouched.
+                        None
+                    },
+                }
+            },
+            Limit::None => None,
+            Limit::Fixed(_) => None,
+        };
+
+    if let Some(lim) = refined_limit {
+        query.limit = lim;
+    }
+    Ok(query)
+}
+
 pub fn algebrize_with_inputs(schema: &Schema,
                              parsed: FindQuery,
                              counter: usize,
                              inputs: QueryInputs) -> Result<AlgebraicQuery> {
     let alias_counter = RcCounter::with_initial(counter);
     let mut cc = ConjoiningClauses::with_inputs_and_alias_counter(parsed.in_vars, inputs, alias_counter);
+
+    // Do we have a variable limit? If so, tell the CC that the var must be numeric.
+    if let &Limit::Variable(ref var) = &parsed.limit {
+        cc.constrain_var_to_long(var.clone());
+    }
 
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
@@ -149,8 +179,10 @@ pub fn algebrize_with_inputs(schema: &Schema,
 
     let (order, extra_vars) = validate_and_simplify_order(&cc, parsed.order)?;
     let with: BTreeSet<Variable> = parsed.with.into_iter().chain(extra_vars.into_iter()).collect();
-    let limit = if parsed.find_spec.is_unit_limited() { Some(1) } else { None };
-    Ok(AlgebraicQuery {
+
+    // This might leave us with an unused `:in` variable.
+    let limit = if parsed.find_spec.is_unit_limited() { Limit::Fixed(1) } else { parsed.limit };
+    let q = AlgebraicQuery {
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
         has_aggregates: false,           // TODO: we don't parse them yet.
@@ -158,7 +190,10 @@ pub fn algebrize_with_inputs(schema: &Schema,
         order: order,
         limit: limit,
         cc: cc,
-    })
+    };
+
+    // Substitute in any fixed values and fail if they're out of range.
+    simplify_limit(q)
 }
 
 pub use clauses::{

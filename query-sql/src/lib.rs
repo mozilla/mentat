@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate regex;
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
@@ -20,6 +21,8 @@ use mentat_core::{
 
 use mentat_query::{
     Direction,
+    Limit,
+    Variable,
 };
 
 use mentat_query_algebrizer::{
@@ -158,7 +161,7 @@ pub struct SelectQuery {
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
     pub order: Vec<OrderBy>,
-    pub limit: Option<u64>,
+    pub limit: Limit,
 }
 
 fn push_variable_column(qb: &mut QueryBuilder, vc: &VariableColumn) -> BuildQueryResult {
@@ -401,6 +404,19 @@ impl QueryFragment for FromClause {
     }
 }
 
+impl SelectQuery {
+    fn push_variable_param(&self, var: &Variable, out: &mut QueryBuilder) -> BuildQueryResult {
+        // `var` is something like `?foo99-people`.
+        // Trim the `?` and escape the rest. Prepend `i` to distinguish from
+        // the inline value space `v`.
+        let re = regex::Regex::new("[^a-zA-Z_0-9]").unwrap();
+        let without_question = var.as_str().split_at(1).1;
+        let replaced = re.replace_all(without_question, "_");
+        let bind_param = format!("i{}", replaced);                 // We _could_ avoid this copying.
+        out.push_bind_param(bind_param.as_str())
+    }
+}
+
 impl QueryFragment for SelectQuery {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         if self.distinct {
@@ -430,10 +446,18 @@ impl QueryFragment for SelectQuery {
                        { out.push_sql(", ") });
         }
 
-        // Guaranteed to be positive: u64.
-        if let Some(limit) = self.limit {
-            out.push_sql(" LIMIT ");
-            out.push_sql(limit.to_string().as_str());
+        match &self.limit {
+            &Limit::None => (),
+            &Limit::Fixed(limit) => {
+                // Guaranteed to be non-negative: u64.
+                out.push_sql(" LIMIT ");
+                out.push_sql(limit.to_string().as_str());
+            },
+            &Limit::Variable(ref var) => {
+                // Guess this wasn't bound yet. Produce an argument.
+                out.push_sql(" LIMIT ");
+                self.push_variable_param(var, out)?;
+            },
         }
 
         Ok(())
@@ -554,7 +578,7 @@ mod tests {
                 },
             ],
             order: vec![],
-            limit: None,
+            limit: Limit::None,
         };
 
         let SQLQuery { sql, args } = query.to_sql_query().unwrap();

@@ -154,7 +154,7 @@ impl QueryBuilder for SQLiteQueryBuilder {
     fn push_bind_param(&mut self, name: &str) -> BuildQueryResult {
         // Do some validation first.
         // This is not free, but it's probably worth it for now.
-        if !name.chars().all(char::is_alphanumeric) {
+        if !name.chars().all(|c| char::is_alphanumeric(c) || c == '_') {
             bail!(ErrorKind::InvalidParameterName(name.to_string()));
         }
 

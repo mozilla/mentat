@@ -41,7 +41,7 @@ fn test_rel() {
     // Rel.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find ?x ?ident :where [?x :db/ident ?ident]]", None, None)
+                         "[:find ?x ?ident :where [?x :db/ident ?ident]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -71,7 +71,7 @@ fn test_failing_scalar() {
     // Scalar that fails.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find ?x . :where [?x :db/fulltext true]]", None, None)
+                         "[:find ?x . :where [?x :db/fulltext true]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -93,7 +93,7 @@ fn test_scalar() {
     // Scalar that succeeds.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find ?ident . :where [24 :db/ident ?ident]]", None, None)
+                         "[:find ?ident . :where [24 :db/ident ?ident]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -123,7 +123,7 @@ fn test_tuple() {
                          "[:find [?index ?cardinality]
                            :where [:db/txInstant :db/index ?index]
                                   [:db/txInstant :db/cardinality ?cardinality]]",
-                         None, None)
+                         None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -150,7 +150,7 @@ fn test_coll() {
     // Coll.
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
-                         "[:find [?e ...] :where [?e :db/ident _]]", None, None)
+                         "[:find [?e ...] :where [?e :db/ident _]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
@@ -175,7 +175,7 @@ fn test_inputs() {
     let ee = (Variable::from_valid_name("?e"), TypedValue::Ref(5));
     let inputs = QueryInputs::with_value_sequence(vec![ee]);
     let results = q_once(&c, &db.schema,
-                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs, None)
+                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs)
                         .expect("query to succeed");
 
     if let QueryResults::Scalar(Some(TypedValue::Keyword(value))) = results {
@@ -195,7 +195,7 @@ fn test_unbound_inputs() {
     let xx = (Variable::from_valid_name("?x"), TypedValue::Ref(5));
     let inputs = QueryInputs::with_value_sequence(vec![xx]);
     let results = q_once(&c, &db.schema,
-                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs, None);
+                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs);
 
     match results {
         Result::Err(Error(ErrorKind::UnboundVariables(vars), _)) => {

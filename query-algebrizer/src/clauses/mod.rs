@@ -441,6 +441,11 @@ impl ConjoiningClauses {
             QueryValue::PrimitiveLong(value)))
     }
 
+    /// Mark the given value as a long.
+    pub fn constrain_var_to_long(&mut self, variable: Variable) {
+        self.narrow_types_for_var(variable, unit_type_set(ValueType::Long));
+    }
+
     /// Mark the given value as one of the set of numeric types.
     fn constrain_var_to_numeric(&mut self, variable: Variable) {
         let mut numeric_types = HashSet::with_capacity(2);
