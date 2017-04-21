@@ -9,7 +9,10 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::btree_map::Entry;
-use std::collections::BTreeSet;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
 
 use mentat_core::{
     Schema,
@@ -41,6 +44,7 @@ use types::{
     EmptyBecause,
     QualifiedAlias,
     SourceAlias,
+    ValueTypeSet,
     VariableColumn,
 };
 

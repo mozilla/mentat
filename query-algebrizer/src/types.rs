@@ -414,7 +414,7 @@ impl Debug for ColumnConstraint {
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
     // Var, existing, desired.
-    TypeMismatch(Variable, HashSet<ValueType>, ValueType),
+    TypeMismatch(Variable, ValueTypeSet, ValueType),
     NoValidTypes(Variable),
     NonNumericArgument,
     NonStringFulltextValue,

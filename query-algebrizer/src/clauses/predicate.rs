@@ -87,7 +87,6 @@ impl ConjoiningClauses {
 mod testing {
     use super::*;
 
-    use std::collections::HashSet;
     use mentat_core::attribute::Unique;
     use mentat_core::{
         Attribute,
@@ -115,6 +114,7 @@ mod testing {
         ColumnConstraint,
         EmptyBecause,
         QueryValue,
+        ValueTypeSet,
     };
 
     #[test]
@@ -159,7 +159,7 @@ mod testing {
         // After processing those two clauses, we know that ?y must be numeric, but not exactly
         // which type it must be.
         assert_eq!(None, cc.known_type(&y));      // Not just one.
-        let expected: HashSet<ValueType> = vec![ValueType::Double, ValueType::Long].into_iter().collect();
+        let expected = ValueTypeSet::of_numeric_types();
         assert_eq!(Some(&expected), cc.known_types.get(&y));
 
         let clauses = cc.wheres;
@@ -225,8 +225,7 @@ mod testing {
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(y.clone(),
-                                              vec![ValueType::Double, ValueType::Long].into_iter()
-                                                                                      .collect(),
+                                              ValueTypeSet::of_numeric_types(),
                                               ValueType::String));
     }
 }
