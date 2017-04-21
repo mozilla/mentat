@@ -66,3 +66,14 @@
     (is (= #{:b :c} (util/repeated-keys [bcd abc])))
     (is (= #{:b :c :d} (util/repeated-keys [abc def bcd])))
     (is (= #{:b :c :d :e :f :g} (util/repeated-keys [abc efg def efg bcd])))))
+
+#?(:clj 
+(deftest test-uuid-validation
+  (is (not (util/uuidish? "123e4567-e89b-12d3-a456-426655440000")))
+  (is (util/uuidish? (java.util.UUID/fromString "123e4567-e89b-12d3-a456-426655440000")))))
+
+#?(:cljs
+(deftest test-uuid-validation
+  ;; Case-insensitive.
+  (is (util/uuidish? "123e4567-e89b-12d3-a456-426655440000"))
+  (is (util/uuidish? "123E4567-e89b-12d3-a456-426655440000"))))
