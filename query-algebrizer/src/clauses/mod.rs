@@ -325,7 +325,7 @@ impl ConjoiningClauses {
     /// or integer" isn't good enough.
     pub fn known_type(&self, var: &Variable) -> Option<ValueType> {
         match self.known_types.get(var) {
-            Some(&ValueTypeSet::One(t)) => Some(t),
+            Some(set) if set.is_unit() => set.exemplar(),
             _ => None,
         }
     }
@@ -481,12 +481,13 @@ impl ConjoiningClauses {
                     let new;
                     // Scoped borrow of `e`.
                     {
-                        let existing = e.get();
-                        if existing.is_none() && self.empty_because.is_some() {
+                        let existing_types = e.get();
+                        if existing_types.is_empty() &&  // The set is empty: no types are possible.
+                           self.empty_because.is_some() {
                             panic!("Uh oh: we failed this pattern, probably because {:?} couldn't match, but now we're broadening its type.",
-                                   existing);
+                                   e.key());
                         }
-                        new = existing.union(&new_types);
+                        new = existing_types.union(&new_types);
                     }
                     e.insert(new);
                 },
@@ -499,7 +500,7 @@ impl ConjoiningClauses {
     /// simply setting the known types to `types`.
     /// If the known types don't intersect with `types`, mark the pattern as known-empty.
     fn narrow_types_for_var(&mut self, var: Variable, types: ValueTypeSet) {
-        if types.is_none() {
+        if types.is_empty() {
             // We hope this never occurs; we should catch this case earlier.
             self.mark_known_empty(EmptyBecause::NoValidTypes(var));
             return;
@@ -513,7 +514,7 @@ impl ConjoiningClauses {
             },
             Entry::Occupied(mut e) => {
                 let intersected: ValueTypeSet = types.intersection(e.get());
-                if intersected.is_none() {
+                if intersected.is_empty() {
                     let mismatching_type = types.exemplar().expect("types isn't none");
                     let reason = EmptyBecause::TypeMismatch(e.key().clone(),
                                                             e.get().clone(),

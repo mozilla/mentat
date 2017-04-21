@@ -709,7 +709,7 @@ fn union_types(into: &mut BTreeMap<Variable, ValueTypeSet>,
         let i: BTreeSet<&Variable> = into.keys().collect();
         let a: BTreeSet<&Variable> = additional_types.keys().collect();
         any = i.symmetric_difference(&a)
-               .map(|v| ((*v).clone(), ValueTypeSet::Any))
+               .map(|v| ((*v).clone(), ValueTypeSet::any()))
                .collect();
     }
 

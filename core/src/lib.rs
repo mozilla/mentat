@@ -21,6 +21,9 @@ pub mod values;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
+
+use enum_set::EnumSet;
+
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
 
@@ -46,6 +49,22 @@ pub enum ValueType {
     String,
     Keyword,
 }
+
+impl ValueType {
+    pub fn all_enums() -> EnumSet<ValueType> {
+        // TODO: lazy_static.
+        let mut s = EnumSet::new();
+        s.insert(ValueType::Ref);
+        s.insert(ValueType::Boolean);
+        s.insert(ValueType::Instant);
+        s.insert(ValueType::Long);
+        s.insert(ValueType::Double);
+        s.insert(ValueType::String);
+        s.insert(ValueType::Keyword);
+        s
+    }
+}
+
 
 impl enum_set::CLike for ValueType {
     fn to_u32(&self) -> u32 {
