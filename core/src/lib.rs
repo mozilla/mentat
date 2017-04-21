@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate enum_set;
+
 #[macro_use]
 extern crate lazy_static;
 extern crate ordered_float;
@@ -33,7 +35,8 @@ pub type Entid = i64;
 
 /// The attribute of each Mentat assertion has a :db/valueType constraining the value to a
 /// particular set.  Mentat recognizes the following :db/valueType values.
-#[derive(Clone,Copy,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+#[repr(u32)]
 pub enum ValueType {
     Ref,
     Boolean,
@@ -42,6 +45,16 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+}
+
+impl enum_set::CLike for ValueType {
+    fn to_u32(&self) -> u32 {
+        *self as u32
+    }
+
+    unsafe fn from_u32(v: u32) -> ValueType {
+        std::mem::transmute(v)
+    }
 }
 
 impl ValueType {

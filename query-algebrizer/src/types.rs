@@ -9,12 +9,15 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::BTreeSet;
-use std::collections::HashSet;
-
 use std::fmt::{
     Debug,
     Formatter,
     Result,
+};
+
+use enum_set::{
+    CLike,
+    EnumSet,
 };
 
 use mentat_core::{
@@ -459,6 +462,142 @@ impl Debug for EmptyBecause {
             &AttributeLookupFailed => {
                 write!(f, "Attribute lookup failed")
             },
+        }
+    }
+}
+
+/// A set of `ValueType`s.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ValueTypeSet {
+    None,
+    Any,
+    One(ValueType),
+    Many(EnumSet<ValueType>),
+}
+
+impl Default for ValueTypeSet {
+    fn default() -> ValueTypeSet {
+        ValueTypeSet::Any
+    }
+}
+
+impl ValueTypeSet {
+    /// Return a set containing only `t`.
+    pub fn unit(t: ValueType) -> ValueTypeSet {
+        ValueTypeSet::One(t)
+    }
+
+    /// Return a set containing `Double` and `Long`.
+    pub fn of_numeric_types() -> ValueTypeSet {
+        let mut numeric_types = EnumSet::<ValueType>::new();
+        numeric_types.insert(ValueType::Double);
+        numeric_types.insert(ValueType::Long);
+        ValueTypeSet::Many(numeric_types)
+    }
+}
+
+trait EnumSetExtensions<T: CLike + Clone> {
+    /// Return a set containing both `x` and `y`.
+    fn both(x: T, y: T) -> EnumSet<T>;
+
+    /// Return a clone of `self` with `y` added.
+    fn with(&self, y: T) -> EnumSet<T>;
+}
+
+impl<T: CLike + Clone> EnumSetExtensions<T> for EnumSet<T> {
+    /// Return a set containing both `x` and `y`.
+    fn both(x: T, y: T) -> Self {
+        let mut o = EnumSet::new();
+        o.insert(x);
+        o.insert(y);
+        o
+    }
+
+    /// Return a clone of `self` with `y` added.
+    fn with(&self, y: T) -> EnumSet<T> {
+        let mut o = self.clone();
+        o.insert(y);
+        o
+    }
+}
+
+impl ValueTypeSet {
+    /// Returns a set containing all the types in this set and `other`.
+    pub fn union(&self, other: &ValueTypeSet) -> ValueTypeSet {
+        match self {
+            &ValueTypeSet::None => other.clone(),
+            &ValueTypeSet::Any => ValueTypeSet::Any,
+            &ValueTypeSet::One(t) if other.contains(t) => other.clone(),
+            &ValueTypeSet::One(t) => {
+                match other {
+                    &ValueTypeSet::None => self.clone(),
+                    &ValueTypeSet::Any => ValueTypeSet::Any,
+                    &ValueTypeSet::One(o) if t == o => self.clone(),
+                    &ValueTypeSet::One(o) => ValueTypeSet::Many(EnumSet::both(o, t)),
+                    &ValueTypeSet::Many(os) => ValueTypeSet::Many(os.with(t)),
+                }
+            },
+            &ValueTypeSet::Many(ts) => {
+                match other {
+                    &ValueTypeSet::None => self.clone(),
+                    &ValueTypeSet::Any => ValueTypeSet::Any,
+                    &ValueTypeSet::One(o) if ts.contains(&o) => self.clone(),
+                    &ValueTypeSet::One(o) => ValueTypeSet::Many(ts.with(o)),
+                    &ValueTypeSet::Many(os) => ValueTypeSet::Many(os.union(ts)),
+                }
+            },
+        }
+    }
+
+    pub fn intersection(&self, other: &ValueTypeSet) -> ValueTypeSet {
+        match (self, other) {
+            (&ValueTypeSet::None, _) => ValueTypeSet::None,
+            (_, &ValueTypeSet::None) => ValueTypeSet::None,
+            (s, &ValueTypeSet::Any) => s.clone(),
+            (&ValueTypeSet::Any, s) => s.clone(),
+            (&ValueTypeSet::One(t), s) => if s.contains(t) { ValueTypeSet::One(t) } else { ValueTypeSet::None },
+            (s, &ValueTypeSet::One(t)) => if s.contains(t) { ValueTypeSet::One(t) } else { ValueTypeSet::None },
+            (&ValueTypeSet::Many(ref left), &ValueTypeSet::Many(ref right)) => {
+                let result: EnumSet<ValueType> = left.intersection(right.clone());
+                match result.len() {
+                    0 => ValueTypeSet::None,
+                    1 => ValueTypeSet::One(result.into_iter().next().unwrap()),
+                    _ => ValueTypeSet::Many(result),
+                }
+            },
+        }
+    }
+
+    /// Return an arbitrary type that's part of this set.
+    pub fn exemplar(&self) -> Option<ValueType> {
+        match self {
+            &ValueTypeSet::None => None,
+            &ValueTypeSet::Any => Some(ValueType::Ref),
+            &ValueTypeSet::One(t) => Some(t),
+            &ValueTypeSet::Many(ref s) => s.iter().next(),
+        }
+    }
+
+    pub fn contains(&self, vt: ValueType) -> bool {
+        match self {
+            &ValueTypeSet::None => false,
+            &ValueTypeSet::Any => true,
+            &ValueTypeSet::One(t) => t == vt,
+            &ValueTypeSet::Many(ref s) => s.contains(&vt),
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        match self {
+            &ValueTypeSet::None => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unit(&self) -> bool {
+        match self {
+            &ValueTypeSet::One(_) => true,
+            _ => false,
         }
     }
 }
