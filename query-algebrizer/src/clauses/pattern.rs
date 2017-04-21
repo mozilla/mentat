@@ -801,7 +801,7 @@ mod testing {
 
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
-                   EmptyBecause::TypeMismatch(y.clone(), ValueTypeSet::unit(ValueType::String), ValueType::Boolean));
+                   EmptyBecause::TypeMismatch(y.clone(), ValueTypeSet::of_one(ValueType::String), ValueType::Boolean));
     }
 
     #[test]
@@ -839,7 +839,7 @@ mod testing {
 
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
-                   EmptyBecause::TypeMismatch(x.clone(), ValueTypeSet::unit(ValueType::Ref), ValueType::Boolean));
+                   EmptyBecause::TypeMismatch(x.clone(), ValueTypeSet::of_one(ValueType::Ref), ValueType::Boolean));
     }
 
     #[test]
@@ -854,8 +854,8 @@ mod testing {
         let e = Variable::from_valid_name("?e");
         let v = Variable::from_valid_name("?v");
         let cc = alg(&schema, query);
-        assert_eq!(cc.known_types.get(&e), Some(&ValueTypeSet::unit(ValueType::Ref)));
-        assert_eq!(cc.known_types.get(&v), Some(&ValueTypeSet::unit(ValueType::Boolean)));
+        assert_eq!(cc.known_types.get(&e), Some(&ValueTypeSet::of_one(ValueType::Ref)));
+        assert_eq!(cc.known_types.get(&v), Some(&ValueTypeSet::of_one(ValueType::Boolean)));
         assert!(!cc.extracted_types.contains_key(&e));
         assert!(!cc.extracted_types.contains_key(&v));
     }

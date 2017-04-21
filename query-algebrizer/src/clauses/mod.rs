@@ -273,7 +273,7 @@ impl ConjoiningClauses {
                 // Pre-fill our type mappings with the types of the input bindings.
                 cc.known_types
                   .extend(types.iter()
-                               .map(|(k, v)| (k.clone(), ValueTypeSet::unit(*v))));
+                               .map(|(k, v)| (k.clone(), ValueTypeSet::of_one(*v))));
                 cc
             },
         }
@@ -438,7 +438,7 @@ impl ConjoiningClauses {
 
     /// Mark the given value as a long.
     pub fn constrain_var_to_long(&mut self, variable: Variable) {
-        self.narrow_types_for_var(variable, ValueTypeSet::unit(ValueType::Long));
+        self.narrow_types_for_var(variable, ValueTypeSet::of_one(ValueType::Long));
     }
 
     /// Mark the given value as one of the set of numeric types.
@@ -453,7 +453,7 @@ impl ConjoiningClauses {
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
-        if let Some(existing) = self.known_types.insert(variable.clone(), ValueTypeSet::unit(this_type)) {
+        if let Some(existing) = self.known_types.insert(variable.clone(), ValueTypeSet::of_one(this_type)) {
             // There was an existing mapping. Does this type match?
             if !existing.contains(this_type) {
                 self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type));

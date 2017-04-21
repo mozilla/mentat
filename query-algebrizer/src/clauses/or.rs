@@ -664,7 +664,7 @@ impl ConjoiningClauses {
         {
             let mut clauses = acc.iter();
             let mut additional_types = clauses.next()
-                                              .expect("there's at least one clause")
+                                              .expect("there to be at least one clause")
                                               .known_types
                                               .clone();
             for cc in clauses {
@@ -720,10 +720,7 @@ fn union_types(into: &mut BTreeMap<Variable, ValueTypeSet>,
                 e.insert(new_types.clone());
             },
             Entry::Occupied(mut e) => {
-                let new;
-                {
-                    new = e.get().union(&new_types);
-                }
+                let new = e.get().union(&new_types);
                 e.insert(new);
             },
         }

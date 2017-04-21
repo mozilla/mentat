@@ -475,11 +475,6 @@ fn test_complex_nested_or_join_type_projection() {
         value_type: ValueType::String,
         ..Default::default()
     });
-    associate_ident(&mut schema, NamespacedKeyword::new("page", "title2"), 97);
-    add_attribute(&mut schema, 97, Attribute {
-        value_type: ValueType::String,
-        ..Default::default()
-    });
 
     let input = r#"[:find [?y]
                     :where

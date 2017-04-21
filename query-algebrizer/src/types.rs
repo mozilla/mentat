@@ -483,7 +483,7 @@ impl Default for ValueTypeSet {
 
 impl ValueTypeSet {
     /// Return a set containing only `t`.
-    pub fn unit(t: ValueType) -> ValueTypeSet {
+    pub fn of_one(t: ValueType) -> ValueTypeSet {
         ValueTypeSet::One(t)
     }
 
@@ -498,7 +498,7 @@ impl ValueTypeSet {
 
 trait EnumSetExtensions<T: CLike + Clone> {
     /// Return a set containing both `x` and `y`.
-    fn both(x: T, y: T) -> EnumSet<T>;
+    fn of_both(x: T, y: T) -> EnumSet<T>;
 
     /// Return a clone of `self` with `y` added.
     fn with(&self, y: T) -> EnumSet<T>;
@@ -506,7 +506,7 @@ trait EnumSetExtensions<T: CLike + Clone> {
 
 impl<T: CLike + Clone> EnumSetExtensions<T> for EnumSet<T> {
     /// Return a set containing both `x` and `y`.
-    fn both(x: T, y: T) -> Self {
+    fn of_both(x: T, y: T) -> Self {
         let mut o = EnumSet::new();
         o.insert(x);
         o.insert(y);
@@ -533,7 +533,7 @@ impl ValueTypeSet {
                     &ValueTypeSet::None => self.clone(),
                     &ValueTypeSet::Any => ValueTypeSet::Any,
                     &ValueTypeSet::One(o) if t == o => self.clone(),
-                    &ValueTypeSet::One(o) => ValueTypeSet::Many(EnumSet::both(o, t)),
+                    &ValueTypeSet::One(o) => ValueTypeSet::Many(EnumSet::of_both(o, t)),
                     &ValueTypeSet::Many(os) => ValueTypeSet::Many(os.with(t)),
                 }
             },
