@@ -13,7 +13,6 @@ use std::cmp;
 use std::collections::{
     BTreeMap,
     BTreeSet,
-    HashSet,
 };
 
 use std::collections::btree_map::Entry;
@@ -59,6 +58,7 @@ use types::{
     QueryValue,
     SourceAlias,
     TableAlias,
+    ValueTypeSet,
 };
 
 mod inputs;
@@ -80,12 +80,6 @@ impl<T: Clone> RcCloned<T> for ::std::rc::Rc<T> {
     fn cloned(&self) -> T {
         self.as_ref().clone()
     }
-}
-
-fn unit_type_set(t: ValueType) -> HashSet<ValueType> {
-    let mut s = HashSet::with_capacity(1);
-    s.insert(t);
-    s
 }
 
 trait Contains<K, T> {
@@ -201,10 +195,11 @@ pub struct ConjoiningClauses {
     /// A map from var to type. Whenever a var maps unambiguously to two different types, it cannot
     /// yield results, so we don't represent that case here. If a var isn't present in the map, it
     /// means that its type is not known in advance.
-    pub known_types: BTreeMap<Variable, HashSet<ValueType>>,
+    /// Usually that state should be represented by `ValueTypeSet::Any`.
+    pub known_types: BTreeMap<Variable, ValueTypeSet>,
 
     /// A mapping, similar to `column_bindings`, but used to pull type tags out of the store at runtime.
-    /// If a var isn't present in `known_types`, it should be present here.
+    /// If a var isn't unit in `known_types`, it should be present here.
     pub extracted_types: BTreeMap<Variable, QualifiedAlias>,
 }
 
@@ -278,7 +273,7 @@ impl ConjoiningClauses {
                 // Pre-fill our type mappings with the types of the input bindings.
                 cc.known_types
                   .extend(types.iter()
-                               .map(|(k, v)| (k.clone(), unit_type_set(*v))));
+                               .map(|(k, v)| (k.clone(), ValueTypeSet::of_one(*v))));
                 cc
             },
         }
@@ -330,7 +325,7 @@ impl ConjoiningClauses {
     /// or integer" isn't good enough.
     pub fn known_type(&self, var: &Variable) -> Option<ValueType> {
         match self.known_types.get(var) {
-            Some(types) if types.len() == 1 => types.iter().next().cloned(),
+            Some(set) if set.is_unit() => set.exemplar(),
             _ => None,
         }
     }
@@ -443,16 +438,12 @@ impl ConjoiningClauses {
 
     /// Mark the given value as a long.
     pub fn constrain_var_to_long(&mut self, variable: Variable) {
-        self.narrow_types_for_var(variable, unit_type_set(ValueType::Long));
+        self.narrow_types_for_var(variable, ValueTypeSet::of_one(ValueType::Long));
     }
 
     /// Mark the given value as one of the set of numeric types.
     fn constrain_var_to_numeric(&mut self, variable: Variable) {
-        let mut numeric_types = HashSet::with_capacity(2);
-        numeric_types.insert(ValueType::Double);
-        numeric_types.insert(ValueType::Long);
-
-        self.narrow_types_for_var(variable, numeric_types);
+        self.narrow_types_for_var(variable, ValueTypeSet::of_numeric_types());
     }
 
     /// Constrains the var if there's no existing type.
@@ -462,9 +453,9 @@ impl ConjoiningClauses {
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
-        if let Some(existing) = self.known_types.insert(variable.clone(), unit_type_set(this_type)) {
+        if let Some(existing) = self.known_types.insert(variable.clone(), ValueTypeSet::of_one(this_type)) {
             // There was an existing mapping. Does this type match?
-            if !existing.contains(&this_type) {
+            if !existing.contains(this_type) {
                 self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type));
             }
         }
@@ -477,21 +468,28 @@ impl ConjoiningClauses {
     /// actually move from a state in which a variable can have no type to one that can
     /// yield results! We never do so at present -- we carefully set-union types before we
     /// set-intersect them -- but this is worth bearing in mind.
-    pub fn broaden_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
+    pub fn broaden_types(&mut self, additional_types: BTreeMap<Variable, ValueTypeSet>) {
         for (var, new_types) in additional_types {
             match self.known_types.entry(var) {
                 Entry::Vacant(e) => {
-                    if new_types.len() == 1 {
+                    if new_types.is_unit() {
                         self.extracted_types.remove(e.key());
                     }
                     e.insert(new_types);
                 },
                 Entry::Occupied(mut e) => {
-                    if e.get().is_empty() && self.empty_because.is_some() {
-                        panic!("Uh oh: we failed this pattern, probably because {:?} couldn't match, but now we're broadening its type.",
-                               e.get());
+                    let new;
+                    // Scoped borrow of `e`.
+                    {
+                        let existing_types = e.get();
+                        if existing_types.is_empty() &&  // The set is empty: no types are possible.
+                           self.empty_because.is_some() {
+                            panic!("Uh oh: we failed this pattern, probably because {:?} couldn't match, but now we're broadening its type.",
+                                   e.key());
+                        }
+                        new = existing_types.union(&new_types);
                     }
-                    e.get_mut().extend(new_types.into_iter());
+                    e.insert(new);
                 },
             }
         }
@@ -501,7 +499,7 @@ impl ConjoiningClauses {
     /// If no types are already known -- `var` could have any type -- then this is equivalent to
     /// simply setting the known types to `types`.
     /// If the known types don't intersect with `types`, mark the pattern as known-empty.
-    fn narrow_types_for_var(&mut self, var: Variable, types: HashSet<ValueType>) {
+    fn narrow_types_for_var(&mut self, var: Variable, types: ValueTypeSet) {
         if types.is_empty() {
             // We hope this never occurs; we should catch this case earlier.
             self.mark_known_empty(EmptyBecause::NoValidTypes(var));
@@ -515,10 +513,9 @@ impl ConjoiningClauses {
                 e.insert(types);
             },
             Entry::Occupied(mut e) => {
-                // TODO: we shouldn't need to clone here.
-                let intersected: HashSet<_> = types.intersection(e.get()).cloned().collect();
+                let intersected: ValueTypeSet = types.intersection(e.get());
                 if intersected.is_empty() {
-                    let mismatching_type = types.iter().next().unwrap().clone();
+                    let mismatching_type = types.exemplar().expect("types isn't none");
                     let reason = EmptyBecause::TypeMismatch(e.key().clone(),
                                                             e.get().clone(),
                                                             mismatching_type);
@@ -536,7 +533,7 @@ impl ConjoiningClauses {
 
     /// Restrict the sets of types for the provided vars to the provided types.
     /// See `narrow_types_for_var`.
-    pub fn narrow_types(&mut self, additional_types: BTreeMap<Variable, HashSet<ValueType>>) {
+    pub fn narrow_types(&mut self, additional_types: BTreeMap<Variable, ValueTypeSet>) {
         if additional_types.is_empty() {
             return;
         }
@@ -623,7 +620,7 @@ impl ConjoiningClauses {
                 &PatternValuePlace::Variable(ref v) => {
                     // Do we know that this variable can't be a string? If so, we don't need
                     // AllDatoms. None or String means it could be or definitely is.
-                    match self.known_types.get(v).map(|types| types.contains(&ValueType::String)) {
+                    match self.known_types.get(v).map(|types| types.contains(ValueType::String)) {
                         Some(false) => DatomsTable::Datoms,
                         _           => DatomsTable::AllDatoms,
                     }
@@ -769,7 +766,7 @@ impl ConjoiningClauses {
             return;
         }
         for (var, types) in self.known_types.iter() {
-            if types.len() == 1 {
+            if types.is_unit() {
                 self.extracted_types.remove(var);
             }
         }

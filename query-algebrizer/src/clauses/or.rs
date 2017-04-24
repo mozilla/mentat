@@ -9,7 +9,10 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::btree_map::Entry;
-use std::collections::BTreeSet;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
 
 use mentat_core::{
     Schema,
@@ -41,6 +44,7 @@ use types::{
     EmptyBecause,
     QualifiedAlias,
     SourceAlias,
+    ValueTypeSet,
     VariableColumn,
 };
 
@@ -654,6 +658,21 @@ impl ConjoiningClauses {
             type_associations = type_needed.iter().cloned().collect();
         }
 
+        // Collect the new type information from the arms. There's some redundant work here --
+        // they already have all of the information from the parent.
+        // Note that we start with the first clause's type information.
+        {
+            let mut clauses = acc.iter();
+            let mut additional_types = clauses.next()
+                                              .expect("there to be at least one clause")
+                                              .known_types
+                                              .clone();
+            for cc in clauses {
+                union_types(&mut additional_types, &cc.known_types);
+            }
+            self.broaden_types(additional_types);
+        }
+
         let union = ComputedTable::Union {
             projection: projection,
             type_extraction: type_needed,
@@ -672,6 +691,43 @@ impl ConjoiningClauses {
         self.from.push(SourceAlias(table, alias));
         Ok(())
     }
+}
+
+/// Helper to fold together a set of type maps.
+fn union_types(into: &mut BTreeMap<Variable, ValueTypeSet>,
+               additional_types: &BTreeMap<Variable, ValueTypeSet>) {
+    // We want the exclusive disjunction -- any variable not mentioned in both sets -- to default
+    // to ValueTypeSet::Any.
+    // This is necessary because we lazily populate known_types, so sometimes the type set will
+    // be missing a `ValueTypeSet::Any` for a variable, and we want to broaden rather than
+    // accidentally taking the other side's word for it!
+    // The alternative would be to exhaustively pre-fill `known_types` with all mentioned variables
+    // in the whole query, which is daunting.
+    let mut any: BTreeMap<Variable, ValueTypeSet>;
+    // Scoped borrow of `into`.
+    {
+        let i: BTreeSet<&Variable> = into.keys().collect();
+        let a: BTreeSet<&Variable> = additional_types.keys().collect();
+        any = i.symmetric_difference(&a)
+               .map(|v| ((*v).clone(), ValueTypeSet::any()))
+               .collect();
+    }
+
+    // Collect the additional types.
+    for (var, new_types) in additional_types {
+        match into.entry(var.clone()) {
+            Entry::Vacant(e) => {
+                e.insert(new_types.clone());
+            },
+            Entry::Occupied(mut e) => {
+                let new = e.get().union(&new_types);
+                e.insert(new);
+            },
+        }
+    }
+
+    // Blat in those that are disjoint.
+    into.append(&mut any);
 }
 
 #[cfg(test)]

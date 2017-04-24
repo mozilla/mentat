@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate enum_set;
+
 #[macro_use]
 extern crate lazy_static;
 extern crate ordered_float;
@@ -19,6 +21,9 @@ pub mod values;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
+
+use enum_set::EnumSet;
+
 use self::ordered_float::OrderedFloat;
 use self::edn::NamespacedKeyword;
 
@@ -33,7 +38,8 @@ pub type Entid = i64;
 
 /// The attribute of each Mentat assertion has a :db/valueType constraining the value to a
 /// particular set.  Mentat recognizes the following :db/valueType values.
-#[derive(Clone,Copy,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+#[repr(u32)]
 pub enum ValueType {
     Ref,
     Boolean,
@@ -42,6 +48,32 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+}
+
+impl ValueType {
+    pub fn all_enums() -> EnumSet<ValueType> {
+        // TODO: lazy_static.
+        let mut s = EnumSet::new();
+        s.insert(ValueType::Ref);
+        s.insert(ValueType::Boolean);
+        s.insert(ValueType::Instant);
+        s.insert(ValueType::Long);
+        s.insert(ValueType::Double);
+        s.insert(ValueType::String);
+        s.insert(ValueType::Keyword);
+        s
+    }
+}
+
+
+impl enum_set::CLike for ValueType {
+    fn to_u32(&self) -> u32 {
+        *self as u32
+    }
+
+    unsafe fn from_u32(v: u32) -> ValueType {
+        std::mem::transmute(v)
+    }
 }
 
 impl ValueType {

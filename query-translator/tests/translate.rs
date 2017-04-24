@@ -466,3 +466,34 @@ fn test_order_by() {
                      ORDER BY `?y_value_type_tag` ASC, `?y` ASC, `?x` ASC");
     assert_eq!(args, vec![]);
 }
+
+#[test]
+fn test_complex_nested_or_join_type_projection() {
+    let mut schema = Schema::default();
+    associate_ident(&mut schema, NamespacedKeyword::new("page", "title"), 98);
+    add_attribute(&mut schema, 98, Attribute {
+        value_type: ValueType::String,
+        ..Default::default()
+    });
+
+    let input = r#"[:find [?y]
+                    :where
+                    (or
+                      (or
+                        [_ :page/title ?y])
+                      (or
+                        [_ :page/title ?y]))]"#;
+
+    let SQLQuery { sql, args } = translate(&schema, input);
+    assert_eq!(sql, "SELECT `c00`.`?y` AS `?y` \
+                     FROM (SELECT `datoms00`.v AS `?y` \
+                           FROM `datoms` AS `datoms00` \
+                           WHERE `datoms00`.a = 98 \
+                           UNION \
+                           SELECT `datoms01`.v AS `?y` \
+                           FROM `datoms` AS `datoms01` \
+                           WHERE `datoms01`.a = 98) \
+                           AS `c00` \
+                     LIMIT 1");
+    assert_eq!(args, vec![]);
+}
