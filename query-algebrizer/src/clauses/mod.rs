@@ -833,7 +833,8 @@ impl ConjoiningClauses {
                 self.apply_or_join(schema, o)
             },
             WhereClause::NotJoin(n) => {
-                validate_not_join(&n)
+                validate_not_join(&n)?;
+                self.apply_not_join(schema, n)
             },
             _ => unimplemented!(),
         }
