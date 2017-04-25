@@ -45,8 +45,9 @@ pub enum DatomsTable {
 }
 
 /// A source of rows that isn't a named table -- typically a subquery or union.
+#[derive(PartialEq, Eq, Debug)]
 pub enum ComputedTable {
-    // Subquery(BTreeSet<Variable>, ::clauses::ConjoiningClauses),
+    Subquery(::clauses::ConjoiningClauses),
     Union {
         projection: BTreeSet<Variable>,
         type_extraction: BTreeSet<Variable>,
@@ -294,6 +295,7 @@ pub enum ColumnConstraint {
         right: QueryValue,
     },
     HasType(TableAlias, ValueType),
+    NotExists(ComputedTable),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -406,6 +408,9 @@ impl Debug for ColumnConstraint {
 
             &HasType(ref qa, value_type) => {
                 write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
+            },
+            &NotExists(ref ct) => {
+                write!(f, "{:?}", ct)
             },
         }
     }

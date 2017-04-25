@@ -207,6 +207,22 @@ pub struct ConjoiningClauses {
     pub extracted_types: BTreeMap<Variable, QualifiedAlias>,
 }
 
+impl PartialEq for ConjoiningClauses {
+    fn eq(&self, other: &ConjoiningClauses) -> bool {
+        self.empty_because.eq(&other.empty_because) &&
+        self.from.eq(&other.from) &&
+        self.computed_tables.eq(&other.computed_tables) &&
+        self.wheres.eq(&other.wheres) &&
+        self.column_bindings.eq(&other.column_bindings) &&
+        self.input_variables.eq(&other.input_variables) &&
+        self.value_bindings.eq(&other.value_bindings) &&
+        self.known_types.eq(&other.known_types) &&
+        self.extracted_types.eq(&other.extracted_types)
+    }
+}
+
+impl Eq for ConjoiningClauses {}
+
 impl Debug for ConjoiningClauses {
     fn fmt(&self, fmt: &mut Formatter) -> ::std::fmt::Result {
         fmt.debug_struct("ConjoiningClauses")
