@@ -672,3 +672,17 @@ fn test_compound_with_ground() {
                              `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `c00`.`?x` = `datoms00`.v LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy"),]);
 }
+
+#[test]
+fn test_binding_input_variable() {
+    let schema = prepopulated_schema();
+
+    // Verify that we can use the resulting CCs as children in compound CCs.
+    let query = r#"[:find ?x :in ?x :where [(ground $ "yyy") ?x]]"#;
+
+    let parsed = parse_find_string(query).expect("parse failed");
+    match algebrize_with_inputs(&schema, parsed, 0, QueryInputs::default()).err().expect("to fail to algebrize").0 {
+        mentat_query_algebrizer::ErrorKind::InvalidBinding(_, mentat_query_algebrizer::BindingError::BoundInputVariable) => {},
+        _ => assert!(false),
+    }
+}

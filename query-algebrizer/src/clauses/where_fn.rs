@@ -183,6 +183,14 @@ impl ConjoiningClauses {
             bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
+        for var in &where_fn.binding.variables() {
+            if let &Some(ref var) = var {
+                if self.input_variables.contains(var) {
+                    bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::BoundInputVariable));
+                }
+            }
+        }
+
         // Turn input constant into a matrix, ready to feed into a VALUES clause.
         let constant = args.next().unwrap();
         let rows = { // Scope borrow of self.

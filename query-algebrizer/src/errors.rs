@@ -18,8 +18,12 @@ use self::mentat_query::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BindingError {
+    // Like [_ _].
     NoBoundVariable,
+    // Like [?x ?x].
     RepeatedBoundVariable, // TODO: include repeated variable(s).
+    // Like `... :in ?x :where [(f) ?x] ...`.
+    BoundInputVariable, // TODO: include bound variable(s).
 }
 
 error_chain! {
