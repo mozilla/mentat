@@ -512,6 +512,15 @@ pub enum VariableOrPlaceholder {
     Variable(Variable),
 }
 
+impl VariableOrPlaceholder {
+    pub fn var(&self) -> Option<&Variable> {
+        match self {
+            &VariableOrPlaceholder::Placeholder => None,
+            &VariableOrPlaceholder::Variable(ref var) => Some(var),
+        }
+    }
+}
+
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Binding {
     BindRel(Vec<VariableOrPlaceholder>),
@@ -521,6 +530,35 @@ pub enum Binding {
     BindTuple(Vec<VariableOrPlaceholder>),
 
     BindScalar(Variable),
+}
+
+impl Binding {
+    /// Return each variable or `None`, in order.
+    pub fn variables(&self) -> Vec<Option<Variable>> {
+        match self {
+            &Binding::BindScalar(ref var) | &Binding::BindColl(ref var) => vec![Some(var.clone())],
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => vars.iter().map(|x| x.var().cloned()).collect(),
+        }
+    }
+
+    /// Return `true` if no variables are bound, i.e., all binding entries are placeholders.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            &Binding::BindScalar(_) | &Binding::BindColl(_) => false,
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => vars.iter().all(|x| x.var().is_none()),
+        }
+    }
+
+    /// Return `true` if no variable is bound twice, i.e., each binding entry is either a
+    /// placeholder or unique.
+    pub fn is_valid(&self) -> bool {
+        match self {
+            &Binding::BindScalar(_) | &Binding::BindColl(_) => true,
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) =>
+                vars.iter().filter_map(|x| x.var()).collect::<Vec<_>>().len() ==
+                vars.iter().filter_map(|x| x.var()).collect::<BTreeSet<_>>().len()
+        }
+    }
 }
 
 // Note that the "implicit blank" rule applies.
