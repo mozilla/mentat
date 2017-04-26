@@ -726,7 +726,7 @@ impl ContainsVariables for WhereClause {
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
             &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
-            &WhereFn(_)     => (),
+            &WhereFn(ref f) => f.accumulate_mentioned_variables(acc),
             &RuleExpr       => (),
         }
     }
@@ -787,6 +787,34 @@ impl ContainsVariables for Predicate {
                 acc_ref(acc, v)
             }
         }
+    }
+}
+
+impl ContainsVariables for Binding {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        match self {
+            &Binding::BindScalar(ref v) | &Binding::BindColl(ref v) => {
+                acc_ref(acc, v)
+            },
+            &Binding::BindRel(ref vs) | &Binding::BindTuple(ref vs) => {
+                for v in vs {
+                    if let &VariableOrPlaceholder::Variable(ref v) = v {
+                        acc_ref(acc, v);
+                    }
+                }
+            },
+        }
+    }
+}
+
+impl ContainsVariables for WhereFn {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for arg in &self.args {
+            if let &FnArg::Variable(ref v) = arg {
+                acc_ref(acc, v)
+            }
+        }
+        self.binding.accumulate_mentioned_variables(acc);
     }
 }
 
