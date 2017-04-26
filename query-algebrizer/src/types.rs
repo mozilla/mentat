@@ -53,6 +53,10 @@ pub enum ComputedTable {
         type_extraction: BTreeSet<Variable>,
         arms: Vec<::clauses::ConjoiningClauses>,
     },
+    NamedValues {
+        names: Vec<Variable>,
+        values: Vec<TypedValue>,
+    },
 }
 
 impl DatomsTable {
