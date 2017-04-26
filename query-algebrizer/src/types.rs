@@ -410,7 +410,7 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
             },
             &NotExists(ref ct) => {
-                write!(f, "{:?}", ct)
+                write!(f, "NOT EXISTS {:?}", ct)
             },
         }
     }
