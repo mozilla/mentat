@@ -31,18 +31,12 @@ impl ConjoiningClauses {
         };
 
         let mut template = self.use_as_template(&unified);
-        let mut empty_because: Option<EmptyBecause> = None;
 
         for clause in not_join.clauses.into_iter() {
             template.apply_clause(&schema, clause)?;
-            // This is disgusting, but I can't think of anything else right now that works.
-            if template.is_known_empty() {
-                empty_because = template.empty_because;
-                template.empty_because = None;
-            }
         }
 
-        if template.wheres.is_empty() && empty_because.is_some() {
+        if template.is_known_empty() {
             return Ok(());
         } else {            
             for v in unified.iter() {
@@ -472,8 +466,9 @@ mod testing {
             ]));
     }
 
+    // Test that if any single clause in the `not` fails to resolve the whole clause is considered empty
     #[test]
-    fn test_only_one_clause_succeeds() {
+    fn test_fails_if_any_clause_invalid() {
         let schema = prepopulated_schema();
         let query = r#"
             [:find ?x
@@ -485,7 +480,7 @@ mod testing {
         assert!(!cc.is_known_empty());
         compare_ccs(cc,
                     alg(&schema,
-                        r#"[:find ?x :where [?x :foo/knows "Bill"] (not [?x :foo/parent "Ámbar"])]"#));
+                        r#"[:find ?x :where [?x :foo/knows "Bill"]]"#));
     }
 
     /// Test that if all the attributes in an `not` fail to resolve, the `cc` isn't considered empty.
