@@ -59,7 +59,7 @@ impl ConjoiningClauses {
             Constant(NonIntegerConstant::BigInteger(_)) |
             Vector(_) => {
                 self.mark_known_empty(EmptyBecause::NonNumericArgument);
-                bail!(ErrorKind::NonNumericArgument(function.clone(), position));
+                bail!(ErrorKind::InvalidArgument(function.clone(), "numeric", position));
             },
             Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
         }

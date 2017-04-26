@@ -42,9 +42,10 @@ error_chain! {
             display("unbound variable: {}", name)
         }
 
-        NonNumericArgument(function: PlainSymbol, position: usize) {
+
+        InvalidArgument(function: PlainSymbol, expected_type: &'static str, position: usize) {
             description("invalid argument")
-            display("invalid argument to {}: expected numeric in position {}.", function, position)
+            display("invalid argument to {}: expected {} in position {}.", function, expected_type, position)
         }
 
         InvalidLimit(val: String, kind: ValueType) {
