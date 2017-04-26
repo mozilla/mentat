@@ -35,6 +35,7 @@ extern crate mentat_core;
 
 use std::collections::{
     BTreeSet,
+    HashSet,
 };
 
 use std::fmt;
@@ -59,7 +60,7 @@ use mentat_core::{
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Variable(pub Rc<PlainSymbol>);
 
 impl Variable {
@@ -536,21 +537,90 @@ impl FindSpec {
 
 // Datomic accepts variable or placeholder.  DataScript accepts recursive bindings.  Mentat sticks
 // to the non-recursive form Datomic accepts, which is much simpler to process.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum VariableOrPlaceholder {
     Placeholder,
     Variable(Variable),
 }
 
+impl VariableOrPlaceholder {
+    pub fn into_var(self) -> Option<Variable> {
+        match self {
+            VariableOrPlaceholder::Placeholder => None,
+            VariableOrPlaceholder::Variable(var) => Some(var),
+        }
+    }
+
+    pub fn var(&self) -> Option<&Variable> {
+        match self {
+            &VariableOrPlaceholder::Placeholder => None,
+            &VariableOrPlaceholder::Variable(ref var) => Some(var),
+        }
+    }
+}
+
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Binding {
-    BindRel(Vec<VariableOrPlaceholder>),
-
-    BindColl(Variable),
-
-    BindTuple(Vec<VariableOrPlaceholder>),
-
     BindScalar(Variable),
+    BindColl(Variable),
+    BindRel(Vec<VariableOrPlaceholder>),
+    BindTuple(Vec<VariableOrPlaceholder>),
+}
+
+impl Binding {
+    /// Return each variable or `None`, in order.
+    pub fn variables(&self) -> Vec<Option<Variable>> {
+        match self {
+            &Binding::BindScalar(ref var) | &Binding::BindColl(ref var) => vec![Some(var.clone())],
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => vars.iter().map(|x| x.var().cloned()).collect(),
+        }
+    }
+
+    /// Return `true` if no variables are bound, i.e., all binding entries are placeholders.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            &Binding::BindScalar(_) | &Binding::BindColl(_) => false,
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => vars.iter().all(|x| x.var().is_none()),
+        }
+    }
+
+    /// Return `true` if no variable is bound twice, i.e., each binding entry is either a
+    /// placeholder or unique.
+    ///
+    /// ```
+    /// extern crate mentat_query;
+    /// use std::rc::Rc;
+    ///
+    /// let v = mentat_query::Variable::from_valid_name("?foo");
+    /// let vv = mentat_query::VariableOrPlaceholder::Variable(v);
+    /// let p = mentat_query::VariableOrPlaceholder::Placeholder;
+    ///
+    /// let e = mentat_query::Binding::BindTuple(vec![p.clone()]);
+    /// let b = mentat_query::Binding::BindTuple(vec![p.clone(), vv.clone()]);
+    /// let d = mentat_query::Binding::BindTuple(vec![vv.clone(), p, vv]);
+    /// assert!(b.is_valid());          // One var, one placeholder: OK.
+    /// assert!(!e.is_valid());         // Empty: not OK.
+    /// assert!(!d.is_valid());         // Duplicate var: not OK.
+    /// ```
+    pub fn is_valid(&self) -> bool {
+        match self {
+            &Binding::BindScalar(_) | &Binding::BindColl(_) => true,
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => {
+                let mut acc = HashSet::<Variable>::new();
+                for var in vars {
+                    if let &VariableOrPlaceholder::Variable(ref var) = var {
+                        if !acc.insert(var.clone()) {
+                            // It's invalid if there was an equal var already present in the set --
+                            // i.e., we have a duplicate var.
+                            return false;
+                        }
+                    }
+                }
+                // We're not valid if every place is a placeholder!
+                !acc.is_empty()
+            }
+        }
+    }
 }
 
 // Note that the "implicit blank" rule applies.
