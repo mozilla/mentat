@@ -1,5 +1,8 @@
 // Place your settings in this file to overwrite default and user settings.
 {
+  // Newline at EOF.
+  "files.insertFinalNewline": true,
+
   // Configure glob patterns for excluding files and folders.
   "files.exclude": {
     "**/.git": true,
