@@ -53,6 +53,10 @@ pub enum ComputedTable {
         type_extraction: BTreeSet<Variable>,
         arms: Vec<::clauses::ConjoiningClauses>,
     },
+    NamedValues {
+        names: Vec<Variable>,
+        values: Vec<TypedValue>,
+    },
 }
 
 impl DatomsTable {
@@ -419,8 +423,8 @@ impl Debug for ColumnConstraint {
 
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
-    // Var, existing, desired.
-    TypeMismatch(Variable, ValueTypeSet, ValueType),
+    ConflictingBindings { var: Variable, existing: TypedValue, desired: TypedValue },
+    TypeMismatch { var: Variable, existing: ValueTypeSet, desired: ValueTypeSet },
     NoValidTypes(Variable),
     NonNumericArgument,
     NonStringFulltextValue,
@@ -436,7 +440,11 @@ impl Debug for EmptyBecause {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::EmptyBecause::*;
         match self {
-            &TypeMismatch(ref var, ref existing, ref desired) => {
+            &ConflictingBindings { ref var, ref existing, ref desired } => {
+                write!(f, "Var {:?} can't be {:?} because it's already bound to {:?}",
+                       var, desired, existing)
+            },
+            &TypeMismatch { ref var, ref existing, ref desired } => {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)
             },

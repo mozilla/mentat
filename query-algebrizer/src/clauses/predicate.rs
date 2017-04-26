@@ -222,8 +222,10 @@ mod testing {
 
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
-                   EmptyBecause::TypeMismatch(y.clone(),
-                                              ValueTypeSet::of_numeric_types(),
-                                              ValueType::String));
+                   EmptyBecause::TypeMismatch {
+                       var: y.clone(),
+                       existing: ValueTypeSet::of_numeric_types(),
+                       desired: ValueTypeSet::of_one(ValueType::String),
+                   });
     }
 }
