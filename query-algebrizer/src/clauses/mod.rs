@@ -841,6 +841,18 @@ impl ConjoiningClauses {
     }
 }
 
+pub trait PushComputed {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable;
+}
+
+impl PushComputed for Vec<ComputedTable> {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable {
+        let next_index = self.len();
+        self.push(item);
+        DatomsTable::Computed(next_index)
+    }
+}
+
 // These are helpers that tests use to build Schema instances.
 #[cfg(test)]
 fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
