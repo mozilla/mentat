@@ -10,37 +10,29 @@
 
 use std::collections::btree_map::Entry;
 
-use mentat_core::{
-    Schema,
-};
+use mentat_core::Schema;
 
-use mentat_query::{
-    NotJoin,
-    UnifyVars,
-    ContainsVariables,
-};
+use mentat_query::{NotJoin, UnifyVars, ContainsVariables};
 
 use clauses::ConjoiningClauses;
 
 use errors::{
     Result,
+    ErrorKind,
 };
 
-use types::{
-    ColumnConstraint,
-    ComputedTable,
-    EmptyBecause,
-};
+use types::{ColumnConstraint, ComputedTable, EmptyBecause};
 
 impl ConjoiningClauses {
     pub fn apply_not_join(&mut self, schema: &Schema, not_join: NotJoin) -> Result<()> {
-        let projected = match not_join.unify_vars {
+        let unified = match not_join.unify_vars {
             UnifyVars::Implicit => not_join.collect_mentioned_variables(),
             UnifyVars::Explicit(vs) => vs.into_iter().collect(),
         };
-        let mut template = self.use_as_template(&projected);
+
+        let mut template = self.use_as_template(&unified);
         let mut empty_because: Option<EmptyBecause> = None;
-        
+
         for clause in not_join.clauses.into_iter() {
             template.apply_clause(&schema, clause)?;
             // This is disgusting, but I can't think of anything else right now that works.
@@ -52,15 +44,23 @@ impl ConjoiningClauses {
 
         if template.wheres.is_empty() && empty_because.is_some() {
             return Ok(());
-        } else {
-            for (v, cols) in (&self.column_bindings).iter().filter(|&(key, _)| projected.contains(&key) ) {
-                match template.column_bindings.entry(v.clone()) {
-                    Entry::Vacant(e) => {
-                        e.insert(cols.clone());
-                    },
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().append(&mut cols.clone());
-                    },
+        } else {            
+            for v in unified.iter() {
+                if self.column_bindings.contains_key(&v) {
+                    let col = self.column_bindings.get(&v).unwrap()[0].clone();
+                    match template.column_bindings.entry(v.clone()) {
+                        Entry::Vacant(e) => {
+                            e.insert(vec![col]);
+                        }
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().append(&mut vec![col]);
+                        }
+                    }
+                } else if self.value_bindings.contains_key(&v) {
+                    let val = self.value_bindings.get(&v).unwrap().clone();
+                    template.value_bindings.insert(v.clone(), val);
+                } else {
+                    bail!(ErrorKind::UnboundVariable(v.name()));
                 }
             }
         }
@@ -85,45 +85,19 @@ mod testing {
 
     use super::*;
 
-    use mentat_core::{
-        Attribute,
-        TypedValue,
-        ValueType,
-    };
+    use mentat_core::{Attribute, TypedValue, ValueType};
 
-    use mentat_query::{
-        NamespacedKeyword,
-        Variable,
-    };
+    use mentat_query::{NamespacedKeyword, Variable};
 
-    use self::mentat_query_parser::{
-        parse_find_string,
-    };
+    use self::mentat_query_parser::parse_find_string;
 
-    use clauses::{
-        QueryInputs,
-        add_attribute,
-        associate_ident,
-    };
+    use clauses::{QueryInputs, add_attribute, associate_ident};
 
-    use types::{
-        ColumnAlternation,
-        ColumnConstraint,
-        ColumnConstraintOrAlternation,
-        ColumnIntersection,
-        DatomsColumn,
-        DatomsTable,
-        NumericComparison,
-        QualifiedAlias,
-        QueryValue,
-        SourceAlias,
-        ValueTypeSet,
-    };
+    use types::{ColumnAlternation, ColumnConstraint, ColumnConstraintOrAlternation,
+                ColumnIntersection, DatomsColumn, DatomsTable, NumericComparison, QualifiedAlias,
+                QueryValue, SourceAlias, ValueTypeSet};
 
-    use {
-        algebrize,
-        algebrize_with_inputs,
-    };
+    use {algebrize, algebrize_with_inputs};
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
@@ -142,31 +116,41 @@ mod testing {
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "parent"), 67);
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "age"), 68);
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "height"), 69);
-        add_attribute(&mut schema, 65, Attribute {
-            value_type: ValueType::String,
-            multival: false,
-            ..Default::default()
-        });
-        add_attribute(&mut schema, 66, Attribute {
-            value_type: ValueType::String,
-            multival: true,
-            ..Default::default()
-        });
-        add_attribute(&mut schema, 67, Attribute {
-            value_type: ValueType::String,
-            multival: true,
-            ..Default::default()
-        });
-        add_attribute(&mut schema, 68, Attribute {
-            value_type: ValueType::Long,
-            multival: false,
-            ..Default::default()
-        });
-        add_attribute(&mut schema, 69, Attribute {
-            value_type: ValueType::Long,
-            multival: false,
-            ..Default::default()
-        });
+        add_attribute(&mut schema,
+                      65,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      66,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      67,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      68,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      69,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
         schema
     }
 
@@ -187,28 +171,32 @@ mod testing {
         let cc = alg(&schema, query);
 
         let vx = Variable::from_valid_name("?x");
+
         let d0 = "datoms00".to_string();
-        let d1 = "datoms01".to_string();
-        let d2 = "datoms02".to_string();
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
         let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
         let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        let d1 = "datoms01".to_string();
         let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
         let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
         let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+
+        let d2 = "datoms02".to_string();
         let d2e = QualifiedAlias::new(d2.clone(), DatomsColumn::Entity);
         let d2a = QualifiedAlias::new(d2.clone(), DatomsColumn::Attribute);
         let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
 
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
+
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
         let ambar = QueryValue::TypedValue(TypedValue::typed_string("Ámbar"));
         let daphne = QueryValue::TypedValue(TypedValue::typed_string("Daphne"));
 
         let mut subquery = ConjoiningClauses::default();
-        subquery.from.append(&mut vec![SourceAlias(DatomsTable::Datoms, d1),
-                                  SourceAlias(DatomsTable::Datoms, d2)]);
+        subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1),
+                             SourceAlias(DatomsTable::Datoms, d2)];
         subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d2e.clone(), d0e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), parent)),
                                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), ambar)),
@@ -236,43 +224,73 @@ mod testing {
         let query = r#"
             [:find ?x
              :where [?x :foo/knows ?y]
-                    (not-join [?x] 
+                    [?x :foo/age 11]
+                    [?x :foo/name "John"]
+                    (not-join [?x ?y] 
                               [?x :foo/parent ?y])]"#;
         let cc = alg(&schema, query);
 
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
+
         let d0 = "datoms00".to_string();
-        let d1 = "datoms01".to_string();
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
         let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        let d1 = "datoms01".to_string();
         let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
         let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
         let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
 
+        let d2 = "datoms02".to_string();
+        let d2e = QualifiedAlias::new(d2.clone(), DatomsColumn::Entity);
+        let d2a = QualifiedAlias::new(d2.clone(), DatomsColumn::Attribute);
+        let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
+
+        let d3 = "datoms03".to_string();
+        let d3e = QualifiedAlias::new(d3.clone(), DatomsColumn::Entity);
+        let d3a = QualifiedAlias::new(d3.clone(), DatomsColumn::Attribute);
+        let d3v = QualifiedAlias::new(d3.clone(), DatomsColumn::Value);
+
+        let name = QueryValue::Entid(65);
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
+        let age = QueryValue::Entid(68);
+
+        let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
+        let eleven = QueryValue::PrimitiveLong(11);
 
         let mut subquery = ConjoiningClauses::default();
-        subquery.from.append(&mut vec![SourceAlias(DatomsTable::Datoms, d1)]);
-        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d0e.clone()]);
-        subquery.column_bindings.insert(vy.clone(), vec![d1v.clone()]);
-        subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), parent)),
-                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
+        subquery.from = vec![SourceAlias(DatomsTable::Datoms, d3)];
+        subquery.column_bindings.insert(vx.clone(), vec![d3e.clone(), d0e.clone()]);
+        subquery.column_bindings.insert(vy.clone(), vec![d3v.clone(), d0v.clone()]);
+        subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d3a.clone(), parent)),
+                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d3e.clone(), QueryValue::Column(d0e.clone()))),
+                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d3v.clone(), QueryValue::Column(d0v.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
         subquery.known_types.insert(vy.clone(), ValueTypeSet::of_one(ValueType::String));
 
         assert!(!cc.is_known_empty());
-        assert_eq!(cc.wheres, ColumnIntersection(vec![
+        let expected_wheres = ColumnIntersection(vec![
                 ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), age.clone())),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), eleven)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2a.clone(), name.clone())),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2v.clone(), john)),
                 ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NotExists(ComputedTable::Subquery(subquery))),
-            ]));
-        assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e]));
-        assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0)]);
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d2e.clone()))),
+            ]);
+        assert_eq!(cc.wheres, expected_wheres);
+        assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e, d1e, d2e]));
+        assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0),
+                                 SourceAlias(DatomsTable::Datoms, d1),
+                                 SourceAlias(DatomsTable::Datoms, d2)]);
     }
 
-    // Alternation with a pattern and a predicate.
+    // Not with a pattern and a predicate.
     #[test]
     fn test_not_with_pattern_and_predicate() {
         let schema = prepopulated_schema();
@@ -284,26 +302,33 @@ mod testing {
              (not [?x :foo/knows "John"]
                   [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);
+
         let vx = Variable::from_valid_name("?x");
+
         let d0 = "datoms00".to_string();
-        let d1 = "datoms01".to_string();
-        let d2 = "datoms02".to_string();
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
         let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
         let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        let d1 = "datoms01".to_string();
         let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
         let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
         let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+
+        let d2 = "datoms02".to_string();
         let d2e = QualifiedAlias::new(d2.clone(), DatomsColumn::Entity);
         let d2a = QualifiedAlias::new(d2.clone(), DatomsColumn::Attribute);
         let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
+
         let knows = QueryValue::Entid(66);
         let age = QueryValue::Entid(68);
+
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
         let daphne = QueryValue::TypedValue(TypedValue::typed_string("Daphne"));
 
         let mut subquery = ConjoiningClauses::default();
-        subquery.from.append(&mut vec![SourceAlias(DatomsTable::Datoms, d1), SourceAlias(DatomsTable::Datoms, d2)]);
+        subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1),
+                             SourceAlias(DatomsTable::Datoms, d2)];
         subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d2e.clone(), d0e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
                                                   ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), john.clone())),
@@ -327,97 +352,122 @@ mod testing {
         assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e]));
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0)]);
     }
+    
+    // not with an or
     #[test]
     fn test_not_with_or() {
         let schema = prepopulated_schema();
         let query = r#"
             [:find ?x
-             :where (not (or [?x :foo/knows "John"]
+             :where [?x :foo/knows "Bill"]
+                    (not (or [?x :foo/knows "John"]
                              [?x :foo/knows "Ámbar"])
                         [?x :foo/parent "Daphne"])]"#;
         let cc = alg(&schema, query);
 
         let d0 = "datoms00".to_string();
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
         let d1 = "datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+
+        let d2 = "datoms02".to_string();
+        let d2e = QualifiedAlias::new(d2.clone(), DatomsColumn::Entity);
+        let d2a = QualifiedAlias::new(d2.clone(), DatomsColumn::Attribute);
+        let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
+
         let vx = Variable::from_valid_name("?x");
 
         let knows = QueryValue::Entid(66);
         let parent = QueryValue::Entid(67);
 
+        let bill = QueryValue::TypedValue(TypedValue::typed_string("Bill"));
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
         let ambar = QueryValue::TypedValue(TypedValue::typed_string("Ámbar"));
         let daphne = QueryValue::TypedValue(TypedValue::typed_string("Daphne"));
 
-        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
-        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
-        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
-        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
-        let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
-        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
 
         let mut subquery = ConjoiningClauses::default();
-        subquery.from.append(&mut vec![SourceAlias(DatomsTable::Datoms, d0), SourceAlias(DatomsTable::Datoms, d1)]);
-        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone(), d1e.clone()]);
+        subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1),
+                             SourceAlias(DatomsTable::Datoms, d2)];
+        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d2e.clone(), d0e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Alternation(ColumnAlternation(vec![
                                                     ColumnIntersection(vec![
-                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows.clone())),
-                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), john))]),
+                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
+                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), john))]),
                                                     ColumnIntersection(vec![
-                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows)),
-                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), ambar))]),
+                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
+                                                        ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), ambar))]),
                                                     ])),
-                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), parent.clone())),
-                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), daphne.clone())),
-                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone())))]);
+                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2a.clone(), parent)),
+                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2v.clone(), daphne)),
+                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d2e.clone()))),
+                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), bill)),
                 ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NotExists(ComputedTable::Subquery(subquery))),
             ]));
     }
 
-    // not-join.
+    // not-join with an input variable
     #[test]
     fn test_not_with_in() {
         let schema = prepopulated_schema();
         let query = r#"
             [:find ?x
              :in ?y
-             :where (not [?x :foo/knows ?y])]"#;
+             :where [?x :foo/knows "Bill"]
+                    (not [?x :foo/knows ?y])]"#;
 
         let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?y"),TypedValue::String(Rc::new("John".to_string())))]);
         let cc = alg_with_inputs(&schema, query, inputs);
 
-        let d0 = "datoms00".to_string();
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
 
         let knows = QueryValue::Entid(66);
 
+        let bill = QueryValue::TypedValue(TypedValue::typed_string("Bill"));
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
 
+        let d0 = "datoms00".to_string();
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
         let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
         let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
 
+        let d1 = "datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1a = QualifiedAlias::new(d1.clone(), DatomsColumn::Attribute);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+
         let mut subquery = ConjoiningClauses::default();
-        subquery.from.append(&mut vec![SourceAlias(DatomsTable::Datoms, d0)]);
-        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone()]);
-        subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows.clone())),
-                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), john))]);
+        subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1)];
+        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d0e.clone()]);
+        subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
+                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), john)),
+                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
         subquery.known_types.insert(vy.clone(), ValueTypeSet::of_one(ValueType::String));
 
-        let mut input_vars:BTreeSet<Variable> = BTreeSet::default();
+        let mut input_vars: BTreeSet<Variable> = BTreeSet::default();
         input_vars.insert(vy.clone());
         subquery.input_variables = input_vars;
         subquery.value_bindings.insert(vy.clone(), TypedValue::typed_string("John"));
 
         assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), knows)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), bill)),
                 ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NotExists(ComputedTable::Subquery(subquery))),
             ]));
     }
@@ -427,17 +477,21 @@ mod testing {
         let schema = prepopulated_schema();
         let query = r#"
             [:find ?x
-             :where (not [?x :foo/nope "John"]
+             :where [?x :foo/knows "Bill"]
+                    (not [?x :foo/nope "John"]
                          [?x :foo/parent "Ámbar"]
                          [?x :foo/nope "Daphne"])]"#;
         let cc = alg(&schema, query);
         assert!(!cc.is_known_empty());
-        compare_ccs(cc, alg(&schema, r#"[:find ?x :where (not [?x :foo/parent "Ámbar"])]"#));
+        compare_ccs(cc,
+                    alg(&schema,
+                        r#"[:find ?x :where [?x :foo/knows "Bill"] (not [?x :foo/parent "Ámbar"])]"#));
     }
 
     /// Test that if all the attributes in an `not` fail to resolve, the `cc` isn't considered empty.
     #[test]
-    fn test_no_clauses_succeed() {let schema = prepopulated_schema();
+    fn test_no_clauses_succeed() {
+        let schema = prepopulated_schema();
         let query = r#"
             [:find ?x
              :where [?x :foo/knows "John"]
@@ -445,6 +499,7 @@ mod testing {
                          [?x :foo/nope "Daphne"])]"#;
         let cc = alg(&schema, query);
         assert!(!cc.is_known_empty());
-        compare_ccs(cc, alg(&schema, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
+        compare_ccs(cc,
+                    alg(&schema, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
     }
 }
