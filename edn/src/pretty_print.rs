@@ -69,6 +69,7 @@ impl Value {
             Value::NamespacedKeyword(ref v) => pp.text(":").append(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
             Value::Keyword(ref v) => pp.text(":").append(v.0.as_ref()),
             Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
+            Value::Uuid(ref u) => pp.text("#uuid \"").append(u.hyphenated().to_string()).append("\""),
             _ => pp.text(self.to_string())
         }
     }

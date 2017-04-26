@@ -16,6 +16,7 @@ use std::f64::{NAN, INFINITY, NEG_INFINITY};
 
 use num::BigInt;
 use ordered_float::OrderedFloat;
+use uuid::Uuid;
 
 use types::{SpannedValue, Span, ValueAndSpan};
 
@@ -142,6 +143,19 @@ pub text -> ValueAndSpan =
         }
     }
 
+pub uuid_string -> Uuid =
+    "\"" u:$( [a-f0-9]*<8> "-" [a-f0-9]*<4> "-" [a-f0-9]*<4> "-" [a-f0-9]*<4> "-" [a-f0-9]*<12> ) "\"" {
+        Uuid::parse_str(u).expect("this is a valid UUID string")
+    }
+
+pub uuid -> ValueAndSpan =
+    start:#position "#uuid" whitespace+ u:(uuid_string) end:#position {
+        ValueAndSpan {
+            inner: SpannedValue::Uuid(u),
+            span: Span::new(start, end)
+        }
+    }
+
 namespace_divider = "."
 namespace_separator = "/"
 
@@ -220,7 +234,7 @@ pub map -> ValueAndSpan =
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
 pub value -> ValueAndSpan =
-    __ v:(nil / nan / infinity / boolean / float / octalinteger / hexinteger / basedinteger / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
+    __ v:(nil / nan / infinity / boolean / float / octalinteger / hexinteger / basedinteger / uuid / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
         v
     }
 

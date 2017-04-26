@@ -15,9 +15,11 @@ use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt::{Display, Formatter};
 use std::f64;
 
-use symbols;
 use num::BigInt;
 use ordered_float::OrderedFloat;
+use uuid::Uuid;
+
+use symbols;
 
 /// Value represents one of the allowed values in an EDN string.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -28,6 +30,7 @@ pub enum Value {
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
+    Uuid(Uuid),
     PlainSymbol(symbols::PlainSymbol),
     NamespacedSymbol(symbols::NamespacedSymbol),
     Keyword(symbols::Keyword),
@@ -55,6 +58,7 @@ pub enum SpannedValue {
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
+    Uuid(Uuid),
     PlainSymbol(symbols::PlainSymbol),
     NamespacedSymbol(symbols::NamespacedSymbol),
     Keyword(symbols::Keyword),
@@ -126,6 +130,7 @@ impl From<SpannedValue> for Value {
             SpannedValue::BigInteger(v) => Value::BigInteger(v),
             SpannedValue::Float(v) => Value::Float(v),
             SpannedValue::Text(v) => Value::Text(v),
+            SpannedValue::Uuid(v) => Value::Uuid(v),
             SpannedValue::PlainSymbol(v) => Value::PlainSymbol(v),
             SpannedValue::NamespacedSymbol(v) => Value::NamespacedSymbol(v),
             SpannedValue::Keyword(v) => Value::Keyword(v),
@@ -271,6 +276,7 @@ macro_rules! def_common_value_methods {
         def_is!(is_big_integer, $t::BigInteger(_));
         def_is!(is_float, $t::Float(_));
         def_is!(is_text, $t::Text(_));
+        def_is!(is_uuid, $t::Uuid(_));
         def_is!(is_symbol, $t::PlainSymbol(_));
         def_is!(is_namespaced_symbol, $t::NamespacedSymbol(_));
         def_is!(is_keyword, $t::Keyword(_));
@@ -293,6 +299,7 @@ macro_rules! def_common_value_methods {
         def_as_ref!(as_big_integer, $t::BigInteger, BigInt);
         def_as_ref!(as_ordered_float, $t::Float, OrderedFloat<f64>);
         def_as_ref!(as_text, $t::Text, String);
+        def_as_ref!(as_uuid, $t::Uuid, Uuid);
         def_as_ref!(as_symbol, $t::PlainSymbol, symbols::PlainSymbol);
         def_as_ref!(as_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol);
         def_as_ref!(as_keyword, $t::Keyword, symbols::Keyword);
@@ -308,6 +315,7 @@ macro_rules! def_common_value_methods {
         def_into!(into_ordered_float, $t::Float, OrderedFloat<f64>,);
         def_into!(into_float, $t::Float, f64, |v: OrderedFloat<f64>| v.into_inner());
         def_into!(into_text, $t::Text, String,);
+        def_into!(into_uuid, $t::Uuid, Uuid,);
         def_into!(into_symbol, $t::PlainSymbol, symbols::PlainSymbol,);
         def_into!(into_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol,);
         def_into!(into_keyword, $t::Keyword, symbols::Keyword,);
@@ -337,14 +345,15 @@ macro_rules! def_common_value_methods {
                 $t::BigInteger(_) => 3,
                 $t::Float(_) => 4,
                 $t::Text(_) => 5,
-                $t::PlainSymbol(_) => 6,
-                $t::NamespacedSymbol(_) => 7,
-                $t::Keyword(_) => 8,
-                $t::NamespacedKeyword(_) => 9,
-                $t::Vector(_) => 10,
-                $t::List(_) => 11,
-                $t::Set(_) => 12,
-                $t::Map(_) => 13,
+                $t::Uuid(_) => 6,
+                $t::PlainSymbol(_) => 7,
+                $t::NamespacedSymbol(_) => 8,
+                $t::Keyword(_) => 9,
+                $t::NamespacedKeyword(_) => 10,
+                $t::Vector(_) => 11,
+                $t::List(_) => 12,
+                $t::Set(_) => 13,
+                $t::Map(_) => 14,
             }
         }
 
@@ -356,6 +365,7 @@ macro_rules! def_common_value_methods {
                 $t::BigInteger(_) => false,
                 $t::Float(_) => false,
                 $t::Text(_) => false,
+                $t::Uuid(_) => false,
                 $t::PlainSymbol(_) => false,
                 $t::NamespacedSymbol(_) => false,
                 $t::Keyword(_) => false,
@@ -392,6 +402,7 @@ macro_rules! def_common_value_ord {
             (&$t::BigInteger(ref a), &$t::BigInteger(ref b)) => b.cmp(a),
             (&$t::Float(ref a), &$t::Float(ref b)) => b.cmp(a),
             (&$t::Text(ref a), &$t::Text(ref b)) => b.cmp(a),
+            (&$t::Uuid(ref a), &$t::Uuid(ref b)) => b.cmp(a),
             (&$t::PlainSymbol(ref a), &$t::PlainSymbol(ref b)) => b.cmp(a),
             (&$t::NamespacedSymbol(ref a), &$t::NamespacedSymbol(ref b)) => b.cmp(a),
             (&$t::Keyword(ref a), &$t::Keyword(ref b)) => b.cmp(a),
@@ -429,6 +440,7 @@ macro_rules! def_common_value_display {
             }
             // TODO: EDN escaping.
             $t::Text(ref v) => write!($f, "\"{}\"", v),
+            $t::Uuid(ref u) => write!($f, "#uuid \"{}\"", u.hyphenated().to_string()),
             $t::PlainSymbol(ref v) => v.fmt($f),
             $t::NamespacedSymbol(ref v) => v.fmt($f),
             $t::Keyword(ref v) => v.fmt($f),

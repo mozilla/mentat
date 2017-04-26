@@ -11,6 +11,7 @@
 extern crate edn;
 extern crate num;
 extern crate ordered_float;
+extern crate uuid;
 
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::iter::FromIterator;
@@ -55,7 +56,7 @@ macro_rules! fn_parse_into_value {
 }
 
 // These look exactly like their `parse::foo` counterparts, but
-// automatically convert the returned result into Value. Use `parse:foo`
+// automatically convert the returned result into Value. Use `parse::foo`
 // if you want the original ValueAndSpan instance.
 fn_parse_into_value!(nil);
 fn_parse_into_value!(nan);
@@ -240,6 +241,23 @@ fn test_span_integer() {
         inner: SpannedValue::Integer(9),
         span: Span(0, 3)
     });
+}
+
+#[test]
+fn test_uuid() {
+    assert!(parse::uuid("#uuid \"z50e8400-e29b-41d4-a716-446655440000\"").is_err());  // Not hex.
+    assert!(parse::uuid("\"z50e8400-e29b-41d4-a716-446655440000\"").is_err());        // No tag.
+    assert!(parse::uuid("#uuid \"aaaaaaaae29b-41d4-a716-446655440000\"").is_err());   // Hyphens.
+    assert!(parse::uuid("#uuid \"aaaaaaaa-e29b-41d4-a716-446655440\"").is_err());     // Truncated.
+    assert!(parse::uuid("#uuid \"A50e8400-e29b-41d4-a716-446655440000\"").is_err());  // Capital.
+
+    let expected = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000")
+                       .expect("valid UUID");
+    let actual = parse::uuid("#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
+                       .expect("parse success")
+                       .inner
+                       .into();
+    assert_eq!(self::Value::Uuid(expected), actual);
 }
 
 #[test]
