@@ -520,4 +520,15 @@ mod testing {
                     alg(&schema, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
                     
     }
+
+    #[test]
+    #[should_panic]
+    fn test_unbound_var_fails() {
+        let schema = prepopulated_schema();
+        let query = r#"
+        [:find ?x
+         :in ?y
+         :where (not [?x :foo/knows ?y])]"#;
+        alg(&schema, query);
+    }
 }
