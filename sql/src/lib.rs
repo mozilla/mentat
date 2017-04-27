@@ -11,6 +11,8 @@
 #[macro_use]
 extern crate error_chain;
 extern crate ordered_float;
+extern crate rusqlite;
+
 extern crate mentat_core;
 
 use std::rc::Rc;
@@ -18,6 +20,8 @@ use std::rc::Rc;
 use ordered_float::OrderedFloat;
 
 use mentat_core::TypedValue;
+
+pub use rusqlite::types::Value;
 
 error_chain! {
     types {
@@ -47,7 +51,7 @@ pub struct SQLQuery {
     pub sql: String,
 
     /// These will eventually perhaps be rusqlite `ToSql` instances.
-    pub args: Vec<(String, Rc<String>)>,
+    pub args: Vec<(String, Rc<rusqlite::types::Value>)>,
 }
 
 /// Gratefully based on Diesel's QueryBuilder trait:
@@ -88,7 +92,7 @@ pub struct SQLiteQueryBuilder {
 
     arg_prefix: String,
     arg_counter: i64,
-    args: Vec<(String, Rc<String>)>,
+    args: Vec<(String, Rc<rusqlite::types::Value>)>,
 }
 
 impl SQLiteQueryBuilder {
@@ -105,7 +109,7 @@ impl SQLiteQueryBuilder {
         }
     }
 
-    fn push_static_arg(&mut self, val: Rc<String>) {
+    fn push_static_arg(&mut self, val: Rc<rusqlite::types::Value>) {
         let arg = format!("{}{}", self.arg_prefix, self.arg_counter);
         self.arg_counter = self.arg_counter + 1;
         self.push_named_arg(arg.as_str());
@@ -136,11 +140,16 @@ impl QueryBuilder for SQLiteQueryBuilder {
             &Boolean(v) => self.push_sql(if v { "1" } else { "0" }),
             &Long(v) => self.push_sql(v.to_string().as_str()),
             &Double(OrderedFloat(v)) => self.push_sql(v.to_string().as_str()),
-
-            // These are both `Rc`. We can just clone an `Rc<String>`, but we
-            // must make a new single `String`, wrapped in an `Rc`, for keywords.
-            &String(ref s) => self.push_static_arg(s.clone()),
-            &Keyword(ref s) => self.push_static_arg(Rc::new(s.as_ref().to_string())),
+            // These are both `Rc`. Unfortunately, we can't use that fact when
+            // turning these into rusqlite Values.
+            &String(ref s) => {
+                let v = Rc::new(rusqlite::types::Value::Text(s.as_ref().clone()));
+                self.push_static_arg(v);
+            },
+            &Keyword(ref s) => {
+                let v = Rc::new(rusqlite::types::Value::Text(s.as_ref().to_string()));
+                self.push_static_arg(v);
+            },
         }
         Ok(())
     }
@@ -180,6 +189,10 @@ impl QueryBuilder for SQLiteQueryBuilder {
 mod tests {
     use super::*;
 
+    fn string_arg(s: &str) -> Rc<rusqlite::types::Value> {
+        Rc::new(rusqlite::types::Value::Text(s.to_string()))
+    }
+
     #[test]
     fn test_sql() {
         let mut s = SQLiteQueryBuilder::new();
@@ -188,14 +201,14 @@ mod tests {
         s.push_sql(" WHERE ");
         s.push_identifier("bar").unwrap();
         s.push_sql(" = ");
-        s.push_static_arg(Rc::new("frobnicate".to_string()));
+        s.push_static_arg(string_arg("frobnicate"));
         s.push_sql(" OR ");
-        s.push_static_arg(Rc::new("swoogle".to_string()));
+        s.push_static_arg(string_arg("swoogle"));
         let q = s.finish();
 
         assert_eq!(q.sql.as_str(), "SELECT `foo` WHERE `bar` = $v0 OR $v1");
         assert_eq!(q.args,
-                   vec![("$v0".to_string(), Rc::new("frobnicate".to_string())),
-                        ("$v1".to_string(), Rc::new("swoogle".to_string()))]);
+                   vec![("$v0".to_string(), string_arg("frobnicate")),
+                        ("$v1".to_string(), string_arg("swoogle"))]);
     }
 }

@@ -7,5 +7,10 @@ workspace = ".."
 error-chain = "0.8.1"
 ordered-float = "0.4.0"
 
+[dependencies.rusqlite]
+version = "0.10.1"
+# System sqlite might be very old.
+features = ["bundled", "limits"]
+
 [dependencies.mentat_core]
 path = "../core"
