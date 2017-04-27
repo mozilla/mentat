@@ -11,32 +11,13 @@
 extern crate time;
 
 extern crate mentat;
-extern crate mentat_core;
 extern crate mentat_db;
-extern crate mentat_query;
-extern crate mentat_query_algebrizer;
 
-use std::rc::Rc;
+use mentat::{new_connection, conn};
+
 use std::io::prelude::*;
 use std::fs::File;
 
-use mentat_query::{
-    NamespacedKeyword,
-    Variable,
-};
-
-use mentat_core::{
-    Attribute,
-    Entid,
-    Schema,
-    TypedValue,
-    ValueType,
-};
-
-use mentat::{new_connection, conn};
-use mentat_query_algebrizer::{
-    QueryInputs,
-};
 
 #[test]
 fn can_import_sqlite() {
@@ -104,23 +85,11 @@ fn test_big() {
     let data_transaction = conn.transact(&mut sqlite, data_contents.as_str()).unwrap();
     assert_eq!(data_transaction.tx_id, 0x10000000 + 2);
 
-
     let results = conn.q_once(&mut sqlite,
         r#"[:find ?name
         :where
         [?p :artist/name ?name]]"#, None)
     .expect("Query failed");
     println!("{:?}", results);
-    assert_eq!(5, results.len());
-
-    // let inputs = QueryValue::TypedValue(TypedValue::String(Rc::new("hello".to_string())));
-    // let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?artist-name"), TypedValue::String(Rc::new("John Lennon".to_string())))]);
-    // let results = conn.q_once(&mut sqlite,
-    //     r#"[:find ?title
-    //         :in $ ?artist-name
-    //         :where
-    //         [?a :artist/name ?artist-name]
-    //         [?t :track/artists ?a]
-    //         [?t :track/name ?title]]"# , inputs)
-    //     .expect("Query failed");
+    assert_eq!(874, results.len());
 }
