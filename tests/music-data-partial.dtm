@@ -1,0 +1,12 @@
+[
+{:artist/sortName "Vandré, Geraldo", :artist/name "Geraldo Vandré", :artist/type {:db/id 17592186045708}, :artist/country {:db/id 17592186045494}, :artist/gid "5aaf332c-1a4d-4c03-a585-aeafa2f663b8", :artist/startDay 12, :artist/startYear 1935, :db/id 17592186048512, :artist/startMonth 9, :artist/gender {:db/id 17592186045654}}
+{:db/id 13194139536385}
+
+{:db/id 17592186048513, :artist/type {:db/id 17592186045746}, :artist/sortName "Simon Kenyatta Troupe, The", :artist/name "The Simon Kenyatta Troupe", :artist/gid "6cb49b06-b316-4e85-ad94-fa53b26b12d3"}
+{:artist/sortName "Cannon, Ace", :artist/name "Ace Cannon", :artist/type {:db/id 17592186045708}, :artist/country {:db/id 17592186045452}, :artist/gid "701888ee-b15e-467d-83cb-bd81e89f34a6", :artist/startDay 5, :artist/startYear 1934, :db/id 17592186048514, :artist/startMonth 5, :artist/gender {:db/id 17592186045654}}
+
+{:artist/sortName "Chapin, Harry", :artist/name "Harry Chapin", :artist/type {:db/id 17592186045708}, :artist/country {:db/id 17592186045452}, :artist/gid "ae4e3542-7838-4a6f-b753-08216be5a6bb", :artist/startDay 7, :artist/endDay 16, :artist/startYear 1942, :artist/endMonth 7, :artist/endYear 1981, :db/id 17592186048515, :artist/startMonth 12, :artist/gender {:db/id 17592186045654}}
+
+{:artist/sortName "Connolly, Billy", :artist/name "Billy Connolly", :artist/type {:db/id 17592186045708}, :artist/country {:db/id 17592186045420}, :artist/gid "7ffdf6af-0b1a-4ace-a067-970f0a611d93", :artist/startDay 24, :artist/startYear 1942, :db/id 17592186048516, :artist/startMonth 11, :artist/gender {:db/id 17592186045654}}
+
+]
