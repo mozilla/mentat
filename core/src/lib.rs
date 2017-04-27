@@ -25,7 +25,13 @@ use std::rc::Rc;
 use enum_set::EnumSet;
 
 use self::ordered_float::OrderedFloat;
-use self::edn::NamespacedKeyword;
+use self::edn::{
+    NamespacedKeyword,
+};
+
+pub use edn::{
+    Uuid,
+};
 
 /// Core types defining a Mentat knowledge base.
 
@@ -48,6 +54,7 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+    Uuid,
 }
 
 impl ValueType {
@@ -61,6 +68,7 @@ impl ValueType {
         s.insert(ValueType::Double);
         s.insert(ValueType::String);
         s.insert(ValueType::Keyword);
+        s.insert(ValueType::Uuid);
         s
     }
 }
@@ -86,6 +94,7 @@ impl ValueType {
             ValueType::Double => values::DB_TYPE_DOUBLE.clone(),
             ValueType::String => values::DB_TYPE_STRING.clone(),
             ValueType::Keyword => values::DB_TYPE_KEYWORD.clone(),
+            ValueType::Uuid => values::DB_TYPE_UUID.clone(),
         }
     }
 }
@@ -100,6 +109,7 @@ impl fmt::Display for ValueType {
             ValueType::Double =>  ":db.type/double",
             ValueType::String =>  ":db.type/string",
             ValueType::Keyword => ":db.type/keyword",
+            ValueType::Uuid =>    ":db.type/uuid",
         })
     }
 }
@@ -116,6 +126,7 @@ pub enum TypedValue {
     // TODO: &str throughout?
     String(Rc<String>),
     Keyword(Rc<NamespacedKeyword>),
+    Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
 
 impl TypedValue {
@@ -139,6 +150,7 @@ impl TypedValue {
             &TypedValue::Double(_) => ValueType::Double,
             &TypedValue::String(_) => ValueType::String,
             &TypedValue::Keyword(_) => ValueType::Keyword,
+            &TypedValue::Uuid(_) => ValueType::Uuid,
         }
     }
 
@@ -173,6 +185,7 @@ impl SQLValueType for ValueType {
             ValueType::Long =>     5,
             ValueType::Double =>   5,
             ValueType::String =>  10,
+            ValueType::Uuid =>    11,
             ValueType::Keyword => 13,
         }
     }
@@ -195,6 +208,7 @@ impl SQLValueType for ValueType {
             Boolean                 => (int == 0) || (int == 1),
             ValueType::String       => false,
             Keyword                 => false,
+            Uuid                    => false,
         }
     }
 }
