@@ -213,6 +213,7 @@ pub use types::{
     ComputedTable,
     DatomsColumn,
     DatomsTable,
+    FulltextColumn,
     OrderBy,
     QualifiedAlias,
     QueryValue,

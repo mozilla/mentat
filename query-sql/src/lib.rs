@@ -124,6 +124,14 @@ impl Constraint {
             right: right,
         }
     }
+
+    pub fn fulltext_match(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
+        Constraint::Infix {
+            op: Op("MATCH"), // SQLite specific!
+            left: left,
+            right: right,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -191,6 +199,10 @@ fn push_variable_column(qb: &mut QueryBuilder, vc: &VariableColumn) -> BuildQuer
 fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
     match col {
         &Column::Fixed(ref d) => {
+            qb.push_sql(d.as_str());
+            Ok(())
+        },
+        &Column::Fulltext(ref d) => {
             qb.push_sql(d.as_str());
             Ok(())
         },
@@ -548,22 +560,29 @@ impl SelectQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
     use mentat_query_algebrizer::{
+        Column,
         DatomsColumn,
         DatomsTable,
+        FulltextColumn,
     };
 
-    fn build(c: &QueryFragment) -> String {
+    fn build_query(c: &QueryFragment) -> SQLQuery {
         let mut builder = SQLiteQueryBuilder::new();
         c.push_sql(&mut builder)
          .map(|_| builder.finish())
-         .unwrap().sql
+         .expect("to produce a query for the given constraint")
+    }
+
+    fn build(c: &QueryFragment) -> String {
+        build_query(c).sql
     }
 
     #[test]
     fn test_in_constraint() {
         let none = Constraint::In {
-            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Value)),
+            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), Column::Fixed(DatomsColumn::Value))),
             list: vec![],
         };
 
@@ -641,6 +660,25 @@ mod tests {
                          vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)],
                               vec![TypedValue::Boolean(true), TypedValue::Long(2)]]),
                    "SELECT 0 AS `?a`, 0 AS `?b` WHERE 0 UNION ALL VALUES (0, 1), (1, 2)");
+    }
+
+    #[test]
+    fn test_matches_constraint() {
+        let c = Constraint::Infix {
+            op: Op("MATCHES"),
+            left: ColumnOrExpression::Column(QualifiedAlias("fulltext01".to_string(), Column::Fulltext(FulltextColumn::Text))),
+            right: ColumnOrExpression::Value(TypedValue::String(Rc::new("needle".to_string()))),
+        };
+        let q = build_query(&c);
+        assert_eq!("`fulltext01`.text MATCHES $v0", q.sql);
+        assert_eq!(vec![("$v0".to_string(), Rc::new("needle".to_string()))], q.args);
+
+        let c = Constraint::Infix {
+            op: Op("="),
+            left: ColumnOrExpression::Column(QualifiedAlias("fulltext01".to_string(), Column::Fulltext(FulltextColumn::Rowid))),
+            right: ColumnOrExpression::Column(QualifiedAlias("datoms02".to_string(), Column::Fixed(DatomsColumn::Value))),
+        };
+        assert_eq!("`fulltext01`.rowid = `datoms02`.v", build(&c));
     }
 
     #[test]
