@@ -82,7 +82,7 @@ pub fn validate_not_join(not_join: &NotJoin) -> Result<()> {
             Ok(())
         },
         UnifyVars::Explicit(ref vars) => {
-            // The joined vars must each appear somewhere in the clauses mentioned variables.
+            // The joined vars must each appear somewhere in the clause's mentioned variables.
             let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
             if !var_set.is_subset(&not_join.collect_mentioned_variables()) {
                 bail!(ErrorKind::NonMatchingVariablesInNotClause);
@@ -285,6 +285,8 @@ mod tests {
         let parsed = parse_find_string(query).expect("expected successful parse");
         let clauses = valid_not_join(parsed, UnifyVars::Implicit);
 
+        let id = PatternNonValuePlace::Variable(Variable::from_valid_name("?id"));
+        let artist_country = ident("artist", "country");
         // Check each part of the body
         let mut parts = clauses.into_iter();
         match (parts.next(), parts.next(), parts.next()) {
@@ -293,8 +295,8 @@ mod tests {
                     clause1,
                     WhereClause::Pattern(Pattern {
                         source: None,
-                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?id")),
-                        attribute: ident("artist", "country"),
+                        entity: id.clone(),
+                        attribute: artist_country.clone(),
                         value: value_ident("country", "CA"),
                         tx: PatternNonValuePlace::Placeholder,
                     }));
@@ -302,8 +304,8 @@ mod tests {
                     clause2,
                     WhereClause::Pattern(Pattern {
                         source: None,
-                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?id")),
-                        attribute: ident("artist", "country"),
+                        entity: id,
+                        attribute: artist_country,
                         value: value_ident("country", "GB"),
                         tx: PatternNonValuePlace::Placeholder,
                     }));
@@ -322,6 +324,8 @@ mod tests {
         let parsed = parse_find_string(query).expect("expected successful parse");
         let clauses = valid_not_join(parsed, UnifyVars::Explicit(vec![Variable::from_valid_name("?artist")]));
 
+        let release = PatternNonValuePlace::Variable(Variable::from_valid_name("?release"));
+        let artist = PatternValuePlace::Variable(Variable::from_valid_name("?artist"));
         // Let's do some detailed parse checks.
         let mut parts = clauses.into_iter();
         match (parts.next(), parts.next(), parts.next()) {
@@ -330,16 +334,16 @@ mod tests {
                     clause1,
                     WhereClause::Pattern(Pattern {
                         source: None,
-                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?release")),
+                        entity: release.clone(),
                         attribute: ident("release", "artists"),
-                        value: PatternValuePlace::Variable(Variable::from_valid_name("?artist")),
+                        value: artist,
                         tx: PatternNonValuePlace::Placeholder,
                     }));
                 assert_eq!(
                     clause2,
                     WhereClause::Pattern(Pattern {
                         source: None,
-                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?release")),
+                        entity: release,
                         attribute: ident("release", "year"),
                         value: PatternValuePlace::EntidOrInteger(1970),
                         tx: PatternNonValuePlace::Placeholder,

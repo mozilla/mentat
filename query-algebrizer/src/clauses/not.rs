@@ -12,7 +12,11 @@ use std::collections::btree_map::Entry;
 
 use mentat_core::Schema;
 
-use mentat_query::{NotJoin, UnifyVars, ContainsVariables};
+use mentat_query::{
+    NotJoin, 
+    UnifyVars, 
+    ContainsVariables,
+};
 
 use clauses::ConjoiningClauses;
 
@@ -21,7 +25,10 @@ use errors::{
     ErrorKind,
 };
 
-use types::{ColumnConstraint, ComputedTable, EmptyBecause};
+use types::{
+    ColumnConstraint, 
+    ComputedTable,
+};
 
 impl ConjoiningClauses {
     pub fn apply_not_join(&mut self, schema: &Schema, not_join: NotJoin) -> Result<()> {
@@ -31,6 +38,15 @@ impl ConjoiningClauses {
         };
 
         let mut template = self.use_as_template(&unified);
+        
+        for v in unified.iter() {
+            if self.value_bindings.contains_key(&v) {
+                let val = self.value_bindings.get(&v).unwrap().clone();
+                template.value_bindings.insert(v.clone(), val);
+            } else if !self.column_bindings.contains_key(&v) {
+                bail!(ErrorKind::UnboundVariable(v.name()));
+            }
+        }
 
         for clause in not_join.clauses.into_iter() {
             template.apply_clause(&schema, clause)?;
@@ -38,26 +54,14 @@ impl ConjoiningClauses {
 
         if template.is_known_empty() {
             return Ok(());
-        } else {            
-            for v in unified.iter() {
-                if self.column_bindings.contains_key(&v) {
-                    let col = self.column_bindings.get(&v).unwrap()[0].clone();
-                    match template.column_bindings.entry(v.clone()) {
-                        Entry::Vacant(e) => {
-                            e.insert(vec![col]);
-                        }
-                        Entry::Occupied(mut e) => {
-                            e.get_mut().append(&mut vec![col]);
-                        }
-                    }
-                } else if self.value_bindings.contains_key(&v) {
-                    let val = self.value_bindings.get(&v).unwrap().clone();
-                    template.value_bindings.insert(v.clone(), val);
-                } else {
-                    bail!(ErrorKind::UnboundVariable(v.name()));
-                }
-            }
         }
+
+        for v in unified.iter() {
+           if self.column_bindings.contains_key(&v) {
+                let col = self.column_bindings.get(&v).unwrap()[0].clone();
+                template.column_bindings.entry(v.clone()).or_insert(vec![]).push(col);
+            }
+        } 
 
         // We are only expanding column bindings here and not pruning extracted types as we are not projecting values.
         template.expand_column_bindings();
@@ -79,19 +83,43 @@ mod testing {
 
     use super::*;
 
-    use mentat_core::{Attribute, TypedValue, ValueType};
+    use mentat_core::{
+        Attribute, 
+        TypedValue, 
+        ValueType,
+    };
 
-    use mentat_query::{NamespacedKeyword, Variable};
+    use mentat_query::{
+        NamespacedKeyword, 
+        Variable
+    };
 
     use self::mentat_query_parser::parse_find_string;
 
-    use clauses::{QueryInputs, add_attribute, associate_ident};
+    use clauses::{
+        QueryInputs, 
+        add_attribute, 
+        associate_ident,
+    };
 
-    use types::{ColumnAlternation, ColumnConstraint, ColumnConstraintOrAlternation,
-                ColumnIntersection, DatomsColumn, DatomsTable, NumericComparison, QualifiedAlias,
-                QueryValue, SourceAlias, ValueTypeSet};
+    use types::{
+        ColumnAlternation, 
+        ColumnConstraint, 
+        ColumnConstraintOrAlternation,
+        ColumnIntersection, 
+        DatomsColumn, 
+        DatomsTable, 
+        NumericComparison, 
+        QualifiedAlias,
+        QueryValue, 
+        SourceAlias, 
+        ValueTypeSet,
+    };
 
-    use {algebrize, algebrize_with_inputs};
+    use {
+        algebrize, 
+        algebrize_with_inputs,
+    };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
@@ -496,5 +524,6 @@ mod testing {
         assert!(!cc.is_known_empty());
         compare_ccs(cc,
                     alg(&schema, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
+                    
     }
 }

@@ -155,7 +155,7 @@ impl ToConstraint for ColumnConstraint {
             NotExists(computed_table) => {
                 let subquery = table_for_computed(computed_table, TableAlias::new());
                 Constraint::NotExists {
-                    subquery: subquery
+                    subquery: subquery,
                 }
             },
         }
@@ -305,10 +305,10 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
             from: FromClause::Nothing,
             constraints: vec![],
             order: vec![],
-            limit: Limit::Fixed(0),
+            limit: Limit::None,
         }
     } else {
-        cc_to_select_query(Projection::One, cc, false, None, Limit::Fixed(1))
+        cc_to_select_query(Projection::One, cc, false, None, Limit::None)
     }
 }
 
