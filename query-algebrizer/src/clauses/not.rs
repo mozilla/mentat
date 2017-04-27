@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::btree_map::Entry;
-
 use mentat_core::Schema;
 
 use mentat_query::{
@@ -43,7 +41,10 @@ impl ConjoiningClauses {
             if self.value_bindings.contains_key(&v) {
                 let val = self.value_bindings.get(&v).unwrap().clone();
                 template.value_bindings.insert(v.clone(), val);
-            } else if !self.column_bindings.contains_key(&v) {
+            } else if self.column_bindings.contains_key(&v) {
+                let col = self.column_bindings.get(&v).unwrap()[0].clone();
+                template.column_bindings.insert(v.clone(), vec![col]);
+            } else {
                 bail!(ErrorKind::UnboundVariable(v.name()));
             }
         }
@@ -55,13 +56,6 @@ impl ConjoiningClauses {
         if template.is_known_empty() {
             return Ok(());
         }
-
-        for v in unified.iter() {
-           if self.column_bindings.contains_key(&v) {
-                let col = self.column_bindings.get(&v).unwrap()[0].clone();
-                template.column_bindings.entry(v.clone()).or_insert(vec![]).push(col);
-            }
-        } 
 
         // We are only expanding column bindings here and not pruning extracted types as we are not projecting values.
         template.expand_column_bindings();
@@ -219,13 +213,13 @@ mod testing {
         let mut subquery = ConjoiningClauses::default();
         subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1),
                              SourceAlias(DatomsTable::Datoms, d2)];
-        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d2e.clone(), d0e.clone()]);
+        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone(), d1e.clone(), d2e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), parent)),
                                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), ambar)),
                                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2a.clone(), knows.clone())),
                                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2v.clone(), daphne)),
-                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d2e.clone()))),
-                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
+                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d2e.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
 
@@ -285,11 +279,11 @@ mod testing {
 
         let mut subquery = ConjoiningClauses::default();
         subquery.from = vec![SourceAlias(DatomsTable::Datoms, d3)];
-        subquery.column_bindings.insert(vx.clone(), vec![d3e.clone(), d0e.clone()]);
-        subquery.column_bindings.insert(vy.clone(), vec![d3v.clone(), d0v.clone()]);
+        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone(), d3e.clone()]);
+        subquery.column_bindings.insert(vy.clone(), vec![d0v.clone(), d3v.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d3a.clone(), parent)),
-                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d3e.clone(), QueryValue::Column(d0e.clone()))),
-                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d3v.clone(), QueryValue::Column(d0v.clone())))]);
+                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d3e.clone()))),
+                               ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), QueryValue::Column(d3v.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
         subquery.known_types.insert(vy.clone(), ValueTypeSet::of_one(ValueType::String));
@@ -351,13 +345,13 @@ mod testing {
         let mut subquery = ConjoiningClauses::default();
         subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1),
                              SourceAlias(DatomsTable::Datoms, d2)];
-        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d2e.clone(), d0e.clone()]);
+        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone(), d1e.clone(), d2e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
                                                   ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), john.clone())),
                                                   ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2a.clone(), knows.clone())),
                                                   ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2v.clone(), daphne.clone())),
-                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d2e.clone()))),
-                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
+                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d2e.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
 
@@ -416,7 +410,7 @@ mod testing {
         let mut subquery = ConjoiningClauses::default();
         subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1),
                              SourceAlias(DatomsTable::Datoms, d2)];
-        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d2e.clone(), d0e.clone()]);
+        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone(), d1e.clone(), d2e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Alternation(ColumnAlternation(vec![
                                                     ColumnIntersection(vec![
                                                         ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
@@ -427,8 +421,8 @@ mod testing {
                                                     ])),
                                                     ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2a.clone(), parent)),
                                                     ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d2v.clone(), daphne)),
-                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d2e.clone()))),
-                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
+                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                                                    ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d2e.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
 
@@ -473,10 +467,10 @@ mod testing {
 
         let mut subquery = ConjoiningClauses::default();
         subquery.from = vec![SourceAlias(DatomsTable::Datoms, d1)];
-        subquery.column_bindings.insert(vx.clone(), vec![d1e.clone(), d0e.clone()]);
+        subquery.column_bindings.insert(vx.clone(), vec![d0e.clone(), d1e.clone()]);
         subquery.wheres = ColumnIntersection(vec![ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1a.clone(), knows.clone())),
                                                   ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), john)),
-                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1e.clone(), QueryValue::Column(d0e.clone())))]);
+                                                  ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone())))]);
 
         subquery.known_types.insert(vx.clone(), ValueTypeSet::of_one(ValueType::Ref));
         subquery.known_types.insert(vy.clone(), ValueTypeSet::of_one(ValueType::String));

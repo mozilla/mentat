@@ -448,7 +448,7 @@ fn test_not() {
                            (not [?page :page/url "http://foo.com/"]
                                 [?page :page/bookmarked true])]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.v AS `?title` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 98 AND NOT EXISTS (SELECT 1 FROM `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE `datoms01`.a = 97 AND `datoms01`.v = $v0 AND `datoms02`.a = 99 AND `datoms02`.v = 1 AND `datoms01`.e = `datoms02`.e AND `datoms01`.e = `datoms00`.e)");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.v AS `?title` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 98 AND NOT EXISTS (SELECT 1 FROM `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE `datoms01`.a = 97 AND `datoms01`.v = $v0 AND `datoms02`.a = 99 AND `datoms02`.v = 1 AND `datoms00`.e = `datoms01`.e AND `datoms00`.e = `datoms02`.e)");
     assert_eq!(args, vec![make_arg("$v0", "http://foo.com/")]);
 }
 
@@ -477,7 +477,7 @@ fn test_not_join() {
                                    [?page :bookmarks/page ?url]
                                    [?page :bookmarks/date_created "4/4/2017"])]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?url` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 97 AND NOT EXISTS (SELECT 1 FROM `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE `datoms01`.a = 98 AND `datoms02`.a = 99 AND `datoms02`.v = $v0 AND `datoms01`.e = `datoms02`.e AND `datoms01`.v = `datoms00`.e)");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?url` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 97 AND NOT EXISTS (SELECT 1 FROM `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE `datoms01`.a = 98 AND `datoms02`.a = 99 AND `datoms02`.v = $v0 AND `datoms01`.e = `datoms02`.e AND `datoms00`.e = `datoms01`.v)");
     assert_eq!(args, vec![make_arg("$v0", "4/4/2017")]);
 }
 
