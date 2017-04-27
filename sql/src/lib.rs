@@ -140,6 +140,12 @@ impl QueryBuilder for SQLiteQueryBuilder {
             &Boolean(v) => self.push_sql(if v { "1" } else { "0" }),
             &Long(v) => self.push_sql(v.to_string().as_str()),
             &Double(OrderedFloat(v)) => self.push_sql(v.to_string().as_str()),
+            &Uuid(ref u) => {
+                // Get a byte array.
+                let bytes = u.as_bytes().clone();
+                let v = Rc::new(rusqlite::types::Value::Blob(bytes.to_vec()));
+                self.push_static_arg(v);
+            },
             // These are both `Rc`. Unfortunately, we can't use that fact when
             // turning these into rusqlite Values.
             &String(ref s) => {
