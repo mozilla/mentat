@@ -26,7 +26,14 @@ use rusqlite::limits::Limit;
 
 use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
-use edn::types::Value;
+
+use edn::{
+    DateTime,
+    UTC,
+    Uuid,
+    Value,
+};
+
 use entids;
 use mentat_core::{
     attribute,
@@ -350,6 +357,15 @@ impl TypedSQLValue for TypedValue {
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
             (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
             (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(Rc::new(x))),
+            (11, rusqlite::types::Value::Blob(x)) => {
+                let u = Uuid::from_bytes(x.as_slice());
+                if u.is_err() {
+                    // Rather than exposing Uuid's ParseError…
+                    bail!(ErrorKind::BadSQLValuePair(rusqlite::types::Value::Blob(x),
+                                                     value_type_tag));
+                }
+                Ok(TypedValue::Uuid(u.unwrap()))
+            },
             (13, rusqlite::types::Value::Text(x)) => {
                 to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(Rc::new(k)))
             },
@@ -368,6 +384,7 @@ impl TypedSQLValue for TypedValue {
         match value {
             &Value::Boolean(x) => Some(TypedValue::Boolean(x)),
             &Value::Integer(x) => Some(TypedValue::Long(x)),
+            &Value::Uuid(x) => Some(TypedValue::Uuid(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
             &Value::Text(ref x) => Some(TypedValue::String(Rc::new(x.clone()))),
             &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(Rc::new(x.clone()))),
@@ -384,6 +401,7 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Long(x) => (rusqlite::types::Value::Integer(x).into(), 5),
             &TypedValue::Double(x) => (rusqlite::types::Value::Real(x.into_inner()).into(), 5),
             &TypedValue::String(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 10),
+            &TypedValue::Uuid(ref u) => (rusqlite::types::Value::Blob(u.as_bytes().to_vec()).into(), 11),
             &TypedValue::Keyword(ref x) => (rusqlite::types::ValueRef::Text(&x.to_string()).into(), 13),
         }
     }
@@ -396,6 +414,7 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.as_ref().clone()), ValueType::String),
+            &TypedValue::Uuid(ref u) => (Value::Uuid(u.clone()), ValueType::Uuid),
             &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.as_ref().clone()), ValueType::Keyword),
         }
     }

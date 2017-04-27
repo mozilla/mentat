@@ -120,6 +120,7 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
                     TypedValue::Ref(entids::DB_TYPE_DOUBLE) => { builder.value_type(ValueType::Double); },
                     TypedValue::Ref(entids::DB_TYPE_LONG) => { builder.value_type(ValueType::Long); },
                     TypedValue::Ref(entids::DB_TYPE_STRING) => { builder.value_type(ValueType::String); },
+                    TypedValue::Ref(entids::DB_TYPE_UUID) => { builder.value_type(ValueType::Uuid); },
                     TypedValue::Ref(entids::DB_TYPE_KEYWORD) => { builder.value_type(ValueType::Keyword); },
                     _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid {} and attribute {}", value, entid, attr)))
                 }
