@@ -54,6 +54,7 @@ impl ConjoiningClauses {
             SrcVar(_) |
             Constant(NonIntegerConstant::Boolean(_)) |
             Constant(NonIntegerConstant::Text(_)) |
+            Constant(NonIntegerConstant::Uuid(_)) |
             Constant(NonIntegerConstant::BigInteger(_)) => {
                 self.mark_known_empty(EmptyBecause::NonNumericArgument);
                 bail!(ErrorKind::NonNumericArgument(function.clone(), position));
@@ -80,6 +81,7 @@ impl ConjoiningClauses {
             Constant(NonIntegerConstant::Boolean(val)) => Ok(QueryValue::TypedValue(TypedValue::Boolean(val))),
             Constant(NonIntegerConstant::Float(f)) => Ok(QueryValue::TypedValue(TypedValue::Double(f))),
             Constant(NonIntegerConstant::Text(s)) => Ok(QueryValue::TypedValue(TypedValue::typed_string(s.as_str()))),
+            Constant(NonIntegerConstant::Uuid(u)) => Ok(QueryValue::TypedValue(TypedValue::Uuid(u))),
             Constant(NonIntegerConstant::BigInteger(_)) => unimplemented!(),
             SrcVar(_) => unimplemented!(),
         }

@@ -11,6 +11,9 @@ matches = "0.1"
 [dependencies.edn]
   path = "../edn"
 
+[dependencies.mentat_core]
+  path = "../core"
+
 [dependencies.mentat_parser_utils]
   path = "../parser-utils"
 
