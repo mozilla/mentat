@@ -72,10 +72,8 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 
 /// Version history:
 ///
-/// 1: initial schema.
-/// 2: added :db.schema/version and /attribute in bootstrap; assigned idents 36 and 37, so we bump
-///    the part range here; tie bootstrapping to the SQLite user_version.
-pub const CURRENT_VERSION: i32 = 2;
+/// 1: initial Mentat schema.
+pub const CURRENT_VERSION: i32 = 1;
 
 /// MIN_SQLITE_VERSION should be changed when there's a new minimum version of sqlite required
 /// for the project to work.
@@ -93,9 +91,9 @@ fn to_bool_ref(x: bool) -> &'static bool {
 }
 
 lazy_static! {
-    /// SQL statements to be executed, in order, to create the Mentat SQL schema (version 2).
+    /// SQL statements to be executed, in order, to create the Mentat SQL schema (version 1).
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    static ref V2_STATEMENTS: Vec<&'static str> = { vec![
+    static ref V1_STATEMENTS: Vec<&'static str> = { vec![
         r#"CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
                                 value_type_tag SMALLINT NOT NULL,
                                 index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
@@ -203,7 +201,7 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     let tx = conn.transaction()?;
 
-    for statement in (&V2_STATEMENTS).iter() {
+    for statement in (&V1_STATEMENTS).iter() {
         tx.execute(statement, &[])?;
     }
 
@@ -1173,12 +1171,12 @@ mod tests {
 
             // Does not include :db/txInstant.
             let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(datoms.0.len(), 74);
+            assert_eq!(datoms.0.len(), 76);
 
             // Includes :db/txInstant.
             let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
             assert_eq!(transactions.0.len(), 1);
-            assert_eq!(transactions.0[0].0.len(), 75);
+            assert_eq!(transactions.0[0].0.len(), 77);
 
             let test_conn = TestConn {
                 sqlite: conn,

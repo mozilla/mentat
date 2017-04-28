@@ -44,18 +44,18 @@ pub const DB_TYPE_KEYWORD: Entid = 24;
 pub const DB_TYPE_LONG: Entid = 25;
 pub const DB_TYPE_DOUBLE: Entid = 26;
 pub const DB_TYPE_STRING: Entid = 27;
-pub const DB_TYPE_BOOLEAN: Entid = 28;
-pub const DB_TYPE_INSTANT: Entid = 29;
-pub const DB_TYPE_BYTES: Entid = 30;
-pub const DB_CARDINALITY_ONE: Entid = 31;
-pub const DB_CARDINALITY_MANY: Entid = 32;
-pub const DB_UNIQUE_VALUE: Entid = 33;
-pub const DB_UNIQUE_IDENTITY: Entid = 34;
-pub const DB_DOC: Entid = 35;
-
-// Added in SQL schema v2.
-pub const DB_SCHEMA_VERSION: Entid = 36;
-pub const DB_SCHEMA_ATTRIBUTE: Entid = 37;
+pub const DB_TYPE_UUID: Entid = 28;
+pub const DB_TYPE_URI: Entid = 29;
+pub const DB_TYPE_BOOLEAN: Entid = 30;
+pub const DB_TYPE_INSTANT: Entid = 31;
+pub const DB_TYPE_BYTES: Entid = 32;
+pub const DB_CARDINALITY_ONE: Entid = 33;
+pub const DB_CARDINALITY_MANY: Entid = 34;
+pub const DB_UNIQUE_VALUE: Entid = 35;
+pub const DB_UNIQUE_IDENTITY: Entid = 36;
+pub const DB_DOC: Entid = 37;
+pub const DB_SCHEMA_VERSION: Entid = 38;
+pub const DB_SCHEMA_ATTRIBUTE: Entid = 39;
 
 /// Return `false` if the given attribute will not change the metadata: recognized idents, schema,
 /// partitions in the partition map.

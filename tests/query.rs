@@ -46,7 +46,7 @@ fn test_rel() {
     let end = time::PreciseTime::now();
 
     // This will need to change each time we add a default ident.
-    assert_eq!(37, results.len());
+    assert_eq!(39, results.len());
 
     // Every row is a pair of a Ref and a Keyword.
     if let QueryResults::Rel(ref rel) = results {
@@ -154,7 +154,7 @@ fn test_coll() {
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
-    assert_eq!(37, results.len());
+    assert_eq!(39, results.len());
 
     if let QueryResults::Coll(ref coll) = results {
         assert!(coll.iter().all(|item| item.matches_type(ValueType::Ref)));
