@@ -14,6 +14,8 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_sql;
 
+use std::boxed::Box;
+
 use mentat_core::{
     Entid,
     TypedValue,
@@ -100,6 +102,9 @@ pub enum Constraint {
     In {
         left: ColumnOrExpression,
         list: Vec<ColumnOrExpression>,
+    },
+    NotExists {
+        subquery: TableOrSubquery,
     }
 }
 
@@ -146,7 +151,7 @@ pub struct Join {
 pub enum TableOrSubquery {
     Table(SourceAlias),
     Union(Vec<SelectQuery>, TableAlias),
-    // TODO: Subquery.
+    Subquery(Box<SelectQuery>),
 }
 
 pub enum FromClause {
@@ -326,6 +331,12 @@ impl QueryFragment for Constraint {
                 out.push_sql(")");
                 Ok(())
             },
+            &NotExists { ref subquery } => {
+                out.push_sql("NOT EXISTS (");
+                subquery.push_sql(out)?;
+                out.push_sql(")");
+                Ok(())
+            }
         }
     }
 }
@@ -378,6 +389,10 @@ impl QueryFragment for TableOrSubquery {
                            { out.push_sql(" UNION ") });
                 out.push_sql(") AS ");
                 out.push_identifier(table_alias.as_str())
+            },
+            &Subquery(ref subquery) => {
+                subquery.push_sql(out)?;
+                Ok(())
             },
         }
     }

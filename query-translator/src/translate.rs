@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::rc::Rc;
+
 use mentat_core::{
     SQLValueType,
     TypedValue,
@@ -150,6 +152,13 @@ impl ToConstraint for ColumnConstraint {
                 let column = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag).to_column();
                 Constraint::equal(column, ColumnOrExpression::Integer(value_type.value_type_tag()))
             },
+
+            NotExists(computed_table) => {
+                let subquery = table_for_computed(computed_table, TableAlias::new());
+                Constraint::NotExists {
+                    subquery: subquery,
+                }
+            },
         }
     }
 }
@@ -230,6 +239,9 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                   }).collect(),
                 alias)
         },
+        ComputedTable::Subquery(subquery) => {
+            TableOrSubquery::Subquery(Box::new(cc_to_exists(subquery)))
+        }
     }
 }
 
@@ -268,7 +280,6 @@ fn cc_to_select_query(projection: Projection,
         FromClause::TableList(TableList(tables.collect()))
     };
 
-    // Turn the query-centric order clauses into column-orders.
     let order = order.map_or(vec![], |vec| { vec.into_iter().map(|o| o.into()).collect() });
     let limit = if cc.empty_because.is_some() { Limit::Fixed(0) } else { limit };
     SelectQuery {
@@ -295,10 +306,10 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
             from: FromClause::Nothing,
             constraints: vec![],
             order: vec![],
-            limit: Limit::Fixed(0),
+            limit: Limit::None,
         }
     } else {
-        cc_to_select_query(Projection::One, cc, false, None, Limit::Fixed(1))
+        cc_to_select_query(Projection::One, cc, false, None, Limit::None)
     }
 }
 

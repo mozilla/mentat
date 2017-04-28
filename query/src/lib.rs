@@ -597,11 +597,16 @@ pub struct OrJoin {
     mentioned_vars: Option<BTreeSet<Variable>>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NotJoin {
+    pub unify_vars: UnifyVars,
+    pub clauses: Vec<WhereClause>,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
-    Not,
-    NotJoin,
+    NotJoin(NotJoin),
     OrJoin(OrJoin),
     Pred(Predicate),
     WhereFn,
@@ -669,8 +674,7 @@ impl ContainsVariables for WhereClause {
             &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
-            &Not            => (),
-            &NotJoin        => (),
+            &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
             &WhereFn        => (),
             &RuleExpr       => (),
         }
@@ -713,6 +717,14 @@ impl OrJoin {
             mentioned
         } else {
             panic!()
+        }
+    }
+}
+
+impl ContainsVariables for NotJoin {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for clause in &self.clauses {
+            clause.accumulate_mentioned_variables(acc);
         }
     }
 }

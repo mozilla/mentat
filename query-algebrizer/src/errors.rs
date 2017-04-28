@@ -57,6 +57,12 @@ error_chain! {
             description("non-matching variables in 'or' clause")
             display("non-matching variables in 'or' clause")
         }
+
+        NonMatchingVariablesInNotClause {
+            // TODO: flesh out.
+            description("non-matching variables in 'not' clause")
+            display("non-matching variables in 'not' clause")
+        }
     }
 }
 

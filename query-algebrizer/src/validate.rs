@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 use mentat_query::{
     ContainsVariables,
     OrJoin,
+    NotJoin,
     Variable,
     UnifyVars,
 };
@@ -74,6 +75,23 @@ pub fn validate_or_join(or_join: &OrJoin) -> Result<()> {
     }
 }
 
+pub fn validate_not_join(not_join: &NotJoin) -> Result<()> {
+    // Grab our mentioned variables and ensure that the rules are followed.
+    match not_join.unify_vars {
+        UnifyVars::Implicit => {
+            Ok(())
+        },
+        UnifyVars::Explicit(ref vars) => {
+            // The joined vars must each appear somewhere in the clause's mentioned variables.
+            let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
+            if !var_set.is_subset(&not_join.collect_mentioned_variables()) {
+                bail!(ErrorKind::NonMatchingVariablesInNotClause);
+            }
+            Ok(())
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate mentat_core;
@@ -96,7 +114,10 @@ mod tests {
 
     use clauses::ident;
 
-    use super::validate_or_join;
+    use super::{
+        validate_not_join,
+        validate_or_join,
+    };
 
     fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
         PatternValuePlace::IdentOrKeyword(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
@@ -229,4 +250,129 @@ mod tests {
             _ => panic!(),
         };
     }
+
+
+    /// Tests that the top-level form is a valid `not`, returning the clauses.
+    fn valid_not_join(parsed: FindQuery, expected_unify: UnifyVars) -> Vec<WhereClause> {
+        // Filter out all the clauses that are not `not`s.
+        let mut nots = parsed.where_clauses.into_iter().filter(|x| match x {
+            &WhereClause::NotJoin(_) => true,
+            _ => false,
+        });
+
+        // There should be only one not clause.
+        let clause = nots.next().unwrap();
+        assert_eq!(None, nots.next());
+
+        match clause {
+            WhereClause::NotJoin(not_join) => {
+                // It's valid: the variables are the same in each branch.
+                assert_eq!((), validate_not_join(&not_join).unwrap());
+                assert_eq!(expected_unify, not_join.unify_vars);
+                not_join.clauses
+            },
+            _ => panic!(),
+        }
+    }
+
+    /// Test that a `not` is valid if it is implicit.
+    #[test]
+    fn test_success_not() {
+        let query = r#"[:find ?name
+                        :where [?id :artist/name ?name]
+                            (not [?id :artist/country :country/CA]
+                                 [?id :artist/country :country/GB])]"#;
+        let parsed = parse_find_string(query).expect("expected successful parse");
+        let clauses = valid_not_join(parsed, UnifyVars::Implicit);
+
+        let id = PatternNonValuePlace::Variable(Variable::from_valid_name("?id"));
+        let artist_country = ident("artist", "country");
+        // Check each part of the body
+        let mut parts = clauses.into_iter();
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(clause1), Some(clause2), None) => {
+                assert_eq!(
+                    clause1,
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: id.clone(),
+                        attribute: artist_country.clone(),
+                        value: value_ident("country", "CA"),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
+                assert_eq!(
+                    clause2,
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: id,
+                        attribute: artist_country,
+                        value: value_ident("country", "GB"),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
+            },
+            _ => panic!(),
+        };
+    }
+
+    #[test]
+    fn test_success_not_join() {
+        let query = r#"[:find ?artist
+                        :where [?artist :artist/name]
+                               (not-join [?artist]
+                                   [?release :release/artists ?artist]
+                                   [?release :release/year 1970])]"#;
+        let parsed = parse_find_string(query).expect("expected successful parse");
+        let clauses = valid_not_join(parsed, UnifyVars::Explicit(vec![Variable::from_valid_name("?artist")]));
+
+        let release = PatternNonValuePlace::Variable(Variable::from_valid_name("?release"));
+        let artist = PatternValuePlace::Variable(Variable::from_valid_name("?artist"));
+        // Let's do some detailed parse checks.
+        let mut parts = clauses.into_iter();
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(clause1), Some(clause2), None) => {
+                assert_eq!(
+                    clause1,
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: release.clone(),
+                        attribute: ident("release", "artists"),
+                        value: artist,
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
+                assert_eq!(
+                    clause2,
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: release,
+                        attribute: ident("release", "year"),
+                        value: PatternValuePlace::EntidOrInteger(1970),
+                        tx: PatternNonValuePlace::Placeholder,
+                    }));
+            },
+            _ => panic!(),
+        };
+    }
+    
+    /// Test that a `not-join` that does not use the joining var fails to validate.
+    #[test]
+    fn test_invalid_explicit_not_join_non_matching_join_vars() {
+        let query = r#"[:find ?artist
+                        :where [?artist :artist/name]
+                               (not-join [?artist]
+                                   [?release :release/artists "Pink Floyd"]
+                                   [?release :release/year 1970])]"#;
+        let parsed = parse_find_string(query).expect("expected successful parse");
+        let mut nots = parsed.where_clauses.iter().filter(|&x| match *x {
+            WhereClause::NotJoin(_) => true,
+            _ => false,
+        });
+
+        let clause = nots.next().unwrap().clone();
+        assert_eq!(None, nots.next());
+
+        match clause {
+            WhereClause::NotJoin(not_join) => assert!(validate_not_join(&not_join).is_err()),
+            _ => panic!(),
+        }
+    }    
 }
