@@ -16,12 +16,14 @@ use std::collections::BTreeMap;
 extern crate mentat_core;
 
 pub use self::mentat_core::{
+    DateTime,
     Entid,
     ValueType,
     TypedValue,
     Attribute,
     AttributeBitFlags,
     Schema,
+    UTC,
 };
 
 /// Represents one partition of the entid space.
@@ -78,16 +80,13 @@ pub type AVMap<'a> = HashMap<&'a AVPair, Entid>;
 
 /// A transaction report summarizes an applied transaction.
 // TODO: include map of resolved tempids.
-#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialOrd, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct TxReport {
     /// The transaction ID of the transaction.
     pub tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
-    ///
-    /// This is milliseconds after the Unix epoch according to the transactor's local clock.
-    // TODO: :db.type/instant.
-    pub tx_instant: i64,
+    pub tx_instant: DateTime<UTC>,
 
     /// A map from string literal tempid to resolved or allocated entid.
     ///
@@ -95,4 +94,14 @@ pub struct TxReport {
     /// existing entid, or is allocated a new entid.  (It is possible for multiple distinct string
     /// literal tempids to all unify to a single freshly allocated entid.)
     pub tempids: BTreeMap<String, Entid>,
+}
+
+impl Default for TxReport {
+    fn default() -> Self {
+        TxReport {
+            tx_id: Entid::default(),
+            tx_instant: UTC::now(),
+            tempids: BTreeMap::default(),
+        }
+    }
 }
