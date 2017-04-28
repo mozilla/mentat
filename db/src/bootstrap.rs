@@ -98,7 +98,7 @@ lazy_static! {
  ;; TODO: support user-specified functions in the future.
  ;; :db.install/function {:db/valueType :db.type/ref
  ;;                       :db/cardinality :db.cardinality/many}
- :db/txInstant         {:db/valueType   :db.type/long
+ :db/txInstant         {:db/valueType   :db.type/instant
                         :db/cardinality :db.cardinality/one
                         :db/index       true}
  :db/valueType         {:db/valueType   :db.type/ref

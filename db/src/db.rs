@@ -40,10 +40,12 @@ use mentat_core::{
     Attribute,
     AttributeBitFlags,
     Entid,
+    FromMicros,
     IdentMap,
     Schema,
     SchemaMap,
     TypedValue,
+    ToMicros,
     ValueType,
 };
 use errors::{ErrorKind, Result, ResultExt};
@@ -352,6 +354,7 @@ impl TypedSQLValue for TypedValue {
         match (value_type_tag, value) {
             (0, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Ref(x)),
             (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
+            (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<UTC>::from_micros(x))),
             // SQLite distinguishes integral from decimal types, allowing long and double to
             // share a tag.
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
@@ -383,6 +386,7 @@ impl TypedSQLValue for TypedValue {
     fn from_edn_value(value: &Value) -> Option<TypedValue> {
         match value {
             &Value::Boolean(x) => Some(TypedValue::Boolean(x)),
+            &Value::Instant(x) => Some(TypedValue::Instant(x)),
             &Value::Integer(x) => Some(TypedValue::Long(x)),
             &Value::Uuid(x) => Some(TypedValue::Uuid(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
@@ -397,6 +401,7 @@ impl TypedSQLValue for TypedValue {
         match self {
             &TypedValue::Ref(x) => (rusqlite::types::Value::Integer(x).into(), 0),
             &TypedValue::Boolean(x) => (rusqlite::types::Value::Integer(if x { 1 } else { 0 }).into(), 1),
+            &TypedValue::Instant(x) => (rusqlite::types::Value::Integer(x.to_micros()).into(), 4),
             // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
             &TypedValue::Long(x) => (rusqlite::types::Value::Integer(x).into(), 5),
             &TypedValue::Double(x) => (rusqlite::types::Value::Real(x.into_inner()).into(), 5),
@@ -411,6 +416,7 @@ impl TypedSQLValue for TypedValue {
         match self {
             &TypedValue::Ref(x) => (Value::Integer(x), ValueType::Ref),
             &TypedValue::Boolean(x) => (Value::Boolean(x), ValueType::Boolean),
+            &TypedValue::Instant(x) => (Value::Instant(x), ValueType::Instant),
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.as_ref().clone()), ValueType::String),
