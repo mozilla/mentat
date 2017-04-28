@@ -85,6 +85,7 @@ mod testing {
 
     use mentat_query::{
         NamespacedKeyword, 
+        PlainSymbol,
         Variable
     };
 
@@ -94,6 +95,11 @@ mod testing {
         QueryInputs, 
         add_attribute, 
         associate_ident,
+    };
+
+    use errors::{
+        Error,
+        ErrorKind,
     };
 
     use types::{
@@ -522,13 +528,18 @@ mod testing {
     }
 
     #[test]
-    #[should_panic]
     fn test_unbound_var_fails() {
         let schema = prepopulated_schema();
         let query = r#"
         [:find ?x
          :in ?y
          :where (not [?x :foo/knows ?y])]"#;
-        alg(&schema, query);
+        let parsed = parse_find_string(query).expect("parse failed");
+        let err = algebrize(&schema, parsed).err();
+        assert!(err.is_some());
+         match err.unwrap() {
+            Error(ErrorKind::UnboundVariable(var), _) => { assert_eq!(var, PlainSymbol("?x".to_string())); },
+            x => panic!("expected Unbound Variable error, got {:?}", x),
+        }
     }
 }
