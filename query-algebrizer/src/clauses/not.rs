@@ -11,16 +11,16 @@
 use mentat_core::Schema;
 
 use mentat_query::{
+    ContainsVariables,
     NotJoin, 
     UnifyVars, 
-    ContainsVariables,
 };
 
 use clauses::ConjoiningClauses;
 
 use errors::{
-    Result,
     ErrorKind,
+    Result,
 };
 
 use types::{
