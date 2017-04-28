@@ -69,6 +69,13 @@ fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
         value_type: foo_type,
         ..Default::default()
     });
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
+    add_attribute(&mut schema, 100, Attribute {
+        value_type: ValueType::String,
+        index: true,
+        fulltext: true,
+        ..Default::default()
+    });
     schema
 }
 
@@ -550,4 +557,171 @@ fn test_complex_nested_or_join_type_projection() {
                            AS `c00` \
                      LIMIT 1");
     assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_ground_scalar() {
+    let schema = prepopulated_schema();
+
+    // Verify that we accept inline constants.
+    let query = r#"[:find ?x . :where [(ground $ "yyy") ?x]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
+
+    // Verify that we accept bound input constants.
+    let query = r#"[:find ?x . :in ?v :where [(ground $ ?v) ?x]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into())))]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
+}
+
+#[test]
+fn test_ground_tuple() {
+    let schema = prepopulated_schema();
+
+    // Verify that we accept inline constants.
+    let query = r#"[:find ?x ?y :where [(ground $ [1 "yyy"]) [?x ?y]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
+                         (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (1, $v0)) AS `c00`");
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
+
+    // Verify that we accept bound input constants.
+    let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground $ [?u ?v]) [?x ?y]]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
+                                                       (Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into()))),]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    // TODO: treat 2 as an input variable that could be bound late, rather than eagerly binding it.
+    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
+                         (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (2, $v0)) AS `c00` LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
+}
+
+#[test]
+fn test_ground_coll() {
+    let schema = prepopulated_schema();
+
+    // Verify that we accept inline constants.
+    let query = r#"[:find ?x :where [(ground $ ["xxx" "yyy"]) [?x ...]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM \
+                         (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0), ($v1)) AS `c00`");
+    assert_eq!(args, vec![make_arg("$v0", "xxx"),
+                          make_arg("$v1", "yyy")]);
+
+    // Verify that we accept bound input constants.
+    let query = r#"[:find ?x :in ?u ?v :where [(ground $ [?u ?v]) [?x ...]]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
+                                                       (Variable::from_valid_name("?v"), TypedValue::Long(3)),]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    // TODO: treat 2 and 3 as input variables that could be bound late, rather than eagerly binding.
+    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM \
+                         (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES (2), (3)) AS `c00`");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_ground_rel() {
+    let schema = prepopulated_schema();
+
+    // Verify that we accept inline constants.
+    let query = r#"[:find ?x ?y :where [(ground $ [[1 "xxx"] [2 "yyy"]]) [[?x ?y]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
+                         (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (1, $v0), (2, $v1)) AS `c00`");
+    assert_eq!(args, vec![make_arg("$v0", "xxx"),
+                          make_arg("$v1", "yyy")]);
+
+    // Verify that we accept bound input constants.
+    let query = r#"[:find ?x ?y :in ?u ?v :where [(ground $ [[?u 1] [?v 2]]) [[?x ?y]]]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(3)),
+                                                       (Variable::from_valid_name("?v"), TypedValue::Long(4)),]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    // TODO: treat 3 and 4 as input variables that could be bound late, rather than eagerly binding.
+    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
+                         (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (3, 1), (4, 2)) AS `c00`");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_compound_with_ground() {
+    let schema = prepopulated_schema();
+
+    // Verify that we can use the resulting CCs as children in compound CCs.
+    let query = r#"[:find ?x :where (or [(ground $ "yyy") ?x]
+                                        [(ground $ "zzz") ?x])]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    // This is confusing because the computed tables (like `c00`) are numbered sequentially in each
+    // arm of the `or` rather than numbered globally.  But SQLite scopes the names correctly, so it
+    // works.  In the future, we might number the computed tables globally to make this more clear.
+    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM (\
+                         SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` UNION \
+                         SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v1)) AS `c00`) AS `c00`");
+    assert_eq!(args, vec![make_arg("$v0", "yyy"),
+                          make_arg("$v1", "zzz"),]);
+
+    // Verify that we can use ground to constrain the bindings produced by earlier clauses.
+    let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground $ "yyy") ?x]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `datoms00`.v AS `?x` FROM `datoms` AS `datoms00`, \
+                         (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` \
+                             WHERE `datoms00`.a = 99 AND `datoms00`.v = `c00`.`?x` LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "yyy"),]);
+
+    // Verify that we can further constrain the bindings produced by our clause.
+    let query = r#"[:find ?x . :where [(ground $ "yyy") ?x] [_ :foo/bar ?x]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x` FROM \
+                         (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00`, \
+                             `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `c00`.`?x` = `datoms00`.v LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "yyy"),]);
+}
+
+#[test]
+fn test_binding_input_variable() {
+    let schema = prepopulated_schema();
+
+    // Verify that we can use the resulting CCs as children in compound CCs.
+    let query = r#"[:find ?x :in ?x :where [(ground $ "yyy") ?x]]"#;
+
+    let parsed = parse_find_string(query).expect("parse failed");
+    match algebrize_with_inputs(&schema, parsed, 0, QueryInputs::default()).err().expect("to fail to algebrize").0 {
+        mentat_query_algebrizer::ErrorKind::InvalidBinding(_, mentat_query_algebrizer::BindingError::BoundInputVariable) => {},
+        _ => assert!(false),
+    }
+}
+
+#[test]
+fn test_fulltext() {
+    let schema = prepopulated_typed_schema(ValueType::Double);
+
+    let query = r#"[:find ?entity ?value ?tx ?score :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, `fulltext_values00`.text AS `?value`, `datoms01`.tx AS `?tx`, `c00`.`?score` AS `?score` FROM `fulltext_values` AS `fulltext_values00`, `datoms` AS `datoms01`, (SELECT 0 AS `?score` WHERE 0 UNION ALL VALUES (0)) AS `c00` WHERE `datoms01`.a = 100 AND `datoms01`.v = `fulltext_values00`.rowid AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    // Observe that the computed table isn't dropped, even though `?score` isn't bound in the final conjoining clause.
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, `fulltext_values00`.text AS `?value`, `datoms01`.tx AS `?tx` FROM `fulltext_values` AS `fulltext_values00`, `datoms` AS `datoms01`, (SELECT 0 AS `?score` WHERE 0 UNION ALL VALUES (0)) AS `c00` WHERE `datoms01`.a = 100 AND `datoms01`.v = `fulltext_values00`.rowid AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx _]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    // Observe that the computed table isn't included at all when `?score` isn't bound.
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, `fulltext_values00`.text AS `?value`, `datoms01`.tx AS `?tx` FROM `fulltext_values` AS `fulltext_values00`, `datoms` AS `datoms01` WHERE `datoms01`.a = 100 AND `datoms01`.v = `fulltext_values00`.rowid AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]] [?entity :foo/bar ?score]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, `fulltext_values00`.text AS `?value`, `datoms01`.tx AS `?tx` FROM `fulltext_values` AS `fulltext_values00`, `datoms` AS `datoms01`, (SELECT 0 AS `?score` WHERE 0 UNION ALL VALUES (0)) AS `c00`, `datoms` AS `datoms02` WHERE `datoms01`.a = 100 AND `datoms01`.v = `fulltext_values00`.rowid AND `fulltext_values00`.text MATCH $v0 AND `datoms02`.a = 99 AND `datoms01`.e = `datoms02`.e AND `c00`.`?score` = `datoms02`.v");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [?entity :foo/bar ?score] [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?entity`, `fulltext_values01`.text AS `?value`, `datoms02`.tx AS `?tx` FROM `datoms` AS `datoms00`, `fulltext_values` AS `fulltext_values01`, `datoms` AS `datoms02`, (SELECT 0 AS `?score` WHERE 0 UNION ALL VALUES (0)) AS `c00` WHERE `datoms00`.a = 99 AND `datoms02`.a = 100 AND `datoms02`.v = `fulltext_values01`.rowid AND `fulltext_values01`.text MATCH $v0 AND `datoms00`.e = `datoms02`.e AND `datoms00`.v = `c00`.`?score`");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
 }

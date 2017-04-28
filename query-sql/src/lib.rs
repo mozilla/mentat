@@ -124,6 +124,14 @@ impl Constraint {
             right: right,
         }
     }
+
+    pub fn fulltext_match(left: ColumnOrExpression, right: ColumnOrExpression) -> Constraint {
+        Constraint::Infix {
+            op: Op("MATCH"), // SQLite specific!
+            left: left,
+            right: right,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -152,6 +160,14 @@ pub enum TableOrSubquery {
     Table(SourceAlias),
     Union(Vec<SelectQuery>, TableAlias),
     Subquery(Box<SelectQuery>),
+    Values(Values, TableAlias),
+}
+
+pub enum Values {
+    /// Like "VALUES (0, 1), (2, 3), ...".
+    Unnamed(Vec<Vec<TypedValue>>),
+    /// Like "SELECT 0 AS x, SELECT 0 AS y WHERE 0 UNION ALL VALUES (0, 1), (2, 3), ...".
+    Named(Vec<Variable>, Vec<Vec<TypedValue>>),
 }
 
 pub enum FromClause {
@@ -183,6 +199,10 @@ fn push_variable_column(qb: &mut QueryBuilder, vc: &VariableColumn) -> BuildQuer
 fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
     match col {
         &Column::Fixed(ref d) => {
+            qb.push_sql(d.as_str());
+            Ok(())
+        },
+        &Column::Fulltext(ref d) => {
             qb.push_sql(d.as_str());
             Ok(())
         },
@@ -222,6 +242,7 @@ macro_rules! interpose {
         }
     }
 }
+
 impl QueryFragment for ColumnOrExpression {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::ColumnOrExpression::*;
@@ -391,10 +412,60 @@ impl QueryFragment for TableOrSubquery {
                 out.push_identifier(table_alias.as_str())
             },
             &Subquery(ref subquery) => {
-                subquery.push_sql(out)?;
-                Ok(())
+                subquery.push_sql(out)
+            },
+            &Values(ref values, ref table_alias) => {
+                // XXX: does this work for Values::Unnamed?
+                out.push_sql("(");
+                values.push_sql(out)?;
+                out.push_sql(") AS ");
+                out.push_identifier(table_alias.as_str())
             },
         }
+    }
+}
+
+impl QueryFragment for Values {
+    fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
+        // There are at least 3 ways to name the columns of a VALUES table:
+        // 1) the columns are named "", ":1", ":2", ... -- but this is undocumented.  See
+        //    http://stackoverflow.com/a/40921724.
+        // 2) A CTE ("WITH" statement) can declare the shape of the table, like "WITH
+        //    table_name(column_name, ...) AS (VALUES ...)".
+        // 3) We can "UNION ALL" a dummy "SELECT" statement in place.
+        //
+        // We don't want to use an undocumented SQLite quirk, and we're a little concerned that some
+        // SQL systems will not optimize WITH statements well.  It's also convenient to have an in
+        // place table to query, so for now we implement option 3).
+        if let &Values::Named(ref names, _) = self {
+            let alias = &names[0];
+            out.push_sql("SELECT 0 AS ");
+            out.push_identifier(alias.as_str())?;
+
+            for alias in &names[1..] {
+                out.push_sql(", 0 AS ");
+                out.push_identifier(alias.as_str())?;
+            }
+
+            out.push_sql(" WHERE 0 UNION ALL ");
+        }
+
+        let values = match self {
+            &Values::Named(_, ref values) => values,
+            &Values::Unnamed(ref values) => values,
+        };
+
+        out.push_sql("VALUES ");
+
+        interpose!(outer, values,
+                   { out.push_sql("(");
+                     interpose!(inner, outer,
+                                { out.push_typed_value(inner)? },
+                                { out.push_sql(", ") });
+                     out.push_sql(")");
+                   },
+                   { out.push_sql(", ") });
+        Ok(())
     }
 }
 
@@ -489,22 +560,29 @@ impl SelectQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
     use mentat_query_algebrizer::{
+        Column,
         DatomsColumn,
         DatomsTable,
+        FulltextColumn,
     };
 
-    fn build_constraint(c: Constraint) -> String {
+    fn build_query(c: &QueryFragment) -> SQLQuery {
         let mut builder = SQLiteQueryBuilder::new();
         c.push_sql(&mut builder)
          .map(|_| builder.finish())
-         .unwrap().sql
+         .expect("to produce a query for the given constraint")
+    }
+
+    fn build(c: &QueryFragment) -> String {
+        build_query(c).sql
     }
 
     #[test]
     fn test_in_constraint() {
         let none = Constraint::In {
-            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), DatomsColumn::Value)),
+            left: ColumnOrExpression::Column(QualifiedAlias::new("datoms01".to_string(), Column::Fixed(DatomsColumn::Value))),
             list: vec![],
         };
 
@@ -524,9 +602,9 @@ mod tests {
             ],
         };
 
-        assert_eq!("`datoms01`.v IN ()", build_constraint(none));
-        assert_eq!("`datoms01`.v IN (123)", build_constraint(one));
-        assert_eq!("`datoms01`.v IN (123, 456, 789)", build_constraint(three));
+        assert_eq!("`datoms01`.v IN ()", build(&none));
+        assert_eq!("`datoms01`.v IN (123)", build(&one));
+        assert_eq!("`datoms01`.v IN (123, 456, 789)", build(&three));
     }
 
     #[test]
@@ -552,7 +630,55 @@ mod tests {
 
         // Two sets of parens: the outermost AND only has one child,
         // but still contributes parens.
-        assert_eq!("((123 = 456 AND 789 = 246))", build_constraint(c));
+        assert_eq!("((123 = 456 AND 789 = 246))", build(&c));
+    }
+
+    #[test]
+    fn test_unnamed_values() {
+        let build = |values| build(&Values::Unnamed(values));
+        assert_eq!(build(vec![vec![TypedValue::Long(1)]]),
+                   "VALUES (1)");
+
+        assert_eq!(build(vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)]]),
+                   "VALUES (0, 1)");
+
+        assert_eq!(build(vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)],
+                              vec![TypedValue::Boolean(true), TypedValue::Long(2)]]),
+                   "VALUES (0, 1), (1, 2)");
+    }
+
+    #[test]
+    fn test_named_values() {
+        let build = |names: Vec<_>, values| build(&Values::Named(names.into_iter().map(Variable::from_valid_name).collect(), values));
+        assert_eq!(build(vec!["?a"], vec![vec![TypedValue::Long(1)]]),
+                   "SELECT 0 AS `?a` WHERE 0 UNION ALL VALUES (1)");
+
+        assert_eq!(build(vec!["?a", "?b"], vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)]]),
+                   "SELECT 0 AS `?a`, 0 AS `?b` WHERE 0 UNION ALL VALUES (0, 1)");
+
+        assert_eq!(build(vec!["?a", "?b"],
+                         vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)],
+                              vec![TypedValue::Boolean(true), TypedValue::Long(2)]]),
+                   "SELECT 0 AS `?a`, 0 AS `?b` WHERE 0 UNION ALL VALUES (0, 1), (1, 2)");
+    }
+
+    #[test]
+    fn test_matches_constraint() {
+        let c = Constraint::Infix {
+            op: Op("MATCHES"),
+            left: ColumnOrExpression::Column(QualifiedAlias("fulltext01".to_string(), Column::Fulltext(FulltextColumn::Text))),
+            right: ColumnOrExpression::Value(TypedValue::String(Rc::new("needle".to_string()))),
+        };
+        let q = build_query(&c);
+        assert_eq!("`fulltext01`.text MATCHES $v0", q.sql);
+        assert_eq!(vec![("$v0".to_string(), Rc::new("needle".to_string()))], q.args);
+
+        let c = Constraint::Infix {
+            op: Op("="),
+            left: ColumnOrExpression::Column(QualifiedAlias("fulltext01".to_string(), Column::Fulltext(FulltextColumn::Rowid))),
+            right: ColumnOrExpression::Column(QualifiedAlias("datoms02".to_string(), Column::Fixed(DatomsColumn::Value))),
+        };
+        assert_eq!("`fulltext01`.rowid = `datoms02`.v", build(&c));
     }
 
     #[test]

@@ -42,6 +42,7 @@ use mentat_query::{
 };
 
 pub use errors::{
+    BindingError,
     Error,
     ErrorKind,
     Result,
@@ -212,6 +213,7 @@ pub use types::{
     ComputedTable,
     DatomsColumn,
     DatomsTable,
+    FulltextColumn,
     OrderBy,
     QualifiedAlias,
     QueryValue,

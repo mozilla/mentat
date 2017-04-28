@@ -16,6 +16,22 @@ use self::mentat_query::{
     PlainSymbol,
 };
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BindingError {
+    // Like [_ _].
+    NoBoundVariable,
+    // Like [?x ?x].
+    RepeatedBoundVariable, // TODO: include repeated variable(s).
+    // Like `... :in ?x :where [(f) ?x] ...`.
+    BoundInputVariable, // TODO: include bound variable(s).
+    // Expected [[?x ?y]] but got some other type of binding.  Mentat is deliberately more strict
+    // than Datomic: we won't try to make sense of non-obvious (and potentially erroneous) bindings.
+    ExpectedBindRel,
+    // Expected [?x1 ... ?xN] or [[?x1 ... ?xN]] but got some other number of bindings.  Mentat is
+    // deliberately more strict than Datomic: we prefer placeholders to omission.
+    InvalidNumberOfBindings { number: usize, expected: usize },
+}
+
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
@@ -42,9 +58,20 @@ error_chain! {
             display("unbound variable: {}", name)
         }
 
-        NonNumericArgument(function: PlainSymbol, position: usize) {
+        InvalidBinding(function: PlainSymbol, binding_error: BindingError) {
+            description("invalid binding")
+            display("invalid binding for {}: {:?}.", function, binding_error)
+        }
+
+        InvalidGroundConstant {
+            // TODO: flesh this out.
+            description("invalid expression in ground constant")
+            display("invalid expression in ground constant")
+        }
+
+        InvalidArgument(function: PlainSymbol, expected_type: String, position: usize) {
             description("invalid argument")
-            display("invalid argument to {}: expected numeric in position {}.", function, position)
+            display("invalid argument to {}: expected {} in position {}.", function, expected_type, position)
         }
 
         InvalidLimit(val: String, kind: ValueType) {
