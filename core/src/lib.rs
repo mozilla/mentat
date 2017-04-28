@@ -208,6 +208,8 @@ impl SQLValueType for ValueType {
     ///
     /// ```
     /// use mentat_core::{ValueType, SQLValueType};
+    /// assert!(!ValueType::Instant.accommodates_integer(1493399581314));
+    /// assert!(!ValueType::Instant.accommodates_integer(1493399581314000));
     /// assert!(ValueType::Boolean.accommodates_integer(1));
     /// assert!(!ValueType::Boolean.accommodates_integer(-1));
     /// assert!(!ValueType::Boolean.accommodates_integer(10));
@@ -216,7 +218,8 @@ impl SQLValueType for ValueType {
     fn accommodates_integer(&self, int: i64) -> bool {
         use ValueType::*;
         match *self {
-            Instant | Long | Double => true,
+            Instant                 => false,          // Always use #inst.
+            Long | Double           => true,
             Ref                     => int >= 0,
             Boolean                 => (int == 0) || (int == 1),
             ValueType::String       => false,
