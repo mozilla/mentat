@@ -8,15 +8,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate chrono;
 extern crate time;
 
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
 
+use std::str::FromStr;
+
+use chrono::FixedOffset;
+
 use mentat_core::{
     TypedValue,
     ValueType,
+    UTC,
+    Uuid,
 };
 
 use mentat::{
@@ -27,6 +34,8 @@ use mentat::{
     new_connection,
     q_once,
 };
+
+use mentat::conn::Conn;
 
 use mentat::errors::{
     Error,
@@ -202,5 +211,46 @@ fn test_unbound_inputs() {
             assert_eq!(vars, vec!["?e".to_string()].into_iter().collect());
         },
         _ => panic!("Expected unbound variables."),
+    }
+}
+
+#[test]
+fn test_instants_and_uuids() {
+    // We assume, perhaps foolishly, that the clocks on test machines won't lose more than an
+    // hour while this test is running.
+    let start = UTC::now() + FixedOffset::west(60 * 60);
+
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    conn.transact(&mut c, r#"[
+        [:db/add "s" :db/ident :foo/uuid]
+        [:db/add "s" :db/valueType :db.type/uuid]
+        [:db/add "s" :db/cardinality :db.cardinality/one]
+    ]"#).unwrap();
+    conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
+    ]"#).unwrap();
+
+    // We don't yet support getting the tx from a pattern, so run wild.
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?x ?u ?when]
+                            :where [?x :foo/uuid ?u]
+                                   [?tx :db/txInstant ?when]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            let mut vals = vals.into_iter();
+            match (vals.next(), vals.next(), vals.next(), vals.next()) {
+                (Some(TypedValue::Ref(e)),
+                 Some(TypedValue::Uuid(u)),
+                 Some(TypedValue::Instant(t)),
+                 None) => {
+                     assert!(e > 39);       // There are at least this many entities in the store.
+                     assert_eq!(Ok(u), Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4"));
+                     assert!(t > start);
+                 },
+                 _ => panic!("Unexpected results."),
+            }
+        },
+        _ => panic!("Expected query to work."),
     }
 }
