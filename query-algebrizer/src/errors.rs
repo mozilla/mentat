@@ -16,6 +16,16 @@ use self::mentat_query::{
     PlainSymbol,
 };
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BindingError {
+    // Like [_ _].
+    NoBoundVariable,
+    // Like [?x ?x].
+    RepeatedBoundVariable, // TODO: include repeated variable(s).
+    // Like `... :in ?x :where [(f) ?x] ...`.
+    BoundInputVariable, // TODO: include bound variable(s).
+}
+
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
@@ -42,9 +52,20 @@ error_chain! {
             display("unbound variable: {}", name)
         }
 
-        NonNumericArgument(function: PlainSymbol, position: usize) {
+        InvalidBinding(function: PlainSymbol, binding_error: BindingError) {
+            description("invalid binding")
+            display("invalid binding for {}: {:?}.", function, binding_error)
+        }
+
+        InvalidGroundConstant {
+            // TODO: flesh this out.
+            description("invalid expression in ground constant")
+            display("invalid expression in ground constant")
+        }
+
+        InvalidArgument(function: PlainSymbol, expected_type: String, position: usize) {
             description("invalid argument")
-            display("invalid argument to {}: expected numeric in position {}.", function, position)
+            display("invalid argument to {}: expected {} in position {}.", function, expected_type, position)
         }
 
         InvalidLimit(val: String, kind: ValueType) {

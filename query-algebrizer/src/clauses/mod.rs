@@ -67,6 +67,7 @@ mod not;
 mod pattern;
 mod predicate;
 mod resolve;
+mod where_fn;
 
 use validate::{
     validate_not_join,
@@ -141,6 +142,7 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
 ///
 /// - Ordinary pattern clauses turn into `FROM` parts and `WHERE` parts using `=`.
 /// - Predicate clauses turn into the same, but with other functions.
+/// - Function clauses turn into `WHERE` parts using function-specific comparisons.
 /// - `not` turns into `NOT EXISTS` with `WHERE` clauses inside the subquery to
 ///   bind it to the outer variables, or adds simple `WHERE` clauses to the outer
 ///   clause.
@@ -228,6 +230,7 @@ impl Debug for ConjoiningClauses {
         fmt.debug_struct("ConjoiningClauses")
             .field("empty_because", &self.empty_because)
             .field("from", &self.from)
+            .field("computed_tables", &self.computed_tables)
             .field("wheres", &self.wheres)
             .field("column_bindings", &self.column_bindings)
             .field("input_variables", &self.input_variables)
@@ -828,6 +831,9 @@ impl ConjoiningClauses {
             WhereClause::Pred(p) => {
                 self.apply_predicate(schema, p)
             },
+            WhereClause::WhereFn(f) => {
+                self.apply_where_fn(schema, f)
+            },
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)?;
                 self.apply_or_join(schema, o)
@@ -838,6 +844,18 @@ impl ConjoiningClauses {
             },
             _ => unimplemented!(),
         }
+    }
+}
+
+pub trait PushComputed {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable;
+}
+
+impl PushComputed for Vec<ComputedTable> {
+    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable {
+        let next_index = self.len();
+        self.push(item);
+        DatomsTable::Computed(next_index)
     }
 }
 

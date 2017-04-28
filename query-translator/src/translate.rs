@@ -53,6 +53,7 @@ use mentat_query_sql::{
     SelectQuery,
     TableList,
     TableOrSubquery,
+    Values,
 };
 
 trait ToConstraint {
@@ -241,7 +242,13 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
         },
         ComputedTable::Subquery(subquery) => {
             TableOrSubquery::Subquery(Box::new(cc_to_exists(subquery)))
-        }
+        },
+        ComputedTable::NamedValues {
+            names, values,
+        } => {
+            // We assume column homogeneity, so we won't have any type tag columns.
+            TableOrSubquery::Values(Values::Named(names, values), alias)
+        },
     }
 }
 
