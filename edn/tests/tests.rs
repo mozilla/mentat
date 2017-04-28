@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate chrono;
 extern crate edn;
 extern crate num;
 extern crate ordered_float;
@@ -22,7 +23,17 @@ use num::traits::{Zero, One};
 use ordered_float::OrderedFloat;
 
 use edn::parse::{self, ParseError};
-use edn::types::{Value, SpannedValue, Span, ValueAndSpan};
+use edn::types::{
+    Value,
+    ValueAndSpan,
+    Span,
+    SpannedValue,
+};
+use uuid::Uuid;
+use chrono::{
+    TimeZone,
+    UTC,
+};
 use edn::symbols;
 use edn::utils;
 
@@ -412,6 +423,11 @@ fn test_value() {
     assert_eq!(value("(1)").unwrap(), List(LinkedList::from_iter(vec![Integer(1)])));
     assert_eq!(value("#{1}").unwrap(), Set(BTreeSet::from_iter(vec![Integer(1)])));
     assert_eq!(value("{1 2}").unwrap(), Map(BTreeMap::from_iter(vec![(Integer(1), Integer(2))])));
+    assert_eq!(value("#uuid \"e43c6f3e-3123-49b7-8098-9b47a7bc0fa4\"").unwrap(),
+               Uuid(uuid::Uuid::parse_str("e43c6f3e-3123-49b7-8098-9b47a7bc0fa4").unwrap()));
+    assert_eq!(value("#inst 1493410985187").unwrap(), Instant(UTC.timestamp(1493410985, 187000000)));
+    assert_eq!(value("#inst \"2017-04-28T20:23:05.187Z\"").unwrap(),
+               Instant(UTC.timestamp(1493410985, 187000000)));
 }
 
 #[test]

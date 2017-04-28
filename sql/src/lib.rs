@@ -19,7 +19,10 @@ use std::rc::Rc;
 
 use ordered_float::OrderedFloat;
 
-use mentat_core::TypedValue;
+use mentat_core::{
+    ToMicros,
+    TypedValue,
+};
 
 pub use rusqlite::types::Value;
 
@@ -140,6 +143,9 @@ impl QueryBuilder for SQLiteQueryBuilder {
             &Boolean(v) => self.push_sql(if v { "1" } else { "0" }),
             &Long(v) => self.push_sql(v.to_string().as_str()),
             &Double(OrderedFloat(v)) => self.push_sql(v.to_string().as_str()),
+            &Instant(dt) => {
+                self.push_sql(format!("{}", dt.to_micros()).as_str());      // TODO: argument instead?
+            },
             &Uuid(ref u) => {
                 // Get a byte array.
                 let bytes = u.as_bytes().clone();

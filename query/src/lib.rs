@@ -42,8 +42,10 @@ use std::rc::Rc;
 
 use edn::{
     BigInt,
+    DateTime,
     OrderedFloat,
     Uuid,
+    UTC,
 };
 
 pub use edn::{
@@ -186,6 +188,7 @@ pub enum NonIntegerConstant {
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(Rc<String>),
+    Instant(DateTime<UTC>),
     Uuid(Uuid),
 }
 
@@ -196,6 +199,7 @@ impl NonIntegerConstant {
             NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
             NonIntegerConstant::Float(v) => TypedValue::Double(v),
             NonIntegerConstant::Text(v) => TypedValue::String(v),
+            NonIntegerConstant::Instant(v) => TypedValue::Instant(v),
             NonIntegerConstant::Uuid(v) => TypedValue::Uuid(v),
         }
     }
@@ -320,6 +324,8 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Float(x))),
             edn::SpannedValue::BigInteger(ref x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::BigInteger(x.clone()))),
+            edn::SpannedValue::Instant(x) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Instant(x))),
             edn::SpannedValue::Text(ref x) =>
                 // TODO: intern strings. #398.
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),

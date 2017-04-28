@@ -33,6 +33,13 @@ pub use edn::{
     Uuid,
 };
 
+pub use edn::{
+    DateTime,
+    FromMicros,
+    ToMicros,
+    UTC,
+};
+
 /// Core types defining a Mentat knowledge base.
 
 /// Represents one entid in the entid space.
@@ -123,6 +130,7 @@ pub enum TypedValue {
     Boolean(bool),
     Long(i64),
     Double(OrderedFloat<f64>),
+    Instant(DateTime<UTC>),
     // TODO: &str throughout?
     String(Rc<String>),
     Keyword(Rc<NamespacedKeyword>),
@@ -147,6 +155,7 @@ impl TypedValue {
             &TypedValue::Ref(_) => ValueType::Ref,
             &TypedValue::Boolean(_) => ValueType::Boolean,
             &TypedValue::Long(_) => ValueType::Long,
+            &TypedValue::Instant(_) => ValueType::Instant,
             &TypedValue::Double(_) => ValueType::Double,
             &TypedValue::String(_) => ValueType::String,
             &TypedValue::Keyword(_) => ValueType::Keyword,
@@ -166,6 +175,10 @@ impl TypedValue {
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
         TypedValue::String(Rc::new(s.to_string()))
+    }
+
+    pub fn current_instant() -> TypedValue {
+        TypedValue::Instant(UTC::now())
     }
 }
 
