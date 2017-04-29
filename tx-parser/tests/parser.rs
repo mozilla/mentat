@@ -26,6 +26,33 @@ use mentat_tx::entities::{
 use mentat_tx_parser::Tx;
 
 #[test]
+fn test_float_and_uuid() {
+    let expected_uuid = edn::Uuid::parse_str("267bab92-ee39-4ca2-b7f0-1163a85af1fb").expect("valid uuid");
+    let input = r#"
+[[:db/add 101 :test/a #uuid "267bab92-ee39-4ca2-b7f0-1163a85af1fb"]
+ [:db/add 102 :test/b #f NaN]]
+ "#;
+    let edn = parse::value(input).expect("to parse test input");
+
+    let result = Tx::parse(edn);
+    assert_eq!(result.unwrap(),
+               vec![
+                   Entity::AddOrRetract {
+                       op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(101)),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(edn::ValueAndSpan::new(edn::SpannedValue::Uuid(expected_uuid), edn::Span(23, 67))),
+                   },
+                   Entity::AddOrRetract {
+                       op: OpType::Add,
+                       e: EntidOrLookupRefOrTempId::Entid(Entid::Entid(102)),
+                       a: Entid::Ident(NamespacedKeyword::new("test", "b")),
+                       v: AtomOrLookupRefOrVectorOrMapNotation::Atom(edn::ValueAndSpan::new(edn::SpannedValue::Float(edn::OrderedFloat(std::f64::NAN)), edn::Span(91, 97))),
+                   },
+               ]);
+}
+
+#[test]
 fn test_entities() {
     let input = r#"
 [[:db/add 101 :test/a "v"]

@@ -70,10 +70,13 @@ use internal_types::{
     TermWithTempIds,
     TermWithoutTempIds,
     replace_lookup_ref};
+
 use mentat_core::{
+    DateTime,
+    Schema,
+    UTC,
     attribute,
     intern_set,
-    Schema,
 };
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{
@@ -127,10 +130,7 @@ pub struct Tx<'conn, 'a> {
     tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
-    ///
-    /// This is milliseconds after the Unix epoch according to the transactor's local clock.
-    // TODO: :db.type/instant.
-    tx_instant: i64,
+    tx_instant: DateTime<UTC>,
 }
 
 impl<'conn, 'a> Tx<'conn, 'a> {
@@ -140,7 +140,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         schema_for_mutation: &'a Schema,
         schema: &'a Schema,
         tx_id: Entid,
-        tx_instant: i64) -> Tx<'conn, 'a> {
+        tx_instant: DateTime<UTC>) -> Tx<'conn, 'a> {
         Tx {
             store: store,
             partition_map: partition_map,
@@ -532,7 +532,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
                           self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
-                          TypedValue::Long(self.tx_instant),
+                          TypedValue::Instant(self.tx_instant),
                           true));
 
         if !non_fts_one.is_empty() {

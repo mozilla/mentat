@@ -8,9 +8,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate chrono;
 extern crate edn;
 extern crate num;
 extern crate ordered_float;
+extern crate uuid;
 
 use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::iter::FromIterator;
@@ -21,7 +23,16 @@ use num::traits::{Zero, One};
 use ordered_float::OrderedFloat;
 
 use edn::parse::{self, ParseError};
-use edn::types::{Value, SpannedValue, Span, ValueAndSpan};
+use edn::types::{
+    Value,
+    ValueAndSpan,
+    Span,
+    SpannedValue,
+};
+use chrono::{
+    TimeZone,
+    UTC,
+};
 use edn::symbols;
 use edn::utils;
 
@@ -55,7 +66,7 @@ macro_rules! fn_parse_into_value {
 }
 
 // These look exactly like their `parse::foo` counterparts, but
-// automatically convert the returned result into Value. Use `parse:foo`
+// automatically convert the returned result into Value. Use `parse::foo`
 // if you want the original ValueAndSpan instance.
 fn_parse_into_value!(nil);
 fn_parse_into_value!(nan);
@@ -243,6 +254,24 @@ fn test_span_integer() {
 }
 
 #[test]
+fn test_uuid() {
+    assert!(parse::uuid("#uuid\"550e8400-e29b-41d4-a716-446655440000\"").is_err());   // No whitespace.
+    assert!(parse::uuid("#uuid \"z50e8400-e29b-41d4-a716-446655440000\"").is_err());  // Not hex.
+    assert!(parse::uuid("\"z50e8400-e29b-41d4-a716-446655440000\"").is_err());        // No tag.
+    assert!(parse::uuid("#uuid \"aaaaaaaae29b-41d4-a716-446655440000\"").is_err());   // Hyphens.
+    assert!(parse::uuid("#uuid \"aaaaaaaa-e29b-41d4-a716-446655440\"").is_err());     // Truncated.
+    assert!(parse::uuid("#uuid \"A50e8400-e29b-41d4-a716-446655440000\"").is_err());  // Capital.
+
+    let expected = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000")
+                       .expect("valid UUID");
+    let actual = parse::uuid("#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
+                       .expect("parse success")
+                       .inner
+                       .into();
+    assert_eq!(self::Value::Uuid(expected), actual);
+}
+
+#[test]
 fn test_bigint() {
     use self::Value::*;
 
@@ -394,6 +423,12 @@ fn test_value() {
     assert_eq!(value("(1)").unwrap(), List(LinkedList::from_iter(vec![Integer(1)])));
     assert_eq!(value("#{1}").unwrap(), Set(BTreeSet::from_iter(vec![Integer(1)])));
     assert_eq!(value("{1 2}").unwrap(), Map(BTreeMap::from_iter(vec![(Integer(1), Integer(2))])));
+    assert_eq!(value("#uuid \"e43c6f3e-3123-49b7-8098-9b47a7bc0fa4\"").unwrap(),
+               Uuid(uuid::Uuid::parse_str("e43c6f3e-3123-49b7-8098-9b47a7bc0fa4").unwrap()));
+    assert_eq!(value("#instmillis 1493410985187").unwrap(), Instant(UTC.timestamp(1493410985, 187000000)));
+    assert_eq!(value("#instmicros 1493410985187123").unwrap(), Instant(UTC.timestamp(1493410985, 187123000)));
+    assert_eq!(value("#inst \"2017-04-28T20:23:05.187Z\"").unwrap(),
+               Instant(UTC.timestamp(1493410985, 187000000)));
 }
 
 #[test]

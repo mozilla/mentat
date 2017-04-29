@@ -11,12 +11,12 @@
 #[macro_use]
 extern crate error_chain;
 extern crate itertools;
+
 #[macro_use]
 extern crate lazy_static;
 extern crate rusqlite;
-extern crate time;
-
 extern crate tabwriter;
+extern crate time;
 
 #[macro_use]
 extern crate edn;
@@ -24,8 +24,15 @@ extern crate mentat_core;
 extern crate mentat_tx;
 extern crate mentat_tx_parser;
 
-use itertools::Itertools;
 use std::iter::repeat;
+
+use itertools::Itertools;
+
+use mentat_core::{
+    DateTime,
+    UTC,
+};
+
 pub use errors::{Error, ErrorKind, ResultExt, Result};
 
 pub mod db;
@@ -89,10 +96,7 @@ pub fn repeat_values(values_per_tuple: usize, tuples: usize) -> String {
     values
 }
 
-/// Return the current time in milliseconds after the Unix epoch according to the local clock.
-///
-/// Compare `Date.now()` in JavaScript, `System.currentTimeMillis` in Java.
-pub fn now() -> i64 {
-    let now = time::get_time();
-    (now.sec as i64 * 1_000) + (now.nsec as i64 / (1_000_000))
+/// Return the current time as a UTC `DateTime` instance.
+pub fn now() -> DateTime<UTC> {
+    UTC::now()
 }

@@ -25,7 +25,20 @@ use std::rc::Rc;
 use enum_set::EnumSet;
 
 use self::ordered_float::OrderedFloat;
-use self::edn::NamespacedKeyword;
+use self::edn::{
+    NamespacedKeyword,
+};
+
+pub use edn::{
+    Uuid,
+};
+
+pub use edn::{
+    DateTime,
+    FromMicros,
+    ToMicros,
+    UTC,
+};
 
 /// Core types defining a Mentat knowledge base.
 
@@ -48,6 +61,7 @@ pub enum ValueType {
     Double,
     String,
     Keyword,
+    Uuid,
 }
 
 impl ValueType {
@@ -61,6 +75,7 @@ impl ValueType {
         s.insert(ValueType::Double);
         s.insert(ValueType::String);
         s.insert(ValueType::Keyword);
+        s.insert(ValueType::Uuid);
         s
     }
 }
@@ -86,6 +101,7 @@ impl ValueType {
             ValueType::Double => values::DB_TYPE_DOUBLE.clone(),
             ValueType::String => values::DB_TYPE_STRING.clone(),
             ValueType::Keyword => values::DB_TYPE_KEYWORD.clone(),
+            ValueType::Uuid => values::DB_TYPE_UUID.clone(),
         }
     }
 }
@@ -100,6 +116,7 @@ impl fmt::Display for ValueType {
             ValueType::Double =>  ":db.type/double",
             ValueType::String =>  ":db.type/string",
             ValueType::Keyword => ":db.type/keyword",
+            ValueType::Uuid =>    ":db.type/uuid",
         })
     }
 }
@@ -113,9 +130,11 @@ pub enum TypedValue {
     Boolean(bool),
     Long(i64),
     Double(OrderedFloat<f64>),
+    Instant(DateTime<UTC>),
     // TODO: &str throughout?
     String(Rc<String>),
     Keyword(Rc<NamespacedKeyword>),
+    Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
 
 impl TypedValue {
@@ -136,9 +155,11 @@ impl TypedValue {
             &TypedValue::Ref(_) => ValueType::Ref,
             &TypedValue::Boolean(_) => ValueType::Boolean,
             &TypedValue::Long(_) => ValueType::Long,
+            &TypedValue::Instant(_) => ValueType::Instant,
             &TypedValue::Double(_) => ValueType::Double,
             &TypedValue::String(_) => ValueType::String,
             &TypedValue::Keyword(_) => ValueType::Keyword,
+            &TypedValue::Uuid(_) => ValueType::Uuid,
         }
     }
 
@@ -154,6 +175,10 @@ impl TypedValue {
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
         TypedValue::String(Rc::new(s.to_string()))
+    }
+
+    pub fn current_instant() -> TypedValue {
+        TypedValue::Instant(UTC::now())
     }
 }
 
@@ -173,6 +198,7 @@ impl SQLValueType for ValueType {
             ValueType::Long =>     5,
             ValueType::Double =>   5,
             ValueType::String =>  10,
+            ValueType::Uuid =>    11,
             ValueType::Keyword => 13,
         }
     }
@@ -182,6 +208,8 @@ impl SQLValueType for ValueType {
     ///
     /// ```
     /// use mentat_core::{ValueType, SQLValueType};
+    /// assert!(!ValueType::Instant.accommodates_integer(1493399581314));
+    /// assert!(!ValueType::Instant.accommodates_integer(1493399581314000));
     /// assert!(ValueType::Boolean.accommodates_integer(1));
     /// assert!(!ValueType::Boolean.accommodates_integer(-1));
     /// assert!(!ValueType::Boolean.accommodates_integer(10));
@@ -190,11 +218,13 @@ impl SQLValueType for ValueType {
     fn accommodates_integer(&self, int: i64) -> bool {
         use ValueType::*;
         match *self {
-            Instant | Long | Double => true,
+            Instant                 => false,          // Always use #inst.
+            Long | Double           => true,
             Ref                     => int >= 0,
             Boolean                 => (int == 0) || (int == 1),
             ValueType::String       => false,
             Keyword                 => false,
+            Uuid                    => false,
         }
     }
 }

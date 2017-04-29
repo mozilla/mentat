@@ -9,8 +9,11 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate edn;
+extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_parser;
+
+use std::rc::Rc;
 
 use edn::{
     NamespacedKeyword,
@@ -23,6 +26,7 @@ use mentat_query::{
     FindSpec,
     FnArg,
     Limit,
+    NonIntegerConstant,
     Order,
     OrJoin,
     OrWhereClause,
@@ -266,4 +270,18 @@ fn can_parse_limit() {
 
     let variable_without_in = "[:find ?x :where [?x :foo/baz ?y] :limit ?limit]";
     assert!(parse_find_string(variable_without_in).is_err());
+}
+
+#[test]
+fn can_parse_uuid() {
+    let expected = edn::Uuid::parse_str("4cb3f828-752d-497a-90c9-b1fd516d5644").expect("valid uuid");
+    let s = "[:find ?x :where [?x :foo/baz #uuid \"4cb3f828-752d-497a-90c9-b1fd516d5644\"]]";
+    assert_eq!(parse_find_string(s).expect("parsed").where_clauses.pop().expect("a where clause"),
+               WhereClause::Pattern(
+                   Pattern::new(None,
+                                PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                                PatternNonValuePlace::Ident(Rc::new(NamespacedKeyword::new("foo", "baz"))),
+                                PatternValuePlace::Constant(NonIntegerConstant::Uuid(expected)),
+                                PatternNonValuePlace::Placeholder)
+                       .expect("valid pattern")));
 }

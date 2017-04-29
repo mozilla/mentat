@@ -40,8 +40,18 @@ use std::collections::{
 use std::fmt;
 use std::rc::Rc;
 
-use edn::{BigInt, OrderedFloat};
-pub use edn::{NamespacedKeyword, PlainSymbol};
+use edn::{
+    BigInt,
+    DateTime,
+    OrderedFloat,
+    Uuid,
+    UTC,
+};
+
+pub use edn::{
+    NamespacedKeyword,
+    PlainSymbol,
+};
 
 use mentat_core::{
     TypedValue,
@@ -178,6 +188,8 @@ pub enum NonIntegerConstant {
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(Rc<String>),
+    Instant(DateTime<UTC>),
+    Uuid(Uuid),
 }
 
 impl NonIntegerConstant {
@@ -187,6 +199,8 @@ impl NonIntegerConstant {
             NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
             NonIntegerConstant::Float(v) => TypedValue::Double(v),
             NonIntegerConstant::Text(v) => TypedValue::String(v),
+            NonIntegerConstant::Instant(v) => TypedValue::Instant(v),
+            NonIntegerConstant::Uuid(v) => TypedValue::Uuid(v),
         }
     }
 }
@@ -310,10 +324,22 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Float(x))),
             edn::SpannedValue::BigInteger(ref x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::BigInteger(x.clone()))),
+            edn::SpannedValue::Instant(x) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Instant(x))),
             edn::SpannedValue::Text(ref x) =>
                 // TODO: intern strings. #398.
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
-            _ => None,
+            edn::SpannedValue::Uuid(ref u) =>
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Uuid(u.clone()))),
+
+            // These don't appear in queries.
+            edn::SpannedValue::Nil => None,
+            edn::SpannedValue::NamespacedSymbol(_) => None,
+            edn::SpannedValue::Keyword(_) => None,
+            edn::SpannedValue::Map(_) => None,
+            edn::SpannedValue::List(_) => None,
+            edn::SpannedValue::Set(_) => None,
+            edn::SpannedValue::Vector(_) => None,
         }
     }
 }

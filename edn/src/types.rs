@@ -15,9 +15,16 @@ use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt::{Display, Formatter};
 use std::f64;
 
-use symbols;
+use chrono::{
+    DateTime,
+    TimeZone,           // For UTC::timestamp. The compiler incorrectly complains that this is unused.
+    UTC,
+};
 use num::BigInt;
 use ordered_float::OrderedFloat;
+use uuid::Uuid;
+
+use symbols;
 
 /// Value represents one of the allowed values in an EDN string.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -25,9 +32,11 @@ pub enum Value {
     Nil,
     Boolean(bool),
     Integer(i64),
+    Instant(DateTime<UTC>),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
+    Uuid(Uuid),
     PlainSymbol(symbols::PlainSymbol),
     NamespacedSymbol(symbols::NamespacedSymbol),
     Keyword(symbols::Keyword),
@@ -52,9 +61,11 @@ pub enum SpannedValue {
     Nil,
     Boolean(bool),
     Integer(i64),
+    Instant(DateTime<UTC>),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
+    Uuid(Uuid),
     PlainSymbol(symbols::PlainSymbol),
     NamespacedSymbol(symbols::NamespacedSymbol),
     Keyword(symbols::Keyword),
@@ -123,9 +134,11 @@ impl From<SpannedValue> for Value {
             SpannedValue::Nil => Value::Nil,
             SpannedValue::Boolean(v) => Value::Boolean(v),
             SpannedValue::Integer(v) => Value::Integer(v),
+            SpannedValue::Instant(v) => Value::Instant(v),
             SpannedValue::BigInteger(v) => Value::BigInteger(v),
             SpannedValue::Float(v) => Value::Float(v),
             SpannedValue::Text(v) => Value::Text(v),
+            SpannedValue::Uuid(v) => Value::Uuid(v),
             SpannedValue::PlainSymbol(v) => Value::PlainSymbol(v),
             SpannedValue::NamespacedSymbol(v) => Value::NamespacedSymbol(v),
             SpannedValue::Keyword(v) => Value::Keyword(v),
@@ -268,9 +281,11 @@ macro_rules! def_common_value_methods {
         def_is!(is_nil, $t::Nil);
         def_is!(is_boolean, $t::Boolean(_));
         def_is!(is_integer, $t::Integer(_));
+        def_is!(is_instant, $t::Instant(_));
         def_is!(is_big_integer, $t::BigInteger(_));
         def_is!(is_float, $t::Float(_));
         def_is!(is_text, $t::Text(_));
+        def_is!(is_uuid, $t::Uuid(_));
         def_is!(is_symbol, $t::PlainSymbol(_));
         def_is!(is_namespaced_symbol, $t::NamespacedSymbol(_));
         def_is!(is_keyword, $t::Keyword(_));
@@ -288,11 +303,13 @@ macro_rules! def_common_value_methods {
 
         def_as!(as_boolean, $t::Boolean, bool,);
         def_as!(as_integer, $t::Integer, i64,);
+        def_as!(as_instant, $t::Instant, DateTime<UTC>,);
         def_as!(as_float, $t::Float, f64, |v: OrderedFloat<f64>| v.into_inner());
 
         def_as_ref!(as_big_integer, $t::BigInteger, BigInt);
         def_as_ref!(as_ordered_float, $t::Float, OrderedFloat<f64>);
         def_as_ref!(as_text, $t::Text, String);
+        def_as_ref!(as_uuid, $t::Uuid, Uuid);
         def_as_ref!(as_symbol, $t::PlainSymbol, symbols::PlainSymbol);
         def_as_ref!(as_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol);
         def_as_ref!(as_keyword, $t::Keyword, symbols::Keyword);
@@ -304,10 +321,12 @@ macro_rules! def_common_value_methods {
 
         def_into!(into_boolean, $t::Boolean, bool,);
         def_into!(into_integer, $t::Integer, i64,);
+        def_into!(into_instant, $t::Instant, DateTime<UTC>,);
         def_into!(into_big_integer, $t::BigInteger, BigInt,);
         def_into!(into_ordered_float, $t::Float, OrderedFloat<f64>,);
         def_into!(into_float, $t::Float, f64, |v: OrderedFloat<f64>| v.into_inner());
         def_into!(into_text, $t::Text, String,);
+        def_into!(into_uuid, $t::Uuid, Uuid,);
         def_into!(into_symbol, $t::PlainSymbol, symbols::PlainSymbol,);
         def_into!(into_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol,);
         def_into!(into_keyword, $t::Keyword, symbols::Keyword,);
@@ -336,15 +355,17 @@ macro_rules! def_common_value_methods {
                 $t::Integer(_) => 2,
                 $t::BigInteger(_) => 3,
                 $t::Float(_) => 4,
-                $t::Text(_) => 5,
-                $t::PlainSymbol(_) => 6,
-                $t::NamespacedSymbol(_) => 7,
-                $t::Keyword(_) => 8,
-                $t::NamespacedKeyword(_) => 9,
-                $t::Vector(_) => 10,
-                $t::List(_) => 11,
-                $t::Set(_) => 12,
-                $t::Map(_) => 13,
+                $t::Instant(_) => 5,
+                $t::Text(_) => 6,
+                $t::Uuid(_) => 7,
+                $t::PlainSymbol(_) => 8,
+                $t::NamespacedSymbol(_) => 9,
+                $t::Keyword(_) => 10,
+                $t::NamespacedKeyword(_) => 11,
+                $t::Vector(_) => 12,
+                $t::List(_) => 13,
+                $t::Set(_) => 14,
+                $t::Map(_) => 15,
             }
         }
 
@@ -353,9 +374,11 @@ macro_rules! def_common_value_methods {
                 $t::Nil => false,
                 $t::Boolean(_) => false,
                 $t::Integer(_) => false,
+                $t::Instant(_) => false,
                 $t::BigInteger(_) => false,
                 $t::Float(_) => false,
                 $t::Text(_) => false,
+                $t::Uuid(_) => false,
                 $t::PlainSymbol(_) => false,
                 $t::NamespacedSymbol(_) => false,
                 $t::Keyword(_) => false,
@@ -389,9 +412,11 @@ macro_rules! def_common_value_ord {
             (&$t::Nil, &$t::Nil) => Ordering::Equal,
             (&$t::Boolean(a), &$t::Boolean(b)) => b.cmp(&a),
             (&$t::Integer(a), &$t::Integer(b)) => b.cmp(&a),
+            (&$t::Instant(a), &$t::Instant(b)) => b.cmp(&a),
             (&$t::BigInteger(ref a), &$t::BigInteger(ref b)) => b.cmp(a),
             (&$t::Float(ref a), &$t::Float(ref b)) => b.cmp(a),
             (&$t::Text(ref a), &$t::Text(ref b)) => b.cmp(a),
+            (&$t::Uuid(ref a), &$t::Uuid(ref b)) => b.cmp(a),
             (&$t::PlainSymbol(ref a), &$t::PlainSymbol(ref b)) => b.cmp(a),
             (&$t::NamespacedSymbol(ref a), &$t::NamespacedSymbol(ref b)) => b.cmp(a),
             (&$t::Keyword(ref a), &$t::Keyword(ref b)) => b.cmp(a),
@@ -414,6 +439,7 @@ macro_rules! def_common_value_display {
             $t::Nil => write!($f, "nil"),
             $t::Boolean(v) => write!($f, "{}", v),
             $t::Integer(v) => write!($f, "{}", v),
+            $t::Instant(v) => write!($f, "{}", v),
             $t::BigInteger(ref v) => write!($f, "{}N", v),
             // TODO: make sure float syntax is correct.
             $t::Float(ref v) => {
@@ -429,6 +455,7 @@ macro_rules! def_common_value_display {
             }
             // TODO: EDN escaping.
             $t::Text(ref v) => write!($f, "\"{}\"", v),
+            $t::Uuid(ref u) => write!($f, "#uuid \"{}\"", u.hyphenated().to_string()),
             $t::PlainSymbol(ref v) => v.fmt($f),
             $t::NamespacedSymbol(ref v) => v.fmt($f),
             $t::Keyword(ref v) => v.fmt($f),
@@ -518,8 +545,29 @@ impl Display for ValueAndSpan {
     }
 }
 
+pub trait FromMicros {
+    fn from_micros(ts: i64) -> Self;
+}
+
+impl FromMicros for DateTime<UTC> {
+    fn from_micros(ts: i64) -> Self {
+        UTC.timestamp(ts / 100_000, ((ts % 100_000).abs() as u32) * 1_000)
+    }
+}
+
+pub trait ToMicros {
+    fn to_micros(&self) -> i64;
+}
+
+impl ToMicros for DateTime<UTC> {
+    fn to_micros(&self) -> i64 {
+        (self.timestamp() * 100_000) + (self.timestamp_subsec_micros() as i64)
+    }
+}
+
 #[cfg(test)]
 mod test {
+    extern crate chrono;
     extern crate ordered_float;
     extern crate num;
 
@@ -532,8 +580,20 @@ mod test {
 
     use parse;
 
+    use chrono::{
+        DateTime,
+        TimeZone,
+        UTC,
+    };
     use num::BigInt;
     use ordered_float::OrderedFloat;
+
+    #[test]
+    fn test_micros_roundtrip() {
+        let ts_micros: i64 = 1493399581314000;
+        let dt = DateTime::<UTC>::from_micros(ts_micros);
+        assert_eq!(dt.to_micros(), ts_micros);
+    }
 
     #[test]
     fn test_value_from() {

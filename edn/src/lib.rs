@@ -8,10 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate chrono;
 extern crate itertools;
 extern crate num;
 extern crate ordered_float;
 extern crate pretty;
+extern crate uuid;
 
 pub mod symbols;
 pub mod types;
@@ -23,8 +25,20 @@ pub mod parse {
     include!(concat!(env!("OUT_DIR"), "/edn.rs"));
 }
 
+// Re-export the types we use.
+pub use chrono::{DateTime, UTC};
 pub use num::BigInt;
 pub use ordered_float::OrderedFloat;
+pub use uuid::Uuid;
+
+// Export from our modules.
 pub use parse::ParseError;
-pub use types::{Span, SpannedValue, Value, ValueAndSpan};
+pub use types::{
+    FromMicros,
+    Span,
+    SpannedValue,
+    ToMicros,
+    Value,
+    ValueAndSpan,
+};
 pub use symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};

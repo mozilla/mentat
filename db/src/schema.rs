@@ -240,6 +240,7 @@ impl SchemaTypeChecking for Schema {
                 (&ValueType::Long, tv @ TypedValue::Long(_)) => Ok(tv),
                 (&ValueType::Double, tv @ TypedValue::Double(_)) => Ok(tv),
                 (&ValueType::String, tv @ TypedValue::String(_)) => Ok(tv),
+                (&ValueType::Uuid, tv @ TypedValue::Uuid(_)) => Ok(tv),
                 (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),

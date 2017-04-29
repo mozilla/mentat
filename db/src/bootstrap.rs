@@ -61,6 +61,8 @@ lazy_static! {
              (ns_keyword!("db.type", "long"),         entids::DB_TYPE_LONG),
              (ns_keyword!("db.type", "double"),       entids::DB_TYPE_DOUBLE),
              (ns_keyword!("db.type", "string"),       entids::DB_TYPE_STRING),
+             (ns_keyword!("db.type", "uuid"),         entids::DB_TYPE_UUID),
+             (ns_keyword!("db.type", "uri"),          entids::DB_TYPE_URI),
              (ns_keyword!("db.type", "boolean"),      entids::DB_TYPE_BOOLEAN),
              (ns_keyword!("db.type", "instant"),      entids::DB_TYPE_INSTANT),
              (ns_keyword!("db.type", "bytes"),        entids::DB_TYPE_BYTES),
@@ -69,25 +71,13 @@ lazy_static! {
              (ns_keyword!("db.unique", "value"),      entids::DB_UNIQUE_VALUE),
              (ns_keyword!("db.unique", "identity"),   entids::DB_UNIQUE_IDENTITY),
              (ns_keyword!("db", "doc"),               entids::DB_DOC),
+             (ns_keyword!("db.schema", "version"),    entids::DB_SCHEMA_VERSION),
+             (ns_keyword!("db.schema", "attribute"),  entids::DB_SCHEMA_ATTRIBUTE),
         ]
-    };
-
-    static ref V2_IDENTS: Vec<(symbols::NamespacedKeyword, i64)> = {
-        [(*V1_IDENTS).clone(),
-         vec![(ns_keyword!("db.schema", "version"),   entids::DB_SCHEMA_VERSION),
-              (ns_keyword!("db.schema", "attribute"), entids::DB_SCHEMA_ATTRIBUTE),
-         ]].concat()
     };
 
     static ref V1_PARTS: Vec<(symbols::NamespacedKeyword, i64, i64)> = {
         vec![(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
-             (ns_keyword!("db.part", "user"), 0x10000, 0x10000),
-             (ns_keyword!("db.part", "tx"), TX0, TX0),
-        ]
-    };
-
-    static ref V2_PARTS: Vec<(symbols::NamespacedKeyword, i64, i64)> = {
-        vec![(ns_keyword!("db.part", "db"), 0, (1 + V2_IDENTS.len()) as i64),
              (ns_keyword!("db.part", "user"), 0x10000, 0x10000),
              (ns_keyword!("db.part", "tx"), TX0, TX0),
         ]
@@ -108,7 +98,7 @@ lazy_static! {
  ;; TODO: support user-specified functions in the future.
  ;; :db.install/function {:db/valueType :db.type/ref
  ;;                       :db/cardinality :db.cardinality/many}
- :db/txInstant         {:db/valueType   :db.type/long
+ :db/txInstant         {:db/valueType   :db.type/instant
                         :db/cardinality :db.cardinality/one
                         :db/index       true}
  :db/valueType         {:db/valueType   :db.type/ref
@@ -126,16 +116,8 @@ lazy_static! {
  :db/fulltext          {:db/valueType   :db.type/boolean
                         :db/cardinality :db.cardinality/one}
  :db/noHistory         {:db/valueType   :db.type/boolean
-                        :db/cardinality :db.cardinality/one}}"#;
-        edn::parse::value(s)
-            .map(|v| v.without_spans())
-            .map_err(|_| ErrorKind::BadBootstrapDefinition("Unable to parse V1_SYMBOLIC_SCHEMA".into()))
-            .unwrap()
-    };
-
-    static ref V2_SYMBOLIC_SCHEMA: Value = {
-        let s = r#"
-{:db.alter/attribute   {:db/valueType   :db.type/ref
+                        :db/cardinality :db.cardinality/one}
+ :db.alter/attribute   {:db/valueType   :db.type/ref
                         :db/cardinality :db.cardinality/many}
  :db.schema/version    {:db/valueType   :db.type/long
                         :db/cardinality :db.cardinality/one}
@@ -146,13 +128,9 @@ lazy_static! {
                         :db/index       true
                         :db/unique      :db.unique/value
                         :db/cardinality :db.cardinality/many}}"#;
-        let right = edn::parse::value(s)
+        edn::parse::value(s)
             .map(|v| v.without_spans())
-            .map_err(|_| ErrorKind::BadBootstrapDefinition("Unable to parse V2_SYMBOLIC_SCHEMA".into()))
-            .unwrap();
-
-        edn::utils::merge(&V1_SYMBOLIC_SCHEMA, &right)
-            .ok_or(ErrorKind::BadBootstrapDefinition("Unable to parse V2_SYMBOLIC_SCHEMA".into()))
+            .map_err(|_| ErrorKind::BadBootstrapDefinition("Unable to parse V1_SYMBOLIC_SCHEMA".into()))
             .unwrap()
     };
 }
@@ -248,27 +226,27 @@ fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> 
 }
 
 pub fn bootstrap_partition_map() -> PartitionMap {
-    V2_PARTS[..].iter()
+    V1_PARTS[..].iter()
         .map(|&(ref part, start, index)| (part.to_string(), Partition::new(start, index)))
         .collect()
 }
 
 pub fn bootstrap_ident_map() -> IdentMap {
-    V2_IDENTS[..].iter()
+    V1_IDENTS[..].iter()
         .map(|&(ref ident, entid)| (ident.clone(), entid))
         .collect()
 }
 
 pub fn bootstrap_schema() -> Schema {
     let ident_map = bootstrap_ident_map();
-    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V2_SYMBOLIC_SCHEMA).unwrap();
+    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V1_SYMBOLIC_SCHEMA).unwrap();
     Schema::from_ident_map_and_triples(ident_map, bootstrap_triples).unwrap()
 }
 
 pub fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
-        symbolic_schema_to_assertions(&V2_SYMBOLIC_SCHEMA).unwrap(),
-        idents_to_assertions(&V2_IDENTS[..]),
+        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
+        idents_to_assertions(&V1_IDENTS[..]),
     ].concat());
 
     // Failure here is a coding error (since the inputs are fixed), not a runtime error.

@@ -76,8 +76,8 @@ fn prepopulated_schema() -> Schema {
     prepopulated_typed_schema(ValueType::String)
 }
 
-fn make_arg(name: &'static str, value: &'static str) -> (String, Rc<String>) {
-    (name.to_string(), Rc::new(value.to_string()))
+fn make_arg(name: &'static str, value: &'static str) -> (String, Rc<mentat_sql::Value>) {
+    (name.to_string(), Rc::new(mentat_sql::Value::Text(value.to_string())))
 }
 
 #[test]

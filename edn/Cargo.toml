@@ -11,10 +11,12 @@ build = "build.rs"
 readme = "./README.md"
 
 [dependencies]
+chrono = "0.3"
 itertools = "0.5.9"
 num = "0.1.35"
 ordered-float = "0.4.0"
 pretty = "0.2.0"
+uuid = "0.5.0"
 
 [build-dependencies]
 peg = "0.5.1"

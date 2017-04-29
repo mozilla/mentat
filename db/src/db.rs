@@ -26,17 +26,26 @@ use rusqlite::limits::Limit;
 
 use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
-use edn::types::Value;
+
+use edn::{
+    DateTime,
+    UTC,
+    Uuid,
+    Value,
+};
+
 use entids;
 use mentat_core::{
     attribute,
     Attribute,
     AttributeBitFlags,
     Entid,
+    FromMicros,
     IdentMap,
     Schema,
     SchemaMap,
     TypedValue,
+    ToMicros,
     ValueType,
 };
 use errors::{ErrorKind, Result, ResultExt};
@@ -72,10 +81,8 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 
 /// Version history:
 ///
-/// 1: initial schema.
-/// 2: added :db.schema/version and /attribute in bootstrap; assigned idents 36 and 37, so we bump
-///    the part range here; tie bootstrapping to the SQLite user_version.
-pub const CURRENT_VERSION: i32 = 2;
+/// 1: initial Rust Mentat schema.
+pub const CURRENT_VERSION: i32 = 1;
 
 /// MIN_SQLITE_VERSION should be changed when there's a new minimum version of sqlite required
 /// for the project to work.
@@ -93,9 +100,9 @@ fn to_bool_ref(x: bool) -> &'static bool {
 }
 
 lazy_static! {
-    /// SQL statements to be executed, in order, to create the Mentat SQL schema (version 2).
+    /// SQL statements to be executed, in order, to create the Mentat SQL schema (version 1).
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    static ref V2_STATEMENTS: Vec<&'static str> = { vec![
+    static ref V1_STATEMENTS: Vec<&'static str> = { vec![
         r#"CREATE TABLE datoms (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL,
                                 value_type_tag SMALLINT NOT NULL,
                                 index_avet TINYINT NOT NULL DEFAULT 0, index_vaet TINYINT NOT NULL DEFAULT 0,
@@ -203,7 +210,7 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     let tx = conn.transaction()?;
 
-    for statement in (&V2_STATEMENTS).iter() {
+    for statement in (&V1_STATEMENTS).iter() {
         tx.execute(statement, &[])?;
     }
 
@@ -347,11 +354,24 @@ impl TypedSQLValue for TypedValue {
         match (value_type_tag, value) {
             (0, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Ref(x)),
             (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
+
+            // Negative integers are simply times before 1970.
+            (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<UTC>::from_micros(x))),
+
             // SQLite distinguishes integral from decimal types, allowing long and double to
             // share a tag.
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
             (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
             (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(Rc::new(x))),
+            (11, rusqlite::types::Value::Blob(x)) => {
+                let u = Uuid::from_bytes(x.as_slice());
+                if u.is_err() {
+                    // Rather than exposing Uuid's ParseError…
+                    bail!(ErrorKind::BadSQLValuePair(rusqlite::types::Value::Blob(x),
+                                                     value_type_tag));
+                }
+                Ok(TypedValue::Uuid(u.unwrap()))
+            },
             (13, rusqlite::types::Value::Text(x)) => {
                 to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(Rc::new(k)))
             },
@@ -369,7 +389,9 @@ impl TypedSQLValue for TypedValue {
     fn from_edn_value(value: &Value) -> Option<TypedValue> {
         match value {
             &Value::Boolean(x) => Some(TypedValue::Boolean(x)),
+            &Value::Instant(x) => Some(TypedValue::Instant(x)),
             &Value::Integer(x) => Some(TypedValue::Long(x)),
+            &Value::Uuid(x) => Some(TypedValue::Uuid(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
             &Value::Text(ref x) => Some(TypedValue::String(Rc::new(x.clone()))),
             &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(Rc::new(x.clone()))),
@@ -382,10 +404,12 @@ impl TypedSQLValue for TypedValue {
         match self {
             &TypedValue::Ref(x) => (rusqlite::types::Value::Integer(x).into(), 0),
             &TypedValue::Boolean(x) => (rusqlite::types::Value::Integer(if x { 1 } else { 0 }).into(), 1),
+            &TypedValue::Instant(x) => (rusqlite::types::Value::Integer(x.to_micros()).into(), 4),
             // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
             &TypedValue::Long(x) => (rusqlite::types::Value::Integer(x).into(), 5),
             &TypedValue::Double(x) => (rusqlite::types::Value::Real(x.into_inner()).into(), 5),
             &TypedValue::String(ref x) => (rusqlite::types::ValueRef::Text(x.as_str()).into(), 10),
+            &TypedValue::Uuid(ref u) => (rusqlite::types::Value::Blob(u.as_bytes().to_vec()).into(), 11),
             &TypedValue::Keyword(ref x) => (rusqlite::types::ValueRef::Text(&x.to_string()).into(), 13),
         }
     }
@@ -395,9 +419,11 @@ impl TypedSQLValue for TypedValue {
         match self {
             &TypedValue::Ref(x) => (Value::Integer(x), ValueType::Ref),
             &TypedValue::Boolean(x) => (Value::Boolean(x), ValueType::Boolean),
+            &TypedValue::Instant(x) => (Value::Instant(x), ValueType::Instant),
             &TypedValue::Long(x) => (Value::Integer(x), ValueType::Long),
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.as_ref().clone()), ValueType::String),
+            &TypedValue::Uuid(ref u) => (Value::Uuid(u.clone()), ValueType::Uuid),
             &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.as_ref().clone()), ValueType::Keyword),
         }
     }
@@ -1173,12 +1199,12 @@ mod tests {
 
             // Does not include :db/txInstant.
             let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(datoms.0.len(), 74);
+            assert_eq!(datoms.0.len(), 76);
 
             // Includes :db/txInstant.
             let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
             assert_eq!(transactions.0.len(), 1);
-            assert_eq!(transactions.0[0].0.len(), 75);
+            assert_eq!(transactions.0[0].0.len(), 77);
 
             let test_conn = TestConn {
                 sqlite: conn,
