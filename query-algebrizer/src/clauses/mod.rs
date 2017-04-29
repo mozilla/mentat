@@ -568,7 +568,7 @@ impl ConjoiningClauses {
     fn constrain_to_tx(&mut self, tx: &PatternNonValuePlace) {
         match *tx {
             PatternNonValuePlace::Placeholder => (),
-            _ => unimplemented!(),           // TODO
+            _ => unimplemented!(),           // TODO: #440.
         }
     }
 

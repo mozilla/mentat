@@ -81,7 +81,7 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 
 /// Version history:
 ///
-/// 1: initial Mentat schema.
+/// 1: initial Rust Mentat schema.
 pub const CURRENT_VERSION: i32 = 1;
 
 /// MIN_SQLITE_VERSION should be changed when there's a new minimum version of sqlite required
@@ -354,7 +354,10 @@ impl TypedSQLValue for TypedValue {
         match (value_type_tag, value) {
             (0, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Ref(x)),
             (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
+
+            // Negative integers are simply times before 1970.
             (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<UTC>::from_micros(x))),
+
             // SQLite distinguishes integral from decimal types, allowing long and double to
             // share a tag.
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),

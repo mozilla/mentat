@@ -153,7 +153,7 @@ pub text -> ValueAndSpan =
 // We accept an arbitrary depth of decimals.
 // Note that we discard the timezone information -- all times are translated to UTC.
 pub inst_string -> DateTime<UTC> =
-    "\"" d:$( [0-9]*<4> "-" [0-2][0-9] "-" [0-3][0-9]
+    "#inst" whitespace+ "\"" d:$( [0-9]*<4> "-" [0-2][0-9] "-" [0-3][0-9]
               "T"
               [0-2][0-9] ":" [0-5][0-9] ":" [0-6][0-9]
               ("." [0-9]+)?
@@ -165,8 +165,16 @@ pub inst_string -> DateTime<UTC> =
             .map_err(|_| "invalid datetime")        // Oh, rustpeg.
     }
 
+pub inst_micros -> DateTime<UTC> =
+    "#instmicros" whitespace+ d:$( digit+ ) {
+        let micros = d.parse::<i64>().unwrap();
+        let seconds: i64 = micros / 1000000;
+        let nanos: u32 = ((micros % 1000000).abs() as u32) * 1000;
+        UTC.timestamp(seconds, nanos)
+    }
+
 pub inst_millis -> DateTime<UTC> =
-    d:$( digit+ ) {
+    "#instmillis" whitespace+ d:$( digit+ ) {
         let millis = d.parse::<i64>().unwrap();
         let seconds: i64 = millis / 1000;
         let nanos: u32 = ((millis % 1000).abs() as u32) * 1000000;
@@ -174,7 +182,7 @@ pub inst_millis -> DateTime<UTC> =
     }
 
 pub inst -> ValueAndSpan =
-    start:#position "#inst" whitespace+ t:(inst_millis / inst_string) end:#position {
+    start:#position t:(inst_millis / inst_micros / inst_string) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Instant(t),
             span: Span::new(start, end)

@@ -231,7 +231,7 @@ fn test_instants_and_uuids() {
         [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
     ]"#).unwrap();
 
-    // We don't yet support getting the tx from a pattern, so run wild.
+    // We don't yet support getting the tx from a pattern (#440), so run wild.
     let r = conn.q_once(&mut c,
                         r#"[:find [?x ?u ?when]
                             :where [?x :foo/uuid ?u]

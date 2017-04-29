@@ -95,13 +95,3 @@ pub struct TxReport {
     /// literal tempids to all unify to a single freshly allocated entid.)
     pub tempids: BTreeMap<String, Entid>,
 }
-
-impl Default for TxReport {
-    fn default() -> Self {
-        TxReport {
-            tx_id: Entid::default(),
-            tx_instant: UTC::now(),
-            tempids: BTreeMap::default(),
-        }
-    }
-}
