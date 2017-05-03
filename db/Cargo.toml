@@ -5,10 +5,10 @@ workspace = ".."
 
 [dependencies]
 error-chain = "0.8.1"
-itertools = "0.5.9"
-lazy_static = "0.2.2"
-ordered-float = "0.4.0"
-time = "0.1.35"
+itertools = "0.5"
+lazy_static = "0.2"
+ordered-float = "0.4"
+time = "0.1"
 
 [dependencies.rusqlite]
 version = "0.11"
