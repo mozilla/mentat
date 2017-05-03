@@ -11,12 +11,6 @@
 #[macro_use]
 extern crate error_chain;
 
-#[macro_use]
-extern crate slog;
-
-#[macro_use]
-extern crate slog_scope;
-
 extern crate rusqlite;
 
 extern crate edn;
@@ -38,7 +32,6 @@ pub mod conn;
 pub mod query;
 
 pub fn get_name() -> String {
-    info!("Called into mentat library"; "fn" => "get_name");
     return String::from("mentat");
 }
 
