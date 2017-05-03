@@ -13,16 +13,9 @@ extern crate clap;
 
 use nickel::{Nickel, HttpRouter};
 
-#[macro_use]
-extern crate slog;
-#[macro_use]
-extern crate slog_scope;
-extern crate slog_term;
-
 extern crate mentat;
 
 use clap::{App, Arg, SubCommand, AppSettings};
-use slog::DrainExt;
 
 use std::u16;
 use std::str::FromStr;
@@ -58,23 +51,6 @@ fn main() {
                      matches.value_of("database").unwrap(),
                      matches.value_of("port").unwrap());
         }
-
-        // Set up logging.
-        let log_level = if debug {
-            slog::Level::Debug
-        } else {
-            slog::Level::Warning
-        };
-        let term_logger = slog_term::streamer().build().fuse();
-        let log = slog::Logger::root(slog::LevelFilter::new(term_logger, log_level),
-                                     o!("version" => env!("CARGO_PKG_VERSION")));
-        slog_scope::set_global_logger(log);
-
-        info!("Serving database"; "database" => matches.value_of("database").unwrap(),
-                                  "port" => port,
-                                  "debug mode" => debug);
-
-        error!("Calling a function: {}", mentat::get_name());
 
         let mut server = Nickel::new();
         server.get("/", middleware!("This doesn't do anything yet"));
