@@ -40,6 +40,11 @@ pub fn get_connection() -> Connection {
     return Connection::open_in_memory().unwrap();
 }
 
+pub use mentat_core::{
+    TypedValue,
+    ValueType,
+};
+
 pub use mentat_db::{
     new_connection,
 };
@@ -51,6 +56,11 @@ pub use query::{
     QueryResults,
     Variable,
     q_once,
+};
+
+pub use conn::{
+    Conn,
+    Metadata,
 };
 
 #[cfg(test)]
