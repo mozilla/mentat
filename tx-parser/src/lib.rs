@@ -53,12 +53,12 @@ use mentat_parser_utils::value_and_span::{
 pub mod errors;
 pub use errors::*;
 
-pub struct Tx;
+pub struct Tx<'a>(std::marker::PhantomData<&'a ()>);
 
 def_parser!(Tx, entid, Entid, {
     integer()
         .map(|x| Entid::Entid(x))
-        .or(namespaced_keyword().map(|x| Entid::Ident(x)))
+        .or(namespaced_keyword().map(|x| Entid::Ident(x.clone())))
 });
 
 def_matches_plain_symbol!(Tx, literal_lookup_ref, "lookup-ref");
@@ -68,7 +68,7 @@ def_parser!(Tx, lookup_ref, LookupRef, {
         Tx::literal_lookup_ref()
             .with((Tx::entid(),
                    Tx::atom()))
-            .map(|(a, v)| LookupRef { a: a, v: v.without_spans() }))
+            .map(|(a, v)| LookupRef { a: a, v: v.clone().without_spans() }))
 });
 
 def_parser!(Tx, entid_or_lookup_ref_or_temp_id, EntidOrLookupRefOrTempId, {
@@ -78,11 +78,11 @@ def_parser!(Tx, entid_or_lookup_ref_or_temp_id, EntidOrLookupRefOrTempId, {
 });
 
 def_parser!(Tx, temp_id, TempId, {
-    satisfy_map(|x: edn::ValueAndSpan| x.into_text().map(TempId::External))
+    satisfy_map(|x: &'a edn::ValueAndSpan| x.as_text().cloned().map(TempId::External))
 });
 
-def_parser!(Tx, atom, edn::ValueAndSpan, {
-    satisfy_map(|x: edn::ValueAndSpan| x.into_atom())
+def_parser!(Tx, atom, &'a edn::ValueAndSpan, {
+    satisfy_map(|x: &'a edn::ValueAndSpan| x.as_atom())
 });
 
 def_parser!(Tx, nested_vector, Vec<AtomOrLookupRefOrVectorOrMapNotation>, {
@@ -93,7 +93,7 @@ def_parser!(Tx, atom_or_lookup_ref_or_vector, AtomOrLookupRefOrVectorOrMapNotati
     Tx::lookup_ref().map(AtomOrLookupRefOrVectorOrMapNotation::LookupRef)
         .or(Tx::nested_vector().map(AtomOrLookupRefOrVectorOrMapNotation::Vector))
         .or(Tx::map_notation().map(AtomOrLookupRefOrVectorOrMapNotation::MapNotation))
-        .or(Tx::atom().map(AtomOrLookupRefOrVectorOrMapNotation::Atom))
+        .or(Tx::atom().map(|x| x.clone()).map(AtomOrLookupRefOrVectorOrMapNotation::Atom))
 });
 
 def_matches_namespaced_keyword!(Tx, literal_db_add, "db", "add");
@@ -133,21 +133,21 @@ def_parser!(Tx, entities, Vec<Entity>, {
     vector().of_exactly(many(Tx::entity()))
 });
 
-impl Tx {
-    pub fn parse(input: edn::ValueAndSpan) -> std::result::Result<Vec<Entity>, errors::Error> {
+impl<'a> Tx<'a> {
+    pub fn parse(input: &'a edn::ValueAndSpan) -> std::result::Result<Vec<Entity>, errors::Error> {
         Tx::entities()
             .skip(eof())
-            .parse(input.into_atom_stream())
+            .parse(input.atom_stream())
             .map(|x| x.0)
-            .map_err(|e| Error::from_kind(ErrorKind::ParseError(e)))
+            .map_err(|e| Error::from_kind(ErrorKind::ParseError(e.into())))
     }
 
     fn parse_entid_or_lookup_ref_or_temp_id(input: edn::ValueAndSpan) -> std::result::Result<EntidOrLookupRefOrTempId, errors::Error> {
         Tx::entid_or_lookup_ref_or_temp_id()
             .skip(eof())
-            .parse(input.into_atom_stream())
+            .parse(input.atom_stream())
             .map(|x| x.0)
-            .map_err(|e| Error::from_kind(ErrorKind::ParseError(e)))
+            .map_err(|e| Error::from_kind(ErrorKind::ParseError(e.into())))
     }
 }
 
@@ -212,8 +212,11 @@ mod tests {
                                        kw("test", "entid"),
                                        kw("test", "a"),
                                        Value::Text("v".into())]);
-        let mut parser = Tx::entity();
-        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
         assert_eq!(result,
                    Ok(Entity::AddOrRetract {
                        op: OpType::Add,
@@ -230,8 +233,11 @@ mod tests {
                                        Value::Integer(101),
                                        kw("test", "a"),
                                        Value::Text("v".into())]);
-        let mut parser = Tx::entity();
-        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
         assert_eq!(result,
                    Ok(Entity::AddOrRetract {
                        op: OpType::Retract,
@@ -249,8 +255,11 @@ mod tests {
                                                         Value::Text("v1".into())].into_iter().collect()),
                                        kw("test", "a"),
                                        Value::Text("v".into())]);
-        let mut parser = Tx::entity();
-        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
         assert_eq!(result,
                    Ok(Entity::AddOrRetract {
                        op: OpType::Add,
@@ -271,8 +280,11 @@ mod tests {
                                                         Value::Text("v1".into())].into_iter().collect()),
                                        kw("test", "a"),
                                        Value::Vector(vec![Value::Text("v1".into()), Value::Text("v2".into())])]);
-        let mut parser = Tx::entity();
-        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
         assert_eq!(result,
                    Ok(Entity::AddOrRetract {
                        op: OpType::Add,
@@ -297,8 +309,10 @@ mod tests {
         map.insert(kw("db", "ident"), kw("test", "attribute"));
         let input = Value::Map(map.clone());
 
-        let mut parser = Tx::entity();
-        let result = parser.parse(input.with_spans().into_atom_stream()).map(|x| x.0);
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
         assert_eq!(result,
                    Ok(Entity::MapNotation(expected)));
     }

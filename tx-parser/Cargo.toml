@@ -4,7 +4,7 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
-combine = "2.2.2"
+combine = "2.3.2"
 error-chain = "0.8.1"
 
 [dependencies.edn]

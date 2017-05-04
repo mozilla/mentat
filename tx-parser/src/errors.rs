@@ -10,8 +10,7 @@
 
 #![allow(dead_code)]
 
-use combine;
-use mentat_parser_utils::value_and_span::Stream;
+use mentat_parser_utils::ValueParseError;
 
 error_chain! {
     types {
@@ -19,7 +18,7 @@ error_chain! {
     }
 
     errors {
-        ParseError(parse_error: combine::ParseError<Stream>) {
+        ParseError(parse_error: ValueParseError) {
             description("error parsing edn values")
             display("error parsing edn values:\n{}", parse_error)
         }

@@ -84,14 +84,14 @@ impl Variable {
 }
 
 pub trait FromValue<T> {
-    fn from_value(v: edn::ValueAndSpan) -> Option<T>;
+    fn from_value(v: &edn::ValueAndSpan) -> Option<T>;
 }
 
 /// If the provided EDN value is a PlainSymbol beginning with '?', return
 /// it wrapped in a Variable. If not, return None.
 /// TODO: intern strings. #398.
 impl FromValue<Variable> for Variable {
-    fn from_value(v: edn::ValueAndSpan) -> Option<Variable> {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<Variable> {
         if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
             Variable::from_symbol(s)
         } else {
@@ -129,7 +129,7 @@ impl fmt::Debug for Variable {
 pub struct PredicateFn(pub PlainSymbol);
 
 impl FromValue<PredicateFn> for PredicateFn {
-    fn from_value(v: edn::ValueAndSpan) -> Option<PredicateFn> {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<PredicateFn> {
         if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
             PredicateFn::from_symbol(s)
         } else {
@@ -162,7 +162,7 @@ pub enum SrcVar {
 }
 
 impl FromValue<SrcVar> for SrcVar {
-    fn from_value(v: edn::ValueAndSpan) -> Option<SrcVar> {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<SrcVar> {
         if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
             SrcVar::from_symbol(s)
         } else {
@@ -215,9 +215,9 @@ pub enum FnArg {
 }
 
 impl FromValue<FnArg> for FnArg {
-    fn from_value(v: edn::ValueAndSpan) -> Option<FnArg> {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<FnArg> {
         // TODO: support SrcVars.
-        Variable::from_value(v.clone()) // TODO: don't clone!
+        Variable::from_value(v)
                  .and_then(|v| Some(FnArg::Variable(v)))
                  .or_else(|| {
                           println!("from_value {}", v.inner);
@@ -266,7 +266,7 @@ impl PatternNonValuePlace {
 }
 
 impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
-    fn from_value(v: edn::ValueAndSpan) -> Option<PatternNonValuePlace> {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<PatternNonValuePlace> {
         match v.inner {
             edn::SpannedValue::Integer(x) => if x >= 0 {
                 Some(PatternNonValuePlace::Entid(x))
@@ -308,7 +308,7 @@ pub enum PatternValuePlace {
 }
 
 impl FromValue<PatternValuePlace> for PatternValuePlace {
-    fn from_value(v: edn::ValueAndSpan) -> Option<PatternValuePlace> {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<PatternValuePlace> {
         match v.inner {
             edn::SpannedValue::Integer(x) =>
                 Some(PatternValuePlace::EntidOrInteger(x)),
