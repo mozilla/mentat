@@ -10,39 +10,7 @@
 
 extern crate combine;
 extern crate edn;
-
-#[macro_use]
-pub mod macros;
-
-pub mod log;
-pub mod value_and_span;
-
-pub use log::{
-    LogParsing,
-};
-
-/// `assert_parses_to!` simplifies some of the boilerplate around running a
-/// parser function against input and expecting a certain result.
-#[macro_export]
-macro_rules! assert_parses_to {
-    ( $parser: expr, $input: expr, $expected: expr ) => {{
-        let par = $parser();
-        let result = par.skip(eof()).parse($input.with_spans().into_atom_stream()).map(|x| x.0);
-        assert_eq!(result, Ok($expected));
-    }}
-}
-
-/// `assert_edn_parses_to!` simplifies some of the boilerplate around running a parser function
-/// against string input and expecting a certain result.
-#[macro_export]
-macro_rules! assert_edn_parses_to {
-    ( $parser: expr, $input: expr, $expected: expr ) => {{
-        let par = $parser();
-        let input = edn::parse::value($input).expect("to be able to parse input as EDN");
-        let result = par.skip(eof()).parse(input.into_atom_stream()).map(|x| x.0);
-        assert_eq!(result, Ok($expected));
-    }}
-}
+extern crate itertools;
 
 /// A `ValueParseError` is a `combine::primitives::ParseError`-alike that implements the `Debug`,
 /// `Display`, and `std::error::Error` traits.  In addition, it doesn't capture references, making
@@ -52,10 +20,28 @@ macro_rules! assert_edn_parses_to {
 /// `Display`; rather than introducing a newtype like `DisplayVec`, we re-use `edn::Value::Vector`.
 #[derive(PartialEq)]
 pub struct ValueParseError {
-    pub position: usize,
+    pub position: edn::Span,
     // Think of this as `Vec<Error<edn::Value, DisplayVec<edn::Value>>>`; see above.
-    pub errors: Vec<combine::primitives::Error<edn::Value, edn::Value>>,
+    pub errors: Vec<combine::primitives::Error<edn::ValueAndSpan, edn::ValueAndSpan>>,
 }
+
+#[macro_use]
+pub mod macros;
+
+pub use macros::{
+    KeywordMapParser,
+    ResultParser,
+};
+
+pub mod log;
+pub mod value_and_span;
+pub use value_and_span::{
+    Stream,
+};
+
+pub use log::{
+    LogParsing,
+};
 
 impl std::fmt::Debug for ValueParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -68,7 +54,7 @@ impl std::fmt::Debug for ValueParseError {
 
 impl std::fmt::Display for ValueParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        try!(writeln!(f, "Parse error at {}", self.position));
+        try!(writeln!(f, "Parse error at {:?}", self.position));
         combine::primitives::Error::fmt_errors(&self.errors, f)
     }
 }
@@ -79,49 +65,13 @@ impl std::error::Error for ValueParseError {
     }
 }
 
-impl<'a> From<combine::primitives::ParseError<&'a [edn::Value]>> for ValueParseError {
-    fn from(e: combine::primitives::ParseError<&'a [edn::Value]>) -> ValueParseError {
+impl<'a> From<combine::primitives::ParseError<Stream<'a>>> for ValueParseError {
+    fn from(e: combine::primitives::ParseError<Stream<'a>>) -> ValueParseError {
         ValueParseError {
-            position: e.position,
-            errors: e.errors.into_iter().map(|e| e.map_range(|r| {
-                let mut v = Vec::new();
-                v.extend_from_slice(r);
-                edn::Value::Vector(v)
-            })).collect(),
-        }
-    }
-}
-
-/// Allow to map the range types of combine::primitives::{Info, Error}.
-trait MapRange<R, S> {
-    type Output;
-    fn map_range<F>(self, f: F) -> Self::Output where F: FnOnce(R) -> S;
-}
-
-impl<T, R, S> MapRange<R, S> for combine::primitives::Info<T, R> {
-    type Output = combine::primitives::Info<T, S>;
-
-    fn map_range<F>(self, f: F) -> combine::primitives::Info<T, S> where F: FnOnce(R) -> S {
-        use combine::primitives::Info::*;
-        match self {
-            Token(t) => Token(t),
-            Range(r) => Range(f(r)),
-            Owned(s) => Owned(s),
-            Borrowed(x) => Borrowed(x),
-        }
-    }
-}
-
-impl<T, R, S> MapRange<R, S> for combine::primitives::Error<T, R> {
-    type Output = combine::primitives::Error<T, S>;
-
-    fn map_range<F>(self, f: F) -> combine::primitives::Error<T, S> where F: FnOnce(R) -> S {
-        use combine::primitives::Error::*;
-        match self {
-            Unexpected(x) => Unexpected(x.map_range(f)),
-            Expected(x) => Expected(x.map_range(f)),
-            Message(x) => Message(x.map_range(f)),
-            Other(x) => Other(x),
+            position: e.position.0,
+            errors: e.errors.into_iter()
+                .map(|e| e.map_token(|t| t.clone()).map_range(|r| r.clone()))
+                .collect(),
         }
     }
 }

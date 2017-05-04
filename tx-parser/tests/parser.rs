@@ -34,7 +34,7 @@ fn test_float_and_uuid() {
  "#;
     let edn = parse::value(input).expect("to parse test input");
 
-    let result = Tx::parse(edn);
+    let result = Tx::parse(&edn);
     assert_eq!(result.unwrap(),
                vec![
                    Entity::AddOrRetract {
@@ -61,7 +61,7 @@ fn test_entities() {
 
     let edn = parse::value(input).expect("to parse test input");
 
-    let result = Tx::parse(edn);
+    let result = Tx::parse(&edn);
     assert_eq!(result.unwrap(),
                vec![
                    Entity::AddOrRetract {

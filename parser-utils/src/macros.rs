@@ -36,6 +36,8 @@ use combine::combinator::{
 /// Nothing about this is specific to the result type of the parser.
 pub type ResultParser<O, I> = Expected<FnParser<I, fn(I) -> ParseResult<O, I>>>;
 
+pub struct KeywordMapParser<T>(pub T);
+
 /// `satisfy_unwrap!` makes it a little easier to implement a `satisfy_map`
 /// body that matches a particular `Value` enum case, otherwise returning `None`.
 #[macro_export]
@@ -65,61 +67,71 @@ macro_rules! matches_plain_symbol {
     }
 }
 
-/// Define an `impl` body for the `$parser` type. The body will contain a parser
-/// function called `$name`, consuming a stream of `$item_type`s. The parser's
-/// result type will be `$result_type`.
-///
-/// The provided `$body` will be evaluated with `$input` bound to the input stream.
-///
-/// `$body`, when run, should return a `ParseResult` of the appropriate result type.
-#[macro_export]
-macro_rules! def_parser_fn {
-    ( $parser: ident, $name: ident, $item_type: ty, $result_type: ty, $input: ident, $body: block ) => {
-        impl<I> $parser<I> where I: Stream<Item = $item_type> {
-            fn $name() -> ResultParser<$result_type, I> {
-                fn inner<I: Stream<Item = $item_type>>($input: I) -> ParseResult<$result_type, I> {
-                    $body
-                }
-                parser(inner as fn(I) -> ParseResult<$result_type, I>).expected(stringify!($name))
-            }
-        }
-    }
-}
-
 #[macro_export]
 macro_rules! def_parser {
     ( $parser: ident, $name: ident, $result_type: ty, $body: block ) => {
-        impl $parser {
-            fn $name() -> ResultParser<$result_type, $crate::value_and_span::Stream> {
-                fn inner(input: $crate::value_and_span::Stream) -> ParseResult<$result_type, $crate::value_and_span::Stream> {
+        impl<'p> $parser<'p> {
+            fn $name<'a>() -> ResultParser<$result_type, $crate::value_and_span::Stream<'a>> {
+                fn inner<'a>(input: $crate::value_and_span::Stream<'a>) -> ParseResult<$result_type, $crate::value_and_span::Stream<'a>> {
                     $body.parse_lazy(input).into()
                 }
-                parser(inner as fn($crate::value_and_span::Stream) -> ParseResult<$result_type, $crate::value_and_span::Stream>).expected(stringify!($name))
+                parser(inner as fn($crate::value_and_span::Stream<'a>) -> ParseResult<$result_type, $crate::value_and_span::Stream<'a>>).expected(stringify!($name))
             }
         }
     }
 }
 
-/// `def_value_parser_fn` is a short-cut to `def_parser_fn` with the input type
-/// being `edn::Value`.
+/// `assert_parses_to!` simplifies some of the boilerplate around running a
+/// parser function against input and expecting a certain result.
 #[macro_export]
-macro_rules! def_value_parser_fn {
-    ( $parser: ident, $name: ident, $result_type: ty, $input: ident, $body: block ) => {
-        def_parser_fn!($parser, $name, edn::Value, $result_type, $input, $body);
-    }
+macro_rules! assert_parses_to {
+    ( $parser: expr, $input: expr, $expected: expr ) => {{
+        let input = $input.with_spans();
+        let par = $parser();
+        let stream = input.atom_stream();
+        let result = par.skip(eof()).parse(stream).map(|x| x.0);
+        assert_eq!(result, Ok($expected));
+    }}
 }
 
-/// `def_value_satisfy_parser_fn` is a short-cut to `def_parser_fn` with the input type
-/// being `edn::Value` and the body being a call to `satisfy_map` with the given transformer.
-///
-/// In practice this allows you to simply pass a function that accepts an `&edn::Value` and
-/// returns an `Option<$result_type>`: if a suitable value is at the front of the stream,
-/// it will be converted and returned by the parser; otherwise, the parse will fail.
+/// `assert_edn_parses_to!` simplifies some of the boilerplate around running a parser function
+/// against string input and expecting a certain result.
 #[macro_export]
-macro_rules! def_value_satisfy_parser_fn {
-    ( $parser: ident, $name: ident, $result_type: ty, $transformer: path ) => {
-        def_value_parser_fn!($parser, $name, $result_type, input, {
-            satisfy_map(|x: edn::Value| $transformer(&x)).parse_stream(input)
-        });
-    }
+macro_rules! assert_edn_parses_to {
+    ( $parser: expr, $input: expr, $expected: expr ) => {{
+        let input = edn::parse::value($input).expect("to be able to parse input as EDN");
+        let par = $parser();
+        let stream = input.atom_stream();
+        let result = par.skip(eof()).parse(stream).map(|x| x.0);
+        assert_eq!(result, Ok($expected));
+    }}
+}
+
+/// `assert_parse_failure_contains!` simplifies running a parser function against string input and
+/// expecting a certain failure.  This is working around the complexity of pattern matching parse
+/// errors that contain spans.
+#[macro_export]
+macro_rules! assert_parse_failure_contains {
+    ( $parser: expr, $input: expr, $expected: expr ) => {{
+        let input = edn::parse::value($input).expect("to be able to parse input as EDN");
+        let par = $parser();
+        let stream = input.atom_stream();
+        let result = par.skip(eof()).parse(stream).map(|x| x.0).map_err(|e| -> ::ValueParseError { e.into() });
+        assert!(format!("{:?}", result).contains($expected), "Expected {:?} to contain {:?}", result, $expected);
+    }}
+}
+
+#[macro_export]
+macro_rules! keyword_map_of {
+    ($(($keyword:expr, $value:expr)),+) => {{
+        let mut seen = std::collections::BTreeSet::default();
+
+        $(
+            if !seen.insert($keyword) {
+                panic!("keyword map has repeated key: {}", stringify!($keyword));
+            }
+        )+
+
+        KeywordMapParser(($(($keyword, $value)),+))
+    }}
 }

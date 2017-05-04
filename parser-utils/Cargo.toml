@@ -5,7 +5,8 @@ authors = ["Victor Porof <vporof@mozilla.com>", "Richard Newman <rnewman@mozilla
 workspace = ".."
 
 [dependencies]
-combine = "2.2.2"
+combine = "2.3.2"
+itertools = "0.5.9"
 
 [dependencies.edn]
   path = "../edn"
