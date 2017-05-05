@@ -11,54 +11,53 @@
 use std::cmp;
 
 use std::collections::{
-    BTreeMap,
-    BTreeSet,
+    BTreeMap, 
+    BTreeSet
 };
 
 use std::collections::btree_map::Entry;
 
 use std::fmt::{
-    Debug,
-    Formatter,
+    Debug, 
+    Formatter
 };
 
 use mentat_core::{
-    Attribute,
-    Entid,
-    Schema,
-    TypedValue,
-    ValueType,
+    Attribute, 
+    Entid, 
+    Schema, 
+    TypedValue, 
+    ValueType
 };
 
 use mentat_core::counter::RcCounter;
 
 use mentat_query::{
-    NamespacedKeyword,
-    NonIntegerConstant,
-    Pattern,
+    NamespacedKeyword, 
+    NonIntegerConstant, 
+    Pattern, 
     PatternNonValuePlace,
-    PatternValuePlace,
-    Variable,
-    WhereClause,
+    PatternValuePlace, 
+    Variable, 
+    WhereClause
 };
 
-use errors::{
-    Result,
-};
+use errors::Result;
 
 use types::{
-    ColumnConstraint,
-    ColumnIntersection,
+    ColumnConstraint, 
+    ColumnConstraintOrAlternation, 
+    ColumnIntersection, 
     ComputedTable,
-    Column,
-    DatomsColumn,
-    DatomsTable,
-    EmptyBecause,
-    QualifiedAlias,
+    Column, 
+    DatomsColumn, 
+    DatomsTable, 
+    EmptyBecause, 
+    QualifiedAlias, 
     QueryValue,
-    SourceAlias,
-    TableAlias,
-    ValueTypeSet,
+    SourceAlias, 
+    TableAlias, 
+    ValueTypeSet
 };
 
 mod inputs;
@@ -70,8 +69,8 @@ mod resolve;
 mod where_fn;
 
 use validate::{
-    validate_not_join,
-    validate_or_join,
+    validate_not_join, 
+    validate_or_join
 };
 
 pub use self::inputs::QueryInputs;
@@ -98,20 +97,14 @@ trait Intersection<K> {
 
 impl<K: Ord, T> Contains<K, T> for BTreeSet<K> {
     fn when_contains<F: FnOnce() -> T>(&self, k: &K, f: F) -> Option<T> {
-        if self.contains(k) {
-            Some(f())
-        } else {
-            None
-        }
+        if self.contains(k) { Some(f()) } else { None }
     }
 }
 
 impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
     /// Return a clone of the map with only keys that are present in `ks`.
     fn with_intersected_keys(&self, ks: &BTreeSet<K>) -> Self {
-        self.iter()
-            .filter_map(|(k, v)| ks.when_contains(k, || (k.clone(), v.clone())))
-            .collect()
+        self.iter().filter_map(|(k, v)| ks.when_contains(k, || (k.clone(), v.clone()))).collect()
     }
 
     /// Remove all keys from the map that are not present in `ks`.
@@ -211,11 +204,9 @@ pub struct ConjoiningClauses {
 
 impl PartialEq for ConjoiningClauses {
     fn eq(&self, other: &ConjoiningClauses) -> bool {
-        self.empty_because.eq(&other.empty_because) &&
-        self.from.eq(&other.from) &&
+        self.empty_because.eq(&other.empty_because) && self.from.eq(&other.from) &&
         self.computed_tables.eq(&other.computed_tables) &&
-        self.wheres.eq(&other.wheres) &&
-        self.column_bindings.eq(&other.column_bindings) &&
+        self.wheres.eq(&other.wheres) && self.column_bindings.eq(&other.column_bindings) &&
         self.input_variables.eq(&other.input_variables) &&
         self.value_bindings.eq(&other.value_bindings) &&
         self.known_types.eq(&other.known_types) &&
@@ -264,21 +255,21 @@ impl ConjoiningClauses {
     /// to share a counter with an enclosing scope, and to start counting at a particular offset
     /// for testing.
     pub fn with_alias_counter(counter: RcCounter) -> ConjoiningClauses {
-        ConjoiningClauses {
-            alias_counter: counter,
-            ..Default::default()
-        }
+        ConjoiningClauses { alias_counter: counter, ..Default::default() }
     }
 
     pub fn with_inputs<T>(in_variables: BTreeSet<Variable>, inputs: T) -> ConjoiningClauses
-    where T: Into<Option<QueryInputs>> {
+        where T: Into<Option<QueryInputs>>
+    {
         ConjoiningClauses::with_inputs_and_alias_counter(in_variables, inputs, RcCounter::new())
     }
 
     pub fn with_inputs_and_alias_counter<T>(in_variables: BTreeSet<Variable>,
                                             inputs: T,
-                                            alias_counter: RcCounter) -> ConjoiningClauses
-    where T: Into<Option<QueryInputs>> {
+                                            alias_counter: RcCounter)
+                                            -> ConjoiningClauses
+        where T: Into<Option<QueryInputs>>
+    {
         match inputs.into() {
             None => ConjoiningClauses::with_alias_counter(alias_counter),
             Some(QueryInputs { mut types, mut values }) => {
@@ -294,11 +285,11 @@ impl ConjoiningClauses {
                 };
 
                 // Pre-fill our type mappings with the types of the input bindings.
-                cc.known_types
-                  .extend(types.iter()
-                               .map(|(k, v)| (k.clone(), ValueTypeSet::of_one(*v))));
+                cc.known_types.extend(types.iter().map(|(k, v)| {
+                                                           (k.clone(), ValueTypeSet::of_one(*v))
+                                                       }));
                 cc
-            },
+            }
         }
     }
 }
@@ -323,7 +314,10 @@ impl ConjoiningClauses {
         ConjoiningClauses {
             alias_counter: self.alias_counter.clone(),
             empty_because: self.empty_because.clone(),
-            input_variables: self.input_variables.intersection(vars).cloned().collect(),
+            input_variables: self.input_variables
+                .intersection(vars)
+                .cloned()
+                .collect(),
             value_bindings: self.value_bindings.with_intersected_keys(&vars),
             known_types: self.known_types.with_intersected_keys(&vars),
             extracted_types: self.extracted_types.with_intersected_keys(&vars),
@@ -345,7 +339,10 @@ impl ConjoiningClauses {
 
     /// Return a set of the variables externally bound to values.
     pub fn value_bound_variables(&self) -> BTreeSet<Variable> {
-        self.value_bindings.keys().cloned().collect()
+        self.value_bindings
+            .keys()
+            .cloned()
+            .collect()
     }
 
     /// Return a single `ValueType` if the given variable is known to have a precise type.
@@ -375,7 +372,7 @@ impl ConjoiningClauses {
                     // We don't need to handle expansion of attributes here. The subquery that
                     // produces the variable projection will do so.
                     self.constrain_column_to_constant(table, column, bound_val);
-                },
+                }
 
                 Column::Fixed(DatomsColumn::ValueTypeTag) => {
                     // I'm pretty sure this is meaningless right now, because we will never bind
@@ -387,12 +384,12 @@ impl ConjoiningClauses {
                     //         [(= (typeof ?y) :db.valueType/double)]]
                     // ```
                     unimplemented!();
-                },
+                }
 
                 // TODO: recognize when the valueType might be a ref and also translate entids there.
                 Column::Fixed(DatomsColumn::Value) => {
                     self.constrain_column_to_constant(table, column, bound_val);
-                },
+                }
 
                 // These columns can only be entities, so attempt to translate keywords. If we can't
                 // get an entity out of the bound value, the pattern cannot produce results.
@@ -410,14 +407,14 @@ impl ConjoiningClauses {
                                 // attribute then we should have already marked the pattern as empty.
                                 self.mark_known_empty(EmptyBecause::UnresolvedIdent(kw.cloned()));
                             }
-                        },
+                        }
                         TypedValue::Ref(entid) => {
                             self.constrain_column_to_entity(table, column, entid);
-                        },
+                        }
                         _ => {
                             // One can't bind an e, a, or tx to something other than an entity.
                             self.mark_known_empty(EmptyBecause::InvalidBinding(column, bound_val));
-                        },
+                        }
                     }
                 }
             }
@@ -437,7 +434,7 @@ impl ConjoiningClauses {
             // a subquery will be projecting a type tag.
             column == Column::Fixed(DatomsColumn::Value) &&
             self.known_type(&var).is_none() &&              // Don't need to extract if we know a single type.
-            !self.extracted_types.contains_key(&var);       // We're already extracting the type.
+            !self.extracted_types.contains_key(&var); // We're already extracting the type.
 
         let alias = QualifiedAlias(table, column);
 
@@ -446,17 +443,28 @@ impl ConjoiningClauses {
         if needs_type_extraction {
             self.extracted_types.insert(var.clone(), alias.for_type_tag());
         }
-        self.column_bindings.entry(var).or_insert(vec![]).push(alias);
+        self.column_bindings
+            .entry(var)
+            .or_insert(vec![])
+            .push(alias);
     }
 
-    pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
+    pub fn constrain_column_to_constant<C: Into<Column>>(&mut self,
+                                                         table: TableAlias,
+                                                         column: C,
+                                                         constant: TypedValue) {
         let column = column.into();
-        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column),
+                                                              QueryValue::TypedValue(constant)))
     }
 
-    pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {
+    pub fn constrain_column_to_entity<C: Into<Column>>(&mut self,
+                                                       table: TableAlias,
+                                                       column: C,
+                                                       entity: Entid) {
         let column = column.into();
-        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
+        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column),
+                                                              QueryValue::Entid(entity)))
     }
 
     pub fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
@@ -486,8 +494,13 @@ impl ConjoiningClauses {
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
+<<<<<<< HEAD
         let this_type_set = ValueTypeSet::of_one(this_type);
         if let Some(existing) = self.known_types.insert(var.clone(), this_type_set) {
+=======
+        if let Some(existing) =
+            self.known_types.insert(variable.clone(), ValueTypeSet::of_one(this_type)) {
+>>>>>>> Expand type tags
             // There was an existing mapping. Does this type match?
             if !existing.contains(this_type) {
                 self.mark_known_empty(EmptyBecause::TypeMismatch { var, existing, desired: this_type_set });
@@ -510,7 +523,7 @@ impl ConjoiningClauses {
                         self.extracted_types.remove(e.key());
                     }
                     e.insert(new_types);
-                },
+                }
                 Entry::Occupied(mut e) => {
                     let new;
                     // Scoped borrow of `e`.
@@ -524,7 +537,7 @@ impl ConjoiningClauses {
                         new = existing_types.union(&new_types);
                     }
                     e.insert(new);
-                },
+                }
             }
         }
     }
@@ -545,7 +558,7 @@ impl ConjoiningClauses {
         match self.known_types.entry(var) {
             Entry::Vacant(e) => {
                 e.insert(types);
-            },
+            }
             Entry::Occupied(mut e) => {
                 let intersected: ValueTypeSet = types.intersection(e.get());
                 if intersected.is_empty() {
@@ -556,7 +569,7 @@ impl ConjoiningClauses {
                 }
                 // Always insert, even if it's empty!
                 e.insert(intersected);
-            },
+            }
         }
 
         if let Some(e) = empty_because {
@@ -605,39 +618,47 @@ impl ConjoiningClauses {
         if self.empty_because.is_some() {
             return;
         }
-        println!("CC known empty: {:?}.", &why);                   // TODO: proper logging.
+        println!("CC known empty: {:?}.", &why); // TODO: proper logging.
         self.empty_because = Some(why);
     }
 
-    fn entid_for_ident<'s, 'a>(&self, schema: &'s Schema, ident: &'a NamespacedKeyword) -> Option<Entid> {
+    fn entid_for_ident<'s, 'a>(&self,
+                               schema: &'s Schema,
+                               ident: &'a NamespacedKeyword)
+                               -> Option<Entid> {
         schema.get_entid(&ident)
     }
 
-    fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
+    fn table_for_attribute_and_value<'s, 'a>
+        (&self,
+         attribute: &'s Attribute,
+         value: &'a PatternValuePlace)
+         -> ::std::result::Result<DatomsTable, EmptyBecause> {
         if attribute.fulltext {
             match value {
-                &PatternValuePlace::Placeholder =>
-                    Ok(DatomsTable::Datoms),            // We don't need the value.
+                &PatternValuePlace::Placeholder => Ok(DatomsTable::Datoms),            // We don't need the value.
 
                 // TODO: an existing non-string binding can cause this pattern to fail.
-                &PatternValuePlace::Variable(_) =>
-                    Ok(DatomsTable::AllDatoms),
+                &PatternValuePlace::Variable(_) => Ok(DatomsTable::AllDatoms),
 
-                &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>
-                    Ok(DatomsTable::AllDatoms),
+                &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) => {
+                    Ok(DatomsTable::AllDatoms)
+                }
 
                 _ => {
                     // We can't succeed if there's a non-string constant value for a fulltext
                     // field.
                     Err(EmptyBecause::NonStringFulltextValue)
-                },
+                }
             }
         } else {
             Ok(DatomsTable::Datoms)
         }
     }
 
-    fn table_for_unknown_attribute<'s, 'a>(&self, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
+    fn table_for_unknown_attribute<'s, 'a>(&self,
+                                           value: &'a PatternValuePlace)
+                                           -> ::std::result::Result<DatomsTable, EmptyBecause> {
         // If the value is known to be non-textual, we can simply use the regular datoms
         // table (TODO: and exclude on `index_fulltext`!).
         //
@@ -646,43 +667,45 @@ impl ConjoiningClauses {
         //
         // If the value is a variable or string, we must use `all_datoms`, or do the join
         // ourselves, because we'll need to either extract or compare on the string.
-        Ok(
-            match value {
-                // TODO: see if the variable is projected, aggregated, or compared elsewhere in
-                // the query. If it's not, we don't need to use all_datoms here.
-                &PatternValuePlace::Variable(ref v) => {
-                    // Do we know that this variable can't be a string? If so, we don't need
-                    // AllDatoms. None or String means it could be or definitely is.
-                    match self.known_types.get(v).map(|types| types.contains(ValueType::String)) {
-                        Some(false) => DatomsTable::Datoms,
-                        _           => DatomsTable::AllDatoms,
-                    }
-                }
-                &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>
-                    DatomsTable::AllDatoms,
-                _ =>
-                    DatomsTable::Datoms,
-            })
+        Ok(match value {
+               // TODO: see if the variable is projected, aggregated, or compared elsewhere in
+               // the query. If it's not, we don't need to use all_datoms here.
+               &PatternValuePlace::Variable(ref v) => {
+            // Do we know that this variable can't be a string? If so, we don't need
+            // AllDatoms. None or String means it could be or definitely is.
+            match self.known_types.get(v).map(|types| types.contains(ValueType::String)) {
+                Some(false) => DatomsTable::Datoms,
+                _ => DatomsTable::AllDatoms,
+            }
+        }
+               &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) => DatomsTable::AllDatoms,
+               _ => DatomsTable::Datoms,
+           })
     }
 
     /// Decide which table to use for the provided attribute and value.
     /// If the attribute input or value binding doesn't name an attribute, or doesn't name an
     /// attribute that is congruent with the supplied value, we return an `EmptyBecause`.
     /// The caller is responsible for marking the CC as known-empty if this is a fatal failure.
-    fn table_for_places<'s, 'a>(&self, schema: &'s Schema, attribute: &'a PatternNonValuePlace, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
+    fn table_for_places<'s, 'a>(&self,
+                                schema: &'s Schema,
+                                attribute: &'a PatternNonValuePlace,
+                                value: &'a PatternValuePlace)
+                                -> ::std::result::Result<DatomsTable, EmptyBecause> {
         match attribute {
-            &PatternNonValuePlace::Ident(ref kw) =>
+            &PatternNonValuePlace::Ident(ref kw) => {
                 schema.attribute_for_ident(kw)
-                      .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
-                      .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
-            &PatternNonValuePlace::Entid(id) =>
+                    .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
+                    .and_then(|attribute| self.table_for_attribute_and_value(attribute, value))
+            }
+            &PatternNonValuePlace::Entid(id) => {
                 schema.attribute_for_entid(id)
-                      .ok_or_else(|| EmptyBecause::InvalidAttributeEntid(id))
-                      .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
+                    .ok_or_else(|| EmptyBecause::InvalidAttributeEntid(id))
+                    .and_then(|attribute| self.table_for_attribute_and_value(attribute, value))
+            }
             // TODO: In a prepared context, defer this decision until a second algebrizing phase.
             // #278.
-            &PatternNonValuePlace::Placeholder =>
-                self.table_for_unknown_attribute(value),
+            &PatternNonValuePlace::Placeholder => self.table_for_unknown_attribute(value),
             &PatternNonValuePlace::Variable(ref v) => {
                 // See if we have a binding for the variable.
                 match self.bound_value(v) {
@@ -704,16 +727,14 @@ impl ConjoiningClauses {
                         Err(EmptyBecause::InvalidBinding(Column::Fixed(DatomsColumn::Attribute), v.clone()))
                     },
                 }
-            },
+            }
         }
     }
 
     pub fn next_alias_for_table(&mut self, table: DatomsTable) -> TableAlias {
         match table {
-            DatomsTable::Computed(u) =>
-                format!("{}{:02}", table.name(), u),
-            _ =>
-                format!("{}{:02}", table.name(), self.alias_counter.next()),
+            DatomsTable::Computed(u) => format!("{}{:02}", table.name(), u),
+            _ => format!("{}{:02}", table.name(), self.alias_counter.next()),
         }
     }
 
@@ -721,16 +742,20 @@ impl ConjoiningClauses {
     /// This is a mutating method because it mutates the aliaser function!
     /// Note that if this function decides that a pattern cannot match, it will flip
     /// `empty_because`.
-    fn alias_table<'s, 'a>(&mut self, schema: &'s Schema, pattern: &'a Pattern) -> Option<SourceAlias> {
+    fn alias_table<'s, 'a>(&mut self,
+                           schema: &'s Schema,
+                           pattern: &'a Pattern)
+                           -> Option<SourceAlias> {
         self.table_for_places(schema, &pattern.attribute, &pattern.value)
-            .map_err(|reason| {
-                self.mark_known_empty(reason);
-            })
+            .map_err(|reason| { self.mark_known_empty(reason); })
             .map(|table: DatomsTable| SourceAlias(table, self.next_alias_for_table(table)))
             .ok()
     }
 
-    fn get_attribute_for_value<'s>(&self, schema: &'s Schema, value: &TypedValue) -> Option<&'s Attribute> {
+    fn get_attribute_for_value<'s>(&self,
+                                   schema: &'s Schema,
+                                   value: &TypedValue)
+                                   -> Option<&'s Attribute> {
         match value {
             &TypedValue::Ref(id) => schema.attribute_for_entid(id),
             &TypedValue::Keyword(ref kw) => schema.attribute_for_ident(kw),
@@ -738,7 +763,10 @@ impl ConjoiningClauses {
         }
     }
 
-    fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<&'s Attribute> {
+    fn get_attribute<'s, 'a>(&self,
+                             schema: &'s Schema,
+                             pattern: &'a Pattern)
+                             -> Option<&'s Attribute> {
         match pattern.attribute {
             PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id),
@@ -755,14 +783,16 @@ impl ConjoiningClauses {
         }
     }
 
-    fn get_value_type<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<ValueType> {
+    fn get_value_type<'s, 'a>(&self,
+                              schema: &'s Schema,
+                              pattern: &'a Pattern)
+                              -> Option<ValueType> {
         self.get_attribute(schema, pattern).map(|x| x.value_type)
     }
 }
 
 /// Expansions.
 impl ConjoiningClauses {
-
     /// Take the contents of `column_bindings` and generate inter-constraints for the appropriate
     /// columns into `wheres`.
     ///
@@ -825,9 +855,141 @@ impl ConjoiningClauses {
     /// where `?y` must simultaneously be a ref-typed attribute and a boolean-typed attribute. This
     /// function deduces that and calls `self.mark_known_empty`. #293.
     pub fn expand_type_tags(&mut self) {
-        // TODO.
+        for (v, tag) in self.extracted_types.iter() {
+            let cols = self.column_bindings.get(v).unwrap().clone();
+            for col in cols {
+                if col.0 != tag.0 { 
+                    let value = QueryValue::Column(QualifiedAlias(col.0.clone(), Column::Fixed(DatomsColumn::ValueTypeTag)));
+                    let alias = tag.clone();
+                    self.wheres.0.push(ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(alias, value)));
+                }
+            }
+        }
+
+        let mut empty_reason: Option<EmptyBecause> = None;
+        let mut wheres_to_add = vec![];
+        for (v, value_type_set) in self.known_types.iter() {
+            let cols = self.column_bindings.get(v).unwrap().clone();
+            
+            for col in cols {
+                match col.1 {
+                    Column::Fixed(DatomsColumn::Value) => { 
+                        // attempt to figure out exactly which type is used
+                        let mut value_type: Option<ValueType> = None;
+                        for constraint in self.wheres.0.iter() {
+                            match constraint {
+                                &ColumnConstraintOrAlternation::Constraint(ref c) => {
+                                    match c {
+                                        &ColumnConstraint::Equals(ref alias, ref value) if alias.0 == col.0 && alias.1 == col.1 => {
+                                            match value {
+                                                &QueryValue::TypedValue(ref typed) => {
+                                                    if value_type_set.contains(typed.value_type()) {
+                                                        value_type = Some(typed.value_type().clone());
+                                                    } else {
+                                                        empty_reason = Some(EmptyBecause::TypeMismatch(v.clone(), value_type_set.clone(), typed.value_type()));
+                                                    }
+                                                },
+                                                &QueryValue::PrimitiveLong(ref val) => {
+                                                    let expected = ValueType::Long;
+                                                    if value_type_set.contains(expected) {
+                                                        value_type = Some(expected);
+                                                    } else {
+                                                        empty_reason = Some(EmptyBecause::TypeMismatch(v.clone(), value_type_set.clone(), expected));
+                                                    }
+                                                },
+                                                &QueryValue::Column(ref alias) => {
+                                                    let expected = ValueType::Ref;
+                                                    if value_type_set.contains(expected) {
+                                                        match alias.1 {
+                                                            Column::Fixed(DatomsColumn::Entity) => {
+                                                                value_type = Some(expected);
+                                                            },
+                                                            _ => { empty_reason = Some(EmptyBecause::TypeMismatch(v.clone(), value_type_set.clone(), expected)); },
+                                                        }
+                                                    } else {
+                                                        empty_reason = Some(EmptyBecause::TypeMismatch(v.clone(), value_type_set.clone(), expected));
+                                                    }
+                                                },
+                                                &QueryValue::Entid(ref entid) => (),
+                                            }
+                                        },
+                                        &ColumnConstraint::NumericInequality { ref operator, ref left, ref right } => {
+                                            match left {
+                                                &QueryValue::Column(ref alias) if alias.0 == col.0 && alias.1 == col.1 => {
+                                                    match right {
+                                                        &QueryValue::TypedValue(ref typed) if value_type_set.contains(typed.value_type()) => {
+                                                            value_type = Some(typed.value_type().clone());
+                                                        },
+                                                        &QueryValue::PrimitiveLong(ref val) if value_type_set.contains(ValueType::Long) => {
+                                                            value_type = Some(ValueType::Long);
+                                                        },
+                                                        _ => (),
+                                                    }
+                                                },
+                                                _ => (),
+                                            }
+                                        },
+                                        &ColumnConstraint::HasType(ref alias, ref value_type) => {
+                                            if *alias == col.0 {
+                                                if !value_type_set.contains(value_type.clone()) {
+                                                    empty_reason = Some(EmptyBecause::TypeMismatch(v.clone(), value_type_set.clone(), value_type.clone()));
+                                                }
+                                            }
+                                        },
+                                        _ => (),
+                                    }
+                                },
+                                &ColumnConstraintOrAlternation::Alternation(ref alternation) => (),
+                            }
+                        }
+
+                        if value_type.is_some() {
+                            wheres_to_add.push(ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(col.0, value_type.expect("Expected type").clone())));
+                        }
+                    },
+                    Column::Fixed(DatomsColumn::Entity) => {
+                        println!("Entity column {:?}", col);
+                        for constraint in self.wheres.0.iter() {
+                            println!("* constraint {:?}", constraint);
+                            match constraint {
+                                &ColumnConstraintOrAlternation::Constraint(ref c) => {
+                                    match c {
+                                        &ColumnConstraint::HasType(ref alias, ref value_type) => {
+                                            println!("hastype {:?}, {:?}, {:?}", alias, value_type, col.0);
+                                            if *alias == col.0 {
+                                                if !value_type_set.contains(value_type.clone()) {
+                                                    empty_reason = Some(EmptyBecause::TypeMismatch(v.clone(), value_type_set.clone(), value_type.clone()));
+                                                }
+                                            }
+                                        },
+                                        _ => { println!("some other kind of column constraint {:?}", c); }
+                                    }
+                                },
+                                &ColumnConstraintOrAlternation::Alternation(ref alternation) => {
+                                    println!("alternation {:?}", alternation);
+                                },
+                            }
+                        }
+                    },
+                    Column::Fixed(DatomsColumn::Attribute) => {
+                        println!("Attribute column {:?}", col);
+                    },
+                    _ => {
+                        println!("column {:?}", col);
+                    }
+                }
+            }
+        }
+
+        if empty_reason.is_some() {
+            self.mark_known_empty(empty_reason.unwrap());
+            return;
+        }
+
+        self.wheres.0.append(&mut wheres_to_add);
     }
 }
+
 
 impl ConjoiningClauses {
     // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
@@ -847,11 +1009,11 @@ impl ConjoiningClauses {
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)?;
                 self.apply_or_join(schema, o)
-            },
+            }
             WhereClause::NotJoin(n) => {
                 validate_not_join(&n)?;
                 self.apply_not_join(schema, n)
-            },
+            }
             _ => unimplemented!(),
         }
     }
@@ -888,7 +1050,62 @@ pub fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
 
 #[cfg(test)]
 mod tests {
+    extern crate mentat_query_parser;
+
     use super::*;
+    use mentat_core::SQLValueType;
+    use self::mentat_query_parser::parse_find_string;
+
+    use types::{
+        NumericComparison, 
+    };
+
+    use algebrize;
+
+    fn prepopulated_schema() -> Schema {
+        let mut schema = Schema::default();
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "name"), 65);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "knows"), 66);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "parent"), 67);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "age"), 68);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "height"), 69);
+        add_attribute(&mut schema,
+                      65,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      66,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      67,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      68,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      69,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        schema
+    }
 
     // Our alias counter is shared between CCs.
     #[test]
@@ -901,5 +1118,111 @@ mod tests {
         let alias_two = second.next_alias_for_table(DatomsTable::Datoms);
         assert!(alias_zero != alias_one);
         assert!(alias_one != alias_two);
+    }
+
+    #[test]
+    fn test_expand_type_tags_constrain_value_types() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x
+                 :where [?x :foo/name]
+                        [?x _ ?y]
+                        [?a _ ?y]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+        cc.expand_type_tags();
+
+        let d0 = "datoms00".to_string();
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+
+        let d1 = "all_datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+        let d1t = QualifiedAlias::new(d1.clone(), DatomsColumn::ValueTypeTag);
+
+        let d2 = "all_datoms02".to_string();
+        let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
+        let d2t = QualifiedAlias::new(d2.clone(), DatomsColumn::ValueTypeTag);
+
+        let name = QueryValue::Entid(65);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), name)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), QueryValue::Column(d2v.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1t.clone(), QueryValue::Column(d2t.clone()))),
+            ]));
+    }
+
+    #[test]
+    fn test_expand_type_tags_mismatched_variables() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x 
+                 :where [?x ?y true]
+                        [?z ?y ?x]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+
+        let vx = Variable::from_valid_name("?x");
+        assert!(!cc.is_known_empty());
+        cc.expand_type_tags();
+        println!("{:?}", cc);
+        assert!(cc.is_known_empty());
+        assert_eq!(cc.empty_because.unwrap(), EmptyBecause::TypeMismatch(vx, ValueTypeSet::of_one(ValueType::Ref), ValueType::Boolean));
+    }
+
+    #[test]
+    fn test_expand_type_tags_unambiguous_var_type() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x ?y ?z
+                 :where
+                    [?x _ ?y]
+                    [?y _ ?z]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+        cc.expand_type_tags();
+        println!("{:?}", cc);
+
+        let d0 = "all_datoms00".to_string();
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        let d1 = "all_datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), QueryValue::Column(d1e.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(d0, ValueType::Ref)),
+            ]));
+    }
+
+    #[test]
+    fn test_expand_type_tags_infered_type() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x ?v
+                 :where
+                    [?x _ ?v]
+                    [(< ?v 10)]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+        cc.expand_type_tags();
+        
+        let d0 = "all_datoms00".to_string();
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NumericInequality {
+                    operator: NumericComparison::LessThan,
+                    left: QueryValue::Column(d0v.clone()),
+                    right: QueryValue::TypedValue(TypedValue::Long(10)),
+                }),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(d0, ValueType::Long)),
+            ]));
     }
 }
