@@ -21,11 +21,13 @@ extern crate mentat_tx;
 extern crate mentat_parser_utils;
 
 use combine::{
+    choice,
     eof,
     many,
     parser,
     satisfy,
     satisfy_map,
+    try,
     Parser,
     ParseResult,
 };
@@ -90,10 +92,12 @@ def_parser!(Tx, nested_vector, Vec<AtomOrLookupRefOrVectorOrMapNotation>, {
 });
 
 def_parser!(Tx, atom_or_lookup_ref_or_vector, AtomOrLookupRefOrVectorOrMapNotation, {
-    Tx::lookup_ref().map(AtomOrLookupRefOrVectorOrMapNotation::LookupRef)
-        .or(Tx::nested_vector().map(AtomOrLookupRefOrVectorOrMapNotation::Vector))
-        .or(Tx::map_notation().map(AtomOrLookupRefOrVectorOrMapNotation::MapNotation))
-        .or(Tx::atom().map(|x| x.clone()).map(AtomOrLookupRefOrVectorOrMapNotation::Atom))
+    choice::<[&mut Parser<Input = _, Output = AtomOrLookupRefOrVectorOrMapNotation>; 4], _>
+        ([&mut try(Tx::lookup_ref().map(AtomOrLookupRefOrVectorOrMapNotation::LookupRef)),
+          &mut Tx::nested_vector().map(AtomOrLookupRefOrVectorOrMapNotation::Vector),
+          &mut Tx::map_notation().map(AtomOrLookupRefOrVectorOrMapNotation::MapNotation),
+          &mut Tx::atom().map(|x| x.clone()).map(AtomOrLookupRefOrVectorOrMapNotation::Atom)
+        ])
 });
 
 def_matches_namespaced_keyword!(Tx, literal_db_add, "db", "add");
