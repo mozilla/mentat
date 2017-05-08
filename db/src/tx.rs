@@ -57,10 +57,14 @@ use db::{
     MentatStoring,
     PartitionMapping,
 };
+use edn::{
+    NamespacedKeyword,
+};
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
     Either,
+    KnownEntid,
     LookupRef,
     LookupRefOrTempId,
     TempIdHandle,
@@ -151,6 +155,19 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
     }
 
+    fn ensure_ident_exists(&self, e: &NamespacedKeyword) -> Result<KnownEntid> {
+        let entid = self.schema.require_entid(e)?;
+        Ok(KnownEntid(entid))
+    }
+
+    fn ensure_entid_exists(&self, e: Entid) -> Result<KnownEntid> {
+        if self.partition_map.contains_entid(e) {
+            Ok(KnownEntid(e))
+        } else {
+            bail!(ErrorKind::UnrecognizedEntid(e))
+        }
+    }
+
     /// Given a collection of tempids and the [a v] pairs that they might upsert to, resolve exactly
     /// which [a v] pairs do upsert to entids, and map each tempid that upserts to the upserted
     /// entid.  The keys of the resulting map are exactly those tempids that upserted.
@@ -172,13 +189,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let mut temp_id_map: TempIdMap = TempIdMap::default();
         for &(ref temp_id, ref av_pair) in temp_id_avs {
             if let Some(n) = av_map.get(&av_pair) {
-                if let Some(previous_n) = temp_id_map.get(&*temp_id) {
-                    if n != previous_n {
+                if let Some(&KnownEntid(previous_n)) = temp_id_map.get(&*temp_id) {
+                    if *n != previous_n {
                         // Conflicting upsert!  TODO: collect conflicts and give more details on what failed this transaction.
                         bail!(ErrorKind::NotYetImplemented(format!("Conflicting upsert: tempid '{}' resolves to more than one entid: {:?}, {:?}", temp_id, previous_n, n))) // XXX
                     }
                 }
-                temp_id_map.insert(temp_id.clone(), *n);
+                temp_id_map.insert(temp_id.clone(), KnownEntid(*n));
             }
         }
 
@@ -349,11 +366,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             // Either::Left(i64) instances.
                             match db_id {
                                 entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                                    let e: i64 = match e {
-                                        entmod::Entid::Entid(ref e) => *e,
-                                        entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                                    let e = match e {
+                                        entmod::Entid::Entid(ref e) => self.ensure_entid_exists(*e)?,
+                                        entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
                                     };
-                                    Either::Left(TypedValue::Ref(e))
+                                    Either::Left(TypedValue::Ref(e.0))
                                 },
 
                                 entmod::EntidOrLookupRefOrTempId::TempId(e) => {
@@ -369,9 +386,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
                     let e = match e {
                         entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                            let e: i64 = match e {
-                                entmod::Entid::Entid(ref e) => *e,
-                                entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                            let e = match e {
+                                entmod::Entid::Entid(ref e) => self.ensure_entid_exists(*e)?,
+                                entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
                             };
                             Either::Left(e)
                         },
@@ -400,7 +417,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         terms.into_iter().map(|term: TermWithTempIdsAndLookupRefs| -> Result<TermWithTempIds> {
             match term {
                 Term::AddOrRetract(op, e, a, v) => {
-                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| x)?;
+                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| KnownEntid(x))?;
                     let v = replace_lookup_ref(&lookup_ref_map, v, |x| TypedValue::Ref(x))?;
                     Ok(Term::AddOrRetract(op, e, a, v))
                 },
@@ -414,7 +431,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     // TODO: move this to the transactor layer.
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         // TODO: push these into an internal transaction report?
-        let mut tempids: BTreeMap<TempId, Entid> = BTreeMap::default();
+        let mut tempids: BTreeMap<TempId, KnownEntid> = BTreeMap::default();
 
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
@@ -458,7 +475,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // TODO: track partitions for temporary IDs.
         let entids = self.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
 
-        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
+        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter()
+                                                                .zip(entids.map(|e| KnownEntid(e)))
+                                                                .collect();
 
         let final_populations = generation.into_final_populations(&temp_id_allocations)?;
 
@@ -477,7 +496,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         // Any internal tempid has been allocated by the system and is a private implementation
         // detail; it shouldn't be exposed in the final transaction report.
-        let tempids = tempids.into_iter().filter_map(|(tempid, e)| tempid.into_external().map(|s| (s, e))).collect();
+        let tempids = tempids.into_iter().filter_map(|(tempid, e)| tempid.into_external().map(|s| (s, e.0))).collect();
 
         // A transaction might try to add or retract :db/ident assertions or other metadata mutating
         // assertions , but those assertions might not make it to the store.  If we see a possible
@@ -504,6 +523,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         /// Assertions that are :db.cardinality/many and :db.fulltext.
         let mut fts_many: Vec<db::ReducedEntity> = vec![];
 
+        // We need to ensure that callers can't blindly transact entities that haven't been
+        // allocated by this store.
+
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
         // TODO: use something like Clojure's group_by to do this.
@@ -516,7 +538,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     }
 
                     let added = op == OpType::Add;
-                    let reduced = (e, a, attribute, v, added);
+                    let reduced = (e.0, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
                         (false, true) => non_fts_many.push(reduced),
                         (false, false) => non_fts_one.push(reduced),
