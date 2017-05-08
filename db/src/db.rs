@@ -1064,6 +1064,7 @@ SELECT EXISTS
 pub trait PartitionMapping {
     fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S>;
     fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S>;
+    fn contains_entid(&self, entid: Entid) -> bool;
 }
 
 impl PartitionMapping for PartitionMap {
@@ -1083,6 +1084,10 @@ impl PartitionMapping for PartitionMap {
             // This is a programming error.
             None => panic!("Cannot allocate entid from unknown partition: {}", partition),
         }
+    }
+
+    fn contains_entid(&self, entid: Entid) -> bool {
+        self.values().any(|partition| partition.contains_entid(entid))
     }
 }
 
@@ -1208,10 +1213,20 @@ mod tests {
             assert_eq!(transactions.0.len(), 1);
             assert_eq!(transactions.0[0].0.len(), 77);
 
+            let mut parts = db.partition_map;
+
+            // Add a fake partition to allow tests to do things like
+            // [:db/add 111 :foo/bar 222]
+            {
+                let fake_partition = Partition { start: 100, index: 1000 };
+                parts.insert(":db.part/fake".into(), fake_partition);
+            }
+
             let test_conn = TestConn {
                 sqlite: conn,
-                partition_map: db.partition_map,
-                schema: db.schema };
+                partition_map: parts,
+                schema: db.schema,
+            };
 
             // Verify that we've created the materialized views during bootstrapping.
             test_conn.assert_materialized_views();

@@ -179,6 +179,60 @@ mod tests {
     extern crate mentat_parser_utils;
 
     #[test]
+    fn test_transact_does_not_collide_existing_entids() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        // Let's find out the next ID that'll be allocated. We're going to try to collide with it
+        // a bit later.
+        let next = conn.metadata.lock().expect("metadata")
+                       .partition_map[":db.part/user"].index;
+        let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next + 1);
+
+        match conn.transact(&mut sqlite, t.as_str()).unwrap_err() {
+            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::UnrecognizedEntid(e)), _) => {
+                assert_eq!(e, next + 1);
+            },
+            x => panic!("expected transact error, got {:?}", x),
+        }
+
+        // Transact two more tempids.
+        let t = "[[:db/add \"one\" :db.schema/attribute \"more\"]]";
+        let report = conn.transact(&mut sqlite, t)
+                         .expect("transact succeeded");
+        assert_eq!(report.tempids["more"], next);
+        assert_eq!(report.tempids["one"], next + 1);
+    }
+
+    #[test]
+    fn test_transact_does_not_collide_new_entids() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        // Let's find out the next ID that'll be allocated. We're going to try to collide with it.
+        let next = conn.metadata.lock().expect("metadata").partition_map[":db.part/user"].index;
+
+        // If this were to be resolved, we'd get [:db/add 65537 :db.schema/attribute 65537], but
+        // we should reject this, because the first ID was provided by the user!
+        let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next);
+
+        match conn.transact(&mut sqlite, t.as_str()).unwrap_err() {
+            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::UnrecognizedEntid(e)), _) => {
+                // All this, despite this being the ID we were about to allocate!
+                assert_eq!(e, next);
+            },
+            x => panic!("expected transact error, got {:?}", x),
+        }
+
+        // And if we subsequently transact in a way that allocates one ID, we _will_ use that one.
+        // Note that `10` is a bootstrapped entid; we use it here as a known-good value.
+        let t = "[[:db/add 10 :db.schema/attribute \"temp\"]]";
+        let report = conn.transact(&mut sqlite, t)
+                         .expect("transact succeeded");
+        assert_eq!(report.tempids["temp"], next);
+    }
+
+    #[test]
     fn test_transact_errors() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();

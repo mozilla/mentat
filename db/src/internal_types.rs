@@ -62,11 +62,15 @@ impl<L, R> Either<L, R> {
 
 use self::Either::*;
 
-pub type EntidOr<T> = Either<Entid, T>;
+/// An entid that's either already in the store, or newly allocated to a tempid.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct KnownEntid(pub Entid);
+
+pub type KnownEntidOr<T> = Either<KnownEntid, T>;
 pub type TypedValueOr<T> = Either<TypedValue, T>;
 
 pub type TempIdHandle = Rc<TempId>;
-pub type TempIdMap = HashMap<TempIdHandle, Entid>;
+pub type TempIdMap = HashMap<TempIdHandle, KnownEntid>;
 
 pub type LookupRef = Rc<AVPair>;
 
@@ -79,9 +83,9 @@ pub enum LookupRefOrTempId {
     TempId(TempIdHandle)
 }
 
-pub type TermWithTempIdsAndLookupRefs = Term<EntidOr<LookupRefOrTempId>, TypedValueOr<LookupRefOrTempId>>;
-pub type TermWithTempIds = Term<EntidOr<TempIdHandle>, TypedValueOr<TempIdHandle>>;
-pub type TermWithoutTempIds = Term<Entid, TypedValue>;
+pub type TermWithTempIdsAndLookupRefs = Term<KnownEntidOr<LookupRefOrTempId>, TypedValueOr<LookupRefOrTempId>>;
+pub type TermWithTempIds = Term<KnownEntidOr<TempIdHandle>, TypedValueOr<TempIdHandle>>;
+pub type TermWithoutTempIds = Term<KnownEntid, TypedValue>;
 pub type Population = Vec<TermWithTempIds>;
 
 impl TermWithTempIds {
@@ -96,7 +100,7 @@ impl TermWithTempIds {
     }
 }
 
-/// Given an `EntidOr` or a `TypedValueOr`, replace any internal `LookupRef` with the entid from
+/// Given a `KnownEntidOr` or a `TypedValueOr`, replace any internal `LookupRef` with the entid from
 /// the given map.  Fail if any `LookupRef` cannot be replaced.
 ///
 /// `lift` allows to specify how the entid found is mapped into the output type.  (This could

@@ -58,11 +58,15 @@ use db::{
     MentatStoring,
     PartitionMapping,
 };
+use edn::{
+    NamespacedKeyword,
+};
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
     Either,
-    EntidOr,
+    KnownEntid,
+    KnownEntidOr,
     LookupRef,
     LookupRefOrTempId,
     TempIdHandle,
@@ -175,13 +179,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let mut temp_id_map: TempIdMap = TempIdMap::default();
         for &(ref temp_id, ref av_pair) in temp_id_avs {
             if let Some(n) = av_map.get(&av_pair) {
-                if let Some(previous_n) = temp_id_map.get(&*temp_id) {
-                    if n != previous_n {
+                if let Some(&KnownEntid(previous_n)) = temp_id_map.get(&*temp_id) {
+                    if *n != previous_n {
                         // Conflicting upsert!  TODO: collect conflicts and give more details on what failed this transaction.
                         bail!(ErrorKind::NotYetImplemented(format!("Conflicting upsert: tempid '{}' resolves to more than one entid: {:?}, {:?}", temp_id, previous_n, n))) // XXX
                     }
                 }
-                temp_id_map.insert(temp_id.clone(), *n);
+                temp_id_map.insert(temp_id.clone(), KnownEntid(*n));
             }
         }
 
@@ -195,6 +199,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
     fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<TempId>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
         struct InProcess<'a> {
+            partition_map: &'a PartitionMap,
             schema: &'a Schema,
             mentat_id_count: i64,
             temp_ids: intern_set::InternSet<TempId>,
@@ -202,13 +207,27 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         impl<'a> InProcess<'a> {
-            fn with_schema(schema: &'a Schema) -> InProcess<'a> {
+            fn with_schema_and_partition_map(schema: &'a Schema, partition_map: &'a PartitionMap) -> InProcess<'a> {
                 InProcess {
-                    schema: schema,
+                    partition_map,
+                    schema,
                     mentat_id_count: 0,
                     temp_ids: intern_set::InternSet::new(),
                     lookup_refs: intern_set::InternSet::new(),
                 }
+            }
+
+            fn ensure_entid_exists(&self, e: Entid) -> Result<KnownEntid> {
+                if self.partition_map.contains_entid(e) {
+                    Ok(KnownEntid(e))
+                } else {
+                    bail!(ErrorKind::UnrecognizedEntid(e))
+                }
+            }
+
+            fn ensure_ident_exists(&self, e: &NamespacedKeyword) -> Result<KnownEntid> {
+                let entid = self.schema.require_entid(e)?;
+                Ok(KnownEntid(entid))
             }
 
             fn intern_lookup_ref(&mut self, lookup_ref: &entmod::LookupRef) -> Result<LookupRef> {
@@ -237,12 +256,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(self.mentat_id_count))
             }
 
-            fn entity_e_into_term_e(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<EntidOr<LookupRefOrTempId>> {
+            fn entity_e_into_term_e(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match x {
                     entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                        let e: i64 = match e {
-                            entmod::Entid::Entid(ref e) => *e,
-                            entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                        let e = match e {
+                            entmod::Entid::Entid(ref e) => self.ensure_entid_exists(*e)?,
+                            entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
                         };
                         Ok(Either::Left(e))
                     },
@@ -266,10 +285,10 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
 
             fn entity_e_into_term_v(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<TypedValueOr<LookupRefOrTempId>> {
-                self.entity_e_into_term_e(x).map(|r| r.map_left(TypedValue::Ref))
+                self.entity_e_into_term_e(x).map(|r| r.map_left(|ke| TypedValue::Ref(ke.0)))
             }
 
-            fn entity_v_into_term_e(&mut self, x: entmod::AtomOrLookupRefOrVectorOrMapNotation, backward_a: &entmod::Entid) -> Result<EntidOr<LookupRefOrTempId>> {
+            fn entity_v_into_term_e(&mut self, x: entmod::AtomOrLookupRefOrVectorOrMapNotation, backward_a: &entmod::Entid) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match backward_a.unreversed() {
                     None => {
                         bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
@@ -290,7 +309,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                     Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(TempId::External(text.clone())))))
                                 } else {
                                     if let TypedValue::Ref(entid) = self.schema.to_typed_value(&v.clone().without_spans(), ValueType::Ref)? {
-                                        Ok(Either::Left(entid))
+                                        Ok(Either::Left(KnownEntid(entid)))
                                     } else {
                                         // The given value is expected to be :db.type/ref, so this shouldn't happen.
                                         bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
@@ -312,7 +331,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        let mut in_process = InProcess::with_schema(&self.schema);
+        let mut in_process = InProcess::with_schema_and_partition_map(&self.schema, &self.partition_map);
 
         // We want to handle entities in the order they're given to us, while also "exploding" some
         // entities into many.  We therefore push the initial entities onto the back of the deque,
@@ -475,7 +494,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         terms.into_iter().map(|term: TermWithTempIdsAndLookupRefs| -> Result<TermWithTempIds> {
             match term {
                 Term::AddOrRetract(op, e, a, v) => {
-                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| x)?;
+                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| KnownEntid(x))?;
                     let v = replace_lookup_ref(&lookup_ref_map, v, |x| TypedValue::Ref(x))?;
                     Ok(Term::AddOrRetract(op, e, a, v))
                 },
@@ -489,7 +508,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     // TODO: move this to the transactor layer.
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
         // TODO: push these into an internal transaction report?
-        let mut tempids: BTreeMap<TempId, Entid> = BTreeMap::default();
+        let mut tempids: BTreeMap<TempId, KnownEntid> = BTreeMap::default();
 
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
@@ -533,7 +552,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // TODO: track partitions for temporary IDs.
         let entids = self.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
 
-        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter().zip(entids).collect();
+        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter()
+                                                                .zip(entids.map(|e| KnownEntid(e)))
+                                                                .collect();
 
         let final_populations = generation.into_final_populations(&temp_id_allocations)?;
 
@@ -552,7 +573,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         // Any internal tempid has been allocated by the system and is a private implementation
         // detail; it shouldn't be exposed in the final transaction report.
-        let tempids = tempids.into_iter().filter_map(|(tempid, e)| tempid.into_external().map(|s| (s, e))).collect();
+        let tempids = tempids.into_iter().filter_map(|(tempid, e)| tempid.into_external().map(|s| (s, e.0))).collect();
 
         // A transaction might try to add or retract :db/ident assertions or other metadata mutating
         // assertions , but those assertions might not make it to the store.  If we see a possible
@@ -579,6 +600,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         /// Assertions that are :db.cardinality/many and :db.fulltext.
         let mut fts_many: Vec<db::ReducedEntity> = vec![];
 
+        // We need to ensure that callers can't blindly transact entities that haven't been
+        // allocated by this store.
+
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
         // TODO: use something like Clojure's group_by to do this.
@@ -591,7 +615,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     }
 
                     let added = op == OpType::Add;
-                    let reduced = (e, a, attribute, v, added);
+                    let reduced = (e.0, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
                         (false, true) => non_fts_many.push(reduced),
                         (false, false) => non_fts_one.push(reduced),
