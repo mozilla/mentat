@@ -40,6 +40,10 @@ impl Partition {
         assert!(start <= next, "A partition represents a monotonic increasing sequence of entids.");
         Partition { start: start, index: next }
     }
+
+    pub fn contains_entid(&self, e: i64) -> bool {
+        (e >= self.start) && (e < self.index)
+    }
 }
 
 /// Map partition names to `Partition` instances.
