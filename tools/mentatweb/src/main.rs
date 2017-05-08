@@ -9,16 +9,18 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate clap;
-#[macro_use] extern crate nickel;
 
-use nickel::{Nickel, HttpRouter};
+#[macro_use]
+extern crate nickel;
 
 extern crate mentat;
 
-use clap::{App, Arg, SubCommand, AppSettings};
-
 use std::u16;
 use std::str::FromStr;
+
+use clap::{App, Arg, SubCommand, AppSettings};
+
+use nickel::{Nickel, HttpRouter};
 
 fn main() {
     let app = App::new("Mentat").setting(AppSettings::ArgRequiredElseHelp);
