@@ -335,8 +335,10 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
 
     let user_version = get_user_version(&conn)?;
     match user_version {
-        0 => create_current_version(conn),
-        // TODO: support updating or re-opening an existing store.
+        0               => create_current_version(conn),
+        CURRENT_VERSION => read_db(conn),
+
+        // TODO: support updating an existing store.
         v => bail!(ErrorKind::NotYetImplemented(format!("Opening databases with Mentat version: {}", v))),
     }
 }
