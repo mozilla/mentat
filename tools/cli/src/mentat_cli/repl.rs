@@ -13,9 +13,8 @@ use input::InputResult::{Command, Empty, More, Eof};
 /// Starting prompt
 const DEFAULT_PROMPT: &'static str = "mentat=> ";
 /// Prompt when further input is being read
+// TODO: Should this actually reflect the current open brace?
 const MORE_PROMPT: &'static str = "mentat.> ";
-/// Prompt when a `.block` command is in effect
-const BLOCK_PROMPT: &'static str = "mentat+> ";
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
@@ -27,7 +26,6 @@ impl Repl {
         Repl{}
     }
 
-
     /// Runs the REPL interactively.
     pub fn run(&mut self) {
         let mut more = false;
@@ -35,12 +33,6 @@ impl Repl {
 
         loop {
             let res = input.read_input(if more { MORE_PROMPT } else { DEFAULT_PROMPT });
-        //     let res = if self.read_block {
-        //         self.read_block = false;
-        //         input.read_block_input(BLOCK_PROMPT)
-        //     } else {
-        //         input.read_input(if more { MORE_PROMPT } else { DEFAULT_PROMPT })
-        //     };
 
             match res {
                 Command(name, args) => {

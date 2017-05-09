@@ -8,7 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io::{self, stdin, BufRead, BufReader};
+use std::io::{stdin, BufReader};
 
 use linefeed::Reader;
 use linefeed::terminal::DefaultTerminal;
@@ -18,7 +18,7 @@ use self::InputResult::*;
 /// Possible results from reading input from `InputReader`
 #[derive(Clone, Debug)]
 pub enum InputResult {
-    /// rusti command as input; (name, rest of line)
+    /// mentat command as input; (name, rest of line)
     Command(String, Option<String>),
     /// An empty line
     Empty,
@@ -88,7 +88,7 @@ impl InputReader {
             Some(ref mut r) => {
                 r.set_prompt(prompt);
                 r.read_line().ok().and_then(|line| line)
-            }
+            },
             None => self.read_stdin()
         }
     }
