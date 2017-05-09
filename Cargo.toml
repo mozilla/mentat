@@ -62,5 +62,8 @@ path = "query-translator"
 [dependencies.mentat_tx_parser]
 path = "tx-parser"
 
+[dependencies.mentat_cli]
+path = "tools/cli"
+
 [profile.release]
 debug = true
