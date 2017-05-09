@@ -1,7 +1,6 @@
 [package]
 name = "mentat_cli"
 version = "0.0.1"
-workspace = "../.."
 
 [lib]
 name = "mentat_cli"
@@ -18,3 +17,16 @@ env_logger = "0.3"
 linefeed = "0.1"
 log = "0.3"
 tempfile = "1.1"
+combine = "2.2.2"
+lazy_static = "0.2.2"
+
+[dependencies.rusqlite]
+version = "0.11"
+# System sqlite might be very old.
+features = ["bundled", "limits"]
+
+[dependencies.mentat]
+path = "../.."
+
+[dependencies.mentat_parser_utils]
+path = "../../parser-utils"

@@ -7,16 +7,24 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
 #![crate_name = "mentat_cli"]
 
 #[macro_use] extern crate log;
+#[macro_use] extern crate lazy_static;
 
+extern crate combine;
 extern crate env_logger;
 extern crate getopts;
 extern crate linefeed;
+extern crate rusqlite;
+
+extern crate mentat;
 
 use getopts::Options;
 
+pub mod command_parser;
+pub mod store;
 pub mod input;
 pub mod repl;
 
@@ -26,6 +34,7 @@ pub fn run() -> i32 {
     let args = std::env::args().collect::<Vec<_>>();
     let mut opts = Options::new();
 
+    opts.optopt("d", "", "The path to a database to open", "DATABASE");
     opts.optflag("h", "help", "Print this help message and exit");
     opts.optflag("v", "version", "Print version and exit");
 
@@ -41,12 +50,15 @@ pub fn run() -> i32 {
         print_version();
         return 0;
     }
+
     if matches.opt_present("help") {
         print_usage(&args[0], &opts);
         return 0;
     }
 
-    let mut repl = repl::Repl::new();
+    let db_name = matches.opt_str("d");
+
+    let mut repl = repl::Repl::new(db_name);
     repl.run();
 
     0

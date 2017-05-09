@@ -8,24 +8,29 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io::{self, stdin, BufRead, BufReader};
+use std::io::{stdin};
 
 use linefeed::Reader;
 use linefeed::terminal::DefaultTerminal;
 
 use self::InputResult::*;
 
+use command_parser::{Command, command};
+
 /// Possible results from reading input from `InputReader`
 #[derive(Clone, Debug)]
 pub enum InputResult {
-    /// rusti command as input; (name, rest of line)
-    Command(String, Option<String>),
+    /// mentat command as input; (name, rest of line)
+    MetaCommand(Command),
     /// An empty line
     Empty,
     /// Needs more input; i.e. there is an unclosed delimiter
-    More,
+    More(Command),
     /// End of file reached
     Eof,
+    /// Error while parsing input; a Rust parsing error will have printed out
+    /// error messages and therefore contain no error message.
+    InputError(Option<String>),
 }
 
 /// Reads input from `stdin`
@@ -73,14 +78,18 @@ impl InputReader {
 
         self.add_history(&line);
 
-        let res = More;
+        let cmd = command(&self.buffer);
 
-        match res {
-            More => (),
-            _ => self.buffer.clear(),
-        };
-
-        res
+        match cmd {
+            Command::Query(_) |
+            Command::Transact(_) if !cmd.is_complete() => {
+                More(cmd)
+            },
+            _ => {
+                self.buffer.clear();
+                InputResult::MetaCommand(cmd)
+            }
+        }
     }
 
     fn read_line(&mut self, prompt: &str) -> Option<String> {
@@ -88,7 +97,7 @@ impl InputReader {
             Some(ref mut r) => {
                 r.set_prompt(prompt);
                 r.read_line().ok().and_then(|line| line)
-            }
+            },
             None => self.read_stdin()
         }
     }
