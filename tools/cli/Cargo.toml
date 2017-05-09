@@ -1,0 +1,23 @@
+[package]
+name = "mentat_cli"
+version = "0.0.1"
+workspace = "../.."
+
+[lib]
+name = "mentat_cli"
+path = "src/mentat_cli/lib.rs"
+
+[[bin]]
+name = "mentat_cli"
+doc = false
+test = false
+
+[build-dependencies]
+rustc-serialize = "0.3.24"
+
+[dependencies]
+getopts = "0.2"
+env_logger = "0.3"
+linefeed = "0.1"
+log = "0.3"
+tempfile = "1.1"
