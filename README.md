@@ -133,17 +133,6 @@ cargo test --all
 cargo test -p mentat_query_parser -- --nocapture
 ````
 
-To start the server use:
-
-````
-cargo run serve
-````
-
-To pass in custom arguments to the cli through Cargo, you'll need to pass `--` after the command to ensure they get passed properly.  For example:
-````
-cargo run serve -- --help
-````
-
 For most `cargo` commands you can pass the `-p` argument to run the command just on that package. So, `cargo build -p mentat_query_parser` will build just the "query-parser" folder.
 
 ## License
