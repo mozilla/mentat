@@ -18,28 +18,34 @@ use mentat::conn::Conn;
 pub struct Store {
     handle: rusqlite::Connection,
     conn: Conn,
+    db_name: String,
 }
 
 fn db_output_name(db_name: &String) -> String {
-    if db_name.is_empty() { "in memory db".to_string() } else { db_name.clone() }
+    if db_name.is_empty() { "in-memory db".to_string() } else { db_name.clone() }
 }
 
 impl Store {
     pub fn new(database: Option<String>) -> Store {
         let db_name = database.unwrap_or("".to_string());
-        let output_name = db_output_name(&db_name);
-        let mut handle = new_connection(db_name).expect("Couldn't open conn.");
+        let mut handle = new_connection(&db_name).expect("Couldn't open conn.");
         let conn = Conn::connect(&mut handle).expect("Couldn't open DB.");
-        println!("Database {:?} opened", output_name);
-        Store { handle, conn }
+        println!("Database {:?} opened", db_output_name(&db_name));
+        Store { handle, conn, db_name }
     }
 
     pub fn open(&mut self, database: Option<String>) {
-        let db_name = database.unwrap_or("".to_string());
-        let output_name = db_output_name(&db_name);
-        self.handle = new_connection(db_name).expect("Couldn't open conn.");
+        self.db_name = database.unwrap_or("".to_string());
+        self.handle = new_connection(&self.db_name).expect("Couldn't open conn.");
         self.conn = Conn::connect(&mut self.handle).expect("Couldn't open DB.");
-        println!("Database {:?} opened", output_name);
+        println!("Database {:?} opened", db_output_name(&self.db_name));
+    }
+
+    pub fn close(&mut self) {
+        self.handle = new_connection("").expect("Couldn't close conn.");
+        self.conn = Conn::connect(&mut self.handle).expect("Couldn't close DB.");
+        println!("Database {:?} closed", db_output_name(&self.db_name));
+        self.db_name = "".to_string();
     }
 
 }

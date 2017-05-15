@@ -28,9 +28,8 @@ pub enum InputResult {
     More(Command),
     /// End of file reached
     Eof,
-    /// Error while parsing input; a Rust parsing error will have printed out
-    /// error messages and therefore contain no error message.
-    InputError(Option<String>),
+    /// Error while parsing input;
+    InputError(String),
 }
 
 /// Reads input from `stdin`

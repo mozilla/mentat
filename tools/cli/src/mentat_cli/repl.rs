@@ -66,9 +66,7 @@ impl Repl {
                     break;
                 },
                 InputError(err) => {
-                    if let Some(err) = err {
-                        println!("{}", err);
-                    }
+                    println!("{}", err);
                     more = None;
                 },
             };
@@ -82,6 +80,7 @@ impl Repl {
             Command::Open(db) => {
                 self.store.open(Some(db));
             },
+            Command::Close => self.store.close(),
             Command::Err(message) => println!("{}", message),
             _ => unimplemented!(),
         }
@@ -93,7 +92,10 @@ impl Repl {
                 println!(".{} - {}", cmd, msg);
             }
         } else {
-            for arg in args {
+            for mut arg in args {
+                if arg.chars().nth(0).unwrap() == '.' { 
+                    arg.remove(0);
+                }
                 let msg = COMMAND_HELP.get(arg.as_str());
                 if msg.is_some() {
                     println!(".{} - {}", arg, msg.unwrap());

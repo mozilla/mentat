@@ -8,12 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use combine::{eof, many, many1, sep_by, skip_many, token, Parser};
+use combine::{any, eof, many, many1, sep_by, skip_many, token, Parser};
 use combine::combinator::{choice, try};
-use combine::char::{alpha_num, space, string};
+use combine::char::{space, string};
 
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
+pub static CLOSE_COMMAND: &'static str = &"close";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
@@ -21,6 +22,7 @@ pub enum Command {
     Query(Vec<String>),
     Help(Vec<String>),
     Open(String),
+    Close,
     Err(String),
 }
 
@@ -29,29 +31,50 @@ impl Command {
         match self {
             &Command::Query(_) |
             &Command::Transact(_) => false,
-            _ => true
+            &Command::Help(_) |
+            &Command::Open(_) |
+            &Command::Close |
+            &Command::Err(_) => true
         }
     }
 }
 
 pub fn command(s: &str) -> Command {
-    let help_parser = string(HELP_COMMAND).and(skip_many(space())).and(sep_by::<Vec<_>, _, _>(many1::<Vec<_>, _>(alpha_num()), token(' '))).map(|x| {
-        let args: Vec<String> = x.1.iter().map(|v| v.iter().collect() ).collect();
-        Command::Help(args)
-    });
+    let help_parser = string(HELP_COMMAND)
+                    .and(skip_many(space()))
+                    .and(many::<Vec<_>, _>(try(any())))
+                    .map(|x| {
+                        let remainder: String = x.1.iter().collect();
+                        let args: Vec<String> = remainder.split(" ").filter_map(|s| if s.is_empty() { None } else { Some(s.to_string())}).collect();
+                        Command::Help(args)
+                    });
 
-    let open_parser = string(OPEN_COMMAND).and(space()).and(many1::<Vec<_>, _>(alpha_num()).and(eof())).map(|x| {
-        let arg: String = (x.1).0.iter().collect();
-        Command::Open(arg)
-    });
+    let open_parser = string(OPEN_COMMAND)
+                    .and(skip_many(space()))
+                    .and(many1::<Vec<_>, _>(try(any())))
+                    .map(|x| {
+                        let remainder: String = x.1.iter().collect();
+                        let args: Vec<String> = remainder.split(" ").filter_map(|s| if s.is_empty() { None } else { Some(s.to_string())}).collect();
+                        if args.len() > 1 {
+                            return Command::Err(format!("Unrecognized argument {:?}", (&args[1]).clone()));
+                        }
+                        Command::Open((&args[0]).clone())
+                    });
 
-    token('.')
-    .and(choice::<[&mut Parser<Input = _, Output = Command>; 2], _>
+    let close_parser = string(CLOSE_COMMAND)
+                    .and(skip_many(space()))
+                    .map( |_| Command::Close );
+
+    skip_many(space())
+    .and(token('.'))
+    .and(choice::<[&mut Parser<Input = _, Output = Command>; 3], _>
         ([&mut try(help_parser),
-          &mut try(open_parser),]))
+          &mut try(open_parser),
+          &mut try(close_parser),]))
+    .skip(eof())
     .parse(s)
     .map(|x| x.0)
-    .unwrap_or(('0', Command::Err(format!("Invalid command {:?}", s)))).1
+    .unwrap_or((((), '0'), Command::Err(format!("Invalid command {:?}", s)))).1
 }
 
 #[cfg(test)]
@@ -65,6 +88,18 @@ mod tests {
         match cmd {
             Command::Help(args) => {
                 assert_eq!(args, vec!["command1", "command2"]);
+            },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_help_parser_dot_arg() {
+        let input = ".help .command1";
+        let cmd = command(&input);
+        match cmd {
+            Command::Help(args) => {
+                assert_eq!(args, vec![".command1"]);
             },
             _ => assert!(false)
         }
@@ -102,7 +137,7 @@ mod tests {
         let cmd = command(&input);
         match cmd {
             Command::Err(message) => {
-                assert_eq!(message, format!("Invalid command {:?}", input));
+                assert_eq!(message, "Unrecognized argument \"database2\"");
             },
             _ => assert!(false)
         }
@@ -121,6 +156,30 @@ mod tests {
     }
 
     #[test]
+    fn test_open_parser_path_arg() {
+        let input = ".open /path/to/my.db";
+        let cmd = command(&input);
+        match cmd {
+            Command::Open(arg) => {
+                assert_eq!(arg, "/path/to/my.db".to_string());
+            },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_open_parser_file_arg() {
+        let input = ".open my.db";
+        let cmd = command(&input);
+        match cmd {
+            Command::Open(arg) => {
+                assert_eq!(arg, "my.db".to_string());
+            },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
     fn test_open_parser_no_args() {
         let input = ".open";
         let cmd = command(&input);
@@ -128,6 +187,48 @@ mod tests {
             Command::Err(message) => {
                 assert_eq!(message, format!("Invalid command {:?}", input));
             },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_close_parser_with_args() {
+        let input = ".close arg1";
+        let cmd = command(&input);
+        match cmd {
+            Command::Err(message) => {
+                assert_eq!(message, format!("Invalid command {:?}", input));
+            },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_close_parser_no_args() {
+        let input = ".close";
+        let cmd = command(&input);
+        match cmd {
+            Command::Close => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_close_parser_no_args_trailing_whitespace() {
+        let input = ".close ";
+        let cmd = command(&input);
+        match cmd {
+            Command::Close => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_parser_preceeding_trailing_whitespace() {
+        let input = " .close ";
+        let cmd = command(&input);
+        match cmd {
+            Command::Close => assert!(true),
             _ => assert!(false)
         }
     }
