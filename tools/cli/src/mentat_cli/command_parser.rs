@@ -8,9 +8,25 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use combine::{any, eof, many, many1, sep_by, skip_many, token, Parser};
-use combine::combinator::{choice, try};
-use combine::char::{space, string};
+use combine::{
+    eof, 
+    many1, 
+    satisfy, 
+    sep_end_by, 
+    token, 
+    Parser
+};
+use combine::char::{
+    space, 
+    spaces, 
+    string
+};
+use combine::combinator::{
+    choice, 
+    try
+};
+
+use errors as cli;
 
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
@@ -23,58 +39,67 @@ pub enum Command {
     Help(Vec<String>),
     Open(String),
     Close,
-    Err(String),
 }
 
 impl Command {
+    /// is_complete returns true if no more input is required for the command to be successfully executed.
+    /// false is returned if the command is not considered valid. 
+    /// Defaults to true for all commands except Query and Transact.
+    /// TODO: for query and transact commands, they will be considered complete if a parsable EDN has been entered as an argument
     pub fn is_complete(&self) -> bool {
         match self {
             &Command::Query(_) |
             &Command::Transact(_) => false,
             &Command::Help(_) |
             &Command::Open(_) |
-            &Command::Close |
-            &Command::Err(_) => true
+            &Command::Close => true
         }
     }
 }
 
-pub fn command(s: &str) -> Command {
+pub fn command(s: &str) -> Result<Command, cli::Error> {
+    let arguments = || sep_end_by::<Vec<_>, _, _>(many1(satisfy(|c: char| !c.is_whitespace())), many1::<Vec<_>, _>(space())).expected("arguments");
+
     let help_parser = string(HELP_COMMAND)
-                    .and(skip_many(space()))
-                    .and(many::<Vec<_>, _>(try(any())))
-                    .map(|x| {
-                        let remainder: String = x.1.iter().collect();
-                        let args: Vec<String> = remainder.split(" ").filter_map(|s| if s.is_empty() { None } else { Some(s.to_string())}).collect();
-                        Command::Help(args)
+                    .with(spaces())
+                    .with(arguments())
+                    .map(|args| {
+                        Ok(Command::Help(args.clone()))
                     });
 
     let open_parser = string(OPEN_COMMAND)
-                    .and(skip_many(space()))
-                    .and(many1::<Vec<_>, _>(try(any())))
-                    .map(|x| {
-                        let remainder: String = x.1.iter().collect();
-                        let args: Vec<String> = remainder.split(" ").filter_map(|s| if s.is_empty() { None } else { Some(s.to_string())}).collect();
-                        if args.len() > 1 {
-                            return Command::Err(format!("Unrecognized argument {:?}", (&args[1]).clone()));
+                    .with(spaces())
+                    .with(arguments())
+                    .map(|args| {
+                        if args.len() < 1 {
+                            return Err(cli::ErrorKind::CommandParse("Missing required argument".to_string()).into());
                         }
-                        Command::Open((&args[0]).clone())
+                        if args.len() > 1 {
+                            return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[1])).into());
+                        }
+                        Ok(Command::Open(args[0].clone()))
                     });
 
     let close_parser = string(CLOSE_COMMAND)
-                    .and(skip_many(space()))
-                    .map( |_| Command::Close );
+                    .with(arguments())
+                    .map(|args| {
+                        if args.len() > 0 {
+                            return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])).into());
+                        }
+                        Ok(Command::Close)
+                    });
 
-    skip_many(space())
-    .and(token('.'))
-    .and(choice::<[&mut Parser<Input = _, Output = Command>; 3], _>
-        ([&mut try(help_parser),
-          &mut try(open_parser),
-          &mut try(close_parser),]))
-    .skip(eof())
-    .parse(s)
-    .map(|x| x.0)
-    .unwrap_or((((), '0'), Command::Err(format!("Invalid command {:?}", s)))).1
+    spaces()
+    .skip(token('.'))
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 3], _>
+          ([&mut try(help_parser),
+            &mut try(open_parser),
+            &mut try(close_parser),]))
+        .skip(spaces())
+        .skip(eof())
+        .parse(s)
+        .map(|x| x.0)
+        .unwrap_or(Err(cli::ErrorKind::CommandParse(format!("Invalid command {:?}", s)).into()))
 }
 
 #[cfg(test)]
@@ -84,7 +109,7 @@ mod tests {
     #[test]
     fn test_help_parser_multiple_args() {
         let input = ".help command1 command2";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected help command");
         match cmd {
             Command::Help(args) => {
                 assert_eq!(args, vec!["command1", "command2"]);
@@ -96,7 +121,7 @@ mod tests {
     #[test]
     fn test_help_parser_dot_arg() {
         let input = ".help .command1";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected help command");
         match cmd {
             Command::Help(args) => {
                 assert_eq!(args, vec![".command1"]);
@@ -108,7 +133,7 @@ mod tests {
     #[test]
     fn test_help_parser_no_args() {
         let input = ".help";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected help command");
         match cmd {
             Command::Help(args) => {
                 let empty: Vec<String> = vec![];
@@ -121,7 +146,7 @@ mod tests {
     #[test]
     fn test_help_parser_no_args_trailing_whitespace() {
         let input = ".help ";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected help command");
         match cmd {
             Command::Help(args) => {
                 let empty: Vec<String> = vec![];
@@ -134,19 +159,14 @@ mod tests {
     #[test]
     fn test_open_parser_multiple_args() {
         let input = ".open database1 database2";
-        let cmd = command(&input);
-        match cmd {
-            Command::Err(message) => {
-                assert_eq!(message, "Unrecognized argument \"database2\"");
-            },
-            _ => assert!(false)
-        }
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), "Unrecognized argument \"database2\"");
     }
 
     #[test]
     fn test_open_parser_single_arg() {
         let input = ".open database1";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected open command");
         match cmd {
             Command::Open(arg) => {
                 assert_eq!(arg, "database1".to_string());
@@ -158,7 +178,7 @@ mod tests {
     #[test]
     fn test_open_parser_path_arg() {
         let input = ".open /path/to/my.db";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected open command");
         match cmd {
             Command::Open(arg) => {
                 assert_eq!(arg, "/path/to/my.db".to_string());
@@ -170,7 +190,7 @@ mod tests {
     #[test]
     fn test_open_parser_file_arg() {
         let input = ".open my.db";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected open command");
         match cmd {
             Command::Open(arg) => {
                 assert_eq!(arg, "my.db".to_string());
@@ -182,31 +202,21 @@ mod tests {
     #[test]
     fn test_open_parser_no_args() {
         let input = ".open";
-        let cmd = command(&input);
-        match cmd {
-            Command::Err(message) => {
-                assert_eq!(message, format!("Invalid command {:?}", input));
-            },
-            _ => assert!(false)
-        }
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), "Missing required argument");
     }
 
     #[test]
     fn test_close_parser_with_args() {
         let input = ".close arg1";
-        let cmd = command(&input);
-        match cmd {
-            Command::Err(message) => {
-                assert_eq!(message, format!("Invalid command {:?}", input));
-            },
-            _ => assert!(false)
-        }
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), format!("Invalid command {:?}", input));
     }
 
     #[test]
     fn test_close_parser_no_args() {
         let input = ".close";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected close command");
         match cmd {
             Command::Close => assert!(true),
             _ => assert!(false)
@@ -216,7 +226,7 @@ mod tests {
     #[test]
     fn test_close_parser_no_args_trailing_whitespace() {
         let input = ".close ";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected close command");
         match cmd {
             Command::Close => assert!(true),
             _ => assert!(false)
@@ -226,7 +236,7 @@ mod tests {
     #[test]
     fn test_parser_preceeding_trailing_whitespace() {
         let input = " .close ";
-        let cmd = command(&input);
+        let cmd = command(&input).expect("Expected close command");
         match cmd {
             Command::Close => assert!(true),
             _ => assert!(false)
@@ -236,25 +246,14 @@ mod tests {
     #[test]
     fn test_command_parser_no_dot() {
         let input = "help command1 command2";
-        let cmd = command(&input);
-        match cmd {
-            Command::Err(message) => {
-                assert_eq!(message, format!("Invalid command {:?}", input));
-            },
-            _ => assert!(false)
-        }
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), format!("Invalid command {:?}", input));
     }
 
     #[test]
     fn test_command_parser_invalid_cmd() {
         let input = ".foo command1";
-        let cmd = command(&input);
-        match cmd {
-            Command::Err(message) => {
-                assert_eq!(message, format!("Invalid command {:?}", input));
-            },
-            _ => assert!(false)
-        }
-    
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), format!("Invalid command {:?}", input));
     }
 }

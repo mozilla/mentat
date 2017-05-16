@@ -12,6 +12,7 @@
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate error_chain;
 
 extern crate combine;
 extern crate env_logger;
@@ -27,6 +28,7 @@ pub mod command_parser;
 pub mod store;
 pub mod input;
 pub mod repl;
+pub mod errors;
 
 pub fn run() -> i32 {
     env_logger::init().unwrap();
@@ -58,8 +60,12 @@ pub fn run() -> i32 {
 
     let db_name = matches.opt_str("d");
 
-    let mut repl = repl::Repl::new(db_name);
-    repl.run();
+    let repl = repl::Repl::new(db_name);
+    if repl.is_ok() {
+        repl.unwrap().run();
+    } else {
+        println!("{}", repl.err().unwrap());
+    }
 
     0
 }

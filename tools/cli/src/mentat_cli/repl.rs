@@ -10,10 +10,22 @@
 
 use std::collections::HashMap;
 
-use command_parser::{Command, HELP_COMMAND, OPEN_COMMAND};
-use input::{InputReader};
-use input::InputResult::{MetaCommand, Empty, More, Eof, InputError};
-use store::Store;
+use command_parser::{
+    Command, 
+    HELP_COMMAND, 
+    OPEN_COMMAND
+};
+use input::InputReader;
+use input::InputResult::{
+    MetaCommand, 
+    Empty, 
+    More, 
+    Eof
+};
+use store::{ 
+    Store,
+    db_output_name
+};
 
 /// Starting prompt
 const DEFAULT_PROMPT: &'static str = "mentat=> ";
@@ -37,10 +49,11 @@ pub struct Repl {
 
 impl Repl {
     /// Constructs a new `Repl`.
-    pub fn new(db_name: Option<String>) -> Repl {
-        Repl{
-            store: Store::new(db_name),
-        }
+    pub fn new(db_name: Option<String>) -> Result<Repl, String> {
+        let store = try!(Store::new(db_name.clone()).map_err(|e| e.to_string()));
+        Ok(Repl{
+            store: store,
+        })
     }
 
     /// Runs the REPL interactively.
@@ -50,26 +63,22 @@ impl Repl {
 
         loop {
             let res = input.read_input(if more.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT });
-
             match res {
-                MetaCommand(cmd) => {
+                Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);
                     more = None;
                     self.handle_command(cmd);
                 },
-                Empty => (),
-                More(cmd) => { more = Some(cmd); },
-                Eof => {
+                Ok(Empty) => (),
+                Ok(More(cmd)) => { more = Some(cmd); },
+                Ok(Eof) => {
                     if input.is_tty() {
                         println!("");
                     }
                     break;
                 },
-                InputError(err) => {
-                    println!("{}", err);
-                    more = None;
-                },
-            };
+                Err(e) => println!("{}", e.to_string()),
+            }
         }
     }
 
@@ -78,10 +87,18 @@ impl Repl {
         match cmd {
             Command::Help(args) => self.help_command(args),
             Command::Open(db) => {
-                self.store.open(Some(db));
+                match self.store.open(Some(db.clone())) {
+                    Ok(_) => println!("Database {:?} opened", db_output_name(&db)),
+                    Err(e) => println!("{}", e.to_string())
+                };
             },
-            Command::Close => self.store.close(),
-            Command::Err(message) => println!("{}", message),
+            Command::Close => {
+                let old_db_name = self.store.db_name.clone();
+                match self.store.close() {
+                    Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
+                    Err(e) => println!("{}", e.to_string())
+                };
+            },
             _ => unimplemented!(),
         }
     }

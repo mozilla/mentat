@@ -19,6 +19,7 @@ log = "0.3"
 tempfile = "1.1"
 combine = "2.2.2"
 lazy_static = "0.2.2"
+error-chain = "0.8.1"
 
 [dependencies.rusqlite]
 version = "0.11"

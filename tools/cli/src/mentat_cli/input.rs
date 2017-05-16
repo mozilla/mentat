@@ -8,14 +8,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io::{stdin};
+use std::io::stdin;
 
 use linefeed::Reader;
 use linefeed::terminal::DefaultTerminal;
 
 use self::InputResult::*;
 
-use command_parser::{Command, command};
+use command_parser::{
+    Command, 
+    command
+};
+
+use errors as cli;
 
 /// Possible results from reading input from `InputReader`
 #[derive(Clone, Debug)]
@@ -28,8 +33,6 @@ pub enum InputResult {
     More(Command),
     /// End of file reached
     Eof,
-    /// Error while parsing input;
-    InputError(String),
 }
 
 /// Reads input from `stdin`
@@ -63,30 +66,30 @@ impl InputReader {
     /// Reads a single command, item, or statement from `stdin`.
     /// Returns `More` if further input is required for a complete result.
     /// In this case, the input received so far is buffered internally.
-    pub fn read_input(&mut self, prompt: &str) -> InputResult {
+    pub fn read_input(&mut self, prompt: &str) -> Result<InputResult, cli::Error> {
         let line = match self.read_line(prompt) {
             Some(s) => s,
-            None => return Eof,
+            None => return Ok(Eof),
         };
 
         self.buffer.push_str(&line);
 
         if self.buffer.is_empty() {
-            return Empty;
+            return Ok(Empty);
         }
 
         self.add_history(&line);
 
-        let cmd = command(&self.buffer);
+        let cmd = try!(command(&self.buffer));
 
         match cmd {
             Command::Query(_) |
             Command::Transact(_) if !cmd.is_complete() => {
-                More(cmd)
+                Ok(More(cmd))
             },
             _ => {
                 self.buffer.clear();
-                InputResult::MetaCommand(cmd)
+                Ok(InputResult::MetaCommand(cmd))
             }
         }
     }
