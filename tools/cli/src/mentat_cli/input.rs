@@ -22,6 +22,12 @@ use command_parser::{
 
 use errors as cli;
 
+/// Starting prompt
+const DEFAULT_PROMPT: &'static str = "mentat=> ";
+/// Prompt when further input is being read
+// TODO: Should this actually reflect the current open brace?
+const MORE_PROMPT: &'static str = "mentat.> ";
+
 /// Possible results from reading input from `InputReader`
 #[derive(Clone, Debug)]
 pub enum InputResult {
@@ -66,8 +72,8 @@ impl InputReader {
     /// Reads a single command, item, or statement from `stdin`.
     /// Returns `More` if further input is required for a complete result.
     /// In this case, the input received so far is buffered internally.
-    pub fn read_input(&mut self, prompt: &str) -> Result<InputResult, cli::Error> {
-        let line = match self.read_line(prompt) {
+    pub fn read_input(&mut self, in_process_cmd: Option<Command>) -> Result<InputResult, cli::Error> {
+        let line = match self.read_line(if in_process_cmd.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT }) {
             Some(s) => s,
             None => return Ok(Eof),
         };
@@ -80,7 +86,19 @@ impl InputReader {
 
         self.add_history(&line);
 
-        let cmd = try!(command(&self.buffer));
+        let cmd = match in_process_cmd {
+            Some(Command::Query(args)) => {
+                Command::Query(args + " " + &line)
+            },
+            Some(Command::Transact(args)) => {
+                Command::Transact(args + " " + &line)
+            },
+            _ => {
+                try!(command(&self.buffer))
+            }
+        };
+
+        println!("processing {:?}", cmd);
 
         match cmd {
             Command::Query(_) |

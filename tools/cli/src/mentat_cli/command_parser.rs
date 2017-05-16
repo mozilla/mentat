@@ -30,6 +30,8 @@ use combine::combinator::{
 
 use errors as cli;
 
+use edn;
+
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
 pub static CLOSE_COMMAND: &'static str = &"close";
@@ -52,8 +54,10 @@ impl Command {
     /// TODO: for query and transact commands, they will be considered complete if a parsable EDN has been entered as an argument
     pub fn is_complete(&self) -> bool {
         match self {
-            &Command::Query(_) |
-            &Command::Transact(_) => false,
+            &Command::Query(ref args) |
+            &Command::Transact(ref args) => {
+                edn::parse::value(&args).is_ok()
+            },
             &Command::Help(_) |
             &Command::Open(_) |
             &Command::Close => true

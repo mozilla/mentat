@@ -27,12 +27,6 @@ use store::{
     db_output_name
 };
 
-/// Starting prompt
-const DEFAULT_PROMPT: &'static str = "mentat=> ";
-/// Prompt when further input is being read
-// TODO: Should this actually reflect the current open brace?
-const MORE_PROMPT: &'static str = "mentat.> ";
-
 lazy_static! {
     static ref COMMAND_HELP: HashMap<&'static str, &'static str> = {
         let mut map = HashMap::new();
@@ -62,7 +56,8 @@ impl Repl {
         let mut input = InputReader::new();
 
         loop {
-            let res = input.read_input(if more.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT });
+            let res = input.read_input(more.clone());
+
             match res {
                 Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);

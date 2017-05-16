@@ -21,6 +21,7 @@ extern crate linefeed;
 extern crate rusqlite;
 
 extern crate mentat;
+extern crate edn;
 
 use getopts::Options;
 
