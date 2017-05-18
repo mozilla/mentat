@@ -21,6 +21,7 @@ use self::combine::{eof, many, many1, optional, parser, satisfy, satisfy_map, Pa
 use self::combine::combinator::{any, choice, or, try};
 
 use self::mentat_parser_utils::{
+    KeywordMapParser,
     ResultParser,
     ValueParseError,
 };
@@ -79,12 +80,12 @@ error_chain! {
             display("not a variable: '{}'", value)
         }
 
-        FindParseError(e: combine::ParseError<ValueStream>) {
+        FindParseError(e: ValueParseError) {
             description(":find parse error")
             display(":find parse error")
         }
 
-        WhereParseError(e: combine::ParseError<ValueStream>) {
+        WhereParseError(e: ValueParseError) {
             description(":where parse error")
             display(":where parse error")
         }
@@ -117,7 +118,7 @@ error_chain! {
     }
 }
 
-pub struct Query;
+pub struct Query<'a>(std::marker::PhantomData<&'a ()>);
 
 def_parser!(Query, variable, Variable, {
     satisfy_map(Variable::from_value)
@@ -141,7 +142,7 @@ def_parser!(Query, arguments, Vec<FnArg>, {
 });
 
 def_parser!(Query, direction, Direction, {
-    satisfy_map(|v: edn::ValueAndSpan| {
+    satisfy_map(|v: &edn::ValueAndSpan| {
         match v.inner {
             edn::SpannedValue::PlainSymbol(ref s) => {
                 let name = s.0.as_str();
@@ -162,20 +163,20 @@ def_parser!(Query, order, Order, {
          .or(Query::variable().map(|v| Order(Direction::Ascending, v)))
 });
 
-pub struct Where;
+pub struct Where<'a>(std::marker::PhantomData<&'a ()>);
 
 def_parser!(Where, pattern_value_place, PatternValuePlace,  {
     satisfy_map(PatternValuePlace::from_value)
 });
 
 def_parser!(Query, natural_number, u64, {
-    any().and_then(|v: edn::ValueAndSpan| {
+    any().and_then(|v: &edn::ValueAndSpan| {
         match v.inner {
             edn::SpannedValue::Integer(x) if (x > 0) => {
                 Ok(x as u64)
             },
-            spanned => {
-                let e = Box::new(Error::from_kind(ErrorKind::InvalidLimit(spanned.into())));
+            ref spanned => {
+                let e = Box::new(Error::from_kind(ErrorKind::InvalidLimit(spanned.clone().into())));
                 Err(combine::primitives::Error::Other(e))
             },
         }
@@ -338,7 +339,7 @@ def_parser!(Where, clauses, Vec<WhereClause>, {
     (many1::<Vec<WhereClause>, _>(Where::clause()))
 });
 
-pub struct Find;
+pub struct Find<'a>(std::marker::PhantomData<&'a ()>);
 
 def_matches_plain_symbol!(Find, period, ".");
 
@@ -347,7 +348,6 @@ def_matches_plain_symbol!(Find, ellipsis, "...");
 def_parser!(Find, find_scalar, FindSpec, {
     Query::variable()
         .skip(Find::period())
-        .skip(eof())
         .map(|var| FindSpec::FindScalar(Element::Variable(var)))
 });
 
@@ -392,91 +392,37 @@ def_parser!(Find, spec, FindSpec, {
           &mut try(Find::find_rel())])
 });
 
-def_matches_keyword!(Find, literal_find, "find");
-def_matches_keyword!(Find, literal_in, "in");
-def_matches_keyword!(Find, literal_limit, "limit");
-def_matches_keyword!(Find, literal_order, "order");
-def_matches_keyword!(Find, literal_where, "where");
-def_matches_keyword!(Find, literal_with, "with");
-
-/// Express something close to a builder pattern for a `FindQuery`.
-enum FindQueryPart {
-    FindSpec(FindSpec),
-    In(BTreeSet<Variable>),
-    Limit(Limit),
-    Order(Vec<Order>),
-    WhereClauses(Vec<WhereClause>),
-    With(BTreeSet<Variable>),
-}
-
 def_parser!(Find, vars, BTreeSet<Variable>, {
-    vector().of_exactly(many(Query::variable()).and_then(|vars: Vec<Variable>| {
-            let given = vars.len();
-            let set: BTreeSet<Variable> = vars.into_iter().collect();
-            if given != set.len() {
-                // TODO: find out what the variable is!
-                let e = Box::new(Error::from_kind(ErrorKind::DuplicateVariableError));
-                Err(combine::primitives::Error::Other(e))
-            } else {
-                Ok(set)
-            }
-    }))
+    many(Query::variable()).and_then(|vars: Vec<Variable>| {
+        let given = vars.len();
+        let set: BTreeSet<Variable> = vars.into_iter().collect();
+        if given != set.len() {
+            // TODO: find out what the variable is!
+            let e = Box::new(Error::from_kind(ErrorKind::DuplicateVariableError));
+            Err(combine::primitives::Error::Other(e))
+        } else {
+            Ok(set)
+        }
+    })
 });
 
 /// This is awkward, but will do for now.  We use `keyword_map()` to optionally accept vector find
 /// queries, then we use `FindQueryPart` to collect parts that have heterogeneous types; and then we
 /// construct a `FindQuery` from them.
 def_parser!(Find, query, FindQuery, {
-    let p_find_spec = Find::literal_find()
-        .with(vector().of_exactly(Find::spec().map(FindQueryPart::FindSpec)));
+    let find_map = keyword_map_of!(
+        ("find", Find::spec()),
+        ("in", Find::vars()),
+        ("limit", Query::variable().map(Limit::Variable).or(Query::natural_number().map(Limit::Fixed))),
+        ("order", many1(Query::order())),
+        ("where", Where::clauses()),
+        ("with", Find::vars()) // Note: no trailing comma allowed!
+    );
 
-    let p_in_vars = Find::literal_in()
-        .with(Find::vars().map(FindQueryPart::In));
-
-    let p_limit = Find::literal_limit()
-        .with(vector().of_exactly(
-            Query::variable().map(|v| Limit::Variable(v))
-                             .or(Query::natural_number().map(|n| Limit::Fixed(n)))))
-        .map(FindQueryPart::Limit);
-
-    let p_order_clauses = Find::literal_order()
-        .with(vector().of_exactly(many1(Query::order()).map(FindQueryPart::Order)));
-
-    let p_where_clauses = Find::literal_where()
-        .with(vector().of_exactly(Where::clauses().map(FindQueryPart::WhereClauses)))
-        .expected(":where clauses");
-
-    let p_with_vars = Find::literal_with()
-        .with(Find::vars().map(FindQueryPart::With));
-
-    (or(map(), keyword_map()))
-        .of_exactly(many(choice::<[&mut Parser<Input = ValueStream, Output = FindQueryPart>; 6], _>([
-            // Ordered by likelihood.
-            &mut try(p_find_spec),
-            &mut try(p_where_clauses),
-            &mut try(p_in_vars),
-            &mut try(p_limit),
-            &mut try(p_order_clauses),
-            &mut try(p_with_vars),
-        ])))
-        .and_then(|parts: Vec<FindQueryPart>| -> std::result::Result<FindQuery, combine::primitives::Error<edn::ValueAndSpan, edn::ValueAndSpan>>  {
-            let mut find_spec = None;
-            let mut in_vars = None;
-            let mut limit = Limit::None;
-            let mut order_clauses = None;
-            let mut where_clauses = None;
-            let mut with_vars = None;
-
-            for part in parts {
-                match part {
-                    FindQueryPart::FindSpec(x) => find_spec = Some(x),
-                    FindQueryPart::In(x) => in_vars = Some(x),
-                    FindQueryPart::Limit(x) => limit = x,
-                    FindQueryPart::Order(x) => order_clauses = Some(x),
-                    FindQueryPart::WhereClauses(x) => where_clauses = Some(x),
-                    FindQueryPart::With(x) => with_vars = Some(x),
-                }
-            }
+    (or(keyword_map(), vector()))
+        .of_exactly(find_map)
+        .and_then(|(find_spec, in_vars, limit, order_clauses, where_clauses, with_vars) | -> std::result::Result<FindQuery, combine::primitives::Error<&edn::ValueAndSpan, &edn::ValueAndSpan>>  {
+            let limit = limit.unwrap_or(Limit::None);
 
             // Make sure that if we have `:limit ?x`, `?x` appears in `:in`.
             let in_vars = in_vars.unwrap_or(BTreeSet::default());
@@ -503,9 +449,9 @@ def_parser!(Find, query, FindQuery, {
 pub fn parse_find_string(string: &str) -> Result<FindQuery> {
     let expr = edn::parse::value(string)?;
     Find::query()
-        .parse(expr.into_atom_stream())
+        .parse(expr.atom_stream())
         .map(|x| x.0)
-        .map_err(|e| Error::from_kind(ErrorKind::FindParseError(e)))
+        .map_err(|e| Error::from_kind(ErrorKind::FindParseError(e.into())))
 }
 
 #[cfg(test)]
@@ -594,8 +540,9 @@ mod test {
                  edn::Value::Float(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())));
 
+        let input = input.with_spans();
         let mut par = Where::pattern();
-        let result = par.parse(input.with_spans().into_atom_stream());
+        let result = par.parse(input.atom_stream());
         assert!(matches!(result, Err(_)), "Expected a parse error.");
     }
 
@@ -635,15 +582,16 @@ mod test {
         let f = edn::PlainSymbol::new("?f");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
                                             edn::Value::PlainSymbol(f.clone()),]);
-        assert_parses_to!(Find::vars, input,
+        assert_parses_to!(|| vector().of_exactly(Find::vars()), input,
                           vec![variable(e.clone()), variable(f.clone())].into_iter().collect());
 
         let g = edn::PlainSymbol::new("?g");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(g.clone()),
                                             edn::Value::PlainSymbol(g.clone()),]);
 
-        let mut par = Find::vars();
-        let result = par.parse(input.with_spans().into_atom_stream())
+        let input = input.with_spans();
+        let mut par = vector().of_exactly(Find::vars());
+        let result = par.parse(input.atom_stream())
             .map(|x| x.0)
             .map_err(|e| if let Some(combine::primitives::Error::Other(x)) = e.errors.into_iter().next() {
                 // Pattern matching on boxes is rocket science until Rust Nightly features hit
@@ -806,23 +754,27 @@ mod test {
         let zero = edn::Value::Integer(0);
         let pos = edn::Value::Integer(5);
 
-        // This is terrible, but destructuring errors is a shitshow.
+        // This is terrible, but destructuring errors is frustrating.
+        let input = text.with_spans();
         let mut par = Query::natural_number();
-        let x = par.parse(text.with_spans().into_atom_stream()).err().expect("an error").errors;
+        let x = par.parse(input.atom_stream()).err().expect("an error").errors;
         let result = format!("{:?}", x);
         assert_eq!(result, "[Other(Error(InvalidLimit(Text(\"foo\")), State { next_error: None, backtrace: None })), Expected(Borrowed(\"natural_number\"))]");
 
+        let input = neg.with_spans();
         let mut par = Query::natural_number();
-        let x = par.parse(neg.with_spans().into_atom_stream()).err().expect("an error").errors;
+        let x = par.parse(input.atom_stream()).err().expect("an error").errors;
         let result = format!("{:?}", x);
         assert_eq!(result, "[Other(Error(InvalidLimit(Integer(-10)), State { next_error: None, backtrace: None })), Expected(Borrowed(\"natural_number\"))]");
 
+        let input = zero.with_spans();
         let mut par = Query::natural_number();
-        let x = par.parse(zero.with_spans().into_atom_stream()).err().expect("an error").errors;
+        let x = par.parse(input.atom_stream()).err().expect("an error").errors;
         let result = format!("{:?}", x);
         assert_eq!(result, "[Other(Error(InvalidLimit(Integer(0)), State { next_error: None, backtrace: None })), Expected(Borrowed(\"natural_number\"))]");
 
+        let input = pos.with_spans();
         let mut par = Query::natural_number();
-        assert_eq!(None, par.parse(pos.with_spans().into_atom_stream()).err());
+        assert_eq!(None, par.parse(input.atom_stream()).err());
     }
 }

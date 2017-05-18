@@ -110,8 +110,20 @@ impl ValueAndSpan {
         }
     }
 
+    pub fn as_atom(&self) -> Option<&ValueAndSpan> {
+        if self.inner.is_atom() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     pub fn into_text(self) -> Option<String> {
         self.inner.into_text()
+    }
+
+    pub fn as_text(&self) -> Option<&String> {
+        self.inner.as_text()
     }
 }
 

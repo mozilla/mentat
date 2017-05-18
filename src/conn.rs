@@ -130,7 +130,7 @@ impl Conn {
                     transaction: &str) -> Result<TxReport> {
 
         let assertion_vector = edn::parse::value(transaction)?;
-        let entities = mentat_tx_parser::Tx::parse(assertion_vector)?;
+        let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
         let tx = sqlite.transaction()?;
 

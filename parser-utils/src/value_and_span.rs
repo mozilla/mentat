@@ -8,13 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#![allow(dead_code)]
+
 use std;
+use std::cmp::Ordering;
 use std::fmt::{
     Debug,
     Display,
     Formatter,
 };
-use std::cmp::Ordering;
 
 use combine::{
     ConsumedResult,
@@ -22,15 +24,11 @@ use combine::{
     Parser,
     ParseResult,
     StreamOnce,
-    many,
-    many1,
     parser,
-    satisfy,
     satisfy_map,
 };
 use combine::primitives; // To not shadow Error.
 use combine::primitives::{
-    Consumed,
     FastResult,
 };
 use combine::combinator::{
@@ -40,9 +38,13 @@ use combine::combinator::{
 
 use edn;
 
+use macros::{
+    KeywordMapParser,
+};
+
 /// A wrapper to let us order `edn::Span` in whatever way is appropriate for parsing with `combine`.
 #[derive(Clone, Copy, Debug)]
-pub struct SpanPosition(edn::Span);
+pub struct SpanPosition(pub edn::Span);
 
 impl Display for SpanPosition {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
@@ -76,29 +78,37 @@ impl Ord for SpanPosition {
 /// yielding `ValueAndSpan` items, which allows us to yield uniform `combine::ParseError` types from
 /// disparate parsers.
 #[derive(Clone)]
-pub enum IntoIter {
-    Empty(std::iter::Empty<edn::ValueAndSpan>),
-    Atom(std::iter::Once<edn::ValueAndSpan>),
-    Vector(std::vec::IntoIter<edn::ValueAndSpan>),
-    List(std::collections::linked_list::IntoIter<edn::ValueAndSpan>),
-    /// Iterates via a single `flat_map` [k1, v1, k2, v2, ...].
-    Map(std::vec::IntoIter<edn::ValueAndSpan>),
+pub enum Iter<'a> {
+    Empty,
+    Atom(std::iter::Once<&'a edn::ValueAndSpan>),
+    Vector(std::slice::Iter<'a, edn::ValueAndSpan>),
+    List(std::collections::linked_list::Iter<'a, edn::ValueAndSpan>),
+    /// Iterates a map {:k1 v1, :k2 v2, ...} as a single `flat_map` slice [k1, v1, k2, v2, ...].
+    Map(std::iter::FlatMap<std::collections::btree_map::Iter<'a, edn::ValueAndSpan, edn::ValueAndSpan>,
+                           std::iter::Chain<std::iter::Once<&'a edn::ValueAndSpan>, std::iter::Once<&'a edn::ValueAndSpan>>,
+                           fn((&'a edn::ValueAndSpan, &'a edn::ValueAndSpan)) -> std::iter::Chain<std::iter::Once<&'a edn::ValueAndSpan>, std::iter::Once<&'a edn::ValueAndSpan>>>),
+    /// Iterates a map with vector values {:k1 [v11 v12 ...], :k2 [v21 v22 ...], ...} as a single
+    /// flattened map [k1, v11, v12, ..., k2, v21, v22, ...].
+    KeywordMap(std::iter::FlatMap<std::collections::btree_map::Iter<'a, edn::ValueAndSpan, edn::ValueAndSpan>,
+                                  std::iter::Chain<std::iter::Once<&'a edn::ValueAndSpan>, Box<Iter<'a>>>,
+                                  fn((&'a edn::ValueAndSpan, &'a edn::ValueAndSpan)) -> std::iter::Chain<std::iter::Once<&'a edn::ValueAndSpan>, Box<Iter<'a>>>>),
     // TODO: Support Set and Map more naturally.  This is significantly more work because the
     // existing BTreeSet and BTreeMap iterators do not implement Clone, and implementing Clone for
     // them is involved.  Since we don't really need to parse sets and maps at this time, this will
     // do for now.
 }
 
-impl Iterator for IntoIter {
-    type Item = edn::ValueAndSpan;
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a edn::ValueAndSpan;
 
     fn next(&mut self) -> Option<Self::Item> {
         match *self {
-            IntoIter::Empty(ref mut i) => i.next(),
-            IntoIter::Atom(ref mut i) => i.next(),
-            IntoIter::Vector(ref mut i) => i.next(),
-            IntoIter::List(ref mut i) => i.next(),
-            IntoIter::Map(ref mut i) => i.next(),
+            Iter::Empty => None,
+            Iter::Atom(ref mut i) => i.next(),
+            Iter::Vector(ref mut i) => i.next(),
+            Iter::List(ref mut i) => i.next(),
+            Iter::Map(ref mut i) => i.next(),
+            Iter::KeywordMap(ref mut i) => i.next(),
         }
     }
 }
@@ -107,11 +117,11 @@ impl Iterator for IntoIter {
 /// to `combine::IteratorStream` as produced by `combine::from_iter`, but specialized to
 /// `edn::ValueAndSpan`.
 #[derive(Clone)]
-pub struct Stream(IntoIter, SpanPosition);
+pub struct Stream<'a>(Iter<'a>, SpanPosition);
 
 /// Things specific to parsing with `combine` and our `Stream` that need a trait to live outside of
 /// the `edn` crate.
-pub trait Item: Clone + PartialEq + Sized {
+pub trait Item<'a>: Clone + PartialEq + Sized {
     /// Position could be specialized to `SpanPosition`.
     type Position: Clone + Ord + std::fmt::Display;
 
@@ -120,13 +130,16 @@ pub trait Item: Clone + PartialEq + Sized {
     fn start(&self) -> Self::Position;
     fn update_position(&self, &mut Self::Position);
 
-    fn into_child_stream_iter(self) -> IntoIter;
-    fn into_child_stream(self) -> Stream;
-    fn into_atom_stream_iter(self) -> IntoIter;
-    fn into_atom_stream(self) -> Stream;
+    fn child_iter(&'a self) -> Iter<'a>;
+    fn child_stream(&'a self) -> Stream<'a>;
+    fn atom_iter(&'a self) -> Iter<'a>;
+    fn atom_stream(&'a self) -> Stream<'a>;
+
+    fn keyword_map_iter(&'a self) -> Iter<'a>;
+    fn keyword_map_stream(&'a self) -> Stream<'a>;
 }
 
-impl Item for edn::ValueAndSpan {
+impl<'a> Item<'a> for edn::ValueAndSpan {
     type Position = SpanPosition;
 
     fn start(&self) -> Self::Position {
@@ -137,28 +150,48 @@ impl Item for edn::ValueAndSpan {
         *position = SpanPosition(self.span.clone())
     }
 
-    fn into_child_stream_iter(self) -> IntoIter {
-        match self.inner {
-            edn::SpannedValue::Vector(values) => IntoIter::Vector(values.into_iter()),
-            edn::SpannedValue::List(values) => IntoIter::List(values.into_iter()),
-            // Parsing pairs with `combine` is tricky; parsing sequences is easy.
-            edn::SpannedValue::Map(map) => IntoIter::Map(map.into_iter().flat_map(|(a, v)| std::iter::once(a).chain(std::iter::once(v))).collect::<Vec<_>>().into_iter()),
-            _ => IntoIter::Empty(std::iter::empty()),
+    fn keyword_map_iter(&'a self) -> Iter<'a> {
+        fn flatten_k_vector<'a>((k, v): (&'a edn::ValueAndSpan, &'a edn::ValueAndSpan)) -> std::iter::Chain<std::iter::Once<&'a edn::ValueAndSpan>, Box<Iter<'a>>> {
+            std::iter::once(k).chain(Box::new(v.child_iter()))
+        }
+
+        match self.inner.as_map() {
+            Some(ref map) => Iter::KeywordMap(map.iter().flat_map(flatten_k_vector)),
+            None => Iter::Empty
         }
     }
 
-    fn into_child_stream(self) -> Stream {
+    fn keyword_map_stream(&'a self) -> Stream<'a> {
         let span = self.span.clone();
-        Stream(self.into_child_stream_iter(), SpanPosition(span))
+        Stream(self.keyword_map_iter(), SpanPosition(span))
     }
 
-    fn into_atom_stream_iter(self) -> IntoIter {
-        IntoIter::Atom(std::iter::once(self))
+    fn child_iter(&'a self) -> Iter<'a> {
+        fn flatten_k_v<'a>((k, v): (&'a edn::ValueAndSpan, &'a edn::ValueAndSpan)) -> std::iter::Chain<std::iter::Once<&'a edn::ValueAndSpan>, std::iter::Once<&'a edn::ValueAndSpan>> {
+            std::iter::once(k).chain(std::iter::once(v))
+        }
+
+        match self.inner {
+            edn::SpannedValue::Vector(ref values) => Iter::Vector(values.iter()),
+            edn::SpannedValue::List(ref values) => Iter::List(values.iter()),
+            // Parsing pairs with `combine` is tricky; parsing sequences is easy.
+            edn::SpannedValue::Map(ref map) => Iter::Map(map.iter().flat_map(flatten_k_v)),
+            _ => Iter::Empty,
+        }
     }
 
-    fn into_atom_stream(self) -> Stream {
+    fn child_stream(&'a self) -> Stream<'a> {
         let span = self.span.clone();
-        Stream(self.into_atom_stream_iter(), SpanPosition(span))
+        Stream(self.child_iter(), SpanPosition(span))
+    }
+
+    fn atom_iter(&'a self) -> Iter<'a> {
+        Iter::Atom(std::iter::once(self))
+    }
+
+    fn atom_stream(&'a self) -> Stream<'a> {
+        let span = self.span.clone();
+        Stream(self.atom_iter(), SpanPosition(span))
     }
 }
 
@@ -174,9 +207,26 @@ impl Item for edn::ValueAndSpan {
 #[derive(Clone)]
 pub struct OfExactly<P, N>(P, N);
 
-impl<P, N, O> Parser for OfExactly<P, N>
-    where P: Parser<Input=Stream, Output=edn::ValueAndSpan>,
-          N: Parser<Input=Stream, Output=O>,
+pub trait Streaming<'a> {
+    fn as_stream(self) -> Stream<'a>;
+}
+
+impl<'a> Streaming<'a> for &'a edn::ValueAndSpan {
+    fn as_stream(self) -> Stream<'a> {
+        self.child_stream()
+    }
+}
+
+impl<'a> Streaming<'a> for Stream<'a> {
+    fn as_stream(self) -> Stream<'a> {
+        self
+    }
+}
+
+impl<'a, P, N, M, O> Parser for OfExactly<P, N>
+    where P: Parser<Input=Stream<'a>, Output=M>,
+          N: Parser<Input=Stream<'a>, Output=O>,
+          M: 'a + Streaming<'a>,
 {
     type Input = P::Input;
     type Output = O;
@@ -186,7 +236,7 @@ impl<P, N, O> Parser for OfExactly<P, N>
 
         match self.0.parse_lazy(input) {
             ConsumedOk((outer_value, outer_input)) => {
-                match self.1.parse_lazy(outer_value.into_child_stream()) {
+                match self.1.parse_lazy(outer_value.as_stream()) {
                     ConsumedOk((inner_value, mut inner_input)) | EmptyOk((inner_value, mut inner_input)) => {
                         match inner_input.uncons() {
                             Err(ref err) if *err == primitives::Error::end_of_input() => ConsumedOk((inner_value, outer_input)),
@@ -200,7 +250,7 @@ impl<P, N, O> Parser for OfExactly<P, N>
                 }
             },
             EmptyOk((outer_value, outer_input)) => {
-                match self.1.parse_lazy(outer_value.into_child_stream()) {
+                match self.1.parse_lazy(outer_value.as_stream()) {
                     ConsumedOk((inner_value, mut inner_input)) | EmptyOk((inner_value, mut inner_input)) => {
                         match inner_input.uncons() {
                             Err(ref err) if *err == primitives::Error::end_of_input() => EmptyOk((inner_value, outer_input)),
@@ -222,9 +272,10 @@ impl<P, N, O> Parser for OfExactly<P, N>
 }
 
 #[inline(always)]
-pub fn of_exactly<P, N, O>(p: P, n: N) -> OfExactly<P, N>
-    where P: Parser<Input=Stream, Output=edn::ValueAndSpan>,
-          N: Parser<Input=Stream, Output=O>,
+pub fn of_exactly<'a, P, N, M, O>(p: P, n: N) -> OfExactly<P, N>
+    where P: Parser<Input=Stream<'a>, Output=M>,
+          N: Parser<Input=Stream<'a>, Output=O>,
+          M: 'a + Streaming<'a>,
 {
     OfExactly(p, n)
 }
@@ -236,8 +287,9 @@ pub trait OfExactlyParsing: Parser + Sized {
               N: Parser<Input = Self::Input, Output=O>;
 }
 
-impl<P> OfExactlyParsing for P
-    where P: Parser<Input=Stream, Output=edn::ValueAndSpan>
+impl<'a, P, M> OfExactlyParsing for P
+    where P: Parser<Input=Stream<'a>, Output=M>,
+          M: 'a + Streaming<'a>,
 {
     fn of_exactly<N, O>(self, n: N) -> OfExactly<P, N>
         where N: Parser<Input = Self::Input, Output=O>
@@ -247,10 +299,10 @@ impl<P> OfExactlyParsing for P
 }
 
 /// Equivalent to `combine::IteratorStream`.
-impl StreamOnce for Stream
+impl<'a> StreamOnce for Stream<'a>
 {
-    type Item = edn::ValueAndSpan;
-    type Range = edn::ValueAndSpan;
+    type Item = &'a edn::ValueAndSpan;
+    type Range = &'a edn::ValueAndSpan;
     type Position = SpanPosition;
 
     #[inline]
@@ -272,84 +324,132 @@ impl StreamOnce for Stream
 
 /// Shorthands, just enough to convert the `mentat_db` crate for now.  Written using `Box` for now:
 /// it's simple and we can address allocation issues if and when they surface.
-pub fn vector() -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
-    satisfy(|v: edn::ValueAndSpan| v.inner.is_vector()).boxed()
-}
-
-pub fn list() -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
-    satisfy(|v: edn::ValueAndSpan| v.inner.is_list()).boxed()
-}
-
-pub fn map() -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
-    satisfy(|v: edn::ValueAndSpan| v.inner.is_map()).boxed()
-}
-
-pub fn seq() -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
-    satisfy(|v: edn::ValueAndSpan| v.inner.is_list() || v.inner.is_vector()).boxed()
-}
-
-pub fn integer() -> Box<Parser<Input=Stream, Output=i64>> {
-    satisfy_map(|v: edn::ValueAndSpan| v.inner.as_integer()).boxed()
-}
-
-pub fn namespaced_keyword() -> Box<Parser<Input=Stream, Output=edn::NamespacedKeyword>> {
-    satisfy_map(|v: edn::ValueAndSpan| v.inner.as_namespaced_keyword().cloned()).boxed()
-}
-
-/// Like `combine::token()`, but compare an `edn::Value` to an `edn::ValueAndSpan`.
-pub fn value(value: edn::Value) -> Box<Parser<Input=Stream, Output=edn::ValueAndSpan>> {
-    // TODO: make this comparison faster.  Right now, we drop all the spans; if we walked the value
-    // trees together, we could avoid creating garbage.
-    satisfy(move |v: edn::ValueAndSpan| value == v.inner.into()).boxed()
-}
-
-fn keyword_map_(input: Stream) -> ParseResult<edn::ValueAndSpan, Stream>
-{
-    // One run is a keyword followed by one or more non-keywords.
-    let run = (satisfy(|v: edn::ValueAndSpan| v.inner.is_keyword()),
-               many1(satisfy(|v: edn::ValueAndSpan| !v.inner.is_keyword()))
-               .map(|vs: Vec<edn::ValueAndSpan>| {
-                   // TODO: extract "spanning".
-                   let beg = vs.first().unwrap().span.0;
-                   let end = vs.last().unwrap().span.1;
-                   edn::ValueAndSpan {
-                       inner: edn::SpannedValue::Vector(vs),
-                       span: edn::Span(beg, end),
-                   }
-               }));
-
-    let mut runs = vector().of_exactly(many::<Vec<_>, _>(run));
-
-    let (data, input) = try!(runs.parse_lazy(input).into());
-
-    let mut m: std::collections::BTreeMap<edn::ValueAndSpan, edn::ValueAndSpan> = std::collections::BTreeMap::default();
-    for (k, vs) in data {
-        if m.insert(k, vs).is_some() {
-            // TODO: improve this message.
-            return Err(Consumed::Empty(ParseError::from_errors(input.into_inner().position(), Vec::new())))
+pub fn vector_<'a>(input: Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| {
+        if v.inner.is_vector() {
+            Some(v.child_stream())
+        } else {
+            None
         }
-    }
-
-    let map = edn::ValueAndSpan {
-        inner: edn::SpannedValue::Map(m),
-        span: edn::Span(0, 0), // TODO: fix this.
-    };
-
-    Ok((map, input))
+    })
+        .parse_lazy(input)
+        .into()
 }
 
-/// Turn a vector of keywords and non-keyword values into a map.  As an example, turn
-/// ```edn
-/// [:keyword1 value1 value2 ... :keyword2 value3 value4 ...]
-/// ```
-/// into
-/// ```edn
-/// {:keyword1 [value1 value2 ...] :keyword2 [value3 value4 ...]}
-/// ```.
-pub fn keyword_map() -> Expected<FnParser<Stream, fn(Stream) -> ParseResult<edn::ValueAndSpan, Stream>>>
-{
-    // The `as` work arounds https://github.com/rust-lang/rust/issues/20178.
-    parser(keyword_map_ as fn(Stream) -> ParseResult<edn::ValueAndSpan, Stream>).expected("keyword map")
+pub fn vector<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>>> {
+    parser(vector_ as fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>).expected("vector")
+}
+
+pub fn list_<'a>(input: Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| {
+        if v.inner.is_list() {
+            Some(v.child_stream())
+        } else {
+            None
+        }
+    })
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn list<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>>> {
+    parser(list_ as fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>).expected("list")
+}
+
+pub fn seq_<'a>(input: Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| {
+        if v.inner.is_list() || v.inner.is_vector() {
+            Some(v.child_stream())
+        } else {
+            None
+        }
+    })
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn seq<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>>> {
+    parser(seq_ as fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>).expected("vector|list")
+}
+
+pub fn map_<'a>(input: Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| {
+        if v.inner.is_map() {
+            Some(v.child_stream())
+        } else {
+            None
+        }
+    })
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn map<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>>> {
+    parser(map_ as fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>).expected("map")
+}
+
+/// A `[k v]` pair in the map form of a keyword map must have the shape `[:k, [v1, v2, ...]]`, with
+/// none of `v1`, `v2`, ... a keyword: without loss of generality, we cannot represent the case
+/// where `vn` is a keyword `:l`, since `[:k v1 v2 ... :l]`, isn't a valid keyword map in vector
+/// form.  This function tests that a `[k v]` pair obeys these constraints.
+///
+/// If we didn't test this, then we might flatten a map `[:k [:l]] to `[:k :l]`, which isn't a valid
+/// keyword map in vector form.
+pub fn is_valid_keyword_map_k_v<'a>((k, v): (&'a edn::ValueAndSpan, &'a edn::ValueAndSpan)) -> bool {
+    if !k.inner.is_keyword() {
+        return false;
+    }
+    match v.inner.as_vector() {
+        None => {
+            return false;
+        },
+        Some(ref vs) => {
+            if !vs.iter().all(|vv| !vv.inner.is_keyword()) {
+                return false;
+            }
+        },
+    }
+    return true;
+}
+
+pub fn keyword_map_<'a>(input: Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| {
+        v.inner.as_map().and_then(|map| {
+            if map.iter().all(is_valid_keyword_map_k_v) {
+                println!("yes {:?}", map);
+                Some(v.keyword_map_stream())
+            } else {
+                println!("no {:?}", map);
+                None
+            }
+        })
+    })
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn keyword_map<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>>> {
+    parser(keyword_map_ as fn(Stream<'a>) -> ParseResult<Stream<'a>, Stream<'a>>).expected("keyword map")
+}
+
+pub fn integer_<'a>(input: Stream<'a>) -> ParseResult<i64, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_integer())
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn integer<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<i64, Stream<'a>>>> {
+    parser(integer_ as fn(Stream<'a>) -> ParseResult<i64, Stream<'a>>).expected("integer")
+}
+
+pub fn namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword())
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>>> {
+    parser(namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("namespaced_keyword")
 }
 
 /// Generate a `satisfy` expression that matches a `PlainSymbol` value with the given name.
@@ -359,8 +459,8 @@ pub fn keyword_map() -> Expected<FnParser<Stream, fn(Stream) -> ParseResult<edn:
 #[macro_export]
 macro_rules! def_matches_plain_symbol {
     ( $parser: ident, $name: ident, $input: expr ) => {
-        def_parser!($parser, $name, edn::ValueAndSpan, {
-            satisfy(|v: edn::ValueAndSpan| {
+        def_parser!($parser, $name, &'a edn::ValueAndSpan, {
+            satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
                     edn::SpannedValue::PlainSymbol(ref s) => s.0.as_str() == $input,
                     _ => false,
@@ -376,8 +476,8 @@ macro_rules! def_matches_plain_symbol {
 #[macro_export]
 macro_rules! def_matches_keyword {
     ( $parser: ident, $name: ident, $input: expr ) => {
-        def_parser!($parser, $name, edn::ValueAndSpan, {
-            satisfy(|v: edn::ValueAndSpan| {
+        def_parser!($parser, $name, &'a edn::ValueAndSpan, {
+            satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
                     edn::SpannedValue::Keyword(ref s) => s.0.as_str() == $input,
                     _ => false,
@@ -394,8 +494,8 @@ macro_rules! def_matches_keyword {
 #[macro_export]
 macro_rules! def_matches_namespaced_keyword {
     ( $parser: ident, $name: ident, $input_namespace: expr, $input_name: expr ) => {
-        def_parser!($parser, $name, edn::ValueAndSpan, {
-            satisfy(|v: edn::ValueAndSpan| {
+        def_parser!($parser, $name, &'a edn::ValueAndSpan, {
+            satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
                     edn::SpannedValue::NamespacedKeyword(ref s) => s.namespace.as_str() == $input_namespace && s.name.as_str() == $input_name,
                     _ => false,
@@ -405,57 +505,248 @@ macro_rules! def_matches_namespaced_keyword {
     }
 }
 
+use combine::primitives::{
+    Error,
+    Info,
+};
+use combine::primitives::FastResult::*;
+
+/// Compare to `tuple_parser!` in `combine`.
+///
+/// This uses edge cases in Rust's hygienic macro system to represent arbitrary values.  That is,
+/// `$value: ident` represents both a type in the tuple parameterizing `KeywordMapParser` (since
+/// `(A, B, C)` is a valid type declaration) and also a variable value extracted from the underlying
+/// instance value.  `$tmp: ident` represents an optional value to return.
+///
+/// This unrolls the cases.  Each loop iteration reads a token.  It then unrolls the known cases,
+/// checking if any case matches the keyword string.  If yes, we parse further.  If no, we move on
+/// to the next case.  If no case matches, we fail.
+macro_rules! keyword_map_parser {
+    ($(($keyword:ident, $value:ident, $tmp:ident)),+) => {
+        impl <'a, $($value:),+> Parser for KeywordMapParser<($((&'static str, $value)),+)>
+            where $($value: Parser<Input=Stream<'a>>),+
+        {
+            type Input = Stream<'a>;
+            type Output = ($(Option<$value::Output>),+);
+
+            #[allow(non_snake_case)]
+            fn parse_lazy(&mut self,
+                          mut input: Stream<'a>)
+                          -> ConsumedResult<($(Option<$value::Output>),+), Stream<'a>> {
+                let ($((ref $keyword, ref mut $value)),+) = (*self).0;
+                let mut consumed = false;
+
+                $(
+                    let mut $tmp = None;
+                )+
+
+                loop {
+                    match input.uncons() {
+                        Ok(value) => {
+                            $(
+                                if let Some(ref keyword) = value.inner.as_keyword() {
+                                    if keyword.0.as_str() == *$keyword {
+                                        if $tmp.is_some() {
+                                            // Repeated match -- bail out!  Providing good error
+                                            // messages is hard; this will do for now.
+                                            return ConsumedErr(ParseError::new(input.position(), Error::Unexpected(Info::Token(value))));
+                                        }
+
+                                        consumed = true;
+
+                                        $tmp = match $value.parse_lazy(input.clone()) {
+                                            ConsumedOk((x, new_input)) => {
+                                                input = new_input;
+                                                Some(x)
+                                            }
+                                            EmptyErr(mut err) => {
+                                                if let Ok(t) = input.uncons() {
+                                                    err.add_error(Error::Unexpected(Info::Token(t)));
+                                                }
+                                                if consumed {
+                                                    return ConsumedErr(err)
+                                                } else {
+                                                    return EmptyErr(err)
+                                                }
+                                            }
+                                            ConsumedErr(err) => return ConsumedErr(err),
+                                            EmptyOk((x, new_input)) => {
+                                                input = new_input;
+                                                Some(x)
+                                            }
+                                        };
+
+                                        continue
+                                    }
+                                }
+                            )+
+
+                            // No keyword matched!  Bail out.
+                            return ConsumedErr(ParseError::new(input.position(), Error::Unexpected(Info::Token(value))));
+                        },
+                        Err(err) => {
+                            if consumed {
+                                return ConsumedOk((($($tmp),+), input))
+                            } else {
+                                if err == Error::end_of_input() {
+                                    return EmptyOk((($($tmp),+), input));
+                                }
+                                return EmptyErr(ParseError::new(input.position(), err))
+                            }
+                        },
+                    }
+                }
+            }
+        }
+    }
+}
+
+keyword_map_parser!((Ak, Av, At), (Bk, Bv, Bt));
+keyword_map_parser!((Ak, Av, At), (Bk, Bv, Bt), (Ck, Cv, Ct));
+keyword_map_parser!((Ak, Av, At), (Bk, Bv, Bt), (Ck, Cv, Ct), (Dk, Dv, Dt));
+keyword_map_parser!((Ak, Av, At), (Bk, Bv, Bt), (Ck, Cv, Ct), (Dk, Dv, Dt), (Ek, Ev, Et));
+keyword_map_parser!((Ak, Av, At), (Bk, Bv, Bt), (Ck, Cv, Ct), (Dk, Dv, Dt), (Ek, Ev, Et), (Fk, Fv, Ft));
+keyword_map_parser!((Ak, Av, At), (Bk, Bv, Bt), (Ck, Cv, Ct), (Dk, Dv, Dt), (Ek, Ev, Et), (Fk, Fv, Ft), (Gk, Gv, Gt));
+
 #[cfg(test)]
 mod tests {
-    use combine::{eof};
+    use combine::{
+        eof,
+        many,
+        satisfy,
+    };
+
     use super::*;
 
-    /// Take a string `input` and a string `expected` and ensure that `input` parses to an
-    /// `edn::Value` keyword map equivalent to the `edn::Value` that `expected` parses to.
-    macro_rules! assert_keyword_map_eq {
-        ( $input: expr, $expected: expr ) => {{
-            let input = edn::parse::value($input).expect("to be able to parse input EDN");
-            let expected = $expected.map(|e| {
-                edn::parse::value(e).expect("to be able to parse expected EDN").without_spans()
-            });
-            let mut par = keyword_map().map(|x| x.without_spans()).skip(eof());
-            let result = par.parse(input.into_atom_stream()).map(|x| x.0);
-            assert_eq!(result.ok(), expected);
-        }}
+    use macros::{
+        ResultParser,
+    };
+
+    /// A little test parser.
+    pub struct Test<'a>(std::marker::PhantomData<&'a ()>);
+
+    def_matches_namespaced_keyword!(Test, add, "db", "add");
+
+    def_parser!(Test, entid, i64, {
+        integer()
+            .map(|x| x)
+            .or(namespaced_keyword().map(|_| -1))
+    });
+
+    #[test]
+    #[should_panic(expected = r#"keyword map has repeated key: "x""#)]
+    fn test_keyword_map_of() {
+        keyword_map_of!(("x", Test::entid()),
+                        ("x", Test::entid()));
+    }
+
+    #[test]
+    fn test_iter() {
+        // A vector and a map iterated as a keyword map produce the same elements.
+        let input = edn::parse::value("[:y 3 4 :x 1 2]").expect("to be able to parse input as EDN");
+        assert_eq!(input.child_iter().cloned().map(|x| x.without_spans()).into_iter().collect::<Vec<_>>(),
+                   edn::parse::value("[:y 3 4 :x 1 2]").expect("to be able to parse input as EDN").without_spans().into_vector().expect("an EDN vector"));
+
+        let input = edn::parse::value("{:x [1 2] :y [3 4]}").expect("to be able to parse input as EDN");
+        assert_eq!(input.keyword_map_iter().cloned().map(|x| x.without_spans()).into_iter().collect::<Vec<_>>(),
+                   edn::parse::value("[:y 3 4 :x 1 2]").expect("to be able to parse input as EDN").without_spans().into_vector().expect("an EDN vector"));
+
+        // Parsing a keyword map in map and vector form produces the same elements.  The order (:y
+        // before :x) is a foible of our EDN implementation and could be easily changed.
+        assert_edn_parses_to!(|| keyword_map().or(vector()).map(|x| x.0.map(|x| x.clone().without_spans()).into_iter().collect::<Vec<_>>()),
+                              "{:x [1] :y [2]}",
+                              edn::parse::value("[:y 2 :x 1]").expect("to be able to parse input as EDN").without_spans().into_vector().expect("an EDN vector"));
+
+        assert_edn_parses_to!(|| keyword_map().or(vector()).map(|x| x.0.map(|x| x.clone().without_spans()).into_iter().collect::<Vec<_>>()),
+                              "[:y 2 :x 1]",
+                              edn::parse::value("[:y 2 :x 1]").expect("to be able to parse input as EDN").without_spans().into_vector().expect("an EDN vector"));
     }
 
     #[test]
     fn test_keyword_map() {
-        assert_keyword_map_eq!(
-            "[:foo 1 2 3 :bar 4]",
-            Some("{:foo [1 2 3] :bar [4]}"));
+        assert_edn_parses_to!(|| vector().of_exactly(keyword_map_of!(("x", Test::entid()), ("y", Test::entid()))),
+                              "[:y 2 :x 1]",
+                              (Some(1), Some(2)));
 
-        // Trailing keywords aren't allowed.
-        assert_keyword_map_eq!(
-            "[:foo]",
-            None);
-        assert_keyword_map_eq!(
-            "[:foo 2 :bar]",
-            None);
+        assert_edn_parses_to!(|| vector().of_exactly(keyword_map_of!(("x", Test::entid()), ("y", Test::entid()))),
+                              "[:x 1 :y 2]",
+                              (Some(1), Some(2)));
 
-        // Duplicate keywords aren't allowed.
-        assert_keyword_map_eq!(
-            "[:foo 2 :foo 1]",
-            None);
+        assert_edn_parses_to!(|| vector().of_exactly(keyword_map_of!(("x", Test::entid()), ("y", Test::entid()))),
+                              "[:x 1]",
+                              (Some(1), None));
 
-        // Starting with anything but a keyword isn't allowed.
-        assert_keyword_map_eq!(
-            "[2 :foo 1]",
-            None);
+        assert_edn_parses_to!(|| vector().of_exactly(keyword_map_of!(("x", vector().of_exactly(many::<Vec<_>, _>(Test::entid()))),
+                                                                     ("y", vector().of_exactly(many::<Vec<_>, _>(Test::entid()))))),
+                              "[:x [] :y [1 2]]",
+                              (Some(vec![]), Some(vec![1, 2])));
 
-        // Consecutive keywords aren't allowed.
-        assert_keyword_map_eq!(
-            "[:foo :bar 1]",
-            None);
-
-        // Empty lists return an empty map.
-        assert_keyword_map_eq!(
-            "[]",
-            Some("{}"));
+        assert_edn_parses_to!(|| vector().of_exactly(keyword_map_of!(("x", vector().of_exactly(many::<Vec<_>, _>(Test::entid()))),
+                                                                     ("y", vector().of_exactly(many::<Vec<_>, _>(Test::entid()))))),
+                              "[]",
+                              (None, None));
     }
+
+    #[test]
+    fn test_keyword_map_failures() {
+        assert_parse_failure_contains!(|| vector().of_exactly(keyword_map_of!(("x", Test::entid()), ("y", Test::entid()))),
+                              "[:x 1 :x 2]",
+                              r#"errors: [Unexpected(Token(ValueAndSpan { inner: Keyword(Keyword("x"))"#);
+    }
+
+
+      // assert_edn_parses_to!(|| keyword_map().or(vector()).map(|x| x.0.map(|x| x.clone().without_spans()).into_iter().collect::<Vec<_>>()), "{:x [1] :y [2]}", vec![]);
+
+        // assert_edn_parses_to!(|| keyword_map().or(vector()).of_exactly((Test::entid(), Test::entid())), "{:x [1] :y [2]}", (-1, 1));
+
+        // assert_edn_parses_to!(|| kw_map().of_exactly((Test::entid(), Test::entid())), "[:a 0 :b 0 1]", (1, 1));
+
+        // assert_edn_parses_to!(|| keyword_map_of(&[(":kw1", Test::entid()),
+        //                                           (":kw2", (Test::entid(), Test::entid())),]),
+        //                       "{:kw1 0 :kw2 1 :x/y}", ((Some(0), Some((0, 1)))));
+
+
+
+
+        // let input = edn::parse::value("[:x/y]").expect("to be able to parse input as EDN");
+        // let par = vector().of_exactly(Test::entid());
+        // let stream: Stream = (&input).atom_stream();
+        // let result = par.skip(eof()).parse(stream).map(|x| x.0);
+        // assert_eq!(result, Ok(1));
+    // }
+
+    // #[test]
+    // fn test_keyword_map() {
+    //     assert_keyword_map_eq!(
+    //         "[:foo 1 2 3 :bar 4]",
+    //         Some("{:foo [1 2 3] :bar [4]}"));
+
+    //     // Trailing keywords aren't allowed.
+    //     assert_keyword_map_eq!(
+    //         "[:foo]",
+    //         None);
+    //     assert_keyword_map_eq!(
+    //         "[:foo 2 :bar]",
+    //         None);
+
+    //     // Duplicate keywords aren't allowed.
+    //     assert_keyword_map_eq!(
+    //         "[:foo 2 :foo 1]",
+    //         None);
+
+    //     // Starting with anything but a keyword isn't allowed.
+    //     assert_keyword_map_eq!(
+    //         "[2 :foo 1]",
+    //         None);
+
+    //     // Consecutive keywords aren't allowed.
+    //     assert_keyword_map_eq!(
+    //         "[:foo :bar 1]",
+    //         None);
+
+    //     // Empty lists return an empty map.
+    //     assert_keyword_map_eq!(
+    //         "[]",
+    //         Some("{}"));
+    // }
 }
