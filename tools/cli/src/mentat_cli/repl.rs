@@ -10,6 +10,9 @@
 
 use std::collections::HashMap;
 
+use mentat::query::QueryResults;
+use mentat_core::TypedValue;
+
 use command_parser::{
     Command, 
     HELP_COMMAND, 
@@ -92,6 +95,8 @@ impl Repl {
                     Err(e) => println!("{}", e.to_string())
                 };
             },
+            Command::Query(query) => self.query_command(query),
+            Command::Transact(transaction) => self.transact_command(transaction),
             _ => unimplemented!(),
         }
     }
@@ -113,6 +118,66 @@ impl Repl {
                     println!("Unrecognised command {}", arg);
                 }
             }
+        }
+    }
+
+    fn query_command(&self, query: String) {
+        let results = match self.store.query(query){
+            Result::Ok(vals) => {
+                vals
+            },
+            Result::Err(err) => return println!("{:?}.", err),
+        };
+
+        if results.is_empty() {
+            println!("No results found.")
+        }
+        
+        let mut output:String = String::new();
+        match results {
+            QueryResults::Scalar(Some(val)) => { 
+                output.push_str(&self.typed_value_as_string(val) ); 
+            },
+            QueryResults::Tuple(Some(vals)) => { 
+                for val in vals {
+                    output.push_str(&format!("{}\t", self.typed_value_as_string(val)));
+                }
+            },
+            QueryResults::Coll(vv) => { 
+                for val in vv {
+                    output.push_str(&format!("{}\n", self.typed_value_as_string(val)));
+                }
+            },
+            QueryResults::Rel(vvv) => { 
+                for vv in vvv {
+                    for v in vv {
+                        output.push_str(&format!("{}\t", self.typed_value_as_string(v)));
+                    }
+                    output.push_str("\n");
+                }
+            },
+            _ => output.push_str(&format!("No results found."))
+        }
+        println!("\n{}", output);
+    }
+
+    fn transact_command(&mut self, transaction: String) {
+        match self.store.transact(transaction) {
+            Result::Ok(report) => println!("{:?}", report),
+            Result::Err(err) => println!("{:?}.", err),
+        }
+    }
+
+    fn typed_value_as_string(&self, value: TypedValue) -> String {
+        match value {
+            TypedValue::Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
+            TypedValue::Double(d) => format!("{}", d),
+            TypedValue::Instant(i) => format!("{}", i),
+            TypedValue::Keyword(k) => format!("{}", k),
+            TypedValue::Long(l) => format!("{}", l),
+            TypedValue::Ref(r) => format!("{}", r),
+            TypedValue::String(s) => format!("{:?}", s.to_string()),
+            TypedValue::Uuid(u) => format!("{}", u),
         }
     }
 }

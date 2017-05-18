@@ -22,6 +22,9 @@ extern crate rusqlite;
 
 extern crate mentat;
 extern crate edn;
+extern crate mentat_query;
+extern crate mentat_core;
+extern crate mentat_db;
 
 use getopts::Options;
 

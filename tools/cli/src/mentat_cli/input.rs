@@ -109,6 +109,9 @@ impl InputReader {
         match cmd {
             Command::Query(_) |
             Command::Transact(_) if !cmd.is_complete() => {
+                // a query or transact is complete if it contains a valid edn.
+                // if the command is not complete, ask for more from the repl and remember
+                // which type of command we've found here.
                 self.in_process_cmd = Some(cmd);
                 Ok(More)
             },

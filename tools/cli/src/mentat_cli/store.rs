@@ -9,13 +9,16 @@
 // specific language governing permissions and limitations under the License.
 
 use rusqlite;
+
+use errors as cli;
+
 use mentat::{
     new_connection,
 };
+use mentat::query::QueryResults;
 
 use mentat::conn::Conn;
-
-use errors as cli;
+use mentat_db::types::TxReport;
 
 pub struct Store {
     handle: rusqlite::Connection,
@@ -48,4 +51,11 @@ impl Store {
         self.open(None)
     }
 
+    pub fn query(&self, query: String) -> Result<QueryResults, cli::Error> {
+        Ok(try!(self.conn.q_once(&self.handle, &query, None)))
+    }
+
+    pub fn transact(&mut self, transaction: String) -> Result<TxReport, cli::Error> {
+        Ok(try!(self.conn.transact(&mut self.handle, &transaction)))
+    }
 }
