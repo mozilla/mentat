@@ -52,21 +52,22 @@ impl Repl {
 
     /// Runs the REPL interactively.
     pub fn run(&mut self) {
-        let mut more: Option<Command> = None;
+        let mut more = false;
         let mut input = InputReader::new();
 
         loop {
-            let res = input.read_input(more.clone());
+            let res = input.read_input();
 
             match res {
                 Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);
-                    more = None;
+                    more = false;
                     self.handle_command(cmd);
                 },
-                Ok(Empty) => (),
-                Ok(More(cmd)) => { more = Some(cmd); },
+                Ok(Empty) => more = false,
+                Ok(More) => { more = true; },
                 Ok(Eof) => {
+                    more = false;
                     if input.is_tty() {
                         println!("");
                     }

@@ -9,10 +9,9 @@
 // specific language governing permissions and limitations under the License.
 
 use combine::{
-    any,
     eof, 
-    many,
     many1, 
+    parser,
     satisfy, 
     sep_end_by, 
     token, 
@@ -28,6 +27,8 @@ use combine::combinator::{
     try
 };
 
+use combine::primitives::Consumed;
+
 use errors as cli;
 
 use edn;
@@ -35,8 +36,10 @@ use edn;
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
 pub static CLOSE_COMMAND: &'static str = &"close";
-pub static QUERY_COMMAND: &'static str = &"q";
-pub static TRANSACT_COMMAND: &'static str = &"t";
+pub static QUERY_COMMAND: &'static str = &"query";
+pub static ALT_QUERY_COMMAND: &'static str = &"q";
+pub static TRANSACT_COMMAND: &'static str = &"transact";
+pub static ALT_TRANSACT_COMMAND: &'static str = &"t";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
@@ -90,6 +93,8 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
 
     let close_parser = string(CLOSE_COMMAND)
                     .with(arguments())
+                    .skip(spaces())
+                    .skip(eof())
                     .map(|args| {
                         if args.len() > 0 {
                             return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])).into());
@@ -97,27 +102,24 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Close)
                     });
     
-    let opening_brace_parser = try(string("["))
-                    .or(try(string("{")));
-    
-    let edn_arg_parser = spaces()
-                    .and(opening_brace_parser.clone()
-                    .and(many::<Vec<_>, _>(try(any()))));
+    let edn_arg_parser = || spaces()
+                    .with(try(string("["))
+                        .or(try(string("{")))
+                        .then(|d| parser(move |input| {
+                            let _: &str = input;
+                            Ok((d.to_string() + input, Consumed::Empty(input)))
+                        })));
 
-    let query_parser = string(QUERY_COMMAND)
-                    .and(edn_arg_parser.clone())
-                    .map( |x| {
-                        let args = (x.1).1;
-                        let content: String = args.1.iter().collect();
-                        Ok(Command::Query(format!("{}{}", args.0, content)))
-                    });
+    let query_parser = try(string(QUERY_COMMAND)).or(try(string(ALT_QUERY_COMMAND)))
+                        .with(edn_arg_parser())
+                        .map(|x| {
+                            Ok(Command::Query(x))
+                        });
 
-    let transact_parser = string(TRANSACT_COMMAND)
-                    .and(edn_arg_parser.clone())
+    let transact_parser = try(string(TRANSACT_COMMAND)).or(try(string(ALT_TRANSACT_COMMAND)))
+                    .with(edn_arg_parser())
                     .map( |x| {
-                        let args = (x.1).1;
-                        let content: String = args.1.iter().collect();
-                        Ok(Command::Transact(format!("{}{}", args.0, content)))
+                        Ok(Command::Transact(x))
                     });
 
     spaces()
@@ -128,11 +130,8 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
             &mut try(close_parser),
             &mut try(query_parser),
             &mut try(transact_parser)]))
-        .skip(spaces())
-        .skip(eof())
         .parse(s)
-        .map(|x| x.0)
-        .unwrap_or(Err(cli::ErrorKind::CommandParse(format!("Invalid command {:?}", s)).into()))
+        .unwrap_or((Err(cli::ErrorKind::CommandParse(format!("Invalid command {:?}", s)).into()), "")).0
 }
 
 #[cfg(test)]
@@ -284,6 +283,16 @@ mod tests {
     }
 
     #[test]
+    fn test_query_parser_alt_query_command() {
+        let input = ".query [:find ?x :where [?x foo/bar ?y]]";
+        let cmd = command(&input).expect("Expected query command");
+        match cmd {
+            Command::Query(edn) => assert_eq!(edn, "[:find ?x :where [?x foo/bar ?y]]"),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
     fn test_query_parser_incomplete_edn() {
         let input = ".q [:find ?x\r\n";
         let cmd = command(&input).expect("Expected query command");
@@ -319,10 +328,20 @@ mod tests {
 
     #[test]
     fn test_transact_parser_complete_edn() {
-        let input = ".t [:db/add \"s\" :db/ident :foo/uuid]";
+        let input = ".t [[:db/add \"s\" :db/ident :foo/uuid] [:db/add \"r\" :db/ident :bar/uuid]]";
         let cmd = command(&input).expect("Expected transact command");
         match cmd {
-            Command::Transact(edn) => assert_eq!(edn, "[:db/add \"s\" :db/ident :foo/uuid]"),
+            Command::Transact(edn) => assert_eq!(edn, "[[:db/add \"s\" :db/ident :foo/uuid] [:db/add \"r\" :db/ident :bar/uuid]]"),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_transact_parser_alt_command() {
+        let input = ".transact [[:db/add \"s\" :db/ident :foo/uuid] [:db/add \"r\" :db/ident :bar/uuid]]";
+        let cmd = command(&input).expect("Expected transact command");
+        match cmd {
+            Command::Transact(edn) => assert_eq!(edn, "[[:db/add \"s\" :db/ident :foo/uuid] [:db/add \"r\" :db/ident :bar/uuid]]"),
             _ => assert!(false)
         }
     }
