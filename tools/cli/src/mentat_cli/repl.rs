@@ -21,6 +21,7 @@ use command_parser::{
     SHORT_QUERY_COMMAND,
     LONG_TRANSACT_COMMAND,
     SHORT_TRANSACT_COMMAND,
+    READ_COMMAND,
 };
 use input::InputReader;
 use input::InputResult::{
@@ -43,6 +44,7 @@ lazy_static! {
         map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
         map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
+        map.insert(READ_COMMAND, "Read in the file provided in argument. Transact each edn in turn.");
         map
     };
 }
@@ -112,6 +114,7 @@ impl Repl {
             },
             Command::Query(query) => self.execute_query(query),
             Command::Transact(transaction) => self.execute_transact(transaction),
+            Command::Read(file) => self.read_file(file),
         }
     }
 
@@ -135,7 +138,7 @@ impl Repl {
         }
     }
 
-    pub fn execute_query(&self, query: String) {
+    fn execute_query(&self, query: String) {
         let results = match self.store.query(query){
             Result::Ok(vals) => {
                 vals
@@ -175,7 +178,7 @@ impl Repl {
         println!("\n{}", output);
     }
 
-    pub fn execute_transact(&mut self, transaction: String) {
+    fn execute_transact(&mut self, transaction: String) {
         match self.store.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
             Result::Err(err) => println!("{:?}.", err),
@@ -192,6 +195,12 @@ impl Repl {
             TypedValue::Ref(r) => format!("{}", r),
             TypedValue::String(s) => format!("{:?}", s.to_string()),
             TypedValue::Uuid(u) => format!("{}", u),
+        }
+    }
+
+    fn read_file(&self, files: Vec<String>) {
+        for file in files {
+            println!("Executing edn in file {}", file);
         }
     }
 }

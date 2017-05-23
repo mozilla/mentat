@@ -42,6 +42,7 @@ pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
 pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
 pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
+pub static READ_COMMAND: &'static str = &"read";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
@@ -49,6 +50,7 @@ pub enum Command {
     Query(String),
     Help(Vec<String>),
     Open(String),
+    Read(Vec<String>),
     Close,
 }
 
@@ -65,7 +67,8 @@ impl Command {
             },
             &Command::Help(_) |
             &Command::Open(_) |
-            &Command::Close => true
+            &Command::Close |
+            &Command::Read(_) => true
         }
     }
 
@@ -85,6 +88,9 @@ impl Command {
             }
             &Command::Close => {
                 format!(".{}", CLOSE_COMMAND)
+            },
+            &Command::Read(ref args) => {
+                format!(".{} {:?}", READ_COMMAND, args)
             },
         }
     }
@@ -143,15 +149,44 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                     .map( |x| {
                         Ok(Command::Transact(x))
                     });
+    
+    let read_parser = string(READ_COMMAND)
+                    .with(spaces())
+                    .with(arguments())
+                    .map(|args| {
+                        // strip quotes from file paths.
+                        let mut sargs = Vec::with_capacity(args.len());
+                        for arg in args.iter() {
+                            let start_char = arg.chars().nth(0);
+                            match start_char {
+                                Some('"') |
+                                Some('\'') => { 
+                                    let separator = start_char.unwrap();
+                                    if arg.ends_with(separator) {
+                                        sargs.push(arg.split(separator).collect::<Vec<&str>>().into_iter().collect());
+                                    } else {
+                                        return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {}", arg)).into());
+                                    }
+                                },
+                                _ => sargs.push(arg.clone()),
+                            }
+                        }
+                        println!("args: {:?}", sargs);
+                        if args.len() == 0 {
+                            return Err(cli::ErrorKind::CommandParse("Missing required argument".to_string()).into());
+                        }
+                        Ok(Command::Read(sargs.clone()))
+                    });
 
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 5], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 6], _>
           ([&mut try(help_parser),
             &mut try(open_parser),
             &mut try(close_parser),
             &mut try(query_parser),
-            &mut try(transact_parser)]))
+            &mut try(transact_parser),
+            &mut try(read_parser)]))
         .parse(s)
         .unwrap_or((Err(cli::ErrorKind::CommandParse(format!("Invalid command {:?}", s)).into()), "")).0
 }
@@ -410,6 +445,89 @@ mod tests {
             Command::Close => assert!(true),
             _ => assert!(false)
         }
+    }
+
+    #[test]
+    fn test_read_parser_single_arg_no_quotes() {
+        let input = ".read arg1";
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["arg1"]),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_read_parser_single_arg_quotes() {
+        let input = r#".read "arg1""#;
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["arg1"]),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_read_parser_single_arg_file_extension() {
+        let input = ".read arg1.edn";
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["arg1.edn"]),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_read_parser_single_arg_file_path() {
+        let input = ".read ~/path/to/data/arg1.edn";
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["~/path/to/data/arg1.edn"]),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_read_parser_single_arg_file_path_quotes() {
+        let input = r#".read "~/path/to/data/arg1.edn""#;
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["~/path/to/data/arg1.edn"]),
+            _ => assert!(false)
+        }
+    }
+    #[test]
+    fn test_read_parser_single_arg_bad_quotes() {
+        let input = r#".read "~/path/to/data/arg1.edn"#;
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), "Unrecognized argument \"~/path/to/data/arg1.edn");
+    }
+
+    #[test]
+    fn test_read_parser_multiple_args() {
+        let input = ".read ~/path/to/data/arg1.edn ~/path/to/schema/arg2.edn";
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["~/path/to/data/arg1.edn", "~/path/to/schema/arg2.edn"]),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_read_parser_multiple_args_mix_quotes() {
+        let input = r#".read "~/path/to/data/arg1.edn" '~/path/to/schema/arg2.edn'"#;
+        let cmd = command(&input).expect("Expected read command");
+        match cmd {
+            Command::Read(files) => assert_eq!(files, vec!["~/path/to/data/arg1.edn", "~/path/to/schema/arg2.edn"]),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_read_parser_no_args() {
+        let input = ".read";
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), "Missing required argument");
     }
 
     #[test]
