@@ -20,7 +20,7 @@ use command_parser::{
     QUERY_COMMAND,
     ALT_QUERY_COMMAND,
     TRANSACT_COMMAND,
-    ALT_TRANSACT_COMMAND
+    ALT_TRANSACT_COMMAND,
 };
 use input::InputReader;
 use input::InputResult::{
@@ -49,21 +49,28 @@ lazy_static! {
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
-    store: Store,
+    store: Store
 }
 
 impl Repl {
     /// Constructs a new `Repl`.
     pub fn new(db_name: Option<String>) -> Result<Repl, String> {
         let store = try!(Store::new(db_name.clone()).map_err(|e| e.to_string()));
+        println!("Database {:?} opened", db_output_name(&db_name.unwrap_or("".to_string())));
         Ok(Repl{
             store: store,
         })
     }
 
     /// Runs the REPL interactively.
-    pub fn run(&mut self) {
+    pub fn run(&mut self, startup_commands: Option<Vec<Command>>) {
         let mut input = InputReader::new();
+
+        if let Some(cmds) = startup_commands {
+            for command in cmds.iter() {
+                self.handle_command(command.clone());
+            }
+        }
 
         loop {
             let res = input.read_input();
@@ -103,9 +110,8 @@ impl Repl {
                     Err(e) => println!("{}", e.to_string())
                 };
             },
-            Command::Query(query) => self.query_command(query),
-            Command::Transact(transaction) => self.transact_command(transaction),
-            _ => unimplemented!(),
+            Command::Query(query) => self.execute_query(query),
+            Command::Transact(transaction) => self.execute_transact(transaction),
         }
     }
 
@@ -129,7 +135,7 @@ impl Repl {
         }
     }
 
-    fn query_command(&self, query: String) {
+    pub fn execute_query(&self, query: String) {
         let results = match self.store.query(query){
             Result::Ok(vals) => {
                 vals
@@ -169,7 +175,7 @@ impl Repl {
         println!("\n{}", output);
     }
 
-    fn transact_command(&mut self, transaction: String) {
+    pub fn execute_transact(&mut self, transaction: String) {
         match self.store.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
             Result::Err(err) => println!("{:?}.", err),

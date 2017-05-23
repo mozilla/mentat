@@ -42,6 +42,8 @@ pub fn run() -> i32 {
 
     opts.optopt("d", "", "The path to a database to open", "DATABASE");
     opts.optflag("h", "help", "Print this help message and exit");
+    opts.optopt("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
+    opts.optopt("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
     opts.optflag("v", "version", "Print version and exit");
 
     let matches = match opts.parse(&args[1..]) {
@@ -64,9 +66,23 @@ pub fn run() -> i32 {
 
     let db_name = matches.opt_str("d");
 
+    let transacts = matches.opt_strs("t");
+    let queries = matches.opt_strs("q");
+
+    let mut cmds = Vec::with_capacity(transacts.len() + queries.len());
+
+    for transact in transacts {
+        cmds.push(command_parser::Command::Transact(transact));
+    }
+    for query in queries {
+        cmds.push(command_parser::Command::Query(query));
+    }
+
+
     let repl = repl::Repl::new(db_name);
     if repl.is_ok() {
-        repl.unwrap().run();
+        repl.unwrap().run(Some(cmds));
+
     } else {
         println!("{}", repl.err().unwrap());
     }
