@@ -59,16 +59,17 @@ impl Command {
     /// false is returned if the command is not considered valid. 
     /// Defaults to true for all commands except Query and Transact.
     /// TODO: for query and transact commands, they will be considered complete if a parsable EDN has been entered as an argument
-    pub fn is_complete(&self) -> bool {
+    pub fn is_complete(&self) -> (bool, Option<edn::ParseError>) {
         match self {
             &Command::Query(ref args) |
             &Command::Transact(ref args) => {
-                edn::parse::value(&args).is_ok()
+                let r = edn::parse::value(&args);
+                (r.is_ok(), r.err())
             },
             &Command::Help(_) |
             &Command::Open(_) |
             &Command::Close |
-            &Command::Read(_) => true
+            &Command::Read(_) => (true, None)
         }
     }
 
@@ -155,7 +156,8 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                     .with(arguments())
                     .map(|args| {
                         // strip quotes from file paths.
-                        let mut sargs = Vec::with_capacity(args.len());
+                        // not sure how to map this and still throw the error so doing it the old fashioned way
+                        let mut files = Vec::with_capacity(args.len());
                         for arg in args.iter() {
                             let start_char = arg.chars().nth(0);
                             match start_char {
@@ -163,19 +165,20 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                                 Some('\'') => { 
                                     let separator = start_char.unwrap();
                                     if arg.ends_with(separator) {
-                                        sargs.push(arg.split(separator).collect::<Vec<&str>>().into_iter().collect());
+                                        files.push(arg.split(separator).collect::<Vec<&str>>().into_iter().collect());
                                     } else {
                                         return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {}", arg)).into());
                                     }
                                 },
-                                _ => sargs.push(arg.clone()),
+                                _ => files.push(arg.clone()),
                             }
                         }
-                        println!("args: {:?}", sargs);
+
+                        // check that we have at least one argument
                         if args.len() == 0 {
                             return Err(cli::ErrorKind::CommandParse("Missing required argument".to_string()).into());
                         }
-                        Ok(Command::Read(sargs.clone()))
+                        Ok(Command::Read(files.clone()))
                     });
 
     spaces()

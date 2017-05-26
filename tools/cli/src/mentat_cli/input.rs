@@ -102,13 +102,20 @@ impl InputReader {
                 Command::Transact(args.clone() + " " + &line)
             },
             _ => {
-                try!(command(&self.buffer))
+                let res = command(&self.buffer);
+                match res {
+                    Ok(cmd) => cmd,
+                    Err(err) => {
+                        self.buffer.clear();
+                        bail!(err)
+                    }
+                }
             }
         };
 
         match cmd {
             Command::Query(_) |
-            Command::Transact(_) if !cmd.is_complete() => {
+            Command::Transact(_) if !cmd.is_complete().0 => {
                 // a query or transact is complete if it contains a valid edn.
                 // if the command is not complete, ask for more from the repl and remember
                 // which type of command we've found here.

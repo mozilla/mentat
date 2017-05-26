@@ -12,14 +12,14 @@ doc = false
 test = false
 
 [dependencies]
+combine = "2.2.2"
 getopts = "0.2"
 env_logger = "0.3"
+error-chain = "0.8.1"
+lazy_static = "0.2.2"
 linefeed = "0.1"
 log = "0.3"
 tempfile = "1.1"
-combine = "2.2.2"
-lazy_static = "0.2.2"
-error-chain = "0.8.1"
 
 [dependencies.rusqlite]
 version = "0.11"

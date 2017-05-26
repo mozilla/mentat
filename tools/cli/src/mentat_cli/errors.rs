@@ -13,6 +13,7 @@
 use rusqlite;
 
 use mentat::errors as mentat;
+use edn;
 
 error_chain! {
     types {
@@ -20,6 +21,7 @@ error_chain! {
     }
 
     foreign_links {
+        EdnParseError(edn::ParseError);
         Rusqlite(rusqlite::Error);
     }
 
@@ -31,6 +33,11 @@ error_chain! {
         CommandParse(message: String) {
             description("An error occured parsing the entered command")
             display("{}", message)
+        }
+
+        FileError(filename: String, message: String) {
+            description("An error occured while reading file")
+            display("Unable to open file {}: {}", filename, message)
         }
     }
 }

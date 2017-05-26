@@ -9,6 +9,15 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::HashMap;
+use std::io::BufReader;
+use std::io::BufRead;
+use std::fs::File;
+use std::path::Path;
+use error_chain::ChainedError;
+
+use errors as cli;
+
+use edn;
 
 use mentat::query::QueryResults;
 use mentat_core::TypedValue;
@@ -44,7 +53,7 @@ lazy_static! {
         map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
         map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
-        map.insert(READ_COMMAND, "Read in the file provided in argument. Transact each edn in turn.");
+        map.insert(READ_COMMAND, "Read a file containing one or more complete edn transact statements. Transacts each edn in turn.");
         map
     };
 }
@@ -90,7 +99,7 @@ impl Repl {
                     }
                     break;
                 },
-                Err(e) => println!("{}", e.to_string()),
+                Err(e) => println!("{}", e.display()),
             }
         }
     }
@@ -102,19 +111,19 @@ impl Repl {
             Command::Open(db) => {
                 match self.store.open(Some(db.clone())) {
                     Ok(_) => println!("Database {:?} opened", db_output_name(&db)),
-                    Err(e) => println!("{}", e.to_string())
+                    Err(e) => println!("{}", e.display())
                 };
             },
             Command::Close => {
                 let old_db_name = self.store.db_name.clone();
                 match self.store.close() {
                     Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-                    Err(e) => println!("{}", e.to_string())
+                    Err(e) => println!("{}", e.display())
                 };
             },
             Command::Query(query) => self.execute_query(query),
             Command::Transact(transaction) => self.execute_transact(transaction),
-            Command::Read(file) => self.read_file(file),
+            Command::Read(file) => self.read_files(file),
         }
     }
 
@@ -143,7 +152,7 @@ impl Repl {
             Result::Ok(vals) => {
                 vals
             },
-            Result::Err(err) => return println!("{:?}.", err),
+            Result::Err(err) => return println!("{}.", err.display()),
         };
 
         if results.is_empty() {
@@ -181,7 +190,7 @@ impl Repl {
     fn execute_transact(&mut self, transaction: String) {
         match self.store.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
-            Result::Err(err) => println!("{:?}.", err),
+            Result::Err(err) => println!("{}.", err.display()),
         }
     }
 
@@ -198,10 +207,51 @@ impl Repl {
         }
     }
 
-    fn read_file(&self, files: Vec<String>) {
+    fn read_files(&mut self, files: Vec<String>) {
         for file in files {
-            println!("Executing edn in file {}", file);
+            let res = self.read_file(file);
+            if res.is_err() {
+                match res.unwrap_err() {
+                    cli::Error(err, _) => { println!("{}", err) },
+                }
+            }
         }
+    }
+
+    fn read_file(&mut self, file: String) -> Result<(), cli::Error> {
+        let path = Path::new(&file);
+        let display = path.display();
+
+        let f = match File::open(&path) {
+            Err(err) => bail!(cli::ErrorKind::FileError(display.to_string(), err.to_string())),
+            Ok(file) => file,
+        };
+
+        let mut buffer = String::new();
+        let mut cmd_err: Option<edn::ParseError> = None;
+
+        let file = BufReader::new(&f);
+        for line in file.lines() {
+            let l = line.unwrap();
+            println!("{}", l);
+            buffer.push_str(&l);
+            let cmd = Command::Transact(buffer.to_string());
+            let (is_complete, err) = cmd.is_complete();
+            if is_complete {
+                self.handle_command(cmd);
+                buffer.clear();
+                cmd_err = None;
+            } else {
+                cmd_err = err;
+            }
+
+        }
+
+        if let Some(err) = cmd_err {
+            println!("\nUnable to parse edn: {}", err.to_string());
+        }
+
+        Ok(())
     }
 }
 
