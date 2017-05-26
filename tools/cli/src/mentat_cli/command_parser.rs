@@ -68,6 +68,26 @@ impl Command {
             &Command::Close => true
         }
     }
+
+    pub fn output(&self) -> String {
+        match self {
+            &Command::Query(ref args) => {
+                format!(".{} {}", QUERY_COMMAND, args)
+            },
+            &Command::Transact(ref args) => {
+                format!(".{} {}", TRANSACT_COMMAND, args)
+            },
+            &Command::Help(ref args) => {
+                format!(".{} {:?}", HELP_COMMAND, args)
+            },
+            &Command::Open(ref args) => {
+                format!(".{} {}", OPEN_COMMAND, args)
+            }
+            &Command::Close => {
+                format!(".{}", CLOSE_COMMAND)
+            },
+        }
+    }
 }
 
 pub fn command(s: &str) -> Result<Command, cli::Error> {

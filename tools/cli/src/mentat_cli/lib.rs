@@ -42,8 +42,8 @@ pub fn run() -> i32 {
 
     opts.optopt("d", "", "The path to a database to open", "DATABASE");
     opts.optflag("h", "help", "Print this help message and exit");
-    opts.optopt("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
-    opts.optopt("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
+    opts.optmulti("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
+    opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
     opts.optflag("v", "version", "Print version and exit");
 
     let matches = match opts.parse(&args[1..]) {
@@ -64,22 +64,30 @@ pub fn run() -> i32 {
         return 0;
     }
 
-    let db_name = matches.opt_str("d");
+    let mut last_arg: Option<&str> = None;
+    let cmds:Vec<command_parser::Command> = args.iter().filter_map(|arg| {
+        match last_arg {
+            Some("-d") => {
+                last_arg = None;
+                Some(command_parser::Command::Open(arg.clone()))
+            },
+            Some("-q") => {
+                last_arg = None;
+                Some(command_parser::Command::Query(arg.clone()))
+            },
+            Some("-t") => {
+                last_arg = None;
+                Some(command_parser::Command::Transact(arg.clone()))
+            },
+            Some(_) |
+            None => {
+                last_arg = Some(&arg);
+                None
+            },
+        } 
+    }).collect();
 
-    let transacts = matches.opt_strs("t");
-    let queries = matches.opt_strs("q");
-
-    let mut cmds = Vec::with_capacity(transacts.len() + queries.len());
-
-    for transact in transacts {
-        cmds.push(command_parser::Command::Transact(transact));
-    }
-    for query in queries {
-        cmds.push(command_parser::Command::Query(query));
-    }
-
-
-    let repl = repl::Repl::new(db_name);
+    let repl = repl::Repl::new();
     if repl.is_ok() {
         repl.unwrap().run(Some(cmds));
 

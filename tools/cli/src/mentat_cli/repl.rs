@@ -54,9 +54,8 @@ pub struct Repl {
 
 impl Repl {
     /// Constructs a new `Repl`.
-    pub fn new(db_name: Option<String>) -> Result<Repl, String> {
-        let store = try!(Store::new(db_name.clone()).map_err(|e| e.to_string()));
-        println!("Database {:?} opened", db_output_name(&db_name.unwrap_or("".to_string())));
+    pub fn new() -> Result<Repl, String> {
+        let store = Store::new(None).map_err(|e| e.to_string())?;
         Ok(Repl{
             store: store,
         })
@@ -68,6 +67,7 @@ impl Repl {
 
         if let Some(cmds) = startup_commands {
             for command in cmds.iter() {
+                println!("{}", command.output());
                 self.handle_command(command.clone());
             }
         }
