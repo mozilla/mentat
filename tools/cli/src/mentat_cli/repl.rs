@@ -52,7 +52,6 @@ impl Repl {
 
     /// Runs the REPL interactively.
     pub fn run(&mut self) {
-        let mut more = false;
         let mut input = InputReader::new();
 
         loop {
@@ -61,13 +60,11 @@ impl Repl {
             match res {
                 Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);
-                    more = false;
                     self.handle_command(cmd);
                 },
-                Ok(Empty) => more = false,
-                Ok(More) => { more = true; },
+                Ok(Empty) |
+                Ok(More) => (),
                 Ok(Eof) => {
-                    more = false;
                     if input.is_tty() {
                         println!("");
                     }

@@ -9,7 +9,9 @@
 // specific language governing permissions and limitations under the License.
 
 use combine::{
+    any,
     eof, 
+    look_ahead,
     many1, 
     parser,
     satisfy, 
@@ -36,10 +38,10 @@ use edn;
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
 pub static CLOSE_COMMAND: &'static str = &"close";
-pub static QUERY_COMMAND: &'static str = &"query";
-pub static ALT_QUERY_COMMAND: &'static str = &"q";
-pub static TRANSACT_COMMAND: &'static str = &"transact";
-pub static ALT_TRANSACT_COMMAND: &'static str = &"t";
+pub static LONG_QUERY_COMMAND: &'static str = &"query";
+pub static SHORT_QUERY_COMMAND: &'static str = &"q";
+pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
+pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
@@ -83,10 +85,10 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                     .with(arguments())
                     .map(|args| {
                         if args.len() < 1 {
-                            return Err(cli::ErrorKind::CommandParse("Missing required argument".to_string()).into());
+                            bail!(cli::ErrorKind::CommandParse("Missing required argument".to_string()));
                         }
                         if args.len() > 1 {
-                            return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[1])).into());
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[1])));
                         }
                         Ok(Command::Open(args[0].clone()))
                     });
@@ -97,26 +99,26 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                     .skip(eof())
                     .map(|args| {
                         if args.len() > 0 {
-                            return Err(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])).into());
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
                         }
                         Ok(Command::Close)
                     });
-    
-    let edn_arg_parser = || spaces()
-                    .with(try(string("["))
-                        .or(try(string("{")))
-                        .then(|d| parser(move |input| {
-                            let _: &str = input;
-                            Ok((d.to_string() + input, Consumed::Empty(input)))
-                        })));
 
-    let query_parser = try(string(QUERY_COMMAND)).or(try(string(ALT_QUERY_COMMAND)))
+    let edn_arg_parser = || spaces()
+                            .with(look_ahead(string("[").or(string("{")))
+                                .with(many1::<Vec<_>, _>(try(any())))
+                                .and_then(|args| -> Result<String, cli::Error> {
+                                    Ok(args.iter().collect())
+                                })
+                            );
+
+    let query_parser = try(string(LONG_QUERY_COMMAND)).or(try(string(SHORT_QUERY_COMMAND)))
                         .with(edn_arg_parser())
                         .map(|x| {
                             Ok(Command::Query(x))
                         });
 
-    let transact_parser = try(string(TRANSACT_COMMAND)).or(try(string(ALT_TRANSACT_COMMAND)))
+    let transact_parser = try(string(LONG_TRANSACT_COMMAND)).or(try(string(SHORT_TRANSACT_COMMAND)))
                     .with(edn_arg_parser())
                     .map( |x| {
                         Ok(Command::Transact(x))
