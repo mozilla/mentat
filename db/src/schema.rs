@@ -245,6 +245,7 @@ impl SchemaTypeChecking for Schema {
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
                 (&ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
+                (&ValueType::Instant, TypedValue::Instant(x)) => Ok(TypedValue::Instant(x)),
                 // Otherwise, we have a type mismatch.
                 (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
             }
