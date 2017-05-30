@@ -8,19 +8,29 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate rustc_version;
+#![allow(dead_code)]
 
-use std::io::{self, Write};
-use std::process::exit;
-use rustc_version::version_matches;
+use rusqlite;
 
-/// MIN_VERSION should be changed when there's a new minimum version of rustc required
-/// to build the project.
-static MIN_VERSION: &'static str  = ">= 1.17.0";
+use mentat::errors as mentat;
 
-fn main() {
-    if !version_matches(MIN_VERSION) {
-        writeln!(&mut io::stderr(), "Mentat requires rustc {}", MIN_VERSION).unwrap();
-        exit(1);
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
+
+    foreign_links {
+        Rusqlite(rusqlite::Error);
+    }
+
+    links {
+        MentatError(mentat::Error, mentat::ErrorKind);
+    }
+
+    errors {
+        CommandParse(message: String) {
+            description("An error occured parsing the entered command")
+            display("{}", message)
+        }
     }
 }

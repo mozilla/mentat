@@ -8,21 +8,34 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io::{self, stdin, BufRead, BufReader};
+use std::io::stdin;
 
 use linefeed::Reader;
 use linefeed::terminal::DefaultTerminal;
 
 use self::InputResult::*;
 
+use command_parser::{
+    Command, 
+    command
+};
+
+use errors as cli;
+
+/// Starting prompt
+const DEFAULT_PROMPT: &'static str = "mentat=> ";
+/// Prompt when further input is being read
+// TODO: Should this actually reflect the current open brace?
+const MORE_PROMPT: &'static str = "mentat.> ";
+
 /// Possible results from reading input from `InputReader`
 #[derive(Clone, Debug)]
 pub enum InputResult {
-    /// rusti command as input; (name, rest of line)
-    Command(String, Option<String>),
+    /// mentat command as input; (name, rest of line)
+    MetaCommand(Command),
     /// An empty line
     Empty,
-    /// Needs more input; i.e. there is an unclosed delimiter
+    /// Needs more input
     More,
     /// End of file reached
     Eof,
@@ -32,6 +45,7 @@ pub enum InputResult {
 pub struct InputReader {
     buffer: String,
     reader: Option<Reader<DefaultTerminal>>,
+    in_process_cmd: Option<Command>,
 }
 
 impl InputReader {
@@ -48,6 +62,7 @@ impl InputReader {
         InputReader{
             buffer: String::new(),
             reader: r,
+            in_process_cmd: None,
         }
     }
 
@@ -59,28 +74,53 @@ impl InputReader {
     /// Reads a single command, item, or statement from `stdin`.
     /// Returns `More` if further input is required for a complete result.
     /// In this case, the input received so far is buffered internally.
-    pub fn read_input(&mut self, prompt: &str) -> InputResult {
+    pub fn read_input(&mut self) -> Result<InputResult, cli::Error> {
+        let prompt = if self.in_process_cmd.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT };
         let line = match self.read_line(prompt) {
             Some(s) => s,
-            None => return Eof,
+            None => return Ok(Eof),
         };
 
         self.buffer.push_str(&line);
 
         if self.buffer.is_empty() {
-            return Empty;
+            return Ok(Empty);
         }
 
         self.add_history(&line);
 
-        let res = More;
-
-        match res {
-            More => (),
-            _ => self.buffer.clear(),
+        // if we have a command in process (i.e. in incomplete query or transaction),
+        // then we already know which type of command it is and so we don't need to parse the
+        // command again, only the content, which we do later.
+        // Therefore, we add the newly read in line to the existing command args.
+        // If there is no in process command, we parse the read in line as a new command.
+        let cmd = match &self.in_process_cmd {
+            &Some(Command::Query(ref args)) => {
+                Command::Query(args.clone() + " " + &line)
+            },
+            &Some(Command::Transact(ref args)) => {
+                Command::Transact(args.clone() + " " + &line)
+            },
+            _ => {
+                try!(command(&self.buffer))
+            }
         };
 
-        res
+        match cmd {
+            Command::Query(_) |
+            Command::Transact(_) if !cmd.is_complete() => {
+                // a query or transact is complete if it contains a valid edn.
+                // if the command is not complete, ask for more from the repl and remember
+                // which type of command we've found here.
+                self.in_process_cmd = Some(cmd);
+                Ok(More)
+            },
+            _ => {
+                self.buffer.clear();
+                self.in_process_cmd = None;
+                Ok(InputResult::MetaCommand(cmd))
+            }
+        }
     }
 
     fn read_line(&mut self, prompt: &str) -> Option<String> {
@@ -88,7 +128,7 @@ impl InputReader {
             Some(ref mut r) => {
                 r.set_prompt(prompt);
                 r.read_line().ok().and_then(|line| line)
-            }
+            },
             None => self.read_stdin()
         }
     }
