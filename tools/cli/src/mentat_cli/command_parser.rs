@@ -72,10 +72,10 @@ impl Command {
     pub fn output(&self) -> String {
         match self {
             &Command::Query(ref args) => {
-                format!(".{} {}", QUERY_COMMAND, args)
+                format!(".{} {}", LONG_QUERY_COMMAND, args)
             },
             &Command::Transact(ref args) => {
-                format!(".{} {}", TRANSACT_COMMAND, args)
+                format!(".{} {}", LONG_TRANSACT_COMMAND, args)
             },
             &Command::Help(ref args) => {
                 format!(".{} {:?}", HELP_COMMAND, args)
@@ -135,13 +135,13 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
     let query_parser = try(string(LONG_QUERY_COMMAND)).or(try(string(SHORT_QUERY_COMMAND)))
                         .with(edn_arg_parser())
                         .map(|x| {
-                            Ok(Command::Query(x.into_iter().collect()))
+                            Ok(Command::Query(x))
                         });
 
     let transact_parser = try(string(LONG_TRANSACT_COMMAND)).or(try(string(SHORT_TRANSACT_COMMAND)))
                     .with(edn_arg_parser())
                     .map( |x| {
-                        Ok(Command::Transact(x.into_iter().collect()))
+                        Ok(Command::Transact(x))
                     });
 
     spaces()
