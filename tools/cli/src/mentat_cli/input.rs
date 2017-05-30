@@ -22,6 +22,12 @@ use command_parser::{
 
 use errors as cli;
 
+/// Starting prompt
+const DEFAULT_PROMPT: &'static str = "mentat=> ";
+/// Prompt when further input is being read
+// TODO: Should this actually reflect the current open brace?
+const MORE_PROMPT: &'static str = "mentat.> ";
+
 /// Possible results from reading input from `InputReader`
 #[derive(Clone, Debug)]
 pub enum InputResult {
@@ -29,8 +35,8 @@ pub enum InputResult {
     MetaCommand(Command),
     /// An empty line
     Empty,
-    /// Needs more input; i.e. there is an unclosed delimiter
-    More(Command),
+    /// Needs more input
+    More,
     /// End of file reached
     Eof,
 }
@@ -39,6 +45,7 @@ pub enum InputResult {
 pub struct InputReader {
     buffer: String,
     reader: Option<Reader<DefaultTerminal>>,
+    in_process_cmd: Option<Command>,
 }
 
 impl InputReader {
@@ -55,6 +62,7 @@ impl InputReader {
         InputReader{
             buffer: String::new(),
             reader: r,
+            in_process_cmd: None,
         }
     }
 
@@ -66,7 +74,8 @@ impl InputReader {
     /// Reads a single command, item, or statement from `stdin`.
     /// Returns `More` if further input is required for a complete result.
     /// In this case, the input received so far is buffered internally.
-    pub fn read_input(&mut self, prompt: &str) -> Result<InputResult, cli::Error> {
+    pub fn read_input(&mut self) -> Result<InputResult, cli::Error> {
+        let prompt = if self.in_process_cmd.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT };
         let line = match self.read_line(prompt) {
             Some(s) => s,
             None => return Ok(Eof),
@@ -80,15 +89,35 @@ impl InputReader {
 
         self.add_history(&line);
 
-        let cmd = try!(command(&self.buffer));
+        // if we have a command in process (i.e. in incomplete query or transaction),
+        // then we already know which type of command it is and so we don't need to parse the
+        // command again, only the content, which we do later.
+        // Therefore, we add the newly read in line to the existing command args.
+        // If there is no in process command, we parse the read in line as a new command.
+        let cmd = match &self.in_process_cmd {
+            &Some(Command::Query(ref args)) => {
+                Command::Query(args.clone() + " " + &line)
+            },
+            &Some(Command::Transact(ref args)) => {
+                Command::Transact(args.clone() + " " + &line)
+            },
+            _ => {
+                try!(command(&self.buffer))
+            }
+        };
 
         match cmd {
             Command::Query(_) |
             Command::Transact(_) if !cmd.is_complete() => {
-                Ok(More(cmd))
+                // a query or transact is complete if it contains a valid edn.
+                // if the command is not complete, ask for more from the repl and remember
+                // which type of command we've found here.
+                self.in_process_cmd = Some(cmd);
+                Ok(More)
             },
             _ => {
                 self.buffer.clear();
+                self.in_process_cmd = None;
                 Ok(InputResult::MetaCommand(cmd))
             }
         }

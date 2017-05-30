@@ -16,7 +16,7 @@ use rustc_version::version_matches;
 
 /// MIN_VERSION should be changed when there's a new minimum version of rustc required
 /// to build the project.
-static MIN_VERSION: &'static str  = ">= 1.15.1";
+static MIN_VERSION: &'static str  = ">= 1.17.0";
 
 fn main() {
     if !version_matches(MIN_VERSION) {
