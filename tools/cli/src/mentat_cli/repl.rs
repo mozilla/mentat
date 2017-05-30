@@ -10,10 +10,17 @@
 
 use std::collections::HashMap;
 
+use mentat::query::QueryResults;
+use mentat_core::TypedValue;
+
 use command_parser::{
     Command, 
     HELP_COMMAND, 
-    OPEN_COMMAND
+    OPEN_COMMAND,
+    LONG_QUERY_COMMAND,
+    SHORT_QUERY_COMMAND,
+    LONG_TRANSACT_COMMAND,
+    SHORT_TRANSACT_COMMAND,
 };
 use input::InputReader;
 use input::InputResult::{
@@ -32,27 +39,38 @@ lazy_static! {
         let mut map = HashMap::new();
         map.insert(HELP_COMMAND, "Show help for commands.");
         map.insert(OPEN_COMMAND, "Open a database at path.");
+        map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
+        map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
+        map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
+        map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
         map
     };
 }
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
-    store: Store,
+    store: Store
 }
 
 impl Repl {
     /// Constructs a new `Repl`.
-    pub fn new(db_name: Option<String>) -> Result<Repl, String> {
-        let store = try!(Store::new(db_name.clone()).map_err(|e| e.to_string()));
+    pub fn new() -> Result<Repl, String> {
+        let store = Store::new(None).map_err(|e| e.to_string())?;
         Ok(Repl{
             store: store,
         })
     }
 
     /// Runs the REPL interactively.
-    pub fn run(&mut self) {
+    pub fn run(&mut self, startup_commands: Option<Vec<Command>>) {
         let mut input = InputReader::new();
+
+        if let Some(cmds) = startup_commands {
+            for command in cmds.iter() {
+                println!("{}", command.output());
+                self.handle_command(command.clone());
+            }
+        }
 
         loop {
             let res = input.read_input();
@@ -92,7 +110,8 @@ impl Repl {
                     Err(e) => println!("{}", e.to_string())
                 };
             },
-            _ => unimplemented!(),
+            Command::Query(query) => self.execute_query(query),
+            Command::Transact(transaction) => self.execute_transact(transaction),
         }
     }
 
@@ -113,6 +132,66 @@ impl Repl {
                     println!("Unrecognised command {}", arg);
                 }
             }
+        }
+    }
+
+    pub fn execute_query(&self, query: String) {
+        let results = match self.store.query(query){
+            Result::Ok(vals) => {
+                vals
+            },
+            Result::Err(err) => return println!("{:?}.", err),
+        };
+
+        if results.is_empty() {
+            println!("No results found.")
+        }
+        
+        let mut output:String = String::new();
+        match results {
+            QueryResults::Scalar(Some(val)) => { 
+                output.push_str(&self.typed_value_as_string(val) ); 
+            },
+            QueryResults::Tuple(Some(vals)) => { 
+                for val in vals {
+                    output.push_str(&format!("{}\t", self.typed_value_as_string(val)));
+                }
+            },
+            QueryResults::Coll(vv) => { 
+                for val in vv {
+                    output.push_str(&format!("{}\n", self.typed_value_as_string(val)));
+                }
+            },
+            QueryResults::Rel(vvv) => { 
+                for vv in vvv {
+                    for v in vv {
+                        output.push_str(&format!("{}\t", self.typed_value_as_string(v)));
+                    }
+                    output.push_str("\n");
+                }
+            },
+            _ => output.push_str(&format!("No results found."))
+        }
+        println!("\n{}", output);
+    }
+
+    pub fn execute_transact(&mut self, transaction: String) {
+        match self.store.transact(transaction) {
+            Result::Ok(report) => println!("{:?}", report),
+            Result::Err(err) => println!("{:?}.", err),
+        }
+    }
+
+    fn typed_value_as_string(&self, value: TypedValue) -> String {
+        match value {
+            TypedValue::Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
+            TypedValue::Double(d) => format!("{}", d),
+            TypedValue::Instant(i) => format!("{}", i),
+            TypedValue::Keyword(k) => format!("{}", k),
+            TypedValue::Long(l) => format!("{}", l),
+            TypedValue::Ref(r) => format!("{}", r),
+            TypedValue::String(s) => format!("{:?}", s.to_string()),
+            TypedValue::Uuid(u) => format!("{}", u),
         }
     }
 }
