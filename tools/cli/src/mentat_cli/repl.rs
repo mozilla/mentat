@@ -156,54 +156,17 @@ impl Repl {
         };
 
         if results.is_empty() {
-            println!("No results found.")
+            return println!("No results found.")
         }
-        
-        let mut output:String = String::new();
-        match results {
-            QueryResults::Scalar(Some(val)) => { 
-                output.push_str(&self.typed_value_as_string(val) ); 
-            },
-            QueryResults::Tuple(Some(vals)) => { 
-                for val in vals {
-                    output.push_str(&format!("{}\t", self.typed_value_as_string(val)));
-                }
-            },
-            QueryResults::Coll(vv) => { 
-                for val in vv {
-                    output.push_str(&format!("{}\n", self.typed_value_as_string(val)));
-                }
-            },
-            QueryResults::Rel(vvv) => { 
-                for vv in vvv {
-                    for v in vv {
-                        output.push_str(&format!("{}\t", self.typed_value_as_string(v)));
-                    }
-                    output.push_str("\n");
-                }
-            },
-            _ => output.push_str(&format!("No results found."))
+        if let Ok(output) = results.to_pretty() {
+            println!("\n{}", output);
         }
-        println!("\n{}", output);
     }
 
     fn execute_transact(&mut self, transaction: String) {
         match self.store.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
             Result::Err(err) => println!("{}.", err.display()),
-        }
-    }
-
-    fn typed_value_as_string(&self, value: TypedValue) -> String {
-        match value {
-            TypedValue::Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
-            TypedValue::Double(d) => format!("{}", d),
-            TypedValue::Instant(i) => format!("{}", i),
-            TypedValue::Keyword(k) => format!("{}", k),
-            TypedValue::Long(l) => format!("{}", l),
-            TypedValue::Ref(r) => format!("{}", r),
-            TypedValue::String(s) => format!("{:?}", s.to_string()),
-            TypedValue::Uuid(u) => format!("{}", u),
         }
     }
 
