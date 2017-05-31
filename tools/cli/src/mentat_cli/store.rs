@@ -34,15 +34,15 @@ impl Store {
     pub fn new(database: Option<String>) -> Result<Store, cli::Error> {
         let db_name = database.unwrap_or("".to_string());
         
-        let mut handle = try!(new_connection(&db_name));        
-        let conn = try!(Conn::connect(&mut handle)); 
+        let mut handle = new_connection(&db_name)?;        
+        let conn = Conn::connect(&mut handle)?; 
         Ok(Store { handle, conn, db_name })
     }
 
     pub fn open(&mut self, database: Option<String>) -> Result<(), cli::Error> {
         self.db_name = database.unwrap_or("".to_string());
-        self.handle = try!(new_connection(&self.db_name));
-        self.conn = try!(Conn::connect(&mut self.handle));
+        self.handle = new_connection(&self.db_name)?;
+        self.conn = Conn::connect(&mut self.handle)?;
         Ok(())
     }
 
@@ -52,10 +52,10 @@ impl Store {
     }
 
     pub fn query(&self, query: String) -> Result<QueryResults, cli::Error> {
-        Ok(try!(self.conn.q_once(&self.handle, &query, None)))
+        Ok(self.conn.q_once(&self.handle, &query, None)?)
     }
 
     pub fn transact(&mut self, transaction: String) -> Result<TxReport, cli::Error> {
-        Ok(try!(self.conn.transact(&mut self.handle, &transaction)))
+        Ok(self.conn.transact(&mut self.handle, &transaction)?)
     }
 }
