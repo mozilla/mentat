@@ -116,6 +116,29 @@ impl QueryResults {
             &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
         }
     }
+
+    pub fn to_pretty(&self) -> Result<String> {
+        use QueryResults::*;
+        match self {
+            &Scalar(Some(ref val)) => { 
+                Ok(val.value_type().to_edn_value().to_pretty(120).unwrap_or(String::new()) )
+            },
+            &Tuple(Some(ref vals)) => { 
+                Ok(vals.iter().map(|val| format!("{}\t", val.value_type().to_edn_value().to_pretty(120).unwrap_or(String::new()))).collect::<Vec<String>>().into_iter().collect::<String>())
+            },
+            &Coll(ref vals) => { 
+                Ok(vals.iter().map(|val| format!("{}\n", val.value_type().to_edn_value().to_pretty(120).unwrap_or(String::new()))).collect::<Vec<String>>().into_iter().collect::<String>())
+            },
+            &Rel(ref valsvec) => { 
+                let mut output = String::new();
+                for vals in valsvec {
+                    output.push_str(&format!("{}\n", &vals.iter().map(|val| format!("{}\t", val.value_type().to_edn_value().to_pretty(120).unwrap_or(String::new()))).collect::<Vec<String>>().into_iter().collect::<String>()));
+                }
+                Ok(output)
+            },
+            _ => Ok("No results found.".to_string())
+        }
+    }
 }
 
 type Index = i32;            // See rusqlite::RowIndex.

@@ -13,7 +13,14 @@ use std::io::stdin;
 use linefeed::Reader;
 use linefeed::terminal::DefaultTerminal;
 
+use std::io::BufReader;
+use std::io::BufRead;
+use std::fs::File;
+use std::path::Path;
+
 use self::InputResult::*;
+
+use edn;
 
 use command_parser::{
     Command, 
@@ -71,6 +78,44 @@ impl InputReader {
         self.reader.is_some()
     }
 
+    pub fn read_file(&mut self, filename: &String) -> Result<Vec<InputResult>, cli::Error> {
+        let path = Path::new(&filename);
+        let display = path.display();
+
+        let f = match File::open(&path) {
+            Err(err) => bail!(cli::ErrorKind::FileError(display.to_string(), err.to_string())),
+            Ok(file) => file,
+        };
+
+        let mut buffer = String::new();
+
+        let file = BufReader::new(&f);
+        let mut cmd_err: Option<edn::ParseError> = None;
+
+        let mut results: Vec<InputResult> = Vec::new();
+        for line in file.lines() {
+            let l = line.unwrap();
+            println!("{}", l);
+            buffer.push_str(&l);
+            let cmd = Command::Transact(buffer.to_string());
+            let (is_complete, err) = cmd.is_complete();
+            if is_complete {
+                results.push(InputResult::MetaCommand(cmd));
+                buffer.clear();
+                cmd_err = None;
+            } else {
+                cmd_err = err;
+            }
+
+        }
+
+        if let Some(err) = cmd_err {
+            bail!(err);
+        }
+
+        Ok(results)
+    }
+
     /// Reads a single command, item, or statement from `stdin`.
     /// Returns `More` if further input is required for a complete result.
     /// In this case, the input received so far is buffered internally.
@@ -102,24 +147,28 @@ impl InputReader {
                 Command::Transact(args.clone() + " " + &line)
             },
             _ => {
-                try!(command(&self.buffer))
+                let res = command(&self.buffer);
+                match res {
+                    Ok(cmd) => cmd,
+                    Err(err) => {
+                        self.buffer.clear();
+                        bail!(err)
+                    }
+                }
             }
         };
 
-        match cmd {
-            Command::Query(_) |
-            Command::Transact(_) if !cmd.is_complete() => {
-                // a query or transact is complete if it contains a valid edn.
-                // if the command is not complete, ask for more from the repl and remember
-                // which type of command we've found here.
-                self.in_process_cmd = Some(cmd);
-                Ok(More)
-            },
-            _ => {
-                self.buffer.clear();
-                self.in_process_cmd = None;
-                Ok(InputResult::MetaCommand(cmd))
-            }
+        let (is_complete, _) = cmd.is_complete();
+        if is_complete {
+            self.buffer.clear();
+            self.in_process_cmd = None;
+            Ok(InputResult::MetaCommand(cmd))
+        } else {
+            // a query or transact is complete if it contains a valid edn.
+            // if the command is not complete, ask for more from the repl and remember
+            // which type of command we've found here.
+            self.in_process_cmd = Some(cmd);
+            Ok(More)
         }
     }
 

@@ -42,8 +42,9 @@ pub fn run() -> i32 {
 
     opts.optopt("d", "", "The path to a database to open", "DATABASE");
     opts.optflag("h", "help", "Print this help message and exit");
-    opts.optmulti("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
-    opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
+    opts.optopt("q", "query", "Execute a query on startup.", "QUERY");
+    opts.optopt("r", "read", "Read in file at path and execute transact for each edn", "READ");
+    opts.optopt("t", "transact", "Execute a transact on startup.", "TRANSACT");
     opts.optflag("v", "version", "Print version and exit");
 
     let matches = match opts.parse(&args[1..]) {
@@ -78,6 +79,10 @@ pub fn run() -> i32 {
             Some("-t") => {
                 last_arg = None;
                 Some(command_parser::Command::Transact(arg.clone()))
+            },
+            Some("-r") => {
+                last_arg = None;
+                Some(command_parser::Command::Read(vec![arg.clone()]))
             },
             Some(_) |
             None => {
