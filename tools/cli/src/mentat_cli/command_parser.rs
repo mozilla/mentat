@@ -13,7 +13,6 @@ use combine::{
     eof, 
     look_ahead,
     many1, 
-    parser,
     satisfy, 
     sep_end_by, 
     token, 
@@ -28,8 +27,6 @@ use combine::combinator::{
     choice, 
     try
 };
-
-use combine::primitives::Consumed;
 
 use errors as cli;
 

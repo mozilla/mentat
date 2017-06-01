@@ -9,18 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::HashMap;
-use std::io::BufReader;
-use std::io::BufRead;
-use std::fs::File;
-use std::path::Path;
 use error_chain::ChainedError;
-
-use errors as cli;
-
-use edn;
-
-use mentat::query::QueryResults;
-use mentat_core::TypedValue;
 
 use command_parser::{
     Command, 
@@ -33,6 +22,7 @@ use command_parser::{
     READ_COMMAND,
 };
 use input::InputReader;
+use input::InputResult;
 use input::InputResult::{
     MetaCommand, 
     Empty, 
@@ -76,17 +66,27 @@ impl Repl {
     pub fn run(&mut self, startup_commands: Option<Vec<Command>>) {
         let mut input = InputReader::new();
 
+        let mut unexecuted_commands: Vec<InputResult> = Vec::new();
+
         if let Some(cmds) = startup_commands {
-            for command in cmds.iter() {
-                println!("{}", command.output());
-                self.handle_command(command.clone());
-            }
+            unexecuted_commands.append(&mut cmds.into_iter().map(|c| MetaCommand(c.clone())).collect());
         }
 
+
         loop {
-            let res = input.read_input();
+            let res = if unexecuted_commands.len() > 0 { Ok(unexecuted_commands.remove(0)) } else { input.read_input() };
 
             match res {
+                Ok(MetaCommand(Command::Read(files))) => {
+                    for file in files {
+                        let file_res = input.read_file(&file);
+                        if let Ok(commands) = file_res {
+                            unexecuted_commands.append(&mut commands.clone());
+                        } else {
+                            println!("{:?}", file_res.err());
+                        }
+                    }
+                },
                 Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);
                     self.handle_command(cmd);
@@ -123,7 +123,7 @@ impl Repl {
             },
             Command::Query(query) => self.execute_query(query),
             Command::Transact(transaction) => self.execute_transact(transaction),
-            Command::Read(file) => self.read_files(file),
+            Command::Read(_) => (),
         }
     }
 
@@ -168,53 +168,6 @@ impl Repl {
             Result::Ok(report) => println!("{:?}", report),
             Result::Err(err) => println!("{}.", err.display()),
         }
-    }
-
-    fn read_files(&mut self, files: Vec<String>) {
-        for file in files {
-            let res = self.read_file(file);
-            if res.is_err() {
-                match res.unwrap_err() {
-                    cli::Error(err, _) => { println!("{}", err) },
-                }
-            }
-        }
-    }
-
-    fn read_file(&mut self, file: String) -> Result<(), cli::Error> {
-        let path = Path::new(&file);
-        let display = path.display();
-
-        let f = match File::open(&path) {
-            Err(err) => bail!(cli::ErrorKind::FileError(display.to_string(), err.to_string())),
-            Ok(file) => file,
-        };
-
-        let mut buffer = String::new();
-        let mut cmd_err: Option<edn::ParseError> = None;
-
-        let file = BufReader::new(&f);
-        for line in file.lines() {
-            let l = line.unwrap();
-            println!("{}", l);
-            buffer.push_str(&l);
-            let cmd = Command::Transact(buffer.to_string());
-            let (is_complete, err) = cmd.is_complete();
-            if is_complete {
-                self.handle_command(cmd);
-                buffer.clear();
-                cmd_err = None;
-            } else {
-                cmd_err = err;
-            }
-
-        }
-
-        if let Some(err) = cmd_err {
-            println!("\nUnable to parse edn: {}", err.to_string());
-        }
-
-        Ok(())
     }
 }
 
