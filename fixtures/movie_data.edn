@@ -1,169 +1,376 @@
-[ 
- {:person/name "Ted Kotcheff"
+[
+ {:db/id "james-cameron"
+  :person/name "James Cameron"
+  :person/born #inst "1954-08-16T00:00:00Z"}
+
+ {:db/id "arnold-schwarzenegger"
+  :person/name "Arnold Schwarzenegger"
+  :person/born #inst "1947-07-30T00:00:00Z"}
+
+ {:db/id "linda-hamilton"
+  :person/name "Linda Hamilton"
+  :person/born #inst "1956-09-26T00:00:00Z"}
+
+ {:db/id "michael-biehn"
+  :person/name "Michael Biehn"
+  :person/born #inst "1956-07-31T00:00:00Z"}
+
+ {:db/id "ted-kotcheff"
+  :person/name "Ted Kotcheff"
   :person/born #inst "1931-04-07T00:00:00Z"}
-
- {:person/name "Sylvester Stallone"
+ 
+ {:db/id "sylvester-stallone"
+  :person/name "Sylvester Stallone"
   :person/born #inst "1946-07-06T00:00:00Z"}
-
- {:person/name "Richard Crenna"
+ 
+ {:db/id "richard-crenna"
+  :person/name "Richard Crenna"
   :person/born #inst "1926-11-30T00:00:00.000Z"
   :person/death #inst "2003-01-17T00:00:00.000Z"}
-
- {:person/name "Brian Dennehy"
+ 
+ {:db/id "brian-dennehy"
+  :person/name "Brian Dennehy"
   :person/born #inst "1938-07-09T00:00:00.000Z"}
 
- {:person/name "John McTiernan"
+ {:db/id "john-mctiernan"
+  :person/name "John McTiernan"
   :person/born #inst "1951-01-08T00:00:00.000Z"}
-
- {:person/name "Elpidia Carrillo"
+ 
+ {:db/id "elpidia-carrillo"
+  :person/name "Elpidia Carrillo"
   :person/born #inst "1961-08-16T00:00:00.000Z"}
 
- {:person/name "Carl Weathers"
+ {:db/id "carl-weathers"
+  :person/name "Carl Weathers"
   :person/born #inst "1948-01-14T00:00:00.000Z"}
 
- {:person/name "Richard Donner"
+ {:db/id "richard-donner"
+  :person/name "Richard Donner"
   :person/born #inst "1930-04-24T00:00:00.000Z"}
 
- {:person/name "Mel Gibson"
+ {:db/id "mel-gibson"
+  :person/name "Mel Gibson"
   :person/born #inst "1956-01-03T00:00:00.000Z"}
 
- {:person/name "Danny Glover"
+ {:db/id "danny-glover"
+  :person/name "Danny Glover"
   :person/born #inst "1946-07-22T00:00:00.000Z"}
 
- {:person/name "Gary Busey"
+ {:db/id "gary-busey"
+  :person/name "Gary Busey"
   :person/born #inst "1944-07-29T00:00:00.000Z"}
 
- {:person/name "Paul Verhoeven"
+ {:db/id "paul-verhoeven"
+  :person/name "Paul Verhoeven"
   :person/born #inst "1938-07-18T00:00:00.000Z"}
 
- {:person/name "Peter Weller"
+ {:db/id "peter-weller"
+  :person/name "Peter Weller"
   :person/born #inst "1947-06-24T00:00:00.000Z"}
 
- {:person/name "Nancy Allen"
+ {:db/id "nancy-allen"
+  :person/name "Nancy Allen"
   :person/born #inst "1950-06-24T00:00:00.000Z"}
 
- {:person/name "Ronny Cox"
+ {:db/id "ronny-cox"
+  :person/name "Ronny Cox"
   :person/born #inst "1938-07-23T00:00:00.000Z"}
 
- {:person/name "Mark L. Lester"
+ {:db/id "mark-l-lester"
+  :person/name "Mark L. Lester"
   :person/born #inst "1946-11-26T00:00:00.000Z"}
 
- {:person/name "Rae Dawn Chong"
+ {:db/id "rae-dawn-chong"
+  :person/name "Rae Dawn Chong"
   :person/born #inst "1961-02-28T00:00:00.000Z"}
 
- {:person/name "Alyssa Milano"
+ {:db/id "alyssa-milano"
+  :person/name "Alyssa Milano"
   :person/born #inst "1972-12-19T00:00:00.000Z"}
 
- {:person/name "Bruce Willis"
+ {:db/id "bruce-willis"
+  :person/name "Bruce Willis"
   :person/born #inst "1955-03-19T00:00:00.000Z"}
 
- {:person/name "Alan Rickman"
+ {:db/id "alan-rickman"
+  :person/name "Alan Rickman"
   :person/born #inst "1946-02-21T00:00:00.000Z"}
 
- {:person/name "Alexander Godunov"
+ {:db/id "alexander-godunov"
+  :person/name "Alexander Godunov"
   :person/born #inst "1949-11-28T00:00:00.000Z"
   :person/death #inst "1995-05-18T00:00:00.000Z"}
 
- {:person/name "Robert Patrick"
-  :db/id "patrick"
+ {:db/id "robert-patrick"
+  :person/name "Robert Patrick"
   :person/born #inst "1958-11-05T00:00:00.000Z"}
 
- {:person/name "Edward Furlong"
+ {:db/id "edward-furlong"
+  :person/name "Edward Furlong"
   :person/born #inst "1977-08-02T00:00:00.000Z"}
 
- {:person/name "Jonathan Mostow"
+ {:db/id "jonathan-mostow"
+  :person/name "Jonathan Mostow"
   :person/born #inst "1961-11-28T00:00:00.000Z"}
 
- {:person/name "Nick Stahl"
+ {:db/id "nick-stahl"
+  :person/name "Nick Stahl"
   :person/born #inst "1979-12-05T00:00:00.000Z"}
 
- {:person/name "Claire Danes"
+ {:db/id "claire-danes"
+  :person/name "Claire Danes"
   :person/born #inst "1979-04-12T00:00:00.000Z"}
 
- {:person/name "George P. Cosmatos"
+ {:db/id "george-p-cosmatos"
+  :person/name "George P. Cosmatos"
   :person/born #inst "1941-01-04T00:00:00.000Z"
   :person/death #inst "2005-04-19T00:00:00.000Z"}
 
- {:person/name "Charles Napier"
+ {:db/id "charles-napier"
+  :person/name "Charles Napier"
   :person/born #inst "1936-04-12T00:00:00.000Z"
   :person/death #inst "2011-10-05T00:00:00.000Z"}
 
- {:person/name "Peter MacDonald"}
+ {:db/id "peter-macdonald"
+  :person/name "Peter MacDonald"}
 
- {:person/name "Marc de Jonge"
+ {:db/id "marc-de-jonge"
+  :person/name "Marc de Jonge"
   :person/born #inst "1949-02-16T00:00:00.000Z"
   :person/death #inst "1996-06-06T00:00:00.000Z"}
 
- {:person/name "Stephen Hopkins"}
+ {:db/id "stephen-hopkins"
+  :person/name "Stephen Hopkins"}
 
- {:person/name "Ruben Blades"
+ {:db/id "ruben-blades"
+  :person/name "Ruben Blades"
   :person/born #inst "1948-07-16T00:00:00.000Z"}
 
- {:person/name "Joe Pesci"
+ {:db/id "joe-pesci"
+  :person/name "Joe Pesci"
   :person/born #inst "1943-02-09T00:00:00.000Z"}
 
- {:person/name "Ridley Scott"
+ {:db/id "ridley-scott"
+  :person/name "Ridley Scott"
   :person/born #inst "1937-11-30T00:00:00.000Z"}
 
- {:person/name "Tom Skerritt"
+ {:db/id "tom-skerritt"
+  :person/name "Tom Skerritt"
   :person/born #inst "1933-08-25T00:00:00.000Z"}
 
- {:person/name "Sigourney Weaver"
+ {:db/id "sigourney-weaver"
+  :person/name "Sigourney Weaver"
   :person/born #inst "1949-10-08T00:00:00.000Z"}
 
- {:person/name "Veronica Cartwright"
+ {:db/id "veronica-cartwright"
+  :person/name "Veronica Cartwright"
   :person/born #inst "1949-04-20T00:00:00.000Z"}
 
- {:person/name "Carrie Henn"}
+ {:db/id "carrie-henn"
+  :person/name "Carrie Henn"}
 
- {:person/name "George Miller"
+ {:db/id "george-miller"
+  :person/name "George Miller"
   :person/born #inst "1945-03-03T00:00:00.000Z"}
 
- {:person/name "Steve Bisley"
+ {:db/id "steve-bisley"
+  :person/name "Steve Bisley"
   :person/born #inst "1951-12-26T00:00:00.000Z"}
 
- {:person/name "Joanne Samuel"}
+ {:db/id "joanne-samuel"
+  :person/name "Joanne Samuel"}
 
- {:person/name "Michael Preston"
+ {:db/id "michael-preston"
+  :person/name "Michael Preston"
   :person/born #inst "1938-05-14T00:00:00.000Z"}
 
- {:person/name "Bruce Spence"
+ {:db/id "bruce-spence"
+  :person/name "Bruce Spence"
   :person/born #inst "1945-09-17T00:00:00.000Z"}
 
- {:person/name "George Ogilvie"
+ {:db/id "george-ogilvie"
+  :person/name "George Ogilvie"
   :person/born #inst "1931-03-05T00:00:00.000Z"}
 
- {:person/name "Tina Turner"
+ {:db/id "tina-turner"
+  :person/name "Tina Turner"
   :person/born #inst "1939-11-26T00:00:00.000Z"}
 
- {:person/name "Sophie Marceau"
+ {:db/id "sophie-marceau"
+  :person/name "Sophie Marceau"
   :person/born #inst "1966-11-17T00:00:00.000Z"}
 
- {:person/name "James Cameron"
-  :db/id "cameron"
-  :person/born #inst "1954-08-16T00:00:00Z"}
+ {:db/id "terminator-3"
+  :movie/title "Terminator 3: Rise of the Machines"
+  :movie/year 2003
+  :movie/director "jonathan-mostow"
+  :movie/cast ["arnold-schwarzenegger"
+               "nick-stahl"
+               "claire-danes"]}
 
- {:person/name "Arnold Schwarzenegger"
-  :db/id "arnie"
-  :person/born #inst "1947-07-30T00:00:00Z"}
-
- {:person/name "Linda Hamilton"
-  :db/id "linda"
-  :person/born #inst "1956-09-26T00:00:00Z"}
-
- {:person/name "Michael Biehn"
-  :db/id "michael"
-  :person/born #inst "1956-07-31T00:00:00Z"}
-
- {:movie/title "Terminator 2: Judgment Day"
+ {:db/id "terminator-2"
+  :movie/title "Terminator 2: Judgment Day"
   :movie/year 1991
-  :movie/director "cameron"
-  :db/id "t2"
-  :movie/cast ["arnie" "linda" "patrick"]}
+  :movie/director "james-cameron"
+  :movie/cast ["arnold-schwarzenegger"
+               "linda-hamilton"
+               "robert-patrick"
+               "edward-furlong"]
+  :movie/sequel "terminator-3"}
 
- {:movie/title "The Terminator"
+ {:db/id "the-terminator"
+  :movie/title "The Terminator"
   :movie/year 1984
-  :movie/director "cameron"
-  :movie/cast ["arnie" "linda" "michael"]
-  :movie/sequel "t2"}
+  :movie/director "james-cameron"
+  :movie/cast ["arnold-schwarzenegger"
+               "linda-hamilton"
+               "michael-biehn"]
+  :movie/sequel "terminator-2"}
+
+ {:db/id "rambo-3"
+  :movie/title "Rambo III"
+  :movie/year 1988
+  :movie/director "peter-macdonald"
+  :movie/cast ["sylvester-stallone"
+               "richard-crenna"
+               "marc-de-jonge"]}
+
+ {:db/id "rambo-2"
+  :movie/title "Rambo: First Blood Part II"
+  :movie/year 1985
+  :movie/director "george-p-cosmatos"
+  :movie/cast ["sylvester-stallone"
+               "richard-crenna"
+               "charles-napier"]
+  :movie/sequel "rambo-3"}
+
+ {:db/id "first-blood"
+  :movie/title "First Blood"
+  :movie/year 1982
+  :movie/director "ted-kotcheff"
+  :movie/cast ["sylvester-stallone"
+               "richard-crenna"
+               "brian-dennehy"]
+  :movie/sequel "rambo-2"}
+
+ {:db/id "predator-2"
+  :movie/title "Predator 2"
+  :movie/year 1990
+  :movie/director "stephen-hopkins"
+  :movie/cast ["danny-glover"
+               "gary-busey"
+               "ruben-blades"]}
+
+ {:db/id "predator"
+  :movie/title "Predator"
+  :movie/year 1987
+  :movie/director "john-mctiernan"
+  :movie/cast ["arnold-schwarzenegger"
+               "elpidia-carrillo"
+               "carl-weathers"]
+  :movie/sequel "predator-2"}
+
+ {:db/id "lethal-weapon-3"
+  :movie/title "Lethal Weapon 3"
+  :movie/year 1992
+  :movie/director "richard-donner"
+  :movie/cast ["mel-gibson"
+               "danny-glover"
+               "joe-pesci"]}
+
+ {:db/id "lethal-weapon-2"
+  :movie/title "Lethal Weapon 2"
+  :movie/year 1989
+  :movie/director "richard-donner"
+  :movie/cast ["mel-gibson"
+               "danny-glover"
+               "joe-pesci"]
+  :movie/sequel "lethal-weapon-3"}
+
+ {:db/id "lethal-weapon"
+  :movie/title "Lethal Weapon"
+  :movie/year 1987
+  :movie/director "richard-donner"
+  :movie/cast ["mel-gibson"
+               "danny-glover"
+               "gary-busey"]
+  :movie/sequel "lethal-weapon-2"}
+
+ {:db/id "robocop"
+  :movie/title "RoboCop"
+  :movie/year 1987
+  :movie/director "paul-verhoeven"
+  :movie/cast ["peter-weller"
+               "nancy-allen"
+               "ronny-cox"]}
+
+ {:db/id "commando"
+  :movie/title "Commando"
+  :movie/year 1985
+  :movie/director "mark-l-lester"
+  :movie/cast ["arnold-schwarzenegger"
+               "alyssa-milano"
+               "rae-dawn-chong"]
+  :movie/trivia "In 1986, a sequel was written with an eye to having
+  John McTiernan direct. Schwarzenegger wasn't interested in reprising
+  the role. The script was then reworked with a new central character,
+  eventually played by Bruce Willis, and became Die Hard"}
+
+ {:db/id "die-hard"
+  :movie/title "Die Hard"
+  :movie/year 1988
+  :movie/director "john mctiernan"
+  :movie/cast [ "bruce-willis"
+               "alan-rickman"
+               "alexander-godunov"]}
+
+ {:db/id "aliens"
+  :movie/title "Aliens"
+  :movie/year 1986
+  :movie/director "james-cameron"
+  :movie/cast ["sigourney-weaver"
+               "carrie-henn"
+               "michael-biehn"]}
+
+ {:db/id "alien"
+  :movie/title "Alien"
+  :movie/year 1979
+  :movie/director "ridley-scott"
+  :movie/cast ["tom-skerritt"
+               "sigourney-weaver"
+               "veronica-cartwright"]
+  :movie/sequel "aliens"}
+
+ {:db/id "mad-max-3"
+  :movie/title "Mad Max Beyond Thunderdome"
+  :movie/year 1985
+  :movie/director ["george-miller"
+                   "george-ogilvie"]
+  :movie/cast ["mel-gibson"
+               "tina-turner"]}
+
+ {:db/id "mad-max-2"
+  :movie/title "Mad Max 2"
+  :movie/year 1981
+  :movie/director "george-miller"
+  :movie/cast ["mel-gibson"
+               "michael-preston"
+               "bruce-spence"]
+  :movie/sequel "mad-max-3"}
+
+ {:db/id "mad-max"
+  :movie/title "Mad Max"
+  :movie/year 1979
+  :movie/director "george-miller"
+  :movie/cast ["mel-gibson"
+               "steve-bisley"
+               "joanne-samuel"]
+  :movie/sequel "mad-max-2"}
+
+ {:db/id "braveheart"
+  :movie/title "Braveheart"
+  :movie/year 1995
+  :movie/director "mel-gibson"
+  :movie/cast ["mel-gibson"
+               "sophie-marceau"]}
 ]
