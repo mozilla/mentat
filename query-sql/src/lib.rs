@@ -434,16 +434,13 @@ impl QueryFragment for Values {
         //
         // We don't want to use an undocumented SQLite quirk, and we're a little concerned that some
         // SQL systems will not optimize WITH statements well.  It's also convenient to have an in
-        // place table to query, so for now we implement option 3).
+        // place table to query, so for now we implement option 3.
         if let &Values::Named(ref names, _) = self {
-            let alias = &names[0];
-            out.push_sql("SELECT 0 AS ");
-            out.push_identifier(alias.as_str())?;
-
-            for alias in &names[1..] {
-                out.push_sql(", 0 AS ");
-                out.push_identifier(alias.as_str())?;
-            }
+            out.push_sql("SELECT ");
+            interpose!(alias, names,
+                       { out.push_sql("0 AS ");
+                         out.push_identifier(alias.as_str())? },
+                       { out.push_sql(", ") });
 
             out.push_sql(" WHERE 0 UNION ALL ");
         }
@@ -626,30 +623,31 @@ mod tests {
 
     #[test]
     fn test_unnamed_values() {
-        let build = |values| build(&Values::Unnamed(values));
-        assert_eq!(build(vec![vec![TypedValue::Long(1)]]),
+        let build = |len, values| build(&Values::Unnamed(len, values));
+
+        assert_eq!(build(1, vec![TypedValue::Long(1)]),
                    "VALUES (1)");
 
-        assert_eq!(build(vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)]]),
+        assert_eq!(build(2, vec![TypedValue::Boolean(false), TypedValue::Long(1)]),
                    "VALUES (0, 1)");
 
-        assert_eq!(build(vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)],
-                              vec![TypedValue::Boolean(true), TypedValue::Long(2)]]),
+        assert_eq!(build(2, vec![TypedValue::Boolean(false), TypedValue::Long(1),
+                                 TypedValue::Boolean(true), TypedValue::Long(2)]),
                    "VALUES (0, 1), (1, 2)");
     }
 
     #[test]
     fn test_named_values() {
         let build = |names: Vec<_>, values| build(&Values::Named(names.into_iter().map(Variable::from_valid_name).collect(), values));
-        assert_eq!(build(vec!["?a"], vec![vec![TypedValue::Long(1)]]),
+        assert_eq!(build(vec!["?a"], vec![TypedValue::Long(1)]),
                    "SELECT 0 AS `?a` WHERE 0 UNION ALL VALUES (1)");
 
-        assert_eq!(build(vec!["?a", "?b"], vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)]]),
+        assert_eq!(build(vec!["?a", "?b"], vec![TypedValue::Boolean(false), TypedValue::Long(1)]),
                    "SELECT 0 AS `?a`, 0 AS `?b` WHERE 0 UNION ALL VALUES (0, 1)");
 
         assert_eq!(build(vec!["?a", "?b"],
-                         vec![vec![TypedValue::Boolean(false), TypedValue::Long(1)],
-                              vec![TypedValue::Boolean(true), TypedValue::Long(2)]]),
+                         vec![TypedValue::Boolean(false), TypedValue::Long(1),
+                              TypedValue::Boolean(true), TypedValue::Long(2)]),
                    "SELECT 0 AS `?a`, 0 AS `?b` WHERE 0 UNION ALL VALUES (0, 1), (1, 2)");
     }
 
