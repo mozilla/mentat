@@ -13,6 +13,10 @@ extern crate enum_set;
 #[macro_use]
 extern crate error_chain;
 
+#[cfg(test)]
+#[macro_use]
+extern crate maplit;
+
 extern crate mentat_core;
 extern crate mentat_query;
 
