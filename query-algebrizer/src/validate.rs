@@ -212,7 +212,7 @@ mod tests {
                                    (and [?artist :artist/type ?type]
                                         [?type :artist/role :artist.role/parody]))]"#;
         let parsed = parse_find_string(query).expect("expected successful parse");
-        let clauses = valid_or_join(parsed, UnifyVars::Explicit(vec![Variable::from_valid_name("?artist")]));
+        let clauses = valid_or_join(parsed, UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?artist")}));
 
         // Let's do some detailed parse checks.
         let mut arms = clauses.into_iter();
@@ -322,7 +322,7 @@ mod tests {
                                    [?release :release/artists ?artist]
                                    [?release :release/year 1970])]"#;
         let parsed = parse_find_string(query).expect("expected successful parse");
-        let clauses = valid_not_join(parsed, UnifyVars::Explicit(vec![Variable::from_valid_name("?artist")]));
+        let clauses = valid_not_join(parsed, UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?artist")}));
 
         let release = PatternNonValuePlace::Variable(Variable::from_valid_name("?release"));
         let artist = PatternValuePlace::Variable(Variable::from_valid_name("?artist"));

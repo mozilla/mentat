@@ -552,7 +552,7 @@ impl ConjoiningClauses {
         let (join_clauses, unify_vars, mentioned_vars) = or_join.dismember();
         let projected = match unify_vars {
             UnifyVars::Implicit => mentioned_vars.into_iter().collect(),
-            UnifyVars::Explicit(vs) => vs.into_iter().collect(),
+            UnifyVars::Explicit(vs) => vs,
         };
 
         let template = self.use_as_template(&projected);
