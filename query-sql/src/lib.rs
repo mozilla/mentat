@@ -157,9 +157,13 @@ pub enum TableOrSubquery {
 
 pub enum Values {
     /// Like "VALUES (0, 1), (2, 3), ...".
-    Unnamed(Vec<Vec<TypedValue>>),
+    /// The vector must be of a length that is a multiple of the given size.
+    Unnamed(usize, Vec<TypedValue>),
+
     /// Like "SELECT 0 AS x, SELECT 0 AS y WHERE 0 UNION ALL VALUES (0, 1), (2, 3), ...".
-    Named(Vec<Variable>, Vec<Vec<TypedValue>>),
+    /// The vector of values must be of a length that is a multiple of the length
+    /// of the vector of names.
+    Named(Vec<Variable>, Vec<TypedValue>),
 }
 
 pub enum FromClause {
@@ -220,7 +224,13 @@ fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
 /// without producing an intermediate string sequence.
 macro_rules! interpose {
     ( $name: pat, $across: expr, $body: block, $inter: block ) => {
-        let mut seq = $across.iter();
+        interpose_iter!($name, $across.iter(), $body, $inter)
+    }
+}
+
+macro_rules! interpose_iter {
+    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
+        let mut seq = $across;
         if let Some($name) = seq.next() {
             $body;
             for $name in seq {
@@ -439,20 +449,20 @@ impl QueryFragment for Values {
         }
 
         let values = match self {
-            &Values::Named(_, ref values) => values,
-            &Values::Unnamed(ref values) => values,
+            &Values::Named(ref names, ref values) => values.chunks(names.len()),
+            &Values::Unnamed(ref size, ref values) => values.chunks(*size),
         };
 
         out.push_sql("VALUES ");
 
-        interpose!(outer, values,
-                   { out.push_sql("(");
-                     interpose!(inner, outer,
-                                { out.push_typed_value(inner)? },
-                                { out.push_sql(", ") });
-                     out.push_sql(")");
-                   },
-                   { out.push_sql(", ") });
+        interpose_iter!(outer, values,
+                        { out.push_sql("(");
+                          interpose!(inner, outer,
+                                     { out.push_typed_value(inner)? },
+                                     { out.push_sql(", ") });
+                          out.push_sql(")");
+                        },
+                        { out.push_sql(", ") });
         Ok(())
     }
 }
