@@ -8,6 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use]
+extern crate maplit;
+
 extern crate edn;
 extern crate mentat_core;
 extern crate mentat_query;
@@ -111,7 +114,7 @@ fn can_parse_unit_or_join() {
     assert_eq!(p.where_clauses,
                vec![
                    WhereClause::OrJoin(OrJoin::new(
-                       UnifyVars::Explicit(vec![Variable::from_valid_name("?x")]),
+                       UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?x")}),
                        vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
@@ -136,7 +139,7 @@ fn can_parse_simple_or_join() {
     assert_eq!(p.where_clauses,
                vec![
                    WhereClause::OrJoin(OrJoin::new(
-                       UnifyVars::Explicit(vec![Variable::from_valid_name("?x")]),
+                       UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?x")}),
                        vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
