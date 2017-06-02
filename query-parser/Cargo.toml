@@ -6,6 +6,7 @@ workspace = ".."
 [dependencies]
 combine = "2.3.2"
 error-chain = "0.8.1"
+maplit = "0.1"
 matches = "0.1"
 
 [dependencies.edn]
