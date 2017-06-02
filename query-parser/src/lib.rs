@@ -11,6 +11,9 @@
 #![allow(unused_imports)]
 
 #[macro_use]
+extern crate maplit;
+
+#[macro_use]
 extern crate error_chain;
 
 #[macro_use]

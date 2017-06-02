@@ -615,7 +615,7 @@ pub enum UnifyVars {
     /// Only the named variables will be unified with the enclosing query.
     ///
     /// Every 'arm' in an `or-join` must mention the entire set of explicit vars.
-    Explicit(Vec<Variable>),
+    Explicit(BTreeSet<Variable>),
 }
 
 impl WhereClause {

@@ -197,9 +197,9 @@ def_matches_plain_symbol!(Where, not, "not");
 
 def_matches_plain_symbol!(Where, not_join, "not-join");
 
-def_parser!(Where, rule_vars, Vec<Variable>, {
+def_parser!(Where, rule_vars, BTreeSet<Variable>, {
     seq()
-        .of_exactly(many1(Query::variable()))
+        .of_exactly(many1(Query::variable()).and_then(unique_vars))
 });
 
 def_parser!(Where, or_pattern_clause, OrWhereClause, {
@@ -392,18 +392,20 @@ def_parser!(Find, spec, FindSpec, {
           &mut try(Find::find_rel())])
 });
 
+fn unique_vars<T, E>(vars: Vec<Variable>) -> std::result::Result<BTreeSet<Variable>, combine::primitives::Error<T, E>> {
+    let given = vars.len();
+    let set: BTreeSet<Variable> = vars.into_iter().collect();
+    if given != set.len() {
+        // TODO: find out what the variable is!
+        let e = Box::new(Error::from_kind(ErrorKind::DuplicateVariableError));
+        Err(combine::primitives::Error::Other(e))
+    } else {
+        Ok(set)
+    }
+}
+
 def_parser!(Find, vars, BTreeSet<Variable>, {
-    many(Query::variable()).and_then(|vars: Vec<Variable>| {
-        let given = vars.len();
-        let set: BTreeSet<Variable> = vars.into_iter().collect();
-        if given != set.len() {
-            // TODO: find out what the variable is!
-            let e = Box::new(Error::from_kind(ErrorKind::DuplicateVariableError));
-            Err(combine::primitives::Error::Other(e))
-        } else {
-            Ok(set)
-        }
-    })
+    many(Query::variable()).and_then(unique_vars)
 });
 
 /// This is awkward, but will do for now.  We use `keyword_map()` to optionally accept vector find
@@ -573,7 +575,7 @@ mod test {
         let e = edn::PlainSymbol::new("?e");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]);
         assert_parses_to!(Where::rule_vars, input,
-                          vec![variable(e.clone())]);
+                          btreeset!{variable(e.clone())});
     }
 
     #[test]
@@ -583,7 +585,7 @@ mod test {
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
                                             edn::Value::PlainSymbol(f.clone()),]);
         assert_parses_to!(|| vector().of_exactly(Find::vars()), input,
-                          vec![variable(e.clone()), variable(f.clone())].into_iter().collect());
+                          btreeset!{variable(e.clone()), variable(f.clone())});
 
         let g = edn::PlainSymbol::new("?g");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(g.clone()),
@@ -642,7 +644,7 @@ mod test {
                                          edn::Value::PlainSymbol(v.clone())])].into_iter().collect());
         assert_parses_to!(Where::or_join_clause, input,
                           WhereClause::OrJoin(
-                              OrJoin::new(UnifyVars::Explicit(vec![variable(e.clone())]),
+                              OrJoin::new(UnifyVars::Explicit(btreeset!{variable(e.clone())}),
                                           vec![OrWhereClause::Clause(
                                               WhereClause::Pattern(Pattern {
                                                   source: None,
@@ -685,7 +687,7 @@ mod test {
                               "(not-join [?e] [?e ?a ?v])",
                               WhereClause::NotJoin(
                               NotJoin {
-                                  unify_vars: UnifyVars::Explicit(vec![variable(e.clone())]),
+                                  unify_vars: UnifyVars::Explicit(btreeset!{variable(e.clone())}),
                                   clauses: vec![WhereClause::Pattern(Pattern {
                                           source: None,
                                           entity: PatternNonValuePlace::Variable(variable(e)),
