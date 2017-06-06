@@ -51,6 +51,7 @@ use std::collections::{
     BTreeSet,
     VecDeque,
 };
+use std::rc::Rc;
 
 use db;
 use db::{
@@ -191,37 +192,57 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
     fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<TempId>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
-        let mut temp_ids: intern_set::InternSet<TempId> = intern_set::InternSet::new();
-        let mut lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
+        struct InProcess<'a> {
+            schema: &'a Schema,
+            mentat_id_count: i64,
+            temp_ids: intern_set::InternSet<TempId>,
+            lookup_refs: intern_set::InternSet<AVPair>,
+        }
 
-        let intern_lookup_ref = |lookup_refs: &mut intern_set::InternSet<AVPair>, lookup_ref: &entmod::LookupRef| -> Result<LookupRef> {
-            let lr_a: i64 = match lookup_ref.a {
-                entmod::Entid::Entid(ref a) => *a,
-                entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-            };
-            let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
-
-            if lr_attribute.unique.is_none() {
-                bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
+        impl<'a> InProcess<'a> {
+            fn with_schema(schema: &'a Schema) -> InProcess<'a> {
+                InProcess {
+                    schema: schema,
+                    mentat_id_count: 0,
+                    temp_ids: intern_set::InternSet::new(),
+                    lookup_refs: intern_set::InternSet::new(),
+                }
             }
 
-            let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, lr_attribute.value_type)?;
-            Ok(lookup_refs.intern((lr_a, lr_typed_value)))
-        };
+            fn intern_lookup_ref(&mut self, lookup_ref: &entmod::LookupRef) -> Result<LookupRef> {
+                let lr_a: i64 = match lookup_ref.a {
+                    entmod::Entid::Entid(ref a) => *a,
+                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                };
+                let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
+
+                if lr_attribute.unique.is_none() {
+                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
+                }
+
+                let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, lr_attribute.value_type)?;
+                Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
+            }
+
+            fn intern_temp_id(&mut self, temp_id: TempId) -> Rc<TempId> {
+                self.temp_ids.intern(temp_id)
+            }
+
+            /// Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
+            /// unique within one transaction; they should never escape a transaction.
+            fn allocate_mentat_id(&mut self) -> entmod::EntidOrLookupRefOrTempId {
+                self.mentat_id_count += 1;
+                entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(self.mentat_id_count))
+            }
+        }
+
+        let mut in_process = InProcess::with_schema(&self.schema);
 
         // We want to handle entities in the order they're given to us, while also "exploding" some
         // entities into many.  We therefore push the initial entities onto the back of the deque,
         // take from the front of the deque, and explode onto the front as well.
         let mut deque: VecDeque<Entity> = VecDeque::default();
         deque.extend(entities);
-
-        // Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
-        // unique within one transaction; they should never escape a transaction.
-        let mut mentat_id_count = 0;
-        let mut allocate_mentat_id = move || {
-            mentat_id_count += 1;
-            entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(mentat_id_count))
-        };
 
         let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(deque.len());
 
@@ -230,7 +251,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 Entity::MapNotation(mut map_notation) => {
                     // :db/id is optional; if it's not given, we generate a special internal tempid
                     // to use for upserting.  This tempid will not be reported in the TxReport.
-                    let db_id: entmod::EntidOrLookupRefOrTempId = mentat_tx_parser::remove_db_id(&mut map_notation)?.unwrap_or_else(&mut allocate_mentat_id);
+                    let db_id: entmod::EntidOrLookupRefOrTempId = mentat_tx_parser::remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                     // We're not nested, so :db/isComponent is not relevant.  We just explode the
                     // map notation.
@@ -255,7 +276,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     let v = match v {
                         entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
                             if attribute.value_type == ValueType::Ref && v.inner.is_text() {
-                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.inner.as_text().cloned().map(TempId::External).unwrap())))
+                                Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(v.inner.as_text().cloned().map(TempId::External).unwrap())))
                             } else {
                                 // Here is where we do schema-aware typechecking: we either assert that
                                 // the given value is in the attribute's value set, or (in limited
@@ -270,7 +291,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                             }
 
-                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                            Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
                         },
 
                         entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) => {
@@ -306,7 +327,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             // to use for upserting.  This tempid will not be reported in the TxReport.
                             let db_id: Option<entmod::EntidOrLookupRefOrTempId> = mentat_tx_parser::remove_db_id(&mut map_notation)?;
                             let mut dangling = db_id.is_none();
-                            let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(&mut allocate_mentat_id);
+                            let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                             // We're nested, so we want to ensure we're not creating "dangling"
                             // entities that can't be reached.  If we're :db/isComponent, then this
@@ -357,11 +378,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 },
 
                                 entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                    Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                                    Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(e)))
                                 },
 
                                 entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
-                                    Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                                    Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
                                 },
                             }
                         },
@@ -377,11 +398,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                         },
 
                         entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                            Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
+                            Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(e)))
                         },
 
                         entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
-                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
+                            Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
                         },
                     };
 
@@ -389,7 +410,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 },
             }
         };
-        Ok((terms, temp_ids, lookup_refs))
+        Ok((terms, in_process.temp_ids, in_process.lookup_refs))
     }
 
     /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
