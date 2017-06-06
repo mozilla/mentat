@@ -269,6 +269,53 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             fn entity_e_into_term_v(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<TypedValueOr<LookupRefOrTempId>> {
                 self.entity_e_into_term_e(x).map(|r| r.map_left(TypedValue::Ref))
             }
+
+            fn entity_v_into_term_e(&mut self, x: entmod::AtomOrLookupRefOrVectorOrMapNotation, backward_a: &entmod::Entid) -> Result<EntidOr<LookupRefOrTempId>> {
+                let reversed_a = match backward_a {
+                    &entmod::Entid::Entid(a) => {
+                        // Programmer error.
+                        unreachable!("Expected ident backward attribute but got entid {}", a)
+                    },
+                    &entmod::Entid::Ident(ref a) => {
+                        entmod::Entid::Ident(a.to_reversed())
+                    },
+                };
+                let (reversed_a, reversed_attribute) = self.entity_a_into_term_a(reversed_a)?;
+
+                if reversed_attribute.value_type != ValueType::Ref {
+                    bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref", reversed_a)))
+                }
+
+                match x {
+                    entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(ref v) => {
+                        // Here is where we do schema-aware typechecking: we either assert
+                        // that the given value is in the attribute's value set, or (in
+                        // limited cases) coerce the value into the attribute's value set.
+                        if let Some(text) = v.inner.as_text() {
+                            Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(TempId::External(text.clone())))))
+                        } else {
+                            // Here is where we do schema-aware typechecking: we either assert that
+                            // the given value is in the attribute's value set, or (in limited
+                            // cases) coerce the value into the attribute's value set.
+                            if let TypedValue::Ref(entid) = self.schema.to_typed_value(&v.clone().without_spans(), &reversed_attribute)? {
+                                Ok(Either::Left(entid))
+                            } else {
+                                // reversed_attribute is :db.type/ref, so this shouldn't happen.
+                                unreachable!()
+                            }
+                        }
+                    },
+
+                    entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) =>
+                        Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
+
+                    entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) =>
+                        bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", reversed_a))),
+
+                    entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) =>
+                        bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", reversed_a))),
+                }
+            }
         }
 
         let mut in_process = InProcess::with_schema(&self.schema);
@@ -301,7 +348,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 },
 
                 Entity::AddOrRetract { op, e, a, v } => {
-                    let (a, attribute) = in_process.entity_a_into_term_a(a)?;
+                    if a.is_backward() {
+                        let reversed_e = in_process.entity_v_into_term_e(v, &a)?;
+                        let (reversed_a, _reversed_attribute) = in_process.entity_a_into_term_a(a.to_reversed().unwrap())?;
+                        let reversed_v = in_process.entity_e_into_term_v(e)?;
+                        terms.push(Term::AddOrRetract(OpType::Add, reversed_e, reversed_a, reversed_v));
+                    } else {
+                        let (a, attribute) = in_process.entity_a_into_term_a(a)?;
 
                     let v = match v {
                         entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
@@ -373,18 +426,32 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             }
 
                             for (inner_a, inner_v) in map_notation {
-                                let (inner_a, inner_attribute) = in_process.entity_a_into_term_a(inner_a)?;
-
-                                if inner_attribute.unique == Some(attribute::Unique::Identity) {
+                                if inner_a.is_backward() {
+                                    // We definitely have a reference.  The reference might be
+                                    // dangling (a bare entid, for example), but we don't yet
+                                    // support nested maps and reverse notation simultaneously
+                                    // (i.e., we don't accept {:reverse/_attribute {:nested map}})
+                                    // so we don't need to check that the nested map reference isn't
+                                    // danglign.
                                     dangling = false;
-                                }
 
-                                deque.push_front(Entity::AddOrRetract {
-                                    op: OpType::Add,
-                                    e: db_id.clone(),
-                                    a: entmod::Entid::Entid(inner_a),
-                                    v: inner_v,
-                                });
+                                    let reversed_e = in_process.entity_v_into_term_e(inner_v, &inner_a)?;
+                                    let (reversed_a, _reversed_attribute) = in_process.entity_a_into_term_a(inner_a.to_reversed().unwrap())?;
+                                    let reversed_v = in_process.entity_e_into_term_v(db_id.clone())?;
+                                    terms.push(Term::AddOrRetract(OpType::Add, reversed_e, reversed_a, reversed_v));
+                                } else {
+                                    let (inner_a, inner_attribute) = in_process.entity_a_into_term_a(inner_a)?;
+                                    if inner_attribute.unique == Some(attribute::Unique::Identity) {
+                                        dangling = false;
+                                    }
+
+                                    deque.push_front(Entity::AddOrRetract {
+                                        op: OpType::Add,
+                                        e: db_id.clone(),
+                                        a: entmod::Entid::Entid(inner_a),
+                                        v: inner_v,
+                                    });
+                                }
                             }
 
                             if dangling {
@@ -397,6 +464,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
                     let e = in_process.entity_e_into_term_e(e)?;
                     terms.push(Term::AddOrRetract(op, e, a, v));
+                }
                 },
             }
         };
