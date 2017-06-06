@@ -6,7 +6,7 @@ Mentat is implemented in Rust.
 
 The first version of Project Mentat, named Datomish, [was written in ClojureScript](https://github.com/mozilla/mentat/tree/clojure), targeting both Node (on top of `promise_sqlite`) and Firefox (on top of `Sqlite.jsm`). It also worked in pure Clojure on the JVM on top of `jdbc-sqlite`. The name was changed to avoid confusion with [Datomic](http://datomic.com).
 
-The rust implementation gives us a smaller compiled output, better performance, more type safety, better tooling, and easier deployment into Firefox and mobile platforms.
+The Rust implementation gives us a smaller compiled output, better performance, more type safety, better tooling, and easier deployment into Firefox and mobile platforms.
 
 
 ## Motivation
