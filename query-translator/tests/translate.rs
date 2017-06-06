@@ -558,14 +558,14 @@ fn test_ground_scalar() {
     // Verify that we accept inline constants.
     let query = r#"[:find ?x . :where [(ground $ "yyy") ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` LIMIT 1");
+    assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we accept bound input constants.
     let query = r#"[:find ?x . :in ?v :where [(ground $ ?v) ?x]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into())))]);
     let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
-    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` LIMIT 1");
+    assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
 }
 
@@ -576,8 +576,7 @@ fn test_ground_tuple() {
     // Verify that we accept inline constants.
     let query = r#"[:find ?x ?y :where [(ground $ [1 "yyy"]) [?x ?y]]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
-                         (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (1, $v0)) AS `c00`");
+    assert_eq!(sql, "SELECT DISTINCT 1 AS `?x`, $v0 AS `?y`");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we accept bound input constants.
@@ -586,8 +585,7 @@ fn test_ground_tuple() {
                                                        (Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into()))),]);
     let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
     // TODO: treat 2 as an input variable that could be bound late, rather than eagerly binding it.
-    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
-                         (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (2, $v0)) AS `c00` LIMIT 1");
+    assert_eq!(sql, "SELECT 2 AS `?x`, $v0 AS `?y` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
 }
 
@@ -650,24 +648,26 @@ fn test_compound_with_ground() {
     // arm of the `or` rather than numbered globally.  But SQLite scopes the names correctly, so it
     // works.  In the future, we might number the computed tables globally to make this more clear.
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM (\
-                         SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` UNION \
-                         SELECT `c00`.`?x` AS `?x` FROM (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v1)) AS `c00`) AS `c00`");
+                         SELECT $v0 AS `?x` UNION \
+                         SELECT $v1 AS `?x`) AS `c00`");
     assert_eq!(args, vec![make_arg("$v0", "yyy"),
                           make_arg("$v1", "zzz"),]);
 
     // Verify that we can use ground to constrain the bindings produced by earlier clauses.
     let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground $ "yyy") ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT `datoms00`.v AS `?x` FROM `datoms` AS `datoms00`, \
-                         (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00` \
-                             WHERE `datoms00`.a = 99 AND `datoms00`.v = `c00`.`?x` LIMIT 1");
-    assert_eq!(args, vec![make_arg("$v0", "yyy"),]);
+    assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v1 LIMIT 1");
+
+    // TODO: eliminate this duplication.
+    assert_eq!(args, vec![make_arg("$v0", "yyy"), make_arg("$v1", "yyy"),]);
 
     // Verify that we can further constrain the bindings produced by our clause.
     let query = r#"[:find ?x . :where [(ground $ "yyy") ?x] [_ :foo/bar ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT `c00`.`?x` AS `?x` FROM \
-                         (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0)) AS `c00`, \
-                             `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `c00`.`?x` = `datoms00`.v LIMIT 1");
-    assert_eq!(args, vec![make_arg("$v0", "yyy"),]);
+    assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v1 LIMIT 1");
+
+    // TODO: eliminate this duplication.
+    assert_eq!(args, vec![make_arg("$v0", "yyy"), make_arg("$v1", "yyy"),]);
 }
