@@ -2,9 +2,11 @@
 
 Project Mentat is a persistent, embedded knowledge base. It draws heavily on [DataScript](https://github.com/tonsky/datascript) and [Datomic](http://datomic.com).
 
-The first version of Project Mentat, named Datomish, [was written in ClojureScript](https://github.com/mozilla/mentat/tree/master), targeting both Node (on top of `promise_sqlite`) and Firefox (on top of `Sqlite.jsm`). It also works in pure Clojure on the JVM on top of `jdbc-sqlite`. The name was changed to avoid confusion with [Datomic](http://datomic.com).
+Mentat is implemented in Rust.
 
-This branch is for rewriting Mentat in Rust, giving us a smaller compiled output, better performance, more type safety, better tooling, and easier deployment into Firefox and mobile platforms.
+The first version of Project Mentat, named Datomish, [was written in ClojureScript](https://github.com/mozilla/mentat/tree/clojure), targeting both Node (on top of `promise_sqlite`) and Firefox (on top of `Sqlite.jsm`). It also worked in pure Clojure on the JVM on top of `jdbc-sqlite`. The name was changed to avoid confusion with [Datomic](http://datomic.com).
+
+The rust implementation gives us a smaller compiled output, better performance, more type safety, better tooling, and easier deployment into Firefox and mobile platforms.
 
 
 ## Motivation
@@ -114,7 +116,7 @@ contribute.
 
 ## Building
 
-Right now this code is located on a branch, so you first need to `git checkout rust`.  To build and test the project, we are using [Cargo](https://crates.io/install).
+You first need to clone the project.  To build and test the project, we are using [Cargo](https://crates.io/install).
 
 To build all of the crates in the project use:
 
