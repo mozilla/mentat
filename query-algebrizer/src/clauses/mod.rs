@@ -330,6 +330,12 @@ impl ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
+    /// Be careful with this. It'll overwrite existing bindings.
+    pub fn bind_value(&mut self, var: &Variable, value: TypedValue) {
+        self.constrain_var_to_type(var.clone(), value.value_type());
+        self.value_bindings.insert(var.clone(), value);
+    }
+
     pub fn bound_value(&self, var: &Variable) -> Option<TypedValue> {
         self.value_bindings.get(var).cloned()
     }
