@@ -356,6 +356,10 @@ impl ConjoiningClauses {
         }
     }
 
+    pub fn known_type_set(&self, var: &Variable) -> ValueTypeSet {
+        self.known_types.get(var).cloned().unwrap_or(ValueTypeSet::any())
+    }
+
     pub fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
         let column = column.into();
         // Do we have an external binding for this?
