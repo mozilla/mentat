@@ -62,14 +62,16 @@ use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
     Either,
+    EntidOr,
     LookupRef,
     LookupRefOrTempId,
     TempIdHandle,
     TempIdMap,
     Term,
-    TermWithTempIdsAndLookupRefs,
     TermWithTempIds,
+    TermWithTempIdsAndLookupRefs,
     TermWithoutTempIds,
+    TypedValueOr,
     replace_lookup_ref};
 
 use mentat_core::{
@@ -234,6 +236,39 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 self.mentat_id_count += 1;
                 entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(self.mentat_id_count))
             }
+
+            fn entity_e_into_term_e(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<EntidOr<LookupRefOrTempId>> {
+                match x {
+                    entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                        let e: i64 = match e {
+                            entmod::Entid::Entid(ref e) => *e,
+                            entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                        };
+                        Ok(Either::Left(e))
+                    },
+
+                    entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                        Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(e))))
+                    },
+
+                    entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
+                        Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?)))
+                    },
+                }
+            }
+
+            fn entity_a_into_term_a(&mut self, x: entmod::Entid) -> Result<(Entid, &'a Attribute)> {
+                let a = match x {
+                    entmod::Entid::Entid(ref a) => *a,
+                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                };
+                let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
+                Ok((a, attribute))
+            }
+
+            fn entity_e_into_term_v(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<TypedValueOr<LookupRefOrTempId>> {
+                self.entity_e_into_term_e(x).map(|r| r.map_left(TypedValue::Ref))
+            }
         }
 
         let mut in_process = InProcess::with_schema(&self.schema);
@@ -266,12 +301,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 },
 
                 Entity::AddOrRetract { op, e, a, v } => {
-                    let a: i64 = match a {
-                        entmod::Entid::Entid(ref a) => *a,
-                        entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-                    };
-
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
+                    let (a, attribute) = in_process.entity_a_into_term_a(a)?;
 
                     let v = match v {
                         entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
@@ -343,12 +373,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             }
 
                             for (inner_a, inner_v) in map_notation {
-                                let inner_entid: i64 = match inner_a {
-                                    entmod::Entid::Entid(ref a) => *a,
-                                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-                                };
+                                let (inner_a, inner_attribute) = in_process.entity_a_into_term_a(inner_a)?;
 
-                                let inner_attribute: &Attribute = self.schema.require_attribute_for_entid(inner_entid)?;
                                 if inner_attribute.unique == Some(attribute::Unique::Identity) {
                                     dangling = false;
                                 }
@@ -356,7 +382,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 deque.push_front(Entity::AddOrRetract {
                                     op: OpType::Add,
                                     e: db_id.clone(),
-                                    a: entmod::Entid::Entid(inner_entid),
+                                    a: entmod::Entid::Entid(inner_a),
                                     v: inner_v,
                                 });
                             }
@@ -365,47 +391,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value that would lead to dangling entity for attribute {}", a)));
                             }
 
-                            // Similar, but not identical, to the expansion of the entity position e
-                            // below.  This returns Either::Left(TypedValue) instances; that returns
-                            // Either::Left(i64) instances.
-                            match db_id {
-                                entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                                    let e: i64 = match e {
-                                        entmod::Entid::Entid(ref e) => *e,
-                                        entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
-                                    };
-                                    Either::Left(TypedValue::Ref(e))
-                                },
-
-                                entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                    Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(e)))
-                                },
-
-                                entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
-                                    Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
-                                },
-                            }
+                            in_process.entity_e_into_term_v(db_id)?
                         },
                     };
 
-                    let e = match e {
-                        entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                            let e: i64 = match e {
-                                entmod::Entid::Entid(ref e) => *e,
-                                entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
-                            };
-                            Either::Left(e)
-                        },
-
-                        entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                            Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(e)))
-                        },
-
-                        entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
-                            Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
-                        },
-                    };
-
+                    let e = in_process.entity_e_into_term_e(e)?;
                     terms.push(Term::AddOrRetract(op, e, a, v));
                 },
             }
