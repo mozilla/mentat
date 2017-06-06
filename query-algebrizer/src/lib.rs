@@ -51,7 +51,7 @@ pub use clauses::{
     QueryInputs,
 };
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: FindSpec,
