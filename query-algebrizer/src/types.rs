@@ -525,9 +525,22 @@ impl ValueTypeSet {
     pub fn of_numeric_types() -> ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Double, ValueType::Long))
     }
+
+    /// Return a set containing `Ref` and `Long`.
+    pub fn of_longs() -> ValueTypeSet {
+        ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Long))
+    }
 }
 
 impl ValueTypeSet {
+    pub fn insert(&mut self, vt: ValueType) -> bool {
+        self.0.insert(vt)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     /// Returns a set containing all the types in this set and `other`.
     pub fn union(&self, other: &ValueTypeSet) -> ValueTypeSet {
         ValueTypeSet(self.0.union(other.0))
