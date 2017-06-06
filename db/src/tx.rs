@@ -194,7 +194,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         let mut temp_ids: intern_set::InternSet<TempId> = intern_set::InternSet::new();
         let mut lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
 
-        let intern_lookup_ref = |lookup_refs: &mut intern_set::InternSet<AVPair>, lookup_ref: entmod::LookupRef| -> Result<LookupRef> {
+        let intern_lookup_ref = |lookup_refs: &mut intern_set::InternSet<AVPair>, lookup_ref: &entmod::LookupRef| -> Result<LookupRef> {
             let lr_a: i64 = match lookup_ref.a {
                 entmod::Entid::Entid(ref a) => *a,
                 entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
@@ -265,7 +265,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             }
                         },
 
-                        entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(lookup_ref) => {
+                        entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) => {
                             if attribute.value_type != ValueType::Ref {
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                             }
@@ -360,7 +360,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                     Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
                                 },
 
-                                entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
+                                entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
                                     Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
                                 },
                             }
@@ -380,7 +380,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
                         },
 
-                        entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
+                        entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
                             Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
                         },
                     };
@@ -395,7 +395,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
     /// lookup refs.
     ///
-    /// The `Term` instances produce share interned TempId handles and have no LookupRef references.
+    /// The `Term` instances produced share interned TempId handles and have no LookupRef references.
     fn resolve_lookup_refs<I>(&self, lookup_ref_map: &AVMap, terms: I) -> Result<Vec<TermWithTempIds>> where I: IntoIterator<Item=TermWithTempIdsAndLookupRefs> {
         terms.into_iter().map(|term: TermWithTempIdsAndLookupRefs| -> Result<TermWithTempIds> {
             match term {
