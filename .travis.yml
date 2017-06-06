@@ -1,3 +1,34 @@
 language: rust
 script:
   - cargo test --verbose --all
+
+addons:
+  apt:
+    packages:
+      - kcov
+
+after_success: |
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/api-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/edn-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/external_test-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/find_tests-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_core-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_db-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_parser_utils-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_query-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_query_algebrizer-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_query_parser-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_query_projector-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_query_sql-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_query_translator-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_sql-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_tx-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/mentat_tx_parser-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/parser-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/query-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/tests-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/translate-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/value_tests-* &&
+  bash <(curl -s https://codecov.io/bash) &&
+  echo "Uploaded code coverage"
