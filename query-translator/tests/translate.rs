@@ -381,7 +381,7 @@ fn test_complex_or_join() {
                                    `datoms` AS `datoms03` \
                                WHERE `datoms02`.a = 95 \
                                AND `datoms03`.a = 96 \
-                               AND `datoms03`.v = $v2 \
+                               AND `datoms03`.v = $v1 \
                                AND `datoms02`.v = `datoms03`.e) AS `c00`, \
                            `datoms` AS `datoms04`, \
                            `datoms` AS `datoms05` \
@@ -391,8 +391,7 @@ fn test_complex_or_join() {
                     AND `c00`.`?page` = `datoms05`.e \
                     LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "http://foo.com/"),
-                          make_arg("$v1", "Foo"),
-                          make_arg("$v2", "Foo")]);
+                          make_arg("$v1", "Foo")]);
 }
 
 #[test]
