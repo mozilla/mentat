@@ -347,10 +347,7 @@ impl ConjoiningClauses {
                 // This representation of a rectangular matrix is more efficient than one composed
                 // of N separate vectors.
                 let mut matrix = Vec::with_capacity(expected_width * expected_rows);
-                let mut accumulated_types_for_columns: Vec<ValueTypeSet> =
-                    ::std::iter::repeat(ValueTypeSet::default())
-                        .take(expected_width)
-                        .collect();
+                let mut accumulated_types_for_columns = vec![ValueTypeSet::default(); expected_width];
 
                 // Loop so we can bail out.
                 for row in rows.into_iter() {
