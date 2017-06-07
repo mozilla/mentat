@@ -62,7 +62,7 @@ impl ConjoiningClauses {
     /// The conversion depends on, and can fail because of:
     /// - Existing known types of a variable to which this arg will be bound.
     /// - Existing bindings of a variable `FnArg`.
-    fn typed_value_from_arg<'s>(&self, schema: &'s Schema, arg: FnArg, known_types: ValueTypeSet) -> Result<TypedValue> {
+    fn typed_value_from_arg<'s>(&self, schema: &'s Schema, arg: FnArg, known_types: &ValueTypeSet) -> Result<TypedValue> {
         if known_types.is_empty() {
             bail!(ErrorKind::InvalidGroundConstant);
         }
@@ -190,7 +190,7 @@ impl ConjoiningClauses {
 
     /// Constrain the CC to associate the given var with the given ground argument.
     fn apply_ground_var<'s>(&mut self, schema: &'s Schema, var: Variable, arg: FnArg) -> Result<()> {
-        let value = self.typed_value_from_arg(schema, arg, self.known_type_set(&var))?;
+        let value = self.typed_value_from_arg(schema, arg, &self.known_type_set(&var))?;
 
         if let Some(existing) = self.bound_value(&var) {
             if existing != value {
@@ -297,7 +297,7 @@ impl ConjoiningClauses {
                 let values = children.into_iter()
                                         .map(|arg| {
                                             // We need to get conversion errors out.
-                                            let r = self.typed_value_from_arg(schema, arg, known_types.clone());
+                                            let r = self.typed_value_from_arg(schema, arg, &known_types);
                                             if let Ok(ref tv) = r {
                                                 if accumulated_types.insert(tv.value_type()) &&
                                                    !accumulated_types.is_unit() {
@@ -364,10 +364,10 @@ impl ConjoiningClauses {
                             // Convert each item in the row.
                             let r: Result<Vec<TypedValue>>;
                             r = cols.into_iter()
-                                    .zip(template.iter().cloned())        // Cloned so we don't mix borrow and move in filter_map.
-                                    .filter_map(|(col, (keep, known_types))| {
-                                        if keep {
-                                            Some(self.typed_value_from_arg(schema, col, known_types))
+                                    .zip(template.iter())
+                                    .filter_map(|(col, pair)| {
+                                        if pair.0 {
+                                            Some(self.typed_value_from_arg(schema, col, &pair.1))
                                         } else {
                                             None
                                         }
