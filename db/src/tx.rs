@@ -257,13 +257,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 }
             }
 
-            fn entity_a_into_term_a(&mut self, x: entmod::Entid) -> Result<(Entid, &'a Attribute)> {
+            fn entity_a_into_term_a(&mut self, x: entmod::Entid) -> Result<Entid> {
                 let a = match x {
                     entmod::Entid::Entid(ref a) => *a,
                     entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
                 };
-                let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                Ok((a, attribute))
+                Ok(a)
             }
 
             fn entity_e_into_term_v(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<TypedValueOr<LookupRefOrTempId>> {
@@ -271,49 +270,44 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
 
             fn entity_v_into_term_e(&mut self, x: entmod::AtomOrLookupRefOrVectorOrMapNotation, backward_a: &entmod::Entid) -> Result<EntidOr<LookupRefOrTempId>> {
-                let reversed_a = match backward_a {
-                    &entmod::Entid::Entid(a) => {
-                        // Programmer error.
-                        unreachable!("Expected ident backward attribute but got entid {}", a)
+                match backward_a.unreversed() {
+                    None => {
+                        bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
                     },
-                    &entmod::Entid::Ident(ref a) => {
-                        entmod::Entid::Ident(a.to_reversed())
-                    },
-                };
-                let (reversed_a, reversed_attribute) = self.entity_a_into_term_a(reversed_a)?;
+                    Some(forward_a) => {
+                        let forward_a = self.entity_a_into_term_a(forward_a)?;
+                        let forward_attribute = self.schema.require_attribute_for_entid(forward_a)?;
+                        if forward_attribute.value_type != ValueType::Ref {
+                            bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref", forward_a)))
+                        }
 
-                if reversed_attribute.value_type != ValueType::Ref {
-                    bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref", reversed_a)))
-                }
+                        match x {
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(ref v) => {
+                                // Here is where we do schema-aware typechecking: we either assert
+                                // that the given value is in the attribute's value set, or (in
+                                // limited cases) coerce the value into the attribute's value set.
+                                if let Some(text) = v.inner.as_text() {
+                                    Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(TempId::External(text.clone())))))
+                                } else {
+                                    if let TypedValue::Ref(entid) = self.schema.to_typed_value(&v.clone().without_spans(), ValueType::Ref)? {
+                                        Ok(Either::Left(entid))
+                                    } else {
+                                        // The given value is expected to be :db.type/ref, so this shouldn't happen.
+                                        bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
+                                    }
+                                }
+                            },
 
-                match x {
-                    entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(ref v) => {
-                        // Here is where we do schema-aware typechecking: we either assert
-                        // that the given value is in the attribute's value set, or (in
-                        // limited cases) coerce the value into the attribute's value set.
-                        if let Some(text) = v.inner.as_text() {
-                            Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(TempId::External(text.clone())))))
-                        } else {
-                            // Here is where we do schema-aware typechecking: we either assert that
-                            // the given value is in the attribute's value set, or (in limited
-                            // cases) coerce the value into the attribute's value set.
-                            if let TypedValue::Ref(entid) = self.schema.to_typed_value(&v.clone().without_spans(), reversed_attribute.value_type)? {
-                                Ok(Either::Left(entid))
-                            } else {
-                                // reversed_attribute is :db.type/ref, so this shouldn't happen.
-                                unreachable!()
-                            }
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) =>
+                                Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) =>
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", forward_a))),
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) =>
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", forward_a))),
                         }
                     },
-
-                    entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) =>
-                        Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
-
-                    entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) =>
-                        bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", reversed_a))),
-
-                    entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) =>
-                        bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", reversed_a))),
                 }
             }
         }
@@ -348,13 +342,14 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 },
 
                 Entity::AddOrRetract { op, e, a, v } => {
-                    if a.is_backward() {
+                    if let Some(reversed_a) = a.unreversed() {
                         let reversed_e = in_process.entity_v_into_term_e(v, &a)?;
-                        let (reversed_a, _reversed_attribute) = in_process.entity_a_into_term_a(a.to_reversed().unwrap())?;
+                        let reversed_a = in_process.entity_a_into_term_a(reversed_a)?;
                         let reversed_v = in_process.entity_e_into_term_v(e)?;
                         terms.push(Term::AddOrRetract(OpType::Add, reversed_e, reversed_a, reversed_v));
                     } else {
-                        let (a, attribute) = in_process.entity_a_into_term_a(a)?;
+                        let a = in_process.entity_a_into_term_a(a)?;
+                        let attribute = self.schema.require_attribute_for_entid(a)?;
 
                         let v = match v {
                             entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
@@ -426,21 +421,22 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 }
 
                                 for (inner_a, inner_v) in map_notation {
-                                    if inner_a.is_backward() {
+                                    if let Some(reversed_a) = inner_a.unreversed() {
                                         // We definitely have a reference.  The reference might be
                                         // dangling (a bare entid, for example), but we don't yet
                                         // support nested maps and reverse notation simultaneously
                                         // (i.e., we don't accept {:reverse/_attribute {:nested map}})
                                         // so we don't need to check that the nested map reference isn't
-                                        // danglign.
+                                        // dangling.
                                         dangling = false;
 
                                         let reversed_e = in_process.entity_v_into_term_e(inner_v, &inner_a)?;
-                                        let (reversed_a, _reversed_attribute) = in_process.entity_a_into_term_a(inner_a.to_reversed().unwrap())?;
+                                        let reversed_a = in_process.entity_a_into_term_a(reversed_a)?;
                                         let reversed_v = in_process.entity_e_into_term_v(db_id.clone())?;
                                         terms.push(Term::AddOrRetract(OpType::Add, reversed_e, reversed_a, reversed_v));
                                     } else {
-                                        let (inner_a, inner_attribute) = in_process.entity_a_into_term_a(inner_a)?;
+                                        let inner_a = in_process.entity_a_into_term_a(inner_a)?;
+                                        let inner_attribute = self.schema.require_attribute_for_entid(inner_a)?;
                                         if inner_attribute.unique == Some(attribute::Unique::Identity) {
                                             dangling = false;
                                         }

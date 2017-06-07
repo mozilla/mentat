@@ -214,6 +214,30 @@ impl NamespacedKeyword {
             namespace: self.namespace.clone(),
         }
     }
+
+    /// If this `NamespacedKeyword` is 'backward' (see `symbols::NamespacedKeyword::is_backward`),
+    /// return `Some('forward name')`; otherwise, return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use edn::symbols::NamespacedKeyword;
+    /// let nsk = NamespacedKeyword::new("foo", "bar");
+    /// assert_eq!(None, nsk.unreversed());
+    ///
+    /// let reversed = nsk.to_reversed();
+    /// assert_eq!(Some(nsk), reversed.unreversed());
+    /// ```
+    pub fn unreversed(&self) -> Option<NamespacedKeyword> {
+        if self.is_backward() {
+            Some(NamespacedKeyword {
+                name: self.name[1..].to_string(),
+                namespace: self.namespace.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 //
