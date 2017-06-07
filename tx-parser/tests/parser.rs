@@ -85,4 +85,22 @@ fn test_entities() {
                ]);
 }
 
+#[test]
+fn test_reverse_notation_illegal_nested_values() {
+    // Verify that we refuse to parse direct reverse notation with nested value maps or vectors.
+
+    let input = "[[:db/add 100 :test/_dangling {:test/many 13}]]";
+    let edn = parse::value(input).expect("to parse test input");
+    let result = Tx::parse(&edn);
+    // TODO: it would be much better to assert details about the error (here and below), but right
+    // now the error message isn't clear that the given value isn't valid for the backward attribute
+    // :test/_dangling.
+    assert!(result.is_err());
+
+    let input = "[[:db/add 100 :test/_dangling [:test/many 13]]]";
+    let edn = parse::value(input).expect("to parse test input");
+    let result = Tx::parse(&edn);
+    assert!(result.is_err());
+}
+
 // TODO: test error handling in select cases.

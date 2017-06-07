@@ -452,6 +452,26 @@ pub fn namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) 
     parser(namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("namespaced_keyword")
 }
 
+pub fn forward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_forward() { Some(k) } else { None }))
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn forward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>>> {
+    parser(forward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("forward_keyword")
+}
+
+pub fn backward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_backward() { Some(k) } else { None }))
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn backward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>>> {
+    parser(backward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("backward_keyword")
+}
+
 /// Generate a `satisfy` expression that matches a `PlainSymbol` value with the given name.
 ///
 /// We do this rather than using `combine::token` so that we don't need to allocate a new `String`

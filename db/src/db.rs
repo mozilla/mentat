@@ -2085,7 +2085,7 @@ mod tests {
 
         // Verify that we can explode map notation with nested maps, even if the inner map would be
         // dangling, if we give a :db/id explicitly.
-        assert_transact!(conn, "[{:test/dangling {:db/id \"t\" :test/many 11}}]");
+        assert_transact!(conn, "[{:test/dangling {:db/id \"t\" :test/many 12}}]");
     }
 
     #[test]
@@ -2191,20 +2191,34 @@ mod tests {
         assert_matches!(tempids(&report),
                         "{}");
 
-        // Verify that we can't explode direct reverse notation with nested value maps.
-        assert_transact!(conn,
-                         "[[:db/add \"t\" :test/_dangling {:test/many 11}]]",
-                         Err("not yet implemented: Cannot explode map notation value in :attr/_reversed notation for attribute 444"));
+    }
+
+    #[test]
+    fn test_explode_reversed_notation_errors() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/component]
+                                 [:db/add 222 :db/isComponent true]
+                                 [:db/add 222 :db/valueType :db.type/ref]
+                                 [:db/add 333 :db/ident :test/unique]
+                                 [:db/add 333 :db/unique :db.unique/identity]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 333 :db/valueType :db.type/long]
+                                 [:db/add 444 :db/ident :test/dangling]
+                                 [:db/add 444 :db/valueType :db.type/ref]]");
+
+        // `tx-parser` should fail to parse direct reverse notation with nested value maps and
+        // nested value vectors, so we only test things that "get through" to the map notation
+        // dynamic processor here.
 
         // Verify that we can't explode reverse notation in map notation with nested value maps.
         assert_transact!(conn,
-                         "[{:test/_dangling {:test/many 11}}]",
+                         "[{:test/_dangling {:test/many 14}}]",
                          Err("not yet implemented: Cannot explode map notation value in :attr/_reversed notation for attribute 444"));
-
-        // Verify that we can't explode direct reverse notation with nested value vectors.
-        assert_transact!(conn,
-                         "[[:db/add \"t\" :test/_dangling [:test/many]]]",
-                         Err("not yet implemented: Cannot explode vector value in :attr/_reversed notation for attribute 444"));
 
         // Verify that we can't explode reverse notation in map notation with nested value vectors.
         assert_transact!(conn,

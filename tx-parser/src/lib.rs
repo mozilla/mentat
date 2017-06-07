@@ -45,6 +45,8 @@ use mentat_parser_utils::{ResultParser};
 use mentat_parser_utils::value_and_span::{
     Item,
     OfExactlyParsing,
+    backward_keyword,
+    forward_keyword,
     integer,
     list,
     map,
@@ -57,10 +59,23 @@ pub use errors::*;
 
 pub struct Tx<'a>(std::marker::PhantomData<&'a ()>);
 
+// Accepts entid, :attribute/forward, and :attribute/_backward.
 def_parser!(Tx, entid, Entid, {
     integer()
         .map(|x| Entid::Entid(x))
         .or(namespaced_keyword().map(|x| Entid::Ident(x.clone())))
+});
+
+// Accepts entid and :attribute/forward.
+def_parser!(Tx, forward_entid, Entid, {
+    integer()
+        .map(|x| Entid::Entid(x))
+        .or(forward_keyword().map(|x| Entid::Ident(x.clone())))
+});
+
+// Accepts only :attribute/_backward.
+def_parser!(Tx, backward_entid, Entid, {
+    backward_keyword().map(|x| Entid::Ident(x.to_reversed()))
 });
 
 def_matches_plain_symbol!(Tx, literal_lookup_ref, "lookup-ref");
@@ -106,18 +121,23 @@ def_matches_namespaced_keyword!(Tx, literal_db_retract, "db", "retract");
 
 def_parser!(Tx, add_or_retract, Entity, {
     vector().of_exactly(
+        // TODO: This commits as soon as it sees :db/{add,retract}, but could use an improved error message.
         (Tx::literal_db_add().map(|_| OpType::Add).or(Tx::literal_db_retract().map(|_| OpType::Retract)),
-             Tx::entid_or_lookup_ref_or_temp_id(),
-             Tx::entid(),
-             Tx::atom_or_lookup_ref_or_vector())
-        .map(|(op, e, a, v)| {
-            Entity::AddOrRetract {
-                op: op,
-                e: e,
-                a: a,
-                v: v,
-            }
-        }))
+          try((Tx::entid_or_lookup_ref_or_temp_id(),
+               Tx::forward_entid(),
+               Tx::atom_or_lookup_ref_or_vector()))
+          .or(try((Tx::atom_or_lookup_ref_or_vector(),
+                   Tx::backward_entid(),
+                   Tx::entid_or_lookup_ref_or_temp_id()))
+              .map(|(v, a, e)| (e, a, v))))
+            .map(|(op, (e, a, v))| {
+                Entity::AddOrRetract {
+                    op: op,
+                    e: e,
+                    a: a,
+                    v: v,
+                }
+            }))
 });
 
 def_parser!(Tx, map_notation, MapNotation, {
