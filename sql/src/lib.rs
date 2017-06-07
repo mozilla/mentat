@@ -17,6 +17,8 @@ extern crate mentat_core;
 
 use std::rc::Rc;
 
+use std::collections::HashMap;
+
 use ordered_float::OrderedFloat;
 
 use mentat_core::{
@@ -95,7 +97,14 @@ pub struct SQLiteQueryBuilder {
 
     arg_prefix: String,
     arg_counter: i64,
-    args: Vec<(String, Rc<rusqlite::types::Value>)>,
+
+    // We can't just use an InternSet on the rusqlite::types::Value instances, because that
+    // includes f64, so it's not Hash or Eq.
+    // Instead we track byte and String arguments separately, mapping them to their argument name,
+    // in order to dedupe. We'll add these to the regular argument vector later.
+    byte_args: HashMap<Vec<u8>, String>,             // From value to argument name.
+    string_args: HashMap<Rc<String>, String>,        // From value to argument name.
+    args: Vec<(String, Rc<rusqlite::types::Value>)>, // (arg, value).
 }
 
 impl SQLiteQueryBuilder {
@@ -108,13 +117,22 @@ impl SQLiteQueryBuilder {
             sql: String::new(),
             arg_prefix: prefix,
             arg_counter: 0,
+
+            byte_args: HashMap::default(),
+            string_args: HashMap::default(),
             args: vec![],
         }
     }
 
-    fn push_static_arg(&mut self, val: Rc<rusqlite::types::Value>) {
+    fn next_argument_name(&mut self) -> String {
         let arg = format!("{}{}", self.arg_prefix, self.arg_counter);
         self.arg_counter = self.arg_counter + 1;
+        arg
+    }
+
+    fn push_static_arg(&mut self, val: Rc<rusqlite::types::Value>) {
+        // TODO: intern these, too.
+        let arg = self.next_argument_name();
         self.push_named_arg(arg.as_str());
         self.args.push((arg, val));
     }
@@ -147,18 +165,29 @@ impl QueryBuilder for SQLiteQueryBuilder {
                 self.push_sql(format!("{}", dt.to_micros()).as_str());      // TODO: argument instead?
             },
             &Uuid(ref u) => {
-                // Get a byte array.
-                let bytes = u.as_bytes().clone();
-                let v = Rc::new(rusqlite::types::Value::Blob(bytes.to_vec()));
-                self.push_static_arg(v);
+                let bytes = u.as_bytes();
+                if let Some(arg) = self.byte_args.get(bytes.as_ref()).cloned() {        // Why, borrow checker, why?!
+                    self.push_named_arg(arg.as_str());
+                } else {
+                    let arg = self.next_argument_name();
+                    self.push_named_arg(arg.as_str());
+                    self.byte_args.insert(bytes.clone().to_vec(), arg);
+                }
             },
             // These are both `Rc`. Unfortunately, we can't use that fact when
             // turning these into rusqlite Values.
+            // However, we can check to see whether there's an existing var that matches…
             &String(ref s) => {
-                let v = Rc::new(rusqlite::types::Value::Text(s.as_ref().clone()));
-                self.push_static_arg(v);
+                if let Some(arg) = self.string_args.get(s).cloned() {
+                    self.push_named_arg(arg.as_str());
+                } else {
+                    let arg = self.next_argument_name();
+                    self.push_named_arg(arg.as_str());
+                    self.string_args.insert(s.clone(), arg);
+                }
             },
             &Keyword(ref s) => {
+                // TODO: intern.
                 let v = Rc::new(rusqlite::types::Value::Text(s.as_ref().to_string()));
                 self.push_static_arg(v);
             },
@@ -190,9 +219,24 @@ impl QueryBuilder for SQLiteQueryBuilder {
     }
 
     fn finish(self) -> SQLQuery {
+        // We collected string and byte arguments into separate maps so that we could
+        // dedupe them. Now we need to turn them into rusqlite Values.
+        let mut args = self.args;
+        let string_args = self.string_args.into_iter().map(|(val, arg)| {
+             (arg, Rc::new(rusqlite::types::Value::Text(val.as_ref().clone())))
+        });
+        let byte_args = self.byte_args.into_iter().map(|(val, arg)| {
+            (arg, Rc::new(rusqlite::types::Value::Blob(val)))
+        });
+
+        args.extend(string_args);
+        args.extend(byte_args);
+
+        // Get the args in the right order -- $v0, $v1…
+        args.sort_by(|&(ref k1, _), &(ref k2, _)| k1.cmp(k2));
         SQLQuery {
             sql: self.sql,
-            args: self.args,
+            args: args,
         }
     }
 }
