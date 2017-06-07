@@ -205,7 +205,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
             }
 
-            let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, &lr_attribute)?;
+            let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, lr_attribute.value_type)?;
             Ok(lookup_refs.intern((lr_a, lr_typed_value)))
         };
 
@@ -260,7 +260,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                 // Here is where we do schema-aware typechecking: we either assert that
                                 // the given value is in the attribute's value set, or (in limited
                                 // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.schema.to_typed_value(&v.without_spans(), &attribute)?;
+                                let typed_value: TypedValue = self.schema.to_typed_value(&v.without_spans(), attribute.value_type)?;
                                 Either::Left(typed_value)
                             }
                         },

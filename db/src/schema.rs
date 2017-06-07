@@ -223,30 +223,32 @@ impl SchemaBuilding for Schema {
 pub trait SchemaTypeChecking {
     /// Do schema-aware typechecking and coercion.
     ///
-    /// Either assert that the given value is in the attribute's value set, or (in limited cases)
-    /// coerce the given value into the attribute's value set.
-    fn to_typed_value(&self, value: &edn::Value, attribute: &Attribute) -> Result<TypedValue>;
+    /// Either assert that the given value is in the value type's value set, or (in limited cases)
+    /// coerce the given value into the value type's value set.
+    fn to_typed_value(&self, value: &edn::Value, value_type: ValueType) -> Result<TypedValue>;
 }
 
 impl SchemaTypeChecking for Schema {
-    fn to_typed_value(&self, value: &edn::Value, attribute: &Attribute) -> Result<TypedValue> {
-        // TODO: encapsulate entid-ident-attribute for better error messages.
+    fn to_typed_value(&self, value: &edn::Value, value_type: ValueType) -> Result<TypedValue> {
+        // TODO: encapsulate entid-ident-attribute for better error messages, perhaps by including
+        // the attribute (rather than just the attribute's value type) into this function or a
+        // wrapper function.
         match TypedValue::from_edn_value(value) {
             // We don't recognize this EDN at all.  Get out!
-            None => bail!(ErrorKind::BadEDNValuePair(value.clone(), attribute.value_type.clone())),
-            Some(typed_value) => match (&attribute.value_type, typed_value) {
+            None => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type)),
+            Some(typed_value) => match (value_type, typed_value) {
                 // Most types don't coerce at all.
-                (&ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
-                (&ValueType::Long, tv @ TypedValue::Long(_)) => Ok(tv),
-                (&ValueType::Double, tv @ TypedValue::Double(_)) => Ok(tv),
-                (&ValueType::String, tv @ TypedValue::String(_)) => Ok(tv),
-                (&ValueType::Uuid, tv @ TypedValue::Uuid(_)) => Ok(tv),
-                (&ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
+                (ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
+                (ValueType::Long, tv @ TypedValue::Long(_)) => Ok(tv),
+                (ValueType::Double, tv @ TypedValue::Double(_)) => Ok(tv),
+                (ValueType::String, tv @ TypedValue::String(_)) => Ok(tv),
+                (ValueType::Uuid, tv @ TypedValue::Uuid(_)) => Ok(tv),
+                (ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
-                (&ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (&ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
+                (ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
+                (ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
                 // Otherwise, we have a type mismatch.
-                (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type.clone())),
+                (value_type, _) => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type)),
             }
         }
     }
