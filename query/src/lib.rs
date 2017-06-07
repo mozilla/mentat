@@ -35,6 +35,7 @@ extern crate mentat_core;
 
 use std::collections::{
     BTreeSet,
+    HashSet,
 };
 
 use std::fmt;
@@ -59,7 +60,7 @@ use mentat_core::{
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Variable(pub Rc<PlainSymbol>);
 
 impl Variable {
@@ -174,7 +175,11 @@ impl FromValue<SrcVar> for SrcVar {
 impl SrcVar {
     pub fn from_symbol(sym: &PlainSymbol) -> Option<SrcVar> {
         if sym.is_src_symbol() {
-            Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+            if sym.0 == "$" {
+                Some(SrcVar::DefaultSrc)
+            } else {
+                Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+            }
         } else {
             None
         }
@@ -210,22 +215,47 @@ pub enum FnArg {
     Variable(Variable),
     SrcVar(SrcVar),
     EntidOrInteger(i64),
-    Ident(NamespacedKeyword),
+    IdentOrKeyword(NamespacedKeyword),
     Constant(NonIntegerConstant),
+    // The collection values representable in EDN.  There's no advantage to destructuring up front,
+    // since consumers will need to handle arbitrarily nested EDN themselves anyway.
+    Vector(Vec<FnArg>),
 }
 
 impl FromValue<FnArg> for FnArg {
     fn from_value(v: &edn::ValueAndSpan) -> Option<FnArg> {
-        // TODO: support SrcVars.
-        Variable::from_value(v)
-                 .and_then(|v| Some(FnArg::Variable(v)))
-                 .or_else(|| {
-                          println!("from_value {}", v.inner);
-            match v.inner {
-                edn::SpannedValue::Integer(i) => Some(FnArg::EntidOrInteger(i)),
-                edn::SpannedValue::Float(f) => Some(FnArg::Constant(NonIntegerConstant::Float(f))),
-                _ => unimplemented!(),
-            }})
+        use edn::SpannedValue::*;
+        match v.inner {
+            Integer(x) =>
+                Some(FnArg::EntidOrInteger(x)),
+            PlainSymbol(ref x) if x.is_src_symbol() =>
+                SrcVar::from_symbol(x).map(FnArg::SrcVar),
+            PlainSymbol(ref x) if x.is_var_symbol() =>
+                Variable::from_symbol(x).map(FnArg::Variable),
+            PlainSymbol(_) => None,
+            NamespacedKeyword(ref x) =>
+                Some(FnArg::IdentOrKeyword(x.clone())),
+            Instant(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Instant(x))),
+            Uuid(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Uuid(x))),
+            Boolean(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Boolean(x))),
+            Float(x) =>
+                Some(FnArg::Constant(NonIntegerConstant::Float(x))),
+            BigInteger(ref x) =>
+                Some(FnArg::Constant(NonIntegerConstant::BigInteger(x.clone()))),
+            Text(ref x) =>
+                // TODO: intern strings. #398.
+                Some(FnArg::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+            Nil |
+            NamespacedSymbol(_) |
+            Keyword(_) |
+            Vector(_) |
+            List(_) |
+            Set(_) |
+            Map(_) => None,
+        }
     }
 }
 
@@ -505,6 +535,94 @@ impl FindSpec {
     }
 }
 
+// Datomic accepts variable or placeholder.  DataScript accepts recursive bindings.  Mentat sticks
+// to the non-recursive form Datomic accepts, which is much simpler to process.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum VariableOrPlaceholder {
+    Placeholder,
+    Variable(Variable),
+}
+
+impl VariableOrPlaceholder {
+    pub fn into_var(self) -> Option<Variable> {
+        match self {
+            VariableOrPlaceholder::Placeholder => None,
+            VariableOrPlaceholder::Variable(var) => Some(var),
+        }
+    }
+
+    pub fn var(&self) -> Option<&Variable> {
+        match self {
+            &VariableOrPlaceholder::Placeholder => None,
+            &VariableOrPlaceholder::Variable(ref var) => Some(var),
+        }
+    }
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum Binding {
+    BindScalar(Variable),
+    BindColl(Variable),
+    BindRel(Vec<VariableOrPlaceholder>),
+    BindTuple(Vec<VariableOrPlaceholder>),
+}
+
+impl Binding {
+    /// Return each variable or `None`, in order.
+    pub fn variables(&self) -> Vec<Option<Variable>> {
+        match self {
+            &Binding::BindScalar(ref var) | &Binding::BindColl(ref var) => vec![Some(var.clone())],
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => vars.iter().map(|x| x.var().cloned()).collect(),
+        }
+    }
+
+    /// Return `true` if no variables are bound, i.e., all binding entries are placeholders.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            &Binding::BindScalar(_) | &Binding::BindColl(_) => false,
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => vars.iter().all(|x| x.var().is_none()),
+        }
+    }
+
+    /// Return `true` if no variable is bound twice, i.e., each binding entry is either a
+    /// placeholder or unique.
+    ///
+    /// ```
+    /// extern crate mentat_query;
+    /// use std::rc::Rc;
+    ///
+    /// let v = mentat_query::Variable::from_valid_name("?foo");
+    /// let vv = mentat_query::VariableOrPlaceholder::Variable(v);
+    /// let p = mentat_query::VariableOrPlaceholder::Placeholder;
+    ///
+    /// let e = mentat_query::Binding::BindTuple(vec![p.clone()]);
+    /// let b = mentat_query::Binding::BindTuple(vec![p.clone(), vv.clone()]);
+    /// let d = mentat_query::Binding::BindTuple(vec![vv.clone(), p, vv]);
+    /// assert!(b.is_valid());          // One var, one placeholder: OK.
+    /// assert!(!e.is_valid());         // Empty: not OK.
+    /// assert!(!d.is_valid());         // Duplicate var: not OK.
+    /// ```
+    pub fn is_valid(&self) -> bool {
+        match self {
+            &Binding::BindScalar(_) | &Binding::BindColl(_) => true,
+            &Binding::BindRel(ref vars) | &Binding::BindTuple(ref vars) => {
+                let mut acc = HashSet::<Variable>::new();
+                for var in vars {
+                    if let &VariableOrPlaceholder::Variable(ref var) = var {
+                        if !acc.insert(var.clone()) {
+                            // It's invalid if there was an equal var already present in the set --
+                            // i.e., we have a duplicate var.
+                            return false;
+                        }
+                    }
+                }
+                // We're not valid if every place is a placeholder!
+                !acc.is_empty()
+            }
+        }
+    }
+}
+
 // Note that the "implicit blank" rule applies.
 // A pattern with a reversed attribute — :foo/_bar — is reversed
 // at the point of parsing. These `Pattern` instances only represent
@@ -561,6 +679,13 @@ pub struct Predicate {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhereFn {
+    pub operator: PlainSymbol,
+    pub args: Vec<FnArg>,
+    pub binding: Binding,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum UnifyVars {
     /// `Implicit` means the variables in an `or` or `not` are derived from the enclosed pattern.
     /// DataScript regards these vars as 'free': these variables don't need to be bound by the
@@ -586,7 +711,7 @@ pub enum UnifyVars {
     /// Only the named variables will be unified with the enclosing query.
     ///
     /// Every 'arm' in an `or-join` must mention the entire set of explicit vars.
-    Explicit(Vec<Variable>),
+    Explicit(BTreeSet<Variable>),
 }
 
 impl WhereClause {
@@ -635,7 +760,7 @@ pub enum WhereClause {
     NotJoin(NotJoin),
     OrJoin(OrJoin),
     Pred(Predicate),
-    WhereFn,
+    WhereFn(WhereFn),
     RuleExpr,
     Pattern(Pattern),
 }
@@ -701,7 +826,7 @@ impl ContainsVariables for WhereClause {
             &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
             &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
             &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
-            &WhereFn        => (),
+            &WhereFn(ref f) => f.accumulate_mentioned_variables(acc),
             &RuleExpr       => (),
         }
     }
@@ -762,6 +887,34 @@ impl ContainsVariables for Predicate {
                 acc_ref(acc, v)
             }
         }
+    }
+}
+
+impl ContainsVariables for Binding {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        match self {
+            &Binding::BindScalar(ref v) | &Binding::BindColl(ref v) => {
+                acc_ref(acc, v)
+            },
+            &Binding::BindRel(ref vs) | &Binding::BindTuple(ref vs) => {
+                for v in vs {
+                    if let &VariableOrPlaceholder::Variable(ref v) = v {
+                        acc_ref(acc, v);
+                    }
+                }
+            },
+        }
+    }
+}
+
+impl ContainsVariables for WhereFn {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        for arg in &self.args {
+            if let &FnArg::Variable(ref v) = arg {
+                acc_ref(acc, v)
+            }
+        }
+        self.binding.accumulate_mentioned_variables(acc);
     }
 }
 

@@ -29,7 +29,10 @@ use mentat_query::{
     WhereClause,
 };
 
-use clauses::ConjoiningClauses;
+use clauses::{
+    ConjoiningClauses,
+    PushComputed,
+};
 
 use errors::{
     Result,
@@ -71,18 +74,6 @@ fn _simply_matches_value_place(left: &PatternValuePlace, right: &PatternValuePla
         (&PatternValuePlace::Placeholder, _) => false,
         (_, &PatternValuePlace::Placeholder) => false,
         _ => true,
-    }
-}
-
-trait PushComputed {
-    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable;
-}
-
-impl PushComputed for Vec<ComputedTable> {
-    fn push_computed(&mut self, item: ComputedTable) -> DatomsTable {
-        let next_index = self.len();
-        self.push(item);
-        DatomsTable::Computed(next_index)
     }
 }
 
@@ -561,7 +552,7 @@ impl ConjoiningClauses {
         let (join_clauses, unify_vars, mentioned_vars) = or_join.dismember();
         let projected = match unify_vars {
             UnifyVars::Implicit => mentioned_vars.into_iter().collect(),
-            UnifyVars::Explicit(vs) => vs.into_iter().collect(),
+            UnifyVars::Explicit(vs) => vs,
         };
 
         let template = self.use_as_template(&projected);
