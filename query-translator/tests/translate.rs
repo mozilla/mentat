@@ -657,17 +657,15 @@ fn test_compound_with_ground() {
     let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground $ "yyy") ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
-                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v1 LIMIT 1");
+                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
 
-    // TODO: eliminate this duplication.
-    assert_eq!(args, vec![make_arg("$v0", "yyy"), make_arg("$v1", "yyy"),]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we can further constrain the bindings produced by our clause.
     let query = r#"[:find ?x . :where [(ground $ "yyy") ?x] [_ :foo/bar ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
-                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v1 LIMIT 1");
+                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
 
-    // TODO: eliminate this duplication.
-    assert_eq!(args, vec![make_arg("$v0", "yyy"), make_arg("$v1", "yyy"),]);
+    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
