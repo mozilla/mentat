@@ -76,9 +76,11 @@ error_chain! {
         }
 
         /// An entid->ident mapping failed.
+        /// We also use this error if you try to transact an entid that we didn't allocate,
+        /// in part because we blow the stack in error_chain if we define a new enum!
         UnrecognizedEntid(entid: Entid) {
-            description("no ident found for entid")
-            display("no ident found for entid: {}", entid)
+            description("unrecognized or no ident found for entid")
+            display("unrecognized or no ident found for entid: {}", entid)
         }
     }
 }
