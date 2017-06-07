@@ -2170,6 +2170,27 @@ mod tests {
                         "{\"s\" 65542
                           \"t\" 65543}");
 
+        // Check that we can use the same attribute in both forward and backward form in the same
+        // transaction.
+        let report = assert_transact!(conn, "[[:db/add 888 :test/dangling 889]
+                                              [:db/add 888 :test/_dangling 889]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[888 :test/dangling 889 ?tx true]
+                          [889 :test/dangling 888 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can use the same attribute in both forward and backward form in the same
+        // transaction in map notation.
+        let report = assert_transact!(conn, "[{:db/id 998 :test/dangling 999 :test/_dangling 999}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[998 :test/dangling 999 ?tx true]
+                          [999 :test/dangling 998 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
         // Verify that we can't explode direct reverse notation with nested value maps.
         assert_transact!(conn,
                          "[[:db/add \"t\" :test/_dangling {:test/many 11}]]",

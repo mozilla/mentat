@@ -70,6 +70,13 @@ impl Entid {
             &Entid::Ident(ref a) => Some(Entid::Ident(a.to_reversed())),
         }
     }
+
+    pub fn unreversed(&self) -> Option<Entid> {
+        match self {
+            &Entid::Entid(_) => None,
+            &Entid::Ident(ref a) => a.unreversed().map(Entid::Ident),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
