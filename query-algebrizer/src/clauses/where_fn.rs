@@ -362,20 +362,19 @@ impl ConjoiningClauses {
                             }
 
                             // Convert each item in the row.
-                            let r: Result<Vec<TypedValue>>;
-                            r = cols.into_iter()
-                                    .zip(template.iter())
-                                    .filter_map(|(col, pair)| {
-                                        if pair.0 {
-                                            Some(self.typed_value_from_arg(schema, col, pair.1))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect();
+                            let r = cols.into_iter()
+                                        .zip(template.iter())
+                                        .filter_map(|(col, pair)| {
+                                            if pair.0 {
+                                                Some(self.typed_value_from_arg(schema, col, pair.1))
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect::<Result<Vec<_>>>()?;
 
                             // Accumulate the value into the matrix and the type into the type set.
-                            for (val, acc) in r?.into_iter().zip(accumulated_types_for_columns.iter_mut()) {
+                            for (val, acc) in r.into_iter().zip(accumulated_types_for_columns.iter_mut()) {
                                 let inserted = acc.insert(val.value_type());
                                 if inserted && !acc.is_unit() {
                                     // Heterogeneous types.
