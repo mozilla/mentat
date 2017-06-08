@@ -315,7 +315,7 @@ impl ConjoiningClauses {
                 // Turn a collection of arguments into a Vec of `TypedValue`s of the same type.
                 let known_types = self.known_type_set(&var);
                 // Check that every value has the same type.
-                let mut accumulated_types = ValueTypeSet::default();
+                let mut accumulated_types = ValueTypeSet::none();
                 let mut skip: Option<EmptyBecause> = None;
                 let values = children.into_iter()
                                      .filter_map(|arg| -> Option<Result<TypedValue>> {
@@ -386,7 +386,7 @@ impl ConjoiningClauses {
                 // This representation of a rectangular matrix is more efficient than one composed
                 // of N separate vectors.
                 let mut matrix = Vec::with_capacity(expected_width * expected_rows);
-                let mut accumulated_types_for_columns = vec![ValueTypeSet::default(); expected_width];
+                let mut accumulated_types_for_columns = vec![ValueTypeSet::none(); expected_width];
 
                 // Loop so we can bail out.
                 let mut skipped_all: Option<EmptyBecause> = None;
