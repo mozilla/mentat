@@ -669,3 +669,35 @@ fn test_compound_with_ground() {
 
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
+
+#[test]
+fn test_not_with_ground() {
+    let mut schema = prepopulated_schema();
+    associate_ident(&mut schema, NamespacedKeyword::new("db", "valueType"), 7);
+    associate_ident(&mut schema, NamespacedKeyword::new("db.type", "ref"), 23);
+    associate_ident(&mut schema, NamespacedKeyword::new("db.type", "bool"), 28);
+    associate_ident(&mut schema, NamespacedKeyword::new("db.type", "instant"), 29);
+    add_attribute(&mut schema, 7, Attribute {
+        value_type: ValueType::Ref,
+        multival: false,
+        ..Default::default()
+    });
+
+    // Scalar.
+    // TODO: this kind of simple `not` should be implemented without the subquery.
+    let query = r#"[:find ?x :where [?x :db/valueType ?v] (not [(ground :db.type/instant) ?v])]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql,
+               "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 7 AND NOT \
+                EXISTS (SELECT 1 WHERE `datoms00`.v = 29)");
+
+    // Coll.
+    // TODO: we can generate better SQL for this, too.
+    let query = r#"[:find ?x :where [?x :db/valueType ?v] (not [(ground [:db.type/bool :db.type/instant]) [?v ...]])]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql,
+               "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` \
+                WHERE `datoms00`.a = 7 AND NOT EXISTS \
+                (SELECT 1 FROM (SELECT 0 AS `?v` WHERE 0 UNION ALL VALUES (28), (29)) AS `c00` \
+                 WHERE `datoms00`.v = `c00`.`?v`)");
+}

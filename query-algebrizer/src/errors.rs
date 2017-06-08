@@ -40,9 +40,9 @@ error_chain! {
             display("no function named {}", name)
         }
     
-        InvalidNumberOfArguments(name: PlainSymbol, number: usize, expected: usize) {
+        InvalidNumberOfArguments(function: PlainSymbol, number: usize, expected: usize) {
             description("invalid number of arguments")
-            display("invalid number of arguments to {}: expected {}, got {}.", name, expected, number)
+            display("invalid number of arguments to {}: expected {}, got {}.", function, expected, number)
         }
 
         UnboundVariable(name: PlainSymbol) {
