@@ -527,6 +527,11 @@ impl ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Double, ValueType::Long))
     }
 
+    /// Return a set containing `Ref` and `Keyword`.
+    pub fn of_keywords() -> ValueTypeSet {
+        ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Keyword))
+    }
+
     /// Return a set containing `Ref` and `Long`.
     pub fn of_longs() -> ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Long))
