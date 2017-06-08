@@ -68,7 +68,7 @@ impl ConjoiningClauses {
         }
 
         match arg {
-            // This is potentially ambiguous.
+            // Longs are potentially ambiguous: they might be longs or entids.
             FnArg::EntidOrInteger(x) => {
                 match (ValueType::Ref.accommodates_integer(x),
                        known_types.contains(ValueType::Ref),

@@ -813,6 +813,7 @@ mod testing {
         });
         schema
     }
+
     /// Test that if all the attributes in an `or` fail to resolve, the entire thing fails.
     #[test]
     fn test_schema_based_failure() {
