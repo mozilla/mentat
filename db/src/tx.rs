@@ -51,6 +51,7 @@ use std::collections::{
     BTreeSet,
     VecDeque,
 };
+use std::rc::Rc;
 
 use db;
 use db::{
@@ -61,14 +62,16 @@ use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
     Either,
+    EntidOr,
     LookupRef,
     LookupRefOrTempId,
     TempIdHandle,
     TempIdMap,
     Term,
-    TermWithTempIdsAndLookupRefs,
     TermWithTempIds,
+    TermWithTempIdsAndLookupRefs,
     TermWithoutTempIds,
+    TypedValueOr,
     replace_lookup_ref};
 
 use mentat_core::{
@@ -191,37 +194,131 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
     fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<TempId>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
-        let mut temp_ids: intern_set::InternSet<TempId> = intern_set::InternSet::new();
-        let mut lookup_refs: intern_set::InternSet<AVPair> = intern_set::InternSet::new();
+        struct InProcess<'a> {
+            schema: &'a Schema,
+            mentat_id_count: i64,
+            temp_ids: intern_set::InternSet<TempId>,
+            lookup_refs: intern_set::InternSet<AVPair>,
+        }
 
-        let intern_lookup_ref = |lookup_refs: &mut intern_set::InternSet<AVPair>, lookup_ref: entmod::LookupRef| -> Result<LookupRef> {
-            let lr_a: i64 = match lookup_ref.a {
-                entmod::Entid::Entid(ref a) => *a,
-                entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-            };
-            let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
-
-            if lr_attribute.unique.is_none() {
-                bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
+        impl<'a> InProcess<'a> {
+            fn with_schema(schema: &'a Schema) -> InProcess<'a> {
+                InProcess {
+                    schema: schema,
+                    mentat_id_count: 0,
+                    temp_ids: intern_set::InternSet::new(),
+                    lookup_refs: intern_set::InternSet::new(),
+                }
             }
 
-            let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, &lr_attribute)?;
-            Ok(lookup_refs.intern((lr_a, lr_typed_value)))
-        };
+            fn intern_lookup_ref(&mut self, lookup_ref: &entmod::LookupRef) -> Result<LookupRef> {
+                let lr_a: i64 = match lookup_ref.a {
+                    entmod::Entid::Entid(ref a) => *a,
+                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                };
+                let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
+
+                if lr_attribute.unique.is_none() {
+                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
+                }
+
+                let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, lr_attribute.value_type)?;
+                Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
+            }
+
+            fn intern_temp_id(&mut self, temp_id: TempId) -> Rc<TempId> {
+                self.temp_ids.intern(temp_id)
+            }
+
+            /// Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
+            /// unique within one transaction; they should never escape a transaction.
+            fn allocate_mentat_id(&mut self) -> entmod::EntidOrLookupRefOrTempId {
+                self.mentat_id_count += 1;
+                entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(self.mentat_id_count))
+            }
+
+            fn entity_e_into_term_e(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<EntidOr<LookupRefOrTempId>> {
+                match x {
+                    entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                        let e: i64 = match e {
+                            entmod::Entid::Entid(ref e) => *e,
+                            entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
+                        };
+                        Ok(Either::Left(e))
+                    },
+
+                    entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                        Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(e))))
+                    },
+
+                    entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
+                        Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?)))
+                    },
+                }
+            }
+
+            fn entity_a_into_term_a(&mut self, x: entmod::Entid) -> Result<Entid> {
+                let a = match x {
+                    entmod::Entid::Entid(ref a) => *a,
+                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                };
+                Ok(a)
+            }
+
+            fn entity_e_into_term_v(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<TypedValueOr<LookupRefOrTempId>> {
+                self.entity_e_into_term_e(x).map(|r| r.map_left(TypedValue::Ref))
+            }
+
+            fn entity_v_into_term_e(&mut self, x: entmod::AtomOrLookupRefOrVectorOrMapNotation, backward_a: &entmod::Entid) -> Result<EntidOr<LookupRefOrTempId>> {
+                match backward_a.unreversed() {
+                    None => {
+                        bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
+                    },
+                    Some(forward_a) => {
+                        let forward_a = self.entity_a_into_term_a(forward_a)?;
+                        let forward_attribute = self.schema.require_attribute_for_entid(forward_a)?;
+                        if forward_attribute.value_type != ValueType::Ref {
+                            bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref", forward_a)))
+                        }
+
+                        match x {
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(ref v) => {
+                                // Here is where we do schema-aware typechecking: we either assert
+                                // that the given value is in the attribute's value set, or (in
+                                // limited cases) coerce the value into the attribute's value set.
+                                if let Some(text) = v.inner.as_text() {
+                                    Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(TempId::External(text.clone())))))
+                                } else {
+                                    if let TypedValue::Ref(entid) = self.schema.to_typed_value(&v.clone().without_spans(), ValueType::Ref)? {
+                                        Ok(Either::Left(entid))
+                                    } else {
+                                        // The given value is expected to be :db.type/ref, so this shouldn't happen.
+                                        bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
+                                    }
+                                }
+                            },
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) =>
+                                Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) =>
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", forward_a))),
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) =>
+                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", forward_a))),
+                        }
+                    },
+                }
+            }
+        }
+
+        let mut in_process = InProcess::with_schema(&self.schema);
 
         // We want to handle entities in the order they're given to us, while also "exploding" some
         // entities into many.  We therefore push the initial entities onto the back of the deque,
         // take from the front of the deque, and explode onto the front as well.
         let mut deque: VecDeque<Entity> = VecDeque::default();
         deque.extend(entities);
-
-        // Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
-        // unique within one transaction; they should never escape a transaction.
-        let mut mentat_id_count = 0;
-        let mut allocate_mentat_id = move || {
-            mentat_id_count += 1;
-            entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(mentat_id_count))
-        };
 
         let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(deque.len());
 
@@ -230,7 +327,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 Entity::MapNotation(mut map_notation) => {
                     // :db/id is optional; if it's not given, we generate a special internal tempid
                     // to use for upserting.  This tempid will not be reported in the TxReport.
-                    let db_id: entmod::EntidOrLookupRefOrTempId = mentat_tx_parser::remove_db_id(&mut map_notation)?.unwrap_or_else(&mut allocate_mentat_id);
+                    let db_id: entmod::EntidOrLookupRefOrTempId = mentat_tx_parser::remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                     // We're not nested, so :db/isComponent is not relevant.  We just explode the
                     // map notation.
@@ -245,157 +342,135 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                 },
 
                 Entity::AddOrRetract { op, e, a, v } => {
-                    let a: i64 = match a {
-                        entmod::Entid::Entid(ref a) => *a,
-                        entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-                    };
+                    if let Some(reversed_a) = a.unreversed() {
+                        let reversed_e = in_process.entity_v_into_term_e(v, &a)?;
+                        let reversed_a = in_process.entity_a_into_term_a(reversed_a)?;
+                        let reversed_v = in_process.entity_e_into_term_v(e)?;
+                        terms.push(Term::AddOrRetract(OpType::Add, reversed_e, reversed_a, reversed_v));
+                    } else {
+                        let a = in_process.entity_a_into_term_a(a)?;
+                        let attribute = self.schema.require_attribute_for_entid(a)?;
 
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
+                        let v = match v {
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
+                                if attribute.value_type == ValueType::Ref && v.inner.is_text() {
+                                    Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(v.inner.as_text().cloned().map(TempId::External).unwrap())))
+                                } else {
+                                    // Here is where we do schema-aware typechecking: we either assert that
+                                    // the given value is in the attribute's value set, or (in limited
+                                    // cases) coerce the value into the attribute's value set.
+                                    let typed_value: TypedValue = self.schema.to_typed_value(&v.without_spans(), attribute.value_type)?;
+                                    Either::Left(typed_value)
+                                }
+                            },
 
-                    let v = match v {
-                        entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
-                            if attribute.value_type == ValueType::Ref && v.inner.is_text() {
-                                Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(v.inner.as_text().cloned().map(TempId::External).unwrap())))
-                            } else {
-                                // Here is where we do schema-aware typechecking: we either assert that
-                                // the given value is in the attribute's value set, or (in limited
-                                // cases) coerce the value into the attribute's value set.
-                                let typed_value: TypedValue = self.schema.to_typed_value(&v.without_spans(), &attribute)?;
-                                Either::Left(typed_value)
-                            }
-                        },
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) => {
+                                if attribute.value_type != ValueType::Ref {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
+                                }
 
-                        entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(lookup_ref) => {
-                            if attribute.value_type != ValueType::Ref {
-                                bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
-                            }
+                                Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
+                            },
 
-                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
-                        },
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) => {
+                                if !attribute.multival {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
+                                }
 
-                        entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) => {
-                            if !attribute.multival {
-                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
-                            }
+                                for vv in vs {
+                                    deque.push_front(Entity::AddOrRetract {
+                                        op: op.clone(),
+                                        e: e.clone(),
+                                        a: entmod::Entid::Entid(a),
+                                        v: vv,
+                                    });
+                                }
+                                continue
+                            },
 
-                            for vv in vs {
-                                deque.push_front(Entity::AddOrRetract {
-                                    op: op.clone(),
-                                    e: e.clone(),
-                                    a: entmod::Entid::Entid(a),
-                                    v: vv,
-                                });
-                            }
-                            continue
-                        },
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(mut map_notation) => {
+                                // TODO: consider handling this at the tx-parser level.  That would be
+                                // more strict and expressive, but it would lead to splitting
+                                // AddOrRetract, which proliferates types and code, or only handling
+                                // nested maps rather than map values, like Datomic does.
+                                if op != OpType::Add {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value in :db/retract for attribute {}", a)));
+                                }
 
-                        entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(mut map_notation) => {
-                            // TODO: consider handling this at the tx-parser level.  That would be
-                            // more strict and expressive, but it would lead to splitting
-                            // AddOrRetract, which proliferates types and code, or only handling
-                            // nested maps rather than map values, like Datomic does.
-                            if op != OpType::Add {
-                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value in :db/retract for attribute {}", a)));
-                            }
+                                if attribute.value_type != ValueType::Ref {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref", a)))
+                                }
 
-                            if attribute.value_type != ValueType::Ref {
-                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref", a)))
-                            }
+                                // :db/id is optional; if it's not given, we generate a special internal tempid
+                                // to use for upserting.  This tempid will not be reported in the TxReport.
+                                let db_id: Option<entmod::EntidOrLookupRefOrTempId> = mentat_tx_parser::remove_db_id(&mut map_notation)?;
+                                let mut dangling = db_id.is_none();
+                                let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
 
-                            // :db/id is optional; if it's not given, we generate a special internal tempid
-                            // to use for upserting.  This tempid will not be reported in the TxReport.
-                            let db_id: Option<entmod::EntidOrLookupRefOrTempId> = mentat_tx_parser::remove_db_id(&mut map_notation)?;
-                            let mut dangling = db_id.is_none();
-                            let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(&mut allocate_mentat_id);
-
-                            // We're nested, so we want to ensure we're not creating "dangling"
-                            // entities that can't be reached.  If we're :db/isComponent, then this
-                            // is not dangling.  Otherwise, the resulting map needs to have a
-                            // :db/unique :db.unique/identity [a v] pair, so that it's reachable.
-                            // Per http://docs.datomic.com/transactions.html: "Either the reference
-                            // to the nested map must be a component attribute, or the nested map
-                            // must include a unique attribute. This constraint prevents the
-                            // accidental creation of easily-orphaned entities that have no identity
-                            // or relation to other entities."
-                            if attribute.component {
-                                dangling = false;
-                            }
-
-                            for (inner_a, inner_v) in map_notation {
-                                let inner_entid: i64 = match inner_a {
-                                    entmod::Entid::Entid(ref a) => *a,
-                                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
-                                };
-
-                                let inner_attribute: &Attribute = self.schema.require_attribute_for_entid(inner_entid)?;
-                                if inner_attribute.unique == Some(attribute::Unique::Identity) {
+                                // We're nested, so we want to ensure we're not creating "dangling"
+                                // entities that can't be reached.  If we're :db/isComponent, then this
+                                // is not dangling.  Otherwise, the resulting map needs to have a
+                                // :db/unique :db.unique/identity [a v] pair, so that it's reachable.
+                                // Per http://docs.datomic.com/transactions.html: "Either the reference
+                                // to the nested map must be a component attribute, or the nested map
+                                // must include a unique attribute. This constraint prevents the
+                                // accidental creation of easily-orphaned entities that have no identity
+                                // or relation to other entities."
+                                if attribute.component {
                                     dangling = false;
                                 }
 
-                                deque.push_front(Entity::AddOrRetract {
-                                    op: OpType::Add,
-                                    e: db_id.clone(),
-                                    a: entmod::Entid::Entid(inner_entid),
-                                    v: inner_v,
-                                });
-                            }
+                                for (inner_a, inner_v) in map_notation {
+                                    if let Some(reversed_a) = inner_a.unreversed() {
+                                        // We definitely have a reference.  The reference might be
+                                        // dangling (a bare entid, for example), but we don't yet
+                                        // support nested maps and reverse notation simultaneously
+                                        // (i.e., we don't accept {:reverse/_attribute {:nested map}})
+                                        // so we don't need to check that the nested map reference isn't
+                                        // dangling.
+                                        dangling = false;
 
-                            if dangling {
-                                bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value that would lead to dangling entity for attribute {}", a)));
-                            }
+                                        let reversed_e = in_process.entity_v_into_term_e(inner_v, &inner_a)?;
+                                        let reversed_a = in_process.entity_a_into_term_a(reversed_a)?;
+                                        let reversed_v = in_process.entity_e_into_term_v(db_id.clone())?;
+                                        terms.push(Term::AddOrRetract(OpType::Add, reversed_e, reversed_a, reversed_v));
+                                    } else {
+                                        let inner_a = in_process.entity_a_into_term_a(inner_a)?;
+                                        let inner_attribute = self.schema.require_attribute_for_entid(inner_a)?;
+                                        if inner_attribute.unique == Some(attribute::Unique::Identity) {
+                                            dangling = false;
+                                        }
 
-                            // Similar, but not identical, to the expansion of the entity position e
-                            // below.  This returns Either::Left(TypedValue) instances; that returns
-                            // Either::Left(i64) instances.
-                            match db_id {
-                                entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                                    let e: i64 = match e {
-                                        entmod::Entid::Entid(ref e) => *e,
-                                        entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
-                                    };
-                                    Either::Left(TypedValue::Ref(e))
-                                },
+                                        deque.push_front(Entity::AddOrRetract {
+                                            op: OpType::Add,
+                                            e: db_id.clone(),
+                                            a: entmod::Entid::Entid(inner_a),
+                                            v: inner_v,
+                                        });
+                                    }
+                                }
 
-                                entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                                    Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
-                                },
+                                if dangling {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Cannot explode nested map value that would lead to dangling entity for attribute {}", a)));
+                                }
 
-                                entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
-                                    Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
-                                },
-                            }
-                        },
-                    };
+                                in_process.entity_e_into_term_v(db_id)?
+                            },
+                        };
 
-                    let e = match e {
-                        entmod::EntidOrLookupRefOrTempId::Entid(e) => {
-                            let e: i64 = match e {
-                                entmod::Entid::Entid(ref e) => *e,
-                                entmod::Entid::Ident(ref e) => self.schema.require_entid(&e)?,
-                            };
-                            Either::Left(e)
-                        },
-
-                        entmod::EntidOrLookupRefOrTempId::TempId(e) => {
-                            Either::Right(LookupRefOrTempId::TempId(temp_ids.intern(e)))
-                        },
-
-                        entmod::EntidOrLookupRefOrTempId::LookupRef(lookup_ref) => {
-                            Either::Right(LookupRefOrTempId::LookupRef(intern_lookup_ref(&mut lookup_refs, lookup_ref)?))
-                        },
-                    };
-
-                    terms.push(Term::AddOrRetract(op, e, a, v));
+                        let e = in_process.entity_e_into_term_e(e)?;
+                        terms.push(Term::AddOrRetract(op, e, a, v));
+                    }
                 },
             }
         };
-        Ok((terms, temp_ids, lookup_refs))
+        Ok((terms, in_process.temp_ids, in_process.lookup_refs))
     }
 
     /// Pipeline stage 2: rewrite `Term` instances with lookup refs into `Term` instances without
     /// lookup refs.
     ///
-    /// The `Term` instances produce share interned TempId handles and have no LookupRef references.
+    /// The `Term` instances produced share interned TempId handles and have no LookupRef references.
     fn resolve_lookup_refs<I>(&self, lookup_ref_map: &AVMap, terms: I) -> Result<Vec<TermWithTempIds>> where I: IntoIterator<Item=TermWithTempIdsAndLookupRefs> {
         terms.into_iter().map(|term: TermWithTempIdsAndLookupRefs| -> Result<TermWithTempIds> {
             match term {

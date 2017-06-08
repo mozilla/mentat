@@ -594,7 +594,6 @@ mod test {
 
     use chrono::{
         DateTime,
-        TimeZone,
         UTC,
     };
     use num::BigInt;

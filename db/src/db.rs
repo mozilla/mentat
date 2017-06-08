@@ -2085,6 +2085,164 @@ mod tests {
 
         // Verify that we can explode map notation with nested maps, even if the inner map would be
         // dangling, if we give a :db/id explicitly.
-        assert_transact!(conn, "[{:test/dangling {:db/id \"t\" :test/many 11}}]");
+        assert_transact!(conn, "[{:test/dangling {:db/id \"t\" :test/many 12}}]");
+    }
+
+    #[test]
+    fn test_explode_reversed_notation() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/component]
+                                 [:db/add 222 :db/isComponent true]
+                                 [:db/add 222 :db/valueType :db.type/ref]
+                                 [:db/add 333 :db/ident :test/unique]
+                                 [:db/add 333 :db/unique :db.unique/identity]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 333 :db/valueType :db.type/long]
+                                 [:db/add 444 :db/ident :test/dangling]
+                                 [:db/add 444 :db/valueType :db.type/ref]]");
+
+        // Check that we can explode direct reversed notation, entids.
+        let report = assert_transact!(conn, "[[:db/add 100 :test/_dangling 200]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :test/dangling 100 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode direct reversed notation, idents.
+        let report = assert_transact!(conn, "[[:db/add :test/many :test/_dangling :test/unique]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[333 :test/dangling :test/many ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode direct reversed notation, tempids.
+        let report = assert_transact!(conn, "[[:db/add \"s\" :test/_dangling \"t\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[65537 :test/dangling 65536 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&report),
+                        "{\"s\" 65536
+                          \"t\" 65537}");
+
+        // Check that we can explode reversed notation in map notation without :db/id.
+        let report = assert_transact!(conn, "[{:test/_dangling 501}
+                                              {:test/_dangling :test/many}
+                                              {:test/_dangling \"t\"}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[111 :test/dangling ?e1 ?tx true]
+                          [501 :test/dangling ?e2 ?tx true]
+                          [65538 :test/dangling ?e3 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{\"t\" 65538}");
+
+        // Check that we can explode reversed notation in map notation with :db/id, entid.
+        let report = assert_transact!(conn, "[{:db/id 600 :test/_dangling 601}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[601 :test/dangling 600 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode reversed notation in map notation with :db/id, ident.
+        let report = assert_transact!(conn, "[{:db/id :test/component :test/_dangling :test/component}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[222 :test/dangling :test/component ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can explode reversed notation in map notation with :db/id, tempid.
+        let report = assert_transact!(conn, "[{:db/id \"s\" :test/_dangling \"t\"}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[65543 :test/dangling 65542 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&report),
+                        "{\"s\" 65542
+                          \"t\" 65543}");
+
+        // Check that we can use the same attribute in both forward and backward form in the same
+        // transaction.
+        let report = assert_transact!(conn, "[[:db/add 888 :test/dangling 889]
+                                              [:db/add 888 :test/_dangling 889]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[888 :test/dangling 889 ?tx true]
+                          [889 :test/dangling 888 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+        // Check that we can use the same attribute in both forward and backward form in the same
+        // transaction in map notation.
+        let report = assert_transact!(conn, "[{:db/id 998 :test/dangling 999 :test/_dangling 999}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[998 :test/dangling 999 ?tx true]
+                          [999 :test/dangling 998 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
+    }
+
+    #[test]
+    fn test_explode_reversed_notation_errors() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/component]
+                                 [:db/add 222 :db/isComponent true]
+                                 [:db/add 222 :db/valueType :db.type/ref]
+                                 [:db/add 333 :db/ident :test/unique]
+                                 [:db/add 333 :db/unique :db.unique/identity]
+                                 [:db/add 333 :db/index true]
+                                 [:db/add 333 :db/valueType :db.type/long]
+                                 [:db/add 444 :db/ident :test/dangling]
+                                 [:db/add 444 :db/valueType :db.type/ref]]");
+
+        // `tx-parser` should fail to parse direct reverse notation with nested value maps and
+        // nested value vectors, so we only test things that "get through" to the map notation
+        // dynamic processor here.
+
+        // Verify that we can't explode reverse notation in map notation with nested value maps.
+        assert_transact!(conn,
+                         "[{:test/_dangling {:test/many 14}}]",
+                         Err("not yet implemented: Cannot explode map notation value in :attr/_reversed notation for attribute 444"));
+
+        // Verify that we can't explode reverse notation in map notation with nested value vectors.
+        assert_transact!(conn,
+                         "[{:test/_dangling [:test/many]}]",
+                         Err("not yet implemented: Cannot explode vector value in :attr/_reversed notation for attribute 444"));
+
+        // Verify that we can't use reverse notation with non-:db.type/ref attributes.
+        assert_transact!(conn,
+                         "[{:test/_unique 500}]",
+                         Err("not yet implemented: Cannot use :attr/_reversed notation for attribute 333 that is not :db/valueType :db.type/ref"));
+
+        // Verify that we can't use reverse notation with unrecognized attributes.
+        assert_transact!(conn,
+                         "[{:test/_unknown 500}]",
+                         Err("no entid found for ident: :test/unknown")); // TODO: make this error reference the original :test/_unknown.
+
+        // Verify that we can't use reverse notation with bad value types: here, an unknown keyword
+        // that can't be coerced to a ref.
+        assert_transact!(conn,
+                         "[{:test/_dangling :test/unknown}]",
+                         Err("no entid found for ident: :test/unknown"));
+        // And here, a float.
+        assert_transact!(conn,
+                         "[{:test/_dangling 1.23}]",
+                         Err("EDN value \'1.23\' is not the expected Mentat value type Ref"));
     }
 }

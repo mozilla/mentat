@@ -56,6 +56,29 @@ pub enum Entid {
     Ident(NamespacedKeyword),
 }
 
+impl Entid {
+    pub fn is_backward(&self) -> bool {
+        match self {
+            &Entid::Entid(_) => false,
+            &Entid::Ident(ref a) => a.is_backward(),
+        }
+    }
+
+    pub fn to_reversed(&self) -> Option<Entid> {
+        match self {
+            &Entid::Entid(_) => None,
+            &Entid::Ident(ref a) => Some(Entid::Ident(a.to_reversed())),
+        }
+    }
+
+    pub fn unreversed(&self) -> Option<Entid> {
+        match self {
+            &Entid::Entid(_) => None,
+            &Entid::Ident(ref a) => a.unreversed().map(Entid::Ident),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct LookupRef {
     pub a: Entid,
