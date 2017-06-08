@@ -21,7 +21,6 @@ use mentat_query::{
     Binding,
     FnArg,
     NonIntegerConstant,
-    SrcVar,
     Variable,
     VariableOrPlaceholder,
     WhereFn,
@@ -244,17 +243,11 @@ impl ConjoiningClauses {
     }
 
     pub fn apply_ground<'s>(&mut self, schema: &'s Schema, where_fn: WhereFn) -> Result<()> {
-        if where_fn.args.len() != 2 {
-            bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 2));
+        if where_fn.args.len() != 1 {
+            bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 1));
         }
 
         let mut args = where_fn.args.into_iter();
-
-        // TODO: process source variables.
-        match args.next().unwrap() {
-            FnArg::SrcVar(SrcVar::DefaultSrc) => {},
-            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
-        }
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
@@ -451,7 +444,6 @@ mod testing {
         cc.apply_ground(&schema, WhereFn {
             operator: op,
             args: vec![
-                FnArg::SrcVar(SrcVar::DefaultSrc),
                 FnArg::EntidOrInteger(10),
             ],
             binding: Binding::BindScalar(vz.clone()),

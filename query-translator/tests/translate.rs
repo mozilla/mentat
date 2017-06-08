@@ -556,13 +556,13 @@ fn test_ground_scalar() {
     let schema = prepopulated_schema();
 
     // Verify that we accept inline constants.
-    let query = r#"[:find ?x . :where [(ground $ "yyy") ?x]]"#;
+    let query = r#"[:find ?x . :where [(ground "yyy") ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we accept bound input constants.
-    let query = r#"[:find ?x . :in ?v :where [(ground $ ?v) ?x]]"#;
+    let query = r#"[:find ?x . :in ?v :where [(ground ?v) ?x]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into())))]);
     let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
     assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
@@ -574,13 +574,13 @@ fn test_ground_tuple() {
     let schema = prepopulated_schema();
 
     // Verify that we accept inline constants.
-    let query = r#"[:find ?x ?y :where [(ground $ [1 "yyy"]) [?x ?y]]]"#;
+    let query = r#"[:find ?x ?y :where [(ground [1 "yyy"]) [?x ?y]]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT DISTINCT 1 AS `?x`, $v0 AS `?y`");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we accept bound input constants.
-    let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground $ [?u ?v]) [?x ?y]]]"#;
+    let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground [?u ?v]) [?x ?y]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
                                                        (Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into()))),]);
     let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
@@ -594,7 +594,7 @@ fn test_ground_coll() {
     let schema = prepopulated_schema();
 
     // Verify that we accept inline constants.
-    let query = r#"[:find ?x :where [(ground $ ["xxx" "yyy"]) [?x ...]]]"#;
+    let query = r#"[:find ?x :where [(ground ["xxx" "yyy"]) [?x ...]]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM \
                          (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0), ($v1)) AS `c00`");
@@ -602,7 +602,7 @@ fn test_ground_coll() {
                           make_arg("$v1", "yyy")]);
 
     // Verify that we accept bound input constants.
-    let query = r#"[:find ?x :in ?u ?v :where [(ground $ [?u ?v]) [?x ...]]]"#;
+    let query = r#"[:find ?x :in ?u ?v :where [(ground [?u ?v]) [?x ...]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
                                                        (Variable::from_valid_name("?v"), TypedValue::Long(3)),]);
     let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
@@ -617,7 +617,7 @@ fn test_ground_rel() {
     let schema = prepopulated_schema();
 
     // Verify that we accept inline constants.
-    let query = r#"[:find ?x ?y :where [(ground $ [[1 "xxx"] [2 "yyy"]]) [[?x ?y]]]]"#;
+    let query = r#"[:find ?x ?y :where [(ground [[1 "xxx"] [2 "yyy"]]) [[?x ?y]]]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
                          (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (1, $v0), (2, $v1)) AS `c00`");
@@ -625,7 +625,7 @@ fn test_ground_rel() {
                           make_arg("$v1", "yyy")]);
 
     // Verify that we accept bound input constants.
-    let query = r#"[:find ?x ?y :in ?u ?v :where [(ground $ [[?u 1] [?v 2]]) [[?x ?y]]]]"#;
+    let query = r#"[:find ?x ?y :in ?u ?v :where [(ground [[?u 1] [?v 2]]) [[?x ?y]]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(3)),
                                                        (Variable::from_valid_name("?v"), TypedValue::Long(4)),]);
     let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
@@ -640,8 +640,8 @@ fn test_compound_with_ground() {
     let schema = prepopulated_schema();
 
     // Verify that we can use the resulting CCs as children in compound CCs.
-    let query = r#"[:find ?x :where (or [(ground $ "yyy") ?x]
-                                        [(ground $ "zzz") ?x])]"#;
+    let query = r#"[:find ?x :where (or [(ground "yyy") ?x]
+                                        [(ground "zzz") ?x])]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     // This is confusing because the computed tables (like `c00`) are numbered sequentially in each
@@ -654,7 +654,7 @@ fn test_compound_with_ground() {
                           make_arg("$v1", "zzz"),]);
 
     // Verify that we can use ground to constrain the bindings produced by earlier clauses.
-    let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground $ "yyy") ?x]]"#;
+    let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground "yyy") ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
@@ -662,7 +662,7 @@ fn test_compound_with_ground() {
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we can further constrain the bindings produced by our clause.
-    let query = r#"[:find ?x . :where [(ground $ "yyy") ?x] [_ :foo/bar ?x]]"#;
+    let query = r#"[:find ?x . :where [(ground "yyy") ?x] [_ :foo/bar ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
