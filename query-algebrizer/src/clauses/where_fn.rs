@@ -33,7 +33,6 @@ use clauses::{
 
 use errors::{
     BindingError,
-    Error,
     ErrorKind,
     Result,
 };
@@ -42,17 +41,26 @@ use super::QualifiedAlias;
 
 use types::{
     ComputedTable,
+    EmptyBecause,
     SourceAlias,
     ValueTypeSet,
     VariableColumn,
 };
 
-macro_rules! check_type_set {
-    ($types: expr, $type: path) => { {
+macro_rules! coerce_to_typed_value {
+    ($var: ident, $val: ident, $types: expr, $type: path, $constructor: path) => { {
         if !$types.contains($type) {
-            bail!(ErrorKind::InvalidGroundConstant);
+            Impossible(EmptyBecause::TypeMismatch($var.clone(), $types, ValueTypeSet::of_one($type)))
+        } else {
+            Ok($constructor($val).into())
         }
     } }
+}
+
+enum ValueConversionResult {
+    Ok(TypedValue),
+    Impossible(EmptyBecause),
+    Err(ErrorKind),
 }
 
 /// Conversion of FnArgs to TypedValues.
@@ -61,9 +69,11 @@ impl ConjoiningClauses {
     /// The conversion depends on, and can fail because of:
     /// - Existing known types of a variable to which this arg will be bound.
     /// - Existing bindings of a variable `FnArg`.
-    fn typed_value_from_arg<'s>(&self, schema: &'s Schema, arg: FnArg, known_types: ValueTypeSet) -> Result<TypedValue> {
+    fn typed_value_from_arg<'s>(&self, schema: &'s Schema, var: &Variable, arg: FnArg, known_types: ValueTypeSet) -> ValueConversionResult {
+        use self::ValueConversionResult::*;
         if known_types.is_empty() {
-            bail!(ErrorKind::InvalidGroundConstant);
+            // If this happens, it likely means the pattern has already failed!
+            return Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::any()));
         }
 
         match arg {
@@ -87,11 +97,11 @@ impl ConjoiningClauses {
                     },
                     (false, true, _) => {
                         // This isn't a valid ref, but that's the type to which this must conform!
-                        bail!(ErrorKind::InvalidGroundConstant)
+                        Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_longs()))
                     },
                     (_, false, false) => {
                         // Non-overlapping type sets.
-                        bail!(ErrorKind::InvalidGroundConstant)
+                        Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_longs()))
                     },
                 }
             },
@@ -107,20 +117,22 @@ impl ConjoiningClauses {
                     },
                     (true, false) => {
                         // This can only be an ident. Look it up!
-                        schema.get_entid(&x)
-                              .map(TypedValue::Ref)
-                              .ok_or_else(|| Error::from_kind(ErrorKind::InvalidGroundConstant))
+                        match schema.get_entid(&x).map(TypedValue::Ref) {
+                            Some(e) => Ok(e),
+                            None => Impossible(EmptyBecause::UnresolvedIdent(x.clone())),
+                        }
                     },
                     (false, true) => {
                         Ok(TypedValue::Keyword(Rc::new(x)))
                     },
                     (false, false) => {
-                        bail!(ErrorKind::InvalidGroundConstant)
+                        Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_keywords()))
                     },
                 }
             },
 
             FnArg::Variable(in_var) => {
+                // TODO: technically you could ground an existing variable inside the query….
                 if !self.input_variables.contains(&in_var) {
                     bail!(ErrorKind::UnboundVariable((*in_var.0).clone()));
                 }
@@ -140,24 +152,23 @@ impl ConjoiningClauses {
 
             // These are all straightforward.
             FnArg::Constant(NonIntegerConstant::Boolean(x)) => {
-                check_type_set!(known_types, ValueType::Boolean);
-                Ok(TypedValue::Boolean(x).into())
+                if !known_types.contains(ValueType::Boolean) {
+                    Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_one(ValueType::Boolean)))
+                } else {
+                    Ok(TypedValue::Boolean(x).into())
+                }
             },
             FnArg::Constant(NonIntegerConstant::Instant(x)) => {
-                check_type_set!(known_types, ValueType::Instant);
-                Ok(TypedValue::Instant(x).into())
+                coerce_to_typed_value!(var, x, known_types, ValueType::Instant, TypedValue::Instant)
             },
             FnArg::Constant(NonIntegerConstant::Uuid(x)) => {
-                check_type_set!(known_types, ValueType::Uuid);
-                Ok(TypedValue::Uuid(x).into())
+                coerce_to_typed_value!(var, x, known_types, ValueType::Uuid, TypedValue::Uuid)
             },
             FnArg::Constant(NonIntegerConstant::Float(x)) => {
-                check_type_set!(known_types, ValueType::Double);
-                Ok(TypedValue::Double(x).into())
+                coerce_to_typed_value!(var, x, known_types, ValueType::Double, TypedValue::Double)
             },
             FnArg::Constant(NonIntegerConstant::Text(x)) => {
-                check_type_set!(known_types, ValueType::String);
-                Ok(TypedValue::String(x).into())
+                coerce_to_typed_value!(var, x, known_types, ValueType::String, TypedValue::String)
             },
         }
     }
@@ -188,13 +199,27 @@ impl ConjoiningClauses {
     }
 
     /// Constrain the CC to associate the given var with the given ground argument.
+    /// Marks known-empty on failure.
     fn apply_ground_var<'s>(&mut self, schema: &'s Schema, var: Variable, arg: FnArg) -> Result<()> {
-        let value = self.typed_value_from_arg(schema, arg, self.known_type_set(&var))?;
+        let known_types = self.known_type_set(&var);
+        match self.typed_value_from_arg(schema, &var, arg, known_types) {
+            ValueConversionResult::Ok(value) => self.apply_ground_value(var, value),
+            ValueConversionResult::Impossible(because) => {
+                self.mark_known_empty(because);
+                Ok(())
+            },
+            ValueConversionResult::Err(e) => {
+                Err(e.into())
+            },
+        }
+    }
 
+    /// Marks known-empty on failure.
+    fn apply_ground_value(&mut self, var: Variable, value: TypedValue) -> Result<()> {
         if let Some(existing) = self.bound_value(&var) {
             if existing != value {
-                // TODO: better error.
-                bail!(ErrorKind::InvalidGroundConstant);
+                self.mark_known_empty(EmptyBecause::ConflictingBindings(var.clone(), existing.clone(), value));
+                return Ok(())
             }
         } else {
             self.bind_value(&var, value.clone());
@@ -273,7 +298,7 @@ impl ConjoiningClauses {
                     bail!(ErrorKind::GroundBindingsMismatch);
                 }
                 for (place, arg) in places.into_iter().zip(children.into_iter()) {
-                    self.apply_ground_place(schema, place, arg)?;
+                    self.apply_ground_place(schema, place, arg)?  // TODO: short-circuit on impossible.
                 }
                 Ok(())
             },
@@ -283,24 +308,45 @@ impl ConjoiningClauses {
             // The difference is that BindColl has only a single variable, and its values
             // are all in a single structure. That makes it substantially simpler!
             (Binding::BindColl(var), FnArg::Vector(children)) => {
+                if children.is_empty() {
+                    bail!(ErrorKind::InvalidGroundConstant);
+                }
+
                 // Turn a collection of arguments into a Vec of `TypedValue`s of the same type.
                 let known_types = self.known_type_set(&var);
                 // Check that every value has the same type.
                 let mut accumulated_types = ValueTypeSet::default();
+                let mut skip: Option<EmptyBecause> = None;
                 let values = children.into_iter()
-                                        .map(|arg| {
-                                            // We need to get conversion errors out.
-                                            let r = self.typed_value_from_arg(schema, arg, known_types);
-                                            if let Ok(ref tv) = r {
-                                                if accumulated_types.insert(tv.value_type()) &&
-                                                   !accumulated_types.is_unit() {
-                                                    // Values not all of the same type.
-                                                    bail!(ErrorKind::InvalidGroundConstant);
-                                                }
-                                            }
-                                            r
-                                        })
-                                        .collect::<Result<Vec<_>>>()?;
+                                     .filter_map(|arg| -> Option<Result<TypedValue>> {
+                                         // We need to get conversion errors out.
+                                         // We also want to mark known-empty on impossibilty, but
+                                         // still detect serious errors.
+                                         match self.typed_value_from_arg(schema, &var, arg, known_types) {
+                                             ValueConversionResult::Ok(tv) => {
+                                                 if accumulated_types.insert(tv.value_type()) &&
+                                                    !accumulated_types.is_unit() {
+                                                     // Values not all of the same type.
+                                                     Some(Err(ErrorKind::InvalidGroundConstant.into()))
+                                                 } else {
+                                                     Some(Ok(tv))
+                                                 }
+                                             },
+                                             ValueConversionResult::Err(e) => Some(Err(e.into())),
+                                             ValueConversionResult::Impossible(because) => {
+                                                 // Skip this value.
+                                                 skip = Some(because);
+                                                 None
+                                             },
+                                         }
+                                     })
+                                     .collect::<Result<Vec<TypedValue>>>()?;
+
+                if values.is_empty() {
+                    let because = skip.expect("we skipped for a reason");
+                    self.mark_known_empty(because);
+                    return Ok(());
+                }
 
                 // Otherwise, we now have the values and the type.
                 let types = vec![accumulated_types.exemplar().unwrap()];
@@ -317,11 +363,11 @@ impl ConjoiningClauses {
 
                 // Grab the known types to which these args must conform, and track
                 // the places that won't be bound in the output.
-                let template: Vec<(bool, ValueTypeSet)> =
+                let template: Vec<Option<(Variable, ValueTypeSet)>> =
                     places.iter()
                           .map(|x| match x {
-                              &VariableOrPlaceholder::Placeholder     => (false, ValueTypeSet::any()),
-                              &VariableOrPlaceholder::Variable(ref v) => (true, self.known_type_set(v)),
+                              &VariableOrPlaceholder::Placeholder     => None,
+                              &VariableOrPlaceholder::Variable(ref v) => Some((v.clone(), self.known_type_set(v))),
                           })
                           .collect();
 
@@ -343,6 +389,7 @@ impl ConjoiningClauses {
                 let mut accumulated_types_for_columns = vec![ValueTypeSet::default(); expected_width];
 
                 // Loop so we can bail out.
+                let mut skipped_all: Option<EmptyBecause> = None;
                 for row in rows.into_iter() {
                     match row {
                         FnArg::Vector(cols) => {
@@ -351,20 +398,36 @@ impl ConjoiningClauses {
                                 bail!(ErrorKind::InvalidGroundConstant);
                             }
 
-                            // Convert each item in the row.
-                            let r = cols.into_iter()
-                                        .zip(template.iter())
-                                        .filter_map(|(col, pair)| {
-                                            if pair.0 {
-                                                Some(self.typed_value_from_arg(schema, col, pair.1))
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect::<Result<Vec<_>>>()?;
+                            // TODO: don't accumulate twice.
+                            let mut vals = Vec::with_capacity(expected_width);
+                            let mut skip: Option<EmptyBecause> = None;
+                            for (col, pair) in cols.into_iter().zip(template.iter()) {
+                                // Now we have (val, Option<(name, known_types)>). Silly,
+                                // but this is how we iter!
+                                // Convert each item in the row.
+                                // If any value in the row is impossible, then skip the row.
+                                // If all rows are impossible, fail the entire CC.
+                                if let &Some(ref pair) = pair {
+                                    match self.typed_value_from_arg(schema, &pair.0, col, pair.1) {
+                                        ValueConversionResult::Ok(tv) => vals.push(tv),
+                                        ValueConversionResult::Err(e) => bail!(e),
+                                        ValueConversionResult::Impossible(because) => {
+                                            // Skip this row. It cannot produce bindings.
+                                            skip = Some(because);
+                                            break;
+                                        },
+                                    }
+                                }
+                            }
 
-                            // Accumulate the value into the matrix and the type into the type set.
-                            for (val, acc) in r.into_iter().zip(accumulated_types_for_columns.iter_mut()) {
+                            if skip.is_some() {
+                                // Skip this row and record why, in case we skip all.
+                                skipped_all = skip;
+                                continue;
+                            }
+
+                            // Accumulate the values into the matrix and the types into the type set.
+                            for (val, acc) in vals.into_iter().zip(accumulated_types_for_columns.iter_mut()) {
                                 let inserted = acc.insert(val.value_type());
                                 if inserted && !acc.is_unit() {
                                     // Heterogeneous types.
@@ -372,9 +435,18 @@ impl ConjoiningClauses {
                                 }
                                 matrix.push(val);
                             }
+
                         },
                         _ => bail!(ErrorKind::InvalidGroundConstant),
                     }
+                }
+
+                // Do we have rows? If not, the CC cannot succeed.
+                if matrix.is_empty() {
+                    // We will either have bailed or will have accumulated *something* into the matrix,
+                    // so we can safely unwrap here.
+                    self.mark_known_empty(skipped_all.expect("we skipped for a reason"));
+                    return Ok(());
                 }
 
                 // Take the single type from each set. We know there's only one: we got at least one

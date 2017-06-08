@@ -423,8 +423,11 @@ impl Debug for ColumnConstraint {
 
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
-    // Var, existing, desired.
-    TypeMismatch(Variable, ValueTypeSet, ValueType),
+    /// Var, existing, desired.
+    ConflictingBindings(Variable, TypedValue, TypedValue),
+
+    /// Var, existing, desired.
+    TypeMismatch(Variable, ValueTypeSet, ValueTypeSet),
     NoValidTypes(Variable),
     NonNumericArgument,
     NonStringFulltextValue,
@@ -440,6 +443,10 @@ impl Debug for EmptyBecause {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::EmptyBecause::*;
         match self {
+            &ConflictingBindings(ref var, ref existing, ref desired) => {
+                write!(f, "Var {:?} can't be bound to both {:?} and {:?}",
+                       var, desired, existing)
+            },
             &TypeMismatch(ref var, ref existing, ref desired) => {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)

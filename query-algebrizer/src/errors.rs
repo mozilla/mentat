@@ -10,7 +10,9 @@
 
 extern crate mentat_query;
 
-use mentat_core::ValueType;
+use mentat_core::{
+    ValueType,
+};
 
 use self::mentat_query::{
     PlainSymbol,

@@ -486,10 +486,11 @@ impl ConjoiningClauses {
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
-        if let Some(existing) = self.known_types.insert(variable.clone(), ValueTypeSet::of_one(this_type)) {
+        let this_type_set = ValueTypeSet::of_one(this_type);
+        if let Some(existing) = self.known_types.insert(variable.clone(), this_type_set) {
             // There was an existing mapping. Does this type match?
             if !existing.contains(this_type) {
-                self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type));
+                self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type_set));
             }
         }
     }
@@ -548,10 +549,9 @@ impl ConjoiningClauses {
             Entry::Occupied(mut e) => {
                 let intersected: ValueTypeSet = types.intersection(e.get());
                 if intersected.is_empty() {
-                    let mismatching_type = types.exemplar().expect("types isn't none");
                     let reason = EmptyBecause::TypeMismatch(e.key().clone(),
                                                             e.get().clone(),
-                                                            mismatching_type);
+                                                            types);
                     empty_because = Some(reason);
                 }
                 // Always insert, even if it's empty!

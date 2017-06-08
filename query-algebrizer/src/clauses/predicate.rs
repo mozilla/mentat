@@ -224,6 +224,6 @@ mod testing {
         assert_eq!(cc.empty_because.unwrap(),
                    EmptyBecause::TypeMismatch(y.clone(),
                                               ValueTypeSet::of_numeric_types(),
-                                              ValueType::String));
+                                              ValueTypeSet::of_one(ValueType::String)));
     }
 }
