@@ -482,15 +482,15 @@ impl ConjoiningClauses {
     /// Constrains the var if there's no existing type.
     /// Marks as known-empty if it's impossible for this type to apply because there's a conflicting
     /// type already known.
-    fn constrain_var_to_type(&mut self, variable: Variable, this_type: ValueType) {
+    fn constrain_var_to_type(&mut self, var: Variable, this_type: ValueType) {
         // Is there an existing mapping for this variable?
         // Any known inputs have already been added to known_types, and so if they conflict we'll
         // spot it here.
         let this_type_set = ValueTypeSet::of_one(this_type);
-        if let Some(existing) = self.known_types.insert(variable.clone(), this_type_set) {
+        if let Some(existing) = self.known_types.insert(var.clone(), this_type_set) {
             // There was an existing mapping. Does this type match?
             if !existing.contains(this_type) {
-                self.mark_known_empty(EmptyBecause::TypeMismatch(variable, existing, this_type_set));
+                self.mark_known_empty(EmptyBecause::TypeMismatch { var, existing, desired: this_type_set });
             }
         }
     }
@@ -549,9 +549,9 @@ impl ConjoiningClauses {
             Entry::Occupied(mut e) => {
                 let intersected: ValueTypeSet = types.intersection(e.get());
                 if intersected.is_empty() {
-                    let reason = EmptyBecause::TypeMismatch(e.key().clone(),
-                                                            e.get().clone(),
-                                                            types);
+                    let reason = EmptyBecause::TypeMismatch { var: e.key().clone(),
+                                                              existing: e.get().clone(),
+                                                              desired: types };
                     empty_because = Some(reason);
                 }
                 // Always insert, even if it's empty!

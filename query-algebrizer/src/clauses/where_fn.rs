@@ -50,18 +50,21 @@ use types::{
 
 macro_rules! coerce_to_typed_value {
     ($var: ident, $val: ident, $types: expr, $type: path, $constructor: path) => { {
-        if !$types.contains($type) {
-            Impossible(EmptyBecause::TypeMismatch($var.clone(), $types, ValueTypeSet::of_one($type)))
-        } else {
-            Ok($constructor($val).into())
-        }
+        Ok(if !$types.contains($type) {
+               Impossible(EmptyBecause::TypeMismatch {
+                   var: $var.clone(),
+                   existing: $types,
+                   desired: ValueTypeSet::of_one($type),
+               })
+           } else {
+               Val($constructor($val).into())
+           })
     } }
 }
 
-enum ValueConversionResult {
-    Ok(TypedValue),
+enum ValueConversion {
+    Val(TypedValue),
     Impossible(EmptyBecause),
-    Err(ErrorKind),
 }
 
 /// Conversion of FnArgs to TypedValues.
@@ -70,11 +73,15 @@ impl ConjoiningClauses {
     /// The conversion depends on, and can fail because of:
     /// - Existing known types of a variable to which this arg will be bound.
     /// - Existing bindings of a variable `FnArg`.
-    fn typed_value_from_arg<'s>(&self, schema: &'s Schema, var: &Variable, arg: FnArg, known_types: ValueTypeSet) -> ValueConversionResult {
-        use self::ValueConversionResult::*;
+    fn typed_value_from_arg<'s>(&self, schema: &'s Schema, var: &Variable, arg: FnArg, known_types: ValueTypeSet) -> Result<ValueConversion> {
+        use self::ValueConversion::*;
         if known_types.is_empty() {
             // If this happens, it likely means the pattern has already failed!
-            return Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::any()));
+            return Ok(Impossible(EmptyBecause::TypeMismatch {
+                var: var.clone(),
+                existing: known_types,
+                desired: ValueTypeSet::any(),
+            }));
         }
 
         match arg {
@@ -86,23 +93,31 @@ impl ConjoiningClauses {
                     (true, true, true) => {
                         // Ambiguous: this arg could be an entid or a long.
                         // We default to long.
-                        Ok(TypedValue::Long(x))
+                        Ok(Val(TypedValue::Long(x)))
                     },
                     (true, true, false) => {
                         // This can only be a ref.
-                        Ok(TypedValue::Ref(x))
+                        Ok(Val(TypedValue::Ref(x)))
                     },
                     (_, false, true) => {
                         // This can only be a long.
-                        Ok(TypedValue::Long(x))
+                        Ok(Val(TypedValue::Long(x)))
                     },
                     (false, true, _) => {
                         // This isn't a valid ref, but that's the type to which this must conform!
-                        Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_longs()))
+                        Ok(Impossible(EmptyBecause::TypeMismatch {
+                            var: var.clone(),
+                            existing: known_types,
+                            desired: ValueTypeSet::of_longs(),
+                        }))
                     },
                     (_, false, false) => {
                         // Non-overlapping type sets.
-                        Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_longs()))
+                        Ok(Impossible(EmptyBecause::TypeMismatch {
+                            var: var.clone(),
+                            existing: known_types,
+                            desired: ValueTypeSet::of_longs(),
+                        }))
                     },
                 }
             },
@@ -114,20 +129,24 @@ impl ConjoiningClauses {
                     (true, true) => {
                         // Ambiguous: this could be a keyword or an ident.
                         // Default to keyword.
-                        Ok(TypedValue::Keyword(Rc::new(x)))
+                        Ok(Val(TypedValue::Keyword(Rc::new(x))))
                     },
                     (true, false) => {
                         // This can only be an ident. Look it up!
                         match schema.get_entid(&x).map(TypedValue::Ref) {
-                            Some(e) => Ok(e),
-                            None => Impossible(EmptyBecause::UnresolvedIdent(x.clone())),
+                            Some(e) => Ok(Val(e)),
+                            None => Ok(Impossible(EmptyBecause::UnresolvedIdent(x.clone()))),
                         }
                     },
                     (false, true) => {
-                        Ok(TypedValue::Keyword(Rc::new(x)))
+                        Ok(Val(TypedValue::Keyword(Rc::new(x))))
                     },
                     (false, false) => {
-                        Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_keywords()))
+                        Ok(Impossible(EmptyBecause::TypeMismatch {
+                            var: var.clone(),
+                            existing: known_types,
+                            desired: ValueTypeSet::of_keywords(),
+                        }))
                     },
                 }
             },
@@ -139,7 +158,7 @@ impl ConjoiningClauses {
                 }
                 match self.bound_value(&in_var) {
                     // The type is already known if it's a bound variable….
-                    Some(ref in_value) => Ok(in_value.clone()),
+                    Some(ref in_value) => Ok(Val(in_value.clone())),
                     None => bail!(ErrorKind::UnboundVariable((*in_var.0).clone())),
                 }
             },
@@ -153,11 +172,7 @@ impl ConjoiningClauses {
 
             // These are all straightforward.
             FnArg::Constant(NonIntegerConstant::Boolean(x)) => {
-                if !known_types.contains(ValueType::Boolean) {
-                    Impossible(EmptyBecause::TypeMismatch(var.clone(), known_types, ValueTypeSet::of_one(ValueType::Boolean)))
-                } else {
-                    Ok(TypedValue::Boolean(x).into())
-                }
+                coerce_to_typed_value!(var, x, known_types, ValueType::Boolean, TypedValue::Boolean)
             },
             FnArg::Constant(NonIntegerConstant::Instant(x)) => {
                 coerce_to_typed_value!(var, x, known_types, ValueType::Instant, TypedValue::Instant)
@@ -203,14 +218,11 @@ impl ConjoiningClauses {
     /// Marks known-empty on failure.
     fn apply_ground_var<'s>(&mut self, schema: &'s Schema, var: Variable, arg: FnArg) -> Result<()> {
         let known_types = self.known_type_set(&var);
-        match self.typed_value_from_arg(schema, &var, arg, known_types) {
-            ValueConversionResult::Ok(value) => self.apply_ground_value(var, value),
-            ValueConversionResult::Impossible(because) => {
+        match self.typed_value_from_arg(schema, &var, arg, known_types)? {
+            ValueConversion::Val(value) => self.apply_ground_value(var, value),
+            ValueConversion::Impossible(because) => {
                 self.mark_known_empty(because);
                 Ok(())
-            },
-            ValueConversionResult::Err(e) => {
-                Err(e.into())
             },
         }
     }
@@ -219,7 +231,11 @@ impl ConjoiningClauses {
     fn apply_ground_value(&mut self, var: Variable, value: TypedValue) -> Result<()> {
         if let Some(existing) = self.bound_value(&var) {
             if existing != value {
-                self.mark_known_empty(EmptyBecause::ConflictingBindings(var.clone(), existing.clone(), value));
+                self.mark_known_empty(EmptyBecause::ConflictingBindings {
+                    var: var.clone(),
+                    existing: existing.clone(),
+                    desired: value,
+                });
                 return Ok(())
             }
         } else {
@@ -333,7 +349,7 @@ impl ConjoiningClauses {
                                          // We also want to mark known-empty on impossibilty, but
                                          // still detect serious errors.
                                          match self.typed_value_from_arg(schema, &var, arg, known_types) {
-                                             ValueConversionResult::Ok(tv) => {
+                                             Ok(ValueConversion::Val(tv)) => {
                                                  if accumulated_types.insert(tv.value_type()) &&
                                                     !accumulated_types.is_unit() {
                                                      // Values not all of the same type.
@@ -342,18 +358,18 @@ impl ConjoiningClauses {
                                                      Some(Ok(tv))
                                                  }
                                              },
-                                             ValueConversionResult::Err(e) => Some(Err(e.into())),
-                                             ValueConversionResult::Impossible(because) => {
+                                             Ok(ValueConversion::Impossible(because)) => {
                                                  // Skip this value.
                                                  skip = Some(because);
                                                  None
                                              },
+                                             Err(e) => Some(Err(e.into())),
                                          }
                                      })
                                      .collect::<Result<Vec<TypedValue>>>()?;
 
                 if values.is_empty() {
-                    let because = skip.expect("we skipped for a reason");
+                    let because = skip.expect("we skipped all rows for a reason");
                     self.mark_known_empty(because);
                     return Ok(());
                 }
@@ -418,10 +434,9 @@ impl ConjoiningClauses {
                                 // If any value in the row is impossible, then skip the row.
                                 // If all rows are impossible, fail the entire CC.
                                 if let &Some(ref pair) = pair {
-                                    match self.typed_value_from_arg(schema, &pair.0, col, pair.1) {
-                                        ValueConversionResult::Ok(tv) => vals.push(tv),
-                                        ValueConversionResult::Err(e) => bail!(e),
-                                        ValueConversionResult::Impossible(because) => {
+                                    match self.typed_value_from_arg(schema, &pair.0, col, pair.1)? {
+                                        ValueConversion::Val(tv) => vals.push(tv),
+                                        ValueConversion::Impossible(because) => {
                                             // Skip this row. It cannot produce bindings.
                                             skip = Some(because);
                                             break;
@@ -492,7 +507,6 @@ mod testing {
         FnArg,
         NamespacedKeyword,
         PlainSymbol,
-        SrcVar,
         Variable,
     };
 

@@ -801,9 +801,11 @@ mod testing {
 
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
-                   EmptyBecause::TypeMismatch(y.clone(),
-                                              ValueTypeSet::of_one(ValueType::String),
-                                              ValueTypeSet::of_one(ValueType::Boolean)));
+                   EmptyBecause::TypeMismatch {
+                       var: y.clone(),
+                       existing: ValueTypeSet::of_one(ValueType::String),
+                       desired: ValueTypeSet::of_one(ValueType::Boolean),
+                   });
     }
 
     #[test]
@@ -841,9 +843,11 @@ mod testing {
 
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
-                   EmptyBecause::TypeMismatch(x.clone(),
-                                              ValueTypeSet::of_one(ValueType::Ref),
-                                              ValueTypeSet::of_one(ValueType::Boolean)));
+                   EmptyBecause::TypeMismatch {
+                       var: x.clone(),
+                       existing: ValueTypeSet::of_one(ValueType::Ref),
+                       desired: ValueTypeSet::of_one(ValueType::Boolean),
+                   });
     }
 
     #[test]

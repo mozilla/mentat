@@ -88,13 +88,13 @@ fn prepopulated_schema() -> Schema {
 }
 
 fn bails(schema: &Schema, input: &str) -> Error {
-    let parsed = parse_find_string(input).expect("parse failed");
-    algebrize(schema.into(), parsed).expect_err("algebrize should have failed")
+    let parsed = parse_find_string(input).expect("query input to have parsed");
+    algebrize(schema.into(), parsed).expect_err("algebrize to have failed")
 }
 
 fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
-    let parsed = parse_find_string(input).expect("parse failed");
-    algebrize(schema.into(), parsed).expect("algebrize failed").cc
+    let parsed = parse_find_string(input).expect("query input to have parsed");
+    algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
 }
 
 #[test]
@@ -163,6 +163,20 @@ fn test_ground_rel_fails_if_all_impossible() {
     let schema = prepopulated_schema();
     let cc = alg(&schema, &q);
     assert!(cc.empty_because.is_some());
+}
+
+#[test]
+fn test_ground_tuple_rejects_all_placeholders() {
+    let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [8 "foo" 3]) [_ _ _]]]"#;
+    let schema = prepopulated_schema();
+    bails(&schema, &q);
+}
+
+#[test]
+fn test_ground_rel_rejects_all_placeholders() {
+    let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [[8 "foo"]]) [[_ _]]]]"#;
+    let schema = prepopulated_schema();
+    bails(&schema, &q);
 }
 
 #[test]
@@ -241,7 +255,7 @@ fn test_ground_coll_heterogeneous_types() {
 
 #[test]
 fn test_ground_rel_heterogeneous_types() {
-    let q = r#"[:find ?x :where [?x _ ?v] [(ground [[false][5]]) [[?v]]]]"#;
+    let q = r#"[:find ?x :where [?x _ ?v] [(ground [[false] [5]]) [[?v]]]]"#;
     let schema = prepopulated_schema();
     let e = bails(&schema, &q);
     match e {
