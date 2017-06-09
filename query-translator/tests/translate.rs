@@ -672,7 +672,7 @@ fn test_compound_with_ground() {
 
 #[test]
 fn test_unbound_attribute_with_ground() {
-    // TODO: this needs to expand the type code.
+    // TODO: this needs to expand the type code. #475.
     let query = r#"[:find ?x :where [?x _ ?v] (not [(ground 5) ?v])]"#;
     let schema = prepopulated_schema();
     let SQLQuery { sql, .. } = translate(&schema, query);
@@ -695,7 +695,7 @@ fn test_not_with_ground() {
     });
 
     // Scalar.
-    // TODO: this kind of simple `not` should be implemented without the subquery.
+    // TODO: this kind of simple `not` should be implemented without the subquery. #476.
     let query = r#"[:find ?x :where [?x :db/valueType ?v] (not [(ground :db.type/instant) ?v])]"#;
     let SQLQuery { sql, .. } = translate(&schema, query);
     assert_eq!(sql,
@@ -703,7 +703,7 @@ fn test_not_with_ground() {
                 EXISTS (SELECT 1 WHERE `datoms00`.v = 29)");
 
     // Coll.
-    // TODO: we can generate better SQL for this, too.
+    // TODO: we can generate better SQL for this, too. #476.
     let query = r#"[:find ?x :where [?x :db/valueType ?v] (not [(ground [:db.type/bool :db.type/instant]) [?v ...]])]"#;
     let SQLQuery { sql, .. } = translate(&schema, query);
     assert_eq!(sql,
