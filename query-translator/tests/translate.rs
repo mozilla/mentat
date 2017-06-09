@@ -671,6 +671,17 @@ fn test_compound_with_ground() {
 }
 
 #[test]
+fn test_unbound_attribute_with_ground() {
+    // TODO: this needs to expand the type code.
+    let query = r#"[:find ?x :where [?x _ ?v] (not [(ground 5) ?v])]"#;
+    let schema = prepopulated_schema();
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` \
+                     WHERE NOT EXISTS (SELECT 1 WHERE `all_datoms00`.v = 5)");
+}
+
+
+#[test]
 fn test_not_with_ground() {
     let mut schema = prepopulated_schema();
     associate_ident(&mut schema, NamespacedKeyword::new("db", "valueType"), 7);
