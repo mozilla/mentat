@@ -298,3 +298,18 @@ fn test_ground_rel_duplicate_vars() {
         },
     }
 }
+
+#[test]
+fn test_ground_nonexistent_variable_invalid() {
+    let q = r#"[:find ?x ?e :where [?e _ ?x] (not [(ground 17) ?v])]"#;
+    let schema = prepopulated_schema();
+    let e = bails(&schema, &q);
+    match e {
+        Error(ErrorKind::UnboundVariable(PlainSymbol(v)), _) => {
+            assert_eq!(v, "?v".to_string());
+        },
+        _ => {
+            panic!();
+        },
+    }
+}
