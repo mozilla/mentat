@@ -40,6 +40,7 @@ use errors::{
 use super::QualifiedAlias;
 
 use types::{
+    ColumnConstraint,
     ComputedTable,
     EmptyBecause,
     SourceAlias,
@@ -241,12 +242,21 @@ impl ConjoiningClauses {
             self.bind_value(&var, value.clone());
         }
 
+        let vt = value.value_type();
+
         // Check to see whether this variable is already associated to a column.
         // If so, we want to add an equality filter (or, in the future, redo the existing patterns).
         if let Some(QualifiedAlias(table, column)) = self.column_bindings
                                                          .get(&var)
                                                          .and_then(|vec| vec.get(0).cloned()) {
             self.constrain_column_to_constant(table, column, value);
+        }
+
+        // Are we also trying to figure out the type of the value when the query runs?
+        // If so, constrain that!
+        if let Some(table) = self.extracted_types.get(&var)
+                                                 .map(|qa| qa.0.clone()) {
+            self.wheres.add_intersection(ColumnConstraint::HasType(table, vt));
         }
 
         Ok(())
