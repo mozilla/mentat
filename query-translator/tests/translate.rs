@@ -672,12 +672,15 @@ fn test_compound_with_ground() {
 
 #[test]
 fn test_unbound_attribute_with_ground() {
-    // TODO: this needs to expand the type code. #475.
-    let query = r#"[:find ?x :where [?x _ ?v] (not [(ground 5) ?v])]"#;
+    let query = r#"[:find ?x ?v :where [?x _ ?v] (not [(ground 17) ?v])]"#;
     let schema = prepopulated_schema();
     let SQLQuery { sql, .. } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` \
-                     WHERE NOT EXISTS (SELECT 1 WHERE `all_datoms00`.v = 5)");
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
+                                     `all_datoms00`.v AS `?v`, \
+                                     `all_datoms00`.value_type_tag AS `?v_value_type_tag` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE NOT EXISTS (SELECT 1 WHERE `all_datoms00`.v = 17 AND \
+                                                      `all_datoms00`.value_type_tag = 5)");
 }
 
 
