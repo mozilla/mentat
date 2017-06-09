@@ -53,6 +53,10 @@ pub enum ComputedTable {
         type_extraction: BTreeSet<Variable>,
         arms: Vec<::clauses::ConjoiningClauses>,
     },
+    NamedValues {
+        names: Vec<Variable>,
+        values: Vec<TypedValue>,
+    },
 }
 
 impl DatomsTable {
@@ -228,6 +232,7 @@ impl Debug for QueryValue {
 
 /// Represents an entry in the ORDER BY list: a variable or a variable's type tag.
 /// (We require order vars to be projected, so we can simply use a variable here.)
+#[derive(Debug)]
 pub struct OrderBy(pub Direction, pub VariableColumn);
 
 impl From<Order> for OrderBy {
@@ -418,8 +423,8 @@ impl Debug for ColumnConstraint {
 
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
-    // Var, existing, desired.
-    TypeMismatch(Variable, ValueTypeSet, ValueType),
+    ConflictingBindings { var: Variable, existing: TypedValue, desired: TypedValue },
+    TypeMismatch { var: Variable, existing: ValueTypeSet, desired: ValueTypeSet },
     NoValidTypes(Variable),
     NonNumericArgument,
     NonStringFulltextValue,
@@ -435,7 +440,11 @@ impl Debug for EmptyBecause {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::EmptyBecause::*;
         match self {
-            &TypeMismatch(ref var, ref existing, ref desired) => {
+            &ConflictingBindings { ref var, ref existing, ref desired } => {
+                write!(f, "Var {:?} can't be {:?} because it's already bound to {:?}",
+                       var, desired, existing)
+            },
+            &TypeMismatch { ref var, ref existing, ref desired } => {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)
             },
@@ -496,7 +505,7 @@ impl<T: CLike + Clone> EnumSetExtensions<T> for EnumSet<T> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ValueTypeSet(pub EnumSet<ValueType>);
 
 impl Default for ValueTypeSet {
@@ -525,9 +534,27 @@ impl ValueTypeSet {
     pub fn of_numeric_types() -> ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Double, ValueType::Long))
     }
+
+    /// Return a set containing `Ref` and `Keyword`.
+    pub fn of_keywords() -> ValueTypeSet {
+        ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Keyword))
+    }
+
+    /// Return a set containing `Ref` and `Long`.
+    pub fn of_longs() -> ValueTypeSet {
+        ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Long))
+    }
 }
 
 impl ValueTypeSet {
+    pub fn insert(&mut self, vt: ValueType) -> bool {
+        self.0.insert(vt)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     /// Returns a set containing all the types in this set and `other`.
     pub fn union(&self, other: &ValueTypeSet) -> ValueTypeSet {
         ValueTypeSet(self.0.union(other.0))

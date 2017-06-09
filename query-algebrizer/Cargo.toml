@@ -16,3 +16,7 @@ path = "../query"
 # Only for tests.
 [dev-dependencies.mentat_query_parser]
 path = "../query-parser"
+
+[dev-dependencies]
+itertools = "0.5"
+maplit = "0.1"

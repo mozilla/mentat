@@ -38,6 +38,7 @@ use mentat_query_algebrizer::{
 use mentat_query_projector::{
     CombinedProjection,
     Projector,
+    projected_column_for_var,
     query_projection,
 };
 
@@ -51,6 +52,7 @@ use mentat_query_sql::{
     SelectQuery,
     TableList,
     TableOrSubquery,
+    Values,
 };
 
 trait ToConstraint {
@@ -201,33 +203,33 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // project it as the variable name.
                         // E.g., SELECT datoms03.v AS `?x`.
                         for var in projection.iter() {
-                            let col = cc.column_bindings.get(&var).unwrap()[0].clone();
-                            let proj = ProjectedColumn(ColumnOrExpression::Column(col), var.to_string());
-                            columns.push(proj);
-                        }
+                            let (projected_column, maybe_type) = projected_column_for_var(var, &cc);
+                            columns.push(projected_column);
 
-                        // Similarly, project type tags if they're not known conclusively in the
-                        // outer query.
-                        for var in type_extraction.iter() {
-                            let expression =
-                                if let Some(known) = cc.known_type(var) {
-                                    // If we know the type for sure, just project the constant.
-                                    // SELECT datoms03.v AS `?x`, 10 AS `?x_value_type_tag`
-                                    ColumnOrExpression::Integer(known.value_type_tag())
-                                } else {
-                                    // Otherwise, we'll have an established type binding! This'll be
-                                    // either a datoms table or, recursively, a subquery. Project
-                                    // this:
-                                    // SELECT datoms03.v AS `?x`,
-                                    //        datoms03.value_type_tag AS `?x_value_type_tag`
-                                    let extract = cc.extracted_types
-                                                    .get(var)
-                                                    .expect("Expected variable to have a known type or an extracted type");
-                                    ColumnOrExpression::Column(extract.clone())
-                                };
-                            let type_column = VariableColumn::VariableTypeTag(var.clone());
-                            let proj = ProjectedColumn(expression, type_column.column_name());
-                            columns.push(proj);
+                            // Similarly, project type tags if they're not known conclusively in the
+                            // outer query.
+                            // Assumption: we'll never need to project a tag without projecting the value of a variable.
+                            if type_extraction.contains(var) {
+                                let expression =
+                                    if let Some(ty) = maybe_type {
+                                        // If we know the type for sure, just project the constant.
+                                        // SELECT datoms03.v AS `?x`, 10 AS `?x_value_type_tag`
+                                        ColumnOrExpression::Integer(ty.value_type_tag())
+                                    } else {
+                                        // Otherwise, we'll have an established type binding! This'll be
+                                        // either a datoms table or, recursively, a subquery. Project
+                                        // this:
+                                        // SELECT datoms03.v AS `?x`,
+                                        //        datoms03.value_type_tag AS `?x_value_type_tag`
+                                        let extract = cc.extracted_types
+                                                        .get(var)
+                                                        .expect("Expected variable to have a known type or an extracted type");
+                                        ColumnOrExpression::Column(extract.clone())
+                                    };
+                                let type_column = VariableColumn::VariableTypeTag(var.clone());
+                                let proj = ProjectedColumn(expression, type_column.column_name());
+                                columns.push(proj);
+                            }
                         }
 
                         // Each arm simply turns into a subquery.
@@ -239,7 +241,13 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
         },
         ComputedTable::Subquery(subquery) => {
             TableOrSubquery::Subquery(Box::new(cc_to_exists(subquery)))
-        }
+        },
+        ComputedTable::NamedValues {
+            names, values,
+        } => {
+            // We assume column homogeneity, so we won't have any type tag columns.
+            TableOrSubquery::Values(Values::Named(names, values), alias)
+        },
     }
 }
 
