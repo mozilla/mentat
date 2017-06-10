@@ -496,7 +496,7 @@ impl<T: CLike + Clone> EnumSetExtensions<T> for EnumSet<T> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ValueTypeSet(pub EnumSet<ValueType>);
 
 impl Default for ValueTypeSet {
