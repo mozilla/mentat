@@ -32,7 +32,7 @@ impl ConjoiningClauses {
     pub fn apply_not_join(&mut self, schema: &Schema, not_join: NotJoin) -> Result<()> {
         let unified = match not_join.unify_vars {
             UnifyVars::Implicit => not_join.collect_mentioned_variables(),
-            UnifyVars::Explicit(vs) => vs.into_iter().collect(),
+            UnifyVars::Explicit(vs) => vs,
         };
 
         let mut template = self.use_as_template(&unified);

@@ -30,15 +30,13 @@ use types::{
 
 /// Application of predicates.
 impl ConjoiningClauses {
-    /// There are several kinds of predicates/functions in our Datalog:
+    /// There are several kinds of predicates in our Datalog:
     /// - A limited set of binary comparison operators: < > <= >= !=.
     ///   These are converted into SQLite binary comparisons and some type constraints.
-    /// - A set of predicates like `fulltext` and `get-else` that are translated into
-    ///   SQL `MATCH`es or joins, yielding bindings.
     /// - In the future, some predicates that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only the five built-in comparison binary operators.
-    pub fn apply_predicate<'s, 'p>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
+    pub fn apply_predicate<'s>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
         // Because we'll be growing the set of built-in predicates, handling each differently,
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
         if let Some(op) = NumericComparison::from_datalog_operator(predicate.operator.0.as_str()) {
@@ -53,7 +51,7 @@ impl ConjoiningClauses {
     /// - Ensures that the predicate functions name a known operator.
     /// - Accumulates a `NumericInequality` constraint into the `wheres` list.
     #[allow(unused_variables)]
-    pub fn apply_numeric_predicate<'s, 'p>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
+    pub fn apply_numeric_predicate<'s>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }
@@ -224,8 +222,10 @@ mod testing {
 
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because.unwrap(),
-                   EmptyBecause::TypeMismatch(y.clone(),
-                                              ValueTypeSet::of_numeric_types(),
-                                              ValueType::String));
+                   EmptyBecause::TypeMismatch {
+                       var: y.clone(),
+                       existing: ValueTypeSet::of_numeric_types(),
+                       desired: ValueTypeSet::of_one(ValueType::String),
+                   });
     }
 }
