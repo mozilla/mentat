@@ -69,6 +69,13 @@ fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
         value_type: foo_type,
         ..Default::default()
     });
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
+    add_attribute(&mut schema, 100, Attribute {
+        value_type: ValueType::String,
+        index: true,
+        fulltext: true,
+        ..Default::default()
+    });
     schema
 }
 

@@ -54,6 +54,7 @@ use types::{
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
+    FulltextColumn,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -396,6 +397,13 @@ impl ConjoiningClauses {
                     // We don't need to handle expansion of attributes here. The subquery that
                     // produces the variable projection will do so.
                     self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                Column::Fulltext(FulltextColumn::Rowid) |
+                Column::Fulltext(FulltextColumn::Text) => {
+                    // We never expose `rowid` via queries.  We do expose `text`, but only
+                    // indirectly, by joining against `datoms`.  Therefore, these are meaningless.
+                    unimplemented!()
                 },
 
                 Column::Fixed(DatomsColumn::ValueTypeTag) => {
