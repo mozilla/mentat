@@ -159,7 +159,12 @@ impl ConjoiningClauses {
                 match self.bound_value(&in_var) {
                     // The type is already known if it's a bound variable….
                     Some(ref in_value) => Ok(Val(in_value.clone())),
-                    None => bail!(ErrorKind::UnboundVariable((*in_var.0).clone())),
+                    None => {
+                        // The variable is present in `:in`, but it hasn't yet been provided.
+                        // This is a restriction we will eventually relax: we don't yet have a way
+                        // to collect variables as part of a computed table or substitution.
+                        bail!(ErrorKind::UnboundVariable((*in_var.0).clone()))
+                    },
                 }
             },
 
