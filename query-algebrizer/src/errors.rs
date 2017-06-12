@@ -22,6 +22,14 @@ use self::mentat_query::{
 pub enum BindingError {
     NoBoundVariable,
     RepeatedBoundVariable, // TODO: include repeated variable(s).
+
+    /// Expected `[[?x ?y]]` but got some other type of binding.  Mentat is deliberately more strict
+    /// than Datomic: we won't try to make sense of non-obvious (and potentially erroneous) bindings.
+    ExpectedBindRel,
+
+    /// Expected `[?x1 … ?xN]` or `[[?x1 … ?xN]]` but got some other number of bindings.  Mentat is
+    /// deliberately more strict than Datomic: we prefer placeholders to omission.
+    InvalidNumberOfBindings { number: usize, expected: usize },
 }
 
 error_chain! {
