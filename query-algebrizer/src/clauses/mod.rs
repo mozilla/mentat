@@ -71,6 +71,7 @@ mod predicate;
 mod resolve;
 
 mod ground;
+mod fulltext;
 mod where_fn;
 
 use validate::{
