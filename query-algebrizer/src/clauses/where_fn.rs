@@ -37,6 +37,7 @@ impl ConjoiningClauses {
         // Because we'll be growing the set of built-in functions, handling each differently, and
         // ultimately allowing user-specified functions, we match on the function name first.
         match where_fn.operator.0.as_str() {
+            "fulltext" => self.apply_fulltext(schema, where_fn),
             "ground" => self.apply_ground(schema, where_fn),
             _ => bail!(ErrorKind::UnknownFunction(where_fn.operator.clone())),
         }

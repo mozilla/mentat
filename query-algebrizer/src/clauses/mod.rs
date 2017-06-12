@@ -71,6 +71,7 @@ mod predicate;
 mod resolve;
 
 mod ground;
+mod fulltext;
 mod where_fn;
 
 use validate::{
@@ -352,9 +353,8 @@ impl ConjoiningClauses {
 
         // Are we also trying to figure out the type of the value when the query runs?
         // If so, constrain that!
-        if let Some(table) = self.extracted_types.get(&var)
-                                                 .map(|qa| qa.0.clone()) {
-            self.wheres.add_intersection(ColumnConstraint::HasType(table, value.value_type()));
+        if let Some(qa) = self.extracted_types.get(&var) {
+            self.wheres.add_intersection(ColumnConstraint::HasType(qa.0.clone(), vt));
         }
 
         // Finally, store the binding for future use.
@@ -479,8 +479,14 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
-        let column = column.into();
-        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+        match constant {
+            // Be a little more explicit.
+            TypedValue::Ref(entid) => self.constrain_column_to_entity(table, column, entid),
+            _ => {
+                let column = column.into();
+                self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+            },
+        }
     }
 
     pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {

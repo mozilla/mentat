@@ -21,6 +21,7 @@ use self::mentat_query::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BindingError {
     NoBoundVariable,
+    UnexpectedBinding,
     RepeatedBoundVariable, // TODO: include repeated variable(s).
 
     /// Expected `[[?x ?y]]` but got some other type of binding.  Mentat is deliberately more strict
