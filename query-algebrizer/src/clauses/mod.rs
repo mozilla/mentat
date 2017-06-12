@@ -48,6 +48,7 @@ use errors::{
 
 use types::{
     ColumnConstraint,
+    ColumnConstraintOrAlternation,
     ColumnIntersection,
     ComputedTable,
     Column,
@@ -825,7 +826,138 @@ impl ConjoiningClauses {
     /// where `?y` must simultaneously be a ref-typed attribute and a boolean-typed attribute. This
     /// function deduces that and calls `self.mark_known_empty`. #293.
     pub fn expand_type_tags(&mut self) {
-        // TODO.
+        for (v, tag) in self.extracted_types.iter() {
+            let cols = self.column_bindings.get(v).unwrap().clone();
+            for col in cols {
+                if col.0 != tag.0 { 
+                    let value = QueryValue::Column(QualifiedAlias(col.0.clone(), Column::Fixed(DatomsColumn::ValueTypeTag)));
+                    let alias = tag.clone();
+                    self.wheres.0.push(ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(alias, value)));
+                }
+            }
+        }
+
+        let mut empty_reason: Option<EmptyBecause> = None;
+        let mut wheres_to_add = vec![];
+        for (v, value_type_set) in self.known_types.iter() {
+            let cols = self.column_bindings.get(v).unwrap().clone();
+            
+            for col in cols {
+                match col.1 {
+                    Column::Fixed(DatomsColumn::Value) => { 
+                        // attempt to figure out exactly which type is used
+                        let mut value_type: Option<ValueType> = None;
+                        for constraint in self.wheres.0.iter() {
+                            match constraint {
+                                &ColumnConstraintOrAlternation::Constraint(ref c) => {
+                                    match c {
+                                        &ColumnConstraint::Equals(ref alias, ref value) if alias.0 == col.0 && alias.1 == col.1 => {
+                                            match value {
+                                                &QueryValue::TypedValue(ref typed) => {
+                                                    if value_type_set.contains(typed.value_type()) {
+                                                        value_type = Some(typed.value_type().clone());
+                                                    } else {
+                                                        empty_reason = Some(EmptyBecause::TypeMismatch{var: v.clone(), existing: value_type_set.clone(), desired: ValueTypeSet::of_one(typed.value_type())});
+                                                    }
+                                                },
+                                                &QueryValue::PrimitiveLong(ref val) => {
+                                                    let desired = ValueType::Long;
+                                                    if value_type_set.contains(desired) {
+                                                        value_type = Some(desired);
+                                                    } else {
+                                                        empty_reason = Some(EmptyBecause::TypeMismatch{var: v.clone(), existing: value_type_set.clone(), desired: ValueTypeSet::of_one(desired)});
+                                                    }
+                                                },
+                                                &QueryValue::Column(ref alias) => {
+                                                    let desired = ValueType::Ref;
+                                                    if value_type_set.contains(desired) {
+                                                        match alias.1 {
+                                                            Column::Fixed(DatomsColumn::Entity) => {
+                                                                value_type = Some(desired);
+                                                            },
+                                                            _ => { empty_reason = Some(EmptyBecause::TypeMismatch{var: v.clone(), existing: value_type_set.clone(), desired: ValueTypeSet::of_one(desired)}); },
+                                                        }
+                                                    } else {
+                                                        empty_reason = Some(EmptyBecause::TypeMismatch{var: v.clone(), existing: value_type_set.clone(), desired: ValueTypeSet::of_one(desired)});
+                                                    }
+                                                },
+                                                &QueryValue::Entid(ref entid) => (),
+                                            }
+                                        },
+                                        &ColumnConstraint::NumericInequality { ref operator, ref left, ref right } => {
+                                            match left {
+                                                &QueryValue::Column(ref alias) if alias.0 == col.0 && alias.1 == col.1 => {
+                                                    match right {
+                                                        &QueryValue::TypedValue(ref typed) if value_type_set.contains(typed.value_type()) => {
+                                                            value_type = Some(typed.value_type().clone());
+                                                        },
+                                                        &QueryValue::PrimitiveLong(ref val) if value_type_set.contains(ValueType::Long) => {
+                                                            value_type = Some(ValueType::Long);
+                                                        },
+                                                        _ => (),
+                                                    }
+                                                },
+                                                _ => (),
+                                            }
+                                        },
+                                        &ColumnConstraint::HasType(ref alias, ref value_type) => {
+                                            if *alias == col.0 {
+                                                if !value_type_set.contains(value_type.clone()) {
+                                                    empty_reason = Some(EmptyBecause::TypeMismatch{var: v.clone(), existing: value_type_set.clone(), desired: ValueTypeSet::of_one(value_type.clone())});
+                                                }
+                                            }
+                                        },
+                                        _ => (),
+                                    }
+                                },
+                                &ColumnConstraintOrAlternation::Alternation(ref alternation) => (),
+                            }
+                        }
+
+                        if value_type.is_some() {
+                            wheres_to_add.push(ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(col.0, value_type.expect("Expected type").clone())));
+                        }
+                    },
+                    Column::Fixed(DatomsColumn::Entity) => {
+                        println!("Entity column {:?}", col);
+                        for constraint in self.wheres.0.iter() {
+                            println!("* constraint {:?}", constraint);
+                            match constraint {
+                                &ColumnConstraintOrAlternation::Constraint(ref c) => {
+                                    match c {
+                                        &ColumnConstraint::HasType(ref alias, ref value_type) => {
+                                            println!("hastype {:?}, {:?}, {:?}", alias, value_type, col.0);
+                                            if *alias == col.0 {
+                                                if !value_type_set.contains(value_type.clone()) {
+                                                    empty_reason = Some(EmptyBecause::TypeMismatch{var: v.clone(), existing: value_type_set.clone(), desired: ValueTypeSet::of_one(value_type.clone())});
+                                                }
+                                            }
+                                        },
+                                        _ => { println!("some other kind of column constraint {:?}", c); }
+                                    }
+                                },
+                                &ColumnConstraintOrAlternation::Alternation(ref alternation) => {
+                                    println!("alternation {:?}", alternation);
+                                },
+                            }
+                        }
+                    },
+                    Column::Fixed(DatomsColumn::Attribute) => {
+                        println!("Attribute column {:?}", col);
+                    },
+                    _ => {
+                        println!("column {:?}", col);
+                    }
+                }
+            }
+        }
+
+        if empty_reason.is_some() {
+            self.mark_known_empty(empty_reason.unwrap());
+            return;
+        }
+
+        self.wheres.0.append(&mut wheres_to_add);
     }
 }
 
@@ -888,7 +1020,59 @@ pub fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
 
 #[cfg(test)]
 mod tests {
+    extern crate mentat_query_parser;
+
     use super::*;
+    
+    use mentat_core::SQLValueType;
+    use self::mentat_query_parser::parse_find_string;
+    use types::NumericComparison;
+    use algebrize;
+
+    fn prepopulated_schema() -> Schema {
+        let mut schema = Schema::default();
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "name"), 65);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "knows"), 66);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "parent"), 67);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "age"), 68);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "height"), 69);
+        add_attribute(&mut schema,
+                      65,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      66,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      67,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      68,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      69,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        schema
+    }
 
     // Our alias counter is shared between CCs.
     #[test]
@@ -901,5 +1085,111 @@ mod tests {
         let alias_two = second.next_alias_for_table(DatomsTable::Datoms);
         assert!(alias_zero != alias_one);
         assert!(alias_one != alias_two);
+    }
+
+    #[test]
+    fn test_expand_type_tags_constrain_value_types() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x
+                 :where [?x :foo/name]
+                        [?x _ ?y]
+                        [?a _ ?y]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+        cc.expand_type_tags();
+
+        let d0 = "datoms00".to_string();
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+
+        let d1 = "all_datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+        let d1t = QualifiedAlias::new(d1.clone(), DatomsColumn::ValueTypeTag);
+
+        let d2 = "all_datoms02".to_string();
+        let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
+        let d2t = QualifiedAlias::new(d2.clone(), DatomsColumn::ValueTypeTag);
+
+        let name = QueryValue::Entid(65);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), name)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), QueryValue::Column(d2v.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1t.clone(), QueryValue::Column(d2t.clone()))),
+            ]));
+    }
+
+    #[test]
+    fn test_expand_type_tags_mismatched_variables() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x 
+                 :where [?x ?y true]
+                        [?z ?y ?x]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+
+        let vx = Variable::from_valid_name("?x");
+        assert!(!cc.is_known_empty());
+        cc.expand_type_tags();
+        println!("{:?}", cc);
+        assert!(cc.is_known_empty());
+        assert_eq!(cc.empty_because.unwrap(), EmptyBecause::TypeMismatch{var: vx, existing: ValueTypeSet::of_one(ValueType::Ref), desired: ValueTypeSet::of_one(ValueType::Boolean)});
+    }
+
+    #[test]
+    fn test_expand_type_tags_unambiguous_var_type() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x ?y ?z
+                 :where
+                    [?x _ ?y]
+                    [?y _ ?z]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+        cc.expand_type_tags();
+        println!("{:?}", cc);
+
+        let d0 = "all_datoms00".to_string();
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        let d1 = "all_datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0v.clone(), QueryValue::Column(d1e.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(d0, ValueType::Ref)),
+            ]));
+    }
+
+    #[test]
+    fn test_expand_type_tags_infered_type() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x ?v
+                 :where
+                    [?x _ ?v]
+                    [(< ?v 10)]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let mut cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+        cc.expand_type_tags();
+        
+        let d0 = "all_datoms00".to_string();
+        let d0v = QualifiedAlias::new(d0.clone(), DatomsColumn::Value);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NumericInequality {
+                    operator: NumericComparison::LessThan,
+                    left: QueryValue::Column(d0v.clone()),
+                    right: QueryValue::TypedValue(TypedValue::Long(10)),
+                }),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(d0, ValueType::Long)),
+            ]));
     }
 }
