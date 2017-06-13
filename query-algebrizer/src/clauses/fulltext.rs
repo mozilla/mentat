@@ -65,7 +65,8 @@ impl ConjoiningClauses {
         // We should have exactly four bindings. Destructure them now.
         let bindings = match where_fn.binding {
             Binding::BindRel(bindings) => {
-                if bindings.len() != 4 {
+                let bindings_count = bindings.len();
+                if bindings_count < 1 || bindings_count > 4 {
                     bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(),
                                                     BindingError::InvalidNumberOfBindings {
                                                         number: bindings.len(),
@@ -80,9 +81,9 @@ impl ConjoiningClauses {
         };
         let mut bindings = bindings.into_iter();
         let b_entity = bindings.next().unwrap();
-        let b_value = bindings.next().unwrap();
-        let b_tx = bindings.next().unwrap();
-        let b_score = bindings.next().unwrap();
+        let b_value = bindings.next().unwrap_or(VariableOrPlaceholder::Placeholder);
+        let b_tx = bindings.next().unwrap_or(VariableOrPlaceholder::Placeholder);
+        let b_score = bindings.next().unwrap_or(VariableOrPlaceholder::Placeholder);
 
         let mut args = where_fn.args.into_iter();
 
@@ -172,8 +173,8 @@ impl ConjoiningClauses {
             _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
         };
 
-        // TODO: should we build the FQA in ::Matches, preventing nonsense like matching on ::Rowid?
-        let constraint = ColumnConstraint::Matches(QualifiedAlias(fulltext_values_alias.clone(), Column::Fulltext(FulltextColumn::Text)),
+        let constraint = ColumnConstraint::Matches(QualifiedAlias(fulltext_values_alias.clone(),
+                                                                  Column::Fulltext(FulltextColumn::Text)),
                                                    QueryValue::TypedValue(search));
         self.wheres.add_intersection(constraint);
 
@@ -198,6 +199,7 @@ impl ConjoiningClauses {
         }
 
         if let VariableOrPlaceholder::Variable(ref var) = b_tx {
+            // Txs must be refs.
             self.constrain_var_to_type(var.clone(), ValueType::Ref);
             if self.is_known_empty() {
                 return Ok(());
@@ -207,6 +209,7 @@ impl ConjoiningClauses {
         }
 
         if let VariableOrPlaceholder::Variable(ref var) = b_score {
+            // Scores are doubles.
             self.constrain_var_to_type(var.clone(), ValueType::Double);
 
             // We do not allow the score to be bound.
@@ -214,7 +217,7 @@ impl ConjoiningClauses {
                 bail!(ErrorKind::InvalidBinding(var.name(), BindingError::UnexpectedBinding));
             }
 
-            // We bind the value ourselves. This takes care of substituting into existing uses.
+            // We bind the value ourselves. This handily takes care of substituting into existing uses.
             // TODO: produce real scores using SQLite's matchinfo.
             self.bind_value(var, TypedValue::Double(0.0.into()));
         }
