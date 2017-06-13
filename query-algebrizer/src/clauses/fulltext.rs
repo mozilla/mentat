@@ -19,14 +19,12 @@ use mentat_query::{
     FnArg,
     NonIntegerConstant,
     SrcVar,
-    Variable,
     VariableOrPlaceholder,
     WhereFn,
 };
 
 use clauses::{
     ConjoiningClauses,
-    PushComputed,
 };
 
 use errors::{
@@ -38,14 +36,12 @@ use errors::{
 use types::{
     Column,
     ColumnConstraint,
-    ComputedTable,
     DatomsColumn,
     DatomsTable,
     FulltextColumn,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
-    VariableColumn,
 };
 
 impl ConjoiningClauses {
@@ -65,15 +61,7 @@ impl ConjoiningClauses {
             bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
-        for var in &where_fn.binding.variables() {
-            if let &Some(ref var) = var {
-                if self.input_variables.contains(var) {
-                    // It's OK for this to collide: the two must unify.
-                    unimplemented!();
-                }
-            }
-        }
-
+        // We should have exactly four bindings. Destructure them now.
         let bindings = match where_fn.binding {
             Binding::BindRel(bindings) => {
                 if bindings.len() != 4 {
@@ -89,6 +77,11 @@ impl ConjoiningClauses {
             Binding::BindTuple(_) |
             Binding::BindColl(_) => bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
         };
+        let mut bindings = bindings.into_iter();
+        let b_entity = bindings.next().unwrap();
+        let b_value = bindings.next().unwrap();
+        let b_tx = bindings.next().unwrap();
+        let b_score = bindings.next().unwrap();
 
         let mut args = where_fn.args.into_iter();
 
@@ -102,15 +95,27 @@ impl ConjoiningClauses {
         // term before the attribute arguments and collect the (variadic) attributes into a set.
         // let a: Entid  = self.resolve_attribute_argument(&where_fn.operator, 1, args.next().unwrap())?;
         //
-        // TODO: allow non-constant attributes.
         // TODO: improve the expression of this matching, possibly by using attribute_for_* uniformly.
         let a = match args.next().unwrap() {
             FnArg::IdentOrKeyword(i) => schema.get_entid(&i),
             // Must be an entid.
             FnArg::EntidOrInteger(e) => Some(e),
+            FnArg::Variable(v) => {
+                // If it's already bound, then let's expand the variable.
+                self.bound_value(&v).and_then(|tv| {
+                    if let TypedValue::Ref(entid) = tv {
+                        Some(entid)
+                    } else {
+                        None
+                    }
+                }).or(None)          // TODO: allow non-constant attributes.
+            },
             _ => None,
         };
 
+        // An unknown ident, or an entity that isn't present in the store, or isn't a fulltext
+        // attribute, is likely enough to be a coding error that we choose to bail instead of
+        // marking the pattern as known-empty.
         let a = a.ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
         let attribute = schema.attribute_for_entid(a).cloned().ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
 
@@ -120,29 +125,41 @@ impl ConjoiningClauses {
         let fulltext_values_alias = self.next_alias_for_table(fulltext_values);
         let datoms_table_alias = self.next_alias_for_table(datoms_table);
 
+        // We do a fulltext lookup by joining the fulltext values table against datoms -- just
+        // like applying a pattern, but two tables contribute instead of one.
         self.from.push(SourceAlias(DatomsTable::FulltextValues, fulltext_values_alias.clone()));
         self.from.push(SourceAlias(DatomsTable::Datoms, datoms_table_alias.clone()));
 
-        // TODO: constrain the type in the more general cases.
+        // TODO: constrain the type in the more general cases (e.g., `a` is a var).
         self.constrain_attribute(datoms_table_alias.clone(), a);
 
+        // Join the datoms table to the fulltext values table.
         self.wheres.add_intersection(ColumnConstraint::Equals(
             QualifiedAlias(datoms_table_alias.clone(), Column::Fixed(DatomsColumn::Value)),
             QueryValue::Column(QualifiedAlias(fulltext_values_alias.clone(), Column::Fulltext(FulltextColumn::Rowid)))));
 
         // `search` is either text or a variable.
+        // If it's simple text, great.
+        // If it's a variable, it'll be in one of three states:
+        // - It's already bound, either by input or by a previous pattern like `ground`.
+        // - It's not already bound, but it's a defined input of type Text. Not yet implemented: TODO.
+        // - It's not bound. The query cannot be algebrized.
         let search: TypedValue = match args.next().unwrap() {
-            FnArg::Variable(in_var) => {
-                if !self.input_variables.contains(&in_var) {
-                    bail!(ErrorKind::UnboundVariable((*in_var.0).clone()));
-                }
-                match self.bound_value(&in_var) {
-                    Some(ref in_value) => in_value.clone(),
-                    None => bail!(ErrorKind::UnboundVariable((*in_var.0).clone())),
-                }
-            },
             FnArg::Constant(NonIntegerConstant::Text(s)) => {
-                TypedValue::typed_string(s.as_str())
+                TypedValue::String(s)
+            },
+            FnArg::Variable(in_var) => {
+                match self.bound_value(&in_var) {
+                    Some(t @ TypedValue::String(_)) => t,
+                    Some(_) => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
+                    None => {
+                        if self.input_variables.contains(&in_var) &&
+                           self.known_type(&in_var) == Some(ValueType::String) {
+                               // Sorry, we haven't implemented late binding.
+                        }
+                        bail!(ErrorKind::UnboundVariable((*in_var.0).clone()));
+                    },
+                }
             },
             _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
         };
@@ -152,64 +169,46 @@ impl ConjoiningClauses {
                                                    QueryValue::TypedValue(search));
         self.wheres.add_intersection(constraint);
 
-        if let VariableOrPlaceholder::Variable(ref var) = bindings[0] {
-            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
-                // It's OK for this to collide: the two must unify.
-                unimplemented!();
-            }
+        if let VariableOrPlaceholder::Variable(ref var) = b_entity {
+            // It must be a ref.
             self.constrain_var_to_type(var.clone(), ValueType::Ref);
+            if self.is_known_empty() {
+                return Ok(());
+            }
 
-            let entity_alias = QualifiedAlias(datoms_table_alias.clone(), Column::Fixed(DatomsColumn::Entity));
-            self.column_bindings.entry(var.clone()).or_insert(vec![]).push(entity_alias);
+            self.bind_column_to_var(schema, datoms_table_alias.clone(), DatomsColumn::Entity, var.clone());
         }
 
-        if let VariableOrPlaceholder::Variable(ref var) = bindings[1] {
-            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
-                // It's OK for this to collide: the two must unify.
-                unimplemented!();
-            }
+        if let VariableOrPlaceholder::Variable(ref var) = b_value {
+            // This'll be bound to strings.
             self.constrain_var_to_type(var.clone(), ValueType::String);
+            if self.is_known_empty() {
+                return Ok(());
+            }
 
-            let value_alias = QualifiedAlias(fulltext_values_alias.clone(), Column::Fulltext(FulltextColumn::Text));
-            self.column_bindings.entry(var.clone()).or_insert(vec![]).push(value_alias);
+            self.bind_column_to_var(schema, fulltext_values_alias.clone(), Column::Fulltext(FulltextColumn::Text), var.clone());
         }
 
-        if let VariableOrPlaceholder::Variable(ref var) = bindings[2] {
-            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
-                // It's OK for this to collide: the two must unify.
-                unimplemented!();
-            }
+        if let VariableOrPlaceholder::Variable(ref var) = b_tx {
             self.constrain_var_to_type(var.clone(), ValueType::Ref);
+            if self.is_known_empty() {
+                return Ok(());
+            }
 
-            let tx_alias = QualifiedAlias(datoms_table_alias.clone(), Column::Fixed(DatomsColumn::Tx));
-            self.column_bindings.entry(var.clone()).or_insert(vec![]).push(tx_alias);
+            self.bind_column_to_var(schema, datoms_table_alias.clone(), DatomsColumn::Tx, var.clone());
         }
 
-        if let VariableOrPlaceholder::Variable(ref var) = bindings[3] {
-            if self.bound_value(&var).is_some() || self.input_variables.contains(&var) {
-                // It's OK for this to collide: the two must unify.
-                unimplemented!();
-            }
+        if let VariableOrPlaceholder::Variable(ref var) = b_score {
             self.constrain_var_to_type(var.clone(), ValueType::Double);
 
-            // Right now we don't support binding a column to a constant value.  Therefore, we
-            // introduce a computed table with exactly the constant value we require.  See the
-            // translate tests for some edge cases in this space.
-            // TODO: optimize this by binding the value, like:
-            // self.value_bindings.insert(var.clone(), TypedValue::Double(0.0.into()));
+            // We do not allow the score to be bound.
+            if self.value_bindings.contains_key(var) || self.input_variables.contains(var) {
+                bail!(ErrorKind::InvalidBinding(var.name(), BindingError::UnexpectedBinding));
+            }
+
+            // We bind the value ourselves. This takes care of substituting into existing uses.
             // TODO: produce real scores using SQLite's matchinfo.
-            let names: Vec<Variable> = vec![var.clone()];
-            let named_values = ComputedTable::NamedValues {
-                names: names.clone(),
-                values: vec![TypedValue::Double(0.0.into())],
-            };
-            let table = self.computed_tables.push_computed(named_values);
-            let alias = self.next_alias_for_table(table);
-
-            // Stitch the computed table into column_bindings, so we get cross-linking.
-            self.bind_column_to_var(schema, alias.clone(), VariableColumn::Variable(var.clone()), var.clone());
-
-            self.from.push(SourceAlias(table, alias.clone()));
+            self.bind_value(var, TypedValue::Double(0.0.into()));
         }
 
         Ok(())
@@ -284,7 +283,7 @@ mod testing {
                                                            QueryValue::TypedValue(TypedValue::String(Rc::new("needle".into())))).into());
 
         let bindings = cc.column_bindings;
-        assert_eq!(bindings.len(), 4);
+        assert_eq!(bindings.len(), 3);
 
         assert_eq!(bindings.get(&Variable::from_valid_name("?entity")).expect("column binding for ?entity").clone(),
                    vec![QualifiedAlias("datoms01".to_string(), Column::Fixed(DatomsColumn::Entity))]);
@@ -292,8 +291,11 @@ mod testing {
                    vec![QualifiedAlias("fulltext_values00".to_string(), Column::Fulltext(FulltextColumn::Text))]);
         assert_eq!(bindings.get(&Variable::from_valid_name("?tx")).expect("column binding for ?tx").clone(),
                    vec![QualifiedAlias("datoms01".to_string(), Column::Fixed(DatomsColumn::Tx))]);
-        assert_eq!(bindings.get(&Variable::from_valid_name("?score")).expect("column binding for ?score").clone(),
-                   vec![QualifiedAlias("c00".to_string(), Column::Variable(VariableColumn::Variable(Variable::from_valid_name("?score"))))]);
+
+        // Score is a value binding.
+        let values = cc.value_bindings;
+        assert_eq!(values.get(&Variable::from_valid_name("?score")).expect("column binding for ?score").clone(),
+                   TypedValue::Double(0.0.into()));
 
         let known_types = cc.known_types;
         assert_eq!(known_types.len(), 4);

@@ -480,8 +480,14 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
-        let column = column.into();
-        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+        match constant {
+            // Be a little more explicit.
+            TypedValue::Ref(entid) => self.constrain_column_to_entity(table, column, entid),
+            _ => {
+                let column = column.into();
+                self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+            },
+        }
     }
 
     pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {
