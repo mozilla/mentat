@@ -338,7 +338,25 @@ impl ConjoiningClauses {
 impl ConjoiningClauses {
     /// Be careful with this. It'll overwrite existing bindings.
     pub fn bind_value(&mut self, var: &Variable, value: TypedValue) {
-        self.constrain_var_to_type(var.clone(), value.value_type());
+        let vt = value.value_type();
+        self.constrain_var_to_type(var.clone(), vt);
+
+        // Are there any existing column bindings for this variable?
+        // If so, generate a constraint against the primary column.
+        if let Some(vec) = self.column_bindings.get(var) {
+            if let Some(col) = vec.first() {
+                self.wheres.add_intersection(ColumnConstraint::Equals(col.clone(), QueryValue::TypedValue(value.clone())));
+            }
+        }
+
+        // Are we also trying to figure out the type of the value when the query runs?
+        // If so, constrain that!
+        if let Some(table) = self.extracted_types.get(&var)
+                                                 .map(|qa| qa.0.clone()) {
+            self.wheres.add_intersection(ColumnConstraint::HasType(table, value.value_type()));
+        }
+
+        // Finally, store the binding for future use.
         self.value_bindings.insert(var.clone(), value);
     }
 
