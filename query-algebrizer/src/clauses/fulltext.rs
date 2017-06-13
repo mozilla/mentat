@@ -38,6 +38,7 @@ use types::{
     ColumnConstraint,
     DatomsColumn,
     DatomsTable,
+    EmptyBecause,
     FulltextColumn,
     QualifiedAlias,
     QueryValue,
@@ -118,6 +119,13 @@ impl ConjoiningClauses {
         // marking the pattern as known-empty.
         let a = a.ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
         let attribute = schema.attribute_for_entid(a).cloned().ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
+
+        if !attribute.fulltext {
+            // We can never get results from a non-fulltext attribute!
+            println!("Can't run fulltext on non-fulltext attribute {}.", a);
+            self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(a));
+            return Ok(());
+        }
 
         let fulltext_values = DatomsTable::FulltextValues;
         let datoms_table = DatomsTable::Datoms;
@@ -244,6 +252,13 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 101);
+        add_attribute(&mut schema, 101, Attribute {
+            value_type: ValueType::String,
+            fulltext: false,
+            ..Default::default()
+        });
+
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
         add_attribute(&mut schema, 100, Attribute {
             value_type: ValueType::String,
@@ -308,5 +323,23 @@ mod testing {
                    vec![ValueType::Ref].into_iter().collect());
         assert_eq!(known_types.get(&Variable::from_valid_name("?score")).expect("known types for ?score").clone(),
                    vec![ValueType::Double].into_iter().collect());
+
+        let mut cc = ConjoiningClauses::default();
+        let op = PlainSymbol::new("fulltext");
+        cc.apply_fulltext(&schema, WhereFn {
+            operator: op,
+            args: vec![
+                FnArg::SrcVar(SrcVar::DefaultSrc),
+                FnArg::IdentOrKeyword(NamespacedKeyword::new("foo", "bar")),
+                FnArg::Constant(NonIntegerConstant::Text(Rc::new("needle".into()))),
+            ],
+            binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),
+                                           VariableOrPlaceholder::Variable(Variable::from_valid_name("?value")),
+                                           VariableOrPlaceholder::Variable(Variable::from_valid_name("?tx")),
+                                           VariableOrPlaceholder::Variable(Variable::from_valid_name("?score"))]),
+        }).expect("to be able to apply_fulltext");
+
+        // It's not a fulltext attribute, so the CC cannot yield results.
+        assert!(cc.is_known_empty());
     }
 }
