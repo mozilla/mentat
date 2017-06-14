@@ -140,7 +140,7 @@ impl ToConstraint for ColumnConstraint {
                 }
             },
 
-            NumericInequality { operator, left, right } => {
+            Inequality { operator, left, right } => {
                 Constraint::Infix {
                     op: Op(operator.to_sql_operator()),
                     left: left.into(),

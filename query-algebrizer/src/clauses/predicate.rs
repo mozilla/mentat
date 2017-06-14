@@ -25,7 +25,7 @@ use errors::{
 
 use types::{
     ColumnConstraint,
-    NumericComparison,
+    Inequality,
 };
 
 /// Application of predicates.
@@ -39,8 +39,8 @@ impl ConjoiningClauses {
     pub fn apply_predicate<'s>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
         // Because we'll be growing the set of built-in predicates, handling each differently,
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
-        if let Some(op) = NumericComparison::from_datalog_operator(predicate.operator.0.as_str()) {
-            self.apply_numeric_predicate(schema, op, predicate)
+        if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
+            self.apply_inequality(schema, op, predicate)
         } else {
             bail!(ErrorKind::UnknownFunction(predicate.operator.clone()))
         }
@@ -49,9 +49,9 @@ impl ConjoiningClauses {
     /// This function:
     /// - Resolves variables and converts types to those more amenable to SQL.
     /// - Ensures that the predicate functions name a known operator.
-    /// - Accumulates a `NumericInequality` constraint into the `wheres` list.
+    /// - Accumulates an `Inequality` constraint into the `wheres` list.
     #[allow(unused_variables)]
-    pub fn apply_numeric_predicate<'s>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
+    pub fn apply_inequality<'s>(&mut self, schema: &'s Schema, comparison: Inequality, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }
@@ -63,7 +63,7 @@ impl ConjoiningClauses {
         let left = self.resolve_numeric_argument(&predicate.operator, 0, args.next().unwrap())?;
         let right = self.resolve_numeric_argument(&predicate.operator, 1, args.next().unwrap())?;
 
-        // These arguments must be variables or numeric constants.
+        // These arguments must be variables or instant/numeric constants.
         // TODO: generalize argument resolution and validation for different kinds of predicates:
         // as we process `(< ?x 5)` we are able to check or deduce that `?x` is numeric, and either
         // simplify the pattern or optimize the rest of the query.
@@ -71,7 +71,7 @@ impl ConjoiningClauses {
         // not a single `Option`.
 
         // TODO: static evaluation. #383.
-        let constraint = ColumnConstraint::NumericInequality {
+        let constraint = ColumnConstraint::Inequality {
             operator: comparison,
             left: left,
             right: right,
@@ -119,7 +119,7 @@ mod testing {
     /// Apply two patterns: a pattern and a numeric predicate.
     /// Verify that after application of the predicate we know that the value
     /// must be numeric.
-    fn test_apply_numeric_predicate() {
+    fn test_apply_inequality() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
@@ -141,8 +141,8 @@ mod testing {
         assert!(!cc.is_known_empty());
 
         let op = PlainSymbol::new("<");
-        let comp = NumericComparison::from_datalog_operator(op.plain_name()).unwrap();
-        assert!(cc.apply_numeric_predicate(&schema, comp, Predicate {
+        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        assert!(cc.apply_inequality(&schema, comp, Predicate {
              operator: op,
              args: vec![
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
@@ -162,8 +162,8 @@ mod testing {
 
         let clauses = cc.wheres;
         assert_eq!(clauses.len(), 1);
-        assert_eq!(clauses.0[0], ColumnConstraint::NumericInequality {
-            operator: NumericComparison::LessThan,
+        assert_eq!(clauses.0[0], ColumnConstraint::Inequality {
+            operator: Inequality::LessThan,
             left: QueryValue::Column(cc.column_bindings.get(&y).unwrap()[0].clone()),
             right: QueryValue::TypedValue(TypedValue::Long(10)),
         }.into());
@@ -201,8 +201,8 @@ mod testing {
         assert!(!cc.is_known_empty());
 
         let op = PlainSymbol::new(">=");
-        let comp = NumericComparison::from_datalog_operator(op.plain_name()).unwrap();
-        assert!(cc.apply_numeric_predicate(&schema, comp, Predicate {
+        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        assert!(cc.apply_inequality(&schema, comp, Predicate {
              operator: op,
              args: vec![
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
