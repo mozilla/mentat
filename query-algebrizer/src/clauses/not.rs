@@ -370,6 +370,7 @@ mod testing {
                     right: QueryValue::TypedValue(TypedValue::Long(30)),
                 }),
                 ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NotExists(ComputedTable::Subquery(subquery))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(d0.clone(), ValueType::Long)),
             ]));
         assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e]));
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0)]);

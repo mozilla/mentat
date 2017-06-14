@@ -286,7 +286,7 @@ fn test_numeric_less_than_unknown_attribute() {
 
     // Although we infer numericness from numeric predicates, we've already assigned a table to the
     // first pattern, and so this is _still_ `all_datoms`.
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v < 10");
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v < 10 AND `all_datoms00`.value_type_tag = 5");
     assert_eq!(args, vec![]);
 }
 
@@ -295,7 +295,7 @@ fn test_numeric_gte_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Double);
     let query = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9 AND `datoms00`.value_type_tag = 5");
     assert_eq!(args, vec![]);
 }
 
@@ -304,7 +304,7 @@ fn test_numeric_not_equals_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Long);
     let query = r#"[:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v <> 12 LIMIT 1");
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v <> 12 AND `datoms00`.value_type_tag = 5 LIMIT 1");
     assert_eq!(args, vec![]);
 }
 
@@ -657,7 +657,7 @@ fn test_compound_with_ground() {
     let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground "yyy") ?x]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
-                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
+                     WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 AND `datoms00`.value_type_tag = 10 LIMIT 1");
 
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
