@@ -14,6 +14,8 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_core::util::Either;
+
 use mentat_query::{
     Binding,
     FnArg,
@@ -153,29 +155,50 @@ impl ConjoiningClauses {
         // - It's already bound, either by input or by a previous pattern like `ground`.
         // - It's not already bound, but it's a defined input of type Text. Not yet implemented: TODO.
         // - It's not bound. The query cannot be algebrized.
-        let search: TypedValue = match args.next().unwrap() {
+        let search: Either<TypedValue, QualifiedAlias> = match args.next().unwrap() {
             FnArg::Constant(NonIntegerConstant::Text(s)) => {
-                TypedValue::String(s)
+                Either::Left(TypedValue::String(s))
             },
             FnArg::Variable(in_var) => {
                 match self.bound_value(&in_var) {
-                    Some(t @ TypedValue::String(_)) => t,
+                    Some(t @ TypedValue::String(_)) => Either::Left(t),
                     Some(_) => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
                     None => {
-                        if self.input_variables.contains(&in_var) &&
-                           self.known_type(&in_var) == Some(ValueType::String) {
-                               // Sorry, we haven't implemented late binding.
+                        // Regardless of whether we'll be providing a string later, or the value
+                        // comes from a column, it must be a string.
+                        if self.known_type(&in_var) != Some(ValueType::String) {
+                            bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2));
                         }
-                        bail!(ErrorKind::UnboundVariable((*in_var.0).clone()));
+
+                        if self.input_variables.contains(&in_var) {
+                            // Sorry, we haven't implemented late binding.
+                            // TODO: implement this.
+                            bail!(ErrorKind::UnboundVariable((*in_var.0).clone()));
+                        } else {
+                            // It must be bound earlier in the query. We already established that
+                            // it must be a string column.
+                            if let Some(binding) = self.column_bindings
+                                                       .get(&in_var)
+                                                       .and_then(|bindings| bindings.get(0).cloned()) {
+                                Either::Right(binding)
+                            } else {
+                                bail!(ErrorKind::UnboundVariable((*in_var.0).clone()));
+                            }
+                        }
                     },
                 }
             },
             _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
         };
 
+        let qv = match search {
+            Either::Left(tv) => QueryValue::TypedValue(tv),
+            Either::Right(qa) => QueryValue::Column(qa),
+        };
+
         let constraint = ColumnConstraint::Matches(QualifiedAlias(fulltext_values_alias.clone(),
                                                                   Column::Fulltext(FulltextColumn::Text)),
-                                                   QueryValue::TypedValue(search));
+                                                   qv);
         self.wheres.add_intersection(constraint);
 
         if let VariableOrPlaceholder::Variable(ref var) = b_entity {
