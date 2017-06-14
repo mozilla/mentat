@@ -356,3 +356,37 @@ fn test_fulltext() {
         _ => panic!("Expected query to work."),
     }
 }
+
+#[test]
+fn test_instant_range_query() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+
+    conn.transact(&mut c, r#"[
+        [:db/add "a" :db/ident :foo/date]
+        [:db/add "a" :db/valueType :db.type/instant]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+    ]"#).unwrap();
+
+    let ids = conn.transact(&mut c, r#"[
+        [:db/add "b" :foo/date #inst "2016-01-01T11:00:00.000Z"]
+        [:db/add "c" :foo/date #inst "2016-06-01T11:00:01.000Z"]
+        [:db/add "d" :foo/date #inst "2017-01-01T11:00:02.000Z"]
+        [:db/add "e" :foo/date #inst "2017-06-01T11:00:03.000Z"]
+    ]"#).unwrap().tempids;
+
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?x ...]
+                            :order (asc ?date)
+                            :where
+                            [?x :foo/date ?date]
+                            [(< ?date #inst "2017-01-01T11:00:02.000Z")]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Coll(vals)) => {
+            assert_eq!(vals,
+                       vec![TypedValue::Ref(*ids.get("b").unwrap()),
+                            TypedValue::Ref(*ids.get("c").unwrap())]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+}

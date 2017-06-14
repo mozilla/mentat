@@ -10,13 +10,17 @@
 
 use mentat_core::{
     Schema,
+    ValueType,
 };
 
 use mentat_query::{
+    FnArg,
     Predicate,
 };
 
 use clauses::ConjoiningClauses;
+
+use clauses::convert::ValueTypes;
 
 use errors::{
     Result,
@@ -25,7 +29,9 @@ use errors::{
 
 use types::{
     ColumnConstraint,
-    NumericComparison,
+    EmptyBecause,
+    Inequality,
+    ValueTypeSet,
 };
 
 /// Application of predicates.
@@ -39,19 +45,25 @@ impl ConjoiningClauses {
     pub fn apply_predicate<'s>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
         // Because we'll be growing the set of built-in predicates, handling each differently,
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
-        if let Some(op) = NumericComparison::from_datalog_operator(predicate.operator.0.as_str()) {
-            self.apply_numeric_predicate(schema, op, predicate)
+        if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
+            self.apply_inequality(schema, op, predicate)
         } else {
             bail!(ErrorKind::UnknownFunction(predicate.operator.clone()))
+        }
+    }
+
+    fn potential_types(&self, schema: &Schema, fn_arg: &FnArg) -> Result<ValueTypeSet> {
+        match fn_arg {
+            &FnArg::Variable(ref v) => Ok(self.known_type_set(v)),
+            _ => fn_arg.potential_types(schema),
         }
     }
 
     /// This function:
     /// - Resolves variables and converts types to those more amenable to SQL.
     /// - Ensures that the predicate functions name a known operator.
-    /// - Accumulates a `NumericInequality` constraint into the `wheres` list.
-    #[allow(unused_variables)]
-    pub fn apply_numeric_predicate<'s>(&mut self, schema: &'s Schema, comparison: NumericComparison, predicate: Predicate) -> Result<()> {
+    /// - Accumulates an `Inequality` constraint into the `wheres` list.
+    pub fn apply_inequality<'s>(&mut self, schema: &'s Schema, comparison: Inequality, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }
@@ -60,21 +72,74 @@ impl ConjoiningClauses {
         // Any variables that aren't bound by this point in the linear processing of clauses will
         // cause the application of the predicate to fail.
         let mut args = predicate.args.into_iter();
-        let left = self.resolve_numeric_argument(&predicate.operator, 0, args.next().unwrap())?;
-        let right = self.resolve_numeric_argument(&predicate.operator, 1, args.next().unwrap())?;
+        let left = args.next().expect("two args");
+        let right = args.next().expect("two args");
 
-        // These arguments must be variables or numeric constants.
-        // TODO: generalize argument resolution and validation for different kinds of predicates:
-        // as we process `(< ?x 5)` we are able to check or deduce that `?x` is numeric, and either
-        // simplify the pattern or optimize the rest of the query.
-        // To do so needs a slightly more sophisticated representation of type constraints — a set,
-        // not a single `Option`.
 
+        // The types we're handling here must be the intersection of the possible types of the arguments,
+        // the known types of any variables, and the types supported by our inequality operators.
+        let supported_types = comparison.supported_types();
+        let mut left_types = self.potential_types(schema, &left)?
+                                 .intersection(&supported_types);
+        if left_types.is_empty() {
+            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
+        }
+
+        let mut right_types = self.potential_types(schema, &right)?
+                                  .intersection(&supported_types);
+        if right_types.is_empty() {
+            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 1));
+        }
+
+        // We would like to allow longs to compare to doubles.
+        // Do this by expanding the type sets. `resolve_numeric_argument` will
+        // use `Long` by preference.
+        if right_types.contains(ValueType::Long) {
+            right_types.insert(ValueType::Double);
+        }
+        if left_types.contains(ValueType::Long) {
+            left_types.insert(ValueType::Double);
+        }
+
+        let shared_types = left_types.intersection(&right_types);
+        if shared_types.is_empty() {
+            // In isolation these are both valid inputs to the operator, but the query cannot
+            // succeed because the types don't match.
+            self.mark_known_empty(
+                if let Some(var) = left.as_variable().or_else(|| right.as_variable()) {
+                    EmptyBecause::TypeMismatch {
+                        var: var.clone(),
+                        existing: left_types,
+                        desired: right_types,
+                    }
+                } else {
+                    EmptyBecause::KnownTypeMismatch {
+                        left: left_types,
+                        right: right_types,
+                    }
+                });
+            return Ok(());
+        }
+
+        // We expect the intersection to be Long, Long+Double, Double, or Instant.
+        let left_v;
+        let right_v;
+        if shared_types == ValueTypeSet::of_one(ValueType::Instant) {
+            left_v = self.resolve_instant_argument(&predicate.operator, 0, left)?;
+            right_v = self.resolve_instant_argument(&predicate.operator, 1, right)?;
+        } else if !shared_types.is_empty() && shared_types.is_subset(&ValueTypeSet::of_numeric_types()) {
+            left_v = self.resolve_numeric_argument(&predicate.operator, 0, left)?;
+            right_v = self.resolve_numeric_argument(&predicate.operator, 1, right)?;
+        } else {
+            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
+        }
+
+        // These arguments must be variables or instant/numeric constants.
         // TODO: static evaluation. #383.
-        let constraint = ColumnConstraint::NumericInequality {
+        let constraint = ColumnConstraint::Inequality {
             operator: comparison,
-            left: left,
-            right: right,
+            left: left_v,
+            right: right_v,
         };
         self.wheres.add_intersection(constraint);
         Ok(())
@@ -119,7 +184,7 @@ mod testing {
     /// Apply two patterns: a pattern and a numeric predicate.
     /// Verify that after application of the predicate we know that the value
     /// must be numeric.
-    fn test_apply_numeric_predicate() {
+    fn test_apply_inequality() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
@@ -141,8 +206,8 @@ mod testing {
         assert!(!cc.is_known_empty());
 
         let op = PlainSymbol::new("<");
-        let comp = NumericComparison::from_datalog_operator(op.plain_name()).unwrap();
-        assert!(cc.apply_numeric_predicate(&schema, comp, Predicate {
+        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        assert!(cc.apply_inequality(&schema, comp, Predicate {
              operator: op,
              args: vec![
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
@@ -162,8 +227,8 @@ mod testing {
 
         let clauses = cc.wheres;
         assert_eq!(clauses.len(), 1);
-        assert_eq!(clauses.0[0], ColumnConstraint::NumericInequality {
-            operator: NumericComparison::LessThan,
+        assert_eq!(clauses.0[0], ColumnConstraint::Inequality {
+            operator: Inequality::LessThan,
             left: QueryValue::Column(cc.column_bindings.get(&y).unwrap()[0].clone()),
             right: QueryValue::TypedValue(TypedValue::Long(10)),
         }.into());
@@ -201,8 +266,8 @@ mod testing {
         assert!(!cc.is_known_empty());
 
         let op = PlainSymbol::new(">=");
-        let comp = NumericComparison::from_datalog_operator(op.plain_name()).unwrap();
-        assert!(cc.apply_numeric_predicate(&schema, comp, Predicate {
+        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        assert!(cc.apply_inequality(&schema, comp, Predicate {
              operator: op,
              args: vec![
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),

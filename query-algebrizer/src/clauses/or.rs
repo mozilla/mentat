@@ -751,7 +751,7 @@ mod testing {
         ColumnConstraint,
         DatomsColumn,
         DatomsTable,
-        NumericComparison,
+        Inequality,
         QualifiedAlias,
         QueryValue,
         SourceAlias,
@@ -960,8 +960,8 @@ mod testing {
         assert!(!cc.is_known_empty());
         assert_eq!(cc.wheres, ColumnIntersection(vec![
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), age.clone())),
-            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::NumericInequality {
-                operator: NumericComparison::LessThan,
+            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Inequality {
+                operator: Inequality::LessThan,
                 left: QueryValue::Column(d0v.clone()),
                 right: QueryValue::TypedValue(TypedValue::Long(30)),
             }),

@@ -56,6 +56,11 @@ pub use clauses::{
     QueryInputs,
 };
 
+pub use types::{
+    EmptyBecause,
+    ValueTypeSet,
+};
+
 #[derive(Debug)]
 pub struct AlgebraicQuery {
     default_source: SrcVar,

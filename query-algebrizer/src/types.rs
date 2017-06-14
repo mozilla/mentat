@@ -274,10 +274,11 @@ impl From<Order> for OrderBy {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-/// Define the different numeric inequality operators that we support.
+/// Define the different inequality operators that we support.
 /// Note that we deliberately don't just use "<=" and friends as strings:
 /// Datalog and SQL don't use the same operators (e.g., `<>` and `!=`).
-pub enum NumericComparison {
+/// These are applicable to numbers and instants.
+pub enum Inequality {
     LessThan,
     LessThanOrEquals,
     GreaterThan,
@@ -285,9 +286,9 @@ pub enum NumericComparison {
     NotEquals,
 }
 
-impl NumericComparison {
+impl Inequality {
     pub fn to_sql_operator(self) -> &'static str {
-        use self::NumericComparison::*;
+        use self::Inequality::*;
         match self {
             LessThan            => "<",
             LessThanOrEquals    => "<=",
@@ -297,21 +298,28 @@ impl NumericComparison {
         }
     }
 
-    pub fn from_datalog_operator(s: &str) -> Option<NumericComparison> {
+    pub fn from_datalog_operator(s: &str) -> Option<Inequality> {
         match s {
-            "<"  => Some(NumericComparison::LessThan),
-            "<=" => Some(NumericComparison::LessThanOrEquals),
-            ">"  => Some(NumericComparison::GreaterThan),
-            ">=" => Some(NumericComparison::GreaterThanOrEquals),
-            "!=" => Some(NumericComparison::NotEquals),
+            "<"  => Some(Inequality::LessThan),
+            "<=" => Some(Inequality::LessThanOrEquals),
+            ">"  => Some(Inequality::GreaterThan),
+            ">=" => Some(Inequality::GreaterThanOrEquals),
+            "!=" => Some(Inequality::NotEquals),
             _    => None,
         }
     }
+
+    // The built-in inequality operators apply to Long, Double, and Instant.
+    pub fn supported_types(&self) -> ValueTypeSet {
+        let mut ts = ValueTypeSet::of_numeric_types();
+        ts.insert(ValueType::Instant);
+        ts
+    }
 }
 
-impl Debug for NumericComparison {
+impl Debug for Inequality {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        use self::NumericComparison::*;
+        use self::Inequality::*;
         f.write_str(match self {
             &LessThan => "<",
             &LessThanOrEquals => "<=",
@@ -325,15 +333,13 @@ impl Debug for NumericComparison {
 #[derive(PartialEq, Eq)]
 pub enum ColumnConstraint {
     Equals(QualifiedAlias, QueryValue),
-    NumericInequality {
-        operator: NumericComparison,
+    Inequality {
+        operator: Inequality,
         left: QueryValue,
         right: QueryValue,
     },
     HasType(TableAlias, ValueType),
     NotExists(ComputedTable),
-    // TODO: Merge this with NumericInequality?  I expect the fine-grained information to be
-    // valuable when optimizing.
     Matches(QualifiedAlias, QueryValue),
 }
 
@@ -441,7 +447,7 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?} = {:?}", qa1, thing)
             },
 
-            &NumericInequality { operator, ref left, ref right } => {
+            &Inequality { operator, ref left, ref right } => {
                 write!(f, "{:?} {:?} {:?}", left, operator, right)
             },
 
@@ -462,9 +468,15 @@ impl Debug for ColumnConstraint {
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
     ConflictingBindings { var: Variable, existing: TypedValue, desired: TypedValue },
+
+    // A variable is known to be of two conflicting sets of types.
     TypeMismatch { var: Variable, existing: ValueTypeSet, desired: ValueTypeSet },
+
+    // The same, but for non-variables.
+    KnownTypeMismatch { left: ValueTypeSet, right: ValueTypeSet },
     NoValidTypes(Variable),
     NonAttributeArgument,
+    NonInstantArgument,
     NonNumericArgument,
     NonStringFulltextValue,
     UnresolvedIdent(NamespacedKeyword),
@@ -487,11 +499,18 @@ impl Debug for EmptyBecause {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)
             },
+            &KnownTypeMismatch { ref left, ref right } => {
+                write!(f, "Type mismatch: {:?} can't be compared to {:?}",
+                       left, right)
+            },
             &NoValidTypes(ref var) => {
                 write!(f, "Type mismatch: {:?} has no valid types", var)
             },
             &NonAttributeArgument => {
                 write!(f, "Non-attribute argument in attribute place")
+            },
+            &NonInstantArgument => {
+                write!(f, "Non-instant argument in instant place")
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")
@@ -610,6 +629,10 @@ impl ValueTypeSet {
     /// For a set containing a single type, this will be that type.
     pub fn exemplar(&self) -> Option<ValueType> {
         self.0.iter().next()
+    }
+
+    pub fn is_subset(&self, other: &ValueTypeSet) -> bool {
+        self.0.is_subset(&other.0)
     }
 
     pub fn contains(&self, vt: ValueType) -> bool {
