@@ -233,7 +233,7 @@ fn test_unknown_attribute_double_value() {
 
     // In general, doubles _could_ be 1.0, which might match a boolean or a ref. Set tag = 5 to
     // make sure we only match numbers.
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 9.95 AND `datoms00`.value_type_tag = 5");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 9.95e0 AND `datoms00`.value_type_tag = 5");
     assert_eq!(args, vec![]);
 }
 
@@ -302,7 +302,7 @@ fn test_numeric_gte_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Double);
     let query = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 1.29e1");
     assert_eq!(args, vec![]);
 }
 
