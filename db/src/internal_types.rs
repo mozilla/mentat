@@ -15,6 +15,8 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use mentat_core::util::Either;
+
 use errors;
 use errors::ErrorKind;
 use types::{
@@ -31,33 +33,6 @@ use mentat_tx::entities::{
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Term<E, V> {
     AddOrRetract(OpType, E, Entid, V),
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum Either<L, R> {
-    Left(L),
-    Right(R),
-}
-
-// Cribbed from https://github.com/bluss/either/blob/f793721f3fdeb694f009e731b23a2858286bc0d6/src/lib.rs#L219-L259.
-impl<L, R> Either<L, R> {
-    pub fn map_left<F, M>(self, f: F) -> Either<M, R>
-        where F: FnOnce(L) -> M
-    {
-        match self {
-            Left(l) => Left(f(l)),
-            Right(r) => Right(r),
-        }
-    }
-
-    pub fn map_right<F, S>(self, f: F) -> Either<L, S>
-        where F: FnOnce(R) -> S
-    {
-        match self {
-            Left(l) => Left(l),
-            Right(r) => Right(f(r)),
-        }
-    }
 }
 
 use self::Either::*;

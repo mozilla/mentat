@@ -64,7 +64,6 @@ use edn::{
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
-    Either,
     KnownEntid,
     KnownEntidOr,
     LookupRef,
@@ -76,7 +75,10 @@ use internal_types::{
     TermWithTempIdsAndLookupRefs,
     TermWithoutTempIds,
     TypedValueOr,
-    replace_lookup_ref};
+    replace_lookup_ref,
+};
+
+use mentat_core::util::Either;
 
 use mentat_core::{
     DateTime,
