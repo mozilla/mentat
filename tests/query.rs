@@ -14,6 +14,7 @@ extern crate time;
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
+extern crate mentat_query_algebrizer;       // For errors.
 
 use std::str::FromStr;
 
@@ -28,6 +29,7 @@ use mentat_core::{
 
 use mentat::{
     NamespacedKeyword,
+    PlainSymbol,
     QueryInputs,
     QueryResults,
     Variable,
@@ -250,6 +252,106 @@ fn test_instants_and_uuids() {
                  },
                  _ => panic!("Unexpected results."),
             }
+        },
+        _ => panic!("Expected query to work."),
+    }
+}
+
+#[test]
+fn test_fulltext() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+
+    conn.transact(&mut c, r#"[
+        [:db/add "a" :db/ident :foo/term]
+        [:db/add "a" :db/valueType :db.type/string]
+        [:db/add "a" :db/fulltext false]
+        [:db/add "a" :db/cardinality :db.cardinality/many]
+
+        [:db/add "s" :db/ident :foo/fts]
+        [:db/add "s" :db/valueType :db.type/string]
+        [:db/add "s" :db/fulltext true]
+        [:db/add "s" :db/cardinality :db.cardinality/many]
+    ]"#).unwrap();
+
+    let v = conn.transact(&mut c, r#"[
+        [:db/add "v" :foo/fts "hello darkness my old friend"]
+        [:db/add "v" :foo/fts "I've come to talk with you again"]
+    ]"#).unwrap().tempids.get("v").cloned().expect("v was mapped");
+
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?x ?val ?score]
+                            :where [(fulltext $ :foo/fts "darkness") [[?x ?val _ ?score]]]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            let mut vals = vals.into_iter();
+            match (vals.next(), vals.next(), vals.next(), vals.next()) {
+                (Some(TypedValue::Ref(x)),
+                 Some(TypedValue::String(text)),
+                 Some(TypedValue::Double(score)),
+                 None) => {
+                     assert_eq!(x, v);
+                     assert_eq!(text.as_str(), "hello darkness my old friend");
+                     assert_eq!(score, 0.0f64.into());
+                 },
+                 _ => panic!("Unexpected results."),
+            }
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    let a = conn.transact(&mut c, r#"[[:db/add "a" :foo/term "talk"]]"#)
+                .unwrap()
+                .tempids
+                .get("a").cloned()
+                .expect("a was mapped");
+
+    // If you use a non-constant search term, it must be bound earlier in the query.
+    let query = r#"[:find ?x ?val
+                    :where
+                    [(fulltext $ :foo/fts ?term) [[?x ?val]]]
+                    [?a :foo/term ?term]
+                    ]"#;
+    let r = conn.q_once(&mut c, query, None);
+    match r {
+        Err(Error(ErrorKind::QueryError(mentat_query_algebrizer::ErrorKind::InvalidArgument(PlainSymbol(s), ty, i)), _)) => {
+            assert_eq!(s, "fulltext");
+            assert_eq!(ty, "string");
+            assert_eq!(i, 2);
+        },
+        _ => panic!("Expected query to fail."),
+    }
+
+    // Bound to the wrong type? Error.
+    let query = r#"[:find ?x ?val
+                    :where
+                    [?a :foo/term ?term]
+                    [(fulltext $ :foo/fts ?a) [[?x ?val]]]]"#;
+    let r = conn.q_once(&mut c, query, None);
+    match r {
+        Err(Error(ErrorKind::QueryError(mentat_query_algebrizer::ErrorKind::InvalidArgument(PlainSymbol(s), ty, i)), _)) => {
+            assert_eq!(s, "fulltext");
+            assert_eq!(ty, "string");
+            assert_eq!(i, 2);
+        },
+        _ => panic!("Expected query to fail."),
+    }
+
+    // If it's bound, and the right type, it'll work!
+    let query = r#"[:find ?x ?val
+                    :in ?a
+                    :where
+                    [?a :foo/term ?term]
+                    [(fulltext $ :foo/fts ?term) [[?x ?val]]]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?a"), TypedValue::Ref(a))]);
+    let r = conn.q_once(&mut c, query, inputs);
+    match r {
+        Result::Ok(QueryResults::Rel(rels)) => {
+            assert_eq!(rels, vec![
+                vec![TypedValue::Ref(v),
+                     TypedValue::String("I've come to talk with you again".to_string().into()),
+                ]
+            ]);
         },
         _ => panic!("Expected query to work."),
     }

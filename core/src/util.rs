@@ -57,3 +57,32 @@ impl<T> OptionEffect<T> for Option<T> {
         self
     }
 }
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum Either<L, R> {
+    Left(L),
+    Right(R),
+}
+
+// Cribbed from https://github.com/bluss/either/blob/f793721f3fdeb694f009e731b23a2858286bc0d6/src/lib.rs#L219-L259.
+impl<L, R> Either<L, R> {
+    pub fn map_left<F, M>(self, f: F) -> Either<M, R>
+        where F: FnOnce(L) -> M
+    {
+        use self::Either::*;
+        match self {
+            Left(l) => Left(f(l)),
+            Right(r) => Right(r),
+        }
+    }
+
+    pub fn map_right<F, S>(self, f: F) -> Either<L, S>
+        where F: FnOnce(R) -> S
+    {
+        use self::Either::*;
+        match self {
+            Left(l) => Left(l),
+            Right(r) => Right(f(r)),
+        }
+    }
+}

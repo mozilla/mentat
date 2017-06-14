@@ -28,7 +28,9 @@ use internal_types::{
     TermWithoutTempIds,
     TermWithTempIds,
 };
-use internal_types::Either::*;
+
+use mentat_core::util::Either::*;
+
 use mentat_core::{
     attribute,
     Attribute,

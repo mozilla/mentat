@@ -160,7 +160,14 @@ impl QueryBuilder for SQLiteQueryBuilder {
             &Ref(entid) => self.push_sql(entid.to_string().as_str()),
             &Boolean(v) => self.push_sql(if v { "1" } else { "0" }),
             &Long(v) => self.push_sql(v.to_string().as_str()),
-            &Double(OrderedFloat(v)) => self.push_sql(v.to_string().as_str()),
+            &Double(OrderedFloat(v)) => {
+                // Rust's floats print without a trailing '.' in some cases.
+                // https://github.com/rust-lang/rust/issues/30967
+                // We format with 'e' -- scientific notation -- so that SQLite treats them as
+                // floats and not integers. This is most noticeable for fulltext scores, which
+                // will currently (2017-06) always be 0, and need to round-trip as doubles.
+                self.push_sql(format!("{:e}", v).as_str());
+            },
             &Instant(dt) => {
                 self.push_sql(format!("{}", dt.to_micros()).as_str());      // TODO: argument instead?
             },
@@ -260,9 +267,13 @@ mod tests {
         s.push_static_arg(string_arg("frobnicate"));
         s.push_sql(" OR ");
         s.push_static_arg(string_arg("swoogle"));
+        s.push_sql(" OR ");
+        s.push_identifier("bar").unwrap();
+        s.push_sql(" = ");
+        s.push_typed_value(&TypedValue::Double(1.0.into())).unwrap();
         let q = s.finish();
 
-        assert_eq!(q.sql.as_str(), "SELECT `foo` WHERE `bar` = $v0 OR $v1");
+        assert_eq!(q.sql.as_str(), "SELECT `foo` WHERE `bar` = $v0 OR $v1 OR `bar` = 1e0");
         assert_eq!(q.args,
                    vec![("$v0".to_string(), string_arg("frobnicate")),
                         ("$v1".to_string(), string_arg("swoogle"))]);

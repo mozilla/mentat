@@ -54,6 +54,7 @@ use types::{
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
+    FulltextColumn,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -61,12 +62,16 @@ use types::{
     ValueTypeSet,
 };
 
+mod convert;              // Converting args to values.
 mod inputs;
 mod or;
 mod not;
 mod pattern;
 mod predicate;
 mod resolve;
+
+mod ground;
+mod fulltext;
 mod where_fn;
 
 use validate::{
@@ -335,7 +340,25 @@ impl ConjoiningClauses {
 impl ConjoiningClauses {
     /// Be careful with this. It'll overwrite existing bindings.
     pub fn bind_value(&mut self, var: &Variable, value: TypedValue) {
-        self.constrain_var_to_type(var.clone(), value.value_type());
+        let vt = value.value_type();
+        self.constrain_var_to_type(var.clone(), vt);
+
+        // Are there any existing column bindings for this variable?
+        // If so, generate a constraint against the primary column.
+        if let Some(vec) = self.column_bindings.get(var) {
+            if let Some(col) = vec.first() {
+                self.wheres.add_intersection(ColumnConstraint::Equals(col.clone(), QueryValue::TypedValue(value.clone())));
+            }
+        }
+
+        // Are we also trying to figure out the type of the value when the query runs?
+        // If so, constrain that!
+        if let Some(table) = self.extracted_types.get(&var)
+                                                 .map(|qa| qa.0.clone()) {
+            self.wheres.add_intersection(ColumnConstraint::HasType(table, value.value_type()));
+        }
+
+        // Finally, store the binding for future use.
         self.value_bindings.insert(var.clone(), value);
     }
 
@@ -375,6 +398,13 @@ impl ConjoiningClauses {
                     // We don't need to handle expansion of attributes here. The subquery that
                     // produces the variable projection will do so.
                     self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                Column::Fulltext(FulltextColumn::Rowid) |
+                Column::Fulltext(FulltextColumn::Text) => {
+                    // We never expose `rowid` via queries.  We do expose `text`, but only
+                    // indirectly, by joining against `datoms`.  Therefore, these are meaningless.
+                    unimplemented!()
                 },
 
                 Column::Fixed(DatomsColumn::ValueTypeTag) => {
@@ -450,8 +480,14 @@ impl ConjoiningClauses {
     }
 
     pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
-        let column = column.into();
-        self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+        match constant {
+            // Be a little more explicit.
+            TypedValue::Ref(entid) => self.constrain_column_to_entity(table, column, entid),
+            _ => {
+                let column = column.into();
+                self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::TypedValue(constant)))
+            },
+        }
     }
 
     pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {

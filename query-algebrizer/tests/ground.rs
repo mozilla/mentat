@@ -13,6 +13,8 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
 
+use std::collections::BTreeMap;
+
 use mentat_core::{
     Attribute,
     Entid,
@@ -37,7 +39,9 @@ use mentat_query_algebrizer::{
     ComputedTable,
     Error,
     ErrorKind,
+    QueryInputs,
     algebrize,
+    algebrize_with_inputs,
 };
 
 // These are helpers that tests use to build Schema instances.
@@ -90,6 +94,11 @@ fn prepopulated_schema() -> Schema {
 fn bails(schema: &Schema, input: &str) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
     algebrize(schema.into(), parsed).expect_err("algebrize to have failed")
+}
+
+fn bails_with_inputs(schema: &Schema, input: &str, inputs: QueryInputs) -> Error {
+    let parsed = parse_find_string(input).expect("query input to have parsed");
+    algebrize_with_inputs(schema, parsed, 0, inputs).expect_err("algebrize to have failed")
 }
 
 fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
@@ -307,6 +316,29 @@ fn test_ground_nonexistent_variable_invalid() {
     match e {
         Error(ErrorKind::UnboundVariable(PlainSymbol(v)), _) => {
             assert_eq!(v, "?v".to_string());
+        },
+        _ => {
+            panic!();
+        },
+    }
+}
+
+#[test]
+fn test_unbound_input_variable_invalid() {
+    let schema = prepopulated_schema();
+    let q = r#"[:find ?y ?age :in ?x :where [(ground [?x]) [?y ...]] [?y :foo/age ?age]]"#;
+
+    // This fails even if we know the type: we don't support grounding bindings
+    // that aren't known at algebrizing time.
+    let mut types = BTreeMap::default();
+    types.insert(Variable::from_valid_name("?x"), ValueType::Ref);
+
+    let i = QueryInputs::new(types, BTreeMap::default()).expect("valid QueryInputs");
+
+    let e = bails_with_inputs(&schema, &q, i);
+    match e {
+        Error(ErrorKind::UnboundVariable(v), _) => {
+            assert_eq!(v.0, "?x");
         },
         _ => {
             panic!();
