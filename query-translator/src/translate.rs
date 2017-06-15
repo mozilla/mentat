@@ -148,6 +148,14 @@ impl ToConstraint for ColumnConstraint {
                 }
             },
 
+            Matches(left, right) => {
+                Constraint::Infix {
+                    op: Op("MATCH"),
+                    left: ColumnOrExpression::Column(left),
+                    right: right.into(),
+                }
+            },
+
             HasType(table, value_type) => {
                 let column = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag).to_column();
                 Constraint::equal(column, ColumnOrExpression::Integer(value_type.value_type_tag()))

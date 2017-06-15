@@ -15,6 +15,8 @@ extern crate mentat_query_parser;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 
+use std::collections::BTreeMap;
+
 use std::rc::Rc;
 
 use mentat_query::{
@@ -67,6 +69,13 @@ fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
     associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
     add_attribute(&mut schema, 99, Attribute {
         value_type: foo_type,
+        ..Default::default()
+    });
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
+    add_attribute(&mut schema, 100, Attribute {
+        value_type: ValueType::String,
+        index: true,
+        fulltext: true,
         ..Default::default()
     });
     schema
@@ -226,7 +235,7 @@ fn test_unknown_attribute_double_value() {
 
     // In general, doubles _could_ be 1.0, which might match a boolean or a ref. Set tag = 5 to
     // make sure we only match numbers.
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 9.95 AND `datoms00`.value_type_tag = 5");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 9.95e0 AND `datoms00`.value_type_tag = 5");
     assert_eq!(args, vec![]);
 }
 
@@ -295,7 +304,7 @@ fn test_numeric_gte_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Double);
     let query = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 12.9");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 1.29e1");
     assert_eq!(args, vec![]);
 }
 
@@ -726,4 +735,156 @@ fn test_not_with_ground() {
                 WHERE `datoms00`.a = 7 AND NOT EXISTS \
                 (SELECT 1 FROM (SELECT 0 AS `?v` WHERE 0 UNION ALL VALUES (28), (29)) AS `c00` \
                  WHERE `datoms00`.v = `c00`.`?v`)");
+}
+
+#[test]
+fn test_fulltext() {
+    let schema = prepopulated_typed_schema(ValueType::Double);
+
+    let query = r#"[:find ?entity ?value ?tx ?score :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
+                                     `fulltext_values00`.text AS `?value`, \
+                                     `datoms01`.tx AS `?tx`, \
+                                     0e0 AS `?score` \
+                     FROM `fulltext_values` AS `fulltext_values00`, \
+                          `datoms` AS `datoms01` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    // Observe that the computed table isn't dropped, even though `?score` isn't bound in the final conjoining clause.
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
+                                     `fulltext_values00`.text AS `?value`, \
+                                     `datoms01`.tx AS `?tx` \
+                     FROM `fulltext_values` AS `fulltext_values00`, \
+                          `datoms` AS `datoms01` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx _]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    // Observe that the computed table isn't included at all when `?score` isn't bound.
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
+                                     `fulltext_values00`.text AS `?value`, \
+                                     `datoms01`.tx AS `?tx` \
+                     FROM `fulltext_values` AS `fulltext_values00`, \
+                          `datoms` AS `datoms01` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]] [?entity :foo/bar ?score]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
+                                     `fulltext_values00`.text AS `?value`, \
+                                     `datoms01`.tx AS `?tx` \
+                     FROM `fulltext_values` AS `fulltext_values00`, \
+                          `datoms` AS `datoms01`, \
+                          `datoms` AS `datoms02` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0 \
+                       AND `datoms02`.a = 99 \
+                       AND `datoms02`.v = 0e0 \
+                       AND `datoms01`.e = `datoms02`.e");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+
+    let query = r#"[:find ?entity ?value ?tx :where [?entity :foo/bar ?score] [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?entity`, \
+                                     `fulltext_values01`.text AS `?value`, \
+                                     `datoms02`.tx AS `?tx` \
+                     FROM `datoms` AS `datoms00`, \
+                          `fulltext_values` AS `fulltext_values01`, \
+                          `datoms` AS `datoms02` \
+                     WHERE `datoms00`.a = 99 \
+                       AND `datoms02`.a = 100 \
+                       AND `datoms02`.v = `fulltext_values01`.rowid \
+                       AND `fulltext_values01`.text MATCH $v0 \
+                       AND `datoms00`.v = 0e0 \
+                       AND `datoms00`.e = `datoms02`.e");
+    assert_eq!(args, vec![make_arg("$v0", "needle"),]);
+}
+
+#[test]
+fn test_fulltext_inputs() {
+    let schema = prepopulated_typed_schema(ValueType::String);
+
+    // Bind ?entity. We expect the output to collide.
+    let query = r#"[:find ?val
+                    :in ?entity
+                    :where [(fulltext $ :foo/fts "hello") [[?entity ?val _ _]]]]"#;
+    let mut types = BTreeMap::default();
+    types.insert(Variable::from_valid_name("?entity"), ValueType::Ref);
+    let inputs = QueryInputs::new(types, BTreeMap::default()).expect("valid inputs");
+
+    // Without binding the value. q_once will err if you try this!
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    assert_eq!(sql, "SELECT DISTINCT `fulltext_values00`.text AS `?val` \
+                     FROM \
+                     `fulltext_values` AS `fulltext_values00`, \
+                     `datoms` AS `datoms01` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0");
+    assert_eq!(args, vec![make_arg("$v0", "hello"),]);
+
+    // With the value bound.
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?entity"), TypedValue::Ref(111))]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    assert_eq!(sql, "SELECT DISTINCT `fulltext_values00`.text AS `?val` \
+                     FROM \
+                     `fulltext_values` AS `fulltext_values00`, \
+                     `datoms` AS `datoms01` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0 \
+                       AND `datoms01`.e = 111");
+    assert_eq!(args, vec![make_arg("$v0", "hello"),]);
+
+    // Same again, but retrieving the entity.
+    let query = r#"[:find ?entity .
+                    :in ?entity
+                    :where [(fulltext $ :foo/fts "hello") [[?entity _ _]]]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?entity"), TypedValue::Ref(111))]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    assert_eq!(sql, "SELECT 111 AS `?entity` FROM \
+                     `fulltext_values` AS `fulltext_values00`, \
+                     `datoms` AS `datoms01` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0 \
+                       AND `datoms01`.e = 111 \
+                     LIMIT 1");
+    assert_eq!(args, vec![make_arg("$v0", "hello"),]);
+
+    // A larger pattern.
+    let query = r#"[:find ?entity ?value ?friend
+                    :in ?entity
+                    :where
+                    [(fulltext $ :foo/fts "hello") [[?entity ?value]]]
+                    [?entity :foo/bar ?friend]]"#;
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?entity"), TypedValue::Ref(121))]);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    assert_eq!(sql, "SELECT DISTINCT 121 AS `?entity`, \
+                                     `fulltext_values00`.text AS `?value`, \
+                                     `datoms02`.v AS `?friend` \
+                     FROM \
+                     `fulltext_values` AS `fulltext_values00`, \
+                     `datoms` AS `datoms01`, \
+                     `datoms` AS `datoms02` \
+                     WHERE `datoms01`.a = 100 \
+                       AND `datoms01`.v = `fulltext_values00`.rowid \
+                       AND `fulltext_values00`.text MATCH $v0 \
+                       AND `datoms01`.e = 121 \
+                       AND `datoms02`.e = 121 \
+                       AND `datoms02`.a = 99");
+    assert_eq!(args, vec![make_arg("$v0", "hello"),]);
 }

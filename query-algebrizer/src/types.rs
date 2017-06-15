@@ -85,6 +85,13 @@ pub enum DatomsColumn {
     ValueTypeTag,
 }
 
+/// One of the named columns of our fulltext values table.
+#[derive(PartialEq, Eq, Clone)]
+pub enum FulltextColumn {
+    Rowid,
+    Text,
+}
+
 #[derive(PartialEq, Eq, Clone)]
 pub enum VariableColumn {
     Variable(Variable),
@@ -94,6 +101,7 @@ pub enum VariableColumn {
 #[derive(PartialEq, Eq, Clone)]
 pub enum Column {
     Fixed(DatomsColumn),
+    Fulltext(FulltextColumn),
     Variable(VariableColumn),
 }
 
@@ -157,8 +165,31 @@ impl Debug for Column {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             &Column::Fixed(ref c) => c.fmt(f),
+            &Column::Fulltext(ref c) => c.fmt(f),
             &Column::Variable(ref v) => v.fmt(f),
         }
+    }
+}
+
+impl FulltextColumn {
+    pub fn as_str(&self) -> &'static str {
+        use self::FulltextColumn::*;
+        match *self {
+            Rowid => "rowid",
+            Text => "text",
+        }
+    }
+}
+
+impl ColumnName for FulltextColumn {
+    fn column_name(&self) -> String {
+        self.as_str().to_string()
+    }
+}
+
+impl Debug for FulltextColumn {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -301,6 +332,9 @@ pub enum ColumnConstraint {
     },
     HasType(TableAlias, ValueType),
     NotExists(ComputedTable),
+    // TODO: Merge this with NumericInequality?  I expect the fine-grained information to be
+    // valuable when optimizing.
+    Matches(QualifiedAlias, QueryValue),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -411,6 +445,10 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?} {:?} {:?}", left, operator, right)
             },
 
+            &Matches(ref qa, ref thing) => {
+                write!(f, "{:?} MATCHES {:?}", qa, thing)
+            },
+
             &HasType(ref qa, value_type) => {
                 write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
             },
@@ -426,6 +464,7 @@ pub enum EmptyBecause {
     ConflictingBindings { var: Variable, existing: TypedValue, desired: TypedValue },
     TypeMismatch { var: Variable, existing: ValueTypeSet, desired: ValueTypeSet },
     NoValidTypes(Variable),
+    NonAttributeArgument,
     NonNumericArgument,
     NonStringFulltextValue,
     UnresolvedIdent(NamespacedKeyword),
@@ -450,6 +489,9 @@ impl Debug for EmptyBecause {
             },
             &NoValidTypes(ref var) => {
                 write!(f, "Type mismatch: {:?} has no valid types", var)
+            },
+            &NonAttributeArgument => {
+                write!(f, "Non-attribute argument in attribute place")
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")
@@ -580,5 +622,30 @@ impl ValueTypeSet {
 
     pub fn is_unit(&self) -> bool {
         self.0.len() == 1
+    }
+}
+
+impl IntoIterator for ValueTypeSet {
+    type Item = ValueType;
+    type IntoIter = ::enum_set::Iter<ValueType>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl ::std::iter::FromIterator<ValueType> for ValueTypeSet {
+    fn from_iter<I: IntoIterator<Item = ValueType>>(iterator: I) -> Self {
+        let mut ret = Self::none();
+        ret.0.extend(iterator);
+        ret
+    }
+}
+
+impl ::std::iter::Extend<ValueType> for ValueTypeSet {
+    fn extend<I: IntoIterator<Item = ValueType>>(&mut self, iter: I) {
+        for element in iter {
+            self.0.insert(element);
+        }
     }
 }

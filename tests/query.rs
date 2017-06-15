@@ -254,3 +254,40 @@ fn test_instants_and_uuids() {
         _ => panic!("Expected query to work."),
     }
 }
+
+#[test]
+fn test_fulltext() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    conn.transact(&mut c, r#"[
+        [:db/add "s" :db/ident :foo/fts]
+        [:db/add "s" :db/valueType :db.type/string]
+        [:db/add "s" :db/fulltext true]
+        [:db/add "s" :db/cardinality :db.cardinality/many]
+    ]"#).unwrap();
+    let v = conn.transact(&mut c, r#"[
+        [:db/add "v" :foo/fts "hello darkness my old friend"]
+        [:db/add "v" :foo/fts "I've come to talk with you again"]
+    ]"#).unwrap().tempids.get("v").cloned().expect("v was mapped");
+
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?x ?val ?score]
+                            :where [(fulltext $ :foo/fts "darkness") [[?x ?val _ ?score]]]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            let mut vals = vals.into_iter();
+            match (vals.next(), vals.next(), vals.next(), vals.next()) {
+                (Some(TypedValue::Ref(x)),
+                 Some(TypedValue::String(text)),
+                 Some(TypedValue::Double(score)),
+                 None) => {
+                     assert_eq!(x, v);
+                     assert_eq!(text.as_str(), "hello darkness my old friend");
+                     assert_eq!(score, 0.0f64.into());
+                 },
+                 _ => panic!("Unexpected results."),
+            }
+        },
+        _ => panic!("Expected query to work."),
+    }
+}
