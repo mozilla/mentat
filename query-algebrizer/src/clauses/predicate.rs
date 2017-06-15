@@ -10,13 +10,17 @@
 
 use mentat_core::{
     Schema,
+    ValueType,
 };
 
 use mentat_query::{
+    FnArg,
     Predicate,
 };
 
 use clauses::ConjoiningClauses;
+
+use clauses::convert::ValueTypes;
 
 use errors::{
     Result,
@@ -26,6 +30,7 @@ use errors::{
 use types::{
     ColumnConstraint,
     Inequality,
+    ValueTypeSet,
 };
 
 /// Application of predicates.
@@ -46,11 +51,17 @@ impl ConjoiningClauses {
         }
     }
 
+    fn potential_types(&self, schema: &Schema, fn_arg: &FnArg) -> Result<ValueTypeSet> {
+        match fn_arg {
+            &FnArg::Variable(ref v) => Ok(self.known_type_set(v)),
+            _ => fn_arg.potential_types(schema),
+        }
+    }
+
     /// This function:
     /// - Resolves variables and converts types to those more amenable to SQL.
     /// - Ensures that the predicate functions name a known operator.
     /// - Accumulates an `Inequality` constraint into the `wheres` list.
-    #[allow(unused_variables)]
     pub fn apply_inequality<'s>(&mut self, schema: &'s Schema, comparison: Inequality, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
@@ -60,21 +71,36 @@ impl ConjoiningClauses {
         // Any variables that aren't bound by this point in the linear processing of clauses will
         // cause the application of the predicate to fail.
         let mut args = predicate.args.into_iter();
-        let left = self.resolve_numeric_argument(&predicate.operator, 0, args.next().unwrap())?;
-        let right = self.resolve_numeric_argument(&predicate.operator, 1, args.next().unwrap())?;
+        let left = args.next().expect("two args");
+        let right = args.next().expect("two args");
+
+
+        // The types we're handling here must be the intersection of the possible types of the arguments,
+        // the known types of any variables, and the types supported by our inequality operators.
+        let left_types = self.potential_types(schema, &left)?;
+        let right_types = self.potential_types(schema, &right)?;
+        let shared_types = left_types.intersection(&right_types)
+                                     .intersection(&comparison.supported_types());
+
+        // We expect the intersection to be Long, Long+Double, Double, or Instant.
+        let left_v;
+        let right_v;
+        if shared_types == ValueTypeSet::of_one(ValueType::Instant) {
+            left_v = self.resolve_instant_argument(&predicate.operator, 0, left)?;
+            right_v = self.resolve_instant_argument(&predicate.operator, 1, right)?;
+        } else if shared_types.is_subset(&ValueTypeSet::of_numeric_types()) {
+            left_v = self.resolve_numeric_argument(&predicate.operator, 0, left)?;
+            right_v = self.resolve_numeric_argument(&predicate.operator, 1, right)?;
+        } else {
+            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
+        }
 
         // These arguments must be variables or instant/numeric constants.
-        // TODO: generalize argument resolution and validation for different kinds of predicates:
-        // as we process `(< ?x 5)` we are able to check or deduce that `?x` is numeric, and either
-        // simplify the pattern or optimize the rest of the query.
-        // To do so needs a slightly more sophisticated representation of type constraints — a set,
-        // not a single `Option`.
-
         // TODO: static evaluation. #383.
         let constraint = ColumnConstraint::Inequality {
             operator: comparison,
-            left: left,
-            right: right,
+            left: left_v,
+            right: right_v,
         };
         self.wheres.add_intersection(constraint);
         Ok(())

@@ -888,3 +888,20 @@ fn test_fulltext_inputs() {
                        AND `datoms02`.a = 99");
     assert_eq!(args, vec![make_arg("$v0", "hello"),]);
 }
+
+#[test]
+fn test_instant_range() {
+    let schema = prepopulated_typed_schema(ValueType::Instant);
+    let query = r#"[:find ?e
+                    :where
+                    [?e :foo/bar ?t]
+                    [(> ?t #inst "2017-06-16T00:56:41.257Z")]]"#;
+
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?e` \
+                     FROM \
+                     `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                       AND `datoms00`.v > 1497574601257000");
+    assert_eq!(args, vec![]);
+}

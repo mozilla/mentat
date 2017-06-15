@@ -10,6 +10,7 @@
 
 use mentat_core::{
     TypedValue,
+    ValueType,
 };
 
 use mentat_query::{
@@ -55,7 +56,7 @@ impl ConjoiningClauses {
             Constant(NonIntegerConstant::Boolean(_)) |
             Constant(NonIntegerConstant::Text(_)) |
             Constant(NonIntegerConstant::Uuid(_)) |
-            Constant(NonIntegerConstant::Instant(_)) |        // Instants are covered elsewhere.
+            Constant(NonIntegerConstant::Instant(_)) |        // Instants are covered below.
             Constant(NonIntegerConstant::BigInteger(_)) |
             Vector(_) => {
                 self.mark_known_empty(EmptyBecause::NonNumericArgument);
@@ -65,6 +66,36 @@ impl ConjoiningClauses {
         }
     }
 
+    /// Just like `resolve_numeric_argument`, but for `ValueType::Instant`.
+    pub fn resolve_instant_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
+        use self::FnArg::*;
+        match arg {
+            FnArg::Variable(var) => {
+                self.constrain_var_to_type(var.clone(), ValueType::Instant);
+                self.column_bindings
+                    .get(&var)
+                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+            },
+            Constant(NonIntegerConstant::Instant(v)) => {
+                Ok(QueryValue::TypedValue(TypedValue::Instant(v)))
+            },
+
+            // TODO: should we allow integers if they seem to be timestamps? It's ambiguous…
+            EntidOrInteger(_) |
+            IdentOrKeyword(_) |
+            SrcVar(_) |
+            Constant(NonIntegerConstant::Boolean(_)) |
+            Constant(NonIntegerConstant::Float(_)) |
+            Constant(NonIntegerConstant::Text(_)) |
+            Constant(NonIntegerConstant::Uuid(_)) |
+            Constant(NonIntegerConstant::BigInteger(_)) |
+            Vector(_) => {
+                self.mark_known_empty(EmptyBecause::NonInstantArgument);
+                bail!(ErrorKind::InvalidArgument(function.clone(), "instant", position));
+            },
+        }
+    }
 
     /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
     /// constraint.

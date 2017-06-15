@@ -89,10 +89,10 @@ impl ValueTypes for FnArg {
                 &FnArg::SrcVar(_) => bail!(ErrorKind::UnsupportedArgument),
 
                 // These are all straightforward.
-                &FnArg::Constant(NonIntegerConstant::Boolean(x)) => ValueTypeSet::of_one(ValueType::Boolean),
-                &FnArg::Constant(NonIntegerConstant::Instant(x)) => ValueTypeSet::of_one(ValueType::Instant),
-                &FnArg::Constant(NonIntegerConstant::Uuid(x)) => ValueTypeSet::of_one(ValueType::Uuid),
-                &FnArg::Constant(NonIntegerConstant::Float(x)) => ValueTypeSet::of_one(ValueType::Double),
+                &FnArg::Constant(NonIntegerConstant::Boolean(_)) => ValueTypeSet::of_one(ValueType::Boolean),
+                &FnArg::Constant(NonIntegerConstant::Instant(_)) => ValueTypeSet::of_one(ValueType::Instant),
+                &FnArg::Constant(NonIntegerConstant::Uuid(_)) => ValueTypeSet::of_one(ValueType::Uuid),
+                &FnArg::Constant(NonIntegerConstant::Float(_)) => ValueTypeSet::of_one(ValueType::Double),
                 &FnArg::Constant(NonIntegerConstant::Text(_)) => ValueTypeSet::of_one(ValueType::String),
             })
     }

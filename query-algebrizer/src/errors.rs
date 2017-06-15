@@ -39,6 +39,11 @@ error_chain! {
     }
 
     errors {
+        UnsupportedArgument {
+            description("unexpected FnArg")
+            display("unexpected FnArg")
+        }
+
         InputTypeDisagreement(var: PlainSymbol, declared: ValueType, provided: ValueType) {
             description("input type disagreement")
             display("value of type {} provided for var {}, expected {}", provided, var, declared)

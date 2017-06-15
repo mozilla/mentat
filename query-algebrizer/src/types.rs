@@ -308,6 +308,13 @@ impl Inequality {
             _    => None,
         }
     }
+
+    // The built-in inequality operators apply to Long, Double, and Instant.
+    pub fn supported_types(&self) -> ValueTypeSet {
+        let mut ts = ValueTypeSet::of_numeric_types();
+        ts.insert(ValueType::Instant);
+        ts
+    }
 }
 
 impl Debug for Inequality {
@@ -464,6 +471,7 @@ pub enum EmptyBecause {
     TypeMismatch { var: Variable, existing: ValueTypeSet, desired: ValueTypeSet },
     NoValidTypes(Variable),
     NonAttributeArgument,
+    NonInstantArgument,
     NonNumericArgument,
     NonStringFulltextValue,
     UnresolvedIdent(NamespacedKeyword),
@@ -491,6 +499,9 @@ impl Debug for EmptyBecause {
             },
             &NonAttributeArgument => {
                 write!(f, "Non-attribute argument in attribute place")
+            },
+            &NonInstantArgument => {
+                write!(f, "Non-instant argument in instant place")
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")
@@ -609,6 +620,10 @@ impl ValueTypeSet {
     /// For a set containing a single type, this will be that type.
     pub fn exemplar(&self) -> Option<ValueType> {
         self.0.iter().next()
+    }
+
+    pub fn is_subset(&self, other: &ValueTypeSet) -> bool {
+        self.0.is_subset(&other.0)
     }
 
     pub fn contains(&self, vt: ValueType) -> bool {
