@@ -51,6 +51,53 @@ macro_rules! coerce_to_typed_value {
     } }
 }
 
+pub trait ValueTypes {
+    fn potential_types(&self, schema: &Schema) -> Result<ValueTypeSet>;
+}
+
+impl ValueTypes for FnArg {
+    fn potential_types(&self, schema: &Schema) -> Result<ValueTypeSet> {
+        Ok(match self {
+                &FnArg::EntidOrInteger(x) => {
+                    if ValueType::Ref.accommodates_integer(x) {
+                        // TODO: also see if it's a valid entid?
+                        ValueTypeSet::of_longs()
+                    } else {
+                        ValueTypeSet::of_one(ValueType::Long)
+                    }
+                },
+
+                &FnArg::IdentOrKeyword(ref x) => {
+                    if schema.get_entid(x).is_some() {
+                        ValueTypeSet::of_keywords()
+                    } else {
+                        ValueTypeSet::of_one(ValueType::Keyword)
+                    }
+                },
+
+                &FnArg::Variable(_) => {
+                    ValueTypeSet::any()
+                },
+
+                &FnArg::Constant(NonIntegerConstant::BigInteger(_)) => {
+                    // Not yet implemented.
+                    bail!(ErrorKind::UnsupportedArgument)
+                },
+
+                // These don't make sense here. TODO: split FnArg into scalar and non-scalar…
+                &FnArg::Vector(_) |
+                &FnArg::SrcVar(_) => bail!(ErrorKind::UnsupportedArgument),
+
+                // These are all straightforward.
+                &FnArg::Constant(NonIntegerConstant::Boolean(x)) => ValueTypeSet::of_one(ValueType::Boolean),
+                &FnArg::Constant(NonIntegerConstant::Instant(x)) => ValueTypeSet::of_one(ValueType::Instant),
+                &FnArg::Constant(NonIntegerConstant::Uuid(x)) => ValueTypeSet::of_one(ValueType::Uuid),
+                &FnArg::Constant(NonIntegerConstant::Float(x)) => ValueTypeSet::of_one(ValueType::Double),
+                &FnArg::Constant(NonIntegerConstant::Text(_)) => ValueTypeSet::of_one(ValueType::String),
+            })
+    }
+}
+
 pub enum ValueConversion {
     Val(TypedValue),
     Impossible(EmptyBecause),
