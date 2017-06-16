@@ -563,7 +563,7 @@ pub trait FromMicros {
 
 impl FromMicros for DateTime<UTC> {
     fn from_micros(ts: i64) -> Self {
-        UTC.timestamp(ts / 100_000, ((ts % 100_000).abs() as u32) * 1_000)
+        UTC.timestamp(ts / 1_000_000, ((ts % 1_000_000).abs() as u32) * 1_000)
     }
 }
 
@@ -573,7 +573,9 @@ pub trait ToMicros {
 
 impl ToMicros for DateTime<UTC> {
     fn to_micros(&self) -> i64 {
-        (self.timestamp() * 100_000) + (self.timestamp_subsec_micros() as i64)
+        let major: i64 = self.timestamp() * 1_000_000;
+        let minor: i64 = self.timestamp_subsec_micros() as i64;
+        major + minor
     }
 }
 
