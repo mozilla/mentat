@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#[macro_use]
+extern crate error_chain;
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
@@ -25,3 +27,16 @@ pub use translate::{
     cc_to_exists,
     query_to_select,
 };
+
+error_chain! {
+    types {
+        Error, ErrorKind, ResultExt, Result;
+    }
+
+    foreign_links {
+    }
+
+    links {
+        ProjectorError(mentat_query_projector::Error, mentat_query_projector::ErrorKind);
+    }
+}

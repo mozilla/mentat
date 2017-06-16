@@ -4,6 +4,8 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
+error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
+
 [dependencies.mentat_core]
 path = "../core"
 
