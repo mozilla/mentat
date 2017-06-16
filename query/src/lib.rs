@@ -435,7 +435,7 @@ pub struct Aggregate {
 }
 */
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
     // Aggregate(Aggregate),   // TODO
@@ -480,7 +480,7 @@ pub enum Limit {
 /// # }
 /// ```
 ///
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum FindSpec {
     /// Returns an array of arrays.
     FindRel(Vec<Element>),
@@ -775,7 +775,7 @@ pub enum WhereClause {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct FindQuery {
     pub find_spec: FindSpec,
     pub default_source: SrcVar,

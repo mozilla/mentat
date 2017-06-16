@@ -462,7 +462,7 @@ def_parser!(Find, query, FindQuery, {
 
             Ok(FindQuery {
                 default_source: SrcVar::DefaultSrc,
-                find_spec: find_spec.clone().ok_or(combine::primitives::Error::Unexpected("expected :find".into()))?,
+                find_spec: find_spec.ok_or(combine::primitives::Error::Unexpected("expected :find".into()))?,
                 in_sources: BTreeSet::default(),    // TODO
                 in_vars: in_vars,
                 limit: limit,
