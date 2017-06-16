@@ -259,6 +259,15 @@ impl FromValue<FnArg> for FnArg {
     }
 }
 
+impl FnArg {
+    pub fn as_variable(&self) -> Option<&Variable> {
+        match self {
+            &FnArg::Variable(ref v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 /// e, a, tx can't be values -- no strings, no floats -- and so
 /// they can only be variables, entity IDs, ident keywords, or
 /// placeholders.

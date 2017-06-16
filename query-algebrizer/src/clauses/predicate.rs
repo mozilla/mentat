@@ -29,6 +29,7 @@ use errors::{
 
 use types::{
     ColumnConstraint,
+    EmptyBecause,
     Inequality,
     ValueTypeSet,
 };
@@ -77,10 +78,48 @@ impl ConjoiningClauses {
 
         // The types we're handling here must be the intersection of the possible types of the arguments,
         // the known types of any variables, and the types supported by our inequality operators.
-        let left_types = self.potential_types(schema, &left)?;
-        let right_types = self.potential_types(schema, &right)?;
-        let shared_types = left_types.intersection(&right_types)
-                                     .intersection(&comparison.supported_types());
+        let supported_types = comparison.supported_types();
+        let mut left_types = self.potential_types(schema, &left)?
+                                 .intersection(&supported_types);
+        if left_types.is_empty() {
+            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
+        }
+
+        let mut right_types = self.potential_types(schema, &right)?
+                                  .intersection(&supported_types);
+        if right_types.is_empty() {
+            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 1));
+        }
+
+        // We would like to allow longs to compare to doubles.
+        // Do this by expanding the type sets. `resolve_numeric_argument` will
+        // use `Long` by preference.
+        if right_types.contains(ValueType::Long) {
+            right_types.insert(ValueType::Double);
+        }
+        if left_types.contains(ValueType::Long) {
+            left_types.insert(ValueType::Double);
+        }
+
+        let shared_types = left_types.intersection(&right_types);
+        if shared_types.is_empty() {
+            // In isolation these are both valid inputs to the operator, but the query cannot
+            // succeed because the types don't match.
+            self.mark_known_empty(
+                if let Some(var) = left.as_variable().or_else(|| right.as_variable()) {
+                    EmptyBecause::TypeMismatch {
+                        var: var.clone(),
+                        existing: left_types,
+                        desired: right_types,
+                    }
+                } else {
+                    EmptyBecause::KnownTypeMismatch {
+                        left: left_types,
+                        right: right_types,
+                    }
+                });
+            return Ok(());
+        }
 
         // We expect the intersection to be Long, Long+Double, Double, or Instant.
         let left_v;
@@ -88,7 +127,7 @@ impl ConjoiningClauses {
         if shared_types == ValueTypeSet::of_one(ValueType::Instant) {
             left_v = self.resolve_instant_argument(&predicate.operator, 0, left)?;
             right_v = self.resolve_instant_argument(&predicate.operator, 1, right)?;
-        } else if shared_types.is_subset(&ValueTypeSet::of_numeric_types()) {
+        } else if !shared_types.is_empty() && shared_types.is_subset(&ValueTypeSet::of_numeric_types()) {
             left_v = self.resolve_numeric_argument(&predicate.operator, 0, left)?;
             right_v = self.resolve_numeric_argument(&predicate.operator, 1, right)?;
         } else {

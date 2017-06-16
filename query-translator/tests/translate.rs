@@ -318,6 +318,56 @@ fn test_numeric_not_equals_known_attribute() {
 }
 
 #[test]
+fn test_compare_long_to_double_constants() {
+    let schema = prepopulated_typed_schema(ValueType::Double);
+
+    let query = r#"[:find ?e .
+                    :where
+                    [?e :foo/bar ?v]
+                    [(< 99.0 1234512345)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?e` FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                       AND 9.9e1 < 1234512345 \
+                     LIMIT 1");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_compare_long_to_double() {
+    let schema = prepopulated_typed_schema(ValueType::Double);
+
+    // You can compare longs to doubles.
+    let query = r#"[:find ?e .
+                    :where
+                    [?e :foo/bar ?t]
+                    [(< ?t 1234512345)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?e` FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                       AND `datoms00`.v < 1234512345 \
+                     LIMIT 1");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_compare_double_to_long() {
+    let schema = prepopulated_typed_schema(ValueType::Long);
+
+    // You can compare doubles to longs.
+    let query = r#"[:find ?e .
+                    :where
+                    [?e :foo/bar ?t]
+                    [(< ?t 1234512345.0)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `datoms00`.e AS `?e` FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                       AND `datoms00`.v < 1.234512345e9 \
+                     LIMIT 1");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
 fn test_simple_or_join() {
     let mut schema = Schema::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "url"), 97);

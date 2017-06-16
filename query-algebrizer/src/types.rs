@@ -468,7 +468,12 @@ impl Debug for ColumnConstraint {
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
     ConflictingBindings { var: Variable, existing: TypedValue, desired: TypedValue },
+
+    // A variable is known to be of two conflicting sets of types.
     TypeMismatch { var: Variable, existing: ValueTypeSet, desired: ValueTypeSet },
+
+    // The same, but for non-variables.
+    KnownTypeMismatch { left: ValueTypeSet, right: ValueTypeSet },
     NoValidTypes(Variable),
     NonAttributeArgument,
     NonInstantArgument,
@@ -493,6 +498,10 @@ impl Debug for EmptyBecause {
             &TypeMismatch { ref var, ref existing, ref desired } => {
                 write!(f, "Type mismatch: {:?} can't be {:?}, because it's already {:?}",
                        var, desired, existing)
+            },
+            &KnownTypeMismatch { ref left, ref right } => {
+                write!(f, "Type mismatch: {:?} can't be compared to {:?}",
+                       left, right)
             },
             &NoValidTypes(ref var) => {
                 write!(f, "Type mismatch: {:?} has no valid types", var)
