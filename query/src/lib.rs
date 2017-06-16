@@ -428,17 +428,16 @@ pub struct Pull {
 }
 */
 
-/*
+#[derive(Debug, Eq, PartialEq)]
 pub struct Aggregate {
-    pub fn_name: String,
+    pub func: QueryFunction,
     pub args: Vec<FnArg>,
 }
-*/
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
-    // Aggregate(Aggregate),   // TODO
+    Aggregate(Aggregate),
     // Pull(Pull),             // TODO
 }
 

@@ -546,13 +546,13 @@ fn test_with_without_aggregate() {
     // Known type.
     let query = r#"[:find ?x :with ?y :where [?x :foo/bar ?y]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99");
     assert_eq!(args, vec![]);
 
     // Unknown type.
     let query = r#"[:find ?x :with ?y :where [?x _ ?y]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, `all_datoms00`.value_type_tag AS `?y_value_type_tag` FROM `all_datoms` AS `all_datoms00`");
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00`");
     assert_eq!(args, vec![]);
 }
 
@@ -953,5 +953,32 @@ fn test_instant_range() {
                      `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
                        AND `datoms00`.v > 1497574601257000");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_project_aggregates() {
+    let schema = prepopulated_typed_schema(ValueType::Long);
+    let query = r#"[:find ?e (max ?t)
+                    :where
+                    [?e :foo/bar ?t]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?e`, max(`datoms00`.v) AS `(max ?t)` \
+                     FROM \
+                     `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                     GROUP BY `datoms00`.e");
+    assert_eq!(args, vec![]);
+
+    let query = r#"[:find (max ?t)
+                    :with ?e
+                    :where
+                    [?e :foo/bar ?t]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT max(`datoms00`.v) AS `(max ?t)` \
+                     FROM \
+                     `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                     GROUP BY `datoms00`.e");
     assert_eq!(args, vec![]);
 }

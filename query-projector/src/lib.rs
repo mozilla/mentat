@@ -19,7 +19,9 @@ extern crate mentat_query_algebrizer;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
 
+use std::collections::BTreeSet;
 use std::iter;
+
 use rusqlite::{
     Row,
     Rows,
@@ -39,9 +41,12 @@ use mentat_db::{
 };
 
 use mentat_query::{
+    Aggregate,
     Element,
     FindSpec,
     Limit,
+    PlainSymbol,
+    QueryFunction,
     Variable,
 };
 
@@ -49,11 +54,14 @@ use mentat_query_algebrizer::{
     AlgebraicQuery,
     ColumnName,
     ConjoiningClauses,
+    QualifiedAlias,
     VariableColumn,
 };
 
 use mentat_query_sql::{
     ColumnOrExpression,
+    Expression,
+    GroupBy,
     Name,
     Projection,
     ProjectedColumn,
@@ -62,6 +70,31 @@ use mentat_query_sql::{
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
+    }
+
+    errors {
+        /// We're just not done yet.  Message that the feature is recognized but not yet
+        /// implemented.
+        NotYetImplemented(t: String) {
+            description("not yet implemented")
+            display("not yet implemented: {}", t)
+        }
+        CannotProjectImpossibleBinding(op: SimpleAggregationOp) {
+            description("no possible types for variable in projection list")
+            display("no possible types for value provided to {:?}", op)
+        }
+        CannotApplyAggregateOperationToTypes(op: SimpleAggregationOp, types: ValueTypeSet) {
+            description("cannot apply projection operation to types")
+            display("cannot apply projection operation {:?} to types {:?}", op, types)
+        }
+        UnboundVariable(var: PlainSymbol) {
+            description("cannot project unbound variable")
+            display("cannot project unbound variable {:?}", var)
+        }
+        NoTypeAvailableForVariable(var: PlainSymbol) {
+            description("cannot find type for variable")
+            display("cannot find type for variable {:?}", var)
+        }
     }
 
     foreign_links {
@@ -161,17 +194,22 @@ impl TypedIndex {
     }
 }
 
-fn candidate_column(cc: &ConjoiningClauses, var: &Variable) -> (ColumnOrExpression, Name) {
+fn cc_column(cc: &ConjoiningClauses, var: &Variable) -> Result<QualifiedAlias> {
+    cc.column_bindings
+      .get(var)
+      .and_then(|cols| cols.get(0).cloned())
+      .ok_or_else(|| ErrorKind::UnboundVariable(var.name()).into())
+}
+
+fn candidate_column(cc: &ConjoiningClauses, var: &Variable) -> Result<(ColumnOrExpression, Name)> {
     // Every variable should be bound by the top-level CC to at least
     // one column in the query. If that constraint is violated it's a
     // bug in our code, so it's appropriate to panic here.
-    let columns = cc.column_bindings
-                    .get(var)
-                    .expect(format!("Every variable should have a binding, but {:?} does not", var).as_str());
-
-    let qa = columns[0].clone();
-    let name = VariableColumn::Variable(var.clone()).column_name();
-    (ColumnOrExpression::Column(qa), name)
+    cc_column(cc, var)
+        .map(|qa| {
+            let name = VariableColumn::Variable(var.clone()).column_name();
+            (ColumnOrExpression::Column(qa), name)
+        })
 }
 
 fn candidate_type_column(cc: &ConjoiningClauses, var: &Variable) -> (ColumnOrExpression, Name) {
@@ -183,19 +221,207 @@ fn candidate_type_column(cc: &ConjoiningClauses, var: &Variable) -> (ColumnOrExp
 }
 
 /// Return the projected column -- that is, a value or SQL column and an associated name -- for a
-/// given variable. Also return the type, if known.
+/// given variable. Also return the type.
 /// Callers are expected to determine whether to project a type tag as an additional SQL column.
-pub fn projected_column_for_var(var: &Variable, cc: &ConjoiningClauses) -> (ProjectedColumn, Option<ValueType>) {
+pub fn projected_column_for_var(var: &Variable, cc: &ConjoiningClauses) -> Result<(ProjectedColumn, ValueTypeSet)> {
     if let Some(value) = cc.bound_value(&var) {
         // If we already know the value, then our lives are easy.
         let tag = value.value_type();
         let name = VariableColumn::Variable(var.clone()).column_name();
-        (ProjectedColumn(ColumnOrExpression::Value(value.clone()), name), Some(tag))
+        Ok((ProjectedColumn(ColumnOrExpression::Value(value.clone()), name), ValueTypeSet::of_one(tag)))
     } else {
         // If we don't, then the CC *must* have bound the variable.
-        let (column, name) = candidate_column(cc, var);
-        (ProjectedColumn(column, name), cc.known_type(var))
+        let (column, name) = candidate_column(cc, var)?;
+        Ok((ProjectedColumn(column, name), cc.known_type_set(var)))
     }
+}
+
+fn projected_column_for_simple_aggregate(simple: &SimpleAggregate, cc: &ConjoiningClauses) -> Result<(ProjectedColumn, ValueType)> {
+    let known_types = cc.known_type_set(&simple.var);
+    let return_type = simple.op.is_applicable_to_types(known_types)?;
+    let projected_column_or_expression =
+        if let Some(value) = cc.bound_value(&simple.var) {
+            // Oh, we already know the value!
+            if simple.use_static_value() {
+                // We can statically compute the aggregate result for some operators -- not count or
+                // sum, but avg/max/min are OK.
+                ColumnOrExpression::Value(value)
+            } else {
+                let expression = Expression::Unary {
+                    sql_op: simple.op.to_sql(),
+                    arg: ColumnOrExpression::Value(value),
+                };
+                ColumnOrExpression::Expression(Box::new(expression), return_type)
+            }
+        } else {
+            // The common case: the values are bound during execution.
+            let columns = cc.column_bindings
+                            .get(&simple.var)
+                            .expect(format!("Every variable should have a binding, but {:?} does not", simple.var).as_str());
+            let expression = Expression::Unary {
+                sql_op: simple.op.to_sql(),
+                arg: ColumnOrExpression::Column(columns[0].clone()),
+            };
+            ColumnOrExpression::Expression(Box::new(expression), return_type)
+        };
+    Ok((ProjectedColumn(projected_column_or_expression, simple.column_name()), return_type))
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SimpleAggregationOp {
+    Avg,
+    Count,
+    Max,
+    Min,
+    Sum,
+}
+
+impl SimpleAggregationOp {
+    fn to_sql(&self) -> &'static str {
+        use SimpleAggregationOp::*;
+        match self {
+            &Avg => "avg",
+            &Count => "count",
+            &Max => "max",
+            &Min => "min",
+            &Sum => "sum",
+        }
+    }
+
+    fn for_function(function: &QueryFunction) -> Option<SimpleAggregationOp> {
+        match function.0.plain_name() {
+            "avg" => Some(SimpleAggregationOp::Avg),
+            "count" => Some(SimpleAggregationOp::Count),
+            "max" => Some(SimpleAggregationOp::Max),
+            "min" => Some(SimpleAggregationOp::Min),
+            "sum" => Some(SimpleAggregationOp::Sum),
+            _ => None,
+        }
+    }
+
+    /// With knowledge of the types to which a variable might be bound,
+    /// return a `Result` to determine whether this aggregation is suitable.
+    /// For example, it's valid to take the `Avg` of `{Double, Long}`, invalid
+    /// to take `Sum` of `{Instant}`, valid to take (lexicographic) `Max` of `{String}`,
+    /// but invalid to take `Max` of `{Uuid, String}`.
+    ///
+    /// The returned type is the type of the result of the aggregation.
+    fn is_applicable_to_types(&self, possibilities: ValueTypeSet) -> Result<ValueType> {
+        use SimpleAggregationOp::*;
+        if possibilities.is_empty() {
+            bail!(ErrorKind::CannotProjectImpossibleBinding(*self))
+        }
+
+        match self {
+            // One can always count results.
+            &Count => Ok(ValueType::Long),
+
+            // Only numeric types can be averaged or summed.
+            &Avg => {
+                if possibilities.is_subset(&ValueTypeSet::of_numeric_types()) {
+                    // The mean of a set of numeric values will always, for our purposes, be a double.
+                    Ok(ValueType::Double)
+                } else {
+                    bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                }
+            },
+            &Sum => {
+                if possibilities.is_subset(&ValueTypeSet::of_numeric_types()) {
+                    if possibilities.contains(ValueType::Double) {
+                        Ok(ValueType::Double)
+                    } else {
+                        // TODO: BigInt.
+                        Ok(ValueType::Long)
+                    }
+                } else {
+                    bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                }
+            },
+
+            &Max | &Min => {
+                if possibilities.is_unit() {
+                    use ValueType::*;
+                    let the_type = possibilities.exemplar().expect("a type");
+                    match the_type {
+                        // These types are numerically ordered.
+                        Double | Long | Instant => Ok(the_type),
+
+                        // Boolean: false < true.
+                        Boolean => Ok(the_type),
+
+                        // String: lexicographic order.
+                        String => Ok(the_type),
+
+                        // These types are unordered.
+                        Keyword | Ref | Uuid => {
+                            bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                        },
+                    }
+                } else {
+                    // It cannot be empty -- we checked.
+                    // The only types that are valid to compare cross-type are numbers.
+                    if possibilities.is_subset(&ValueTypeSet::of_numeric_types()) {
+                        // Note that if the max/min is a Long, it will be returned as a Double!
+                        if possibilities.contains(ValueType::Double) {
+                            Ok(ValueType::Double)
+                        } else {
+                            // TODO: BigInt.
+                            Ok(ValueType::Long)
+                        }
+                    } else {
+                        bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                    }
+                }
+            },
+        }
+    }
+}
+
+struct SimpleAggregate {
+    op: SimpleAggregationOp,
+    var: Variable,
+}
+
+impl SimpleAggregate {
+    fn column_name(&self) -> Name {
+        format!("({} {})", self.op.to_sql(), self.var.name())
+    }
+
+    fn use_static_value(&self) -> bool {
+        use SimpleAggregationOp::*;
+        match self.op {
+            Avg | Max | Min => true,
+            Count | Sum => false,
+        }
+    }
+}
+
+trait SimpleAggregation {
+    fn to_simple(&self) -> Option<SimpleAggregate>;
+}
+
+impl SimpleAggregation for Aggregate {
+    fn to_simple(&self) -> Option<SimpleAggregate> {
+        if self.args.len() != 1 {
+            return None;
+        }
+        self.args[0]
+            .as_variable()
+            .and_then(|v| SimpleAggregationOp::for_function(&self.func)
+                              .map(|op| SimpleAggregate { op, var: v.clone(), }))
+    }
+}
+
+/// An internal temporary struct to pass between the projection 'walk' and the
+/// resultant projector.
+/// Projection accumulates three things:
+/// - A SQL projection list.
+/// - A collection of templates for the projector to use to extract values.
+/// - A list of columns to use for grouping. Grouping is a property of the projection!
+struct ProjectedElements {
+    sql_projection: Projection,
+    templates: Vec<TypedIndex>,
+    group_by: Option<Vec<GroupBy>>,
 }
 
 /// Walk an iterator of `Element`s, collecting projector templates and columns.
@@ -213,26 +439,44 @@ pub fn projected_column_for_var(var: &Variable, cc: &ConjoiningClauses) -> (Proj
 fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     count: usize,
     elements: I,
-    query: &AlgebraicQuery) -> Result<(Projection, Vec<TypedIndex>)> {
+    query: &AlgebraicQuery) -> Result<ProjectedElements> {
 
     let mut cols = Vec::with_capacity(count);
     let mut i: i32 = 0;
     let mut templates = vec![];
-    let mut with = query.with.clone();
 
+    // "Query variables not in aggregate expressions will group the results and appear intact
+    // in the result."
+    // Compute the set of variables projected by the query, then subtract
+    // those used in aggregate expressions. This will be our GROUP BY clause.
+    // The GROUP BY clause should begin with any non-projected :with variables, in order,
+    // then the non-aggregated projected variables, in order.
+
+    // Predetermined:
+    // extras: variables needed for ORDER BY. query.named_projection.
+    // with: variables to be used for grouping. query.with.
+    //
+    // Accumulated:
+    // variables: variables in the projection list.
+    // aggregated: variables used in aggregates.
+
+    // Results:
+    // group_by: (with + variables) - aggregated
+    // extra_projection: (with + extras) - variables
+
+    let mut aggregated = BTreeSet::new();
+    let mut variables = BTreeSet::new();
     for e in elements {
         match e {
             // Each time we come across a variable, we push a SQL column
             // into the SQL projection, aliased to the name of the variable,
             // and we push an annotated index into the projector.
             &Element::Variable(ref var) => {
-                // If we're projecting this, we don't need it in :with.
-                with.remove(var);
+                variables.insert(var.clone());
 
-                let (projected_column, maybe_type) = projected_column_for_var(&var, &query.cc);
+                let (projected_column, type_set) = projected_column_for_var(&var, &query.cc)?;
                 cols.push(projected_column);
-                if let Some(ty) = maybe_type {
-                    let tag = ty.value_type_tag();
+                if let Some(tag) = type_set.unique_type_code() {
                     templates.push(TypedIndex::Known(i, tag));
                     i += 1;     // We used one SQL column.
                 } else {
@@ -243,23 +487,119 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     let (type_column, type_name) = candidate_type_column(&query.cc, &var);
                     cols.push(ProjectedColumn(type_column, type_name));
                 }
-            }
+            },
+            &Element::Aggregate(ref a) => {
+                if let Some(simple) = a.to_simple() {
+                    aggregated.insert(simple.var.clone());
+
+                    // When we encounter a simple aggregate -- one in which the aggregation can be
+                    // implemented in SQL, on a single variable -- we just push the SQL aggregation op.
+                    // We must ensure the following:
+                    // - There's a column for the var.
+                    // - The type of the var is known to be restricted to a sensible input set
+                    //   (not necessarily a single type, but e.g., all vals must be Double or Long).
+                    // - The type set must be appropriate for the operation. E.g., `Sum` is not a
+                    //   meaningful operation on instants.
+
+                    let (projected_column, return_type) = projected_column_for_simple_aggregate(&simple, &query.cc)?;
+                    cols.push(projected_column);
+
+                    // We might regret using the type tag here instead of the `ValueType`.
+                    templates.push(TypedIndex::Known(i, return_type.value_type_tag()));
+                    i += 1;
+                } else {
+                    // TODO: complex aggregates.
+                    bail!(ErrorKind::NotYetImplemented("complex aggregates".into()));
+                }
+            },
         }
     }
 
-    for var in with {
-        // We need to collect these into the SQL column list, but they don't affect projection.
-        // If a variable is of a non-fixed type, also project the type tag column, so we don't
-        // accidentally unify across types when considering uniqueness!
-        let (column, name) = candidate_column(&query.cc, &var);
+    // Anything we're projecting, or that's part of an aggregate, doesn't need to be in GROUP BY.
+    //
+    // Anything used in ORDER BY (which we're given in `named_projection`)
+    // needs to be in the SQL column list so we can refer to it by name.
+    //
+    // They don't affect projection.
+    //
+    // If a variable is of a non-fixed type, also project the type tag column, so we don't
+    // accidentally unify across types when considering uniqueness!
+    // Similarly, the type tag needs to be grouped.
+    // extra_projection: extras - variables
+    for var in query.named_projection.iter() {
+        if variables.contains(var) {
+            continue;
+        }
+
+        // If it's a fixed value, we need do nothing further.
+        if query.cc.is_value_bound(&var) {
+            continue;
+        }
+
+        let (column, name) = candidate_column(&query.cc, &var)?;
         cols.push(ProjectedColumn(column, name));
-        if query.cc.known_type(&var).is_none() {
+
+        // We don't care if a column has a single _type_, we care if it has a single type _code_,
+        // because that's what we'll use if we're projecting. E.g., Long and Double.
+        // Single type implies single type code, and is cheaper, so we check that first.
+        let types = query.cc.known_type_set(&var);
+        if !types.has_unique_type_code() {
             let (type_column, type_name) = candidate_type_column(&query.cc, &var);
             cols.push(ProjectedColumn(type_column, type_name));
         }
     }
 
-    Ok((Projection::Columns(cols), templates))
+    if aggregated.is_empty() {
+        // We're done -- we never need to group unless we're aggregating.
+        return Ok(ProjectedElements {
+                      sql_projection: Projection::Columns(cols),
+                      templates,
+                      group_by: None,
+                  });
+    }
+
+    // group_by: (with + variables) - aggregated
+    let mut group_by_vars: BTreeSet<Variable> = query.with.union(&variables).cloned().collect();
+    for var in aggregated {
+        group_by_vars.remove(&var);
+    }
+
+    // We never need to group by a constant.
+    for var in query.cc.value_bound_variables() {
+        group_by_vars.remove(&var);
+    }
+
+    // Turn this collection of vars into a collection of columns from the query.
+    // Right now we don't allow grouping on anything but a variable bound in the query.
+    // TODO: also group by type tag.
+    let group_by = if group_by_vars.is_empty() {
+        None
+    } else {
+        let mut group_cols = Vec::with_capacity(2 * group_by_vars.len());
+
+        for var in group_by_vars.into_iter() {
+            let types = query.cc.known_type_set(&var);
+            if !types.has_unique_type_code() {
+                // Group by type then SQL value.
+                let type_col = query.cc
+                                    .extracted_types
+                                    .get(&var)
+                                    .cloned()
+                                    .map(GroupBy::QueryColumn)
+                                    .ok_or_else(|| ErrorKind::NoTypeAvailableForVariable(var.name().clone()))?;
+                group_cols.push(type_col);
+            }
+            let val_col = cc_column(&query.cc, &var).map(GroupBy::QueryColumn)?;
+            group_cols.push(val_col);
+        }
+        Some(group_cols)
+    };
+
+    Ok(ProjectedElements {
+        sql_projection: Projection::Columns(cols),
+        templates,
+        group_by,
+    })
 }
 
 pub trait Projector {
@@ -295,12 +635,13 @@ impl ScalarProjector {
         }
     }
 
-    fn combine(sql: Projection, mut templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
-        let template = templates.pop().expect("Expected a single template");
+    fn combine(mut elements: ProjectedElements) -> Result<CombinedProjection> {
+        let template = elements.templates.pop().expect("Expected a single template");
         Ok(CombinedProjection {
-            sql_projection: sql,
+            sql_projection: elements.sql_projection,
             datalog_projector: Box::new(ScalarProjector::with_template(template)),
             distinct: false,
+            group_by_cols: elements.group_by,
         })
     }
 }
@@ -333,19 +674,22 @@ impl TupleProjector {
 
     // This is exactly the same as for rel.
     fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
-        assert_eq!(row.column_count(), self.len as i32);
+        // gte 'cos we might be querying extra columns for ordering.
+        // The templates will take care of ignoring columns.
+        assert!(row.column_count() >= self.len as i32);
         self.templates
             .iter()
             .map(|ti| ti.lookup(&row))
             .collect::<Result<Vec<TypedValue>>>()
     }
 
-    fn combine(column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
-        let p = TupleProjector::with_templates(column_count, templates);
+    fn combine(column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
+        let p = TupleProjector::with_templates(column_count, elements.templates);
         Ok(CombinedProjection {
-            sql_projection: sql,
+            sql_projection: elements.sql_projection,
             datalog_projector: Box::new(p),
             distinct: false,
+            group_by_cols: elements.group_by,
         })
     }
 }
@@ -381,19 +725,22 @@ impl RelProjector {
     }
 
     fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
-        assert_eq!(row.column_count(), self.len as i32);
+        // gte 'cos we might be querying extra columns for ordering.
+        // The templates will take care of ignoring columns.
+        assert!(row.column_count() >= self.len as i32);
         self.templates
             .iter()
             .map(|ti| ti.lookup(&row))
             .collect::<Result<Vec<TypedValue>>>()
     }
 
-    fn combine(column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
-        let p = RelProjector::with_templates(column_count, templates);
+    fn combine(column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
+        let p = RelProjector::with_templates(column_count, elements.templates);
         Ok(CombinedProjection {
-            sql_projection: sql,
+            sql_projection: elements.sql_projection,
             datalog_projector: Box::new(p),
             distinct: true,
+            group_by_cols: elements.group_by,
         })
     }
 }
@@ -423,12 +770,13 @@ impl CollProjector {
         }
     }
 
-    fn combine(sql: Projection, mut templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
-        let template = templates.pop().expect("Expected a single template");
+    fn combine(mut elements: ProjectedElements) -> Result<CombinedProjection> {
+        let template = elements.templates.pop().expect("Expected a single template");
         Ok(CombinedProjection {
-            sql_projection: sql,
+            sql_projection: elements.sql_projection,
             datalog_projector: Box::new(CollProjector::with_template(template)),
             distinct: true,
+            group_by_cols: elements.group_by,
         })
     }
 }
@@ -458,6 +806,10 @@ pub struct CombinedProjection {
 
     /// True if this query requires the SQL query to include DISTINCT.
     pub distinct: bool,
+
+    // An optional list of column names to use as a GROUP BY clause.
+    // Right now these are all `Name`s, and present in the `Projection`.
+    pub group_by_cols: Option<Vec<GroupBy>>,
 }
 
 impl CombinedProjection {
@@ -488,29 +840,30 @@ pub fn query_projection(query: &AlgebraicQuery) -> Result<CombinedProjection> {
             sql_projection: Projection::One,
             datalog_projector: Box::new(constant_projector),
             distinct: false,
+            group_by_cols: None,                 // TODO
         })
     } else {
         match query.find_spec {
             FindColl(ref element) => {
-                let (cols, templates) = project_elements(1, iter::once(element), query)?;
-                CollProjector::combine(cols, templates).map(|p| p.flip_distinct_for_limit(&query.limit))
+                let e = project_elements(1, iter::once(element), query)?;
+                CollProjector::combine(e).map(|p| p.flip_distinct_for_limit(&query.limit))
             },
 
             FindScalar(ref element) => {
-                let (cols, templates) = project_elements(1, iter::once(element), query)?;
-                ScalarProjector::combine(cols, templates)
+                let e = project_elements(1, iter::once(element), query)?;
+                ScalarProjector::combine(e)
             },
 
             FindRel(ref elements) => {
                 let column_count = query.find_spec.expected_column_count();
-                let (cols, templates) = project_elements(column_count, elements, query)?;
-                RelProjector::combine(column_count, cols, templates).map(|p| p.flip_distinct_for_limit(&query.limit))
+                let e = project_elements(column_count, elements, query)?;
+                RelProjector::combine(column_count, e).map(|p| p.flip_distinct_for_limit(&query.limit))
             },
 
             FindTuple(ref elements) => {
                 let column_count = query.find_spec.expected_column_count();
-                let (cols, templates) = project_elements(column_count, elements, query)?;
-                TupleProjector::combine(column_count, cols, templates)
+                let e = project_elements(column_count, elements, query)?;
+                TupleProjector::combine(column_count, e)
             },
         }
     }
