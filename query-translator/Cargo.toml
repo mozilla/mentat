@@ -4,6 +4,8 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
+error-chain = "0.8.1"
+
 [dependencies.mentat_core]
 path = "../core"
 

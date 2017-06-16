@@ -54,9 +54,9 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 }
 
 fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
-    let parsed = parse_find_string(query).expect("parse failed");
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs).expect("algebrize failed");
-    let select = query_to_select(algebrized);
+    let parsed = parse_find_string(query).expect("parse to succeed");
+    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs).expect("algebrize to succeed");
+    let select = query_to_select(algebrized).expect("translate to succeed");
     select.query.to_sql_query().unwrap()
 }
 
@@ -191,7 +191,7 @@ fn test_bound_variable_limit_affects_types() {
     assert_eq!(Some(ValueType::Long),
                algebrized.cc.known_type(&Variable::from_valid_name("?limit")));
 
-    let select = query_to_select(algebrized);
+    let select = query_to_select(algebrized).expect("query to translate");
     let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
 
     // TODO: this query isn't actually correct -- we don't yet algebrize for variables that are
@@ -281,7 +281,7 @@ fn test_unknown_ident() {
     assert!(algebrized.is_known_empty());
 
     // If you insist…
-    let select = query_to_select(algebrized);
+    let select = query_to_select(algebrized).expect("query to translate");
     let sql = select.query.to_sql_query().unwrap().sql;
     assert_eq!("SELECT 1 LIMIT 0", sql);
 }

@@ -55,6 +55,8 @@ use mentat_query_sql::{
     Values,
 };
 
+use super::Result;
+
 trait ToConstraint {
     fn to_constraint(self) -> Constraint;
 }
@@ -329,12 +331,12 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
 
 /// Consume a provided `AlgebraicQuery` to yield a new
 /// `ProjectedSelect`.
-pub fn query_to_select(query: AlgebraicQuery) -> ProjectedSelect {
+pub fn query_to_select(query: AlgebraicQuery) -> Result<ProjectedSelect> {
     // TODO: we can't pass `query.limit` here if we aggregate during projection.
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
     let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query);
-    ProjectedSelect {
+    Ok(ProjectedSelect {
         query: cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit),
         projector: datalog_projector,
-    }
+    })
 }

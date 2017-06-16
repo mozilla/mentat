@@ -81,7 +81,7 @@ pub fn q_once<'sqlite, 'schema, 'query, T>
     if !unbound.is_empty() {
         bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
     }
-    let select = query_to_select(algebrized);
+    let select = query_to_select(algebrized)?;
     let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
     let mut statement = sqlite.prepare(sql.as_str())?;
