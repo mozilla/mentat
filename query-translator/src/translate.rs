@@ -334,7 +334,7 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
 pub fn query_to_select(query: AlgebraicQuery) -> Result<ProjectedSelect> {
     // TODO: we can't pass `query.limit` here if we aggregate during projection.
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
-    let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query);
+    let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query)?;
     Ok(ProjectedSelect {
         query: cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit),
         projector: datalog_projector,
