@@ -130,7 +130,19 @@ pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: Rc<FindSpec>,
     has_aggregates: bool,
+
+    /// The set of variables that the caller wishes to be used for grouping when aggregating.
+    /// These are specified in the query input, as `:with`, and are then chewed up during projection.
+    /// If no variables are supplied, then no additional grouping is necessary beyond the
+    /// non-aggregated projection list.
     pub with: BTreeSet<Variable>,
+
+    /// Some query features, such as ordering, are implemented by implicit reference to SQL columns.
+    /// In order for these references to be 'live', those columns must be projected.
+    /// This is the set of variables that must be so projected.
+    /// This is not necessarily every variable that will be so required -- some variables
+    /// will already be in the projection list.
+    pub named_projection: BTreeSet<Variable>,
     pub order: Option<Vec<OrderBy>>,
     pub limit: Limit,
     pub cc: clauses::ConjoiningClauses,
@@ -147,7 +159,11 @@ impl AlgebraicQuery {
         self.find_spec
             .columns()
             .all(|e| match e {
-                    &Element::Variable(ref var) => self.cc.is_value_bound(var),
+                &Element::Variable(ref var) => self.cc.is_value_bound(var),
+
+                // For now, we pretend that aggregate functions are never fully bound:
+                // we don't statically compute them, even if we know the value of the var.
+                &Element::Aggregate(ref _fn) => false,
             })
     }
 
@@ -270,7 +286,6 @@ pub fn algebrize_with_inputs(known: Known,
     cc.process_required_types()?;
 
     let (order, extra_vars) = validate_and_simplify_order(&cc, parsed.order)?;
-    let with: BTreeSet<Variable> = parsed.with.into_iter().chain(extra_vars.into_iter()).collect();
 
     // This might leave us with an unused `:in` variable.
     let limit = if parsed.find_spec.is_unit_limited() { Limit::Fixed(1) } else { parsed.limit };
@@ -278,7 +293,8 @@ pub fn algebrize_with_inputs(known: Known,
         default_source: parsed.default_source,
         find_spec: Rc::new(parsed.find_spec),
         has_aggregates: false,           // TODO: we don't parse them yet.
-        with: with,
+        with: parsed.with,
+        named_projection: extra_vars,
         order: order,
         limit: limit,
         cc: cc,

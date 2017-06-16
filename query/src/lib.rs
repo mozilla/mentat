@@ -153,6 +153,12 @@ impl QueryFunction {
     }
 }
 
+impl std::fmt::Display for QueryFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Direction {
     Ascending,
@@ -435,18 +441,27 @@ pub struct Pull {
 }
 */
 
-/*
+#[derive(Debug, Eq, PartialEq)]
 pub struct Aggregate {
-    pub fn_name: String,
+    pub func: QueryFunction,
     pub args: Vec<FnArg>,
 }
-*/
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
-    // Aggregate(Aggregate),   // TODO
+    Aggregate(Aggregate),
     // Pull(Pull),             // TODO
+}
+
+impl Element {
+    /// Returns true if the element must yield only one value.
+    pub fn is_unit(&self) -> bool {
+        match self {
+            &Element::Variable(_) => false,
+            &Element::Aggregate(_) => true,
+        }
+    }
 }
 
 impl From<Variable> for Element {
@@ -460,6 +475,9 @@ impl std::fmt::Display for Element {
         match self {
             &Element::Variable(ref var) => {
                 write!(f, "{}", var)
+            },
+            &Element::Aggregate(ref agg) => {
+                write!(f, "{}({:?})", agg.func, agg.args)
             },
         }
     }

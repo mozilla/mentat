@@ -137,7 +137,7 @@ impl ConjoiningClauses {
         if shared_types == ValueTypeSet::of_one(ValueType::Instant) {
             left_v = self.resolve_instant_argument(&predicate.operator, 0, left)?;
             right_v = self.resolve_instant_argument(&predicate.operator, 1, right)?;
-        } else if !shared_types.is_empty() && shared_types.is_subset(&ValueTypeSet::of_numeric_types()) {
+        } else if !shared_types.is_empty() && shared_types.is_only_numeric() {
             left_v = self.resolve_numeric_argument(&predicate.operator, 0, left)?;
             right_v = self.resolve_numeric_argument(&predicate.operator, 1, right)?;
         } else {

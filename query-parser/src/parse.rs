@@ -41,6 +41,7 @@ use self::mentat_parser_utils::value_and_span::{
 };
 
 use self::mentat_query::{
+    Aggregate,
     Binding,
     Direction,
     Element,
@@ -274,6 +275,13 @@ def_parser!(Query, func, (QueryFunction, Vec<FnArg>), {
     (Query::query_function(), Query::arguments())
 });
 
+def_parser!(Query, aggregate, Aggregate, {
+    seq().of_exactly(Query::func())
+         .map(|(func, args)| Aggregate {
+             func, args,
+         })
+});
+
 /// A vector containing just a parenthesized filter expression.
 def_parser!(Where, pred, WhereClause, {
     // Accept either a nested list or a nested vector here:
@@ -419,6 +427,7 @@ def_matches_plain_symbol!(Find, placeholder, "_");
 
 def_parser!(Find, elem, Element, {
     Query::variable().map(Element::Variable)
+                     .or(Query::aggregate().map(Element::Aggregate))
 });
 
 def_parser!(Find, find_scalar, FindSpec, {
