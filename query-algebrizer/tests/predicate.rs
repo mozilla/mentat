@@ -13,14 +13,11 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
 
-use std::collections::BTreeMap;
-
 use mentat_core::{
     Attribute,
     Entid,
     Schema,
     ValueType,
-    TypedValue,
 };
 
 use mentat_query_parser::{
@@ -34,9 +31,7 @@ use mentat_query::{
 };
 
 use mentat_query_algebrizer::{
-    BindingError,
     ConjoiningClauses,
-    ComputedTable,
     EmptyBecause,
     Error,
     ErrorKind,
@@ -78,11 +73,6 @@ fn prepopulated_schema() -> Schema {
 fn bails(schema: &Schema, input: &str) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
     algebrize(schema.into(), parsed).expect_err("algebrize to have failed")
-}
-
-fn bails_with_inputs(schema: &Schema, input: &str, inputs: QueryInputs) -> Error {
-    let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize_with_inputs(schema, parsed, 0, inputs).expect_err("algebrize to have failed")
 }
 
 fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
