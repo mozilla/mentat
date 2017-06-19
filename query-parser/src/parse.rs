@@ -54,7 +54,7 @@ use self::mentat_query::{
     PatternNonValuePlace,
     PatternValuePlace,
     Predicate,
-    PredicateFn,
+    QueryFunction,
     SrcVar,
     UnifyVars,
     Variable,
@@ -132,8 +132,8 @@ def_parser!(Query, source_var, SrcVar, {
 });
 
 // TODO: interning.
-def_parser!(Query, predicate_fn, PredicateFn, {
-    satisfy_map(PredicateFn::from_value)
+def_parser!(Query, query_function, QueryFunction, {
+    satisfy_map(QueryFunction::from_value)
 });
 
 def_parser!(Query, fn_arg, FnArg, {
@@ -266,8 +266,8 @@ def_parser!(Where, not_join_clause, WhereClause, {
             }))
 });
 
-def_parser!(Query, func, (PredicateFn, Vec<FnArg>), {
-    (Query::predicate_fn(), Query::arguments())
+def_parser!(Query, func, (QueryFunction, Vec<FnArg>), {
+    (Query::query_function(), Query::arguments())
 });
 
 /// A vector containing just a parenthesized filter expression.
