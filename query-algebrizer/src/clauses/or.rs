@@ -976,7 +976,6 @@ mod testing {
                     ])),
             // The outer pattern joins against the `or`.
             ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
-            ColumnConstraintOrAlternation::Constraint(ColumnConstraint::HasType(d0.clone(), ValueType::Long)),
         ]));
         assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e, d1e]));
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0),
