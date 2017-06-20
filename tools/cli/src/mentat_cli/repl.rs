@@ -8,7 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::HashMap;
+use std::collections::HashMap;  
+use std::process;
 
 use mentat::query::QueryResults;
 use mentat_core::TypedValue;
@@ -112,6 +113,10 @@ impl Repl {
             },
             Command::Query(query) => self.execute_query(query),
             Command::Transact(transaction) => self.execute_transact(transaction),
+            Command::Exit => {
+                println!("Exiting...");
+                process::exit(0);
+            }
         }
     }
 

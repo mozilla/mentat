@@ -13,7 +13,6 @@ use combine::{
     eof, 
     look_ahead,
     many1, 
-    parser,
     satisfy, 
     sep_end_by, 
     token, 
@@ -29,8 +28,6 @@ use combine::combinator::{
     try
 };
 
-use combine::primitives::Consumed;
-
 use errors as cli;
 
 use edn;
@@ -42,14 +39,17 @@ pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
 pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
 pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
+pub static LONG_EXIT_COMMAND: &'static str = &"exit";
+pub static SHORT_EXIT_COMMAND: &'static str = &"e";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
-    Transact(String),
-    Query(String),
+    Close,
+    Exit,
     Help(Vec<String>),
     Open(String),
-    Close,
+    Query(String),
+    Transact(String),
 }
 
 impl Command {
@@ -65,7 +65,8 @@ impl Command {
             },
             &Command::Help(_) |
             &Command::Open(_) |
-            &Command::Close => true
+            &Command::Close |
+            &Command::Exit => true
         }
     }
 
@@ -85,6 +86,9 @@ impl Command {
             }
             &Command::Close => {
                 format!(".{}", CLOSE_COMMAND)
+            },
+            &Command::Exit => {
+                format!(".{}", LONG_EXIT_COMMAND)
             },
         }
     }
@@ -124,6 +128,17 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Close)
                     });
 
+    let exit_parser = try(string(LONG_EXIT_COMMAND)).or(try(string(SHORT_EXIT_COMMAND)))
+                    .with(arguments())
+                    .skip(spaces())
+                    .skip(eof())
+                    .map(|args| {
+                        if args.len() > 0 {
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
+                        }
+                        Ok(Command::Exit)
+                    });
+
     let edn_arg_parser = || spaces()
                             .with(look_ahead(string("[").or(string("{")))
                                 .with(many1::<Vec<_>, _>(try(any())))
@@ -146,10 +161,11 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
 
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 5], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 6], _>
           ([&mut try(help_parser),
             &mut try(open_parser),
             &mut try(close_parser),
+            &mut try(exit_parser),
             &mut try(query_parser),
             &mut try(transact_parser)]))
         .parse(s)
@@ -290,6 +306,43 @@ mod tests {
         let cmd = command(&input).expect("Expected close command");
         match cmd {
             Command::Close => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_exit_parser_with_args() {
+        let input = ".exit arg1";
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), format!("Invalid command {:?}", input));
+    }
+
+    #[test]
+    fn test_exit_parser_no_args() {
+        let input = ".exit";
+        let cmd = command(&input).expect("Expected exit command");
+        match cmd {
+            Command::Exit => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_exit_parser_no_args_trailing_whitespace() {
+        let input = ".exit ";
+        let cmd = command(&input).expect("Expected exit command");
+        match cmd {
+            Command::Exit => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_exit_parser_short_command() {
+        let input = ".e";
+        let cmd = command(&input).expect("Expected exit command");
+        match cmd {
+            Command::Exit => assert!(true),
             _ => assert!(false)
         }
     }
