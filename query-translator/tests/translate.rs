@@ -754,6 +754,55 @@ fn test_unbound_attribute_with_ground() {
                                                       `all_datoms00`.value_type_tag = 5)");
 }
 
+/*
+#[test]
+fn test_colliding_values_unbound_types() {
+    let schema = prepopulated_schema();
+    let query = r#"[:find ?x ?a ?y
+                    :where
+                    [?x _ ?y]
+                    [?a _ ?y]]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
+                                     `all_datoms01`.e AS `?a`, \
+                                     `all_datoms00`.v AS `?y`, \
+                                     `all_datoms00`.value_type_tag AS `?y_value_type_tag` \
+                     FROM `all_datoms` AS `all_datoms00`, `all_datoms` AS `all_datoms01` \
+                     WHERE `all_datoms00`.v = `all_datoms01`.v \
+                       AND `all_datoms00`.value_type_tag = `all_datoms01`.value_type_tag");
+}
+
+#[test]
+fn test_restricted_types() {
+    let schema = prepopulated_schema();
+    let query = r#"[:find ?x ?y
+                    :where
+                    [?x _ ?y]
+                    [(< ?y 10)]]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+
+    // #385: use `datoms` instead of `all_datoms`.
+    // No need to project the type code -- long and double are distinguishable.
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
+                                     `all_datoms00`.v AS `?y` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE `all_datoms00`.v < 10 \
+                       AND `all_datoms00`.value_type_tag = 5");
+}
+
+#[test]
+fn test_known_type_range() {
+    let schema = prepopulated_schema();
+    let query = r#"[:find ?x ?y :where [?x :foo/bar] [?y _ ?x]]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, \
+                                     `datoms00`.e AS `?y` \
+                     FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` \
+                     WHERE `datoms00`.a = 66 \
+                       AND `datoms01`.v = `datoms00`.e \
+                       AND `datoms01`.value_type_tag = 1");
+}
+*/
 
 #[test]
 fn test_not_with_ground() {
