@@ -81,7 +81,7 @@ impl AlgebraicQuery {
     /// Return a set of the input variables mentioned in the `:in` clause that have not yet been
     /// bound. We do this by looking at the CC.
     pub fn unbound_variables(&self) -> BTreeSet<Variable> {
-        self.cc.input_variables.sub(&self.cc.value_bound_variables())
+        self.cc.input_variables.sub(&self.cc.value_bound_variable_set())
     }
 }
 
