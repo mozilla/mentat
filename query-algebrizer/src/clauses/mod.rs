@@ -365,8 +365,17 @@ impl ConjoiningClauses {
         self.value_bindings.get(var).cloned()
     }
 
+    pub fn is_value_bound(&self, var: &Variable) -> bool {
+        self.value_bindings.contains_key(var)
+    }
+
+    /// Return an interator over the variables externally bound to values.
+    pub fn value_bound_variables(&self) -> ::std::collections::btree_map::Keys<Variable, TypedValue> {
+        self.value_bindings.keys()
+    }
+
     /// Return a set of the variables externally bound to values.
-    pub fn value_bound_variables(&self) -> BTreeSet<Variable> {
+    pub fn value_bound_variable_set(&self) -> BTreeSet<Variable> {
         self.value_bindings.keys().cloned().collect()
     }
 
