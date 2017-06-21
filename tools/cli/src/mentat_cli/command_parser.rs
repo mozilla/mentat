@@ -116,24 +116,24 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         }
                         Ok(Command::Open(args[0].clone()))
                     });
+    
+    let no_arg_parser = || arguments()
+                        .skip(spaces())
+                        .skip(eof());
 
     let close_parser = string(CLOSE_COMMAND)
-                    .with(arguments())
-                    .skip(spaces())
-                    .skip(eof())
+                    .with(no_arg_parser())
                     .map(|args| {
-                        if args.len() > 0 {
+                        if !args.is_empty() {
                             bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
                         }
                         Ok(Command::Close)
                     });
 
     let exit_parser = try(string(LONG_EXIT_COMMAND)).or(try(string(SHORT_EXIT_COMMAND)))
-                    .with(arguments())
-                    .skip(spaces())
-                    .skip(eof())
+                    .with(no_arg_parser())
                     .map(|args| {
-                        if args.len() > 0 {
+                        if !args.is_empty() {
                             bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
                         }
                         Ok(Command::Exit)

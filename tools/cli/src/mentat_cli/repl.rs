@@ -11,6 +11,8 @@
 use std::collections::HashMap;  
 use std::process;
 
+use error_chain::ChainedError;
+
 use mentat::query::QueryResults;
 use mentat_core::TypedValue;
 
@@ -104,20 +106,23 @@ impl Repl {
                     Err(e) => println!("{}", e.to_string())
                 };
             },
-            Command::Close => {
-                let old_db_name = self.store.db_name.clone();
-                match self.store.close() {
-                    Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-                    Err(e) => println!("{}", e.to_string())
-                };
-            },
+            Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
             Command::Transact(transaction) => self.execute_transact(transaction),
             Command::Exit => {
+                self.close();
                 println!("Exiting...");
                 process::exit(0);
             }
         }
+    }
+
+    fn close(&mut self) {
+        let old_db_name = self.store.db_name.clone();
+        match self.store.close() {
+            Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
+            Err(e) => println!("{}", e.display())
+        };
     }
 
     fn help_command(&self, args: Vec<String>) {
