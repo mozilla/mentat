@@ -232,11 +232,9 @@ fn test_instants_and_uuids() {
     conn.transact(&mut c, r#"[
         [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
     ]"#).unwrap();
-
-    // We don't yet support getting the tx from a pattern (#440), so run wild.
     let r = conn.q_once(&mut c,
                         r#"[:find [?x ?u ?when]
-                            :where [?x :foo/uuid ?u]
+                            :where [?x :foo/uuid ?u ?tx]
                                    [?tx :db/txInstant ?when]]"#, None);
     match r {
         Result::Ok(QueryResults::Tuple(Some(vals))) => {
@@ -252,6 +250,59 @@ fn test_instants_and_uuids() {
                  },
                  _ => panic!("Unexpected results."),
             }
+        },
+        _ => panic!("Expected query to work."),
+    }
+}
+
+#[test]
+fn test_tx() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    conn.transact(&mut c, r#"[
+        [:db/add "s" :db/ident :foo/uuid]
+        [:db/add "s" :db/valueType :db.type/uuid]
+        [:db/add "s" :db/cardinality :db.cardinality/one]
+    ]"#).unwrap();
+    let t = conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
+    ]"#).unwrap();
+    let r = conn.q_once(&mut c,
+                        r#"[:find ?tx 
+                            :where [?x :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4" ?tx]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Rel(ref v)) => {
+            assert_eq!(*v, vec![
+                vec![TypedValue::Ref(t.tx_id),]
+            ]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+}
+
+#[test]
+fn test_tx_as_input() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    conn.transact(&mut c, r#"[
+        [:db/add "s" :db/ident :foo/uuid]
+        [:db/add "s" :db/valueType :db.type/uuid]
+        [:db/add "s" :db/cardinality :db.cardinality/one]
+    ]"#).unwrap();
+    let t = conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
+    ]"#).unwrap();
+    let tx = (Variable::from_valid_name("?tx"), TypedValue::Ref(t.tx_id));
+    let inputs = QueryInputs::with_value_sequence(vec![tx]);
+    let r = conn.q_once(&mut c,
+                        r#"[:find ?uuid 
+                            :in ?tx
+                            :where [?x :foo/uuid ?uuid ?tx]]"#, inputs);
+    match r {
+        Result::Ok(QueryResults::Rel(ref v)) => {
+            assert_eq!(*v, vec![
+                vec![TypedValue::Uuid(Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4").unwrap()),]
+            ]);
         },
         _ => panic!("Expected query to work."),
     }

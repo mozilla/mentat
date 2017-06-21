@@ -615,8 +615,10 @@ impl ConjoiningClauses {
     /// present.
     fn constrain_to_tx(&mut self, tx: &PatternNonValuePlace) {
         match *tx {
-            PatternNonValuePlace::Placeholder => (),
-            _ => unimplemented!(),           // TODO: #440.
+            PatternNonValuePlace::Variable(ref v) => self.constrain_var_to_type(v.clone(), ValueType::Ref),
+            PatternNonValuePlace::Placeholder |
+            PatternNonValuePlace::Entid(_) |
+            PatternNonValuePlace::Ident(_) => (),
         }
     }
 
