@@ -11,7 +11,7 @@ version = "0.4.0"
 build = "build/version.rs"
 
 [workspace]
-members = []
+members = ["tools/cli"]
 
 [build-dependencies]
 rustc_version = "0.1.7"

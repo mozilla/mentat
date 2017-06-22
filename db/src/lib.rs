@@ -43,7 +43,7 @@ mod entids;
 pub mod errors;
 mod metadata;
 mod schema;
-mod types;
+pub mod types;
 mod internal_types;
 mod upsert_resolution;
 mod tx;
