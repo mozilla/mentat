@@ -8,7 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::HashMap;
+use std::collections::HashMap;  
+use std::process;
+
+use error_chain::ChainedError;
 
 use mentat::query::QueryResults;
 use mentat_core::TypedValue;
@@ -21,6 +24,8 @@ use command_parser::{
     SHORT_QUERY_COMMAND,
     LONG_TRANSACT_COMMAND,
     SHORT_TRANSACT_COMMAND,
+    LONG_EXIT_COMMAND,
+    SHORT_EXIT_COMMAND,
 };
 use input::InputReader;
 use input::InputResult::{
@@ -37,6 +42,8 @@ use store::{
 lazy_static! {
     static ref COMMAND_HELP: HashMap<&'static str, &'static str> = {
         let mut map = HashMap::new();
+        map.insert(LONG_EXIT_COMMAND, "Close the current database and exit the REPL.");
+        map.insert(SHORT_EXIT_COMMAND, "Shortcut for `.exit`. Close the current database and exit the REPL.");
         map.insert(HELP_COMMAND, "Show help for commands.");
         map.insert(OPEN_COMMAND, "Open a database at path.");
         map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
@@ -103,16 +110,23 @@ impl Repl {
                     Err(e) => println!("{}", e.to_string())
                 };
             },
-            Command::Close => {
-                let old_db_name = self.store.db_name.clone();
-                match self.store.close() {
-                    Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-                    Err(e) => println!("{}", e.to_string())
-                };
-            },
+            Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
             Command::Transact(transaction) => self.execute_transact(transaction),
+            Command::Exit => {
+                self.close();
+                println!("Exiting...");
+                process::exit(0);
+            }
         }
+    }
+
+    fn close(&mut self) {
+        let old_db_name = self.store.db_name.clone();
+        match self.store.close() {
+            Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
+            Err(e) => println!("{}", e.display())
+        };
     }
 
     fn help_command(&self, args: Vec<String>) {
