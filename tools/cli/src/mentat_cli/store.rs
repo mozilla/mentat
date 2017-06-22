@@ -10,11 +10,14 @@
 
 use rusqlite;
 
+use edn;
+
 use errors as cli;
 
 use mentat::{
     new_connection,
 };
+
 use mentat::query::QueryResults;
 
 use mentat::conn::Conn;
@@ -52,10 +55,14 @@ impl Store {
     }
 
     pub fn query(&self, query: String) -> Result<QueryResults, cli::Error> {
-        Ok(try!(self.conn.q_once(&self.handle, &query, None)))
+        Ok(self.conn.q_once(&self.handle, &query, None)?)
     }
 
     pub fn transact(&mut self, transaction: String) -> Result<TxReport, cli::Error> {
-        Ok(try!(self.conn.transact(&mut self.handle, &transaction)))
+        Ok(self.conn.transact(&mut self.handle, &transaction)?)
+    }
+
+    pub fn fetch_schema(&self) -> edn::Value {
+        self.conn.current_schema().to_edn_value()
     }
 }

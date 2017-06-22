@@ -37,6 +37,7 @@ pub static OPEN_COMMAND: &'static str = &"open";
 pub static CLOSE_COMMAND: &'static str = &"close";
 pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
+pub static SCHEMA_COMMAND: &'static str = &"schema";
 pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
 pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
 pub static LONG_EXIT_COMMAND: &'static str = &"exit";
@@ -49,6 +50,7 @@ pub enum Command {
     Help(Vec<String>),
     Open(String),
     Query(String),
+    Schema,
     Transact(String),
 }
 
@@ -66,7 +68,8 @@ impl Command {
             &Command::Help(_) |
             &Command::Open(_) |
             &Command::Close |
-            &Command::Exit => true
+            &Command::Exit |
+            &Command::Schema => true
         }
     }
 
@@ -83,12 +86,15 @@ impl Command {
             },
             &Command::Open(ref args) => {
                 format!(".{} {}", OPEN_COMMAND, args)
-            }
+            },
             &Command::Close => {
                 format!(".{}", CLOSE_COMMAND)
             },
             &Command::Exit => {
                 format!(".{}", LONG_EXIT_COMMAND)
+            },
+            &Command::Schema => {
+                format!(".{}", SCHEMA_COMMAND)
             },
         }
     }
@@ -129,6 +135,15 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         }
                         Ok(Command::Close)
                     });
+                    
+    let schema_parser = string(SCHEMA_COMMAND)
+                    .with(no_arg_parser())
+                    .map(|args| {
+                        if !args.is_empty() {
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
+                        }
+                        Ok(Command::Schema)
+                    });
 
     let exit_parser = try(string(LONG_EXIT_COMMAND)).or(try(string(SHORT_EXIT_COMMAND)))
                     .with(no_arg_parser())
@@ -161,12 +176,13 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
 
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 6], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 7], _>
           ([&mut try(help_parser),
             &mut try(open_parser),
             &mut try(close_parser),
             &mut try(exit_parser),
             &mut try(query_parser),
+            &mut try(schema_parser),
             &mut try(transact_parser)]))
         .parse(s)
         .unwrap_or((Err(cli::ErrorKind::CommandParse(format!("Invalid command {:?}", s)).into()), "")).0
@@ -323,7 +339,7 @@ mod tests {
         let cmd = command(&input).expect("Expected exit command");
         match cmd {
             Command::Exit => assert!(true),
-            _ => assert!(false)
+                        _ => assert!(false)
         }
     }
 
@@ -343,6 +359,33 @@ mod tests {
         let cmd = command(&input).expect("Expected exit command");
         match cmd {
             Command::Exit => assert!(true),
+            _ => assert!(false)
+        }
+    }
+    
+    #[test]
+    fn test_schema_parser_with_args() {
+        let input = ".schema arg1";
+        let err = command(&input).expect_err("Expected an error");
+        assert_eq!(err.to_string(), format!("Invalid command {:?}", input));
+    }
+
+    #[test]
+    fn test_schema_parser_no_args() {
+        let input = ".schema";
+        let cmd = command(&input).expect("Expected schema command");
+        match cmd {
+            Command::Schema => assert!(true),
+            _ => assert!(false)
+        }
+    }
+    
+    #[test]
+    fn test_schema_parser_no_args_trailing_whitespace() {
+        let input = ".schema ";
+        let cmd = command(&input).expect("Expected schema command");
+        match cmd {
+            Command::Schema => assert!(true),
             _ => assert!(false)
         }
     }
