@@ -32,6 +32,8 @@ use mentat_core::{
 
 use mentat_core::counter::RcCounter;
 
+use mentat_db::PartitionMap;
+
 use mentat_query::{
     NamespacedKeyword,
     NonIntegerConstant,
@@ -643,6 +645,11 @@ impl ConjoiningClauses {
         schema.get_entid(&ident)
     }
 
+    fn valid_tx_entid<'p>(&self, partition_map: &'p PartitionMap, entid: Entid) -> bool {
+        let partition = partition_map.get(":db.part/tx").expect("transaction id range");
+        partition.contains_entid(entid)
+    }
+
     fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         if attribute.fulltext {
             match value {
@@ -862,10 +869,10 @@ impl ConjoiningClauses {
 impl ConjoiningClauses {
     // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
     // and so on.
-    pub fn apply_clause(&mut self, schema: &Schema, where_clause: WhereClause) -> Result<()> {
+    pub fn apply_clause(&mut self, schema: &Schema, partition_map: &PartitionMap, where_clause: WhereClause) -> Result<()> {
         match where_clause {
             WhereClause::Pattern(p) => {
-                self.apply_pattern(schema, p);
+                self.apply_pattern(schema, partition_map, p);
                 Ok(())
             },
             WhereClause::Pred(p) => {
@@ -876,11 +883,11 @@ impl ConjoiningClauses {
             },
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)?;
-                self.apply_or_join(schema, o)
+                self.apply_or_join(schema, partition_map, o)
             },
             WhereClause::NotJoin(n) => {
                 validate_not_join(&n)?;
-                self.apply_not_join(schema, n)
+                self.apply_not_join(schema, partition_map, n)
             },
             _ => unimplemented!(),
         }

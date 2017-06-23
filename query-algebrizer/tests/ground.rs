@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_core;
+extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
@@ -22,6 +23,8 @@ use mentat_core::{
     ValueType,
     TypedValue,
 };
+
+use mentat_db::PartitionMap;
 
 use mentat_query_parser::{
     parse_find_string,
@@ -91,19 +94,19 @@ fn prepopulated_schema() -> Schema {
     schema
 }
 
-fn bails(schema: &Schema, input: &str) -> Error {
+fn bails(schema: &Schema, partition_map: &PartitionMap, input: &str) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect_err("algebrize to have failed")
+    algebrize(schema.into(), partition_map, parsed).expect_err("algebrize to have failed")
 }
 
-fn bails_with_inputs(schema: &Schema, input: &str, inputs: QueryInputs) -> Error {
+fn bails_with_inputs(schema: &Schema, partition_map: &PartitionMap, input: &str, inputs: QueryInputs) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize_with_inputs(schema, parsed, 0, inputs).expect_err("algebrize to have failed")
+    algebrize_with_inputs(schema, partition_map, parsed, 0, inputs).expect_err("algebrize to have failed")
 }
 
-fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+fn alg(schema: &Schema, partition_map: &PartitionMap, input: &str) -> ConjoiningClauses {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
+    algebrize(schema.into(), partition_map, parsed).expect("algebrizing to have succeeded").cc
 }
 
 #[test]
@@ -112,7 +115,8 @@ fn test_ground_doesnt_bail_for_type_conflicts() {
     // The query can return no results.
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground 9.95) ?x]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_some());
 }
 
@@ -120,7 +124,8 @@ fn test_ground_doesnt_bail_for_type_conflicts() {
 fn test_ground_tuple_fails_impossible() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [5 9.95]) [?x ?p]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_some());
 }
 
@@ -128,7 +133,8 @@ fn test_ground_tuple_fails_impossible() {
 fn test_ground_scalar_fails_impossible() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground true) ?p]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_some());
 }
 
@@ -138,7 +144,8 @@ fn test_ground_coll_skips_impossible() {
     // The query can return no results.
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [5 9.95 11]) [?x ...]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_none());
     assert_eq!(cc.computed_tables[0], ComputedTable::NamedValues {
         names: vec![Variable::from_valid_name("?x")],
@@ -150,7 +157,8 @@ fn test_ground_coll_skips_impossible() {
 fn test_ground_coll_fails_if_all_impossible() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [5.1 5.2]) [?p ...]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_some());
 }
 
@@ -158,7 +166,8 @@ fn test_ground_coll_fails_if_all_impossible() {
 fn test_ground_rel_skips_impossible() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [[8 "foo"] [5 7] [9.95 9] [11 12]]) [[?x ?p]]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_none());
     assert_eq!(cc.computed_tables[0], ComputedTable::NamedValues {
         names: vec![Variable::from_valid_name("?x"), Variable::from_valid_name("?p")],
@@ -170,7 +179,8 @@ fn test_ground_rel_skips_impossible() {
 fn test_ground_rel_fails_if_all_impossible() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [[11 5.1] [12 5.2]]) [[?x ?p]]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_some());
 }
 
@@ -178,21 +188,24 @@ fn test_ground_rel_fails_if_all_impossible() {
 fn test_ground_tuple_rejects_all_placeholders() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [8 "foo" 3]) [_ _ _]]]"#;
     let schema = prepopulated_schema();
-    bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    bails(&schema, &partition_map, &q);
 }
 
 #[test]
 fn test_ground_rel_rejects_all_placeholders() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [[8 "foo"]]) [[_ _]]]]"#;
     let schema = prepopulated_schema();
-    bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    bails(&schema, &partition_map, &q);
 }
 
 #[test]
 fn test_ground_tuple_placeholders() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [8 "foo" 3]) [?x _ ?p]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_none());
     assert_eq!(cc.bound_value(&Variable::from_valid_name("?x")), Some(TypedValue::Ref(8)));
     assert_eq!(cc.bound_value(&Variable::from_valid_name("?p")), Some(TypedValue::Ref(3)));
@@ -202,7 +215,8 @@ fn test_ground_tuple_placeholders() {
 fn test_ground_rel_placeholders() {
     let q = r#"[:find ?x :where [?x :foo/knows ?p] [(ground [[8 "foo" 3] [5 false 7] [5 9.95 9]]) [[?x _ ?p]]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_none());
     assert_eq!(cc.computed_tables[0], ComputedTable::NamedValues {
         names: vec![Variable::from_valid_name("?x"), Variable::from_valid_name("?p")],
@@ -222,7 +236,8 @@ fn test_ground_rel_placeholders() {
 fn test_multiple_reference_type_failure() {
     let q = r#"[:find ?x :where [?x :foo/age ?y] [?x :foo/knows ?y]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_some());
 }
 
@@ -230,7 +245,8 @@ fn test_multiple_reference_type_failure() {
 fn test_ground_tuple_infers_types() {
     let q = r#"[:find ?x :where [?x :foo/age ?v] [(ground [8 10]) [?x ?v]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_none());
     assert_eq!(cc.bound_value(&Variable::from_valid_name("?x")), Some(TypedValue::Ref(8)));
     assert_eq!(cc.bound_value(&Variable::from_valid_name("?v")), Some(TypedValue::Long(10)));
@@ -240,7 +256,8 @@ fn test_ground_tuple_infers_types() {
 fn test_ground_rel_infers_types() {
     let q = r#"[:find ?x :where [?x :foo/age ?v] [(ground [[8 10]]) [[?x ?v]]]]"#;
     let schema = prepopulated_schema();
-    let cc = alg(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let cc = alg(&schema, &partition_map, &q);
     assert!(cc.empty_because.is_none());
     assert_eq!(cc.computed_tables[0], ComputedTable::NamedValues {
         names: vec![Variable::from_valid_name("?x"), Variable::from_valid_name("?v")],
@@ -252,7 +269,8 @@ fn test_ground_rel_infers_types() {
 fn test_ground_coll_heterogeneous_types() {
     let q = r#"[:find ?x :where [?x _ ?v] [(ground [false 8.5]) [?v ...]]]"#;
     let schema = prepopulated_schema();
-    let e = bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let e = bails(&schema, &partition_map, &q);
     match e {
         Error(ErrorKind::InvalidGroundConstant, _) => {
         },
@@ -266,7 +284,8 @@ fn test_ground_coll_heterogeneous_types() {
 fn test_ground_rel_heterogeneous_types() {
     let q = r#"[:find ?x :where [?x _ ?v] [(ground [[false] [5]]) [[?v]]]]"#;
     let schema = prepopulated_schema();
-    let e = bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let e = bails(&schema, &partition_map, &q);
     match e {
         Error(ErrorKind::InvalidGroundConstant, _) => {
         },
@@ -280,7 +299,8 @@ fn test_ground_rel_heterogeneous_types() {
 fn test_ground_tuple_duplicate_vars() {
     let q = r#"[:find ?x :where [?x :foo/age ?v] [(ground [8 10]) [?x ?x]]]"#;
     let schema = prepopulated_schema();
-    let e = bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let e = bails(&schema, &partition_map, &q);
     match e {
         Error(ErrorKind::InvalidBinding(v, e), _) => {
             assert_eq!(v, PlainSymbol::new("ground"));
@@ -296,7 +316,8 @@ fn test_ground_tuple_duplicate_vars() {
 fn test_ground_rel_duplicate_vars() {
     let q = r#"[:find ?x :where [?x :foo/age ?v] [(ground [[8 10]]) [[?x ?x]]]]"#;
     let schema = prepopulated_schema();
-    let e = bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let e = bails(&schema, &partition_map, &q);
     match e {
         Error(ErrorKind::InvalidBinding(v, e), _) => {
             assert_eq!(v, PlainSymbol::new("ground"));
@@ -312,7 +333,8 @@ fn test_ground_rel_duplicate_vars() {
 fn test_ground_nonexistent_variable_invalid() {
     let q = r#"[:find ?x ?e :where [?e _ ?x] (not [(ground 17) ?v])]"#;
     let schema = prepopulated_schema();
-    let e = bails(&schema, &q);
+    let partition_map = PartitionMap::default();
+    let e = bails(&schema, &partition_map, &q);
     match e {
         Error(ErrorKind::UnboundVariable(PlainSymbol(v)), _) => {
             assert_eq!(v, "?v".to_string());
@@ -326,6 +348,7 @@ fn test_ground_nonexistent_variable_invalid() {
 #[test]
 fn test_unbound_input_variable_invalid() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
     let q = r#"[:find ?y ?age :in ?x :where [(ground [?x]) [?y ...]] [?y :foo/age ?age]]"#;
 
     // This fails even if we know the type: we don't support grounding bindings
@@ -335,7 +358,7 @@ fn test_unbound_input_variable_invalid() {
 
     let i = QueryInputs::new(types, BTreeMap::default()).expect("valid QueryInputs");
 
-    let e = bails_with_inputs(&schema, &q, i);
+    let e = bails_with_inputs(&schema, &partition_map, &q, i);
     match e {
         Error(ErrorKind::UnboundVariable(v), _) => {
             assert_eq!(v.0, "?x");

@@ -485,6 +485,7 @@ pub enum EmptyBecause {
     InvalidBinding(Column, TypedValue),
     ValueTypeMismatch(ValueType, TypedValue),
     AttributeLookupFailed,         // Catch-all, because the table lookup code is lazy. TODO
+    TxIdOutOfRange,
 }
 
 impl Debug for EmptyBecause {
@@ -536,6 +537,9 @@ impl Debug for EmptyBecause {
             },
             &AttributeLookupFailed => {
                 write!(f, "Attribute lookup failed")
+            },
+            &TxIdOutOfRange => {
+                write!(f, "Transaction ID is not valid")
             },
         }
     }

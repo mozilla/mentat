@@ -18,6 +18,8 @@ use mentat_core::{
     Schema,
 };
 
+use mentat_db::PartitionMap;
+
 use mentat_query::{
     OrJoin,
     OrWhereClause,
@@ -88,23 +90,23 @@ pub enum DeconstructedOrJoin {
 
 /// Application of `or`. Note that this is recursive!
 impl ConjoiningClauses {
-    fn apply_or_where_clause(&mut self, schema: &Schema, clause: OrWhereClause) -> Result<()> {
+    fn apply_or_where_clause(&mut self, schema: &Schema, partition_map: &PartitionMap, clause: OrWhereClause) -> Result<()> {
         match clause {
-            OrWhereClause::Clause(clause) => self.apply_clause(schema, clause),
+            OrWhereClause::Clause(clause) => self.apply_clause(schema, partition_map, clause),
 
             // A query might be:
             // [:find ?x :where (or (and [?x _ 5] [?x :foo/bar 7]))]
             // which is equivalent to dropping the `or` _and_ the `and`!
             OrWhereClause::And(clauses) => {
                 for clause in clauses {
-                    self.apply_clause(schema, clause)?;
+                    self.apply_clause(schema, partition_map, clause)?;
                 }
                 Ok(())
             },
         }
     }
 
-    pub fn apply_or_join(&mut self, schema: &Schema, mut or_join: OrJoin) -> Result<()> {
+    pub fn apply_or_join(&mut self, schema: &Schema, partition_map: &PartitionMap, mut or_join: OrJoin) -> Result<()> {
         // Simple optimization. Empty `or` clauses disappear. Unit `or` clauses
         // are equivalent to just the inner clause.
 
@@ -115,7 +117,7 @@ impl ConjoiningClauses {
             0 => Ok(()),
             1 if or_join.is_fully_unified() => {
                 let clause = or_join.clauses.pop().expect("there's a clause");
-                self.apply_or_where_clause(schema, clause)
+                self.apply_or_where_clause(schema, partition_map, clause)
             },
             // Either there's only one clause pattern, and it's not fully unified, or we
             // have multiple clauses.
@@ -124,7 +126,7 @@ impl ConjoiningClauses {
             // Notably, this clause might be an `and`, making this a complex pattern, so we can't
             // necessarily rewrite it in place.
             // In the latter case, we still need to do a bit more work.
-            _ => self.apply_non_trivial_or_join(schema, or_join),
+            _ => self.apply_non_trivial_or_join(schema, partition_map, or_join),
         }
     }
 
@@ -292,7 +294,7 @@ impl ConjoiningClauses {
         }
     }
 
-    fn apply_non_trivial_or_join(&mut self, schema: &Schema, or_join: OrJoin) -> Result<()> {
+    fn apply_non_trivial_or_join(&mut self, schema: &Schema, partition_map: &PartitionMap, or_join: OrJoin) -> Result<()> {
         match self.deconstruct_or_join(schema, or_join) {
             DeconstructedOrJoin::KnownSuccess => {
                 // The pattern came to us empty -- `(or)`. Do nothing.
@@ -306,22 +308,22 @@ impl ConjoiningClauses {
             },
             DeconstructedOrJoin::Unit(clause) => {
                 // There was only one clause. We're unifying all variables, so we can just apply here.
-                self.apply_or_where_clause(schema, clause)
+                self.apply_or_where_clause(schema, partition_map, clause)
             },
             DeconstructedOrJoin::UnitPattern(pattern) => {
                 // Same, but simpler.
-                self.apply_pattern(schema, pattern);
+                self.apply_pattern(schema, partition_map, pattern);
                 Ok(())
             },
             DeconstructedOrJoin::Simple(patterns, mentioned_vars) => {
                 // Hooray! Fully unified and plain ol' patterns that all use the same table.
                 // Go right ahead and produce a set of constraint alternations that we can collect,
                 // using a single table alias.
-                self.apply_simple_or_join(schema, patterns, mentioned_vars)
+                self.apply_simple_or_join(schema, partition_map, patterns, mentioned_vars)
             },
             DeconstructedOrJoin::Complex(or_join) => {
                 // Do this the hard way.
-                self.apply_complex_or_join(schema, or_join)
+                self.apply_complex_or_join(schema, partition_map, or_join)
             },
         }
     }
@@ -356,6 +358,7 @@ impl ConjoiningClauses {
     ///
     fn apply_simple_or_join(&mut self,
                             schema: &Schema,
+                            partition_map: &PartitionMap,
                             patterns: Vec<Pattern>,
                             mentioned_vars: BTreeSet<Variable>)
                             -> Result<()> {
@@ -407,7 +410,7 @@ impl ConjoiningClauses {
                         .map(|pattern| {
                             let mut receptacle = template.make_receptacle();
                             println!("Applying pattern with attribute {:?}", pattern.attribute);
-                            receptacle.apply_pattern_clause_for_alias(schema, &pattern, &source_alias);
+                            receptacle.apply_pattern_clause_for_alias(schema, partition_map, &pattern, &source_alias);
                             receptacle
                         })
                         .peekable();
@@ -545,7 +548,7 @@ impl ConjoiningClauses {
     ///
     /// Note that a top-level standalone `or` doesn't really need to be aliased, but
     /// it shouldn't do any harm.
-    fn apply_complex_or_join(&mut self, schema: &Schema, or_join: OrJoin) -> Result<()> {
+    fn apply_complex_or_join(&mut self, schema: &Schema, partition_map: &PartitionMap, or_join: OrJoin) -> Result<()> {
         // N.B., a solitary pattern here *cannot* be simply applied to the enclosing CC. We don't
         // want to join all the vars, and indeed if it were safe to do so, we wouldn't have ended up
         // in this function!
@@ -565,11 +568,11 @@ impl ConjoiningClauses {
             match clause {
                 OrWhereClause::And(clauses) => {
                     for clause in clauses {
-                        receptacle.apply_clause(&schema, clause)?;
+                        receptacle.apply_clause(&schema, &partition_map, clause)?;
                     }
                 },
                 OrWhereClause::Clause(clause) => {
-                    receptacle.apply_clause(&schema, clause)?;
+                    receptacle.apply_clause(&schema, &partition_map, clause)?;
                 },
             }
             if receptacle.is_known_empty() {
@@ -762,16 +765,16 @@ mod testing {
         algebrize_with_counter,
     };
 
-    fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+    fn alg(schema: &Schema, partition_map: &PartitionMap, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+        algebrize(schema.into(), partition_map, parsed).expect("algebrize failed").cc
     }
 
     /// Algebrize with a starting counter, so we can compare inner queries by algebrizing a
     /// simpler version.
-    fn alg_c(schema: &Schema, counter: usize, input: &str) -> ConjoiningClauses {
+    fn alg_c(schema: &Schema, partition_map: &PartitionMap, counter: usize, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize_with_counter(schema.into(), parsed, counter).expect("algebrize failed").cc
+        algebrize_with_counter(schema.into(), partition_map, parsed, counter).expect("algebrize failed").cc
     }
 
     fn compare_ccs(left: ConjoiningClauses, right: ConjoiningClauses) {
@@ -818,12 +821,13 @@ mod testing {
     #[test]
     fn test_schema_based_failure() {
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where (or [?x :foo/nope1 "John"]
                         [?x :foo/nope2 "Ámbar"]
                         [?x :foo/nope3 "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         assert!(cc.is_known_empty());
         assert_eq!(cc.empty_because, Some(EmptyBecause::InvalidAttributeIdent(NamespacedKeyword::new("foo", "nope3"))));
     }
@@ -832,26 +836,28 @@ mod testing {
     #[test]
     fn test_only_one_arm_succeeds() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where (or [?x :foo/nope "John"]
                         [?x :foo/parent "Ámbar"]
                         [?x :foo/nope "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         assert!(!cc.is_known_empty());
-        compare_ccs(cc, alg(&schema, r#"[:find ?x :where [?x :foo/parent "Ámbar"]]"#));
+        compare_ccs(cc, alg(&schema, &partition_map, r#"[:find ?x :where [?x :foo/parent "Ámbar"]]"#));
     }
 
     // Simple alternation.
     #[test]
     fn test_simple_alternation() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where (or [?x :foo/knows "John"]
                         [?x :foo/parent "Ámbar"]
                         [?x :foo/knows "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         let vx = Variable::from_valid_name("?x");
         let d0 = "datoms00".to_string();
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
@@ -885,6 +891,7 @@ mod testing {
     #[test]
     fn test_alternation_with_pattern() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find [?x ?name]
              :where
@@ -892,7 +899,7 @@ mod testing {
              (or [?x :foo/knows "John"]
                  [?x :foo/parent "Ámbar"]
                  [?x :foo/knows "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         let vx = Variable::from_valid_name("?x");
         let d0 = "datoms00".to_string();
         let d1 = "datoms01".to_string();
@@ -935,6 +942,7 @@ mod testing {
     #[test]
     fn test_alternation_with_pattern_and_predicate() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x ?age
              :where
@@ -942,7 +950,7 @@ mod testing {
              [[< ?age 30]]
              (or [?x :foo/knows "John"]
                  [?x :foo/knows "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         let vx = Variable::from_valid_name("?x");
         let d0 = "datoms00".to_string();
         let d1 = "datoms01".to_string();
@@ -988,10 +996,11 @@ mod testing {
     #[test]
     fn test_unit_or_join_doesnt_flatten() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"[:find ?x
                         :where [?x :foo/knows ?y]
                                (or-join [?x] [?x :foo/parent ?y])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
         let d0 = "datoms00".to_string();
@@ -1023,28 +1032,30 @@ mod testing {
     #[test]
     fn test_unit_or_does_flatten() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let or_query =   r#"[:find ?x
                              :where [?x :foo/knows ?y]
                                     (or [?x :foo/parent ?y])]"#;
         let flat_query = r#"[:find ?x
                              :where [?x :foo/knows ?y]
                                     [?x :foo/parent ?y]]"#;
-        compare_ccs(alg(&schema, or_query),
-                    alg(&schema, flat_query));
+        compare_ccs(alg(&schema, &partition_map, or_query),
+                    alg(&schema, &partition_map, flat_query));
     }
 
     // Elision of `and`.
     #[test]
     fn test_unit_or_and_does_flatten() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let or_query =   r#"[:find ?x
                              :where (or (and [?x :foo/parent ?y]
                                              [?x :foo/age 7]))]"#;
         let flat_query =   r#"[:find ?x
                                :where [?x :foo/parent ?y]
                                       [?x :foo/age 7]]"#;
-        compare_ccs(alg(&schema, or_query),
-                    alg(&schema, flat_query));
+        compare_ccs(alg(&schema, &partition_map, or_query),
+                    alg(&schema, &partition_map, flat_query));
     }
 
     // Alternation with `and`.
@@ -1057,12 +1068,13 @@ mod testing {
     #[test]
     fn test_alternation_with_and() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where (or (and [?x :foo/knows "John"]
                              [?x :foo/parent "Ámbar"])
                         [?x :foo/knows "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         let mut tables = cc.computed_tables.into_iter();
         match (tables.next(), tables.next()) {
             (Some(ComputedTable::Union { projection, type_extraction, arms }), None) => {
@@ -1073,11 +1085,13 @@ mod testing {
                 match (arms.next(), arms.next(), arms.next()) {
                     (Some(and), Some(pattern), None) => {
                         let expected_and = alg_c(&schema,
+                                                 &partition_map,
                                                  0,  // The first pattern to be processed.
                                                  r#"[:find ?x :where [?x :foo/knows "John"] [?x :foo/parent "Ámbar"]]"#);
                         compare_ccs(and, expected_and);
 
                         let expected_pattern = alg_c(&schema,
+                                                     &partition_map,
                                                      2,      // Two aliases taken by the other arm.
                                                      r#"[:find ?x :where [?x :foo/knows "Daphne"]]"#);
                         compare_ccs(pattern, expected_pattern);
@@ -1096,6 +1110,7 @@ mod testing {
     #[test]
     fn test_type_based_or_pruning() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         // This simplifies to:
         // [:find ?x
         //  :where [?a :some/int ?x]
@@ -1109,6 +1124,6 @@ mod testing {
             [:find ?x
              :where [?a :foo/age ?x]
                     [_ :foo/height ?x]]"#;
-        compare_ccs(alg(&schema, query), alg(&schema, simple));
+        compare_ccs(alg(&schema, &partition_map, query), alg(&schema, &partition_map, simple));
     }
 }

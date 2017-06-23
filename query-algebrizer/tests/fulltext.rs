@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_core;
+extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
@@ -19,6 +20,8 @@ use mentat_core::{
     Schema,
     ValueType,
 };
+
+use mentat_db::PartitionMap;
 
 use mentat_query_parser::{
     parse_find_string,
@@ -80,23 +83,24 @@ fn prepopulated_schema() -> Schema {
     schema
 }
 
-fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+fn alg(schema: &Schema, partition_map: &PartitionMap, input: &str) -> ConjoiningClauses {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
+    algebrize(schema.into(), partition_map, parsed).expect("algebrizing to have succeeded").cc
 }
 
 #[test]
 fn test_apply_fulltext() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // If you use a non-FTS attribute, we will short-circuit.
     let query = r#"[:find ?val
                     :where [(fulltext $ :foo/name "hello") [[?entity ?val _ _]]]]"#;
-    assert!(alg(&schema, query).is_known_empty());
+    assert!(alg(&schema, &partition_map, query).is_known_empty());
 
     // If you get a type mismatch, we will short-circuit.
     let query = r#"[:find ?val
                     :where [(fulltext $ :foo/description "hello") [[?entity ?val ?tx ?score]]]
                     [?score :foo/bar _]]"#;
-    assert!(alg(&schema, query).is_known_empty());
+    assert!(alg(&schema, &partition_map, query).is_known_empty());
 }

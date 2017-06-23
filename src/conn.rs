@@ -109,6 +109,11 @@ impl Conn {
         self.metadata.lock().unwrap().schema.clone()
     }
 
+    /// Yield the current partition_map instance.
+    pub fn current_partition_map(&self) -> PartitionMap {
+        self.metadata.lock().unwrap().partition_map.clone()
+    }
+
     /// Query the Mentat store, using the given connection and the current metadata.
     pub fn q_once<T>(&self,
                      sqlite: &rusqlite::Connection,
@@ -116,9 +121,9 @@ impl Conn {
                      inputs: T) -> Result<QueryResults>
         where T: Into<Option<QueryInputs>>
         {
-
         q_once(sqlite,
                &*self.current_schema(),
+               &self.current_partition_map(),
                query,
                inputs)
     }

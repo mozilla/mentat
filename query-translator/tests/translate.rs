@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_core;
+extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
@@ -32,6 +33,8 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_db::PartitionMap;
+
 use mentat_query_parser::parse_find_string;
 use mentat_query_algebrizer::{
     QueryInputs,
@@ -53,15 +56,15 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
     schema.schema_map.insert(e, a);
 }
 
-fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
+fn translate_with_inputs(schema: &Schema, partition_map: &PartitionMap, query: &'static str, inputs: QueryInputs) -> SQLQuery {
     let parsed = parse_find_string(query).expect("parse failed");
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs).expect("algebrize failed");
+    let algebrized = algebrize_with_inputs(schema, partition_map, parsed, 0, inputs).expect("algebrize failed");
     let select = query_to_select(algebrized);
     select.query.to_sql_query().unwrap()
 }
 
-fn translate(schema: &Schema, query: &'static str) -> SQLQuery {
-    translate_with_inputs(schema, query, QueryInputs::default())
+fn translate(schema: &Schema, partition_map: &PartitionMap, query: &'static str) -> SQLQuery {
+    translate_with_inputs(schema, partition_map, query, QueryInputs::default())
 }
 
 fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
@@ -92,9 +95,10 @@ fn make_arg(name: &'static str, value: &'static str) -> (String, Rc<mentat_sql::
 #[test]
 fn test_scalar() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x . :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -102,9 +106,10 @@ fn test_scalar() {
 #[test]
 fn test_tuple() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find [?x] :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -112,9 +117,10 @@ fn test_tuple() {
 #[test]
 fn test_coll() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find [?x ...] :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -122,9 +128,10 @@ fn test_coll() {
 #[test]
 fn test_rel() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x :where [?x :foo/bar "yyy"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -132,9 +139,10 @@ fn test_rel() {
 #[test]
 fn test_limit() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x :where [?x :foo/bar "yyy"] :limit 5]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 5");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -142,11 +150,12 @@ fn test_limit() {
 #[test]
 fn test_unbound_variable_limit() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // We don't know the value of the limit var, so we produce an escaped SQL variable to handle
     // later input.
     let query = r#"[:find ?x :in ?limit-is-9-great :where [?x :foo/bar "yyy"] :limit ?limit-is-9-great]"#;
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, QueryInputs::default());
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, QueryInputs::default());
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
                      FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 \
@@ -157,11 +166,12 @@ fn test_unbound_variable_limit() {
 #[test]
 fn test_bound_variable_limit() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // We know the value of `?limit` at algebrizing time, so we substitute directly.
     let query = r#"[:find ?x :in ?limit :where [?x :foo/bar "yyy"] :limit ?limit]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?limit"), TypedValue::Long(92))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 92");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -169,12 +179,13 @@ fn test_bound_variable_limit() {
 #[test]
 fn test_bound_variable_limit_affects_distinct() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // We know the value of `?limit` at algebrizing time, so we substitute directly.
     // As it's `1`, we know we don't need `DISTINCT`!
     let query = r#"[:find ?x :in ?limit :where [?x :foo/bar "yyy"] :limit ?limit]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?limit"), TypedValue::Long(1))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 }
@@ -182,10 +193,11 @@ fn test_bound_variable_limit_affects_distinct() {
 #[test]
 fn test_bound_variable_limit_affects_types() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x ?limit :in ?limit :where [?x _ ?limit] :limit ?limit]"#;
     let parsed = parse_find_string(query).expect("parse failed");
-    let algebrized = algebrize(&schema, parsed).expect("algebrize failed");
+    let algebrized = algebrize(&schema, &partition_map, parsed).expect("algebrize failed");
 
     // The type is known.
     assert_eq!(Some(ValueType::Long),
@@ -204,9 +216,10 @@ fn test_bound_variable_limit_affects_types() {
 #[test]
 fn test_unknown_attribute_keyword_value() {
     let schema = Schema::default();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x :where [?x _ :ab/yyy]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
 
     // Only match keywords, not strings: tag = 13.
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = $v0 AND `datoms00`.value_type_tag = 13");
@@ -216,9 +229,10 @@ fn test_unknown_attribute_keyword_value() {
 #[test]
 fn test_unknown_attribute_string_value() {
     let schema = Schema::default();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x :where [?x _ "horses"]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
 
     // We expect all_datoms because we're querying for a string. Magic, that.
     // We don't want keywords etc., so tag = 10.
@@ -229,9 +243,10 @@ fn test_unknown_attribute_string_value() {
 #[test]
 fn test_unknown_attribute_double_value() {
     let schema = Schema::default();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x :where [?x _ 9.95]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
 
     // In general, doubles _could_ be 1.0, which might match a boolean or a ref. Set tag = 5 to
     // make sure we only match numbers.
@@ -242,6 +257,7 @@ fn test_unknown_attribute_double_value() {
 #[test]
 fn test_unknown_attribute_integer_value() {
     let schema = Schema::default();
+    let partition_map = PartitionMap::default();
 
     let negative = r#"[:find ?x :where [?x _ -1]]"#;
     let zero = r#"[:find ?x :where [?x _ 0]]"#;
@@ -249,22 +265,22 @@ fn test_unknown_attribute_integer_value() {
     let two = r#"[:find ?x :where [?x _ 2]]"#;
 
     // Can't match boolean; no need to filter it out.
-    let SQLQuery { sql, args } = translate(&schema, negative);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, negative);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = -1");
     assert_eq!(args, vec![]);
 
     // Excludes booleans.
-    let SQLQuery { sql, args } = translate(&schema, zero);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, zero);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE (`datoms00`.v = 0 AND `datoms00`.value_type_tag <> 1)");
     assert_eq!(args, vec![]);
 
     // Excludes booleans.
-    let SQLQuery { sql, args } = translate(&schema, one);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, one);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE (`datoms00`.v = 1 AND `datoms00`.value_type_tag <> 1)");
     assert_eq!(args, vec![]);
 
     // Can't match boolean; no need to filter it out.
-    let SQLQuery { sql, args } = translate(&schema, two);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, two);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 2");
     assert_eq!(args, vec![]);
 }
@@ -272,10 +288,11 @@ fn test_unknown_attribute_integer_value() {
 #[test]
 fn test_unknown_ident() {
     let schema = Schema::default();
+    let partition_map = PartitionMap::default();
 
     let impossible = r#"[:find ?x :where [?x :db/ident :no/exist]]"#;
     let parsed = parse_find_string(impossible).expect("parse failed");
-    let algebrized = algebrize(&schema, parsed).expect("algebrize failed");
+    let algebrized = algebrize(&schema, &partition_map, parsed).expect("algebrize failed");
 
     // This query cannot return results: the ident doesn't resolve for a ref-typed attribute.
     assert!(algebrized.is_known_empty());
@@ -289,9 +306,10 @@ fn test_unknown_ident() {
 #[test]
 fn test_numeric_less_than_unknown_attribute() {
     let schema = Schema::default();
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?x :where [?x _ ?y] [(< ?y 10)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
 
     // Although we infer numericness from numeric predicates, we've already assigned a table to the
     // first pattern, and so this is _still_ `all_datoms`.
@@ -302,8 +320,9 @@ fn test_numeric_less_than_unknown_attribute() {
 #[test]
 fn test_numeric_gte_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Double);
+    let partition_map = PartitionMap::default();
     let query = r#"[:find ?x :where [?x :foo/bar ?y] [(>= ?y 12.9)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v >= 1.29e1");
     assert_eq!(args, vec![]);
 }
@@ -311,8 +330,9 @@ fn test_numeric_gte_known_attribute() {
 #[test]
 fn test_numeric_not_equals_known_attribute() {
     let schema = prepopulated_typed_schema(ValueType::Long);
+    let partition_map = PartitionMap::default();
     let query = r#"[:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99 AND `datoms00`.v <> 12 LIMIT 1");
     assert_eq!(args, vec![]);
 }
@@ -320,12 +340,13 @@ fn test_numeric_not_equals_known_attribute() {
 #[test]
 fn test_compare_long_to_double_constants() {
     let schema = prepopulated_typed_schema(ValueType::Double);
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?e .
                     :where
                     [?e :foo/bar ?v]
                     [(< 99.0 1234512345)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?e` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
                        AND 9.9e1 < 1234512345 \
@@ -336,13 +357,14 @@ fn test_compare_long_to_double_constants() {
 #[test]
 fn test_compare_long_to_double() {
     let schema = prepopulated_typed_schema(ValueType::Double);
+    let partition_map = PartitionMap::default();
 
     // You can compare longs to doubles.
     let query = r#"[:find ?e .
                     :where
                     [?e :foo/bar ?t]
                     [(< ?t 1234512345)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?e` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
                        AND `datoms00`.v < 1234512345 \
@@ -353,13 +375,14 @@ fn test_compare_long_to_double() {
 #[test]
 fn test_compare_double_to_long() {
     let schema = prepopulated_typed_schema(ValueType::Long);
+    let partition_map = PartitionMap::default();
 
     // You can compare doubles to longs.
     let query = r#"[:find ?e .
                     :where
                     [?e :foo/bar ?t]
                     [(< ?t 1234512345.0)]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms00`.e AS `?e` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
                        AND `datoms00`.v < 1.234512345e9 \
@@ -370,6 +393,7 @@ fn test_compare_double_to_long() {
 #[test]
 fn test_simple_or_join() {
     let mut schema = Schema::default();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "url"), 97);
     associate_ident(&mut schema, NamespacedKeyword::new("page", "title"), 98);
     associate_ident(&mut schema, NamespacedKeyword::new("page", "description"), 99);
@@ -387,7 +411,7 @@ fn test_simple_or_join() {
                       [?page :page/title "Foo"])
                     [?page :page/url ?url]
                     [?page :page/description ?description]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms01`.v AS `?url`, `datoms02`.v AS `?description` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE ((`datoms00`.a = 97 AND `datoms00`.v = $v0) OR (`datoms00`.a = 98 AND `datoms00`.v = $v1)) AND `datoms01`.a = 97 AND `datoms02`.a = 99 AND `datoms00`.e = `datoms01`.e AND `datoms00`.e = `datoms02`.e LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "http://foo.com/"), make_arg("$v1", "Foo")]);
 }
@@ -395,6 +419,7 @@ fn test_simple_or_join() {
 #[test]
 fn test_complex_or_join() {
     let mut schema = Schema::default();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "save"), 95);
     add_attribute(&mut schema, 95, Attribute {
         value_type: ValueType::Ref,
@@ -422,7 +447,7 @@ fn test_complex_or_join() {
                         [?save :save/title "Foo"]))
                     [?page :page/url ?url]
                     [?page :page/description ?description]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `datoms04`.v AS `?url`, \
                             `datoms05`.v AS `?description` \
                      FROM (SELECT `datoms00`.e AS `?page` \
@@ -456,6 +481,7 @@ fn test_complex_or_join() {
 #[test]
 fn test_complex_or_join_type_projection() {
     let mut schema = Schema::default();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "title"), 98);
     add_attribute(&mut schema, 98, Attribute {
         value_type: ValueType::String,
@@ -467,7 +493,7 @@ fn test_complex_or_join_type_projection() {
                     (or
                       [6 :page/title ?y]
                       [5 _ ?y])]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT `c00`.`?y` AS `?y`, \
                             `c00`.`?y_value_type_tag` AS `?y_value_type_tag` \
                        FROM (SELECT `datoms00`.v AS `?y`, \
@@ -487,6 +513,7 @@ fn test_complex_or_join_type_projection() {
 #[test]
 fn test_not() {
     let mut schema = Schema::default();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "url"), 97);
     associate_ident(&mut schema, NamespacedKeyword::new("page", "title"), 98);
     associate_ident(&mut schema, NamespacedKeyword::new("page", "bookmarked"), 99);
@@ -505,7 +532,7 @@ fn test_not() {
                     :where [?page :page/title ?title]
                            (not [?page :page/url "http://foo.com/"]
                                 [?page :page/bookmarked true])]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.v AS `?title` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 98 AND NOT EXISTS (SELECT 1 FROM `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE `datoms01`.a = 97 AND `datoms01`.v = $v0 AND `datoms02`.a = 99 AND `datoms02`.v = 1 AND `datoms00`.e = `datoms01`.e AND `datoms00`.e = `datoms02`.e)");
     assert_eq!(args, vec![make_arg("$v0", "http://foo.com/")]);
 }
@@ -513,6 +540,7 @@ fn test_not() {
 #[test]
 fn test_not_join() {
     let mut schema = Schema::default();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "url"), 97);
     associate_ident(&mut schema, NamespacedKeyword::new("bookmarks", "page"), 98);
     associate_ident(&mut schema, NamespacedKeyword::new("bookmarks", "date_created"), 99);
@@ -534,7 +562,7 @@ fn test_not_join() {
                                (not-join [?url]
                                    [?page :bookmarks/page ?url]
                                    [?page :bookmarks/date_created "4/4/2017"])]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?url` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 97 AND NOT EXISTS (SELECT 1 FROM `datoms` AS `datoms01`, `datoms` AS `datoms02` WHERE `datoms01`.a = 98 AND `datoms02`.a = 99 AND `datoms02`.v = $v0 AND `datoms01`.e = `datoms02`.e AND `datoms00`.e = `datoms01`.v)");
     assert_eq!(args, vec![make_arg("$v0", "4/4/2017")]);
 }
@@ -542,16 +570,17 @@ fn test_not_join() {
 #[test]
 fn test_with_without_aggregate() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Known type.
     let query = r#"[:find ?x :with ?y :where [?x :foo/bar ?y]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99");
     assert_eq!(args, vec![]);
 
     // Unknown type.
     let query = r#"[:find ?x :with ?y :where [?x _ ?y]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, `all_datoms00`.value_type_tag AS `?y_value_type_tag` FROM `all_datoms` AS `all_datoms00`");
     assert_eq!(args, vec![]);
 }
@@ -559,10 +588,11 @@ fn test_with_without_aggregate() {
 #[test]
 fn test_order_by() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Known type.
     let query = r#"[:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` \
                      FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
@@ -571,7 +601,7 @@ fn test_order_by() {
 
     // Unknown type.
     let query = r#"[:find ?x :with ?y :where [?x _ ?y] :order ?y ?x]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, \
                                      `all_datoms00`.value_type_tag AS `?y_value_type_tag` \
                      FROM `all_datoms` AS `all_datoms00` \
@@ -582,6 +612,7 @@ fn test_order_by() {
 #[test]
 fn test_complex_nested_or_join_type_projection() {
     let mut schema = Schema::default();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("page", "title"), 98);
     add_attribute(&mut schema, 98, Attribute {
         value_type: ValueType::String,
@@ -596,7 +627,7 @@ fn test_complex_nested_or_join_type_projection() {
                       (or
                         [_ :page/title ?y]))]"#;
 
-    let SQLQuery { sql, args } = translate(&schema, input);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, input);
     assert_eq!(sql, "SELECT `c00`.`?y` AS `?y` \
                      FROM (SELECT `datoms00`.v AS `?y` \
                            FROM `datoms` AS `datoms00` \
@@ -613,17 +644,18 @@ fn test_complex_nested_or_join_type_projection() {
 #[test]
 fn test_ground_scalar() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Verify that we accept inline constants.
     let query = r#"[:find ?x . :where [(ground "yyy") ?x]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
     // Verify that we accept bound input constants.
     let query = r#"[:find ?x . :in ?v :where [(ground ?v) ?x]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into())))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
 }
@@ -631,10 +663,11 @@ fn test_ground_scalar() {
 #[test]
 fn test_ground_tuple() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Verify that we accept inline constants.
     let query = r#"[:find ?x ?y :where [(ground [1 "yyy"]) [?x ?y]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT 1 AS `?x`, $v0 AS `?y`");
     assert_eq!(args, vec![make_arg("$v0", "yyy")]);
 
@@ -642,7 +675,7 @@ fn test_ground_tuple() {
     let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground [?u ?v]) [?x ?y]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
                                                        (Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into()))),]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     // TODO: treat 2 as an input variable that could be bound late, rather than eagerly binding it.
     assert_eq!(sql, "SELECT 2 AS `?x`, $v0 AS `?y` LIMIT 1");
     assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
@@ -651,10 +684,11 @@ fn test_ground_tuple() {
 #[test]
 fn test_ground_coll() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Verify that we accept inline constants.
     let query = r#"[:find ?x :where [(ground ["xxx" "yyy"]) [?x ...]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM \
                          (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES ($v0), ($v1)) AS `c00`");
     assert_eq!(args, vec![make_arg("$v0", "xxx"),
@@ -664,7 +698,7 @@ fn test_ground_coll() {
     let query = r#"[:find ?x :in ?u ?v :where [(ground [?u ?v]) [?x ...]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
                                                        (Variable::from_valid_name("?v"), TypedValue::Long(3)),]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     // TODO: treat 2 and 3 as input variables that could be bound late, rather than eagerly binding.
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x` FROM \
                          (SELECT 0 AS `?x` WHERE 0 UNION ALL VALUES (2), (3)) AS `c00`");
@@ -674,10 +708,11 @@ fn test_ground_coll() {
 #[test]
 fn test_ground_rel() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Verify that we accept inline constants.
     let query = r#"[:find ?x ?y :where [(ground [[1 "xxx"] [2 "yyy"]]) [[?x ?y]]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
                          (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (1, $v0), (2, $v1)) AS `c00`");
     assert_eq!(args, vec![make_arg("$v0", "xxx"),
@@ -687,7 +722,7 @@ fn test_ground_rel() {
     let query = r#"[:find ?x ?y :in ?u ?v :where [(ground [[?u 1] [?v 2]]) [[?x ?y]]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(3)),
                                                        (Variable::from_valid_name("?v"), TypedValue::Long(4)),]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     // TODO: treat 3 and 4 as input variables that could be bound late, rather than eagerly binding.
     assert_eq!(sql, "SELECT DISTINCT `c00`.`?x` AS `?x`, `c00`.`?y` AS `?y` FROM \
                          (SELECT 0 AS `?x`, 0 AS `?y` WHERE 0 UNION ALL VALUES (3, 1), (4, 2)) AS `c00`");
@@ -697,11 +732,12 @@ fn test_ground_rel() {
 #[test]
 fn test_compound_with_ground() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // Verify that we can use the resulting CCs as children in compound CCs.
     let query = r#"[:find ?x :where (or [(ground "yyy") ?x]
                                         [(ground "zzz") ?x])]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
 
     // This is confusing because the computed tables (like `c00`) are numbered sequentially in each
     // arm of the `or` rather than numbered globally.  But SQLite scopes the names correctly, so it
@@ -714,7 +750,7 @@ fn test_compound_with_ground() {
 
     // Verify that we can use ground to constrain the bindings produced by earlier clauses.
     let query = r#"[:find ?x . :where [_ :foo/bar ?x] [(ground "yyy") ?x]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
 
@@ -722,7 +758,7 @@ fn test_compound_with_ground() {
 
     // Verify that we can further constrain the bindings produced by our clause.
     let query = r#"[:find ?x . :where [(ground "yyy") ?x] [_ :foo/bar ?x]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT $v0 AS `?x` FROM `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 AND `datoms00`.v = $v0 LIMIT 1");
 
@@ -733,7 +769,8 @@ fn test_compound_with_ground() {
 fn test_unbound_attribute_with_ground_entity() {
     let query = r#"[:find ?x ?v :where [?x _ ?v] (not [(ground 17) ?x])]"#;
     let schema = prepopulated_schema();
-    let SQLQuery { sql, .. } = translate(&schema, query);
+    let partition_map = PartitionMap::default();
+    let SQLQuery { sql, .. } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
                                      `all_datoms00`.v AS `?v`, \
                                      `all_datoms00`.value_type_tag AS `?v_value_type_tag` \
@@ -745,7 +782,8 @@ fn test_unbound_attribute_with_ground_entity() {
 fn test_unbound_attribute_with_ground() {
     let query = r#"[:find ?x ?v :where [?x _ ?v] (not [(ground 17) ?v])]"#;
     let schema = prepopulated_schema();
-    let SQLQuery { sql, .. } = translate(&schema, query);
+    let partition_map = PartitionMap::default();
+    let SQLQuery { sql, .. } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
                                      `all_datoms00`.v AS `?v`, \
                                      `all_datoms00`.value_type_tag AS `?v_value_type_tag` \
@@ -758,6 +796,7 @@ fn test_unbound_attribute_with_ground() {
 #[test]
 fn test_not_with_ground() {
     let mut schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
     associate_ident(&mut schema, NamespacedKeyword::new("db", "valueType"), 7);
     associate_ident(&mut schema, NamespacedKeyword::new("db.type", "ref"), 23);
     associate_ident(&mut schema, NamespacedKeyword::new("db.type", "bool"), 28);
@@ -771,7 +810,7 @@ fn test_not_with_ground() {
     // Scalar.
     // TODO: this kind of simple `not` should be implemented without the subquery. #476.
     let query = r#"[:find ?x :where [?x :db/valueType ?v] (not [(ground :db.type/instant) ?v])]"#;
-    let SQLQuery { sql, .. } = translate(&schema, query);
+    let SQLQuery { sql, .. } = translate(&schema, &partition_map, query);
     assert_eq!(sql,
                "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 7 AND NOT \
                 EXISTS (SELECT 1 WHERE `datoms00`.v = 29)");
@@ -779,7 +818,7 @@ fn test_not_with_ground() {
     // Coll.
     // TODO: we can generate better SQL for this, too. #476.
     let query = r#"[:find ?x :where [?x :db/valueType ?v] (not [(ground [:db.type/bool :db.type/instant]) [?v ...]])]"#;
-    let SQLQuery { sql, .. } = translate(&schema, query);
+    let SQLQuery { sql, .. } = translate(&schema, &partition_map, query);
     assert_eq!(sql,
                "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` \
                 WHERE `datoms00`.a = 7 AND NOT EXISTS \
@@ -790,9 +829,10 @@ fn test_not_with_ground() {
 #[test]
 fn test_fulltext() {
     let schema = prepopulated_typed_schema(ValueType::Double);
+    let partition_map = PartitionMap::default();
 
     let query = r#"[:find ?entity ?value ?tx ?score :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
                                      `fulltext_values00`.text AS `?value`, \
                                      `datoms01`.tx AS `?tx`, \
@@ -805,7 +845,7 @@ fn test_fulltext() {
     assert_eq!(args, vec![make_arg("$v0", "needle"),]);
 
     let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     // Observe that the computed table isn't dropped, even though `?score` isn't bound in the final conjoining clause.
     assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
                                      `fulltext_values00`.text AS `?value`, \
@@ -818,7 +858,7 @@ fn test_fulltext() {
     assert_eq!(args, vec![make_arg("$v0", "needle"),]);
 
     let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx _]]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     // Observe that the computed table isn't included at all when `?score` isn't bound.
     assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
                                      `fulltext_values00`.text AS `?value`, \
@@ -831,7 +871,7 @@ fn test_fulltext() {
     assert_eq!(args, vec![make_arg("$v0", "needle"),]);
 
     let query = r#"[:find ?entity ?value ?tx :where [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]] [?entity :foo/bar ?score]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms01`.e AS `?entity`, \
                                      `fulltext_values00`.text AS `?value`, \
                                      `datoms01`.tx AS `?tx` \
@@ -847,7 +887,7 @@ fn test_fulltext() {
     assert_eq!(args, vec![make_arg("$v0", "needle"),]);
 
     let query = r#"[:find ?entity ?value ?tx :where [?entity :foo/bar ?score] [(fulltext $ :foo/fts "needle") [[?entity ?value ?tx ?score]]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?entity`, \
                                      `fulltext_values01`.text AS `?value`, \
                                      `datoms02`.tx AS `?tx` \
@@ -866,6 +906,7 @@ fn test_fulltext() {
 #[test]
 fn test_fulltext_inputs() {
     let schema = prepopulated_typed_schema(ValueType::String);
+    let partition_map = PartitionMap::default();
 
     // Bind ?entity. We expect the output to collide.
     let query = r#"[:find ?val
@@ -876,7 +917,7 @@ fn test_fulltext_inputs() {
     let inputs = QueryInputs::new(types, BTreeMap::default()).expect("valid inputs");
 
     // Without binding the value. q_once will err if you try this!
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT DISTINCT `fulltext_values00`.text AS `?val` \
                      FROM \
                      `fulltext_values` AS `fulltext_values00`, \
@@ -888,7 +929,7 @@ fn test_fulltext_inputs() {
 
     // With the value bound.
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?entity"), TypedValue::Ref(111))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT DISTINCT `fulltext_values00`.text AS `?val` \
                      FROM \
                      `fulltext_values` AS `fulltext_values00`, \
@@ -904,7 +945,7 @@ fn test_fulltext_inputs() {
                     :in ?entity
                     :where [(fulltext $ :foo/fts "hello") [[?entity _ _]]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?entity"), TypedValue::Ref(111))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT 111 AS `?entity` FROM \
                      `fulltext_values` AS `fulltext_values00`, \
                      `datoms` AS `datoms01` \
@@ -922,7 +963,7 @@ fn test_fulltext_inputs() {
                     [(fulltext $ :foo/fts "hello") [[?entity ?value]]]
                     [?entity :foo/bar ?friend]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?entity"), TypedValue::Ref(121))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    let SQLQuery { sql, args } = translate_with_inputs(&schema, &partition_map, query, inputs);
     assert_eq!(sql, "SELECT DISTINCT 121 AS `?entity`, \
                                      `fulltext_values00`.text AS `?value`, \
                                      `datoms02`.v AS `?friend` \
@@ -942,12 +983,13 @@ fn test_fulltext_inputs() {
 #[test]
 fn test_instant_range() {
     let schema = prepopulated_typed_schema(ValueType::Instant);
+    let partition_map = PartitionMap::default();
     let query = r#"[:find ?e
                     :where
                     [?e :foo/bar ?t]
                     [(> ?t #inst "2017-06-16T00:56:41.257Z")]]"#;
 
-    let SQLQuery { sql, args } = translate(&schema, query);
+    let SQLQuery { sql, args } = translate(&schema, &partition_map, query);
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?e` \
                      FROM \
                      `datoms` AS `datoms00` \

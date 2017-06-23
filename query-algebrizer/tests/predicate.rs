@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_core;
+extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
@@ -19,6 +20,8 @@ use mentat_core::{
     Schema,
     ValueType,
 };
+
+use mentat_db::PartitionMap;
 
 use mentat_query_parser::{
     parse_find_string,
@@ -70,26 +73,27 @@ fn prepopulated_schema() -> Schema {
     schema
 }
 
-fn bails(schema: &Schema, input: &str) -> Error {
+fn bails(schema: &Schema, partition_map: &PartitionMap, input: &str) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect_err("algebrize to have failed")
+    algebrize(schema.into(), partition_map, parsed).expect_err("algebrize to have failed")
 }
 
-fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+fn alg(schema: &Schema, partition_map: &PartitionMap, input: &str) -> ConjoiningClauses {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
+    algebrize(schema.into(), partition_map, parsed).expect("algebrizing to have succeeded").cc
 }
 
 #[test]
 fn test_instant_predicates_require_instants() {
     let schema = prepopulated_schema();
+    let partition_map = PartitionMap::default();
 
     // You can't use a string for an inequality: this is a straight-up error.
     let query = r#"[:find ?e
                     :where
                     [?e :foo/date ?t]
                     [(> ?t "2017-06-16T00:56:41.257Z")]]"#;
-    match bails(&schema, query).0 {
+    match bails(&schema, &partition_map, query).0 {
         ErrorKind::InvalidArgument(op, why, idx) => {
             assert_eq!(op, PlainSymbol::new(">"));
             assert_eq!(why, "numeric or instant");
@@ -102,7 +106,7 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/date ?t]
                     [(> "2017-06-16T00:56:41.257Z", ?t)]]"#;
-    match bails(&schema, query).0 {
+    match bails(&schema, &partition_map, query).0 {
         ErrorKind::InvalidArgument(op, why, idx) => {
             assert_eq!(op, PlainSymbol::new(">"));
             assert_eq!(why, "numeric or instant");
@@ -118,7 +122,7 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/date ?t]
                     [(> ?t 1234512345)]]"#;
-    let cc = alg(&schema, query);
+    let cc = alg(&schema, &partition_map, query);
     assert!(cc.is_known_empty());
     assert_eq!(cc.empty_because.unwrap(),
                EmptyBecause::TypeMismatch {
@@ -132,7 +136,7 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/double ?t]
                     [(< ?t 1234512345)]]"#;
-    let cc = alg(&schema, query);
+    let cc = alg(&schema, &partition_map, query);
     assert!(!cc.is_known_empty());
     assert_eq!(cc.known_type(&Variable::from_valid_name("?t")).expect("?t is known"),
                ValueType::Double);

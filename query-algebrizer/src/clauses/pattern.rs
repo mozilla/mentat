@@ -14,6 +14,8 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_db::PartitionMap;
+
 use mentat_query::{
     Pattern,
     PatternValuePlace,
@@ -70,7 +72,7 @@ impl ConjoiningClauses {
     ///   existence subquery instead of a join.
     ///
     /// This method is only public for use from `or.rs`.
-    pub fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
+    pub fn apply_pattern_clause_for_alias<'s, 'p>(&mut self, schema: &'s Schema, partition_map: &'p PartitionMap, pattern: &Pattern, alias: &SourceAlias) {
         if self.is_known_empty() {
             return;
         }
@@ -247,14 +249,23 @@ impl ConjoiningClauses {
                 self.bind_column_to_var(schema, col.clone(), DatomsColumn::Tx, v.clone());
             },
             PatternNonValuePlace::Entid(entid) => {
-                // TODO: we want to check whether the tx-id is within range for the database's tx partition. 
-                // (That applies after ident lookup, too.)
-                // Possible solution: https://github.com/mozilla/mentat/tree/fluffyemily/tx-id-check
-                self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid);
+                if self.valid_tx_entid(partition_map, entid) {
+                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid);
+                } else {
+                    // A resolution failure means we're done here.
+                    self.mark_known_empty(EmptyBecause::TxIdOutOfRange);
+                    return;
+                }
             },
             PatternNonValuePlace::Ident(ref ident) => {
                 if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid)
+                    if self.valid_tx_entid(partition_map, entid) {
+                        self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid)
+                    } else {
+                        // A resolution failure means we're done here.
+                        self.mark_known_empty(EmptyBecause::TxIdOutOfRange);
+                        return;
+                    }
                 } else {
                     // A resolution failure means we're done here.
                     self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
@@ -264,7 +275,7 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn apply_pattern<'s, 'p>(&mut self, schema: &'s Schema, pattern: Pattern) {
+    pub fn apply_pattern<'s, 'p>(&mut self, schema: &'s Schema, partition_map: &'p PartitionMap, pattern: Pattern) {
         // For now we only support the default source.
         match pattern.source {
             Some(SrcVar::DefaultSrc) | None => (),
@@ -272,7 +283,7 @@ impl ConjoiningClauses {
         };
 
         if let Some(alias) = self.alias_table(schema, &pattern) {
-            self.apply_pattern_clause_for_alias(schema, &pattern, &alias);
+            self.apply_pattern_clause_for_alias(schema, partition_map, &pattern, &alias);
             self.from.push(alias);
         } else {
             // We didn't determine a table, likely because there was a mismatch
@@ -328,17 +339,18 @@ mod testing {
 
     use algebrize;
 
-    fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+    fn alg(schema: &Schema, partition_map: &PartitionMap, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+        algebrize(schema.into(), partition_map, parsed).expect("algebrize failed").cc
     }
 
     #[test]
     fn test_unknown_ident() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
             attribute: ident("foo", "bar"),
@@ -353,10 +365,11 @@ mod testing {
     fn test_unknown_attribute() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
 
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
             attribute: ident("foo", "bar"),
@@ -371,6 +384,7 @@ mod testing {
     fn test_apply_simple_pattern() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
@@ -379,7 +393,7 @@ mod testing {
         });
 
         let x = Variable::from_valid_name("?x");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -417,9 +431,10 @@ mod testing {
     fn test_apply_unattributed_pattern() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         let x = Variable::from_valid_name("?x");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -456,6 +471,7 @@ mod testing {
     fn test_apply_unattributed_but_bound_pattern_with_returned() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
@@ -468,7 +484,7 @@ mod testing {
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), TypedValue::Keyword(Rc::new(NamespacedKeyword::new("foo", "bar"))));
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -503,6 +519,7 @@ mod testing {
     fn test_bind_the_wrong_thing() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         let x = Variable::from_valid_name("?x");
         let a = Variable::from_valid_name("?a");
@@ -511,7 +528,7 @@ mod testing {
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), hello.clone());
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -529,11 +546,12 @@ mod testing {
     fn test_apply_unattributed_pattern_with_returned() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         let x = Variable::from_valid_name("?x");
         let a = Variable::from_valid_name("?a");
         let v = Variable::from_valid_name("?v");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -561,9 +579,10 @@ mod testing {
     fn test_apply_unattributed_pattern_with_string_value() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         let x = Variable::from_valid_name("?x");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -599,6 +618,7 @@ mod testing {
     fn test_apply_two_patterns() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
@@ -613,14 +633,14 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),
             value: PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new("idgoeshere".to_string()))),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -671,6 +691,7 @@ mod testing {
     #[test]
     fn test_value_bindings() {
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
@@ -687,7 +708,7 @@ mod testing {
         let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
         let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -718,6 +739,7 @@ mod testing {
     /// the variable inferred from known attributes.
     fn test_value_bindings_type_disagreement() {
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
@@ -734,7 +756,7 @@ mod testing {
         let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
         let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -751,6 +773,7 @@ mod testing {
     /// of a fulltext-valued attribute.
     fn test_fulltext_type_disagreement() {
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
@@ -768,7 +791,7 @@ mod testing {
         let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
         let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -787,6 +810,7 @@ mod testing {
     fn test_apply_two_conflicting_known_patterns() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
@@ -802,14 +826,14 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -837,6 +861,7 @@ mod testing {
     fn test_apply_two_implicitly_conflicting_patterns() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         // [:find ?x :where
         //  [?x ?y true]
@@ -844,14 +869,14 @@ mod testing {
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
         let z = Variable::from_valid_name("?z");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(y.clone()),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(z.clone()),
             attribute: PatternNonValuePlace::Variable(y.clone()),
@@ -875,6 +900,7 @@ mod testing {
     fn ensure_extracted_types_is_cleared() {
         let query = r#"[:find ?e ?v :where [_ _ ?v] [?e :foo/bar ?v]]"#;
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
@@ -882,7 +908,7 @@ mod testing {
         });
         let e = Variable::from_valid_name("?e");
         let v = Variable::from_valid_name("?v");
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         assert_eq!(cc.known_types.get(&e), Some(&ValueTypeSet::of_one(ValueType::Ref)));
         assert_eq!(cc.known_types.get(&v), Some(&ValueTypeSet::of_one(ValueType::Boolean)));
         assert!(!cc.extracted_types.contains_key(&e));

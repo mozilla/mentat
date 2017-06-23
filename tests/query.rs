@@ -51,7 +51,7 @@ fn test_rel() {
 
     // Rel.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find ?x ?ident :where [?x :db/ident ?ident]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
@@ -81,7 +81,7 @@ fn test_failing_scalar() {
 
     // Scalar that fails.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find ?x . :where [?x :db/fulltext true]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
@@ -103,7 +103,7 @@ fn test_scalar() {
 
     // Scalar that succeeds.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find ?ident . :where [24 :db/ident ?ident]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
@@ -130,7 +130,7 @@ fn test_tuple() {
 
     // Tuple.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find [?index ?cardinality]
                            :where [:db/txInstant :db/index ?index]
                                   [:db/txInstant :db/cardinality ?cardinality]]",
@@ -160,7 +160,7 @@ fn test_coll() {
 
     // Coll.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find [?e ...] :where [?e :db/ident _]]", None)
         .expect("Query failed");
     let end = time::PreciseTime::now();
@@ -185,7 +185,7 @@ fn test_inputs() {
     // entids::DB_INSTALL_VALUE_TYPE = 5.
     let ee = (Variable::from_valid_name("?e"), TypedValue::Ref(5));
     let inputs = QueryInputs::with_value_sequence(vec![ee]);
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs)
                         .expect("query to succeed");
 
@@ -205,7 +205,7 @@ fn test_unbound_inputs() {
     // Bind the wrong var by 'mistake'.
     let xx = (Variable::from_valid_name("?x"), TypedValue::Ref(5));
     let inputs = QueryInputs::with_value_sequence(vec![xx]);
-    let results = q_once(&c, &db.schema,
+    let results = q_once(&c, &db.schema, &db.partition_map,
                          "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs);
 
     match results {
@@ -315,6 +315,39 @@ fn test_tx_as_input() {
         Result::Ok(QueryResults::Rel(ref v)) => {
             assert_eq!(*v, vec![
                 vec![TypedValue::Uuid(Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4").expect("Valid UUID")),]
+            ]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+}
+
+#[test]
+fn test_tx_as_entid() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    conn.transact(&mut c, r#"[
+        [:db/add "s" :db/ident :foo/uuid]
+        [:db/add "s" :db/valueType :db.type/uuid]
+        [:db/add "s" :db/cardinality :db.cardinality/one]
+    ]"#).expect("successful transaction");
+    conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "550e8400-e29b-41d4-a716-446655440000"]
+    ]"#).expect("successful transaction");
+    let t = conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
+    ]"#).expect("successful transaction");
+    let temp_id = t.tempids.get("u").cloned().expect("u was mapped");
+    conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "267bab92-ee39-4ca2-b7f0-1163a85af1fb"]
+    ]"#).expect("successful transaction");
+
+    let r = conn.q_once(&mut c,
+                        &format!(r#"[:find ?x 
+                            :where [?x :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4" {}]]"#, t.tx_id), None);
+    match r {
+        Result::Ok(QueryResults::Rel(ref v)) => {
+            assert_eq!(*v, vec![
+                vec![TypedValue::Ref(temp_id),]
             ]);
         },
         _ => panic!("Expected query to work."),

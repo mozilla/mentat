@@ -10,6 +10,9 @@ error-chain = "0.8.1"
 [dependencies.mentat_core]
 path = "../core"
 
+[dependencies.mentat_db]
+path = "../db"
+
 [dependencies.mentat_query]
 path = "../query"
 

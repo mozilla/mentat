@@ -157,6 +157,8 @@ mod testing {
         ValueType,
     };
 
+    use mentat_db::PartitionMap;
+
     use mentat_query::{
         FnArg,
         NamespacedKeyword,
@@ -187,6 +189,7 @@ mod testing {
     fn test_apply_inequality() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
@@ -196,7 +199,7 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -241,6 +244,7 @@ mod testing {
     fn test_apply_conflict_with_numeric_range() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
+        let partition_map = PartitionMap::default();
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
@@ -256,7 +260,7 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -274,7 +278,7 @@ mod testing {
             ]}).is_ok());
 
         assert!(!cc.is_known_empty());
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_pattern(&schema, &partition_map, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),

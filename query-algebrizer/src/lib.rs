@@ -18,6 +18,7 @@ extern crate error_chain;
 extern crate maplit;
 
 extern crate mentat_core;
+extern crate mentat_db;
 extern crate mentat_query;
 
 use std::collections::BTreeSet;
@@ -35,6 +36,7 @@ use mentat_core::{
 };
 
 use mentat_core::counter::RcCounter;
+use mentat_db::PartitionMap;
 
 use mentat_query::{
     FindQuery,
@@ -85,12 +87,12 @@ impl AlgebraicQuery {
     }
 }
 
-pub fn algebrize_with_counter(schema: &Schema, parsed: FindQuery, counter: usize) -> Result<AlgebraicQuery> {
-    algebrize_with_inputs(schema, parsed, counter, QueryInputs::default())
+pub fn algebrize_with_counter(schema: &Schema, partition_map: &PartitionMap, parsed: FindQuery, counter: usize) -> Result<AlgebraicQuery> {
+    algebrize_with_inputs(schema, partition_map, parsed, counter, QueryInputs::default())
 }
 
-pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
-    algebrize_with_inputs(schema, parsed, 0, QueryInputs::default())
+pub fn algebrize(schema: &Schema, partition_map: &PartitionMap, parsed: FindQuery) -> Result<AlgebraicQuery> {
+    algebrize_with_inputs(schema, partition_map, parsed, 0, QueryInputs::default())
 }
 
 /// Take an ordering list. Any variables that aren't fixed by the query are used to produce
@@ -168,7 +170,8 @@ fn simplify_limit(mut query: AlgebraicQuery) -> Result<AlgebraicQuery> {
     Ok(query)
 }
 
-pub fn algebrize_with_inputs(schema: &Schema,
+pub fn algebrize_with_inputs(schema: &Schema, 
+                             partition_map: &PartitionMap,
                              parsed: FindQuery,
                              counter: usize,
                              inputs: QueryInputs) -> Result<AlgebraicQuery> {
@@ -184,7 +187,7 @@ pub fn algebrize_with_inputs(schema: &Schema,
     // TODO: flesh out the rest of find-into-context.
     let where_clauses = parsed.where_clauses;
     for where_clause in where_clauses {
-        cc.apply_clause(schema, where_clause)?;
+        cc.apply_clause(schema, partition_map, where_clause)?;
     }
     cc.expand_column_bindings();
     cc.prune_extracted_types();

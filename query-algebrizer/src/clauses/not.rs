@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::Schema;
+use mentat_db::PartitionMap;
 
 use mentat_query::{
     ContainsVariables,
@@ -29,7 +30,7 @@ use types::{
 };
 
 impl ConjoiningClauses {
-    pub fn apply_not_join(&mut self, schema: &Schema, not_join: NotJoin) -> Result<()> {
+    pub fn apply_not_join(&mut self, schema: &Schema, partition_map: &PartitionMap, not_join: NotJoin) -> Result<()> {
         let unified = match not_join.unify_vars {
             UnifyVars::Implicit => not_join.collect_mentioned_variables(),
             UnifyVars::Explicit(vs) => vs,
@@ -50,7 +51,7 @@ impl ConjoiningClauses {
         }
 
         for clause in not_join.clauses.into_iter() {
-            template.apply_clause(&schema, clause)?;
+            template.apply_clause(&schema, &partition_map, clause)?;
         }
 
         if template.is_known_empty() {
@@ -121,14 +122,14 @@ mod testing {
         algebrize_with_inputs,
     };
 
-    fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+    fn alg(schema: &Schema, partition_map: &PartitionMap, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+        algebrize(schema.into(), partition_map, parsed).expect("algebrize failed").cc
     }
 
-    fn alg_with_inputs(schema: &Schema, input: &str, inputs: QueryInputs) -> ConjoiningClauses {
+    fn alg_with_inputs(schema: &Schema, partition_map: &PartitionMap, input: &str, inputs: QueryInputs) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize_with_inputs(schema.into(), parsed, 0, inputs).expect("algebrize failed").cc
+        algebrize_with_inputs(schema.into(), partition_map, parsed, 0, inputs).expect("algebrize failed").cc
     }
 
     fn prepopulated_schema() -> Schema {
@@ -185,12 +186,13 @@ mod testing {
     #[test]
     fn test_successful_not() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where [?x :foo/knows "John"]
                     (not [?x :foo/parent "Ámbar"]
                          [?x :foo/knows "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
 
         let vx = Variable::from_valid_name("?x");
 
@@ -243,6 +245,7 @@ mod testing {
     #[test]
     fn test_successful_not_join() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where [?x :foo/knows ?y]
@@ -250,7 +253,7 @@ mod testing {
                     [?x :foo/name "John"]
                     (not-join [?x ?y] 
                               [?x :foo/parent ?y])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
 
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
@@ -316,6 +319,7 @@ mod testing {
     #[test]
     fn test_not_with_pattern_and_predicate() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x ?age
              :where
@@ -323,7 +327,7 @@ mod testing {
              [[< ?age 30]]
              (not [?x :foo/knows "John"]
                   [?x :foo/knows "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
 
         let vx = Variable::from_valid_name("?x");
 
@@ -379,13 +383,14 @@ mod testing {
     #[test]
     fn test_not_with_or() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where [?x :foo/knows "Bill"]
                     (not (or [?x :foo/knows "John"]
                              [?x :foo/knows "Ámbar"])
                         [?x :foo/parent "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
 
         let d0 = "datoms00".to_string();
         let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
@@ -444,6 +449,7 @@ mod testing {
     #[test]
     fn test_not_with_in() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :in ?y
@@ -451,7 +457,7 @@ mod testing {
                     (not [?x :foo/knows ?y])]"#;
 
         let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?y"),TypedValue::String(Rc::new("John".to_string())))]);
-        let cc = alg_with_inputs(&schema, query, inputs);
+        let cc = alg_with_inputs(&schema, &partition_map, query, inputs);
 
         let vx = Variable::from_valid_name("?x");
         let vy = Variable::from_valid_name("?y");
@@ -498,16 +504,18 @@ mod testing {
     #[test]
     fn test_fails_if_any_clause_invalid() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where [?x :foo/knows "Bill"]
                     (not [?x :foo/nope "John"]
                          [?x :foo/parent "Ámbar"]
                          [?x :foo/nope "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         assert!(!cc.is_known_empty());
         compare_ccs(cc,
                     alg(&schema,
+                        &partition_map,
                         r#"[:find ?x :where [?x :foo/knows "Bill"]]"#));
     }
 
@@ -515,27 +523,29 @@ mod testing {
     #[test]
     fn test_no_clauses_succeed() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
             [:find ?x
              :where [?x :foo/knows "John"]
                     (not [?x :foo/nope "Ámbar"]
                          [?x :foo/nope "Daphne"])]"#;
-        let cc = alg(&schema, query);
+        let cc = alg(&schema, &partition_map, query);
         assert!(!cc.is_known_empty());
         compare_ccs(cc,
-                    alg(&schema, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
+                    alg(&schema, &partition_map, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
                     
     }
 
     #[test]
     fn test_unbound_var_fails() {
         let schema = prepopulated_schema();
+        let partition_map = PartitionMap::default();
         let query = r#"
         [:find ?x
          :in ?y
          :where (not [?x :foo/knows ?y])]"#;
         let parsed = parse_find_string(query).expect("parse failed");
-        let err = algebrize(&schema, parsed).err();
+        let err = algebrize(&schema, &partition_map, parsed).err();
         assert!(err.is_some());
          match err.unwrap() {
             Error(ErrorKind::UnboundVariable(var), _) => { assert_eq!(var, PlainSymbol("?x".to_string())); },

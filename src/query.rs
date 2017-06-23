@@ -15,6 +15,8 @@ use mentat_core::{
     Schema,
 };
 
+use mentat_db::PartitionMap;
+
 use mentat_query_algebrizer::{
     algebrize_with_inputs,
 };
@@ -59,15 +61,16 @@ pub type QueryExecutionResult = Result<QueryResults>;
 /// instances.
 /// The caller is responsible for ensuring that the SQLite connection has an open transaction if
 /// isolation is required.
-pub fn q_once<'sqlite, 'schema, 'query, T>
+pub fn q_once<'sqlite, 'schema, 'partition, 'query, T>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
+ partition_map: &'partition PartitionMap,
  query: &'query str,
  inputs: T) -> QueryExecutionResult
         where T: Into<Option<QueryInputs>>
 {
     let parsed = parse_find_string(query)?;
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
+    let algebrized = algebrize_with_inputs(schema, partition_map, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
 
     if algebrized.is_known_empty() {
         // We don't need to do any SQL work at all.
