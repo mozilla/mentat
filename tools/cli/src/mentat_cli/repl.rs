@@ -22,6 +22,7 @@ use command_parser::{
     OPEN_COMMAND,
     LONG_QUERY_COMMAND,
     SHORT_QUERY_COMMAND,
+    SCHEMA_COMMAND,
     LONG_TRANSACT_COMMAND,
     SHORT_TRANSACT_COMMAND,
     LONG_EXIT_COMMAND,
@@ -48,6 +49,7 @@ lazy_static! {
         map.insert(OPEN_COMMAND, "Open a database at path.");
         map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
         map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
+        map.insert(SCHEMA_COMMAND, "Output the schema for the current open database.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
         map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
         map
@@ -112,6 +114,14 @@ impl Repl {
             },
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
+            Command::Schema => {
+                let edn = self.store.fetch_schema();
+                match edn.to_pretty(120) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => println!("{}", e)
+                };
+                
+            }
             Command::Transact(transaction) => self.execute_transact(transaction),
             Command::Exit => {
                 self.close();
