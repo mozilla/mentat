@@ -81,6 +81,7 @@ mod testing {
         Attribute, 
         TypedValue, 
         ValueType,
+        ValueTypeSet,
     };
 
     use mentat_query::{
@@ -113,7 +114,6 @@ mod testing {
         QualifiedAlias,
         QueryValue, 
         SourceAlias, 
-        ValueTypeSet,
     };
 
     use {

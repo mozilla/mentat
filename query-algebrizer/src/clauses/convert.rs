@@ -15,6 +15,7 @@ use mentat_core::{
     SQLValueType,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query::{
@@ -34,7 +35,6 @@ use errors::{
 
 use types::{
     EmptyBecause,
-    ValueTypeSet,
 };
 
 macro_rules! coerce_to_typed_value {

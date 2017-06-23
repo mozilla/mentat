@@ -18,6 +18,7 @@ use mentat_core::{
     Entid,
     Schema,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query_parser::{
@@ -35,7 +36,6 @@ use mentat_query_algebrizer::{
     EmptyBecause,
     Error,
     ErrorKind,
-    ValueTypeSet,
     algebrize,
 };
 
