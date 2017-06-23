@@ -22,6 +22,7 @@ extern crate mentat_query_parser;
 extern crate mentat_query_projector;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
+extern crate mentat_tx;
 extern crate mentat_tx_parser;
 
 use rusqlite::Connection;

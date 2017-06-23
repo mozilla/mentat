@@ -30,6 +30,8 @@ use mentat_db::{
     TxReport,
 };
 
+use mentat_tx;
+
 use mentat_tx_parser;
 
 use errors::*;
@@ -81,6 +83,74 @@ pub struct Conn {
     // the schema changes. #315.
 }
 
+pub struct InProgress<'a, 'c> {
+    transaction: rusqlite::Transaction<'c>,
+    mutex: &'a Mutex<Metadata>,
+    generation: u64,
+    partition_map: PartitionMap,
+    schema: Schema,
+}
+
+impl<'a, 'c> InProgress<'a, 'c> {
+    fn transact_entities<I>(mut self, entities: I) -> Result<(InProgress<'a, 'c>, TxReport)> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+        let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map, &self.schema, &self.schema, entities)?;
+        self.partition_map = next_partition_map;
+        if let Some(schema) = next_schema {
+            self.schema = schema;
+        }
+        Ok((self, report))
+    }
+
+    /// Query the Mentat store, using the given connection and the current metadata.
+    pub fn q_once<T>(&self,
+                     query: &str,
+                     inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>>
+        {
+
+        q_once(&*(self.transaction),
+               &self.schema,
+               query,
+               inputs)
+    }
+
+    fn transact(self, transaction: &str) -> Result<(InProgress<'a, 'c>, TxReport)> {
+        let assertion_vector = edn::parse::value(transaction)?;
+        let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
+        self.transact_entities(entities)
+    }
+
+    fn rollback(self) -> Result<()> {
+        self.transaction.rollback().map_err(|e| e.into())
+    }
+
+    fn commit(self) -> Result<()> {
+        {
+            // The mutex is taken during this block.
+            let mut metadata = self.mutex.lock().unwrap();
+
+            if self.generation != metadata.generation {
+                // Somebody else wrote!
+                // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
+                // This should not occur -- an attempt to take a competing IMMEDIATE transaction
+                // will fail with `SQLITE_BUSY`, causing this function to abort.
+                bail!("Lost the transact() race!");
+            }
+
+            // Commit the SQLite transaction while we hold the mutex.
+            self.transaction.commit()?;
+
+            metadata.generation += 1;
+            metadata.partition_map = self.partition_map;
+            if self.schema != *(metadata.schema) {
+                metadata.schema = Arc::new(self.schema);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl Conn {
     // Intentionally not public.
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
@@ -126,6 +196,28 @@ impl Conn {
                inputs)
     }
 
+    pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
+        let tx = sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let (current_generation, current_partition_map, current_schema) =
+        {
+            // The mutex is taken during this block.
+            let ref current: Metadata = *self.metadata.lock().unwrap();
+            (current.generation,
+             // Expensive, but the partition map is updated after every committed transaction.
+             current.partition_map.clone(),
+             // Cheap.
+             current.schema.clone())
+        };
+
+        Ok(InProgress {
+            mutex: &self.metadata,
+            transaction: tx,
+            generation: current_generation,
+            partition_map: current_partition_map,
+            schema: (*current_schema).clone(),
+        })
+    }
+
     /// Transact entities against the Mentat store, using the given connection and the current
     /// metadata.
     pub fn transact(&mut self,
@@ -159,6 +251,8 @@ impl Conn {
             if current_generation != metadata.generation {
                 // Somebody else wrote!
                 // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
+                // This should not occur -- an attempt to take a competing IMMEDIATE transaction
+                // will fail with `SQLITE_BUSY`, causing this function to abort.
                 bail!("Lost the transact() race!");
             }
 
@@ -181,6 +275,7 @@ mod tests {
     use super::*;
 
     extern crate mentat_parser_utils;
+    use mentat_core::Entid;
 
     #[test]
     fn test_transact_does_not_collide_existing_entids() {
@@ -234,6 +329,24 @@ mod tests {
         let report = conn.transact(&mut sqlite, t)
                          .expect("transact succeeded");
         assert_eq!(report.tempids["temp"], next);
+    }
+
+    #[test]
+    fn test_compound_transact() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let t = "[[:db/add \"one\" :db/ident :a/keyword1] \
+                  [:db/add \"two\" :db/ident :a/keyword2]]";
+
+        // This can refer to `t`, 'cos they occur in separate txes.
+        let t2 = "[{:db.schema/attribute \"three\", :db/ident :a/keyword1}]";
+
+        let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+        let (in_progress, report) = in_progress.transact(t).expect("transacted successfully");
+        let one = report.tempids.get("one").cloned();
+        let (in_progress, report) = in_progress.transact(t2).expect("transacted again");
+        let mut three = report.tempids.get("three").cloned();
+        in_progress.commit().expect("Commit succeeded.");
     }
 
     #[test]
