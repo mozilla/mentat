@@ -518,7 +518,7 @@ pub trait MentatStoring {
     ///
     /// Use this to create temporary tables, prepare indices, set pragmas, etc, before the initial
     /// `insert_non_fts_searches` invocation.
-    fn begin_transaction(&self) -> Result<()>;
+    fn begin_tx_application(&self) -> Result<()>;
 
     // TODO: this is not a reasonable abstraction, but I don't want to really consider non-SQL storage just yet.
     fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
@@ -710,7 +710,7 @@ impl MentatStoring for rusqlite::Connection {
     }
 
     /// Create empty temporary tables for search parameters and search results.
-    fn begin_transaction(&self) -> Result<()> {
+    fn begin_tx_application(&self) -> Result<()> {
         // We can't do this in one shot, since we can't prepare a batch statement.
         let statements = [
             r#"DROP TABLE IF EXISTS temp.exact_searches"#,
