@@ -28,6 +28,7 @@ use mentat_core::{
     Schema,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_core::counter::RcCounter;
@@ -59,7 +60,6 @@ use types::{
     QueryValue,
     SourceAlias,
     TableAlias,
-    ValueTypeSet,
 };
 
 mod convert;              // Converting args to values.

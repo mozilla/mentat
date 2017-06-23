@@ -16,6 +16,7 @@ use std::collections::{
 
 use mentat_core::{
     Schema,
+    ValueTypeSet,
 };
 
 use mentat_query::{
@@ -47,7 +48,6 @@ use types::{
     EmptyBecause,
     QualifiedAlias,
     SourceAlias,
-    ValueTypeSet,
     VariableColumn,
 };
 

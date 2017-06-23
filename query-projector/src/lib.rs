@@ -27,8 +27,11 @@ use rusqlite::{
 
 use mentat_core::{
     SQLValueType,
+    SQLValueTypeSet,
     TypedValue,
     ValueType,
+    ValueTypeTag,
+    ValueTypeSet,
 };
 
 use mentat_db::{
@@ -121,7 +124,6 @@ impl QueryResults {
 }
 
 type Index = i32;            // See rusqlite::RowIndex.
-type ValueTypeTag = i32;
 enum TypedIndex {
     Known(Index, ValueTypeTag),
     Unknown(Index, Index),

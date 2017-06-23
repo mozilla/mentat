@@ -15,15 +15,11 @@ use std::fmt::{
     Result,
 };
 
-use enum_set::{
-    CLike,
-    EnumSet,
-};
-
 use mentat_core::{
     Entid,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query::{
@@ -537,138 +533,6 @@ impl Debug for EmptyBecause {
             &AttributeLookupFailed => {
                 write!(f, "Attribute lookup failed")
             },
-        }
-    }
-}
-
-trait EnumSetExtensions<T: CLike + Clone> {
-    /// Return a set containing both `x` and `y`.
-    fn of_both(x: T, y: T) -> EnumSet<T>;
-
-    /// Return a clone of `self` with `y` added.
-    fn with(&self, y: T) -> EnumSet<T>;
-}
-
-impl<T: CLike + Clone> EnumSetExtensions<T> for EnumSet<T> {
-    /// Return a set containing both `x` and `y`.
-    fn of_both(x: T, y: T) -> Self {
-        let mut o = EnumSet::new();
-        o.insert(x);
-        o.insert(y);
-        o
-    }
-
-    /// Return a clone of `self` with `y` added.
-    fn with(&self, y: T) -> EnumSet<T> {
-        let mut o = self.clone();
-        o.insert(y);
-        o
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ValueTypeSet(pub EnumSet<ValueType>);
-
-impl Default for ValueTypeSet {
-    fn default() -> ValueTypeSet {
-        ValueTypeSet::any()
-    }
-}
-
-impl ValueTypeSet {
-    pub fn any() -> ValueTypeSet {
-        ValueTypeSet(ValueType::all_enums())
-    }
-
-    pub fn none() -> ValueTypeSet {
-        ValueTypeSet(EnumSet::new())
-    }
-
-    /// Return a set containing only `t`.
-    pub fn of_one(t: ValueType) -> ValueTypeSet {
-        let mut s = EnumSet::new();
-        s.insert(t);
-        ValueTypeSet(s)
-    }
-
-    /// Return a set containing `Double` and `Long`.
-    pub fn of_numeric_types() -> ValueTypeSet {
-        ValueTypeSet(EnumSet::of_both(ValueType::Double, ValueType::Long))
-    }
-
-    /// Return a set containing `Ref` and `Keyword`.
-    pub fn of_keywords() -> ValueTypeSet {
-        ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Keyword))
-    }
-
-    /// Return a set containing `Ref` and `Long`.
-    pub fn of_longs() -> ValueTypeSet {
-        ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Long))
-    }
-}
-
-impl ValueTypeSet {
-    pub fn insert(&mut self, vt: ValueType) -> bool {
-        self.0.insert(vt)
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns a set containing all the types in this set and `other`.
-    pub fn union(&self, other: &ValueTypeSet) -> ValueTypeSet {
-        ValueTypeSet(self.0.union(other.0))
-    }
-
-    pub fn intersection(&self, other: &ValueTypeSet) -> ValueTypeSet {
-        ValueTypeSet(self.0.intersection(other.0))
-    }
-
-    /// Return an arbitrary type that's part of this set.
-    /// For a set containing a single type, this will be that type.
-    pub fn exemplar(&self) -> Option<ValueType> {
-        self.0.iter().next()
-    }
-
-    pub fn is_subset(&self, other: &ValueTypeSet) -> bool {
-        self.0.is_subset(&other.0)
-    }
-
-    pub fn contains(&self, vt: ValueType) -> bool {
-        self.0.contains(&vt)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn is_unit(&self) -> bool {
-        self.0.len() == 1
-    }
-}
-
-impl IntoIterator for ValueTypeSet {
-    type Item = ValueType;
-    type IntoIter = ::enum_set::Iter<ValueType>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl ::std::iter::FromIterator<ValueType> for ValueTypeSet {
-    fn from_iter<I: IntoIterator<Item = ValueType>>(iterator: I) -> Self {
-        let mut ret = Self::none();
-        ret.0.extend(iterator);
-        ret
-    }
-}
-
-impl ::std::iter::Extend<ValueType> for ValueTypeSet {
-    fn extend<I: IntoIterator<Item = ValueType>>(&mut self, iter: I) {
-        for element in iter {
-            self.0.insert(element);
         }
     }
 }
