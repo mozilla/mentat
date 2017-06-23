@@ -611,15 +611,8 @@ impl ConjoiningClauses {
     }
 
     /// Ensure that the given place has the correct types to be a tx-id.
-    /// Right now this is mostly unimplemented: we fail hard if anything but a placeholder is
-    /// present.
     fn constrain_to_tx(&mut self, tx: &PatternNonValuePlace) {
-        match *tx {
-            PatternNonValuePlace::Variable(ref v) => self.constrain_var_to_type(v.clone(), ValueType::Ref),
-            PatternNonValuePlace::Placeholder |
-            PatternNonValuePlace::Entid(_) |
-            PatternNonValuePlace::Ident(_) => (),
-        }
+        self.constrain_to_ref(tx);
     }
 
     /// Ensure that the given place can be an entity, and is congruent with existing types.

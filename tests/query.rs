@@ -263,10 +263,16 @@ fn test_tx() {
         [:db/add "s" :db/ident :foo/uuid]
         [:db/add "s" :db/valueType :db.type/uuid]
         [:db/add "s" :db/cardinality :db.cardinality/one]
-    ]"#).unwrap();
+    ]"#).expect("successful transaction");
+
     let t = conn.transact(&mut c, r#"[
         [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
-    ]"#).unwrap();
+    ]"#).expect("successful transaction");
+
+    conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "550e8400-e29b-41d4-a716-446655440000"]
+    ]"#).expect("successful transaction");
+
     let r = conn.q_once(&mut c,
                         r#"[:find ?tx 
                             :where [?x :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4" ?tx]]"#, None);
@@ -288,10 +294,17 @@ fn test_tx_as_input() {
         [:db/add "s" :db/ident :foo/uuid]
         [:db/add "s" :db/valueType :db.type/uuid]
         [:db/add "s" :db/cardinality :db.cardinality/one]
-    ]"#).unwrap();
+    ]"#).expect("successful transaction");
+    conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "550e8400-e29b-41d4-a716-446655440000"]
+    ]"#).expect("successful transaction");
     let t = conn.transact(&mut c, r#"[
         [:db/add "u" :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4"]
-    ]"#).unwrap();
+    ]"#).expect("successful transaction");
+    conn.transact(&mut c, r#"[
+        [:db/add "u" :foo/uuid #uuid "267bab92-ee39-4ca2-b7f0-1163a85af1fb"]
+    ]"#).expect("successful transaction");
+
     let tx = (Variable::from_valid_name("?tx"), TypedValue::Ref(t.tx_id));
     let inputs = QueryInputs::with_value_sequence(vec![tx]);
     let r = conn.q_once(&mut c,
@@ -301,7 +314,7 @@ fn test_tx_as_input() {
     match r {
         Result::Ok(QueryResults::Rel(ref v)) => {
             assert_eq!(*v, vec![
-                vec![TypedValue::Uuid(Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4").unwrap()),]
+                vec![TypedValue::Uuid(Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4").expect("Valid UUID")),]
             ]);
         },
         _ => panic!("Expected query to work."),
