@@ -13,6 +13,9 @@
 use std::sync::{Arc, Mutex};
 
 use rusqlite;
+use rusqlite::{
+    TransactionBehavior,
+};
 
 use edn;
 
@@ -132,7 +135,8 @@ impl Conn {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
-        let tx = sqlite.transaction()?;
+        // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
+        let tx = sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
 
         let (current_generation, current_partition_map, current_schema) =
         {
