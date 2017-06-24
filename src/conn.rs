@@ -10,6 +10,7 @@
 
 #![allow(dead_code)]
 
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use rusqlite;
@@ -83,22 +84,28 @@ pub struct Conn {
     // the schema changes. #315.
 }
 
+/// Represents an in-progress, not yet committed, set of changes to the store.
+/// Call `commit` to commit your changes, or `rollback` to discard them.
+/// A transaction is held open until you do so.
+/// Your changes will be implicitly dropped along with this struct.
 pub struct InProgress<'a, 'c> {
     transaction: rusqlite::Transaction<'c>,
     mutex: &'a Mutex<Metadata>,
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
+    last_report: Option<Rc<TxReport>>,
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
-    fn transact_entities<I>(mut self, entities: I) -> Result<(InProgress<'a, 'c>, TxReport)> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+    pub fn transact_entities<I>(mut self, entities: I) -> Result<InProgress<'a, 'c>> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
         let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map, &self.schema, &self.schema, entities)?;
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
         }
-        Ok((self, report))
+        self.last_report = Some(Rc::new(report));
+        Ok(self)
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.
@@ -114,40 +121,43 @@ impl<'a, 'c> InProgress<'a, 'c> {
                inputs)
     }
 
-    fn transact(self, transaction: &str) -> Result<(InProgress<'a, 'c>, TxReport)> {
+    pub fn transact(self, transaction: &str) -> Result<InProgress<'a, 'c>> {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
         self.transact_entities(entities)
     }
 
-    fn rollback(self) -> Result<()> {
+    pub fn last_report(&self) -> Option<Rc<TxReport>> {
+        self.last_report.clone()
+    }
+
+    pub fn rollback(mut self) -> Result<()> {
+        self.last_report = None;
         self.transaction.rollback().map_err(|e| e.into())
     }
 
-    fn commit(self) -> Result<()> {
-        {
-            // The mutex is taken during this block.
-            let mut metadata = self.mutex.lock().unwrap();
+    pub fn commit(self) -> Result<Option<Rc<TxReport>>> {
+        // The mutex is taken during this entire method.
+        let mut metadata = self.mutex.lock().unwrap();
 
-            if self.generation != metadata.generation {
-                // Somebody else wrote!
-                // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
-                // This should not occur -- an attempt to take a competing IMMEDIATE transaction
-                // will fail with `SQLITE_BUSY`, causing this function to abort.
-                bail!("Lost the transact() race!");
-            }
-
-            // Commit the SQLite transaction while we hold the mutex.
-            self.transaction.commit()?;
-
-            metadata.generation += 1;
-            metadata.partition_map = self.partition_map;
-            if self.schema != *(metadata.schema) {
-                metadata.schema = Arc::new(self.schema);
-            }
+        if self.generation != metadata.generation {
+            // Somebody else wrote!
+            // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
+            // This should not occur -- an attempt to take a competing IMMEDIATE transaction
+            // will fail with `SQLITE_BUSY`, causing this function to abort.
+            bail!("Lost the transact() race!");
         }
 
-        Ok(())
+        // Commit the SQLite transaction while we hold the mutex.
+        self.transaction.commit()?;
+
+        metadata.generation += 1;
+        metadata.partition_map = self.partition_map;
+        if self.schema != *(metadata.schema) {
+            metadata.schema = Arc::new(self.schema);
+        }
+
+        Ok(self.last_report)
     }
 }
 
@@ -215,6 +225,7 @@ impl Conn {
             generation: current_generation,
             partition_map: current_partition_map,
             schema: (*current_schema).clone(),
+            last_report: None,
         })
     }
 
@@ -342,11 +353,14 @@ mod tests {
         let t2 = "[{:db.schema/attribute \"three\", :db/ident :a/keyword1}]";
 
         let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-        let (in_progress, report) = in_progress.transact(t).expect("transacted successfully");
-        let one = report.tempids.get("one").cloned();
-        let (in_progress, report) = in_progress.transact(t2).expect("transacted again");
-        let mut three = report.tempids.get("three").cloned();
-        in_progress.commit().expect("Commit succeeded.");
+        let in_progress = in_progress.transact(t).expect("transacted successfully");
+        let one = in_progress.last_report().unwrap().tempids.get("one").cloned();
+
+        let report = in_progress.transact(t2)
+                                .expect("t2 succeeded")
+                                .commit()
+                                .expect("commit succeeded");
+        let mut three = report.unwrap().tempids.get("three").cloned();
     }
 
     #[test]
