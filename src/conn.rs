@@ -234,50 +234,17 @@ impl Conn {
     pub fn transact(&mut self,
                     sqlite: &mut rusqlite::Connection,
                     transaction: &str) -> Result<TxReport> {
-
+        // Parse outside the SQL transaction. This is a choice…
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
-        // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
-        let tx = sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let report = self.begin_transaction(sqlite)?
+                         .transact_entities(entities)?
+                         .commit()?
+                         .expect("we always get a report");
 
-        let (current_generation, current_partition_map, current_schema) =
-        {
-            // The mutex is taken during this block.
-            let ref current: Metadata = *self.metadata.lock().unwrap();
-            (current.generation,
-             // Expensive, but the partition map is updated after every committed transaction.
-             current.partition_map.clone(),
-             // Cheap.
-             current.schema.clone())
-        };
-
-        // The transaction is processed while the mutex is not held.
-        let (report, next_partition_map, next_schema) = transact(&tx, current_partition_map, &*current_schema, &*current_schema, entities)?;
-
-        {
-            // The mutex is taken during this block.
-            let mut metadata = self.metadata.lock().unwrap();
-
-            if current_generation != metadata.generation {
-                // Somebody else wrote!
-                // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
-                // This should not occur -- an attempt to take a competing IMMEDIATE transaction
-                // will fail with `SQLITE_BUSY`, causing this function to abort.
-                bail!("Lost the transact() race!");
-            }
-
-            // Commit the SQLite transaction while we hold the mutex.
-            tx.commit()?;
-
-            metadata.generation += 1;
-            metadata.partition_map = next_partition_map;
-            if let Some(next_schema) = next_schema {
-                metadata.schema = Arc::new(next_schema);
-            }
-        }
-
-        Ok(report)
+        // Our Rc never leaked, so this unwrap should always succeed.
+        Ok(Rc::try_unwrap(report).expect("solo Rc"))
     }
 }
 
