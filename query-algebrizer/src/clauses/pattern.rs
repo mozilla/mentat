@@ -247,9 +247,6 @@ impl ConjoiningClauses {
                 self.bind_column_to_var(schema, col.clone(), DatomsColumn::Tx, v.clone());
             },
             PatternNonValuePlace::Entid(entid) => {
-                // TODO: we want to check whether the tx-id is within range for the database's tx partition. 
-                // (That applies after ident lookup, too.)
-                // Possible solution: https://github.com/mozilla/mentat/tree/fluffyemily/tx-id-check
                 self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid);
             },
             PatternNonValuePlace::Ident(ref ident) => {
