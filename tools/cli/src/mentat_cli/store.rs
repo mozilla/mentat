@@ -62,7 +62,24 @@ impl Store {
         Ok(self.conn.transact(&mut self.handle, &transaction)?)
     }
 
+    // the schema is the entire schema of the store including structure used to describe the store.
     pub fn fetch_schema(&self) -> edn::Value {
         self.conn.current_schema().to_edn_value()
+    }
+
+    // the attributes are the specific attributes added to the schema for this particular store.
+    pub fn fetch_attributes(&self) -> edn::Value {
+        let schema = self.conn.current_schema();
+
+        edn::Value::Vector((&schema.schema_map).iter()
+            .filter_map(|(entid, attribute)| {
+                if let Some(ident) = schema.get_ident(*entid) {
+                    if !ident.namespace.starts_with("db") {
+                        return Some(attribute.to_edn_value(Some(ident.clone())));
+                    }
+                }
+                return None;
+            })
+            .collect())
     }
 }

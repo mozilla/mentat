@@ -27,6 +27,7 @@ use command_parser::{
     SHORT_TRANSACT_COMMAND,
     LONG_EXIT_COMMAND,
     SHORT_EXIT_COMMAND,
+    ATTRIBUTES_COMMAND,
 };
 use input::InputReader;
 use input::InputResult::{
@@ -43,6 +44,7 @@ use store::{
 lazy_static! {
     static ref COMMAND_HELP: HashMap<&'static str, &'static str> = {
         let mut map = HashMap::new();
+        map.insert(ATTRIBUTES_COMMAND, "Output the attributes for the schema in the current open database.");
         map.insert(LONG_EXIT_COMMAND, "Close the current database and exit the REPL.");
         map.insert(SHORT_EXIT_COMMAND, "Shortcut for `.exit`. Close the current database and exit the REPL.");
         map.insert(HELP_COMMAND, "Show help for commands.");
@@ -120,8 +122,14 @@ impl Repl {
                     Ok(s) => println!("{}", s),
                     Err(e) => println!("{}", e)
                 };
-                
-            }
+            },
+            Command::Attributes => {
+                let edn = self.store.fetch_attributes();
+                match edn.to_pretty(120) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => println!("{}", e)
+                };
+            },
             Command::Transact(transaction) => self.execute_transact(transaction),
             Command::Exit => {
                 self.close();
