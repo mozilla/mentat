@@ -18,6 +18,7 @@ use mentat_core::{
     Entid,
     Schema,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query_parser::{
@@ -35,10 +36,7 @@ use mentat_query_algebrizer::{
     EmptyBecause,
     Error,
     ErrorKind,
-    QueryInputs,
-    ValueTypeSet,
     algebrize,
-    algebrize_with_inputs,
 };
 
 // These are helpers that tests use to build Schema instances.

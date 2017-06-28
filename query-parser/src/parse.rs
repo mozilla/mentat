@@ -38,6 +38,7 @@ use self::mentat_parser_utils::value_and_span::{
 };
 
 use self::mentat_query::{
+    Aggregate,
     Binding,
     Direction,
     Element,
@@ -54,7 +55,7 @@ use self::mentat_query::{
     PatternNonValuePlace,
     PatternValuePlace,
     Predicate,
-    PredicateFn,
+    QueryFunction,
     SrcVar,
     UnifyVars,
     Variable,
@@ -132,8 +133,8 @@ def_parser!(Query, source_var, SrcVar, {
 });
 
 // TODO: interning.
-def_parser!(Query, predicate_fn, PredicateFn, {
-    satisfy_map(PredicateFn::from_value)
+def_parser!(Query, query_function, QueryFunction, {
+    satisfy_map(QueryFunction::from_value)
 });
 
 def_parser!(Query, fn_arg, FnArg, {
@@ -266,13 +267,24 @@ def_parser!(Where, not_join_clause, WhereClause, {
             }))
 });
 
+def_parser!(Query, func, (QueryFunction, Vec<FnArg>), {
+    (Query::query_function(), Query::arguments())
+});
+
+def_parser!(Query, aggregate, Aggregate, {
+    seq().of_exactly((Query::query_function(), Query::arguments()))
+         .map(|(func, args)| Aggregate {
+             func, args,
+         })
+});
+
 /// A vector containing just a parenthesized filter expression.
 def_parser!(Where, pred, WhereClause, {
     // Accept either a nested list or a nested vector here:
     // `[(foo ?x ?y)]` or `[[foo ?x ?y]]`
     vector()
         .of_exactly(seq()
-            .of_exactly((Query::predicate_fn(), Query::arguments())
+            .of_exactly(Query::func()
                 .map(|(f, args)| {
                     WhereClause::Pred(
                         Predicate {
@@ -289,7 +301,7 @@ def_parser!(Where, where_fn, WhereClause, {
     vector()
         .of_exactly(
             (seq().of_exactly(
-                (Query::predicate_fn(), Query::arguments())),
+             Query::func()),
              Bind::binding())
                     .map(|((f, args), binding)| {
                         WhereClause::WhereFn(
@@ -370,21 +382,23 @@ def_matches_plain_symbol!(Find, ellipsis, "...");
 
 def_matches_plain_symbol!(Find, placeholder, "_");
 
+def_parser!(Find, elem, Element, {
+    Query::variable().map(Element::Variable)
+                     .or(Query::aggregate().map(Element::Aggregate))
+});
+
 def_parser!(Find, find_scalar, FindSpec, {
-    Query::variable()
-        .skip(Find::period())
-        .map(|var| FindSpec::FindScalar(Element::Variable(var)))
+    Find::elem().skip(Find::period())
+                .map(FindSpec::FindScalar)
 });
 
 def_parser!(Find, find_coll, FindSpec, {
-    vector()
-        .of_exactly(Query::variable()
-            .skip(Find::ellipsis()))
-            .map(|var| FindSpec::FindColl(Element::Variable(var)))
+    vector().of_exactly(Find::elem().skip(Find::ellipsis()))
+            .map(FindSpec::FindColl)
 });
 
 def_parser!(Find, elements, Vec<Element>, {
-    many1::<Vec<Element>, _>(Query::variable().map(Element::Variable))
+    many1::<Vec<Element>, _>(Find::elem())
 });
 
 def_parser!(Find, find_rel, FindSpec, {
@@ -392,8 +406,8 @@ def_parser!(Find, find_rel, FindSpec, {
 });
 
 def_parser!(Find, find_tuple, FindSpec, {
-    vector()
-        .of_exactly(Find::elements().map(FindSpec::FindTuple))
+    vector().of_exactly(Find::elements())
+            .map(FindSpec::FindTuple)
 });
 
 /// Parse a stream of values into one of four find specs.
@@ -462,7 +476,7 @@ def_parser!(Find, query, FindQuery, {
 
             Ok(FindQuery {
                 default_source: SrcVar::DefaultSrc,
-                find_spec: find_spec.clone().ok_or(combine::primitives::Error::Unexpected("expected :find".into()))?,
+                find_spec: find_spec.ok_or(combine::primitives::Error::Unexpected("expected :find".into()))?,
                 in_sources: BTreeSet::default(),    // TODO
                 in_vars: in_vars,
                 limit: limit,

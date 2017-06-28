@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate enum_set;
-
 #[macro_use]
 extern crate error_chain;
 
@@ -58,15 +56,19 @@ pub use clauses::{
 
 pub use types::{
     EmptyBecause,
-    ValueTypeSet,
 };
 
 #[derive(Debug)]
 pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: FindSpec,
-    has_aggregates: bool,
+
+    /// A set of variables that the caller wishes to be used for grouping when aggregating.
     pub with: BTreeSet<Variable>,
+
+    /// A set of variables that must be projected in order for query features such as ordering
+    /// to work correctly.
+    pub named_projection: BTreeSet<Variable>,
     pub order: Option<Vec<OrderBy>>,
     pub limit: Limit,
     pub cc: clauses::ConjoiningClauses,
@@ -81,7 +83,7 @@ impl AlgebraicQuery {
     /// Return a set of the input variables mentioned in the `:in` clause that have not yet been
     /// bound. We do this by looking at the CC.
     pub fn unbound_variables(&self) -> BTreeSet<Variable> {
-        self.cc.input_variables.sub(&self.cc.value_bound_variables())
+        self.cc.input_variables.sub(&self.cc.value_bound_variable_set())
     }
 }
 
@@ -190,15 +192,14 @@ pub fn algebrize_with_inputs(schema: &Schema,
     cc.prune_extracted_types();
 
     let (order, extra_vars) = validate_and_simplify_order(&cc, parsed.order)?;
-    let with: BTreeSet<Variable> = parsed.with.into_iter().chain(extra_vars.into_iter()).collect();
 
     // This might leave us with an unused `:in` variable.
     let limit = if parsed.find_spec.is_unit_limited() { Limit::Fixed(1) } else { parsed.limit };
     let q = AlgebraicQuery {
         default_source: parsed.default_source,
         find_spec: parsed.find_spec,
-        has_aggregates: false,           // TODO: we don't parse them yet.
-        with: with,
+        with: parsed.with,
+        named_projection: extra_vars,
         order: order,
         limit: limit,
         cc: cc,

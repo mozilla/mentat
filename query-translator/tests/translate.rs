@@ -54,9 +54,9 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 }
 
 fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
-    let parsed = parse_find_string(query).expect("parse failed");
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs).expect("algebrize failed");
-    let select = query_to_select(algebrized);
+    let parsed = parse_find_string(query).expect("parse to succeed");
+    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs).expect("algebrize to succeed");
+    let select = query_to_select(algebrized).expect("translate to succeed");
     select.query.to_sql_query().unwrap()
 }
 
@@ -191,7 +191,7 @@ fn test_bound_variable_limit_affects_types() {
     assert_eq!(Some(ValueType::Long),
                algebrized.cc.known_type(&Variable::from_valid_name("?limit")));
 
-    let select = query_to_select(algebrized);
+    let select = query_to_select(algebrized).expect("query to translate");
     let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
 
     // TODO: this query isn't actually correct -- we don't yet algebrize for variables that are
@@ -281,7 +281,7 @@ fn test_unknown_ident() {
     assert!(algebrized.is_known_empty());
 
     // If you insist…
-    let select = query_to_select(algebrized);
+    let select = query_to_select(algebrized).expect("query to translate");
     let sql = select.query.to_sql_query().unwrap().sql;
     assert_eq!("SELECT 1 LIMIT 0", sql);
 }
@@ -546,13 +546,13 @@ fn test_with_without_aggregate() {
     // Known type.
     let query = r#"[:find ?x :with ?y :where [?x :foo/bar ?y]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, `datoms00`.v AS `?y` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.a = 99");
     assert_eq!(args, vec![]);
 
     // Unknown type.
     let query = r#"[:find ?x :with ?y :where [?x _ ?y]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, `all_datoms00`.v AS `?y`, `all_datoms00`.value_type_tag AS `?y_value_type_tag` FROM `all_datoms` AS `all_datoms00`");
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00`");
     assert_eq!(args, vec![]);
 }
 
@@ -754,6 +754,55 @@ fn test_unbound_attribute_with_ground() {
                                                       `all_datoms00`.value_type_tag = 5)");
 }
 
+/*
+#[test]
+fn test_colliding_values_unbound_types() {
+    let schema = prepopulated_schema();
+    let query = r#"[:find ?x ?a ?y
+                    :where
+                    [?x _ ?y]
+                    [?a _ ?y]]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
+                                     `all_datoms01`.e AS `?a`, \
+                                     `all_datoms00`.v AS `?y`, \
+                                     `all_datoms00`.value_type_tag AS `?y_value_type_tag` \
+                     FROM `all_datoms` AS `all_datoms00`, `all_datoms` AS `all_datoms01` \
+                     WHERE `all_datoms00`.v = `all_datoms01`.v \
+                       AND `all_datoms00`.value_type_tag = `all_datoms01`.value_type_tag");
+}
+
+#[test]
+fn test_restricted_types() {
+    let schema = prepopulated_schema();
+    let query = r#"[:find ?x ?y
+                    :where
+                    [?x _ ?y]
+                    [(< ?y 10)]]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+
+    // #385: use `datoms` instead of `all_datoms`.
+    // No need to project the type code -- long and double are distinguishable.
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x`, \
+                                     `all_datoms00`.v AS `?y` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE `all_datoms00`.v < 10 \
+                       AND `all_datoms00`.value_type_tag = 5");
+}
+
+#[test]
+fn test_known_type_range() {
+    let schema = prepopulated_schema();
+    let query = r#"[:find ?x ?y :where [?x :foo/bar] [?y _ ?x]]"#;
+    let SQLQuery { sql, .. } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x`, \
+                                     `datoms00`.e AS `?y` \
+                     FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` \
+                     WHERE `datoms00`.a = 66 \
+                       AND `datoms01`.v = `datoms00`.e \
+                       AND `datoms01`.value_type_tag = 1");
+}
+*/
 
 #[test]
 fn test_not_with_ground() {
@@ -953,5 +1002,32 @@ fn test_instant_range() {
                      `datoms` AS `datoms00` \
                      WHERE `datoms00`.a = 99 \
                        AND `datoms00`.v > 1497574601257000");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_project_aggregates() {
+    let schema = prepopulated_typed_schema(ValueType::Long);
+    let query = r#"[:find ?e (max ?t)
+                    :where
+                    [?e :foo/bar ?t]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?e`, max(`datoms00`.v) AS `(max ?t)` \
+                     FROM \
+                     `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                     GROUP BY `datoms00`.e");
+    assert_eq!(args, vec![]);
+
+    let query = r#"[:find (max ?t)
+                    :with ?e
+                    :where
+                    [?e :foo/bar ?t]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT max(`datoms00`.v) AS `(max ?t)` \
+                     FROM \
+                     `datoms` AS `datoms00` \
+                     WHERE `datoms00`.a = 99 \
+                     GROUP BY `datoms00`.e");
     assert_eq!(args, vec![]);
 }

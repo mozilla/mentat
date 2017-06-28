@@ -361,7 +361,8 @@ fn test_fulltext() {
                  _ => panic!("Unexpected results."),
             }
         },
-        _ => panic!("Expected query to work."),
+        Result::Ok(r) => panic!("Unexpected results {:?}.", r),
+        Result::Err(e) => panic!("Expected query to work, got {:?}.", e),
     }
 
     let a = conn.transact(&mut c, r#"[[:db/add "a" :foo/term "talk"]]"#)
@@ -452,5 +453,277 @@ fn test_instant_range_query() {
                             TypedValue::Ref(*ids.get("c").unwrap())]);
         },
         _ => panic!("Expected query to work."),
+    }
+}
+
+#[test]
+fn test_aggregation_implicit_grouping() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+
+    conn.transact(&mut c, r#"[
+        [:db/add "a" :db/ident :foo/score]
+        [:db/add "a" :db/valueType :db.type/long]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+        [:db/add "b" :db/ident :foo/name]
+        [:db/add "b" :db/valueType :db.type/string]
+        [:db/add "b" :db/cardinality :db.cardinality/one]
+        [:db/add "c" :db/ident :foo/is-vegetarian]
+        [:db/add "c" :db/valueType :db.type/boolean]
+        [:db/add "c" :db/cardinality :db.cardinality/one]
+        [:db/add "d" :db/ident :foo/play]
+        [:db/add "d" :db/valueType :db.type/ref]
+        [:db/add "d" :db/cardinality :db.cardinality/many]
+        [:db/add "d" :db/unique :db.unique/value]
+    ]"#).unwrap();
+
+    let ids = conn.transact(&mut c, r#"[
+        [:db/add "a" :foo/name "Alice"]
+        [:db/add "b" :foo/name "Beli"]
+        [:db/add "c" :foo/name "Carlos"]
+        [:db/add "d" :foo/name "Diana"]
+        [:db/add "a" :foo/is-vegetarian true]
+        [:db/add "b" :foo/is-vegetarian true]
+        [:db/add "c" :foo/is-vegetarian false]
+        [:db/add "d" :foo/is-vegetarian false]
+        [:db/add "aa" :foo/score 14]
+        [:db/add "ab" :foo/score 99]
+        [:db/add "ac" :foo/score 14]
+        [:db/add "ba" :foo/score 22]
+        [:db/add "bb" :foo/score 11]
+        [:db/add "ca" :foo/score 42]
+        [:db/add "da" :foo/score 5]
+        [:db/add "db" :foo/score 28]
+        [:db/add "d"  :foo/play "da"]
+        [:db/add "d"  :foo/play "db"]
+        [:db/add "a"  :foo/play "aa"]
+        [:db/add "a"  :foo/play "ab"]
+        [:db/add "a"  :foo/play "ac"]
+        [:db/add "b"  :foo/play "ba"]
+        [:db/add "b"  :foo/play "bb"]
+        [:db/add "c"  :foo/play "ca"]
+    ]"#).unwrap().tempids;
+
+    // We can combine these aggregates.
+    let r = conn.q_once(&mut c,
+                        r#"[:find ?x ?name (max ?score) (count ?score) (avg ?score)
+                            :where
+                            [?x :foo/name ?name]
+                            [?x :foo/play ?game]
+                            [?game :foo/score ?score]
+                            ]"#, None);
+    match r {
+        Result::Ok(QueryResults::Rel(vals)) => {
+            assert_eq!(vals,
+                vec![
+                    vec![TypedValue::Ref(ids.get("a").cloned().unwrap()),
+                         TypedValue::String("Alice".to_string().into()),
+                         TypedValue::Long(99),
+                         TypedValue::Long(3),
+                         TypedValue::Double((127f64 / 3f64).into())],
+                    vec![TypedValue::Ref(ids.get("b").cloned().unwrap()),
+                         TypedValue::String("Beli".to_string().into()),
+                         TypedValue::Long(22),
+                         TypedValue::Long(2),
+                         TypedValue::Double((33f64 / 2f64).into())],
+                    vec![TypedValue::Ref(ids.get("c").cloned().unwrap()),
+                         TypedValue::String("Carlos".to_string().into()),
+                         TypedValue::Long(42),
+                         TypedValue::Long(1),
+                         TypedValue::Double(42f64.into())],
+                    vec![TypedValue::Ref(ids.get("d").cloned().unwrap()),
+                         TypedValue::String("Diana".to_string().into()),
+                         TypedValue::Long(28),
+                         TypedValue::Long(2),
+                         TypedValue::Double((33f64 / 2f64).into())]]);
+        },
+        Result::Ok(x) => panic!("Got unexpected results {:?}", x),
+        Result::Err(e) => panic!("Expected query to work: got {:?}", e),
+    }
+}
+
+// TODO: this can't be phrased in Datalog!
+/*
+#[test]
+fn test_corresponding_row_value_aggregation() {
+
+    // Who's youngest, via min?
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?name (min ?age)]
+                            :where
+                            [?x :foo/age ?age]
+                            [?x :foo/name ?name]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            assert_eq!(vals,
+                       vec![TypedValue::String("Alice".to_string().into()),
+                            TypedValue::Long(14)]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    // Who's oldest, via max?
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?name (max ?age)]
+                            :where
+                            [?x :foo/age ?age]
+                            [?x :foo/name ?name]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            assert_eq!(vals,
+                       vec![TypedValue::String("Carlos".to_string().into()),
+                            TypedValue::Long(42)]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+}
+*/
+
+#[test]
+fn test_simple_aggregation() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+
+    conn.transact(&mut c, r#"[
+        [:db/add "a" :db/ident :foo/age]
+        [:db/add "a" :db/valueType :db.type/long]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+        [:db/add "b" :db/ident :foo/name]
+        [:db/add "b" :db/valueType :db.type/string]
+        [:db/add "b" :db/cardinality :db.cardinality/one]
+        [:db/add "c" :db/ident :foo/is-vegetarian]
+        [:db/add "c" :db/valueType :db.type/boolean]
+        [:db/add "c" :db/cardinality :db.cardinality/one]
+    ]"#).unwrap();
+
+    let ids = conn.transact(&mut c, r#"[
+        [:db/add "a" :foo/name "Alice"]
+        [:db/add "b" :foo/name "Beli"]
+        [:db/add "c" :foo/name "Carlos"]
+        [:db/add "d" :foo/name "Diana"]
+        [:db/add "a" :foo/is-vegetarian true]
+        [:db/add "b" :foo/is-vegetarian true]
+        [:db/add "c" :foo/is-vegetarian false]
+        [:db/add "d" :foo/is-vegetarian false]
+        [:db/add "a" :foo/age 14]
+        [:db/add "b" :foo/age 22]
+        [:db/add "c" :foo/age 42]
+        [:db/add "d" :foo/age 28]
+    ]"#).unwrap().tempids;
+
+    // What are the oldest and youngest ages?
+    let r = conn.q_once(&mut c,
+                        r#"[:find [(min ?age) (max ?age)]
+                            :where
+                            [_ :foo/age ?age]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            assert_eq!(vals,
+                       vec![TypedValue::Long(14),
+                            TypedValue::Long(42)]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    // Who's youngest, via order?
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?name ?age]
+                            :order (asc ?age)
+                            :where
+                            [?x :foo/age ?age]
+                            [?x :foo/name ?name]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            assert_eq!(vals,
+                       vec![TypedValue::String("Alice".to_string().into()),
+                            TypedValue::Long(14)]);
+        },
+        Result::Ok(r) => panic!("Unexpected results {:?}", r),
+        Result::Err(e) => panic!("Expected query to work, got {:?}", e),
+    }
+
+    // Who's oldest, via order?
+    let r = conn.q_once(&mut c,
+                        r#"[:find [?name ?age]
+                            :order (desc ?age)
+                            :where
+                            [?x :foo/age ?age]
+                            [?x :foo/name ?name]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            assert_eq!(vals,
+                       vec![TypedValue::String("Carlos".to_string().into()),
+                            TypedValue::Long(42)]);
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    // What's the average age?
+    let r = conn.q_once(&mut c,
+                        r#"[:find (avg ?age) .
+                            :where
+                            [_ :foo/age ?age]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Scalar(Some(sum))) => {
+            assert_eq!(sum, TypedValue::Double(26.5f64.into()));
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    // What's the total age?
+    let r = conn.q_once(&mut c,
+                        r#"[:find (sum ?age) .
+                            :where
+                            [_ :foo/age ?age]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Scalar(Some(sum))) => {
+            assert_eq!(sum, TypedValue::Long(106));
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    // How many distinct names are there?
+    let r = conn.q_once(&mut c,
+                        r#"[:find (count ?name) .
+                            :where
+                            [_ :foo/name ?name]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Scalar(Some(count))) => {
+            assert_eq!(count, TypedValue::Long(4));
+        },
+        _ => panic!("Expected query to work."),
+    }
+
+    // We can use constraints, too.
+    // What's the average age of adults?
+    let r = conn.q_once(&mut c,
+                        r#"[:find [(avg ?age) (count ?age)]
+                            :where
+                            [_ :foo/age ?age]
+                            [(>= ?age 18)]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+            assert_eq!(vals, vec![TypedValue::Double((92f64 / 3f64).into()),
+                                  TypedValue::Long(3)]);
+        },
+        Result::Ok(x) => panic!("Got unexpected results {:?}", x),
+        Result::Err(e) => panic!("Expected query to work: got {:?}", e),
+    }
+
+    // Who's oldest, vegetarians or not?
+    let r = conn.q_once(&mut c,
+                        r#"[:find ?veg (max ?age)
+                            :where
+                            [?p :foo/age ?age]
+                            [?p :foo/is-vegetarian ?veg]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Rel(vals)) => {
+            assert_eq!(vals, vec![
+                vec![TypedValue::Boolean(false), TypedValue::Long(42)],
+                vec![TypedValue::Boolean(true), TypedValue::Long(22)],
+            ]);
+        },
+        Result::Ok(x) => panic!("Got unexpected results {:?}", x),
+        Result::Err(e) => panic!("Expected query to work: got {:?}", e),
     }
 }

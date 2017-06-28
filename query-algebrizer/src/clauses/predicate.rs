@@ -11,6 +11,7 @@
 use mentat_core::{
     Schema,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query::{
@@ -31,7 +32,6 @@ use types::{
     ColumnConstraint,
     EmptyBecause,
     Inequality,
-    ValueTypeSet,
 };
 
 /// Application of predicates.
@@ -177,7 +177,6 @@ mod testing {
         ColumnConstraint,
         EmptyBecause,
         QueryValue,
-        ValueTypeSet,
     };
 
     #[test]
