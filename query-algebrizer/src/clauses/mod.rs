@@ -376,7 +376,7 @@ impl ConjoiningClauses {
 
     /// Return a set of the variables externally bound to values.
     pub fn value_bound_variable_set(&self) -> BTreeSet<Variable> {
-        self.value_bindings.keys().cloned().collect()
+        self.value_bound_variables().cloned().collect()
     }
 
     /// Return a single `ValueType` if the given variable is known to have a precise type.

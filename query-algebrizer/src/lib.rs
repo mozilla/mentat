@@ -63,11 +63,17 @@ pub struct AlgebraicQuery {
     default_source: SrcVar,
     pub find_spec: FindSpec,
 
-    /// A set of variables that the caller wishes to be used for grouping when aggregating.
+    /// The set of variables that the caller wishes to be used for grouping when aggregating.
+    /// These are specified in the query input, as `:with`, and are then chewed up during projection.
+    /// If no variables are supplied, then no additional grouping is necessary beyond the
+    /// non-aggregated projection list.
     pub with: BTreeSet<Variable>,
 
-    /// A set of variables that must be projected in order for query features such as ordering
-    /// to work correctly.
+    /// Some query features, such as ordering, are implemented by implicit reference to SQL columns.
+    /// In order for these references to be 'live', those columns must be projected.
+    /// This is the set of variables that must be so projected.
+    /// This is not necessarily every variable that will be so required -- some variables
+    /// will already be in the projection list.
     pub named_projection: BTreeSet<Variable>,
     pub order: Option<Vec<OrderBy>>,
     pub limit: Limit,

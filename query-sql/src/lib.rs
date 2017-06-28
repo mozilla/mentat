@@ -210,7 +210,7 @@ pub struct SelectQuery {
     pub projection: Projection,
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
-    pub group_by: Option<Vec<GroupBy>>,
+    pub group_by: Vec<GroupBy>,
     pub order: Vec<OrderBy>,
     pub limit: Limit,
 }
@@ -575,8 +575,8 @@ impl QueryFragment for SelectQuery {
                        { out.push_sql(" AND ") });
         }
 
-        match self.group_by {
-            Some(ref group_by) if !group_by.is_empty() => {
+        match &self.group_by {
+            group_by if !group_by.is_empty() => {
                 out.push_sql(" GROUP BY ");
                 interpose!(group, group_by,
                            { group.push_sql(out)? },
@@ -785,7 +785,7 @@ mod tests {
                     right: ColumnOrExpression::Entid(65536),
                 },
             ],
-            group_by: None,
+            group_by: vec![],
             order: vec![],
             limit: Limit::None,
         };

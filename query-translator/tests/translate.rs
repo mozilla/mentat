@@ -191,7 +191,7 @@ fn test_bound_variable_limit_affects_types() {
     assert_eq!(Some(ValueType::Long),
                algebrized.cc.known_type(&Variable::from_valid_name("?limit")));
 
-    let select = query_to_select(algebrized).expect("query to translate");
+    let select = query_to_select(algebrized).expect("query to successfully translate");
     let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
 
     // TODO: this query isn't actually correct -- we don't yet algebrize for variables that are

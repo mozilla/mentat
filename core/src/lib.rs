@@ -367,6 +367,12 @@ impl ::std::iter::Extend<ValueType> for ValueTypeSet {
     }
 }
 
+/// We have an enum of types, `ValueType`. It can be collected into a set, `ValueTypeSet`. Each type
+/// is associated with a type tag, which is how a type is represented in, e.g., SQL storage. Types
+/// can share type tags, because backing SQL storage is able to differentiate between some types
+/// (e.g., longs and doubles), and so distinct tags aren't necessary. That association is defined by
+/// `SQLValueType`. That trait similarly extends to `ValueTypeSet`, which maps a collection of types
+/// into a collection of tags.
 pub trait SQLValueTypeSet {
     fn value_type_tags(&self) -> BTreeSet<ValueTypeTag>;
     fn has_unique_type_code(&self) -> bool;

@@ -421,7 +421,7 @@ impl SimpleAggregation for Aggregate {
 struct ProjectedElements {
     sql_projection: Projection,
     templates: Vec<TypedIndex>,
-    group_by: Option<Vec<GroupBy>>,
+    group_by: Vec<GroupBy>,
 }
 
 /// Walk an iterator of `Element`s, collecting projector templates and columns.
@@ -554,7 +554,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         return Ok(ProjectedElements {
                       sql_projection: Projection::Columns(cols),
                       templates,
-                      group_by: None,
+                      group_by: vec![],
                   });
     }
 
@@ -572,28 +572,23 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     // Turn this collection of vars into a collection of columns from the query.
     // Right now we don't allow grouping on anything but a variable bound in the query.
     // TODO: also group by type tag.
-    let group_by = if group_by_vars.is_empty() {
-        None
-    } else {
-        let mut group_cols = Vec::with_capacity(2 * group_by_vars.len());
+    let mut group_by = Vec::with_capacity(2 * group_by_vars.len());
 
-        for var in group_by_vars.into_iter() {
-            let types = query.cc.known_type_set(&var);
-            if !types.has_unique_type_code() {
-                // Group by type then SQL value.
-                let type_col = query.cc
-                                    .extracted_types
-                                    .get(&var)
-                                    .cloned()
-                                    .map(GroupBy::QueryColumn)
-                                    .ok_or_else(|| ErrorKind::NoTypeAvailableForVariable(var.name().clone()))?;
-                group_cols.push(type_col);
-            }
-            let val_col = cc_column(&query.cc, &var).map(GroupBy::QueryColumn)?;
-            group_cols.push(val_col);
+    for var in group_by_vars.into_iter() {
+        let types = query.cc.known_type_set(&var);
+        if !types.has_unique_type_code() {
+            // Group by type then SQL value.
+            let type_col = query.cc
+                                .extracted_types
+                                .get(&var)
+                                .cloned()
+                                .map(GroupBy::QueryColumn)
+                                .ok_or_else(|| ErrorKind::NoTypeAvailableForVariable(var.name().clone()))?;
+            group_by.push(type_col);
         }
-        Some(group_cols)
-    };
+        let val_col = cc_column(&query.cc, &var).map(GroupBy::QueryColumn)?;
+        group_by.push(val_col);
+    }
 
     Ok(ProjectedElements {
         sql_projection: Projection::Columns(cols),
@@ -807,9 +802,8 @@ pub struct CombinedProjection {
     /// True if this query requires the SQL query to include DISTINCT.
     pub distinct: bool,
 
-    // An optional list of column names to use as a GROUP BY clause.
-    // Right now these are all `Name`s, and present in the `Projection`.
-    pub group_by_cols: Option<Vec<GroupBy>>,
+    // A list of column names to use as a GROUP BY clause.
+    pub group_by_cols: Vec<GroupBy>,
 }
 
 impl CombinedProjection {
@@ -840,7 +834,7 @@ pub fn query_projection(query: &AlgebraicQuery) -> Result<CombinedProjection> {
             sql_projection: Projection::One,
             datalog_projector: Box::new(constant_projector),
             distinct: false,
-            group_by_cols: None,                 // TODO
+            group_by_cols: vec![],
         })
     } else {
         match query.find_spec {

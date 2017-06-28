@@ -272,7 +272,7 @@ def_parser!(Query, func, (QueryFunction, Vec<FnArg>), {
 });
 
 def_parser!(Query, aggregate, Aggregate, {
-    seq().of_exactly((Query::query_function(), Query::arguments()))
+    seq().of_exactly(Query::func())
          .map(|(func, args)| Aggregate {
              func, args,
          })

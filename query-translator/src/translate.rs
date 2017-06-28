@@ -250,7 +250,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // Each arm simply turns into a subquery.
                         // The SQL translation will stuff "UNION" between each arm.
                         let projection = Projection::Columns(columns);
-                        cc_to_select_query(projection, cc, false, None, None, Limit::None)
+                        cc_to_select_query(projection, cc, false, vec![], None, Limit::None)
                   }).collect(),
                 alias)
         },
@@ -272,7 +272,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
 fn cc_to_select_query(projection: Projection,
                       cc: ConjoiningClauses,
                       distinct: bool,
-                      group_by: Option<Vec<GroupBy>>,
+                      group_by: Vec<GroupBy>,
                       order: Option<Vec<OrderBy>>,
                       limit: Limit) -> SelectQuery {
     let from = if cc.from.is_empty() {
@@ -327,13 +327,13 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
             distinct: false,
             projection: Projection::One,
             from: FromClause::Nothing,
-            group_by: None,
+            group_by: vec![],
             constraints: vec![],
             order: vec![],
             limit: Limit::None,
         }
     } else {
-        cc_to_select_query(Projection::One, cc, false, None, None, Limit::None)
+        cc_to_select_query(Projection::One, cc, false, vec![], None, Limit::None)
     }
 }
 
