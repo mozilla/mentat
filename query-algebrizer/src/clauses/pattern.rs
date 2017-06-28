@@ -81,7 +81,7 @@ impl ConjoiningClauses {
         // Sorry for the duplication; Rust makes it a pain to abstract this.
 
         // The transaction part of a pattern must be an entid, variable, or placeholder.
-        self.constrain_to_tx(&pattern.tx);            // See #440.
+        self.constrain_to_tx(&pattern.tx);         
         self.constrain_to_ref(&pattern.entity);
         self.constrain_to_ref(&pattern.attribute);
 
@@ -238,8 +238,26 @@ impl ConjoiningClauses {
                 if value_type.is_none() {
                     self.wheres.add_intersection(ColumnConstraint::HasType(col.clone(), typed_value_type));
                 }
-
             },
+        }
+
+        match pattern.tx {
+            PatternNonValuePlace::Placeholder => (),
+            PatternNonValuePlace::Variable(ref v) => {
+                self.bind_column_to_var(schema, col.clone(), DatomsColumn::Tx, v.clone());
+            },
+            PatternNonValuePlace::Entid(entid) => {
+                self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid);
+            },
+            PatternNonValuePlace::Ident(ref ident) => {
+                if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
+                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid)
+                } else {
+                    // A resolution failure means we're done here.
+                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
+                    return;
+                }
+            }
         }
     }
 
