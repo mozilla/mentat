@@ -255,12 +255,10 @@ fn projected_column_for_simple_aggregate(simple: &SimpleAggregate, cc: &Conjoini
             }
         } else {
             // The common case: the values are bound during execution.
-            let columns = cc.column_bindings
-                            .get(&simple.var)
-                            .expect(format!("Every variable should have a binding, but {:?} does not", simple.var).as_str());
+            let column = cc_column(cc, &simple.var)?;
             let expression = Expression::Unary {
                 sql_op: simple.op.to_sql(),
-                arg: ColumnOrExpression::Column(columns[0].clone()),
+                arg: ColumnOrExpression::Column(column),
             };
             ColumnOrExpression::Expression(Box::new(expression), return_type)
         };
@@ -570,11 +568,11 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     }
 
     // Turn this collection of vars into a collection of columns from the query.
-    // Right now we don't allow grouping on anything but a variable bound in the query.
-    // TODO: also group by type tag.
+    // We don't allow grouping on anything but a variable bound in the query.
+    // We group by tag if necessary.
     let mut group_by = Vec::with_capacity(2 * group_by_vars.len());
 
-    for var in group_by_vars.into_iter() {
+    for var in group_by_vars {
         let types = query.cc.known_type_set(&var);
         if !types.has_unique_type_tag() {
             // Group by type then SQL value.
