@@ -128,46 +128,26 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         }
                         Ok(Command::Open(args[0].clone()))
                     });
-    
-    let no_arg_parser = || arguments()
-                        .skip(spaces())
-                        .skip(eof());
 
     let close_parser = string(CLOSE_COMMAND)
-                    .with(no_arg_parser())
-                    .map(|args| {
-                        if !args.is_empty() {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
-                        }
-                        Ok(Command::Close)
-                    });
+                    .skip(spaces())
+                    .skip(eof())
+                    .map(|_| Ok(Command::Close) );
                     
     let schema_parser = string(SCHEMA_COMMAND)
-                    .with(no_arg_parser())
-                    .map(|args| {
-                        if !args.is_empty() {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
-                        }
-                        Ok(Command::Schema)
-                    });
+                    .skip(spaces())
+                    .skip(eof())
+                    .map(|_| Ok(Command::Schema));
                     
     let attributes_parser = string(ATTRIBUTES_COMMAND)
-                    .with(no_arg_parser())
-                    .map(|args| {
-                        if !args.is_empty() {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
-                        }
-                        Ok(Command::Attributes)
-                    });
+                    .skip(spaces())
+                    .skip(eof())
+                    .map(|_| Ok(Command::Attributes));
 
     let exit_parser = try(string(LONG_EXIT_COMMAND)).or(try(string(SHORT_EXIT_COMMAND)))
-                    .with(no_arg_parser())
-                    .map(|args| {
-                        if !args.is_empty() {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
-                        }
-                        Ok(Command::Exit)
-                    });
+                      .skip(spaces())
+                      .skip(eof())
+                      .map(|_|  Ok(Command::Exit) );
 
     let edn_arg_parser = || spaces()
                             .with(look_ahead(string("[").or(string("{")))
