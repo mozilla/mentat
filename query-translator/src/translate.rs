@@ -226,7 +226,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                             // Assumption: we'll never need to project a tag without projecting the value of a variable.
                             if type_extraction.contains(var) {
                                 let expression =
-                                    if let Some(tag) = type_set.unique_type_code() {
+                                    if let Some(tag) = type_set.unique_type_tag() {
                                         // If we know the type for sure, just project the constant.
                                         // SELECT datoms03.v AS `?x`, 10 AS `?x_value_type_tag`
                                         ColumnOrExpression::Integer(tag)

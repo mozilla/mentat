@@ -166,16 +166,16 @@ impl TypedIndex {
     /// Look up this index and type(index) pair in the provided row.
     /// This function will panic if:
     ///
-    /// - This is an `Unknown` and the retrieved type code isn't an i32.
+    /// - This is an `Unknown` and the retrieved type tag isn't an i32.
     /// - If the retrieved value can't be coerced to a rusqlite `Value`.
     /// - Either index is out of bounds.
     ///
-    /// Because we construct our SQL projection list, the code that stored the data, and this
+    /// Because we construct our SQL projection list, the tag that stored the data, and this
     /// consumer, a panic here implies that we have a bad bug — we put data of a very wrong type in
     /// a row, and thus can't coerce to Value, we're retrieving from the wrong place, or our
     /// generated SQL is junk.
     ///
-    /// This function will return a runtime error if the type code is unknown, or the value is
+    /// This function will return a runtime error if the type tag is unknown, or the value is
     /// otherwise not convertible by the DB layer.
     fn lookup<'a, 'stmt>(&self, row: &Row<'a, 'stmt>) -> Result<TypedValue> {
         use TypedIndex::*;
@@ -318,7 +318,7 @@ impl SimpleAggregationOp {
 
             // Only numeric types can be averaged or summed.
             &Avg => {
-                if possibilities.is_subset(&ValueTypeSet::of_numeric_types()) {
+                if possibilities.is_only_numeric() {
                     // The mean of a set of numeric values will always, for our purposes, be a double.
                     Ok(ValueType::Double)
                 } else {
@@ -326,7 +326,7 @@ impl SimpleAggregationOp {
                 }
             },
             &Sum => {
-                if possibilities.is_subset(&ValueTypeSet::of_numeric_types()) {
+                if possibilities.is_only_numeric() {
                     if possibilities.contains(ValueType::Double) {
                         Ok(ValueType::Double)
                     } else {
@@ -360,7 +360,7 @@ impl SimpleAggregationOp {
                 } else {
                     // It cannot be empty -- we checked.
                     // The only types that are valid to compare cross-type are numbers.
-                    if possibilities.is_subset(&ValueTypeSet::of_numeric_types()) {
+                    if possibilities.is_only_numeric() {
                         // Note that if the max/min is a Long, it will be returned as a Double!
                         if possibilities.contains(ValueType::Double) {
                             Ok(ValueType::Double)
@@ -476,7 +476,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
                 let (projected_column, type_set) = projected_column_for_var(&var, &query.cc)?;
                 cols.push(projected_column);
-                if let Some(tag) = type_set.unique_type_code() {
+                if let Some(tag) = type_set.unique_type_tag() {
                     templates.push(TypedIndex::Known(i, tag));
                     i += 1;     // We used one SQL column.
                 } else {
@@ -539,11 +539,11 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         let (column, name) = candidate_column(&query.cc, &var)?;
         cols.push(ProjectedColumn(column, name));
 
-        // We don't care if a column has a single _type_, we care if it has a single type _code_,
+        // We don't care if a column has a single _type_, we care if it has a single type _tag_,
         // because that's what we'll use if we're projecting. E.g., Long and Double.
-        // Single type implies single type code, and is cheaper, so we check that first.
+        // Single type implies single type tag, and is cheaper, so we check that first.
         let types = query.cc.known_type_set(&var);
-        if !types.has_unique_type_code() {
+        if !types.has_unique_type_tag() {
             let (type_column, type_name) = candidate_type_column(&query.cc, &var);
             cols.push(ProjectedColumn(type_column, type_name));
         }
@@ -560,8 +560,8 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
     // group_by: (with + variables) - aggregated
     let mut group_by_vars: BTreeSet<Variable> = query.with.union(&variables).cloned().collect();
-    for var in aggregated {
-        group_by_vars.remove(&var);
+    for var in aggregated.iter() {
+        group_by_vars.remove(var);
     }
 
     // We never need to group by a constant.
@@ -576,7 +576,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
     for var in group_by_vars.into_iter() {
         let types = query.cc.known_type_set(&var);
-        if !types.has_unique_type_code() {
+        if !types.has_unique_type_tag() {
             // Group by type then SQL value.
             let type_col = query.cc
                                 .extracted_types

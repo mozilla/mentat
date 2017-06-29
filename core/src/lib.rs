@@ -342,6 +342,12 @@ impl ValueTypeSet {
     }
 }
 
+impl ValueTypeSet {
+    pub fn is_only_numeric(&self) -> bool {
+        self.is_subset(&ValueTypeSet::of_numeric_types())
+    }
+}
+
 impl IntoIterator for ValueTypeSet {
     type Item = ValueType;
     type IntoIter = ::enum_set::Iter<ValueType>;
@@ -375,8 +381,8 @@ impl ::std::iter::Extend<ValueType> for ValueTypeSet {
 /// into a collection of tags.
 pub trait SQLValueTypeSet {
     fn value_type_tags(&self) -> BTreeSet<ValueTypeTag>;
-    fn has_unique_type_code(&self) -> bool;
-    fn unique_type_code(&self) -> Option<ValueTypeTag>;
+    fn has_unique_type_tag(&self) -> bool;
+    fn unique_type_tag(&self) -> Option<ValueTypeTag>;
 }
 
 impl SQLValueTypeSet for ValueTypeSet {
@@ -389,15 +395,15 @@ impl SQLValueTypeSet for ValueTypeSet {
         out
     }
 
-    fn unique_type_code(&self) -> Option<ValueTypeTag> {
-        if self.is_unit() || self.has_unique_type_code() {
+    fn unique_type_tag(&self) -> Option<ValueTypeTag> {
+        if self.is_unit() || self.has_unique_type_tag() {
             self.exemplar().map(|t| t.value_type_tag())
         } else {
             None
         }
     }
 
-    fn has_unique_type_code(&self) -> bool {
+    fn has_unique_type_tag(&self) -> bool {
         if self.is_unit() {
             return true;
         }
