@@ -611,6 +611,34 @@ fn test_simple_aggregation() {
         [:db/add "d" :foo/age 28]
     ]"#).unwrap().tempids;
 
+    // Count how many vegetarians there are. This is not the same as `count-distinct`.
+    // Note the distinction between including `:with` and not.
+    let r = conn.q_once(&mut c,
+                        r#"[:find (count ?veg)
+                            :where
+                            [_ :foo/is-vegetarian ?veg]
+                            [(ground true) ?veg]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Rel(vals)) => {
+            assert_eq!(vals, vec![vec![TypedValue::Long(1)]]);
+        },
+        Result::Ok(r) => panic!("Expected query to work, got {:?}", r),
+        Result::Err(e) => panic!("Expected query to work, got {:?}", e),
+    }
+
+    let r = conn.q_once(&mut c,
+                        r#"[:find (count ?veg) .
+                            :with ?person
+                            :where
+                            [?person :foo/is-vegetarian ?veg]
+                            [(ground true) ?veg]]"#, None);
+    match r {
+        Result::Ok(QueryResults::Scalar(Some(val))) => {
+            assert_eq!(val, TypedValue::Long(2));
+        },
+        _ => panic!("Expected query to work."),
+    }
+
     // What are the oldest and youngest ages?
     let r = conn.q_once(&mut c,
                         r#"[:find [(min ?age) (max ?age)]
