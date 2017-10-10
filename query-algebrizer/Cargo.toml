@@ -5,7 +5,7 @@ workspace = ".."
 
 [dependencies]
 enum-set = { git = "https://github.com/rnewman/enum-set" }
-error-chain = "0.8.1"
+error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
 [dependencies.mentat_core]
 path = "../core"
