@@ -112,19 +112,19 @@ impl ToConstraint for ColumnConstraint {
                 let tag_column = qa.for_type_tag().to_column();
                 let value_column = qa.to_column();
 
-                /// A bare long in a query might match a ref, an instant, a long (obviously), or a
-                /// double. If it's negative, it can't match a ref, but that's OK -- it won't!
-                ///
-                /// However, '1' and '0' are used to represent booleans, and some integers are also
-                /// used to represent FTS values. We don't want to accidentally match those.
-                ///
-                /// We ask `SQLValueType` whether this value is in range for how booleans are
-                /// represented in the database.
-                ///
-                /// We only hit this code path when the attribute is unknown, so we're querying
-                /// `all_datoms`. That means we don't see FTS IDs at all -- they're transparently
-                /// replaced by their strings. If that changes, then you should also exclude the
-                /// string type code (10) here.
+                // A bare long in a query might match a ref, an instant, a long (obviously), or a
+                // double. If it's negative, it can't match a ref, but that's OK -- it won't!
+                //
+                // However, '1' and '0' are used to represent booleans, and some integers are also
+                // used to represent FTS values. We don't want to accidentally match those.
+                //
+                // We ask `SQLValueType` whether this value is in range for how booleans are
+                // represented in the database.
+                //
+                // We only hit this code path when the attribute is unknown, so we're querying
+                // `all_datoms`. That means we don't see FTS IDs at all -- they're transparently
+                // replaced by their strings. If that changes, then you should also exclude the
+                // string type code (10) here.
                 let must_exclude_boolean = ValueType::Boolean.accommodates_integer(value);
                 if must_exclude_boolean {
                     Constraint::And {

@@ -590,16 +590,16 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
-        /// Assertions that are :db.cardinality/one and not :db.fulltext.
+        // Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
 
-        /// Assertions that are :db.cardinality/many and not :db.fulltext.
+        // Assertions that are :db.cardinality/many and not :db.fulltext.
         let mut non_fts_many: Vec<db::ReducedEntity> = vec![];
 
-        /// Assertions that are :db.cardinality/one and :db.fulltext.
+        // Assertions that are :db.cardinality/one and :db.fulltext.
         let mut fts_one: Vec<db::ReducedEntity> = vec![];
 
-        /// Assertions that are :db.cardinality/many and :db.fulltext.
+        // Assertions that are :db.cardinality/many and :db.fulltext.
         let mut fts_many: Vec<db::ReducedEntity> = vec![];
 
         // We need to ensure that callers can't blindly transact entities that haven't been

@@ -1076,7 +1076,7 @@ impl PartitionMapping for PartitionMap {
     /// Allocate `n` fresh entids in the given `partition`.
     fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
         match self.get_mut(partition) {
-            Some(mut partition) => {
+            Some(partition) => {
                 let idx = partition.index;
                 partition.index += n as i64;
                 idx..partition.index
