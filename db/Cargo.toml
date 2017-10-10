@@ -4,14 +4,14 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
-error-chain = "0.8.1"
+error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 itertools = "0.7"
 lazy_static = "0.2"
 ordered-float = "0.5"
 time = "0.1"
 
 [dependencies.rusqlite]
-version = "0.11"
+version = "0.12"
 # System sqlite might be very old.
 features = ["bundled", "limits"]
 
