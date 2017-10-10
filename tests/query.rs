@@ -23,7 +23,7 @@ use chrono::FixedOffset;
 use mentat_core::{
     TypedValue,
     ValueType,
-    UTC,
+    Utc,
     Uuid,
 };
 
@@ -220,7 +220,7 @@ fn test_unbound_inputs() {
 fn test_instants_and_uuids() {
     // We assume, perhaps foolishly, that the clocks on test machines won't lose more than an
     // hour while this test is running.
-    let start = UTC::now() + FixedOffset::west(60 * 60);
+    let start = Utc::now() + FixedOffset::west(60 * 60);
 
     let mut c = new_connection("").expect("Couldn't open conn.");
     let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");

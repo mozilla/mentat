@@ -83,7 +83,7 @@ use mentat_core::util::Either;
 use mentat_core::{
     DateTime,
     Schema,
-    UTC,
+    Utc,
     attribute,
     intern_set,
 };
@@ -139,7 +139,7 @@ pub struct Tx<'conn, 'a> {
     tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
-    tx_instant: DateTime<UTC>,
+    tx_instant: DateTime<Utc>,
 }
 
 impl<'conn, 'a> Tx<'conn, 'a> {
@@ -149,7 +149,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         schema_for_mutation: &'a Schema,
         schema: &'a Schema,
         tx_id: Entid,
-        tx_instant: DateTime<UTC>) -> Tx<'conn, 'a> {
+        tx_instant: DateTime<Utc>) -> Tx<'conn, 'a> {
         Tx {
             store: store,
             partition_map: partition_map,

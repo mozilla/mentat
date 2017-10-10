@@ -18,5 +18,5 @@ path = "../query"
 path = "../query-parser"
 
 [dev-dependencies]
-itertools = "0.5"
+itertools = "0.7"
 maplit = "0.1"

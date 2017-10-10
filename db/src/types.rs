@@ -23,7 +23,7 @@ pub use self::mentat_core::{
     Attribute,
     AttributeBitFlags,
     Schema,
-    UTC,
+    Utc,
 };
 
 /// Represents one partition of the entid space.
@@ -90,7 +90,7 @@ pub struct TxReport {
     pub tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
-    pub tx_instant: DateTime<UTC>,
+    pub tx_instant: DateTime<Utc>,
 
     /// A map from string literal tempid to resolved or allocated entid.
     ///

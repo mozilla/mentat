@@ -17,7 +17,7 @@ members = []
 rustc_version = "0.1.7"
 
 [dependencies]
-chrono = "0.3"
+chrono = "0.4"
 error-chain = "0.8.1"
 time = "0.1"
 

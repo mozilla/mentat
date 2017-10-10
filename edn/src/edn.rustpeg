@@ -17,7 +17,7 @@ use std::f64::{NAN, INFINITY, NEG_INFINITY};
 use chrono::{
     DateTime,
     TimeZone,
-    UTC
+    Utc
 };
 use num::BigInt;
 use ordered_float::OrderedFloat;
@@ -152,7 +152,7 @@ pub text -> ValueAndSpan =
 // RFC 3339 timestamps. #inst "1985-04-12T23:20:50.52Z"
 // We accept an arbitrary depth of decimals.
 // Note that we discard the timezone information -- all times are translated to UTC.
-pub inst_string -> DateTime<UTC> =
+pub inst_string -> DateTime<Utc> =
     "#inst" whitespace+ "\"" d:$( [0-9]*<4> "-" [0-2][0-9] "-" [0-3][0-9]
               "T"
               [0-2][0-9] ":" [0-5][0-9] ":" [0-6][0-9]
@@ -161,24 +161,24 @@ pub inst_string -> DateTime<UTC> =
             )
     "\"" {?
         DateTime::parse_from_rfc3339(d)
-            .map(|t| t.with_timezone(&UTC))
+            .map(|t| t.with_timezone(&Utc))
             .map_err(|_| "invalid datetime")        // Oh, rustpeg.
     }
 
-pub inst_micros -> DateTime<UTC> =
+pub inst_micros -> DateTime<Utc> =
     "#instmicros" whitespace+ d:$( digit+ ) {
         let micros = d.parse::<i64>().unwrap();
         let seconds: i64 = micros / 1000000;
         let nanos: u32 = ((micros % 1000000).abs() as u32) * 1000;
-        UTC.timestamp(seconds, nanos)
+        Utc.timestamp(seconds, nanos)
     }
 
-pub inst_millis -> DateTime<UTC> =
+pub inst_millis -> DateTime<Utc> =
     "#instmillis" whitespace+ d:$( digit+ ) {
         let millis = d.parse::<i64>().unwrap();
         let seconds: i64 = millis / 1000;
         let nanos: u32 = ((millis % 1000).abs() as u32) * 1000000;
-        UTC.timestamp(seconds, nanos)
+        Utc.timestamp(seconds, nanos)
     }
 
 pub inst -> ValueAndSpan =

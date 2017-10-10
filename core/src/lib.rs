@@ -37,7 +37,7 @@ pub use edn::{
     DateTime,
     FromMicros,
     ToMicros,
-    UTC,
+    Utc,
 };
 
 /// Core types defining a Mentat knowledge base.
@@ -130,7 +130,7 @@ pub enum TypedValue {
     Boolean(bool),
     Long(i64),
     Double(OrderedFloat<f64>),
-    Instant(DateTime<UTC>),
+    Instant(DateTime<Utc>),
     // TODO: &str throughout?
     String(Rc<String>),
     Keyword(Rc<NamespacedKeyword>),
@@ -178,7 +178,7 @@ impl TypedValue {
     }
 
     pub fn current_instant() -> TypedValue {
-        TypedValue::Instant(UTC::now())
+        TypedValue::Instant(Utc::now())
     }
 }
 

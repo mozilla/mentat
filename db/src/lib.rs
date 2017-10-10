@@ -30,7 +30,7 @@ use itertools::Itertools;
 
 use mentat_core::{
     DateTime,
-    UTC,
+    Utc,
 };
 
 pub use errors::{Error, ErrorKind, ResultExt, Result};
@@ -97,6 +97,6 @@ pub fn repeat_values(values_per_tuple: usize, tuples: usize) -> String {
 }
 
 /// Return the current time as a UTC `DateTime` instance.
-pub fn now() -> DateTime<UTC> {
-    UTC::now()
+pub fn now() -> DateTime<Utc> {
+    Utc::now()
 }

@@ -17,8 +17,8 @@ use std::f64;
 
 use chrono::{
     DateTime,
-    TimeZone,           // For UTC::timestamp. The compiler incorrectly complains that this is unused.
-    UTC,
+    TimeZone,           // For Utc::timestamp. The compiler incorrectly complains that this is unused.
+    Utc,
 };
 use num::BigInt;
 use ordered_float::OrderedFloat;
@@ -32,7 +32,7 @@ pub enum Value {
     Nil,
     Boolean(bool),
     Integer(i64),
-    Instant(DateTime<UTC>),
+    Instant(DateTime<Utc>),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
@@ -61,7 +61,7 @@ pub enum SpannedValue {
     Nil,
     Boolean(bool),
     Integer(i64),
-    Instant(DateTime<UTC>),
+    Instant(DateTime<Utc>),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(String),
@@ -315,7 +315,7 @@ macro_rules! def_common_value_methods {
 
         def_as!(as_boolean, $t::Boolean, bool,);
         def_as!(as_integer, $t::Integer, i64,);
-        def_as!(as_instant, $t::Instant, DateTime<UTC>,);
+        def_as!(as_instant, $t::Instant, DateTime<Utc>,);
         def_as!(as_float, $t::Float, f64, |v: OrderedFloat<f64>| v.into_inner());
 
         def_as_ref!(as_big_integer, $t::BigInteger, BigInt);
@@ -333,7 +333,7 @@ macro_rules! def_common_value_methods {
 
         def_into!(into_boolean, $t::Boolean, bool,);
         def_into!(into_integer, $t::Integer, i64,);
-        def_into!(into_instant, $t::Instant, DateTime<UTC>,);
+        def_into!(into_instant, $t::Instant, DateTime<Utc>,);
         def_into!(into_big_integer, $t::BigInteger, BigInt,);
         def_into!(into_ordered_float, $t::Float, OrderedFloat<f64>,);
         def_into!(into_float, $t::Float, f64, |v: OrderedFloat<f64>| v.into_inner());
@@ -561,9 +561,9 @@ pub trait FromMicros {
     fn from_micros(ts: i64) -> Self;
 }
 
-impl FromMicros for DateTime<UTC> {
+impl FromMicros for DateTime<Utc> {
     fn from_micros(ts: i64) -> Self {
-        UTC.timestamp(ts / 1_000_000, ((ts % 1_000_000).abs() as u32) * 1_000)
+        Utc.timestamp(ts / 1_000_000, ((ts % 1_000_000).abs() as u32) * 1_000)
     }
 }
 
@@ -571,7 +571,7 @@ pub trait ToMicros {
     fn to_micros(&self) -> i64;
 }
 
-impl ToMicros for DateTime<UTC> {
+impl ToMicros for DateTime<Utc> {
     fn to_micros(&self) -> i64 {
         let major: i64 = self.timestamp() * 1_000_000;
         let minor: i64 = self.timestamp_subsec_micros() as i64;
@@ -596,7 +596,7 @@ mod test {
 
     use chrono::{
         DateTime,
-        UTC,
+        Utc,
     };
     use num::BigInt;
     use ordered_float::OrderedFloat;
@@ -604,7 +604,7 @@ mod test {
     #[test]
     fn test_micros_roundtrip() {
         let ts_micros: i64 = 1493399581314000;
-        let dt = DateTime::<UTC>::from_micros(ts_micros);
+        let dt = DateTime::<Utc>::from_micros(ts_micros);
         assert_eq!(dt.to_micros(), ts_micros);
     }
 

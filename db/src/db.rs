@@ -29,7 +29,7 @@ use bootstrap;
 
 use edn::{
     DateTime,
-    UTC,
+    Utc,
     Uuid,
     Value,
 };
@@ -358,7 +358,7 @@ impl TypedSQLValue for TypedValue {
             (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
 
             // Negative integers are simply times before 1970.
-            (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<UTC>::from_micros(x))),
+            (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<Utc>::from_micros(x))),
 
             // SQLite distinguishes integral from decimal types, allowing long and double to
             // share a tag.
