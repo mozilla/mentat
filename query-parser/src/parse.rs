@@ -830,19 +830,19 @@ mod test {
         let mut par = Query::natural_number();
         let x = par.parse(input.atom_stream()).err().expect("an error").errors;
         let result = format!("{:?}", x);
-        assert_eq!(result, "[Other(Error(InvalidLimit(Text(\"foo\")), State { next_error: None, backtrace: None })), Expected(Borrowed(\"natural_number\"))]");
+        assert_eq!(result, "[Other(Error(InvalidLimit(Text(\"foo\")), State { next_error: None, backtrace: None }))]");
 
         let input = neg.with_spans();
         let mut par = Query::natural_number();
         let x = par.parse(input.atom_stream()).err().expect("an error").errors;
         let result = format!("{:?}", x);
-        assert_eq!(result, "[Other(Error(InvalidLimit(Integer(-10)), State { next_error: None, backtrace: None })), Expected(Borrowed(\"natural_number\"))]");
+        assert_eq!(result, "[Other(Error(InvalidLimit(Integer(-10)), State { next_error: None, backtrace: None }))]");
 
         let input = zero.with_spans();
         let mut par = Query::natural_number();
         let x = par.parse(input.atom_stream()).err().expect("an error").errors;
         let result = format!("{:?}", x);
-        assert_eq!(result, "[Other(Error(InvalidLimit(Integer(0)), State { next_error: None, backtrace: None })), Expected(Borrowed(\"natural_number\"))]");
+        assert_eq!(result, "[Other(Error(InvalidLimit(Integer(0)), State { next_error: None, backtrace: None }))]");
 
         let input = pos.with_spans();
         let mut par = Query::natural_number();
