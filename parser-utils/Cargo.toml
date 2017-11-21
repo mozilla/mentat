@@ -6,7 +6,7 @@ workspace = ".."
 
 [dependencies]
 combine = "2.3.2"
-itertools = "0.5.9"
+itertools = "0.7"
 
 [dependencies.edn]
   path = "../edn"

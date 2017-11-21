@@ -29,7 +29,7 @@ use bootstrap;
 
 use edn::{
     DateTime,
-    UTC,
+    Utc,
     Uuid,
     Value,
 };
@@ -358,7 +358,7 @@ impl TypedSQLValue for TypedValue {
             (1, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Boolean(0 != x)),
 
             // Negative integers are simply times before 1970.
-            (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<UTC>::from_micros(x))),
+            (4, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Instant(DateTime::<Utc>::from_micros(x))),
 
             // SQLite distinguishes integral from decimal types, allowing long and double to
             // share a tag.
@@ -1076,7 +1076,7 @@ impl PartitionMapping for PartitionMap {
     /// Allocate `n` fresh entids in the given `partition`.
     fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S> {
         match self.get_mut(partition) {
-            Some(mut partition) => {
+            Some(partition) => {
                 let idx = partition.index;
                 partition.index += n as i64;
                 idx..partition.index

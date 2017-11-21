@@ -83,7 +83,7 @@ use mentat_core::util::Either;
 use mentat_core::{
     DateTime,
     Schema,
-    UTC,
+    Utc,
     attribute,
     intern_set,
 };
@@ -139,7 +139,7 @@ pub struct Tx<'conn, 'a> {
     tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
-    tx_instant: DateTime<UTC>,
+    tx_instant: DateTime<Utc>,
 }
 
 impl<'conn, 'a> Tx<'conn, 'a> {
@@ -149,7 +149,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         schema_for_mutation: &'a Schema,
         schema: &'a Schema,
         tx_id: Entid,
-        tx_instant: DateTime<UTC>) -> Tx<'conn, 'a> {
+        tx_instant: DateTime<Utc>) -> Tx<'conn, 'a> {
         Tx {
             store: store,
             partition_map: partition_map,
@@ -590,16 +590,16 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
-        /// Assertions that are :db.cardinality/one and not :db.fulltext.
+        // Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
 
-        /// Assertions that are :db.cardinality/many and not :db.fulltext.
+        // Assertions that are :db.cardinality/many and not :db.fulltext.
         let mut non_fts_many: Vec<db::ReducedEntity> = vec![];
 
-        /// Assertions that are :db.cardinality/one and :db.fulltext.
+        // Assertions that are :db.cardinality/one and :db.fulltext.
         let mut fts_one: Vec<db::ReducedEntity> = vec![];
 
-        /// Assertions that are :db.cardinality/many and :db.fulltext.
+        // Assertions that are :db.cardinality/many and :db.fulltext.
         let mut fts_many: Vec<db::ReducedEntity> = vec![];
 
         // We need to ensure that callers can't blindly transact entities that haven't been

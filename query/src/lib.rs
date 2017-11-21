@@ -46,7 +46,7 @@ use edn::{
     DateTime,
     OrderedFloat,
     Uuid,
-    UTC,
+    Utc,
 };
 
 pub use edn::{
@@ -193,7 +193,7 @@ pub enum NonIntegerConstant {
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
     Text(Rc<String>),
-    Instant(DateTime<UTC>),
+    Instant(DateTime<Utc>),
     Uuid(Uuid),
 }
 

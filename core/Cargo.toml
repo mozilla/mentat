@@ -5,9 +5,9 @@ workspace = ".."
 
 [dependencies]
 enum-set = { git = "https://github.com/rnewman/enum-set" }
-lazy_static = "0.2.2"
-num = "0.1.35"
-ordered-float = "0.4.0"
+lazy_static = "0.2"
+num = "0.1"
+ordered-float = "0.5"
 
 [dependencies.edn]
 path = "../edn"

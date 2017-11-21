@@ -17,12 +17,12 @@ members = []
 rustc_version = "0.1.7"
 
 [dependencies]
-chrono = "0.3"
-error-chain = "0.8.1"
+chrono = "0.4"
+error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 time = "0.1"
 
 [dependencies.rusqlite]
-version = "0.11"
+version = "0.12"
 # System sqlite might be very old.
 features = ["bundled", "limits"]
 

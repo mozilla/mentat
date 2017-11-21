@@ -11,10 +11,10 @@ build = "build.rs"
 readme = "./README.md"
 
 [dependencies]
-chrono = "0.3"
-itertools = "0.5"
+chrono = "0.4"
+itertools = "0.7"
 num = "0.1"
-ordered-float = "0.4"
+ordered-float = "0.5"
 pretty = "0.2"
 uuid = "0.5"
 

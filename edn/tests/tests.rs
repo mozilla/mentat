@@ -31,7 +31,7 @@ use edn::types::{
 };
 use chrono::{
     TimeZone,
-    UTC,
+    Utc,
 };
 use edn::symbols;
 use edn::utils;
@@ -425,10 +425,10 @@ fn test_value() {
     assert_eq!(value("{1 2}").unwrap(), Map(BTreeMap::from_iter(vec![(Integer(1), Integer(2))])));
     assert_eq!(value("#uuid \"e43c6f3e-3123-49b7-8098-9b47a7bc0fa4\"").unwrap(),
                Uuid(uuid::Uuid::parse_str("e43c6f3e-3123-49b7-8098-9b47a7bc0fa4").unwrap()));
-    assert_eq!(value("#instmillis 1493410985187").unwrap(), Instant(UTC.timestamp(1493410985, 187000000)));
-    assert_eq!(value("#instmicros 1493410985187123").unwrap(), Instant(UTC.timestamp(1493410985, 187123000)));
+    assert_eq!(value("#instmillis 1493410985187").unwrap(), Instant(Utc.timestamp(1493410985, 187000000)));
+    assert_eq!(value("#instmicros 1493410985187123").unwrap(), Instant(Utc.timestamp(1493410985, 187123000)));
     assert_eq!(value("#inst \"2017-04-28T20:23:05.187Z\"").unwrap(),
-               Instant(UTC.timestamp(1493410985, 187000000)));
+               Instant(Utc.timestamp(1493410985, 187000000)));
 }
 
 #[test]
