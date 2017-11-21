@@ -11,8 +11,6 @@
 use std::collections::HashMap;  
 use std::process;
 
-use error_chain::ChainedError;
-
 use mentat::query::QueryResults;
 use mentat_core::TypedValue;
 
@@ -135,7 +133,7 @@ impl Repl {
         let old_db_name = self.store.db_name.clone();
         match self.store.close() {
             Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-            Err(e) => println!("{}", e.display())
+            Err(e) => println!("{}", e)
         };
     }
 
