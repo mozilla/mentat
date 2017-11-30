@@ -294,6 +294,7 @@ mod testing {
     use mentat_core::attribute::Unique;
     use mentat_core::{
         Attribute,
+        ValueTypeSet,
     };
 
     use mentat_query::{
@@ -320,7 +321,6 @@ mod testing {
         QualifiedAlias,
         QueryValue,
         SourceAlias,
-        ValueTypeSet,
     };
 
     use algebrize;

@@ -12,6 +12,7 @@ use mentat_core::{
     Schema,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query::{
@@ -39,7 +40,6 @@ use types::{
     ComputedTable,
     EmptyBecause,
     SourceAlias,
-    ValueTypeSet,
     VariableColumn,
 };
 
@@ -333,10 +333,6 @@ mod testing {
     use clauses::{
         add_attribute,
         associate_ident,
-    };
-
-    use types::{
-        ValueTypeSet,
     };
 
     #[test]

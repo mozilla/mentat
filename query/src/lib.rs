@@ -126,23 +126,23 @@ impl fmt::Debug for Variable {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PredicateFn(pub PlainSymbol);
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct QueryFunction(pub PlainSymbol);
 
-impl FromValue<PredicateFn> for PredicateFn {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<PredicateFn> {
+impl FromValue<QueryFunction> for QueryFunction {
+    fn from_value(v: &edn::ValueAndSpan) -> Option<QueryFunction> {
         if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
-            PredicateFn::from_symbol(s)
+            QueryFunction::from_symbol(s)
         } else {
             None
         }
     }
 }
 
-impl PredicateFn {
-    pub fn from_symbol(sym: &PlainSymbol) -> Option<PredicateFn> {
+impl QueryFunction {
+    pub fn from_symbol(sym: &PlainSymbol) -> Option<QueryFunction> {
         // TODO: validate the acceptable set of function names.
-        Some(PredicateFn(sym.clone()))
+        Some(QueryFunction(sym.clone()))
     }
 }
 
@@ -435,7 +435,7 @@ pub struct Aggregate {
 }
 */
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
     // Aggregate(Aggregate),   // TODO
@@ -480,7 +480,7 @@ pub enum Limit {
 /// # }
 /// ```
 ///
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum FindSpec {
     /// Returns an array of arrays.
     FindRel(Vec<Element>),
@@ -775,7 +775,7 @@ pub enum WhereClause {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct FindQuery {
     pub find_spec: FindSpec,
     pub default_source: SrcVar,

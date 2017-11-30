@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate enum_set;
-
 #[macro_use]
 extern crate error_chain;
 
@@ -58,7 +56,6 @@ pub use clauses::{
 
 pub use types::{
     EmptyBecause,
-    ValueTypeSet,
 };
 
 #[derive(Debug)]
@@ -81,7 +78,7 @@ impl AlgebraicQuery {
     /// Return a set of the input variables mentioned in the `:in` clause that have not yet been
     /// bound. We do this by looking at the CC.
     pub fn unbound_variables(&self) -> BTreeSet<Variable> {
-        self.cc.input_variables.sub(&self.cc.value_bound_variables())
+        self.cc.input_variables.sub(&self.cc.value_bound_variable_set())
     }
 }
 
