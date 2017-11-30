@@ -15,7 +15,9 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_query::Limit;
+use mentat_query::{
+    Limit,
+};
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
@@ -47,6 +49,7 @@ use mentat_query_sql::{
     ColumnOrExpression,
     Constraint,
     FromClause,
+    GroupBy,
     Op,
     ProjectedColumn,
     Projection,
@@ -214,7 +217,8 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // project it as the variable name.
                         // E.g., SELECT datoms03.v AS `?x`.
                         for var in projection.iter() {
-                            let (projected_column, maybe_type) = projected_column_for_var(var, &cc);
+                            // TODO: chain results out.
+                            let (projected_column, type_set) = projected_column_for_var(var, &cc).expect("every var to be bound");
                             columns.push(projected_column);
 
                             // Similarly, project type tags if they're not known conclusively in the
@@ -222,10 +226,10 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                             // Assumption: we'll never need to project a tag without projecting the value of a variable.
                             if type_extraction.contains(var) {
                                 let expression =
-                                    if let Some(ty) = maybe_type {
+                                    if let Some(tag) = type_set.unique_type_tag() {
                                         // If we know the type for sure, just project the constant.
                                         // SELECT datoms03.v AS `?x`, 10 AS `?x_value_type_tag`
-                                        ColumnOrExpression::Integer(ty.value_type_tag())
+                                        ColumnOrExpression::Integer(tag)
                                     } else {
                                         // Otherwise, we'll have an established type binding! This'll be
                                         // either a datoms table or, recursively, a subquery. Project
@@ -246,7 +250,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // Each arm simply turns into a subquery.
                         // The SQL translation will stuff "UNION" between each arm.
                         let projection = Projection::Columns(columns);
-                        cc_to_select_query(projection, cc, false, None, Limit::None)
+                        cc_to_select_query(projection, cc, false, vec![], None, Limit::None)
                   }).collect(),
                 alias)
         },
@@ -268,6 +272,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
 fn cc_to_select_query(projection: Projection,
                       cc: ConjoiningClauses,
                       distinct: bool,
+                      group_by: Vec<GroupBy>,
                       order: Option<Vec<OrderBy>>,
                       limit: Limit) -> SelectQuery {
     let from = if cc.from.is_empty() {
@@ -303,6 +308,7 @@ fn cc_to_select_query(projection: Projection,
         distinct: distinct,
         projection: projection,
         from: from,
+        group_by: group_by,
         constraints: cc.wheres
                        .into_iter()
                        .map(|c| c.to_constraint())
@@ -321,12 +327,13 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
             distinct: false,
             projection: Projection::One,
             from: FromClause::Nothing,
+            group_by: vec![],
             constraints: vec![],
             order: vec![],
             limit: Limit::None,
         }
     } else {
-        cc_to_select_query(Projection::One, cc, false, None, Limit::None)
+        cc_to_select_query(Projection::One, cc, false, vec![], None, Limit::None)
     }
 }
 
@@ -335,9 +342,9 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
 pub fn query_to_select(query: AlgebraicQuery) -> Result<ProjectedSelect> {
     // TODO: we can't pass `query.limit` here if we aggregate during projection.
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
-    let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query)?;
+    let CombinedProjection { sql_projection, datalog_projector, distinct, group_by_cols } = query_projection(&query)?;
     Ok(ProjectedSelect {
-        query: cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit),
+        query: cc_to_select_query(sql_projection, query.cc, distinct, group_by_cols, query.order, query.limit),
         projector: datalog_projector,
     })
 }

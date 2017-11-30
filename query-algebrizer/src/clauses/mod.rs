@@ -264,6 +264,18 @@ impl Default for ConjoiningClauses {
     }
 }
 
+pub struct VariableIterator<'a>(
+    ::std::collections::btree_map::Keys<'a, Variable, TypedValue>,
+);
+
+impl<'a> Iterator for VariableIterator<'a> {
+    type Item = &'a Variable;
+
+    fn next(&mut self) -> Option<&'a Variable> {
+        self.0.next()
+    }
+}
+
 impl ConjoiningClauses {
     /// Construct a new `ConjoiningClauses` with the provided alias counter. This allows a caller
     /// to share a counter with an enclosing scope, and to start counting at a particular offset
@@ -370,13 +382,13 @@ impl ConjoiningClauses {
     }
 
     /// Return an interator over the variables externally bound to values.
-    pub fn value_bound_variables(&self) -> ::std::collections::btree_map::Keys<Variable, TypedValue> {
-        self.value_bindings.keys()
+    pub fn value_bound_variables(&self) -> VariableIterator {
+        VariableIterator(self.value_bindings.keys())
     }
 
     /// Return a set of the variables externally bound to values.
     pub fn value_bound_variable_set(&self) -> BTreeSet<Variable> {
-        self.value_bindings.keys().cloned().collect()
+        self.value_bound_variables().cloned().collect()
     }
 
     /// Return a single `ValueType` if the given variable is known to have a precise type.

@@ -84,6 +84,7 @@ pub fn q_once<'sqlite, 'schema, 'query, T>
     let select = query_to_select(algebrized)?;
     let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
+println!("SQL: {:?}", sql);
     let mut statement = sqlite.prepare(sql.as_str())?;
 
     let rows = if args.is_empty() {
