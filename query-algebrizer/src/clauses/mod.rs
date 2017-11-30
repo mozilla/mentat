@@ -48,6 +48,7 @@ use errors::{
 
 use types::{
     ColumnConstraint,
+    ColumnConstraintOrAlternation,
     ColumnIntersection,
     ComputedTable,
     Column,
@@ -297,7 +298,7 @@ impl ConjoiningClauses {
                     value_bindings: values,
                     ..Default::default()
                 };
-
+                
                 // Pre-fill our type mappings with the types of the input bindings.
                 cc.known_types
                   .extend(types.iter()
@@ -836,26 +837,24 @@ impl ConjoiningClauses {
     }
 
 
-    /// When a CC has accumulated all patterns, generate value_type_tag entries in `wheres`
-    /// to refine value types for which two things are true:
-    ///
-    /// - There are two or more different types with the same SQLite representation. E.g.,
-    ///   ValueType::Boolean shares a representation with Integer and Ref.
-    /// - There is no attribute constraint present in the CC.
-    ///
-    /// It's possible at this point for the space of acceptable type tags to not intersect: e.g.,
-    /// for the query
-    ///
-    /// ```edn
-    /// [:find ?x :where
-    ///  [?x ?y true]
-    ///  [?z ?y ?x]]
-    /// ```
-    ///
-    /// where `?y` must simultaneously be a ref-typed attribute and a boolean-typed attribute. This
-    /// function deduces that and calls `self.mark_known_empty`. #293.
+    /// For each bound var. discover which ones have 
     pub fn expand_type_tags(&mut self) {
-        // TODO.
+        let mut vars_to_remove = Vec::new();
+        for (v, tag) in self.extracted_types.iter() {
+            if let Some(cols) = self.column_bindings.get(&v) {
+                for col in cols {
+                    if col.0 != tag.0 {
+                        let value = QueryValue::Column(QualifiedAlias(col.0.clone(), Column::Fixed(DatomsColumn::ValueTypeTag)));
+                        self.wheres.0.push(ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(tag.clone(), value)));
+                        vars_to_remove.push(v.clone());
+                    }
+                }
+            }
+        }
+
+        for v in vars_to_remove {
+            self.extracted_types.remove(&v);
+        }
     }
 }
 
@@ -918,7 +917,57 @@ pub fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
 
 #[cfg(test)]
 mod tests {
+    extern crate mentat_query_parser;
+
     use super::*;
+    
+    use self::mentat_query_parser::parse_find_string;
+    use algebrize;
+
+    fn prepopulated_schema() -> Schema {
+        let mut schema = Schema::default();
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "name"), 65);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "knows"), 66);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "parent"), 67);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "age"), 68);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "height"), 69);
+        add_attribute(&mut schema,
+                      65,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      66,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      67,
+                      Attribute {
+                          value_type: ValueType::String,
+                          multival: true,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      68,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        add_attribute(&mut schema,
+                      69,
+                      Attribute {
+                          value_type: ValueType::Long,
+                          multival: false,
+                          ..Default::default()
+                      });
+        schema
+    }
 
     // Our alias counter is shared between CCs.
     #[test]
@@ -932,4 +981,40 @@ mod tests {
         assert!(alias_zero != alias_one);
         assert!(alias_one != alias_two);
     }
+
+    #[test]
+    fn test_expand_type_tags_constrain_value_types() {
+        let schema = prepopulated_schema();
+        let query = r#"
+                [:find ?x
+                 :where [?x :foo/name]
+                        [?x _ ?y]
+                        [?a _ ?y]]"#;
+        let parsed = parse_find_string(query).expect("parse failed");
+        let cc = algebrize(&schema, parsed).expect("Expected a valid query").cc;
+
+        let d0 = "datoms00".to_string();
+        let d0e = QualifiedAlias::new(d0.clone(), DatomsColumn::Entity);
+        let d0a = QualifiedAlias::new(d0.clone(), DatomsColumn::Attribute);
+
+        let d1 = "all_datoms01".to_string();
+        let d1e = QualifiedAlias::new(d1.clone(), DatomsColumn::Entity);
+        let d1v = QualifiedAlias::new(d1.clone(), DatomsColumn::Value);
+        let d1t = QualifiedAlias::new(d1.clone(), DatomsColumn::ValueTypeTag);
+
+        let d2 = "all_datoms02".to_string();
+        let d2v = QualifiedAlias::new(d2.clone(), DatomsColumn::Value);
+        let d2t = QualifiedAlias::new(d2.clone(), DatomsColumn::ValueTypeTag);
+
+        let name = QueryValue::Entid(65);
+
+        assert!(!cc.is_known_empty());
+        assert_eq!(cc.wheres, ColumnIntersection(vec![
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0a.clone(), name)),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d0e.clone(), QueryValue::Column(d1e.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1v.clone(), QueryValue::Column(d2v.clone()))),
+                ColumnConstraintOrAlternation::Constraint(ColumnConstraint::Equals(d1t.clone(), QueryValue::Column(d2t.clone()))),
+            ]));
+    }
+
 }

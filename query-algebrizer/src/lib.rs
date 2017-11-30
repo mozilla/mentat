@@ -188,6 +188,7 @@ pub fn algebrize_with_inputs(schema: &Schema,
     }
     cc.expand_column_bindings();
     cc.prune_extracted_types();
+    cc.expand_type_tags();
 
     let (order, extra_vars) = validate_and_simplify_order(&cc, parsed.order)?;
     let with: BTreeSet<Variable> = parsed.with.into_iter().chain(extra_vars.into_iter()).collect();
