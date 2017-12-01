@@ -253,7 +253,10 @@ mod tests {
     use super::*;
 
     extern crate mentat_parser_utils;
-    use mentat_core::Entid;
+    use mentat_core::{
+        Entid,
+        TypedValue,
+    };
 
     #[test]
     fn test_transact_does_not_collide_existing_entids() {
@@ -322,12 +325,44 @@ mod tests {
         let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
         let in_progress = in_progress.transact(t).expect("transacted successfully");
         let one = in_progress.last_report().unwrap().tempids.get("one").cloned();
+        assert!(one.is_some());
 
         let report = in_progress.transact(t2)
                                 .expect("t2 succeeded")
                                 .commit()
                                 .expect("commit succeeded");
-        let mut three = report.unwrap().tempids.get("three").cloned();
+        let three = report.unwrap().tempids.get("three").cloned();
+        assert!(three.is_some());
+    }
+
+    #[test]
+    fn test_compound_rollback() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        let t = "[[:db/add \"one\" :db/ident :a/keyword1] \
+                  [:db/add \"two\" :db/ident :a/keyword2]]";
+
+        // Scoped borrow of `sqlite`.
+        {
+            let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+            let in_progress = in_progress.transact(t).expect("transacted successfully");
+            let one = in_progress.last_report().unwrap().tempids.get("one").expect("found it").clone();
+            let one_val = TypedValue::Ref(one);
+
+            // Inside the InProgress we can see our changes.
+            let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
+                                    .expect("query succeeded");
+
+            assert_eq!(during, QueryResults::Scalar(Some(one_val)));
+
+            in_progress.rollback()
+                       .expect("rollback succeeded");
+        }
+
+        let after = conn.q_once(&mut sqlite, "[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
+                        .expect("query succeeded");
+        assert_eq!(after, QueryResults::Scalar(None));
     }
 
     #[test]
