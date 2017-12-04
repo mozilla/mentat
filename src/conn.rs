@@ -258,6 +258,8 @@ mod tests {
         TypedValue,
     };
 
+    use mentat_db::USER0;
+
     #[test]
     fn test_transact_does_not_collide_existing_entids() {
         let mut sqlite = db::new_connection("").unwrap();
@@ -312,33 +314,62 @@ mod tests {
         assert_eq!(report.tempids["temp"], next);
     }
 
+    /// Return the entid that will be allocated to the next transacted tempid.
+    fn get_next_entid(conn: &Conn) -> i64 {
+        let partition_map = &conn.metadata.lock().unwrap().partition_map;
+        partition_map.get(":db.part/user").unwrap().index
+    }
+
     #[test]
     fn test_compound_transact() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        let tempid_offset = get_next_entid(&conn);
+
         let t = "[[:db/add \"one\" :db/ident :a/keyword1] \
                   [:db/add \"two\" :db/ident :a/keyword2]]";
 
         // This can refer to `t`, 'cos they occur in separate txes.
         let t2 = "[{:db.schema/attribute \"three\", :db/ident :a/keyword1}]";
 
-        let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-        let in_progress = in_progress.transact(t).expect("transacted successfully");
-        let one = in_progress.last_report().unwrap().tempids.get("one").cloned();
-        assert!(one.is_some());
+        // Scoped borrow of `conn`.
+        {
+            let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+            let in_progress = in_progress.transact(t).expect("transacted successfully");
+            let one = in_progress.last_report().unwrap().tempids.get("one").expect("found one").clone();
+            let two = in_progress.last_report().unwrap().tempids.get("two").expect("found two").clone();
+            assert!(one != two);
+            assert!(one == tempid_offset || one == tempid_offset + 1);
+            assert!(two == tempid_offset || two == tempid_offset + 1);
 
-        let report = in_progress.transact(t2)
-                                .expect("t2 succeeded")
-                                .commit()
-                                .expect("commit succeeded");
-        let three = report.unwrap().tempids.get("three").cloned();
-        assert!(three.is_some());
+            let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
+                                    .expect("query succeeded");
+            assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
+
+            let report = in_progress.transact(t2)
+                                    .expect("t2 succeeded")
+                                    .commit()
+                                    .expect("commit succeeded");
+            let three = report.unwrap().tempids.get("three").expect("found three").clone();
+            assert!(one != three);
+            assert!(two != three);
+        }
+
+        // The DB part table changed.
+        let tempid_offset_after = get_next_entid(&conn);
+        assert_eq!(tempid_offset + 3, tempid_offset_after);
     }
 
     #[test]
     fn test_compound_rollback() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        let tempid_offset = get_next_entid(&conn);
+
+        // Nothing in the store => USER0 should be our starting point.
+        assert_eq!(tempid_offset, USER0);
 
         let t = "[[:db/add \"one\" :db/ident :a/keyword1] \
                   [:db/add \"two\" :db/ident :a/keyword2]]";
@@ -347,14 +378,20 @@ mod tests {
         {
             let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
             let in_progress = in_progress.transact(t).expect("transacted successfully");
+
             let one = in_progress.last_report().unwrap().tempids.get("one").expect("found it").clone();
-            let one_val = TypedValue::Ref(one);
+            let two = in_progress.last_report().unwrap().tempids.get("two").expect("found it").clone();
+
+            // The IDs are contiguous, starting at the previous part index.
+            assert!(one != two);
+            assert!(one == tempid_offset || one == tempid_offset + 1);
+            assert!(two == tempid_offset || two == tempid_offset + 1);
 
             // Inside the InProgress we can see our changes.
             let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                                     .expect("query succeeded");
 
-            assert_eq!(during, QueryResults::Scalar(Some(one_val)));
+            assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
 
             in_progress.rollback()
                        .expect("rollback succeeded");
@@ -363,6 +400,10 @@ mod tests {
         let after = conn.q_once(&mut sqlite, "[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                         .expect("query succeeded");
         assert_eq!(after, QueryResults::Scalar(None));
+
+        // The DB part table is unchanged.
+        let tempid_offset_after = get_next_entid(&conn);
+        assert_eq!(tempid_offset, tempid_offset_after);
     }
 
     #[test]
