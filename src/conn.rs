@@ -93,7 +93,7 @@ pub struct InProgress<'a, 'c> {
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
-    last_report: Option<TxReport>,
+    last_report: Option<TxReport>,   // For now we track only the last, but we could accumulate all.
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
@@ -233,7 +233,10 @@ impl Conn {
     pub fn transact(&mut self,
                     sqlite: &mut rusqlite::Connection,
                     transaction: &str) -> Result<TxReport> {
-        // Parse outside the SQL transaction. This is a choice…
+        // Parse outside the SQL transaction. This is a tradeoff: we are limiting the scope of the
+        // transaction, and indeed we don't even create a SQL transaction if the provided input is
+        // invalid, but it means SQLite errors won't be found until the parse is complete, and if
+        // there's a race for the database (don't do that!) we are less likely to win it.
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
