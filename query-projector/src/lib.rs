@@ -27,11 +27,9 @@ use rusqlite::{
 
 use mentat_core::{
     SQLValueType,
-    SQLValueTypeSet,
     TypedValue,
     ValueType,
     ValueTypeTag,
-    ValueTypeSet,
 };
 
 use mentat_db::{

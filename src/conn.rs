@@ -254,7 +254,6 @@ mod tests {
 
     extern crate mentat_parser_utils;
     use mentat_core::{
-        Entid,
         TypedValue,
     };
 
