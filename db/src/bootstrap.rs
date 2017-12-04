@@ -32,6 +32,9 @@ use types::{Partition, PartitionMap};
 /// This is the start of the :db.part/tx partition.
 pub const TX0: i64 = 0x10000000;
 
+/// This is the start of the :db.part/user partition.
+pub const USER0: i64 = 0x10000;
+
 lazy_static! {
     static ref V1_IDENTS: Vec<(symbols::NamespacedKeyword, i64)> = {
         vec![(ns_keyword!("db", "ident"),             entids::DB_IDENT),
@@ -78,7 +81,7 @@ lazy_static! {
 
     static ref V1_PARTS: Vec<(symbols::NamespacedKeyword, i64, i64)> = {
         vec![(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
-             (ns_keyword!("db.part", "user"), 0x10000, 0x10000),
+             (ns_keyword!("db.part", "user"), USER0, USER0),
              (ns_keyword!("db.part", "tx"), TX0, TX0),
         ]
     };
