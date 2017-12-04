@@ -10,7 +10,6 @@
 
 #![allow(dead_code)]
 
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use rusqlite;
@@ -94,7 +93,7 @@ pub struct InProgress<'a, 'c> {
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
-    last_report: Option<Rc<TxReport>>,
+    last_report: Option<TxReport>,
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
@@ -104,7 +103,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
         if let Some(schema) = next_schema {
             self.schema = schema;
         }
-        self.last_report = Some(Rc::new(report));
+        self.last_report = Some(report);
         Ok(self)
     }
 
@@ -127,8 +126,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
         self.transact_entities(entities)
     }
 
-    pub fn last_report(&self) -> Option<Rc<TxReport>> {
-        self.last_report.clone()
+    pub fn last_report(&self) -> Option<&TxReport> {
+        self.last_report.as_ref()
     }
 
     pub fn rollback(mut self) -> Result<()> {
@@ -136,7 +135,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
         self.transaction.rollback().map_err(|e| e.into())
     }
 
-    pub fn commit(self) -> Result<Option<Rc<TxReport>>> {
+    pub fn commit(self) -> Result<Option<TxReport>> {
         // The mutex is taken during this entire method.
         let mut metadata = self.mutex.lock().unwrap();
 
@@ -243,8 +242,7 @@ impl Conn {
                          .commit()?
                          .expect("we always get a report");
 
-        // Our Rc never leaked, so this unwrap should always succeed.
-        Ok(Rc::try_unwrap(report).expect("solo Rc"))
+        Ok(report)
     }
 }
 
