@@ -5,6 +5,7 @@ authors = [
   "Victor Porof <vporof@mozilla.com>",
   "Jordan Santell <jsantell@mozilla.com>",
   "Joe Walker <jwalker@mozilla.com>",
+  "Emily Toop <etoop@mozilla.com>",
 ]
 name = "mentat"
 version = "0.4.0"
