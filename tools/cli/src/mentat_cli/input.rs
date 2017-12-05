@@ -17,7 +17,7 @@ use self::InputResult::*;
 
 use command_parser::{
     Command, 
-    command
+    command,
 };
 
 use errors as cli;
@@ -55,8 +55,8 @@ impl InputReader {
             Ok(mut r) => {
                 r.set_word_break_chars(" \t\n!\"#$%&'()*+,-./:;<=>?@[\\]^`");
                 Some(r)
-            }
-            Err(_) => None
+            },
+            Err(_) => None,
         };
 
         InputReader{
@@ -89,37 +89,46 @@ impl InputReader {
 
         self.add_history(&line);
 
-        // if we have a command in process (i.e. in incomplete query or transaction),
+        // if we have a command in process (i.e. an incomplete query or transaction),
         // then we already know which type of command it is and so we don't need to parse the
         // command again, only the content, which we do later.
         // Therefore, we add the newly read in line to the existing command args.
         // If there is no in process command, we parse the read in line as a new command.
         let cmd = match &self.in_process_cmd {
             &Some(Command::Query(ref args)) => {
-                Command::Query(args.clone() + " " + &line)
+                Ok(Command::Query(args.clone() + " " + &line))
             },
             &Some(Command::Transact(ref args)) => {
-                Command::Transact(args.clone() + " " + &line)
+                Ok(Command::Transact(args.clone() + " " + &line))
             },
             _ => {
-                try!(command(&self.buffer))
-            }
+                command(&self.buffer)
+            },
         };
 
         match cmd {
-            Command::Query(_) |
-            Command::Transact(_) if !cmd.is_complete() => {
-                // a query or transact is complete if it contains a valid edn.
-                // if the command is not complete, ask for more from the repl and remember
-                // which type of command we've found here.
-                self.in_process_cmd = Some(cmd);
-                Ok(More)
+            Ok(cmd) => {
+                match cmd {
+                    Command::Query(_) |
+                    Command::Transact(_) if !cmd.is_complete() => {
+                        // A query or transact is complete if it contains a valid EDN.
+                        // if the command is not complete, ask for more from the REPL and remember
+                        // which type of command we've found here.
+                        self.in_process_cmd = Some(cmd);
+                        Ok(More)
+                    },
+                    _ => {
+                        self.buffer.clear();
+                        self.in_process_cmd = None;
+                        Ok(InputResult::MetaCommand(cmd))
+                    }
+                }
             },
-            _ => {
+            Err(e) => {
                 self.buffer.clear();
                 self.in_process_cmd = None;
-                Ok(InputResult::MetaCommand(cmd))
-            }
+                Err(e)
+            },
         }
     }
 
@@ -146,12 +155,5 @@ impl InputReader {
         if let Some(ref mut r) = self.reader {
             r.add_history(line.to_owned());
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
     }
 }
