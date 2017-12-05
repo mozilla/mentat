@@ -96,16 +96,23 @@ impl InputReader {
         // If there is no in process command, we parse the read in line as a new command.
         let cmd = match &self.in_process_cmd {
             &Some(Command::Query(ref args)) => {
-                Command::Query(args.clone() + " " + &line)
+                Ok(Command::Query(args.clone() + " " + &line))
             },
             &Some(Command::Transact(ref args)) => {
-                Command::Transact(args.clone() + " " + &line)
+                Ok(Command::Transact(args.clone() + " " + &line))
             },
             _ => {
-                try!(command(&self.buffer))
+                let res = command(&self.buffer);
+                res
             }
         };
 
+        if cmd.is_err() {
+            self.buffer.clear();
+            self.in_process_cmd = None;
+            return Err(cmd.err().unwrap());
+        }
+        let cmd = cmd.ok().unwrap();
         match cmd {
             Command::Query(_) |
             Command::Transact(_) if !cmd.is_complete() => {
