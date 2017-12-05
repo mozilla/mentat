@@ -700,7 +700,7 @@ pub fn transact<'conn, 'a, I>(
     let tx_instant = ::now(); // Label the transaction with the timestamp when we first see it: leading edge.
     let tx_id = partition_map.allocate_entid(":db.part/tx");
 
-    conn.begin_transaction()?;
+    conn.begin_tx_application()?;
 
     let mut tx = Tx::new(conn, partition_map, schema_for_mutation, schema, tx_id, tx_instant);
 

@@ -48,6 +48,13 @@ mod internal_types;
 mod upsert_resolution;
 mod tx;
 
+// Export these for reference from tests. cfg(test) should work, but doesn't.
+// #[cfg(test)]
+pub use bootstrap::{
+    TX0,
+    USER0,
+};
+
 pub use db::{
     TypedSQLValue,
     new_connection,

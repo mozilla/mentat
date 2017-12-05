@@ -21,8 +21,9 @@ use std::rc::Rc;
 use itertools;
 use itertools::Itertools;
 use rusqlite;
-use rusqlite::types::{ToSql, ToSqlOutput};
+use rusqlite::TransactionBehavior;
 use rusqlite::limits::Limit;
+use rusqlite::types::{ToSql, ToSqlOutput};
 
 use ::{repeat_values, to_namespaced_keyword};
 use bootstrap;
@@ -208,7 +209,7 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
 
 // TODO: rename "SQL" functions to align with "datoms" functions.
 pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
-    let tx = conn.transaction()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Exclusive)?;
 
     for statement in (&V1_STATEMENTS).iter() {
         tx.execute(statement, &[])?;
@@ -518,7 +519,7 @@ pub trait MentatStoring {
     ///
     /// Use this to create temporary tables, prepare indices, set pragmas, etc, before the initial
     /// `insert_non_fts_searches` invocation.
-    fn begin_transaction(&self) -> Result<()>;
+    fn begin_tx_application(&self) -> Result<()>;
 
     // TODO: this is not a reasonable abstraction, but I don't want to really consider non-SQL storage just yet.
     fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
@@ -710,7 +711,7 @@ impl MentatStoring for rusqlite::Connection {
     }
 
     /// Create empty temporary tables for search parameters and search results.
-    fn begin_transaction(&self) -> Result<()> {
+    fn begin_tx_application(&self) -> Result<()> {
         // We can't do this in one shot, since we can't prepare a batch statement.
         let statements = [
             r#"DROP TABLE IF EXISTS temp.exact_searches"#,
@@ -1163,7 +1164,8 @@ mod tests {
 
             let details = {
                 // The block scopes the borrow of self.sqlite.
-                let tx = self.sqlite.transaction()?;
+                // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
+                let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
                 // Applying the transaction can fail, so we don't unwrap.
                 let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, entities)?;
                 tx.commit()?;

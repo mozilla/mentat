@@ -27,11 +27,9 @@ use rusqlite::{
 
 use mentat_core::{
     SQLValueType,
-    SQLValueTypeSet,
     TypedValue,
     ValueType,
     ValueTypeTag,
-    ValueTypeSet,
 };
 
 use mentat_db::{
@@ -73,7 +71,7 @@ error_chain! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum QueryResults {
     Scalar(Option<TypedValue>),
     Tuple(Option<Vec<TypedValue>>),

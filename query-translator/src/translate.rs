@@ -10,7 +10,6 @@
 
 use mentat_core::{
     SQLValueType,
-    SQLValueTypeSet,
     TypedValue,
     ValueType,
 };
