@@ -23,9 +23,8 @@ extern crate mentat_db;
 extern crate rusqlite;
 extern crate uuid;
 
-use uuid::Uuid;
-
 pub mod schema;
+pub mod metadata;
 
 error_chain! {
     types {
@@ -41,82 +40,3 @@ error_chain! {
 }
 
 pub type TolstoyResult = Result<()>;
-
-trait SyncMetadataClient {
-    fn new(conn: rusqlite::Connection)-> Self;
-    fn get_remote_head(&self) -> Result<uuid::Uuid>;
-    fn set_remote_head(&mut self, uuid: uuid::Uuid) -> TolstoyResult;
-}
-
-struct SyncMetadataClientImpl {
-    conn: rusqlite::Connection
-}
-
-impl SyncMetadataClient for SyncMetadataClientImpl {
-    fn new(conn: rusqlite::Connection) -> Self {
-        SyncMetadataClientImpl {
-            conn: conn
-        }
-    }
-    fn get_remote_head(&self) -> Result<uuid::Uuid> {
-        let uuid_query_res = self.conn.query_row(
-            "SELECT value FROM tolstoy_metadata WHERE key = ?",
-            &[&schema::REMOTE_HEAD_KEY], |r| {
-                let raw_uuid: Vec<u8> = r.get(0);
-                match Uuid::from_bytes(raw_uuid.as_slice()) {
-                    Ok(uuid) => uuid,
-                    Err(e) => panic!("Couldn't parse UUID: {}", e)
-                }
-            }
-        );
-
-        match uuid_query_res {
-            Ok(uuid) => Ok(uuid),
-            Err(e) => panic!("Could not query for REMOTE_HEAD_KEY: {}", e)
-        }
-    }
-
-    fn set_remote_head(&mut self, uuid: uuid::Uuid) -> TolstoyResult {
-        let tx = self.conn.transaction()?;
-        let uuid_bytes = uuid.as_bytes().to_vec();
-        tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?", &[&uuid_bytes, &schema::REMOTE_HEAD_KEY])?;
-
-        match tx.commit() {
-            Ok(()) => Ok(()),
-            Err(e) => panic!(e)
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_get_remote_head_default() {
-        let conn = schema::tests::setup_conn();
-        let metadata_client: SyncMetadataClientImpl = SyncMetadataClientImpl::new(conn);
-        let head_res = metadata_client.get_remote_head();
-        match head_res {
-            Ok(uuid) => assert_eq!(Uuid::nil(), uuid),
-            Err(e) => panic!("Query error: {}", e)
-        }
-    }
-
-    #[test]
-    fn test_set_and_get_remote_head() {
-        let conn = schema::tests::setup_conn();
-        let uuid = Uuid::new_v4();
-        let mut metadata_client: SyncMetadataClientImpl = SyncMetadataClientImpl::new(conn);
-        match metadata_client.set_remote_head(uuid) {
-            Err(e) => panic!("Error setting remote head: {}", e),
-            _ => ()
-        }
-
-        let head_res = metadata_client.get_remote_head();
-        match head_res {
-            Ok(read_uuid) => assert_eq!(uuid, read_uuid),
-            Err(e) => panic!("Query error: {}", e)
-        }
-    }
-}
