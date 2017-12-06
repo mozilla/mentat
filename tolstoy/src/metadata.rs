@@ -15,7 +15,6 @@ use rusqlite;
 use Result;
 
 trait SyncMetadataClientInterface {
-    fn new(conn: rusqlite::Connection)-> Self;
     fn get_remote_head(&self) -> Result<uuid::Uuid>;
     fn set_remote_head(&mut self, uuid: uuid::Uuid) -> TolstoyResult;
 }
@@ -24,12 +23,15 @@ struct SyncMetadataClient {
     conn: rusqlite::Connection
 }
 
-impl SyncMetadataClientInterface for SyncMetadataClient {
+impl SyncMetadataClient {
     fn new(conn: rusqlite::Connection) -> Self {
         SyncMetadataClient {
             conn: conn
         }
     }
+}
+
+impl SyncMetadataClientInterface for SyncMetadataClient {
     fn get_remote_head(&self) -> Result<uuid::Uuid> {
         let uuid_query_res = self.conn.query_row(
             "SELECT value FROM tolstoy_metadata WHERE key = ?",
