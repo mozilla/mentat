@@ -188,6 +188,50 @@ impl TypedValue {
     }
 }
 
+// We don't do From<i64> or From<Entid> 'cos it's ambiguous.
+
+impl From<bool> for TypedValue {
+    fn from(value: bool) -> TypedValue {
+        TypedValue::Boolean(value)
+    }
+}
+
+impl From<DateTime<Utc>> for TypedValue {
+    fn from(value: DateTime<Utc>) -> TypedValue {
+        TypedValue::Instant(value)
+    }
+}
+
+impl From<Uuid> for TypedValue {
+    fn from(value: Uuid) -> TypedValue {
+        TypedValue::Uuid(value)
+    }
+}
+
+impl From<String> for TypedValue {
+    fn from(value: String) -> TypedValue {
+        TypedValue::String(Rc::new(value))
+    }
+}
+
+impl From<NamespacedKeyword> for TypedValue {
+    fn from(value: NamespacedKeyword) -> TypedValue {
+        TypedValue::Keyword(Rc::new(value))
+    }
+}
+
+impl From<u32> for TypedValue {
+    fn from(value: u32) -> TypedValue {
+        TypedValue::Long(value as i64)
+    }
+}
+
+impl From<i32> for TypedValue {
+    fn from(value: i32) -> TypedValue {
+        TypedValue::Long(value as i64)
+    }
+}
+
 // Put this here rather than in `db` simply because it's widely needed.
 pub trait SQLValueType {
     fn value_type_tag(&self) -> i32;
