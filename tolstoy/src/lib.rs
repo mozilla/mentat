@@ -1,11 +1,18 @@
+// Copyright 2016 Mozilla
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
 #[macro_use]
 extern crate error_chain;
 
 #[macro_use]
 extern crate lazy_static;
-
-#[macro_use]
-extern crate serde_derive;
 
 extern crate hyper;
 extern crate tokio_core;
@@ -14,26 +21,11 @@ extern crate serde;
 extern crate serde_json;
 extern crate mentat_db;
 extern crate rusqlite;
+extern crate uuid;
 
-use std::io::{self, Write};
-use tokio_core::reactor::Core;
-use hyper::Client;
-use hyper::{Method, Request, Body, StatusCode, Error as HyperError};
-use hyper::header::{ContentLength, ContentType};
-use futures::{future, Future, Stream};
+use uuid::Uuid;
 
 pub mod schema;
-
-// static BASE: str = "https://mentat.dev.lcip.org/mentatsync/0.1";
-
-// PUTs
-// static TRANSACTION: str = r#"/{}/transactions/{}"#;
-// static CHUNK: str = r#"/{}/chunks/{}"#;
-
-// GETs
-// get "/{user}/transactions"
-//     "?from={trid}"
-//     "?limit={limit}"
 
 error_chain! {
     types {
@@ -46,101 +38,85 @@ error_chain! {
         HttpError(hyper::Error);
         SqlError(rusqlite::Error);
     }
-
-    errors {
-        // TODO expand into real errors
-        TolstoyError {
-            description("generic error")
-            display("generic error TODO")
-        }
-    }
 }
 
 pub type TolstoyResult = Result<()>;
 
-// general flow for upload
-// - transactions from mentat -> chunks
-// - for chunk in chunks: put_chunk
-// - put_transaction
-// - put_head
-
-// general flow for download
-// - get head - or just get transactions since "last sync"?
-// - 
-
-pub fn synchronize(conn: &mut rusqlite::Connection) -> TolstoyResult {
-    // Ensure our internal tables are in place.
-    schema::ensure_current_version(conn)?;
-
-    // get transactions from the current head.
-
-    Ok(())
+trait SyncMetadataClient {
+    fn new(conn: rusqlite::Connection)-> Self;
+    fn get_remote_head(&self) -> Result<uuid::Uuid>;
+    fn set_remote_head(&mut self, uuid: uuid::Uuid) -> TolstoyResult;
 }
 
-fn put_chunk(user_id: String, chunk_id: String, payload: String) -> TolstoyResult {
-    let uri = format!("https://mentat.dev.lcip.org/mentatsync/0.1/{}/chunks/{}", user_id, chunk_id);
-
-    do_put(uri, payload, StatusCode::Created)
+struct SyncMetadataClientImpl {
+    conn: rusqlite::Connection
 }
 
-#[derive(Serialize)]
-struct SerializedTransaction {
-    parent: String,
-    chunks: Vec<String>
-}
-
-fn put_transaction(user_id: String, transaction_id: String, parent: String, chunks: Vec<String>) -> TolstoyResult {
-    // {"parent": uuid, "chunks": [chunk1, chunk2...]}
-    let transaction = SerializedTransaction {
-        parent: parent,
-        chunks: chunks
-    };
-
-    let uri = format!("https://mentat.dev.lcip.org/mentatsync/0.1/{}/transactions/{}", user_id, transaction_id);
-    let json = serde_json::to_string(&transaction).unwrap();
-
-    do_put(uri, json, StatusCode::Created)
-}
-
-#[derive(Serialize)]
-struct SerializedHead {
-    head: String
-}
-
-fn put_head(user_id: String, transaction_id: String) -> TolstoyResult {
-    // {"head": uuid}
-    let head = SerializedHead {
-        head: transaction_id
-    };
-
-    let uri = format!("https://mentat.dev.lcip.org/mentatsync/0.1/{}/head", user_id);
-    let json = serde_json::to_string(&head).unwrap();
-
-    do_put(uri, json, StatusCode::NoContent)
-}
-
-fn do_put(uri: String, payload: String, expected: StatusCode) -> TolstoyResult {
-    let mut core = Core::new()?;
-    let client = Client::new(&core.handle());
-
-    let uri = uri.parse()?;
-
-    let mut req = Request::new(Method::Put, uri);
-    req.headers_mut().set(ContentType::json());
-    req.headers_mut().set(ContentLength(payload.len() as u64));
-    req.set_body(payload);
-
-    let put = client.request(req).and_then(|res| {
-        let status_code = res.status();
-
-        if status_code != expected {
-            future::err(HyperError::Status)
-        } else {
-            // body will be empty...
-            future::ok(())
+impl SyncMetadataClient for SyncMetadataClientImpl {
+    fn new(conn: rusqlite::Connection) -> Self {
+        SyncMetadataClientImpl {
+            conn: conn
         }
-    });
+    }
+    fn get_remote_head(&self) -> Result<uuid::Uuid> {
+        let uuid_parse_res = self.conn.query_row(
+            "SELECT value FROM tolstoy_metadata WHERE key = ?",
+            &[&schema::REMOTE_HEAD_KEY], |r| {
+                let raw_uuid: Vec<u8> = r.get(0);
+                match Uuid::from_bytes(raw_uuid.as_slice()) {
+                    Ok(uuid) => uuid,
+                    Err(e) => panic!("Couldn't parse UUID: {}", e)
+                }
+            }
+        );
 
-    core.run(put)?;
-    Ok(())
+        match uuid_parse_res {
+            Ok(res) => Ok(res),
+            Err(e) => panic!("Could not parse UUID: {}", e)
+        }
+    }
+
+    fn set_remote_head(&mut self, uuid: uuid::Uuid) -> TolstoyResult {
+        let tx = self.conn.transaction()?;
+        let uuid_bytes = uuid.as_bytes().to_vec();
+        tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?", &[&uuid_bytes, &schema::REMOTE_HEAD_KEY])?;
+
+        match tx.commit() {
+            Ok(()) => Ok(()),
+            Err(e) => panic!(e)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_remote_head_default() {
+        let conn = schema::tests::setup_conn();
+        let metadata_client: SyncMetadataClientImpl = SyncMetadataClientImpl::new(conn);
+        let head_res = metadata_client.get_remote_head();
+        match head_res {
+            Ok(uuid) => assert_eq!(Uuid::nil(), uuid),
+            Err(e) => panic!("Query error: {}", e)
+        }
+    }
+
+    #[test]
+    fn test_set_and_get_remote_head() {
+        let conn = schema::tests::setup_conn();
+        let uuid = Uuid::new_v4();
+        let mut metadata_client: SyncMetadataClientImpl = SyncMetadataClientImpl::new(conn);
+        match metadata_client.set_remote_head(uuid) {
+            Err(e) => panic!("Error setting remote head: {}", e),
+            _ => ()
+        }
+
+        let head_res = metadata_client.get_remote_head();
+        match head_res {
+            Ok(read_uuid) => assert_eq!(uuid, read_uuid),
+            Err(e) => panic!("Query error: {}", e)
+        }
+    }
 }
