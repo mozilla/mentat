@@ -69,6 +69,13 @@ error_chain! {
     links {
         DbError(mentat_db::Error, mentat_db::ErrorKind);
     }
+
+    errors {
+        UnexpectedResultsType(actual: &'static str, expected: &'static str) {
+            description("unexpected query results type")
+            display("expected {}, got {}", expected, actual)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -117,6 +124,42 @@ impl QueryResults {
             &FindTuple(_)  => Box::new(|| QueryResults::Tuple(None)),
             &FindColl(_)   => Box::new(|| QueryResults::Coll(vec![])),
             &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
+        }
+    }
+
+    pub fn into_scalar(self) -> Result<Option<TypedValue>> {
+        match self {
+            QueryResults::Scalar(o) => Ok(o),
+            QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "scalar")),
+            QueryResults::Tuple(_) => bail!(ErrorKind::UnexpectedResultsType("tuple", "scalar")),
+            QueryResults::Rel(_) => bail!(ErrorKind::UnexpectedResultsType("rel", "scalar")),
+        }
+    }
+
+    pub fn into_coll(self) -> Result<Vec<TypedValue>> {
+        match self {
+            QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "coll")),
+            QueryResults::Coll(c) => Ok(c),
+            QueryResults::Tuple(_) => bail!(ErrorKind::UnexpectedResultsType("tuple", "coll")),
+            QueryResults::Rel(_) => bail!(ErrorKind::UnexpectedResultsType("rel", "coll")),
+        }
+    }
+
+    pub fn into_tuple(self) -> Result<Option<Vec<TypedValue>>> {
+        match self {
+            QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "tuple")),
+            QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "tuple")),
+            QueryResults::Tuple(t) => Ok(t),
+            QueryResults::Rel(_) => bail!(ErrorKind::UnexpectedResultsType("rel", "tuple")),
+        }
+    }
+
+    pub fn into_rel(self) -> Result<Vec<Vec<TypedValue>>> {
+        match self {
+            QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "rel")),
+            QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "rel")),
+            QueryResults::Tuple(_) => bail!(ErrorKind::UnexpectedResultsType("tuple", "rel")),
+            QueryResults::Rel(r) => Ok(r),
         }
     }
 }

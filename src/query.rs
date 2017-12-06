@@ -13,6 +13,7 @@ use rusqlite::types::ToSql;
 
 use mentat_core::{
     Schema,
+    TypedValue,
 };
 
 use mentat_query_algebrizer::{
@@ -51,6 +52,31 @@ use errors::{
 };
 
 pub type QueryExecutionResult = Result<QueryResults>;
+
+pub trait IntoResult {
+    fn into_scalar_result(self) -> Result<Option<TypedValue>>;
+    fn into_coll_result(self) -> Result<Vec<TypedValue>>;
+    fn into_tuple_result(self) -> Result<Option<Vec<TypedValue>>>;
+    fn into_rel_result(self) -> Result<Vec<Vec<TypedValue>>>;
+}
+
+impl IntoResult for QueryExecutionResult {
+    fn into_scalar_result(self) -> Result<Option<TypedValue>> {
+        self?.into_scalar().map_err(|e| e.into())
+    }
+
+    fn into_coll_result(self) -> Result<Vec<TypedValue>> {
+        self?.into_coll().map_err(|e| e.into())
+    }
+
+    fn into_tuple_result(self) -> Result<Option<Vec<TypedValue>>> {
+        self?.into_tuple().map_err(|e| e.into())
+    }
+
+    fn into_rel_result(self) -> Result<Vec<Vec<TypedValue>>> {
+        self?.into_rel().map_err(|e| e.into())
+    }
+}
 
 /// Take an EDN query string, a reference to an open SQLite connection, a Mentat schema, and an
 /// optional collection of input bindings (which should be keyed by `"?varname"`), and execute the
