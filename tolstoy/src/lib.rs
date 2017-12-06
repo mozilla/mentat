@@ -59,7 +59,7 @@ impl SyncMetadataClient for SyncMetadataClientImpl {
         }
     }
     fn get_remote_head(&self) -> Result<uuid::Uuid> {
-        let uuid_parse_res = self.conn.query_row(
+        let uuid_query_res = self.conn.query_row(
             "SELECT value FROM tolstoy_metadata WHERE key = ?",
             &[&schema::REMOTE_HEAD_KEY], |r| {
                 let raw_uuid: Vec<u8> = r.get(0);
@@ -70,9 +70,9 @@ impl SyncMetadataClient for SyncMetadataClientImpl {
             }
         );
 
-        match uuid_parse_res {
-            Ok(res) => Ok(res),
-            Err(e) => panic!("Could not parse UUID: {}", e)
+        match uuid_query_res {
+            Ok(uuid) => Ok(uuid),
+            Err(e) => panic!("Could not query for REMOTE_HEAD_KEY: {}", e)
         }
     }
 
