@@ -15,6 +15,7 @@ extern crate lazy_static;
 extern crate ordered_float;
 
 extern crate edn;
+extern crate uuid;
 
 pub mod values;
 
@@ -33,9 +34,7 @@ use self::edn::{
     NamespacedKeyword,
 };
 
-pub use edn::{
-    Uuid,
-};
+pub use uuid::Uuid;
 
 pub use edn::{
     DateTime,
