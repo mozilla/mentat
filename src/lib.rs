@@ -49,8 +49,9 @@ pub use mentat_core::{
 
 pub use mentat_db::{
     new_connection,
-    TxReport,
 };
+
+pub use mentat_db::types::TxReport;
 
 pub use query::{
     NamespacedKeyword,
