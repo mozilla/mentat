@@ -205,6 +205,11 @@ impl Conn {
                inputs)
     }
 
+    /// Take a SQLite transaction.
+    /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
+    /// connections from taking immediate or exclusive transactions. This is appropriate for our
+    /// writes and `InProgress`: it means we are ready to write whenever we want to, and nobody else
+    /// can start a transaction that's not `DEFERRED`, but we don't need exclusivity yet.
     pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
         let tx = sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (current_generation, current_partition_map, current_schema) =
