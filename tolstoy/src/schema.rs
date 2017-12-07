@@ -9,14 +9,14 @@
 // specific language governing permissions and limitations under the License.
 
 use rusqlite;
-use TolstoyResult;
+use Result;
 
 pub static REMOTE_HEAD_KEY: &str = r#"remote_head"#;
 
 lazy_static! {
     /// SQL statements to be executed, in order, to create the Tolstoy SQL schema (version 1).
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    static ref V1_STATEMENTS: Vec<&'static str> = { vec![
+    static ref SCHEMA_STATEMENTS: Vec<&'static str> = { vec![
         r#"CREATE TABLE IF NOT EXISTS tolstoy_tu (tx INTEGER PRIMARY KEY, uuid BLOB NOT NULL UNIQUE) WITHOUT ROWID"#,
         r#"CREATE TABLE IF NOT EXISTS tolstoy_metadata (key BLOB NOT NULL UNIQUE, value BLOB NOT NULL)"#,
         r#"CREATE INDEX IF NOT EXISTS idx_tolstoy_tu_ut ON tolstoy_tu (uuid, tx)"#,
@@ -24,18 +24,15 @@ lazy_static! {
     };
 }
 
-pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> TolstoyResult {
+pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<()> {
     let tx = conn.transaction()?;
 
-    for statement in (&V1_STATEMENTS).iter() {
+    for statement in (&SCHEMA_STATEMENTS).iter() {
         tx.execute(statement, &[])?;
     }
 
     tx.execute("INSERT OR IGNORE INTO tolstoy_metadata (key, value) VALUES (?, zeroblob(16))", &[&REMOTE_HEAD_KEY])?;
-
-    tx.commit()?;
-
-    Ok(())
+    tx.commit().map_err(|e| e.into())
 }
 
 #[cfg(test)]
@@ -59,10 +56,7 @@ pub mod tests {
 
     pub fn setup_conn() -> rusqlite::Connection {
         let mut conn = setup_conn_bare();
-        match ensure_current_version(&mut conn) {
-            Err(e) => panic!("Couldn't setup conn: {}", e),
-            _ => ()
-        }
+        ensure_current_version(&mut conn).expect("connection setup");
         conn
     }
 
@@ -75,10 +69,10 @@ pub mod tests {
         let mut stmt = conn.prepare("SELECT key FROM tolstoy_metadata WHERE value = zeroblob(16)").unwrap();
         let mut keys_iter = stmt.query_map(&[], |r| r.get(0)).expect("query works");
 
-        let first: Option<Result<String, _>> = keys_iter.next();
-        let second: Option<Result<String, _>> = keys_iter.next();
+        let first: Result<String> = keys_iter.next().unwrap().map_err(|e| e.into());
+        let second: Option<_> = keys_iter.next();
         match (first, second) {
-            (Some(Ok(key)), None) => {
+            (Ok(key), None) => {
                 assert_eq!(key, REMOTE_HEAD_KEY);
             },
             (_, _) => { panic!("Wrong number of results."); },
@@ -114,10 +108,10 @@ pub mod tests {
             uuid::Uuid::from_bytes(raw_uuid.as_slice()).unwrap()
         }).expect("query works");
 
-        let first: Option<Result<uuid::Uuid, _>> = values_iter.next();
-        let second: Option<Result<uuid::Uuid, _>> = values_iter.next();
+        let first: Result<uuid::Uuid> = values_iter.next().unwrap().map_err(|e| e.into());
+        let second: Option<_> = values_iter.next();
         match (first, second) {
-            (Some(Ok(uuid)), None) => {
+            (Ok(uuid), None) => {
                 assert_eq!(test_uuid, uuid);
             },
             (_, _) => { panic!("Wrong number of results."); },

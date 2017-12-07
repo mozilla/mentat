@@ -33,10 +33,8 @@ error_chain! {
 
     foreign_links {
         IOError(std::io::Error);
-        UriError(hyper::error::UriError);
         HttpError(hyper::Error);
         SqlError(rusqlite::Error);
+        UuidParseError(uuid::ParseError);
     }
 }
-
-pub type TolstoyResult = Result<()>;
