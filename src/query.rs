@@ -90,6 +90,37 @@ impl IntoResult for QueryExecutionResult {
     }
 }
 
+fn fetch_values<'sqlite, 'schema>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ entity: Entid,
+ attribute: Entid,
+ only_one: bool) -> QueryExecutionResult {
+    let v = Variable::from_valid_name("?v");
+
+    // This should never fail.
+    // TODO: it should be possible to algebrize with variable entity and attribute,
+    // particularly with known type, allowing the use of prepared statements.
+    let pattern = Pattern::simple(PatternNonValuePlace::Entid(entity),
+                                  PatternNonValuePlace::Entid(attribute),
+                                  PatternValuePlace::Variable(v.clone()))
+                        .unwrap();
+
+    let element = Element::Variable(v);
+    let spec = if only_one { FindSpec::FindScalar(element) } else { FindSpec::FindColl(element) };
+    let query = FindQuery::simple(spec,
+                                  vec![WhereClause::Pattern(pattern)]);
+
+    let algebrized = algebrize_with_inputs(schema, query, 0, QueryInputs::default())?;
+
+    run_algebrized_query(sqlite, algebrized)
+}
+
+fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<Entid> {
+    schema.get_entid(attribute)
+          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.clone()).into())
+}
+
 /// Return a single value for the provided entity and attribute.
 /// If the attribute is multi-valued, an arbitrary value is returned.
 /// If no value is present for that entity, `None` is returned.
@@ -99,20 +130,15 @@ pub fn lookup_value<'sqlite, 'schema>
  schema: &'schema Schema,
  entity: Entid,
  attribute: Entid) -> Result<Option<TypedValue>> {
-    let v = Variable::from_valid_name("?v");
+    fetch_values(sqlite, schema, entity, attribute, true).into_scalar_result()
+}
 
-    // This should never fail.
-    let pattern = Pattern::simple(PatternNonValuePlace::Entid(entity),
-                                  PatternNonValuePlace::Entid(attribute),
-                                  PatternValuePlace::Variable(v.clone()))
-                        .unwrap();
-
-    let query = FindQuery::simple(FindSpec::FindScalar(Element::Variable(v)),
-                                  vec![WhereClause::Pattern(pattern)]);
-
-    let algebrized = algebrize_with_inputs(schema, query, 0, QueryInputs::default())?;
-
-    run_algebrized_query(sqlite, algebrized).into_scalar_result()
+pub fn lookup_values<'sqlite, 'schema>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ entity: Entid,
+ attribute: Entid) -> Result<Vec<TypedValue>> {
+    fetch_values(sqlite, schema, entity, attribute, false).into_coll_result()
 }
 
 /// Return a single value for the provided entity and attribute.
@@ -124,8 +150,15 @@ pub fn lookup_value_for_attribute<'sqlite, 'schema, 'attribute>
  schema: &'schema Schema,
  entity: Entid,
  attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>> {
-    let a = schema.get_entid(attribute).unwrap();   // TODO: error
-    lookup_value(sqlite, schema, entity, a)
+    lookup_value(sqlite, schema, entity, lookup_attribute(schema, attribute)?)
+}
+
+pub fn lookup_values_for_attribute<'sqlite, 'schema, 'attribute>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ entity: Entid,
+ attribute: &'attribute NamespacedKeyword) -> Result<Vec<TypedValue>> {
+    lookup_values(sqlite, schema, entity, lookup_attribute(schema, attribute)?)
 }
 
 fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebrized: AlgebraicQuery) -> QueryExecutionResult {

@@ -21,6 +21,7 @@ use std::str::FromStr;
 use chrono::FixedOffset;
 
 use mentat_core::{
+    DateTime,
     TypedValue,
     ValueType,
     Utc,
@@ -453,4 +454,37 @@ fn test_instant_range_query() {
         },
         _ => panic!("Expected query to work."),
     }
+}
+
+#[test]
+fn test_lookup() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+
+    conn.transact(&mut c, r#"[
+        [:db/add "a" :db/ident :foo/date]
+        [:db/add "a" :db/valueType :db.type/instant]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+    ]"#).unwrap();
+
+    let ids = conn.transact(&mut c, r#"[
+        [:db/add "b" :foo/date #inst "2016-01-01T11:00:00.000Z"]
+        [:db/add "c" :foo/date #inst "2016-06-01T11:00:01.000Z"]
+        [:db/add "d" :foo/date #inst "2017-01-01T11:00:02.000Z"]
+        [:db/add "e" :foo/date #inst "2017-06-01T11:00:03.000Z"]
+    ]"#).unwrap().tempids;
+
+    let entid = ids.get("b").unwrap();
+    let foo_date = NamespacedKeyword::new("foo", "date");
+    let db_ident = NamespacedKeyword::new("db", "ident");
+    let expected = TypedValue::Instant(DateTime::<Utc>::from_str("2016-01-01T11:00:00.000Z").unwrap());
+
+    // Fetch a value.
+    assert_eq!(expected, conn.lookup_value_for_attribute(&c, *entid, &foo_date).unwrap().unwrap());
+
+    // Try to fetch a missing attribute.
+    assert!(conn.lookup_value_for_attribute(&c, *entid, &db_ident).unwrap().is_none());
+
+    // Try to fetch from a non-existent entity.
+    assert!(conn.lookup_value_for_attribute(&c, 12344567, &foo_date).unwrap().is_none());
 }
