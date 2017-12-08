@@ -646,6 +646,12 @@ pub struct Pattern {
 }
 
 impl Pattern {
+    pub fn simple(e: PatternNonValuePlace,
+                  a: PatternNonValuePlace,
+                  v: PatternValuePlace) -> Option<Pattern> {
+        Pattern::new(None, e, a, v, PatternNonValuePlace::Placeholder)
+    }
+
     pub fn new(src: Option<SrcVar>,
                e: PatternNonValuePlace,
                a: PatternNonValuePlace,
@@ -786,6 +792,21 @@ pub struct FindQuery {
     pub where_clauses: Vec<WhereClause>,
     pub order: Option<Vec<Order>>,
     // TODO: in_rules;
+}
+
+impl FindQuery {
+    pub fn simple(spec: FindSpec, where_clauses: Vec<WhereClause>) -> FindQuery {
+        FindQuery {
+            find_spec: spec,
+            default_source: SrcVar::DefaultSrc,
+            with: BTreeSet::default(),
+            in_vars: BTreeSet::default(),
+            in_sources: BTreeSet::default(),
+            limit: Limit::None,
+            where_clauses: where_clauses,
+            order: None,
+        }
+    }
 }
 
 impl OrJoin {

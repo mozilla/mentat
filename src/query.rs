@@ -12,11 +12,13 @@ use rusqlite;
 use rusqlite::types::ToSql;
 
 use mentat_core::{
+    Entid,
     Schema,
     TypedValue,
 };
 
 use mentat_query_algebrizer::{
+    AlgebraicQuery,
     algebrize_with_inputs,
 };
 
@@ -95,18 +97,21 @@ pub fn q_once<'sqlite, 'schema, 'query, T>
     let parsed = parse_find_string(query)?;
     let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
 
+
+fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebrized: AlgebraicQuery) -> QueryExecutionResult {
     if algebrized.is_known_empty() {
         // We don't need to do any SQL work at all.
         return Ok(QueryResults::empty(&algebrized.find_spec));
     }
 
-    // Because this is q_once, we can check that all of our `:in` variables are bound at this point.
+    // Because we are running once, we can check that all of our `:in` variables are bound at this point.
     // If they aren't, the user has made an error -- perhaps writing the wrong variable in `:in`, or
     // not binding in the `QueryInput`.
     let unbound = algebrized.unbound_variables();
     if !unbound.is_empty() {
         bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
     }
+
     let select = query_to_select(algebrized)?;
     let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
@@ -125,4 +130,24 @@ pub fn q_once<'sqlite, 'schema, 'query, T>
     select.projector
           .project(rows)
           .map_err(|e| e.into())
+}
+
+/// Take an EDN query string, a reference to an open SQLite connection, a Mentat schema, and an
+/// optional collection of input bindings (which should be keyed by `"?varname"`), and execute the
+/// query immediately, blocking the current thread.
+/// Returns a structure that corresponds to the kind of input query, populated with `TypedValue`
+/// instances.
+/// The caller is responsible for ensuring that the SQLite connection has an open transaction if
+/// isolation is required.
+pub fn q_once<'sqlite, 'schema, 'query, T>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ query: &'query str,
+ inputs: T) -> QueryExecutionResult
+        where T: Into<Option<QueryInputs>>
+{
+    let parsed = parse_find_string(query)?;
+    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
+
+    run_algebrized_query(sqlite, algebrized)
 }
