@@ -32,6 +32,16 @@ pub use mentat_query::{
     Variable,
 };
 
+use mentat_query::{
+    Element,
+    FindQuery,
+    FindSpec,
+    Pattern,
+    PatternNonValuePlace,
+    PatternValuePlace,
+    WhereClause,
+};
+
 use mentat_query_parser::{
     parse_find_string,
 };
@@ -80,23 +90,43 @@ impl IntoResult for QueryExecutionResult {
     }
 }
 
-/// Take an EDN query string, a reference to an open SQLite connection, a Mentat schema, and an
-/// optional collection of input bindings (which should be keyed by `"?varname"`), and execute the
-/// query immediately, blocking the current thread.
-/// Returns a structure that corresponds to the kind of input query, populated with `TypedValue`
-/// instances.
-/// The caller is responsible for ensuring that the SQLite connection has an open transaction if
-/// isolation is required.
-pub fn q_once<'sqlite, 'schema, 'query, T>
+/// Return a single value for the provided entity and attribute.
+/// If the attribute is multi-valued, an arbitrary value is returned.
+/// If no value is present for that entity, `None` is returned.
+/// If `attribute` isn't an attribute, `None` is returned.
+pub fn lookup_value<'sqlite, 'schema>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
- query: &'query str,
- inputs: T) -> QueryExecutionResult
-        where T: Into<Option<QueryInputs>>
-{
-    let parsed = parse_find_string(query)?;
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
+ entity: Entid,
+ attribute: Entid) -> Result<Option<TypedValue>> {
+    let v = Variable::from_valid_name("?v");
 
+    // This should never fail.
+    let pattern = Pattern::simple(PatternNonValuePlace::Entid(entity),
+                                  PatternNonValuePlace::Entid(attribute),
+                                  PatternValuePlace::Variable(v.clone()))
+                        .unwrap();
+
+    let query = FindQuery::simple(FindSpec::FindScalar(Element::Variable(v)),
+                                  vec![WhereClause::Pattern(pattern)]);
+
+    let algebrized = algebrize_with_inputs(schema, query, 0, QueryInputs::default())?;
+
+    run_algebrized_query(sqlite, algebrized).into_scalar_result()
+}
+
+/// Return a single value for the provided entity and attribute.
+/// If the attribute is multi-valued, an arbitrary value is returned.
+/// If no value is present for that entity, `None` is returned.
+/// If `attribute` doesn't name an attribute, an error is returned.
+pub fn lookup_value_for_attribute<'sqlite, 'schema, 'attribute>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ entity: Entid,
+ attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>> {
+    let a = schema.get_entid(attribute).unwrap();   // TODO: error
+    lookup_value(sqlite, schema, entity, a)
+}
 
 fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebrized: AlgebraicQuery) -> QueryExecutionResult {
     if algebrized.is_known_empty() {
