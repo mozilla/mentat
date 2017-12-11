@@ -20,7 +20,9 @@ use rusqlite::{
 use edn;
 
 use mentat_core::{
+    Entid,
     Schema,
+    TypedValue,
 };
 
 use mentat_db::db;
@@ -36,6 +38,7 @@ use mentat_tx_parser;
 
 use errors::*;
 use query::{
+    lookup_value_for_attribute,
     q_once,
     QueryInputs,
     QueryResults,
@@ -118,6 +121,12 @@ impl<'a, 'c> InProgress<'a, 'c> {
                &self.schema,
                query,
                inputs)
+    }
+
+    pub fn lookup_value_for_attribute(&self,
+                                      entity: Entid,
+                                      attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
+        lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
     }
 
     pub fn transact(self, transaction: &str) -> Result<InProgress<'a, 'c>> {
@@ -203,6 +212,13 @@ impl Conn {
                &*self.current_schema(),
                query,
                inputs)
+    }
+
+    pub fn lookup_value_for_attribute(&self,
+                                      sqlite: &rusqlite::Connection,
+                                      entity: Entid,
+                                      attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
+        lookup_value_for_attribute(sqlite, &*self.current_schema(), entity, attribute)
     }
 
     /// Take a SQLite transaction.
@@ -397,6 +413,11 @@ mod tests {
                                     .expect("query succeeded");
 
             assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
+
+            // And we can do direct lookup, too.
+            let kw = in_progress.lookup_value_for_attribute(one, &edn::NamespacedKeyword::new("db", "ident"))
+                                .expect("lookup succeeded");
+            assert_eq!(kw, Some(TypedValue::Keyword(edn::NamespacedKeyword::new("a", "keyword1").into())));
 
             in_progress.rollback()
                        .expect("rollback succeeded");

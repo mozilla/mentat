@@ -16,6 +16,7 @@ use std::collections::BTreeSet;
 
 use edn;
 use mentat_db;
+use mentat_query;
 use mentat_query_algebrizer;
 use mentat_query_parser;
 use mentat_query_projector;
@@ -52,6 +53,11 @@ error_chain! {
         InvalidArgumentName(name: String) {
             description("invalid argument name")
             display("invalid argument name: '{}'", name)
+        }
+
+        UnknownAttribute(kw: mentat_query::NamespacedKeyword) {
+            description("unknown attribute")
+            display("unknown attribute: '{}'", kw)
         }
     }
 }
