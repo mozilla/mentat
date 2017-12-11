@@ -465,9 +465,14 @@ fn test_lookup() {
         [:db/add "a" :db/ident :foo/date]
         [:db/add "a" :db/valueType :db.type/instant]
         [:db/add "a" :db/cardinality :db.cardinality/one]
+        [:db/add "b" :db/ident :foo/many]
+        [:db/add "b" :db/valueType :db.type/long]
+        [:db/add "b" :db/cardinality :db.cardinality/many]
     ]"#).unwrap();
 
     let ids = conn.transact(&mut c, r#"[
+        [:db/add "b" :foo/many 123]
+        [:db/add "b" :foo/many 456]
         [:db/add "b" :foo/date #inst "2016-01-01T11:00:00.000Z"]
         [:db/add "c" :foo/date #inst "2016-06-01T11:00:01.000Z"]
         [:db/add "d" :foo/date #inst "2017-01-01T11:00:02.000Z"]
@@ -476,6 +481,7 @@ fn test_lookup() {
 
     let entid = ids.get("b").unwrap();
     let foo_date = NamespacedKeyword::new("foo", "date");
+    let foo_many = NamespacedKeyword::new("foo", "many");
     let db_ident = NamespacedKeyword::new("db", "ident");
     let expected = TypedValue::Instant(DateTime::<Utc>::from_str("2016-01-01T11:00:00.000Z").unwrap());
 
@@ -487,4 +493,9 @@ fn test_lookup() {
 
     // Try to fetch from a non-existent entity.
     assert!(conn.lookup_value_for_attribute(&c, 12344567, &foo_date).unwrap().is_none());
+
+    // Fetch a multi-valued property.
+    let two_longs = vec![TypedValue::Long(123), TypedValue::Long(456)];
+    let fetched_many = conn.lookup_value_for_attribute(&c, *entid, &foo_many).unwrap().unwrap();
+    assert!(two_longs.contains(&fetched_many));
 }
