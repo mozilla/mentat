@@ -1,0 +1,28 @@
+[package]
+name = "mentat_tolstoy"
+version = "0.0.1"
+workspace = ".."
+authors = ["Grisha Kruglov <gkruglov@mozilla.com>"]
+
+[dependencies]
+futures = "0.1"
+hyper = "0.11"
+tokio-core = "0.1"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+lazy_static = "0.2"
+uuid = { version = "0.5", features = ["v4", "serde"] }
+
+error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
+
+[dependencies.mentat_db]
+path = "../db"
+
+[dependencies.edn]
+path = "../edn"
+
+[dependencies.rusqlite]
+version = "0.12"
+# System sqlite might be very old.
+features = ["bundled", "limits"]
