@@ -21,7 +21,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate mentat_db;
 extern crate rusqlite;
-extern crate uuid;
+extern crate edn;
 
 pub mod schema;
 pub mod metadata;
@@ -35,6 +35,6 @@ error_chain! {
         IOError(std::io::Error);
         HttpError(hyper::Error);
         SqlError(rusqlite::Error);
-        UuidParseError(uuid::ParseError);
+        UuidParseError(edn::UuidParseError);
     }
 }

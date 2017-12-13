@@ -33,6 +33,7 @@ pub use uuid::Uuid;
 
 // Export from our modules.
 pub use parse::ParseError;
+pub use uuid::ParseError as UuidParseError;
 pub use types::{
     FromMicros,
     Span,

@@ -8,14 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use uuid;
+use edn::Uuid;
 use schema;
 use rusqlite;
 use Result;
 
 trait HeadTrackable {
-    fn remote_head(&self) -> Result<uuid::Uuid>;
-    fn set_remote_head(&mut self, uuid: &uuid::Uuid) -> Result<()>;
+    fn remote_head(&self) -> Result<Uuid>;
+    fn set_remote_head(&mut self, uuid: &Uuid) -> Result<()>;
 }
 
 struct SyncMetadataClient {
@@ -31,17 +31,17 @@ impl SyncMetadataClient {
 }
 
 impl HeadTrackable for SyncMetadataClient {
-    fn remote_head(&self) -> Result<uuid::Uuid> {
+    fn remote_head(&self) -> Result<Uuid> {
         self.conn.query_row(
             "SELECT value FROM tolstoy_metadata WHERE key = ?",
             &[&schema::REMOTE_HEAD_KEY], |r| {
                 let bytes: Vec<u8> = r.get(0);
-                uuid::Uuid::from_bytes(bytes.as_slice())
+                Uuid::from_bytes(bytes.as_slice())
             }
         )?.map_err(|e| e.into())
     }
 
-    fn set_remote_head(&mut self, uuid: &uuid::Uuid) -> Result<()> {
+    fn set_remote_head(&mut self, uuid: &Uuid) -> Result<()> {
         let tx = self.conn.transaction()?;
         let uuid_bytes = uuid.as_bytes().to_vec();
         tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?", &[&uuid_bytes, &schema::REMOTE_HEAD_KEY])?;
@@ -57,13 +57,13 @@ mod tests {
     fn test_get_remote_head_default() {
         let conn = schema::tests::setup_conn();
         let metadata_client: SyncMetadataClient = SyncMetadataClient::new(conn);
-        assert_eq!(uuid::Uuid::nil(), metadata_client.remote_head().expect("fetch succeeded"));
+        assert_eq!(Uuid::nil(), metadata_client.remote_head().expect("fetch succeeded"));
     }
 
     #[test]
     fn test_set_and_get_remote_head() {
         let conn = schema::tests::setup_conn();
-        let uuid = uuid::Uuid::new_v4();
+        let uuid = Uuid::new_v4();
         let mut metadata_client: SyncMetadataClient = SyncMetadataClient::new(conn);
         metadata_client.set_remote_head(&uuid).expect("update succeeded");
         assert_eq!(uuid, metadata_client.remote_head().expect("fetch succeeded"));

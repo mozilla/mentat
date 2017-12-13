@@ -38,7 +38,7 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<()> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use uuid;
+    use edn::Uuid;
 
     fn setup_conn_bare() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -85,7 +85,7 @@ pub mod tests {
 
         assert!(ensure_current_version(&mut conn).is_ok());
 
-        let test_uuid = uuid::Uuid::new_v4();
+        let test_uuid = Uuid::new_v4();
         {
             let tx = conn.transaction().unwrap();
             let uuid_bytes = test_uuid.as_bytes().to_vec();
@@ -105,10 +105,10 @@ pub mod tests {
         let mut stmt = conn.prepare("SELECT value FROM tolstoy_metadata").unwrap();
         let mut values_iter = stmt.query_map(&[], |r| {
             let raw_uuid: Vec<u8> = r.get(0);
-            uuid::Uuid::from_bytes(raw_uuid.as_slice()).unwrap()
+            Uuid::from_bytes(raw_uuid.as_slice()).unwrap()
         }).expect("query works");
 
-        let first: Result<uuid::Uuid> = values_iter.next().unwrap().map_err(|e| e.into());
+        let first: Result<Uuid> = values_iter.next().unwrap().map_err(|e| e.into());
         let second: Option<_> = values_iter.next();
         match (first, second) {
             (Ok(uuid), None) => {
