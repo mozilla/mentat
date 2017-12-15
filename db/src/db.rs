@@ -69,12 +69,16 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
         _ => rusqlite::Connection::open(uri)?,
     };
 
+    /// temp_store=2 is present to force SQLite to store temp files in memory.
+    /// Some of the platforms we support do not have a tmp partition (e.g. Android)
+    /// necessary to store temp files on disk.
     conn.execute_batch("
         PRAGMA page_size=32768;
         PRAGMA journal_mode=wal;
         PRAGMA wal_autocheckpoint=32;
         PRAGMA journal_size_limit=3145728;
         PRAGMA foreign_keys=ON;
+        PRAGMA temp_store=2;
     ")?;
 
     Ok(conn)
