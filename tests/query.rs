@@ -60,7 +60,7 @@ fn test_rel() {
     let end = time::PreciseTime::now();
 
     // This will need to change each time we add a default ident.
-    assert_eq!(39, results.len());
+    assert_eq!(40, results.len());
 
     // Every row is a pair of a Ref and a Keyword.
     if let QueryResults::Rel(ref rel) = results {
@@ -168,7 +168,7 @@ fn test_coll() {
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
-    assert_eq!(39, results.len());
+    assert_eq!(40, results.len());
 
     if let QueryResults::Coll(ref coll) = results {
         assert!(coll.iter().all(|item| item.matches_type(ValueType::Ref)));
@@ -247,7 +247,7 @@ fn test_instants_and_uuids() {
                  Some(TypedValue::Uuid(u)),
                  Some(TypedValue::Instant(t)),
                  None) => {
-                     assert!(e > 39);       // There are at least this many entities in the store.
+                     assert!(e > 40);       // There are at least this many entities in the store.
                      assert_eq!(Ok(u), Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4"));
                      assert!(t > start);
                  },

@@ -57,6 +57,14 @@ pub use bootstrap::{
 
 pub use schema::AttributeBuilder;
 
+pub use bootstrap::{
+    CORE_SCHEMA_VERSION,
+};
+
+pub use entids::{
+    DB_SCHEMA_CORE,
+};
+
 pub use db::{
     TypedSQLValue,
     new_connection,
