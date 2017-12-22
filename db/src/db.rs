@@ -1106,6 +1106,8 @@ mod tests {
     use debug;
     use edn;
     use mentat_core::{
+        HasSchema,
+        Schema,
         attribute,
     };
     use mentat_tx_parser;

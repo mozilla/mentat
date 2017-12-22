@@ -22,6 +22,7 @@ use chrono::FixedOffset;
 
 use mentat_core::{
     DateTime,
+    HasSchema,
     TypedValue,
     ValueType,
     Utc,

@@ -13,6 +13,7 @@ use rusqlite::types::ToSql;
 
 use mentat_core::{
     Entid,
+    HasSchema,
     Schema,
     TypedValue,
 };

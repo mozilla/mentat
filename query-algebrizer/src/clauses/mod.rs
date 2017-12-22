@@ -25,6 +25,7 @@ use std::fmt::{
 use mentat_core::{
     Attribute,
     Entid,
+    HasSchema,
     Schema,
     TypedValue,
     ValueType,

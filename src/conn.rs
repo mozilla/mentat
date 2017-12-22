@@ -21,6 +21,7 @@ use edn;
 
 use mentat_core::{
     Entid,
+    HasSchema,
     Schema,
     TypedValue,
 };

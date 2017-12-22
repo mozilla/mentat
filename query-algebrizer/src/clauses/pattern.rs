@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    HasSchema,
     Schema,
     TypedValue,
     ValueType,

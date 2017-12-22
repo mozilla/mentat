@@ -19,6 +19,7 @@ use mentat_core::{
     Attribute,
     Entid,
     EntidMap,
+    HasSchema,
     IdentMap,
     Schema,
     AttributeMap,

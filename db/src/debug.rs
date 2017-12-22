@@ -27,6 +27,7 @@ use edn;
 use entids;
 use errors::Result;
 use mentat_core::{
+    HasSchema,
     SQLValueType,
     TypedValue,
     ValueType,

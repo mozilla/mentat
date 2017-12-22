@@ -672,40 +672,55 @@ pub struct Schema {
     pub attribute_map: AttributeMap,
 }
 
+pub trait HasSchema {
+    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword>;
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid>;
+    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute>;
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute>;
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute(&self, x: Entid) -> bool;
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool;
+}
+
 impl Schema {
-    pub fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
+    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
+    pub fn to_edn_value(&self) -> edn::Value {
+        edn::Value::Vector((&self.attribute_map).iter()
+            .map(|(entid, attribute)|
+                attribute.to_edn_value(self.get_ident(*entid).cloned()))
+            .collect())
+    }
+}
+
+impl HasSchema for Schema {
+    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
         self.entid_map.get(&x)
     }
 
-    pub fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
         self.ident_map.get(x).map(|x| *x)
     }
 
-    pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
         self.attribute_map.get(&x)
     }
 
-    pub fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
         self.get_entid(&ident)
             .and_then(|x| self.attribute_for_entid(x))
     }
 
     /// Return true if the provided entid identifies an attribute in this schema.
-    pub fn is_attribute(&self, x: Entid) -> bool {
+    fn is_attribute(&self, x: Entid) -> bool {
         self.attribute_map.contains_key(&x)
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    pub fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
-    }
-
-    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
-    pub fn to_edn_value(&self) -> edn::Value {
-        edn::Value::Vector((&self.attribute_map).iter()
-            .map(|(entid, attribute)| 
-                attribute.to_edn_value(self.get_ident(*entid).cloned()))
-            .collect())
     }
 }
 
