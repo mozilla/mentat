@@ -31,9 +31,6 @@ use std::rc::Rc;
 use enum_set::EnumSet;
 
 use self::ordered_float::OrderedFloat;
-use self::edn::{
-    NamespacedKeyword,
-};
 
 pub use uuid::Uuid;
 
@@ -44,6 +41,7 @@ pub use chrono::{
 
 pub use edn::{
     FromMicros,
+    NamespacedKeyword,
     ToMicros,
     Utc,
 };
