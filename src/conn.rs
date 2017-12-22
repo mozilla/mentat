@@ -20,8 +20,10 @@ use rusqlite::{
 use edn;
 
 use mentat_core::{
+    Attribute,
     Entid,
     HasSchema,
+    NamespacedKeyword,
     Schema,
     TypedValue,
 };
@@ -87,6 +89,11 @@ pub struct Conn {
     // the schema changes. #315.
 }
 
+pub trait Queryable {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>>;
+}
+
 /// Represents an in-progress, not yet committed, set of changes to the store.
 /// Call `commit` to commit your changes, or `rollback` to discard them.
 /// A transaction is held open until you do so.
@@ -98,6 +105,82 @@ pub struct InProgress<'a, 'c> {
     partition_map: PartitionMap,
     schema: Schema,
     last_report: Option<TxReport>,   // For now we track only the last, but we could accumulate all.
+}
+
+pub struct QueryableTransaction<'a, 'c>(InProgress<'a, 'c>);
+
+impl<'a, 'c> Queryable for QueryableTransaction<'a, 'c> {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>> {
+        self.0.q_once(query, inputs)
+    }
+}
+
+impl<'a, 'c> Queryable for InProgress<'a, 'c> {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>> {
+
+        q_once(&*(self.transaction),
+               &self.schema,
+               query,
+               inputs)
+    }
+}
+
+impl<'a, 'c> HasSchema for QueryableTransaction<'a, 'c> {
+    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
+        self.0.get_ident(x)
+    }
+
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+        self.0.get_entid(x)
+    }
+
+    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+        self.0.attribute_for_entid(x)
+    }
+
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+        self.0.attribute_for_ident(ident)
+    }
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute(&self, x: Entid) -> bool {
+        self.0.is_attribute(x)
+    }
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+        self.0.identifies_attribute(x)
+    }
+}
+
+impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
+    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
+        self.schema.get_ident(x)
+    }
+
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+        self.schema.get_entid(x)
+    }
+
+    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+        self.schema.attribute_for_entid(x)
+    }
+
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+        self.schema.attribute_for_ident(ident)
+    }
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute(&self, x: Entid) -> bool {
+        self.schema.is_attribute(x)
+    }
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+        self.schema.identifies_attribute(x)
+    }
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
@@ -117,19 +200,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
         }
         self.last_report = Some(report);
         Ok(())
-    }
-
-    /// Query the Mentat store, using the given connection and the current metadata.
-    pub fn q_once<T>(&self,
-                     query: &str,
-                     inputs: T) -> Result<QueryResults>
-        where T: Into<Option<QueryInputs>>
-        {
-
-        q_once(&*(self.transaction),
-               &self.schema,
-               query,
-               inputs)
     }
 
     pub fn lookup_value_for_attribute(&self,
@@ -192,7 +262,7 @@ impl Conn {
         Ok(Conn::new(db.partition_map, db.schema))
     }
 
-    /// Yield the current `Schema` instance.
+    /// Yield a clone of the current `Schema` instance.
     pub fn current_schema(&self) -> Arc<Schema> {
         // We always unwrap the mutex lock: if it's poisoned, this will propogate panics to all
         // accessing threads.  This is perhaps not reasonable; we expect the mutex to be held for
@@ -214,11 +284,11 @@ impl Conn {
                      sqlite: &rusqlite::Connection,
                      query: &str,
                      inputs: T) -> Result<QueryResults>
-        where T: Into<Option<QueryInputs>>
-        {
+        where T: Into<Option<QueryInputs>> {
 
+        let metadata = self.metadata.lock().unwrap();
         q_once(sqlite,
-               &*self.current_schema(),
+               &*metadata.schema,        // Doesn't clone, unlike `current_schema`.
                query,
                inputs)
     }
@@ -231,12 +301,8 @@ impl Conn {
     }
 
     /// Take a SQLite transaction.
-    /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
-    /// connections from taking immediate or exclusive transactions. This is appropriate for our
-    /// writes and `InProgress`: it means we are ready to write whenever we want to, and nobody else
-    /// can start a transaction that's not `DEFERRED`, but we don't need exclusivity yet.
-    pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
-        let tx = sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    fn begin_transaction_with_behavior<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection, behavior: TransactionBehavior) -> Result<InProgress<'m, 'conn>> {
+        let tx = sqlite.transaction_with_behavior(behavior)?;
         let (current_generation, current_partition_map, current_schema) =
         {
             // The mutex is taken during this block.
@@ -256,6 +322,21 @@ impl Conn {
             schema: (*current_schema).clone(),
             last_report: None,
         })
+    }
+
+    // Helper to avoid passing connections around.
+    // Make both args mutable so that we can't have parallel access.
+    pub fn queryable<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<QueryableTransaction<'m, 'conn>> {
+        self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Deferred)
+            .map(|ip| QueryableTransaction(ip))
+    }
+
+    /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
+    /// connections from taking immediate or exclusive transactions. This is appropriate for our
+    /// writes and `InProgress`: it means we are ready to write whenever we want to, and nobody else
+    /// can start a transaction that's not `DEFERRED`, but we don't need exclusivity yet.
+    pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
+        self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Immediate)
     }
 
     /// Transact entities against the Mentat store, using the given connection and the current
