@@ -644,7 +644,7 @@ pub type IdentMap = BTreeMap<NamespacedKeyword, Entid>;
 pub type EntidMap = BTreeMap<Entid, NamespacedKeyword>;
 
 /// Map attribute entids to `Attribute` instances.
-pub type SchemaMap = BTreeMap<Entid, Attribute>;
+pub type AttributeMap = BTreeMap<Entid, Attribute>;
 
 /// Represents a Mentat schema.
 ///
@@ -669,7 +669,7 @@ pub struct Schema {
     ///
     /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
     /// `ident_map`).
-    pub schema_map: SchemaMap,
+    pub attribute_map: AttributeMap,
 }
 
 impl Schema {
@@ -682,7 +682,7 @@ impl Schema {
     }
 
     pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
-        self.schema_map.get(&x)
+        self.attribute_map.get(&x)
     }
 
     pub fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
@@ -692,7 +692,7 @@ impl Schema {
 
     /// Return true if the provided entid identifies an attribute in this schema.
     pub fn is_attribute(&self, x: Entid) -> bool {
-        self.schema_map.contains_key(&x)
+        self.attribute_map.contains_key(&x)
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
@@ -702,7 +702,7 @@ impl Schema {
 
     /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
     pub fn to_edn_value(&self) -> edn::Value {
-        edn::Value::Vector((&self.schema_map).iter()
+        edn::Value::Vector((&self.attribute_map).iter()
             .map(|(entid, attribute)| 
                 attribute.to_edn_value(self.get_ident(*entid).cloned()))
             .collect())
@@ -721,7 +721,7 @@ mod test {
     }
 
     fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
-        schema.schema_map.insert(e, a);
+        schema.attribute_map.insert(e, a);
     }
 
     #[test]
