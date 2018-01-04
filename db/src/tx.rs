@@ -85,8 +85,10 @@ use mentat_core::{
     Schema,
     Utc,
     attribute,
-    intern_set,
 };
+
+use mentat_core::intern_set::InternSet;
+
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{
     Entity,
@@ -199,13 +201,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     ///
     /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
-    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, intern_set::InternSet<TempId>, intern_set::InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
+    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, InternSet<TempId>, InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
         struct InProcess<'a> {
             partition_map: &'a PartitionMap,
             schema: &'a Schema,
             mentat_id_count: i64,
-            temp_ids: intern_set::InternSet<TempId>,
-            lookup_refs: intern_set::InternSet<AVPair>,
+            temp_ids: InternSet<TempId>,
+            lookup_refs: InternSet<AVPair>,
         }
 
         impl<'a> InProcess<'a> {
@@ -214,8 +216,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     partition_map,
                     schema,
                     mentat_id_count: 0,
-                    temp_ids: intern_set::InternSet::new(),
-                    lookup_refs: intern_set::InternSet::new(),
+                    temp_ids: InternSet::new(),
+                    lookup_refs: InternSet::new(),
                 }
             }
 
