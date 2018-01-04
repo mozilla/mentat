@@ -102,14 +102,22 @@ pub struct InProgress<'a, 'c> {
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
-    pub fn transact_entities<I>(mut self, entities: I) -> Result<InProgress<'a, 'c>> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
-        let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map, &self.schema, &self.schema, entities)?;
+    pub fn transact_entities<I>(&mut self, entities: I) -> Result<()> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+        // We clone the partition map here, rather than trying to use a Cell or using a mutable
+        // reference, for two reasons:
+        // 1. `transact` allocates new IDs in partitions before and while doing work that might
+        //    fail! We don't want to mutate this map on failure, so we can't just use &mut.
+        // 2. Even if we could roll that back, we end up putting this `PartitionMap` into our
+        //    `Metadata` on return. If we used `Cell` or other mechanisms, we'd be using
+        //    `Default::default` in those situations to extract the partition map, and so there
+        //    would still be some cost.
+        let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map.clone(), &self.schema, &self.schema, entities)?;
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
         }
         self.last_report = Some(report);
-        Ok(self)
+        Ok(())
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.
@@ -131,7 +139,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
         lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
     }
 
-    pub fn transact(self, transaction: &str) -> Result<InProgress<'a, 'c>> {
+    pub fn transact(&mut self, transaction: &str) -> Result<()> {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
         self.transact_entities(entities)
@@ -272,10 +280,9 @@ impl Conn {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
-        let report = self.begin_transaction(sqlite)?
-                         .transact_entities(entities)?
-                         .commit()?
-                         .expect("we always get a report");
+        let mut in_progress = self.begin_transaction(sqlite)?;
+        in_progress.transact_entities(entities)?;
+        let report = in_progress.commit()?.expect("we always get a report");
 
         Ok(report)
     }
@@ -367,8 +374,8 @@ mod tests {
 
         // Scoped borrow of `conn`.
         {
-            let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-            let in_progress = in_progress.transact(t).expect("transacted successfully");
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+            in_progress.transact(t).expect("transacted successfully");
             let one = in_progress.last_report().unwrap().tempids.get("one").expect("found one").clone();
             let two = in_progress.last_report().unwrap().tempids.get("two").expect("found two").clone();
             assert!(one != two);
@@ -379,9 +386,8 @@ mod tests {
                                     .expect("query succeeded");
             assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
 
-            let report = in_progress.transact(t2)
-                                    .expect("t2 succeeded")
-                                    .commit()
+            in_progress.transact(t2).expect("t2 succeeded");
+            let report = in_progress.commit()
                                     .expect("commit succeeded");
             let three = report.unwrap().tempids.get("three").expect("found three").clone();
             assert!(one != three);
@@ -408,8 +414,8 @@ mod tests {
 
         // Scoped borrow of `sqlite`.
         {
-            let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-            let in_progress = in_progress.transact(t).expect("transacted successfully");
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+            in_progress.transact(t).expect("transacted successfully");
 
             let one = in_progress.last_report().unwrap().tempids.get("one").expect("found it").clone();
             let two = in_progress.last_report().unwrap().tempids.get("two").expect("found it").clone();

@@ -8,7 +8,7 @@ authors = [
   "Emily Toop <etoop@mozilla.com>",
 ]
 name = "mentat"
-version = "0.4.0"
+version = "0.5.0"
 build = "build/version.rs"
 
 [workspace]
