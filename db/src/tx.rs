@@ -685,6 +685,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 }
 
 /// Transact the given `entities` against the given SQLite `conn`, using the given metadata.
+/// If you want this work to occur inside a SQLite transaction, establish one on the connection
+/// prior to calling this function.
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
@@ -694,8 +696,6 @@ pub fn transact<'conn, 'a, I>(
     schema_for_mutation: &'a Schema,
     schema: &'a Schema,
     entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)> where I: IntoIterator<Item=Entity> {
-    // Eventually, this function will be responsible for managing a SQLite transaction.  For
-    // now, it's just about the tx details.
 
     let tx_instant = ::now(); // Label the transaction with the timestamp when we first see it: leading edge.
     let tx_id = partition_map.allocate_entid(":db.part/tx");
