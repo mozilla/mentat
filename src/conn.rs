@@ -23,6 +23,7 @@ use mentat_core::{
     Attribute,
     Entid,
     HasSchema,
+    KnownEntid,
     NamespacedKeyword,
     Schema,
     TypedValue,
@@ -153,24 +154,24 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
 }
 
 impl<'a, 'c> HasSchema for QueryableTransaction<'a, 'c> {
-    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
+    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
         self.0.get_ident(x)
     }
 
-    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
         self.0.get_entid(x)
     }
 
-    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+    fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid> {
         self.0.attribute_for_entid(x)
     }
 
-    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
         self.0.attribute_for_ident(ident)
     }
 
     /// Return true if the provided entid identifies an attribute in this schema.
-    fn is_attribute(&self, x: Entid) -> bool {
+    fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid> {
         self.0.is_attribute(x)
     }
 
@@ -181,24 +182,24 @@ impl<'a, 'c> HasSchema for QueryableTransaction<'a, 'c> {
 }
 
 impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
-    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
+    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
         self.schema.get_ident(x)
     }
 
-    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
         self.schema.get_entid(x)
     }
 
-    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+    fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid> {
         self.schema.attribute_for_entid(x)
     }
 
-    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
         self.schema.attribute_for_ident(ident)
     }
 
     /// Return true if the provided entid identifies an attribute in this schema.
-    fn is_attribute(&self, x: Entid) -> bool {
+    fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid> {
         self.schema.is_attribute(x)
     }
 

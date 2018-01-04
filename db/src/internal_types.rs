@@ -15,6 +15,8 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use mentat_core::KnownEntid;
+
 use mentat_core::util::Either;
 
 use errors;
@@ -36,10 +38,6 @@ pub enum Term<E, V> {
 }
 
 use self::Either::*;
-
-/// An entid that's either already in the store, or newly allocated to a tempid.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct KnownEntid(pub Entid);
 
 pub type KnownEntidOr<T> = Either<KnownEntid, T>;
 pub type TypedValueOr<T> = Either<TypedValue, T>;
