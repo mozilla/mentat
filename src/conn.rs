@@ -29,14 +29,21 @@ use mentat_core::{
     TypedValue,
 };
 
+use mentat_core::intern_set::InternSet;
+
 use mentat_db::db;
 use mentat_db::{
     transact,
+    transact_terms,
     PartitionMap,
     TxReport,
 };
 
+use mentat_db::internal_types::TermWithTempIds;
+
 use mentat_tx;
+
+use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
@@ -218,6 +225,21 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
+    pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<()> where I: IntoIterator<Item=TermWithTempIds> {
+        let (report, next_partition_map, next_schema) = transact_terms(&self.transaction,
+                                                                       self.partition_map.clone(),
+                                                                       &self.schema,
+                                                                       &self.schema,
+                                                                       terms,
+                                                                       tempid_set)?;
+        self.partition_map = next_partition_map;
+        if let Some(schema) = next_schema {
+            self.schema = schema;
+        }
+        self.last_report = Some(report);
+        Ok(())
+    }
+
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<()> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
         // We clone the partition map here, rather than trying to use a Cell or using a mutable
         // reference, for two reasons:

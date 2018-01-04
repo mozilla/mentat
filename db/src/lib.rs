@@ -70,7 +70,11 @@ pub use db::{
     new_connection,
 };
 
-pub use tx::transact;
+pub use tx::{
+    transact,
+    transact_terms,
+};
+
 pub use types::{
     DB,
     PartitionMap,
