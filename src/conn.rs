@@ -42,6 +42,7 @@ use mentat_tx_parser;
 use errors::*;
 use query::{
     lookup_value_for_attribute,
+    lookup_values_for_attribute,
     q_once,
     QueryInputs,
     QueryResults,
@@ -92,6 +93,10 @@ pub struct Conn {
 pub trait Queryable {
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
         where T: Into<Option<QueryInputs>>;
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid>;
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid>;
 }
 
 /// Represents an in-progress, not yet committed, set of changes to the store.
@@ -114,6 +119,16 @@ impl<'a, 'c> Queryable for QueryableTransaction<'a, 'c> {
         where T: Into<Option<QueryInputs>> {
         self.0.q_once(query, inputs)
     }
+
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid> {
+        self.0.lookup_values_for_attribute(entity, attribute)
+    }
+
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid> {
+        self.0.lookup_value_for_attribute(entity, attribute)
+    }
 }
 
 impl<'a, 'c> Queryable for InProgress<'a, 'c> {
@@ -124,6 +139,16 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
                &self.schema,
                query,
                inputs)
+    }
+
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid> {
+        lookup_values_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
+    }
+
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid> {
+        lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
     }
 }
 
@@ -200,12 +225,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
         }
         self.last_report = Some(report);
         Ok(())
-    }
-
-    pub fn lookup_value_for_attribute(&self,
-                                      entity: Entid,
-                                      attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
-        lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
     }
 
     pub fn transact(&mut self, transaction: &str) -> Result<()> {
