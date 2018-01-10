@@ -100,6 +100,19 @@ impl enum_set::CLike for ValueType {
 }
 
 impl ValueType {
+    pub fn to_keyword(self) -> TypedValue {
+        TypedValue::typed_ns_keyword("db.type", match self {
+            ValueType::Ref => "ref",
+            ValueType::Boolean => "boolean",
+            ValueType::Instant => "instant",
+            ValueType::Long => "long",
+            ValueType::Double => "double",
+            ValueType::String => "string",
+            ValueType::Keyword => "keyword",
+            ValueType::Uuid => "uuid",
+        })
+    }
+
     pub fn to_edn_value(self) -> edn::Value {
         match self {
             ValueType::Ref => values::DB_TYPE_REF.clone(),
@@ -478,10 +491,22 @@ pub enum AttributeBitFlags {
 }
 
 pub mod attribute {
-    #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+    use TypedValue;
+
+    #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
     pub enum Unique {
         Value,
         Identity,
+    }
+
+    impl Unique {
+        // This is easier than rejigging DB_UNIQUE_VALUE to not be EDN.
+        pub fn to_keyword(self) -> TypedValue {
+            match self {
+                Unique::Value => TypedValue::typed_ns_keyword("db.unique", "value"),
+                Unique::Identity => TypedValue::typed_ns_keyword("db.unique", "identity"),
+            }
+        }
     }
 }
 
