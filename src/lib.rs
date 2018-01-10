@@ -64,6 +64,7 @@ pub use query::{
 pub use conn::{
     Conn,
     Metadata,
+    Queryable,
 };
 
 #[cfg(test)]
