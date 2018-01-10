@@ -142,8 +142,8 @@ pub fn update_attribute_map_from_entid_triples<U>(attribute_map: &mut AttributeM
                     //     builder.unique_value(false);
                     //     builder.unique_identity(false);
                     // },
-                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(Some(attribute::Unique::Value)); },
-                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(Some(attribute::Unique::Identity)); },
+                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(attribute::Unique::Value); },
+                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(attribute::Unique::Identity); },
                     _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
                 }
             },

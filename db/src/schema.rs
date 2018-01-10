@@ -79,8 +79,8 @@ impl AttributeBuilder {
         self
     }
 
-    pub fn unique<'a>(&'a mut self, unique: Option<attribute::Unique>) -> &'a mut Self {
-        self.unique = Some(unique);
+    pub fn unique<'a>(&'a mut self, unique: attribute::Unique) -> &'a mut Self {
+        self.unique = Some(Some(unique));
         self
     }
 
