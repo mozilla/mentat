@@ -34,6 +34,7 @@ use rusqlite::Connection;
 
 pub mod errors;
 pub mod ident;
+pub mod vocabulary;
 pub mod conn;
 pub mod query;
 pub mod entity_builder;

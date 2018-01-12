@@ -294,6 +294,10 @@ impl<'a, 'c> InProgress<'a, 'c> {
 
         if self.schema != *(metadata.schema) {
             metadata.schema = Arc::new(self.schema);
+
+            // TODO: rebuild vocabularies and notify consumers that they've changed -- it's possible
+            // that a change has arrived over the wire and invalidated some local module.
+            // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
         }
 
         Ok(())

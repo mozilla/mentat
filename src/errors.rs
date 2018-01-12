@@ -72,5 +72,20 @@ error_chain! {
             description("conflicting attribute definitions")
             display("vocabulary {}/{} already has attribute {}, and the requested definition differs", vocabulary, version, attribute)
         }
+
+        ExistingVocabularyTooNew(name: String, existing: ::vocabulary::Version, ours: ::vocabulary::Version) {
+            description("existing vocabulary too new")
+            display("existing vocabulary too new: wanted {}, got {}", ours, existing)
+        }
+
+        UnexpectedCoreSchema(version: Option<::vocabulary::Version>) {
+            description("unexpected core schema version")
+            display("core schema: wanted {}, got {:?}", mentat_db::CORE_SCHEMA_VERSION, version)
+        }
+
+        MissingCoreVocabulary(kw: mentat_query::NamespacedKeyword) {
+            description("missing core vocabulary")
+            display("missing core attribute {}", kw)
+        }
     }
 }
