@@ -111,10 +111,24 @@ pub trait Queryable {
         where E: Into<Entid>;
 }
 
+/// Whether to panic or roll back changes when the caller neither commits nor explicitly rolls back.
+/// Why is `Commit` not an option? Because committing involves updating `mutex` to propagate
+/// changes back to the enclosing `Conn`, and we can't do that without implementing `Drop`, which
+/// we can't do because `transaction` is moved in `commit`.
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub enum DropBehavior {
+    /// Panic. This is the default.
+    Panic,
+
+    /// Roll back the changes.
+    Rollback,
+}
+
 /// Represents an in-progress, not yet committed, set of changes to the store.
 /// Call `commit` to commit your changes, or `rollback` to discard them.
 /// A transaction is held open until you do so.
-/// Your changes will be implicitly dropped along with this struct.
+/// Depending on the specified drop behavior, either a panic will occur or your changes will be
+/// implicitly dropped if you neither roll back nor commit before this struct is dropped.
 pub struct InProgress<'a, 'c> {
     transaction: rusqlite::Transaction<'c>,
     mutex: &'a Mutex<Metadata>,
@@ -123,9 +137,27 @@ pub struct InProgress<'a, 'c> {
     schema: Schema,
 }
 
+impl<'a, 'c> InProgress<'a, 'c> {
+    /// Set whether we'll panic or roll back if not explicitly committed or rolled back.
+    /// The default is to panic (which differs from rusqlite).
+    pub fn set_drop_behavior(&mut self, behavior: DropBehavior) {
+        match behavior {
+            DropBehavior::Rollback => self.transaction.set_drop_behavior(rusqlite::DropBehavior::Rollback),
+            DropBehavior::Panic => (),      // TODO: https://github.com/jgallagher/rusqlite/pull/325
+        }
+    }
+}
+
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
 /// which is read-write, but only allows for reads.
 pub struct InProgressRead<'a, 'c>(InProgress<'a, 'c>);
+
+impl<'a, 'c> InProgressRead<'a, 'c> {
+    pub fn new(mut from: InProgress<'a, 'c>) -> InProgressRead<'a, 'c> {
+        from.set_drop_behavior(DropBehavior::Rollback);
+        InProgressRead(from)
+    }
+}
 
 impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
@@ -384,7 +416,7 @@ impl Conn {
     // Make both args mutable so that we can't have parallel access.
     pub fn begin_read<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgressRead<'m, 'conn>> {
         self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Deferred)
-            .map(InProgressRead)
+            .map(InProgressRead::new)
     }
 
     /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
@@ -392,7 +424,9 @@ impl Conn {
     /// writes and `InProgress`: it means we are ready to write whenever we want to, and nobody else
     /// can start a transaction that's not `DEFERRED`, but we don't need exclusivity yet.
     pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
-        self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Immediate)
+        let mut ip = self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Immediate)?;
+        ip.set_drop_behavior(DropBehavior::Panic);
+        Ok(ip)
     }
 
     /// Transact entities against the Mentat store, using the given connection and the current
