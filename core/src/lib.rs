@@ -100,7 +100,7 @@ impl enum_set::CLike for ValueType {
 }
 
 impl ValueType {
-    pub fn to_keyword(self) -> NamespacedKeyword {
+    pub fn into_keyword(self) -> NamespacedKeyword {
         NamespacedKeyword::new("db.type", match self {
             ValueType::Ref => "ref",
             ValueType::Boolean => "boolean",
@@ -113,7 +113,7 @@ impl ValueType {
         })
     }
 
-    pub fn to_typed_value(self) -> TypedValue {
+    pub fn into_typed_value(self) -> TypedValue {
         TypedValue::typed_ns_keyword("db.type", match self {
             ValueType::Ref => "ref",
             ValueType::Boolean => "boolean",
@@ -126,7 +126,7 @@ impl ValueType {
         })
     }
 
-    pub fn to_edn_value(self) -> edn::Value {
+    pub fn into_edn_value(self) -> edn::Value {
         match self {
             ValueType::Ref => values::DB_TYPE_REF.clone(),
             ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
@@ -514,7 +514,7 @@ pub mod attribute {
 
     impl Unique {
         // This is easier than rejigging DB_UNIQUE_VALUE to not be EDN.
-        pub fn to_typed_value(self) -> TypedValue {
+        pub fn into_typed_value(self) -> TypedValue {
             match self {
                 Unique::Value => TypedValue::typed_ns_keyword("db.unique", "value"),
                 Unique::Identity => TypedValue::typed_ns_keyword("db.unique", "identity"),
@@ -597,7 +597,7 @@ impl Attribute {
             attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident));
         }
 
-        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.to_edn_value());
+        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.into_edn_value());
 
         attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
 
