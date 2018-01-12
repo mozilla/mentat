@@ -154,6 +154,10 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
 }
 
 impl<'a, 'c> HasSchema for QueryableTransaction<'a, 'c> {
+    fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid> {
+        self.0.entid_for_type(t)
+    }
+
     fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
         self.0.get_ident(x)
     }
@@ -182,6 +186,10 @@ impl<'a, 'c> HasSchema for QueryableTransaction<'a, 'c> {
 }
 
 impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
+    fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid> {
+        self.schema.entid_for_type(t)
+    }
+
     fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
         self.schema.get_ident(x)
     }
