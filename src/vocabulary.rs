@@ -501,7 +501,8 @@ mod tests {
     fn test_read_vocabularies() {
         let mut sqlite = new_connection("").expect("could open conn");
         let mut conn = Conn::connect(&mut sqlite).expect("could open store");
-        let vocabularies = conn.queryable(&mut sqlite).expect("queryable").read_vocabularies().expect("OK");
+        let vocabularies = conn.begin_read(&mut sqlite).expect("in progress")
+                               .read_vocabularies().expect("OK");
         assert_eq!(vocabularies.len(), 1);
         let core = vocabularies.get(&NamespacedKeyword::new("db.schema", "core")).expect("exists");
         assert_eq!(core.version, 1);

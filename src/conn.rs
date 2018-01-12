@@ -123,9 +123,11 @@ pub struct InProgress<'a, 'c> {
     schema: Schema,
 }
 
-pub struct QueryableTransaction<'a, 'c>(InProgress<'a, 'c>);
+/// Represents an in-progress set of reads to the store. Just like `InProgress`,
+/// which is read-write, but only allows for reads.
+pub struct InProgressRead<'a, 'c>(InProgress<'a, 'c>);
 
-impl<'a, 'c> Queryable for QueryableTransaction<'a, 'c> {
+impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
         where T: Into<Option<QueryInputs>> {
         self.0.q_once(query, inputs)
@@ -163,7 +165,7 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
     }
 }
 
-impl<'a, 'c> HasSchema for QueryableTransaction<'a, 'c> {
+impl<'a, 'c> HasSchema for InProgressRead<'a, 'c> {
     fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid> {
         self.0.entid_for_type(t)
     }
@@ -226,7 +228,6 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
         self.schema.identifies_attribute(x)
     }
 }
-
 
 impl<'a, 'c> InProgress<'a, 'c> {
     pub fn builder(self) -> InProgressBuilder<'a, 'c> {
@@ -381,9 +382,9 @@ impl Conn {
 
     // Helper to avoid passing connections around.
     // Make both args mutable so that we can't have parallel access.
-    pub fn queryable<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<QueryableTransaction<'m, 'conn>> {
+    pub fn begin_read<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgressRead<'m, 'conn>> {
         self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Deferred)
-            .map(|ip| QueryableTransaction(ip))
+            .map(InProgressRead)
     }
 
     /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
