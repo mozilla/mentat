@@ -117,7 +117,6 @@ pub struct InProgress<'a, 'c> {
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
-    last_report: Option<TxReport>,   // For now we track only the last, but we could accumulate all.
 }
 
 pub struct QueryableTransaction<'a, 'c>(InProgress<'a, 'c>);
@@ -224,8 +223,9 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
     }
 }
 
+
 impl<'a, 'c> InProgress<'a, 'c> {
-    pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<()> where I: IntoIterator<Item=TermWithTempIds> {
+    pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
         let (report, next_partition_map, next_schema) = transact_terms(&self.transaction,
                                                                        self.partition_map.clone(),
                                                                        &self.schema,
@@ -236,11 +236,10 @@ impl<'a, 'c> InProgress<'a, 'c> {
         if let Some(schema) = next_schema {
             self.schema = schema;
         }
-        self.last_report = Some(report);
-        Ok(())
+        Ok(report)
     }
 
-    pub fn transact_entities<I>(&mut self, entities: I) -> Result<()> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
         // We clone the partition map here, rather than trying to use a Cell or using a mutable
         // reference, for two reasons:
         // 1. `transact` allocates new IDs in partitions before and while doing work that might
@@ -254,26 +253,20 @@ impl<'a, 'c> InProgress<'a, 'c> {
         if let Some(schema) = next_schema {
             self.schema = schema;
         }
-        self.last_report = Some(report);
-        Ok(())
+        Ok(report)
     }
 
-    pub fn transact(&mut self, transaction: &str) -> Result<()> {
+    pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
         self.transact_entities(entities)
     }
 
-    pub fn last_report(&self) -> Option<&TxReport> {
-        self.last_report.as_ref()
-    }
-
-    pub fn rollback(mut self) -> Result<()> {
-        self.last_report = None;
+    pub fn rollback(self) -> Result<()> {
         self.transaction.rollback().map_err(|e| e.into())
     }
 
-    pub fn commit(self) -> Result<Option<TxReport>> {
+    pub fn commit(self) -> Result<()> {
         // The mutex is taken during this entire method.
         let mut metadata = self.mutex.lock().unwrap();
 
@@ -290,11 +283,12 @@ impl<'a, 'c> InProgress<'a, 'c> {
 
         metadata.generation += 1;
         metadata.partition_map = self.partition_map;
+
         if self.schema != *(metadata.schema) {
             metadata.schema = Arc::new(self.schema);
         }
 
-        Ok(self.last_report)
+        Ok(())
     }
 }
 
@@ -370,7 +364,6 @@ impl Conn {
             generation: current_generation,
             partition_map: current_partition_map,
             schema: (*current_schema).clone(),
-            last_report: None,
         })
     }
 
@@ -402,8 +395,8 @@ impl Conn {
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
         let mut in_progress = self.begin_transaction(sqlite)?;
-        in_progress.transact_entities(entities)?;
-        let report = in_progress.commit()?.expect("we always get a report");
+        let report = in_progress.transact_entities(entities)?;
+        in_progress.commit()?;
 
         Ok(report)
     }
@@ -496,9 +489,9 @@ mod tests {
         // Scoped borrow of `conn`.
         {
             let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-            in_progress.transact(t).expect("transacted successfully");
-            let one = in_progress.last_report().unwrap().tempids.get("one").expect("found one").clone();
-            let two = in_progress.last_report().unwrap().tempids.get("two").expect("found two").clone();
+            let report = in_progress.transact(t).expect("transacted successfully");
+            let one = report.tempids.get("one").expect("found one").clone();
+            let two = report.tempids.get("two").expect("found two").clone();
             assert!(one != two);
             assert!(one == tempid_offset || one == tempid_offset + 1);
             assert!(two == tempid_offset || two == tempid_offset + 1);
@@ -507,10 +500,9 @@ mod tests {
                                     .expect("query succeeded");
             assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
 
-            in_progress.transact(t2).expect("t2 succeeded");
-            let report = in_progress.commit()
-                                    .expect("commit succeeded");
-            let three = report.unwrap().tempids.get("three").expect("found three").clone();
+            let report = in_progress.transact(t2).expect("t2 succeeded");
+            in_progress.commit().expect("commit succeeded");
+            let three = report.tempids.get("three").expect("found three").clone();
             assert!(one != three);
             assert!(two != three);
         }
@@ -536,10 +528,10 @@ mod tests {
         // Scoped borrow of `sqlite`.
         {
             let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-            in_progress.transact(t).expect("transacted successfully");
+            let report = in_progress.transact(t).expect("transacted successfully");
 
-            let one = in_progress.last_report().unwrap().tempids.get("one").expect("found it").clone();
-            let two = in_progress.last_report().unwrap().tempids.get("two").expect("found it").clone();
+            let one = report.tempids.get("one").expect("found it").clone();
+            let two = report.tempids.get("two").expect("found it").clone();
 
             // The IDs are contiguous, starting at the previous part index.
             assert!(one != two);
