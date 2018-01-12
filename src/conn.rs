@@ -27,6 +27,7 @@ use mentat_core::{
     NamespacedKeyword,
     Schema,
     TypedValue,
+    ValueType,
 };
 
 use mentat_core::intern_set::InternSet;
@@ -56,6 +57,9 @@ use query::{
     QueryResults,
 };
 
+use entity_builder::{
+    InProgressBuilder,
+};
 
 /// Connection metadata required to query from, or apply transactions to, a Mentat store.
 ///
@@ -225,6 +229,10 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
 
 
 impl<'a, 'c> InProgress<'a, 'c> {
+    pub fn builder(self) -> InProgressBuilder<'a, 'c> {
+        InProgressBuilder::new(self)
+    }
+
     pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
         let (report, next_partition_map, next_schema) = transact_terms(&self.transaction,
                                                                        self.partition_map.clone(),
