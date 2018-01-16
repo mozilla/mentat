@@ -715,7 +715,7 @@ impl ConjoiningClauses {
             &PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw)
                       .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
-                      .and_then(|(attribute, _)| self.table_for_attribute_and_value(attribute, value)),
+                      .and_then(|(attribute, _entid)| self.table_for_attribute_and_value(attribute, value)),
             &PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
                       .ok_or_else(|| EmptyBecause::InvalidAttributeEntid(id))
