@@ -771,22 +771,22 @@ impl ConjoiningClauses {
             .ok()
     }
 
-    fn get_attribute_for_value<'s>(&self, schema: &'s Schema, value: &TypedValue) -> Option<(&'s Attribute, KnownEntid)> {
+    fn get_attribute_for_value<'s>(&self, schema: &'s Schema, value: &TypedValue) -> Option<&'s Attribute> {
         match value {
             // We know this one is known if the attribute lookup succeeds…
-            &TypedValue::Ref(id) => schema.attribute_for_entid(id).map(|a| (a, KnownEntid(id))),
-            &TypedValue::Keyword(ref kw) => schema.attribute_for_ident(kw),
+            &TypedValue::Ref(id) => schema.attribute_for_entid(id),
+            &TypedValue::Keyword(ref kw) => schema.attribute_for_ident(kw).map(|(a, _id)| a),
             _ => None,
         }
     }
 
-    fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<(&'s Attribute, KnownEntid)> {
+    fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<&'s Attribute> {
         match pattern.attribute {
             PatternNonValuePlace::Entid(id) =>
                 // We know this one is known if the attribute lookup succeeds…
-                schema.attribute_for_entid(id).map(|a| (a, KnownEntid(id))),
+                schema.attribute_for_entid(id),
             PatternNonValuePlace::Ident(ref kw) =>
-                schema.attribute_for_ident(kw),
+                schema.attribute_for_ident(kw).map(|(a, _id)| a),
             PatternNonValuePlace::Variable(ref var) =>
                 // If the pattern has a variable, we've already determined that the binding -- if
                 // any -- is acceptable and yields a table. Here, simply look to see if it names
@@ -799,7 +799,7 @@ impl ConjoiningClauses {
     }
 
     fn get_value_type<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<ValueType> {
-        self.get_attribute(schema, pattern).map(|x| x.0.value_type)
+        self.get_attribute(schema, pattern).map(|a| a.value_type)
     }
 }
 
