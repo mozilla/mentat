@@ -693,6 +693,8 @@ pub trait HasSchema {
     fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid>;
     fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid>;
     fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid>;
+
+    // Returns the attribute and the entid named by the provided ident.
     fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)>;
 
     /// Return true if the provided entid identifies an attribute in this schema.
