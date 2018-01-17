@@ -102,6 +102,9 @@ pub trait BuildTerms where Self: Sized {
     fn add<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
     where E: IntoThing<KnownEntidOr<TempIdHandle>>,
           V: IntoThing<TypedValueOr<TempIdHandle>>;
+    fn retract<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
+    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
+          V: IntoThing<TypedValueOr<TempIdHandle>>;
 }
 
 impl BuildTerms for TermBuilder {
@@ -123,6 +126,15 @@ impl BuildTerms for TermBuilder {
         let e = e.into_thing();
         let v = v.into_thing();
         self.terms.push(Term::AddOrRetract(OpType::Add, e, a.into(), v));
+        Ok(())
+    }
+
+    fn retract<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
+    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
+          V: IntoThing<TypedValueOr<TempIdHandle>> {
+        let e = e.into_thing();
+        let v = v.into_thing();
+        self.terms.push(Term::AddOrRetract(OpType::Retract, e, a.into(), v));
         Ok(())
     }
 }
@@ -219,6 +231,12 @@ impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
     where E: IntoThing<KnownEntidOr<TempIdHandle>>,
           V: IntoThing<TypedValueOr<TempIdHandle>> {
         self.builder.add(e, a, v)
+    }
+
+    fn retract<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
+    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
+          V: IntoThing<TypedValueOr<TempIdHandle>> {
+        self.builder.retract(e, a, v)
     }
 }
 
