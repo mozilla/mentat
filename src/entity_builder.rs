@@ -360,7 +360,7 @@ mod testing {
         let mut builder = TermBuilder::new();
         let e = builder.named_tempid("x".into());
         let a1 = fake_known_entid(37);    // :db/doc
-        let a2 = fake_known_entid(999);    // :db/doc
+        let a2 = fake_known_entid(999);
         let v = TypedValue::typed_string("Some attribute");
         let ve = fake_known_entid(12345);
 
