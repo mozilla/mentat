@@ -207,12 +207,13 @@ fn test_add_vocab() {
         assert_eq!(VocabularyCheck::Present, in_progress.check_vocabulary(&foo_v1_a).expect("check completed"));
 
         // Checking for v1.b will say that we have work to do.
-        assert_eq!(VocabularyCheck::PresentButMissing {
+        assert_eq!(VocabularyCheck::PresentButMissingAttributes {
             attributes: vec![&baz_only[0]],
         }, in_progress.check_vocabulary(&foo_v1_b).expect("check completed"));
 
         // Ensuring v1.b will succeed.
-        assert_eq!(VocabularyOutcome::InstalledMissing, in_progress.ensure_vocabulary(&foo_v1_b).expect("ensure succeeded"));
+        assert_eq!(VocabularyOutcome::InstalledMissingAttributes,
+                   in_progress.ensure_vocabulary(&foo_v1_b).expect("ensure succeeded"));
 
         // Checking v1.a or v1.b again will still succeed with no work done.
         assert_eq!(VocabularyCheck::Present, in_progress.check_vocabulary(&foo_v1_a).expect("check completed"));

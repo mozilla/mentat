@@ -255,7 +255,7 @@ pub enum VocabularyCheck<'definition> {
     Present,
     PresentButNeedsUpdate { older_version: Vocabulary },
     PresentButTooNew { newer_version: Vocabulary },
-    PresentButMissing { attributes: Vec<&'definition (NamespacedKeyword, Attribute)> },
+    PresentButMissingAttributes { attributes: Vec<&'definition (NamespacedKeyword, Attribute)> },
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -265,7 +265,7 @@ pub enum VocabularyOutcome {
 
     /// The vocabulary was present with this version, but some attributes were absent.
     /// They have been installed.
-    InstalledMissing,
+    InstalledMissingAttributes,
 
     /// The vocabulary was present, at the correct version, and all attributes were present.
     Existed,
@@ -353,7 +353,7 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
                 if missing.is_empty() {
                     Ok(VocabularyCheck::Present)
                 } else {
-                    Ok(VocabularyCheck::PresentButMissing { attributes: missing })
+                    Ok(VocabularyCheck::PresentButMissingAttributes { attributes: missing })
                 }
             } else if vocabulary.version < definition.version {
                 // Ours is newer. Upgrade.
@@ -373,7 +373,7 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
             VocabularyCheck::Present => Ok(VocabularyOutcome::Existed),
             VocabularyCheck::NotPresent => self.install_vocabulary(definition),
             VocabularyCheck::PresentButNeedsUpdate { older_version } => self.upgrade_vocabulary(definition, older_version),
-            VocabularyCheck::PresentButMissing { attributes } => self.install_attributes_for(definition, attributes),
+            VocabularyCheck::PresentButMissingAttributes { attributes } => self.install_attributes_for(definition, attributes),
             VocabularyCheck::PresentButTooNew { newer_version } => Err(ErrorKind::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version).into()),
         }
     }
@@ -390,7 +390,7 @@ impl<'a, 'c> VocabularyMechanics for InProgress<'a, 'c> {
     fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (NamespacedKeyword, Attribute)>) -> Result<VocabularyOutcome> {
         let (terms, tempids) = definition.description_for_attributes(&attributes, self)?;
         self.transact_terms(terms, tempids)?;
-        Ok(VocabularyOutcome::InstalledMissing)
+        Ok(VocabularyOutcome::InstalledMissingAttributes)
     }
 
     /// Turn the declarative parts of the vocabulary into alterations. Run the 'pre' steps.
@@ -436,7 +436,7 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
     }
 
     fn read_vocabularies(&self) -> Result<Vocabularies> {
-        // This would be way easier with pull.
+        // This would be way easier with pull expressions. #110.
         let versions: BTreeMap<Entid, u32> =
             self.q_once(r#"[:find ?vocab ?version
                             :where [?vocab :db.schema/version ?version]]"#, None)
