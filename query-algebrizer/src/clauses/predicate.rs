@@ -85,11 +85,13 @@ impl ConjoiningClauses {
             bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
         }
 
+println!("Left types:  {:?}.", left_types);
         let mut right_types = self.potential_types(schema, &right)?
                                   .intersection(&supported_types);
         if right_types.is_empty() {
             bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 1));
         }
+println!("Right types: {:?}.", right_types);
 
         // We would like to allow longs to compare to doubles.
         // Do this by expanding the type sets. `resolve_numeric_argument` will
