@@ -236,6 +236,55 @@ mod testing {
     }
 
     #[test]
+    /// Apply two patterns: an unconstrained pattern to establish a value var,
+    /// and a predicate to constrain the val to numeric types.
+    /// The purpose of this test is to make sure that we also _constrain_ the var to its
+    /// required types, not only _deduce_ the types it must be.
+    fn test_apply_numeric_range_unconstrained_var() {
+        let mut cc = ConjoiningClauses::default();
+        let mut schema = Schema::default();
+
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
+        add_attribute(&mut schema, 99, Attribute {
+            value_type: ValueType::Long,
+            ..Default::default()
+        });
+        add_attribute(&mut schema, 98, Attribute {
+            value_type: ValueType::String,
+            unique: Some(Unique::Identity),
+            ..Default::default()
+        });
+
+        let x = Variable::from_valid_name("?x");
+        let y = Variable::from_valid_name("?y");
+        cc.apply_pattern(&schema, Pattern {
+            source: None,
+            entity: PatternNonValuePlace::Variable(x.clone()),
+            attribute: PatternNonValuePlace::Placeholder,
+            value: PatternValuePlace::Variable(y.clone()),
+            tx: PatternNonValuePlace::Placeholder,
+        });
+        assert!(!cc.is_known_empty());
+
+        let op = PlainSymbol::new(">=");
+        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        assert!(cc.apply_inequality(&schema, comp, Predicate {
+             operator: op,
+             args: vec![
+                FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
+            ]}).is_ok());
+
+        assert!(!cc.is_known_empty());
+
+        // Finally, expand column bindings to get the overlaps for ?x.
+        cc.expand_column_bindings();
+
+        assert!(!cc.is_known_empty());
+        println!("CC: {:?}", cc);
+    }
+
+    #[test]
     /// Apply three patterns: an unbound pattern to establish a value var,
     /// a predicate to constrain the val to numeric types, and a third pattern to conflict with the
     /// numeric types and cause the pattern to fail.
