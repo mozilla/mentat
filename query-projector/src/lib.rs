@@ -374,7 +374,8 @@ impl TupleProjector {
 
     // This is exactly the same as for rel.
     fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
-        assert_eq!(row.column_count(), self.len as i32);
+        // There will be at least as many SQL columns as Datalog columns.
+        assert!(row.column_count() >= self.len as i32);
         self.templates
             .iter()
             .map(|ti| ti.lookup(&row))
@@ -422,7 +423,8 @@ impl RelProjector {
     }
 
     fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
-        assert_eq!(row.column_count(), self.len as i32);
+        // There will be at least as many SQL columns as Datalog columns.
+        assert!(row.column_count() >= self.len as i32);
         self.templates
             .iter()
             .map(|ti| ti.lookup(&row))
