@@ -84,13 +84,15 @@ impl InputReader {
             None => return Ok(Eof),
         };
 
+        if !self.buffer.is_empty() {
+            self.buffer.push('\n');
+        }
+
         self.buffer.push_str(&line);
 
         if self.buffer.is_empty() {
             return Ok(Empty);
         }
-
-        self.add_history(&line);
 
         // if we have a command in process (i.e. an incomplete query or transaction),
         // then we already know which type of command it is and so we don't need to parse the
@@ -121,6 +123,8 @@ impl InputReader {
                         Ok(More)
                     },
                     _ => {
+                        let history = self.buffer.clone();
+                        self.add_history(&history);
                         self.buffer.clear();
                         self.in_process_cmd = None;
                         Ok(InputResult::MetaCommand(cmd))
@@ -128,6 +132,8 @@ impl InputReader {
                 }
             },
             Err(e) => {
+                let history = self.buffer.clone();
+                self.add_history(&history);
                 self.buffer.clear();
                 self.in_process_cmd = None;
                 Err(e)
