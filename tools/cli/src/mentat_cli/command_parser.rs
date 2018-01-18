@@ -42,6 +42,8 @@ pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
 pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
 pub static LONG_EXIT_COMMAND: &'static str = &"exit";
 pub static SHORT_EXIT_COMMAND: &'static str = &"e";
+pub static LONG_QUERY_EXPLAIN_COMMAND: &'static str = &"explain_query";
+pub static SHORT_QUERY_EXPLAIN_COMMAND: &'static str = &"eq";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
@@ -52,6 +54,7 @@ pub enum Command {
     Query(String),
     Schema,
     Transact(String),
+    QueryExplain(String),
 }
 
 impl Command {
@@ -62,7 +65,8 @@ impl Command {
     pub fn is_complete(&self) -> bool {
         match self {
             &Command::Query(ref args) |
-            &Command::Transact(ref args) => {
+            &Command::Transact(ref args) |
+            &Command::QueryExplain(ref args) => {
                 edn::parse::value(&args).is_ok()
             },
             &Command::Help(_) |
@@ -95,6 +99,9 @@ impl Command {
             },
             &Command::Schema => {
                 format!(".{}", SCHEMA_COMMAND)
+            },
+            &Command::QueryExplain(ref args) => {
+                format!(".{} {}", LONG_QUERY_EXPLAIN_COMMAND, args)
             },
         }
     }
@@ -174,12 +181,19 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Transact(x))
                     });
 
+    let explain_query_parser = try(string(LONG_QUERY_EXPLAIN_COMMAND))
+                           .or(try(string(SHORT_QUERY_EXPLAIN_COMMAND)))
+                        .with(edn_arg_parser())
+                        .map(|x| {
+                            Ok(Command::QueryExplain(x))
+                        });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 7], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 8], _>
           ([&mut try(help_parser),
             &mut try(open_parser),
             &mut try(close_parser),
+            &mut try(explain_query_parser),
             &mut try(exit_parser),
             &mut try(query_parser),
             &mut try(schema_parser),

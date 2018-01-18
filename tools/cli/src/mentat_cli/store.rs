@@ -16,6 +16,7 @@ use errors as cli;
 
 use mentat::{
     new_connection,
+    QueryExplanation,
 };
 
 use mentat::query::QueryResults;
@@ -56,6 +57,10 @@ impl Store {
 
     pub fn query(&self, query: String) -> Result<QueryResults, cli::Error> {
         Ok(self.conn.q_once(&self.handle, &query, None)?)
+    }
+
+    pub fn explain_query(&self, query: String) -> Result<QueryExplanation, cli::Error> {
+        Ok(self.conn.q_explain(&self.handle, &query, None)?)
     }
 
     pub fn transact(&mut self, transaction: String) -> Result<TxReport, cli::Error> {

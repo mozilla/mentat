@@ -11,7 +11,10 @@
 use std::collections::HashMap;  
 use std::process;
 
-use mentat::query::QueryResults;
+use mentat::query::{
+    QueryExplanation,
+    QueryResults,
+};
 use mentat_core::TypedValue;
 
 use command_parser::{
@@ -25,6 +28,8 @@ use command_parser::{
     SHORT_TRANSACT_COMMAND,
     LONG_EXIT_COMMAND,
     SHORT_EXIT_COMMAND,
+    LONG_QUERY_EXPLAIN_COMMAND,
+    SHORT_QUERY_EXPLAIN_COMMAND,
 };
 use input::InputReader;
 use input::InputResult::{
@@ -50,6 +55,9 @@ lazy_static! {
         map.insert(SCHEMA_COMMAND, "Output the schema for the current open database.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
         map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
+        map.insert(LONG_QUERY_EXPLAIN_COMMAND, "Show the SQL and query plan that would be executed for a given query.");
+        map.insert(SHORT_QUERY_EXPLAIN_COMMAND,
+            "Shortcut for `.explain_query`. Show the SQL and query plan that would be executed for a given query.");
         map
     };
 }
@@ -112,6 +120,7 @@ impl Repl {
             },
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
+            Command::QueryExplain(query) => self.explain_query(query),
             Command::Schema => {
                 let edn = self.store.fetch_schema();
                 match edn.to_pretty(120) {
@@ -195,6 +204,43 @@ impl Repl {
             _ => output.push_str(&format!("No results found."))
         }
         println!("\n{}", output);
+    }
+
+    pub fn explain_query(&self, query: String) {
+        match self.store.explain_query(query) {
+            Result::Err(err) =>
+                println!("{:?}.", err),
+            Result::Ok(QueryExplanation::KnownEmpty(empty_because)) =>
+                println!("Query is known empty: {:?}", empty_because),
+            Result::Ok(QueryExplanation::ExecutionPlan { query, steps }) => {
+                println!("SQL: {}", query.sql);
+                if !query.args.is_empty() {
+                    println!("  Bindings:");
+                    for (arg_name, value) in query.args {
+                        println!("    {} = {:?}", arg_name, *value)
+                    }
+                }
+
+                println!("Plan: select id | order | from | detail");
+                // Compute the number of columns we need for order, select id, and from,
+                // so that longer query plans don't become misaligned.
+                let (max_select_id, max_order, max_from) = steps.iter().fold((0, 0, 0), |acc, step|
+                    (acc.0.max(step.select_id), acc.1.max(step.order), acc.2.max(step.from)));
+                // This is less efficient than computing it via the logarithm base 10,
+                // but it's clearer and doesn't have require special casing "0"
+                let max_select_digits = max_select_id.to_string().len();
+                let max_order_digits = max_order.to_string().len();
+                let max_from_digits = max_from.to_string().len();
+                for step in steps {
+                    // Note: > is right align.
+                    println!("  {:>sel_cols$}|{:>ord_cols$}|{:>from_cols$}|{}",
+                             step.select_id, step.order, step.from, step.detail,
+                             sel_cols = max_select_digits,
+                             ord_cols = max_order_digits,
+                             from_cols = max_from_digits);
+                }
+            }
+        };
     }
 
     pub fn execute_transact(&mut self, transaction: String) {
