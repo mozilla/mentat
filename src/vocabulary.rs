@@ -8,6 +8,81 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+
+//! This module exposes an interface for programmatic management of vocabularies. A vocabulary
+//! is defined as a name, a version number, and a collection of attribute definitions. In the
+//! future, this input will be augmented with specifications of migrations between versions.
+//!
+//! A Mentat store exposes, via the `HasSchema` trait, operations to read vocabularies by name
+//! or in bulk.
+//!
+//! An in-progress transaction (`InProgress`) further exposes a trait, `VersionedStore`, which
+//! allows for a vocabulary definition to be checked for existence in the store, and transacted
+//! if needed.
+//!
+//! Typical use is the following:
+//!
+//! ```
+//! extern crate mentat;
+//! extern crate mentat_db;          // So we can use SQLite connection utilities.
+//!
+//! use mentat::{
+//!     Conn,
+//!     NamespacedKeyword,
+//!     ValueType,
+//! };
+//!
+//! use mentat::vocabulary;
+//! use mentat::vocabulary::{
+//!     Definition,
+//!     HasVocabularies,
+//!     VersionedStore,
+//!     VocabularyOutcome,
+//! };
+//!
+//! fn main() {
+//!     let mut sqlite = mentat_db::db::new_connection("").expect("SQLite connected");
+//!     let mut conn = Conn::connect(&mut sqlite).expect("connected");
+//!
+//!     {
+//!         // Read the list of installed vocabularies.
+//!         let reader = conn.begin_read(&mut sqlite).expect("began read");
+//!         let vocabularies = reader.read_vocabularies().expect("read");
+//!         for (name, vocabulary) in vocabularies.iter() {
+//!             println!("Vocab {} is at version {}.", name, vocabulary.version);
+//!             for &(ref name, ref attr) in vocabulary.attributes().iter() {
+//!                 println!("  >> {} ({})", name, attr.value_type);
+//!             }
+//!         }
+//!     }
+//!
+//!     {
+//!         let mut in_progress = conn.begin_transaction(&mut sqlite).expect("began transaction");
+//!
+//!         // Make sure the core vocabulary exists.
+//!         in_progress.verify_core_schema().expect("verified");
+//!
+//!         // Make sure our vocabulary is installed, and install if necessary.
+//!         in_progress.ensure_vocabulary(&Definition {
+//!             name: NamespacedKeyword::new("example", "links"),
+//!             version: 1,
+//!             attributes: vec![
+//!                 (NamespacedKeyword::new("link", "title"),
+//!                  vocabulary::AttributeBuilder::default()
+//!                    .value_type(ValueType::String)
+//!                    .multival(false)
+//!                    .fulltext(true)
+//!                    .build()),
+//!             ],
+//!         }).expect("ensured");
+//!
+//!         // Now we can do stuff.
+//!         in_progress.transact("[{:link/title \"Title\"}]").expect("transacts");
+//!         in_progress.commit().expect("commits");
+//!     }
+//! }
+//! ```
+
 use std::collections::BTreeMap;
 
 use mentat_core::{
@@ -70,6 +145,12 @@ pub struct Vocabulary {
     attributes: Vec<(Entid, Attribute)>,
 }
 
+impl Vocabulary {
+    pub fn attributes(&self) -> &Vec<(Entid, Attribute)> {
+        &self.attributes
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Vocabularies(pub BTreeMap<NamespacedKeyword, Vocabulary>);   // N.B., this has a copy of the attributes in Schema!
 
@@ -80,6 +161,10 @@ impl Vocabularies {
 
     pub fn get(&self, name: &NamespacedKeyword) -> Option<&Vocabulary> {
         self.0.get(name)
+    }
+
+    pub fn iter(&self) -> ::std::collections::btree_map::Iter<NamespacedKeyword, Vocabulary> {
+        self.0.iter()
     }
 }
 
