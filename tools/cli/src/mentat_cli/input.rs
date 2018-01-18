@@ -123,18 +123,18 @@ impl InputReader {
                         Ok(More)
                     },
                     _ => {
-                        let history = self.buffer.clone();
-                        self.add_history(&history);
+                        let entry = self.buffer.clone();
                         self.buffer.clear();
+                        self.add_history(entry);
                         self.in_process_cmd = None;
                         Ok(InputResult::MetaCommand(cmd))
                     }
                 }
             },
             Err(e) => {
-                let history = self.buffer.clone();
-                self.add_history(&history);
+                let entry = self.buffer.clone();
                 self.buffer.clear();
+                self.add_history(entry);
                 self.in_process_cmd = None;
                 Err(e)
             },
@@ -165,9 +165,9 @@ impl InputReader {
         }
     }
 
-    fn add_history(&mut self, line: &str) {
+    fn add_history(&mut self, line: String) {
         if let Some(ref mut r) = self.reader {
-            r.add_history(line.to_owned());
+            r.add_history(line);
         }
     }
 }
