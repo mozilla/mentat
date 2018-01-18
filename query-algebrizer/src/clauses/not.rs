@@ -53,12 +53,13 @@ impl ConjoiningClauses {
             template.apply_clause(&schema, clause)?;
         }
 
+        template.expand_column_bindings();
+        template.prune_extracted_types();
+        template.process_required_types()?;
+
         if template.is_known_empty() {
             return Ok(());
         }
-
-        // We are only expanding column bindings here and not pruning extracted types as we are not projecting values.
-        template.expand_column_bindings();
 
         let subquery = ComputedTable::Subquery(template);
 

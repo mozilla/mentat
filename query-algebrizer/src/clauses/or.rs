@@ -577,6 +577,7 @@ impl ConjoiningClauses {
             } else {
                 receptacle.expand_column_bindings();
                 receptacle.prune_extracted_types();
+                receptacle.process_required_types()?;
                 acc.push(receptacle);
             }
         }

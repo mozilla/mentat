@@ -105,7 +105,20 @@ pub enum Constraint {
     },
     NotExists {
         subquery: TableOrSubquery,
+    },
+    TypeCheck {
+        value: ColumnOrExpression,
+        datatype: SQLDatatype
     }
+}
+
+/// Type safe representation of the possible return values from `typeof`
+pub enum SQLDatatype {
+    Null, // "null"
+    Integer, // "integer"
+    Real, // "real"
+    Text, // "text"
+    Blob, // "blob"
 }
 
 impl Constraint {
@@ -313,6 +326,19 @@ impl QueryFragment for Op {
     }
 }
 
+impl QueryFragment for SQLDatatype {
+    fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
+        out.push_sql(match *self {
+            SQLDatatype::Null => "'null'",
+            SQLDatatype::Integer => "'integer'",
+            SQLDatatype::Real => "'real'",
+            SQLDatatype::Text => "'text'",
+            SQLDatatype::Blob => "'blob'",
+        });
+        Ok(())
+    }
+}
+
 impl QueryFragment for Constraint {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::Constraint::*;
@@ -367,7 +393,14 @@ impl QueryFragment for Constraint {
                 subquery.push_sql(out)?;
                 out.push_sql(")");
                 Ok(())
-            }
+            },
+            &TypeCheck { ref value, ref datatype } => {
+                out.push_sql("typeof(");
+                value.push_sql(out)?;
+                out.push_sql(") = ");
+                datatype.push_sql(out)?;
+                Ok(())
+            },
         }
     }
 }

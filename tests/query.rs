@@ -15,6 +15,7 @@ extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
 extern crate mentat_query_algebrizer;       // For errors.
+extern crate rusqlite;
 
 use std::str::FromStr;
 
@@ -25,9 +26,9 @@ use mentat_core::{
     HasSchema,
     KnownEntid,
     TypedValue,
-    ValueType,
     Utc,
     Uuid,
+    ValueType,
 };
 
 use mentat::{
@@ -500,4 +501,97 @@ fn test_lookup() {
     let two_longs = vec![TypedValue::Long(123), TypedValue::Long(456)];
     let fetched_many = conn.lookup_value_for_attribute(&c, *entid, &foo_many).unwrap().unwrap();
     assert!(two_longs.contains(&fetched_many));
+}
+
+#[test]
+fn test_type_reqs() {
+    let mut c = new_connection("").expect("Couldn't open conn.");
+    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+
+    conn.transact(&mut c, r#"[
+        {:db/ident :test/boolean :db/valueType :db.type/boolean :db/cardinality :db.cardinality/one}
+        {:db/ident :test/long    :db/valueType :db.type/long    :db/cardinality :db.cardinality/one}
+        {:db/ident :test/double  :db/valueType :db.type/double  :db/cardinality :db.cardinality/one}
+        {:db/ident :test/string  :db/valueType :db.type/string  :db/cardinality :db.cardinality/one}
+        {:db/ident :test/keyword :db/valueType :db.type/keyword :db/cardinality :db.cardinality/one}
+        {:db/ident :test/uuid    :db/valueType :db.type/uuid    :db/cardinality :db.cardinality/one}
+        {:db/ident :test/instant :db/valueType :db.type/instant :db/cardinality :db.cardinality/one}
+        {:db/ident :test/ref     :db/valueType :db.type/ref     :db/cardinality :db.cardinality/one}
+    ]"#).unwrap();
+
+    conn.transact(&mut c, r#"[
+        {:test/boolean true
+         :test/long    33
+         :test/double  1.4
+         :test/string  "foo"
+         :test/keyword :foo/bar
+         :test/uuid    #uuid "12341234-1234-1234-1234-123412341234"
+         :test/instant #inst "2018-01-01T11:00:00.000Z"
+         :test/ref     1}
+    ]"#).unwrap();
+
+    let eid_query = r#"[:find ?eid :where [?eid :test/string "foo"]]"#;
+
+    let res = conn.q_once(&mut c, eid_query, None).unwrap();
+
+    let entid = match res {
+        QueryResults::Rel(ref vs) if vs.len() == 1 && vs[0].len() == 1 && vs[0][0].matches_type(ValueType::Ref) =>
+            if let TypedValue::Ref(eid) = vs[0][0] {
+                eid
+            } else {
+                // Already checked this.
+                unreachable!();
+            }
+        unexpected => {
+            panic!("Query to get the entity id returned unexpected result {:?}", unexpected);
+        }
+    };
+
+    let type_names = &[
+        "boolean",
+        "long",
+        "double",
+        "string",
+        "keyword",
+        "uuid",
+        "instant",
+        "ref",
+    ];
+
+    let entid_binding = QueryInputs::with_value_sequence(vec![
+        (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
+    ]);
+
+    for name in type_names {
+        let q = format!("[:find [?v ...] :in ?e :where [?e _ ?v] [({} ?v)]]", name);
+        let results = conn.q_once(&mut c, &q, entid_binding.clone()).unwrap();
+        match results {
+            QueryResults::Coll(vals) => {
+                assert_eq!(vals.len(), 1, "Query should find exactly 1 item");
+            },
+            v => {
+                panic!("Query returned unexpected type: {:?}", v);
+            }
+        }
+    }
+
+    conn.transact(&mut c, r#"[
+        {:db/ident :test/long2 :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+    ]"#).unwrap();
+
+    conn.transact(&mut c, &format!("[[:db/add {} :test/long2 5]]", entid)).unwrap();
+    let longs_query = r#"[:find [?v ...]
+                          :order (asc ?v)
+                          :in ?e
+                          :where [?e _ ?v] [(long ?v)]]"#;
+
+    let res = conn.q_once(&mut c, longs_query, entid_binding.clone()).unwrap();
+    match res {
+        QueryResults::Coll(vals) => {
+            assert_eq!(vals, vec![TypedValue::Long(5), TypedValue::Long(33)])
+        },
+        v => {
+            panic!("Query returned unexpected type: {:?}", v);
+        }
+    };
 }

@@ -46,6 +46,8 @@ use mentat_query::{
 };
 
 use errors::{
+    Error,
+    ErrorKind,
     Result,
 };
 
@@ -214,6 +216,9 @@ pub struct ConjoiningClauses {
     /// A mapping, similar to `column_bindings`, but used to pull type tags out of the store at runtime.
     /// If a var isn't unit in `known_types`, it should be present here.
     pub extracted_types: BTreeMap<Variable, QualifiedAlias>,
+
+    /// Map of variables to the set of type requirements we have for them.
+    required_types: BTreeMap<Variable, ValueType>,
 }
 
 impl PartialEq for ConjoiningClauses {
@@ -226,7 +231,8 @@ impl PartialEq for ConjoiningClauses {
         self.input_variables.eq(&other.input_variables) &&
         self.value_bindings.eq(&other.value_bindings) &&
         self.known_types.eq(&other.known_types) &&
-        self.extracted_types.eq(&other.extracted_types)
+        self.extracted_types.eq(&other.extracted_types) &&
+        self.required_types.eq(&other.required_types)
     }
 }
 
@@ -244,6 +250,7 @@ impl Debug for ConjoiningClauses {
             .field("value_bindings", &self.value_bindings)
             .field("known_types", &self.known_types)
             .field("extracted_types", &self.extracted_types)
+            .field("required_types", &self.required_types)
             .finish()
     }
 }
@@ -257,6 +264,7 @@ impl Default for ConjoiningClauses {
             from: vec![],
             computed_tables: vec![],
             wheres: ColumnIntersection::default(),
+            required_types: BTreeMap::new(),
             input_variables: BTreeSet::new(),
             column_bindings: BTreeMap::new(),
             value_bindings: BTreeMap::new(),
@@ -320,6 +328,7 @@ impl ConjoiningClauses {
             value_bindings: self.value_bindings.clone(),
             known_types: self.known_types.clone(),
             extracted_types: self.extracted_types.clone(),
+            required_types: self.required_types.clone(),
             ..Default::default()
         }
     }
@@ -334,6 +343,7 @@ impl ConjoiningClauses {
             value_bindings: self.value_bindings.with_intersected_keys(&vars),
             known_types: self.known_types.with_intersected_keys(&vars),
             extracted_types: self.extracted_types.with_intersected_keys(&vars),
+            required_types: self.required_types.with_intersected_keys(&vars),
             ..Default::default()
         }
     }
@@ -356,7 +366,7 @@ impl ConjoiningClauses {
         // Are we also trying to figure out the type of the value when the query runs?
         // If so, constrain that!
         if let Some(qa) = self.extracted_types.get(&var) {
-            self.wheres.add_intersection(ColumnConstraint::HasType(qa.0.clone(), vt));
+            self.wheres.add_intersection(ColumnConstraint::has_type(qa.0.clone(), vt));
         }
 
         // Finally, store the binding for future use.
@@ -537,6 +547,19 @@ impl ConjoiningClauses {
             // There was an existing mapping. Does this type match?
             if !existing.contains(this_type) {
                 self.mark_known_empty(EmptyBecause::TypeMismatch { var, existing, desired: this_type_set });
+            }
+        }
+    }
+
+    pub fn add_type_requirement(&mut self, var: Variable, ty: ValueType) {
+        if let Some(existing) = self.required_types.insert(var.clone(), ty) {
+            // If we already have a required type for `var`, we're empty.
+            if existing != ty {
+                self.mark_known_empty(EmptyBecause::TypeMismatch {
+                    var: var.clone(),
+                    existing: ValueTypeSet::of_one(existing),
+                    desired: ValueTypeSet::of_one(ty)
+                });
             }
         }
     }
@@ -848,7 +871,43 @@ impl ConjoiningClauses {
         }
     }
 
-
+    pub fn process_required_types(&mut self) -> Result<()> {
+        // We can't call `mark_known_empty` inside the loop since it would be a
+        // mutable borrow on self while we're iterating over `self.required_types`.
+        // Doing it like this avoids needing to copy `self.required_types`.
+        let mut empty_because: Option<EmptyBecause> = None;
+        for (var, &ty) in self.required_types.iter() {
+            if let Some(&already_known) = self.known_types.get(var) {
+                if already_known.exemplar() == Some(ty) {
+                    // If we're already certain the type and the constraint are
+                    // the same, then there's no need to constrain anything.
+                    continue;
+                }
+                if !already_known.contains(ty) && empty_because.is_none() {
+                    // If we know the constraint can't be one of the types
+                    // the variable could take, then we know we're empty.
+                    empty_because = Some(EmptyBecause::TypeMismatch {
+                        var: var.clone(),
+                        existing: already_known,
+                        desired: ValueTypeSet::of_one(ty)
+                    });
+                    break;
+                }
+            }
+            let qa = self.extracted_types
+                .get(&var)
+                .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))?;
+            self.wheres.add_intersection(ColumnConstraint::HasType {
+                value: qa.0.clone(),
+                value_type: ty,
+                strict: true,
+            });
+        }
+        if let Some(reason) = empty_because {
+            self.mark_known_empty(reason);
+        }
+        Ok(())
+    }
     /// When a CC has accumulated all patterns, generate value_type_tag entries in `wheres`
     /// to refine value types for which two things are true:
     ///

@@ -50,6 +50,7 @@ use mentat_query_sql::{
     ProjectedColumn,
     Projection,
     SelectQuery,
+    SQLDatatype,
     TableList,
     TableOrSubquery,
     Values,
@@ -157,10 +158,30 @@ impl ToConstraint for ColumnConstraint {
                     right: right.into(),
                 }
             },
-
-            HasType(table, value_type) => {
-                let column = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag).to_column();
-                Constraint::equal(column, ColumnOrExpression::Integer(value_type.value_type_tag()))
+            HasType { value: table, value_type, strict } => {
+                let type_column = QualifiedAlias::new(table.clone(), DatomsColumn::ValueTypeTag).to_column();
+                let loose = Constraint::equal(type_column,
+                                              ColumnOrExpression::Integer(value_type.value_type_tag()));
+                if !strict || (value_type != ValueType::Long && value_type != ValueType::Double) {
+                    loose
+                } else {
+                    // HasType has requested that we check for strict equality, and we're
+                    // checking a ValueType where that makes a difference (a numeric type).
+                    let val_column = QualifiedAlias::new(table, DatomsColumn::Value).to_column();
+                    Constraint::And {
+                        constraints: vec![
+                            loose,
+                            Constraint::TypeCheck {
+                                value: val_column,
+                                datatype: match value_type {
+                                    ValueType::Long => SQLDatatype::Integer,
+                                    ValueType::Double => SQLDatatype::Real,
+                                    _ => unreachable!()
+                                }
+                            }
+                        ]
+                    }
+                }
             },
 
             NotExists(computed_table) => {
