@@ -56,7 +56,7 @@ impl InputReader {
     pub fn new() -> InputReader {
         let r = match Reader::new("mentat") {
             Ok(mut r) => {
-                r.set_word_break_chars(" \t\n!\"#$%&'()*+,-./:;<=>?@[\\]^`");
+                r.set_word_break_chars(" \t\n!\"#$%&'(){}*+,-./:;<=>?@[\\]^`");
                 Some(r)
             },
             Err(_) => None,
