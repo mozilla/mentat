@@ -10,8 +10,11 @@
 
 use std::io::stdin;
 
-use linefeed::Reader;
-use linefeed::terminal::DefaultTerminal;
+use linefeed::{
+    DefaultTerminal,
+    Reader,
+    ReadResult,
+};
 
 use self::InputResult::*;
 
@@ -53,7 +56,7 @@ impl InputReader {
     pub fn new() -> InputReader {
         let r = match Reader::new("mentat") {
             Ok(mut r) => {
-                r.set_word_break_chars(" \t\n!\"#$%&'()*+,-./:;<=>?@[\\]^`");
+                r.set_word_break_chars(" \t\n!\"#$%&'(){}*+,-./:;<=>?@[\\]^`");
                 Some(r)
             },
             Err(_) => None,
@@ -81,13 +84,15 @@ impl InputReader {
             None => return Ok(Eof),
         };
 
+        if !self.buffer.is_empty() {
+            self.buffer.push('\n');
+        }
+
         self.buffer.push_str(&line);
 
         if self.buffer.is_empty() {
             return Ok(Empty);
         }
-
-        self.add_history(&line);
 
         // if we have a command in process (i.e. an incomplete query or transaction),
         // then we already know which type of command it is and so we don't need to parse the
@@ -118,14 +123,18 @@ impl InputReader {
                         Ok(More)
                     },
                     _ => {
+                        let entry = self.buffer.clone();
                         self.buffer.clear();
+                        self.add_history(entry);
                         self.in_process_cmd = None;
                         Ok(InputResult::MetaCommand(cmd))
                     }
                 }
             },
             Err(e) => {
+                let entry = self.buffer.clone();
                 self.buffer.clear();
+                self.add_history(entry);
                 self.in_process_cmd = None;
                 Err(e)
             },
@@ -136,7 +145,12 @@ impl InputReader {
         match self.reader {
             Some(ref mut r) => {
                 r.set_prompt(prompt);
-                r.read_line().ok().and_then(|line| line)
+                r.read_line().ok().and_then(|line|
+                    match line {
+                        ReadResult::Input(s) => Some(s),
+                        _ => None
+                    })
+
             },
             None => self.read_stdin()
         }
@@ -151,9 +165,9 @@ impl InputReader {
         }
     }
 
-    fn add_history(&mut self, line: &str) {
+    fn add_history(&mut self, line: String) {
         if let Some(ref mut r) = self.reader {
-            r.add_history(line.to_owned());
+            r.add_history(line);
         }
     }
 }
