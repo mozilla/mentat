@@ -10,8 +10,11 @@
 
 use std::io::stdin;
 
-use linefeed::Reader;
-use linefeed::terminal::DefaultTerminal;
+use linefeed::{
+    DefaultTerminal,
+    Reader,
+    ReadResult,
+};
 
 use self::InputResult::*;
 
@@ -136,7 +139,12 @@ impl InputReader {
         match self.reader {
             Some(ref mut r) => {
                 r.set_prompt(prompt);
-                r.read_line().ok().and_then(|line| line)
+                r.read_line().ok().and_then(|line|
+                    match line {
+                        ReadResult::Input(s) => Some(s),
+                        _ => None
+                    })
+
             },
             None => self.read_stdin()
         }
