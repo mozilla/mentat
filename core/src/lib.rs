@@ -14,6 +14,7 @@ extern crate enum_set;
 extern crate lazy_static;
 extern crate ordered_float;
 
+extern crate chrono;
 extern crate edn;
 extern crate uuid;
 
@@ -36,8 +37,12 @@ use self::edn::{
 
 pub use uuid::Uuid;
 
-pub use edn::{
+pub use chrono::{
     DateTime,
+    Timelike,       // For truncation.
+};
+
+pub use edn::{
     FromMicros,
     ToMicros,
     Utc,
@@ -135,7 +140,7 @@ pub enum TypedValue {
     Boolean(bool),
     Long(i64),
     Double(OrderedFloat<f64>),
-    Instant(DateTime<Utc>),
+    Instant(DateTime<Utc>),               // Use `into()` to ensure truncation.
     // TODO: &str throughout?
     String(Rc<String>),
     Keyword(Rc<NamespacedKeyword>),
@@ -183,7 +188,7 @@ impl TypedValue {
     }
 
     pub fn current_instant() -> TypedValue {
-        TypedValue::Instant(Utc::now())
+        Utc::now().into()
     }
 }
 
@@ -195,9 +200,13 @@ impl From<bool> for TypedValue {
     }
 }
 
+/// Truncate the provided `DateTime` to microsecond precision, and return the corresponding
+/// `TypedValue::Instant`.
 impl From<DateTime<Utc>> for TypedValue {
     fn from(value: DateTime<Utc>) -> TypedValue {
-        TypedValue::Instant(value)
+        let microseconds = value.nanosecond() / 1000;
+        let truncated = microseconds * 1000;
+        TypedValue::Instant(value.with_nanosecond(truncated).expect("valid timestamp"))
     }
 }
 
@@ -668,6 +677,8 @@ impl Schema {
 mod test {
     use super::*;
 
+    use std::str::FromStr;
+
     fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
         schema.entid_map.insert(e, i.clone());
         schema.ident_map.insert(i, e);
@@ -720,6 +731,19 @@ mod test {
         assert!(attr3.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
         assert!(attr3.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
         assert!(attr3.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
+    }
+
+    #[test]
+    fn test_datetime_truncation() {
+        let dt: DateTime<Utc> = DateTime::from_str("2018-01-11T00:34:09.273457004Z").expect("parsed");
+        let expected: DateTime<Utc> = DateTime::from_str("2018-01-11T00:34:09.273457Z").expect("parsed");
+
+        let tv: TypedValue = dt.into();
+        if let TypedValue::Instant(roundtripped) = tv {
+            assert_eq!(roundtripped, expected);
+        } else {
+            panic!();
+        }
     }
 
     #[test]
