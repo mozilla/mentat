@@ -22,6 +22,8 @@ use chrono::FixedOffset;
 
 use mentat_core::{
     DateTime,
+    HasSchema,
+    KnownEntid,
     TypedValue,
     ValueType,
     Utc,
@@ -58,7 +60,7 @@ fn test_rel() {
     let end = time::PreciseTime::now();
 
     // This will need to change each time we add a default ident.
-    assert_eq!(39, results.len());
+    assert_eq!(40, results.len());
 
     // Every row is a pair of a Ref and a Keyword.
     if let QueryResults::Rel(ref rel) = results {
@@ -114,7 +116,7 @@ fn test_scalar() {
     if let QueryResults::Scalar(Some(TypedValue::Keyword(ref rc))) = results {
         // Should be '24'.
         assert_eq!(&NamespacedKeyword::new("db.type", "keyword"), rc.as_ref());
-        assert_eq!(24,
+        assert_eq!(KnownEntid(24),
                    db.schema.get_entid(rc).unwrap());
     } else {
         panic!("Expected scalar.");
@@ -145,7 +147,7 @@ fn test_tuple() {
         let cardinality_one = NamespacedKeyword::new("db.cardinality", "one");
         assert_eq!(tuple.len(), 2);
         assert_eq!(tuple[0], TypedValue::Boolean(true));
-        assert_eq!(tuple[1], TypedValue::Ref(db.schema.get_entid(&cardinality_one).unwrap()));
+        assert_eq!(tuple[1], db.schema.get_entid(&cardinality_one).expect("c1").into());
     } else {
         panic!("Expected tuple.");
     }
@@ -166,7 +168,7 @@ fn test_coll() {
         .expect("Query failed");
     let end = time::PreciseTime::now();
 
-    assert_eq!(39, results.len());
+    assert_eq!(40, results.len());
 
     if let QueryResults::Coll(ref coll) = results {
         assert!(coll.iter().all(|item| item.matches_type(ValueType::Ref)));
@@ -245,7 +247,7 @@ fn test_instants_and_uuids() {
                  Some(TypedValue::Uuid(u)),
                  Some(TypedValue::Instant(t)),
                  None) => {
-                     assert!(e > 39);       // There are at least this many entities in the store.
+                     assert!(e > 40);       // There are at least this many entities in the store.
                      assert_eq!(Ok(u), Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4"));
                      assert!(t > start);
                  },

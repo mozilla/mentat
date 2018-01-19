@@ -13,6 +13,9 @@
 #[macro_use]
 extern crate error_chain;
 
+#[macro_use]
+extern crate lazy_static;
+
 extern crate rusqlite;
 
 extern crate edn;
@@ -31,8 +34,10 @@ use rusqlite::Connection;
 
 pub mod errors;
 pub mod ident;
+pub mod vocabulary;
 pub mod conn;
 pub mod query;
+pub mod entity_builder;
 
 pub fn get_name() -> String {
     return String::from("mentat");
@@ -44,15 +49,20 @@ pub fn get_connection() -> Connection {
 }
 
 pub use mentat_core::{
+    Attribute,
+    Entid,
     TypedValue,
     ValueType,
 };
 
 pub use mentat_db::{
+    CORE_SCHEMA_VERSION,
+    DB_SCHEMA_CORE,
     new_connection,
 };
 
 pub use query::{
+    IntoResult,
     NamespacedKeyword,
     PlainSymbol,
     QueryInputs,
@@ -63,7 +73,9 @@ pub use query::{
 
 pub use conn::{
     Conn,
+    InProgress,
     Metadata,
+    Queryable,
 };
 
 #[cfg(test)]

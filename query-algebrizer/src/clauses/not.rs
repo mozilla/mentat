@@ -79,6 +79,7 @@ mod testing {
 
     use mentat_core::{
         Attribute, 
+        Schema,
         TypedValue, 
         ValueType,
         ValueTypeSet,

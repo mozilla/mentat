@@ -31,9 +31,6 @@ use std::rc::Rc;
 use enum_set::EnumSet;
 
 use self::ordered_float::OrderedFloat;
-use self::edn::{
-    NamespacedKeyword,
-};
 
 pub use uuid::Uuid;
 
@@ -44,6 +41,7 @@ pub use chrono::{
 
 pub use edn::{
     FromMicros,
+    NamespacedKeyword,
     ToMicros,
     Utc,
 };
@@ -56,6 +54,23 @@ pub use edn::{
 /// stores signed integers up to 64 bits in size.  Since u32 is not appropriate for our use case, we
 /// use i64 rather than manually truncating u64 to u63 and casting to i64 throughout the codebase.
 pub type Entid = i64;
+
+/// An entid that's either already in the store, or newly allocated to a tempid.
+/// TODO: we'd like to link this in some way to the lifetime of a particular PartitionMap.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct KnownEntid(pub Entid);
+
+impl From<KnownEntid> for Entid {
+    fn from(k: KnownEntid) -> Entid {
+        k.0
+    }
+}
+
+impl From<KnownEntid> for TypedValue {
+    fn from(k: KnownEntid) -> TypedValue {
+        TypedValue::Ref(k.0)
+    }
+}
 
 /// The attribute of each Mentat assertion has a :db/valueType constraining the value to a
 /// particular set.  Mentat recognizes the following :db/valueType values.
@@ -102,7 +117,33 @@ impl enum_set::CLike for ValueType {
 }
 
 impl ValueType {
-    pub fn to_edn_value(self) -> edn::Value {
+    pub fn into_keyword(self) -> NamespacedKeyword {
+        NamespacedKeyword::new("db.type", match self {
+            ValueType::Ref => "ref",
+            ValueType::Boolean => "boolean",
+            ValueType::Instant => "instant",
+            ValueType::Long => "long",
+            ValueType::Double => "double",
+            ValueType::String => "string",
+            ValueType::Keyword => "keyword",
+            ValueType::Uuid => "uuid",
+        })
+    }
+
+    pub fn into_typed_value(self) -> TypedValue {
+        TypedValue::typed_ns_keyword("db.type", match self {
+            ValueType::Ref => "ref",
+            ValueType::Boolean => "boolean",
+            ValueType::Instant => "instant",
+            ValueType::Long => "long",
+            ValueType::Double => "double",
+            ValueType::String => "string",
+            ValueType::Keyword => "keyword",
+            ValueType::Uuid => "uuid",
+        })
+    }
+
+    pub fn into_edn_value(self) -> edn::Value {
         match self {
             ValueType::Ref => values::DB_TYPE_REF.clone(),
             ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
@@ -480,10 +521,22 @@ pub enum AttributeBitFlags {
 }
 
 pub mod attribute {
-    #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+    use TypedValue;
+
+    #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
     pub enum Unique {
         Value,
         Identity,
+    }
+
+    impl Unique {
+        // This is easier than rejigging DB_UNIQUE_VALUE to not be EDN.
+        pub fn into_typed_value(self) -> TypedValue {
+            match self {
+                Unique::Value => TypedValue::typed_ns_keyword("db.unique", "value"),
+                Unique::Identity => TypedValue::typed_ns_keyword("db.unique", "identity"),
+            }
+        }
     }
 }
 
@@ -561,7 +614,7 @@ impl Attribute {
             attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident));
         }
 
-        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.to_edn_value());
+        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.into_edn_value());
 
         attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
 
@@ -608,7 +661,7 @@ pub type IdentMap = BTreeMap<NamespacedKeyword, Entid>;
 pub type EntidMap = BTreeMap<Entid, NamespacedKeyword>;
 
 /// Map attribute entids to `Attribute` instances.
-pub type SchemaMap = BTreeMap<Entid, Attribute>;
+pub type AttributeMap = BTreeMap<Entid, Attribute>;
 
 /// Represents a Mentat schema.
 ///
@@ -633,43 +686,73 @@ pub struct Schema {
     ///
     /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
     /// `ident_map`).
-    pub schema_map: SchemaMap,
+    pub attribute_map: AttributeMap,
+}
+
+pub trait HasSchema {
+    fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid>;
+
+    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid>;
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid>;
+    fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid>;
+
+    // Returns the attribute and the entid named by the provided ident.
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)>;
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid>;
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool;
 }
 
 impl Schema {
-    pub fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
-        self.entid_map.get(&x)
+    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
+    pub fn to_edn_value(&self) -> edn::Value {
+        edn::Value::Vector((&self.attribute_map).iter()
+            .map(|(entid, attribute)|
+                attribute.to_edn_value(self.get_ident(*entid).cloned()))
+            .collect())
     }
 
-    pub fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+    fn get_raw_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
         self.ident_map.get(x).map(|x| *x)
     }
+}
 
-    pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
-        self.schema_map.get(&x)
+impl HasSchema for Schema {
+    fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid> {
+        // TODO: this can be made more efficient.
+        self.get_entid(&t.into_keyword())
     }
 
-    pub fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
-        self.get_entid(&ident)
-            .and_then(|x| self.attribute_for_entid(x))
+    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
+        self.entid_map.get(&x.into())
+    }
+
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
+        self.get_raw_entid(x).map(KnownEntid)
+    }
+
+    fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid> {
+        self.attribute_map.get(&x.into())
+    }
+
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
+        self.get_raw_entid(&ident)
+            .and_then(|entid| {
+                self.attribute_for_entid(entid).map(|a| (a, KnownEntid(entid)))
+            })
     }
 
     /// Return true if the provided entid identifies an attribute in this schema.
-    pub fn is_attribute(&self, x: Entid) -> bool {
-        self.schema_map.contains_key(&x)
+    fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid> {
+        self.attribute_map.contains_key(&x.into())
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    pub fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
-        self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
-    }
-
-    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
-    pub fn to_edn_value(&self) -> edn::Value {
-        edn::Value::Vector((&self.schema_map).iter()
-            .map(|(entid, attribute)| 
-                attribute.to_edn_value(self.get_ident(*entid).cloned()))
-            .collect())
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+        self.get_raw_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 }
 
@@ -685,7 +768,7 @@ mod test {
     }
 
     fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
-        schema.schema_map.insert(e, a);
+        schema.attribute_map.insert(e, a);
     }
 
     #[test]

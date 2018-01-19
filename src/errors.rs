@@ -15,6 +15,9 @@ use rusqlite;
 use std::collections::BTreeSet;
 
 use edn;
+use mentat_core::{
+    Attribute,
+};
 use mentat_db;
 use mentat_query;
 use mentat_query_algebrizer;
@@ -55,9 +58,34 @@ error_chain! {
             display("invalid argument name: '{}'", name)
         }
 
-        UnknownAttribute(kw: mentat_query::NamespacedKeyword) {
+        UnknownAttribute(name: String) {
             description("unknown attribute")
-            display("unknown attribute: '{}'", kw)
+            display("unknown attribute: '{}'", name)
+        }
+
+        InvalidVocabularyVersion {
+            description("invalid vocabulary version")
+            display("invalid vocabulary version")
+        }
+
+        ConflictingAttributeDefinitions(vocabulary: String, version: ::vocabulary::Version, attribute: String, current: Attribute, requested: Attribute) {
+            description("conflicting attribute definitions")
+            display("vocabulary {}/{} already has attribute {}, and the requested definition differs", vocabulary, version, attribute)
+        }
+
+        ExistingVocabularyTooNew(name: String, existing: ::vocabulary::Version, ours: ::vocabulary::Version) {
+            description("existing vocabulary too new")
+            display("existing vocabulary too new: wanted {}, got {}", ours, existing)
+        }
+
+        UnexpectedCoreSchema(version: Option<::vocabulary::Version>) {
+            description("unexpected core schema version")
+            display("core schema: wanted {}, got {:?}", mentat_db::CORE_SCHEMA_VERSION, version)
+        }
+
+        MissingCoreVocabulary(kw: mentat_query::NamespacedKeyword) {
+            description("missing core vocabulary")
+            display("missing core attribute {}", kw)
         }
     }
 }

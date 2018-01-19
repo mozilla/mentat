@@ -33,6 +33,10 @@ impl<T> InternSet<T> where T: Eq + Hash {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     /// Intern a value, providing a ref-counted handle to the interned value.
     ///
     /// ```

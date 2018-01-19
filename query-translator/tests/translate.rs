@@ -50,7 +50,7 @@ fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
 }
 
 fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
-    schema.schema_map.insert(e, a);
+    schema.attribute_map.insert(e, a);
 }
 
 fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {

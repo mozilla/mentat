@@ -11,6 +11,7 @@
 use std::rc::Rc;
 
 use mentat_core::{
+    HasSchema,
     Schema,
     SQLValueType,
     TypedValue,
@@ -169,7 +170,7 @@ impl ConjoiningClauses {
                     },
                     (true, false) => {
                         // This can only be an ident. Look it up!
-                        match schema.get_entid(&x).map(TypedValue::Ref) {
+                        match schema.get_entid(&x).map(|k| k.into()) {
                             Some(e) => Ok(Val(e)),
                             None => Ok(Impossible(EmptyBecause::UnresolvedIdent(x.clone()))),
                         }

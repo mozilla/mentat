@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    HasSchema,
     Schema,
     TypedValue,
     ValueType,
@@ -101,7 +102,7 @@ impl ConjoiningClauses {
         //
         // TODO: improve the expression of this matching, possibly by using attribute_for_* uniformly.
         let a = match args.next().unwrap() {
-            FnArg::IdentOrKeyword(i) => schema.get_entid(&i),
+            FnArg::IdentOrKeyword(i) => schema.get_entid(&i).map(|k| k.into()),
             // Must be an entid.
             FnArg::EntidOrInteger(e) => Some(e),
             FnArg::Variable(v) => {

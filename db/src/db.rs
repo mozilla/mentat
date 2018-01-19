@@ -44,7 +44,7 @@ use mentat_core::{
     FromMicros,
     IdentMap,
     Schema,
-    SchemaMap,
+    AttributeMap,
     TypedValue,
     ToMicros,
     ValueType,
@@ -479,11 +479,11 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
 }
 
 /// Read the schema materialized view from the given SQL store.
-fn read_schema_map(conn: &rusqlite::Connection) -> Result<SchemaMap> {
+fn read_attribute_map(conn: &rusqlite::Connection) -> Result<AttributeMap> {
     let entid_triples = read_materialized_view(conn, "schema")?;
-    let mut schema_map = SchemaMap::default();
-    metadata::update_schema_map_from_entid_triples(&mut schema_map, entid_triples)?;
-    Ok(schema_map)
+    let mut attribute_map = AttributeMap::default();
+    metadata::update_attribute_map_from_entid_triples(&mut attribute_map, entid_triples)?;
+    Ok(attribute_map)
 }
 
 /// Read the materialized views from the given SQL store and return a Mentat `DB` for querying and
@@ -491,8 +491,8 @@ fn read_schema_map(conn: &rusqlite::Connection) -> Result<SchemaMap> {
 pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
     let partition_map = read_partition_map(conn)?;
     let ident_map = read_ident_map(conn)?;
-    let schema_map = read_schema_map(conn)?;
-    let schema = Schema::from_ident_map_and_schema_map(ident_map, schema_map)?;
+    let attribute_map = read_attribute_map(conn)?;
+    let schema = Schema::from_ident_map_and_attribute_map(ident_map, attribute_map)?;
     Ok(DB::new(partition_map, schema))
 }
 
@@ -1106,6 +1106,8 @@ mod tests {
     use debug;
     use edn;
     use mentat_core::{
+        HasSchema,
+        Schema,
         attribute,
     };
     use mentat_tx_parser;
@@ -1158,9 +1160,9 @@ mod tests {
     impl TestConn {
         fn assert_materialized_views(&self) {
             let materialized_ident_map = read_ident_map(&self.sqlite).expect("ident map");
-            let materialized_schema_map = read_schema_map(&self.sqlite).expect("schema map");
+            let materialized_attribute_map = read_attribute_map(&self.sqlite).expect("schema map");
 
-            let materialized_schema = Schema::from_ident_map_and_schema_map(materialized_ident_map, materialized_schema_map).expect("schema");
+            let materialized_schema = Schema::from_ident_map_and_attribute_map(materialized_ident_map, materialized_attribute_map).expect("schema");
             assert_eq!(materialized_schema, self.schema);
         }
 
@@ -1215,12 +1217,12 @@ mod tests {
 
             // Does not include :db/txInstant.
             let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(datoms.0.len(), 76);
+            assert_eq!(datoms.0.len(), 94);
 
             // Includes :db/txInstant.
             let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
             assert_eq!(transactions.0.len(), 1);
-            assert_eq!(transactions.0[0].0.len(), 77);
+            assert_eq!(transactions.0[0].0.len(), 95);
 
             let mut parts = db.partition_map;
 

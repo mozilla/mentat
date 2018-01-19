@@ -35,6 +35,9 @@ pub const TX0: i64 = 0x10000000;
 /// This is the start of the :db.part/user partition.
 pub const USER0: i64 = 0x10000;
 
+// Corresponds to the version of the :db.schema/core vocabulary.
+pub const CORE_SCHEMA_VERSION: u32 = 1;
+
 lazy_static! {
     static ref V1_IDENTS: Vec<(symbols::NamespacedKeyword, i64)> = {
         vec![(ns_keyword!("db", "ident"),             entids::DB_IDENT),
@@ -76,6 +79,7 @@ lazy_static! {
              (ns_keyword!("db", "doc"),               entids::DB_DOC),
              (ns_keyword!("db.schema", "version"),    entids::DB_SCHEMA_VERSION),
              (ns_keyword!("db.schema", "attribute"),  entids::DB_SCHEMA_ATTRIBUTE),
+             (ns_keyword!("db.schema", "core"),       entids::DB_SCHEMA_CORE),
         ]
     };
 
@@ -83,6 +87,26 @@ lazy_static! {
         vec![(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
              (ns_keyword!("db.part", "user"), USER0, USER0),
              (ns_keyword!("db.part", "tx"), TX0, TX0),
+        ]
+    };
+
+    static ref V1_CORE_SCHEMA: Vec<(symbols::NamespacedKeyword)> = {
+        vec![(ns_keyword!("db", "ident")),
+             (ns_keyword!("db.install", "partition")),
+             (ns_keyword!("db.install", "valueType")),
+             (ns_keyword!("db.install", "attribute")),
+             (ns_keyword!("db", "txInstant")),
+             (ns_keyword!("db", "valueType")),
+             (ns_keyword!("db", "cardinality")),
+             (ns_keyword!("db", "doc")),
+             (ns_keyword!("db", "unique")),
+             (ns_keyword!("db", "isComponent")),
+             (ns_keyword!("db", "index")),
+             (ns_keyword!("db", "fulltext")),
+             (ns_keyword!("db", "noHistory")),
+             (ns_keyword!("db.alter", "attribute")),
+             (ns_keyword!("db.schema", "version")),
+             (ns_keyword!("db.schema", "attribute")),
         ]
     };
 
@@ -146,6 +170,27 @@ fn idents_to_assertions(idents: &[(symbols::NamespacedKeyword, i64)]) -> Vec<Val
             let value = Value::NamespacedKeyword(ident.clone());
             Value::Vector(vec![values::DB_ADD.clone(), value.clone(), values::DB_IDENT.clone(), value.clone()])
         })
+        .collect()
+}
+
+/// Convert an ident list into [:db/add :db.schema/core :db.schema/attribute IDENT] `Value` instances.
+fn schema_attrs_to_assertions(version: u32, idents: &[symbols::NamespacedKeyword]) -> Vec<Value> {
+    let schema_core = Value::NamespacedKeyword(ns_keyword!("db.schema", "core"));
+    let schema_attr = Value::NamespacedKeyword(ns_keyword!("db.schema", "attribute"));
+    let schema_version = Value::NamespacedKeyword(ns_keyword!("db.schema", "version"));
+    idents
+        .into_iter()
+        .map(|ident| {
+            let value = Value::NamespacedKeyword(ident.clone());
+            Value::Vector(vec![values::DB_ADD.clone(),
+                               schema_core.clone(),
+                               schema_attr.clone(),
+                               value])
+        })
+        .chain(::std::iter::once(Value::Vector(vec![values::DB_ADD.clone(),
+                                             schema_core.clone(),
+                                             schema_version,
+                                             Value::Integer(version as i64)])))
         .collect()
 }
 
@@ -250,6 +295,7 @@ pub fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
         symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
         idents_to_assertions(&V1_IDENTS[..]),
+        schema_attrs_to_assertions(CORE_SCHEMA_VERSION, &V1_CORE_SCHEMA),
     ].concat());
 
     // Failure here is a coding error (since the inputs are fixed), not a runtime error.

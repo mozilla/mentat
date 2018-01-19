@@ -44,7 +44,7 @@ pub mod errors;
 mod metadata;
 mod schema;
 pub mod types;
-mod internal_types;
+pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod upsert_resolution;
 mod tx;
 
@@ -55,12 +55,26 @@ pub use bootstrap::{
     USER0,
 };
 
+pub use schema::AttributeBuilder;
+
+pub use bootstrap::{
+    CORE_SCHEMA_VERSION,
+};
+
+pub use entids::{
+    DB_SCHEMA_CORE,
+};
+
 pub use db::{
     TypedSQLValue,
     new_connection,
 };
 
-pub use tx::transact;
+pub use tx::{
+    transact,
+    transact_terms,
+};
+
 pub use types::{
     DB,
     PartitionMap,

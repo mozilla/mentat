@@ -56,6 +56,7 @@ pub const DB_UNIQUE_IDENTITY: Entid = 36;
 pub const DB_DOC: Entid = 37;
 pub const DB_SCHEMA_VERSION: Entid = 38;
 pub const DB_SCHEMA_ATTRIBUTE: Entid = 39;
+pub const DB_SCHEMA_CORE: Entid = 40;
 
 /// Return `false` if the given attribute will not change the metadata: recognized idents, schema,
 /// partitions in the partition map.

@@ -20,30 +20,46 @@ use rusqlite::{
 use edn;
 
 use mentat_core::{
+    Attribute,
     Entid,
+    HasSchema,
+    KnownEntid,
+    NamespacedKeyword,
     Schema,
     TypedValue,
+    ValueType,
 };
+
+use mentat_core::intern_set::InternSet;
 
 use mentat_db::db;
 use mentat_db::{
     transact,
+    transact_terms,
     PartitionMap,
     TxReport,
 };
 
+use mentat_db::internal_types::TermWithTempIds;
+
 use mentat_tx;
+
+use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
 use errors::*;
 use query::{
     lookup_value_for_attribute,
+    lookup_values_for_attribute,
     q_once,
     QueryInputs,
     QueryResults,
 };
 
+use entity_builder::{
+    InProgressBuilder,
+};
 
 /// Connection metadata required to query from, or apply transactions to, a Mentat store.
 ///
@@ -86,36 +102,83 @@ pub struct Conn {
     // the schema changes. #315.
 }
 
+pub trait Queryable {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>>;
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid>;
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid>;
+}
+
+/// Whether to panic or roll back changes when the caller neither commits nor explicitly rolls back.
+/// Why is `Commit` not an option? Because committing involves updating `mutex` to propagate
+/// changes back to the enclosing `Conn`, and we can't do that without implementing `Drop`, which
+/// we can't do because `transaction` is moved in `commit`.
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub enum DropBehavior {
+    /// Panic. This is the default.
+    Panic,
+
+    /// Roll back the changes.
+    Rollback,
+}
+
 /// Represents an in-progress, not yet committed, set of changes to the store.
 /// Call `commit` to commit your changes, or `rollback` to discard them.
 /// A transaction is held open until you do so.
-/// Your changes will be implicitly dropped along with this struct.
+/// Depending on the specified drop behavior, either a panic will occur or your changes will be
+/// implicitly dropped if you neither roll back nor commit before this struct is dropped.
 pub struct InProgress<'a, 'c> {
     transaction: rusqlite::Transaction<'c>,
     mutex: &'a Mutex<Metadata>,
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
-    last_report: Option<TxReport>,   // For now we track only the last, but we could accumulate all.
 }
 
 impl<'a, 'c> InProgress<'a, 'c> {
-    pub fn transact_entities<I>(mut self, entities: I) -> Result<InProgress<'a, 'c>> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
-        let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map, &self.schema, &self.schema, entities)?;
-        self.partition_map = next_partition_map;
-        if let Some(schema) = next_schema {
-            self.schema = schema;
+    /// Set whether we'll panic or roll back if not explicitly committed or rolled back.
+    /// The default is to panic (which differs from rusqlite).
+    pub fn set_drop_behavior(&mut self, behavior: DropBehavior) {
+        match behavior {
+            DropBehavior::Rollback => self.transaction.set_drop_behavior(rusqlite::DropBehavior::Rollback),
+            DropBehavior::Panic => (),      // TODO: https://github.com/jgallagher/rusqlite/pull/325
         }
-        self.last_report = Some(report);
-        Ok(self)
+    }
+}
+
+/// Represents an in-progress set of reads to the store. Just like `InProgress`,
+/// which is read-write, but only allows for reads.
+pub struct InProgressRead<'a, 'c>(InProgress<'a, 'c>);
+
+impl<'a, 'c> InProgressRead<'a, 'c> {
+    pub fn new(mut from: InProgress<'a, 'c>) -> InProgressRead<'a, 'c> {
+        from.set_drop_behavior(DropBehavior::Rollback);
+        InProgressRead(from)
+    }
+}
+
+impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>> {
+        self.0.q_once(query, inputs)
     }
 
-    /// Query the Mentat store, using the given connection and the current metadata.
-    pub fn q_once<T>(&self,
-                     query: &str,
-                     inputs: T) -> Result<QueryResults>
-        where T: Into<Option<QueryInputs>>
-        {
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid> {
+        self.0.lookup_values_for_attribute(entity, attribute)
+    }
+
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid> {
+        self.0.lookup_value_for_attribute(entity, attribute)
+    }
+}
+
+impl<'a, 'c> Queryable for InProgress<'a, 'c> {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>> {
 
         q_once(&*(self.transaction),
                &self.schema,
@@ -123,28 +186,128 @@ impl<'a, 'c> InProgress<'a, 'c> {
                inputs)
     }
 
-    pub fn lookup_value_for_attribute(&self,
-                                      entity: Entid,
-                                      attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
-        lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid> {
+        lookup_values_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
     }
 
-    pub fn transact(self, transaction: &str) -> Result<InProgress<'a, 'c>> {
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid> {
+        lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
+    }
+}
+
+impl<'a, 'c> HasSchema for InProgressRead<'a, 'c> {
+    fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid> {
+        self.0.entid_for_type(t)
+    }
+
+    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
+        self.0.get_ident(x)
+    }
+
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
+        self.0.get_entid(x)
+    }
+
+    fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid> {
+        self.0.attribute_for_entid(x)
+    }
+
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
+        self.0.attribute_for_ident(ident)
+    }
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid> {
+        self.0.is_attribute(x)
+    }
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+        self.0.identifies_attribute(x)
+    }
+}
+
+impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
+    fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid> {
+        self.schema.entid_for_type(t)
+    }
+
+    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
+        self.schema.get_ident(x)
+    }
+
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
+        self.schema.get_entid(x)
+    }
+
+    fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid> {
+        self.schema.attribute_for_entid(x)
+    }
+
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
+        self.schema.attribute_for_ident(ident)
+    }
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid> {
+        self.schema.is_attribute(x)
+    }
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+        self.schema.identifies_attribute(x)
+    }
+}
+
+impl<'a, 'c> InProgress<'a, 'c> {
+    pub fn builder(self) -> InProgressBuilder<'a, 'c> {
+        InProgressBuilder::new(self)
+    }
+
+    pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
+        let (report, next_partition_map, next_schema) = transact_terms(&self.transaction,
+                                                                       self.partition_map.clone(),
+                                                                       &self.schema,
+                                                                       &self.schema,
+                                                                       terms,
+                                                                       tempid_set)?;
+        self.partition_map = next_partition_map;
+        if let Some(schema) = next_schema {
+            self.schema = schema;
+        }
+        Ok(report)
+    }
+
+    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+        // We clone the partition map here, rather than trying to use a Cell or using a mutable
+        // reference, for two reasons:
+        // 1. `transact` allocates new IDs in partitions before and while doing work that might
+        //    fail! We don't want to mutate this map on failure, so we can't just use &mut.
+        // 2. Even if we could roll that back, we end up putting this `PartitionMap` into our
+        //    `Metadata` on return. If we used `Cell` or other mechanisms, we'd be using
+        //    `Default::default` in those situations to extract the partition map, and so there
+        //    would still be some cost.
+        let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map.clone(), &self.schema, &self.schema, entities)?;
+        self.partition_map = next_partition_map;
+        if let Some(schema) = next_schema {
+            self.schema = schema;
+        }
+        Ok(report)
+    }
+
+    pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
         self.transact_entities(entities)
     }
 
-    pub fn last_report(&self) -> Option<&TxReport> {
-        self.last_report.as_ref()
-    }
-
-    pub fn rollback(mut self) -> Result<()> {
-        self.last_report = None;
+    pub fn rollback(self) -> Result<()> {
         self.transaction.rollback().map_err(|e| e.into())
     }
 
-    pub fn commit(self) -> Result<Option<TxReport>> {
+    pub fn commit(self) -> Result<()> {
         // The mutex is taken during this entire method.
         let mut metadata = self.mutex.lock().unwrap();
 
@@ -161,11 +324,16 @@ impl<'a, 'c> InProgress<'a, 'c> {
 
         metadata.generation += 1;
         metadata.partition_map = self.partition_map;
+
         if self.schema != *(metadata.schema) {
             metadata.schema = Arc::new(self.schema);
+
+            // TODO: rebuild vocabularies and notify consumers that they've changed -- it's possible
+            // that a change has arrived over the wire and invalidated some local module.
+            // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
         }
 
-        Ok(self.last_report)
+        Ok(())
     }
 }
 
@@ -183,7 +351,7 @@ impl Conn {
         Ok(Conn::new(db.partition_map, db.schema))
     }
 
-    /// Yield the current `Schema` instance.
+    /// Yield a clone of the current `Schema` instance.
     pub fn current_schema(&self) -> Arc<Schema> {
         // We always unwrap the mutex lock: if it's poisoned, this will propogate panics to all
         // accessing threads.  This is perhaps not reasonable; we expect the mutex to be held for
@@ -205,11 +373,11 @@ impl Conn {
                      sqlite: &rusqlite::Connection,
                      query: &str,
                      inputs: T) -> Result<QueryResults>
-        where T: Into<Option<QueryInputs>>
-        {
+        where T: Into<Option<QueryInputs>> {
 
+        let metadata = self.metadata.lock().unwrap();
         q_once(sqlite,
-               &*self.current_schema(),
+               &*metadata.schema,        // Doesn't clone, unlike `current_schema`.
                query,
                inputs)
     }
@@ -222,12 +390,8 @@ impl Conn {
     }
 
     /// Take a SQLite transaction.
-    /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
-    /// connections from taking immediate or exclusive transactions. This is appropriate for our
-    /// writes and `InProgress`: it means we are ready to write whenever we want to, and nobody else
-    /// can start a transaction that's not `DEFERRED`, but we don't need exclusivity yet.
-    pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
-        let tx = sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    fn begin_transaction_with_behavior<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection, behavior: TransactionBehavior) -> Result<InProgress<'m, 'conn>> {
+        let tx = sqlite.transaction_with_behavior(behavior)?;
         let (current_generation, current_partition_map, current_schema) =
         {
             // The mutex is taken during this block.
@@ -245,8 +409,24 @@ impl Conn {
             generation: current_generation,
             partition_map: current_partition_map,
             schema: (*current_schema).clone(),
-            last_report: None,
         })
+    }
+
+    // Helper to avoid passing connections around.
+    // Make both args mutable so that we can't have parallel access.
+    pub fn begin_read<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgressRead<'m, 'conn>> {
+        self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Deferred)
+            .map(InProgressRead::new)
+    }
+
+    /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
+    /// connections from taking immediate or exclusive transactions. This is appropriate for our
+    /// writes and `InProgress`: it means we are ready to write whenever we want to, and nobody else
+    /// can start a transaction that's not `DEFERRED`, but we don't need exclusivity yet.
+    pub fn begin_transaction<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgress<'m, 'conn>> {
+        let mut ip = self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Immediate)?;
+        ip.set_drop_behavior(DropBehavior::Panic);
+        Ok(ip)
     }
 
     /// Transact entities against the Mentat store, using the given connection and the current
@@ -261,10 +441,9 @@ impl Conn {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
 
-        let report = self.begin_transaction(sqlite)?
-                         .transact_entities(entities)?
-                         .commit()?
-                         .expect("we always get a report");
+        let mut in_progress = self.begin_transaction(sqlite)?;
+        let report = in_progress.transact_entities(entities)?;
+        in_progress.commit()?;
 
         Ok(report)
     }
@@ -356,10 +535,10 @@ mod tests {
 
         // Scoped borrow of `conn`.
         {
-            let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-            let in_progress = in_progress.transact(t).expect("transacted successfully");
-            let one = in_progress.last_report().unwrap().tempids.get("one").expect("found one").clone();
-            let two = in_progress.last_report().unwrap().tempids.get("two").expect("found two").clone();
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+            let report = in_progress.transact(t).expect("transacted successfully");
+            let one = report.tempids.get("one").expect("found one").clone();
+            let two = report.tempids.get("two").expect("found two").clone();
             assert!(one != two);
             assert!(one == tempid_offset || one == tempid_offset + 1);
             assert!(two == tempid_offset || two == tempid_offset + 1);
@@ -368,11 +547,9 @@ mod tests {
                                     .expect("query succeeded");
             assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
 
-            let report = in_progress.transact(t2)
-                                    .expect("t2 succeeded")
-                                    .commit()
-                                    .expect("commit succeeded");
-            let three = report.unwrap().tempids.get("three").expect("found three").clone();
+            let report = in_progress.transact(t2).expect("t2 succeeded");
+            in_progress.commit().expect("commit succeeded");
+            let three = report.tempids.get("three").expect("found three").clone();
             assert!(one != three);
             assert!(two != three);
         }
@@ -397,11 +574,11 @@ mod tests {
 
         // Scoped borrow of `sqlite`.
         {
-            let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-            let in_progress = in_progress.transact(t).expect("transacted successfully");
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+            let report = in_progress.transact(t).expect("transacted successfully");
 
-            let one = in_progress.last_report().unwrap().tempids.get("one").expect("found it").clone();
-            let two = in_progress.last_report().unwrap().tempids.get("two").expect("found it").clone();
+            let one = report.tempids.get("one").expect("found it").clone();
+            let two = report.tempids.get("two").expect("found it").clone();
 
             // The IDs are contiguous, starting at the previous part index.
             assert!(one != two);

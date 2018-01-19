@@ -19,9 +19,11 @@ use mentat_core::{
     Attribute,
     Entid,
     EntidMap,
+    HasSchema,
     IdentMap,
+    KnownEntid,
     Schema,
-    SchemaMap,
+    AttributeMap,
     TypedValue,
     ValueType,
 };
@@ -30,9 +32,9 @@ use metadata::{
     AttributeAlteration,
 };
 
-/// Return `Ok(())` if `schema_map` defines a valid Mentat schema.
-fn validate_schema_map(entid_map: &EntidMap, schema_map: &SchemaMap) -> Result<()> {
-    for (entid, attribute) in schema_map {
+/// Return `Ok(())` if `attribute_map` defines a valid Mentat schema.
+fn validate_attribute_map(entid_map: &EntidMap, attribute_map: &AttributeMap) -> Result<()> {
+    for (entid, attribute) in attribute_map {
         let ident = || entid_map.get(entid).map(|ident| ident.to_string()).unwrap_or(entid.to_string());
         if attribute.unique == Some(attribute::Unique::Value) && !attribute.index {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value without :db/index true for entid: {}", ident())))
@@ -78,8 +80,8 @@ impl AttributeBuilder {
         self
     }
 
-    pub fn unique<'a>(&'a mut self, unique: Option<attribute::Unique>) -> &'a mut Self {
-        self.unique = Some(unique);
+    pub fn unique<'a>(&'a mut self, unique: attribute::Unique) -> &'a mut Self {
+        self.unique = Some(Some(unique));
         self
     }
 
@@ -172,9 +174,9 @@ impl AttributeBuilder {
 
 pub trait SchemaBuilding {
     fn require_ident(&self, entid: Entid) -> Result<&symbols::NamespacedKeyword>;
-    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<Entid>;
+    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<KnownEntid>;
     fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute>;
-    fn from_ident_map_and_schema_map(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema>;
+    fn from_ident_map_and_attribute_map(ident_map: IdentMap, attribute_map: AttributeMap) -> Result<Schema>;
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
         where U: IntoIterator<Item=(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>;
 }
@@ -184,7 +186,7 @@ impl SchemaBuilding for Schema {
         self.get_ident(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
-    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<Entid> {
+    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<KnownEntid> {
         self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.to_string()).into())
     }
 
@@ -193,15 +195,15 @@ impl SchemaBuilding for Schema {
     }
 
     /// Create a valid `Schema` from the constituent maps.
-    fn from_ident_map_and_schema_map(ident_map: IdentMap, schema_map: SchemaMap) -> Result<Schema> {
+    fn from_ident_map_and_attribute_map(ident_map: IdentMap, attribute_map: AttributeMap) -> Result<Schema> {
         let entid_map: EntidMap = ident_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
 
-        validate_schema_map(&entid_map, &schema_map)?;
+        validate_attribute_map(&entid_map, &attribute_map)?;
 
         Ok(Schema {
             ident_map: ident_map,
             entid_map: entid_map,
-            schema_map: schema_map,
+            attribute_map: attribute_map,
         })
     }
 
@@ -214,8 +216,8 @@ impl SchemaBuilding for Schema {
             let attr: i64 = *ident_map.get(&symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.to_string()))?;
             Ok((ident, attr, value))
         }).collect();
-        let mut schema = Schema::from_ident_map_and_schema_map(ident_map, SchemaMap::default())?;
-        metadata::update_schema_map_from_entid_triples(&mut schema.schema_map, entid_assertions?)?;
+        let mut schema = Schema::from_ident_map_and_attribute_map(ident_map, AttributeMap::default())?;
+        metadata::update_attribute_map_from_entid_triples(&mut schema.attribute_map, entid_assertions?)?;
         Ok(schema)
     }
 }
@@ -247,7 +249,7 @@ impl SchemaTypeChecking for Schema {
                 (ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
+                (ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| entid.into()),
 
                 // Otherwise, we have a type mismatch.
                 // Enumerate all of the types here to allow the compiler to help us.
@@ -283,11 +285,11 @@ mod test {
         schema.entid_map.insert(entid, ident.clone());
         schema.ident_map.insert(ident.clone(), entid);
 
-        schema.schema_map.insert(entid, attribute);
+        schema.attribute_map.insert(entid, attribute);
     }
 
     #[test]
-    fn validate_schema_map_success() {
+    fn validate_attribute_map_success() {
         let mut schema = Schema::default();
         // attribute that is not an index has no uniqueness
         add_attribute(&mut schema, NamespacedKeyword::new("foo", "bar"), 97, Attribute {
@@ -335,7 +337,7 @@ mod test {
             component: false,
         });
 
-        assert!(validate_schema_map(&schema.entid_map, &schema.schema_map).is_ok());
+        assert!(validate_attribute_map(&schema.entid_map, &schema.attribute_map).is_ok());
     }
 
     #[test]
@@ -352,7 +354,7 @@ mod test {
             component: false,
         });
         
-        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
         assert!(err.is_some());
         
         match err.unwrap() {
@@ -374,7 +376,7 @@ mod test {
             component: false,
         });
         
-        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
         assert!(err.is_some());
         
         match err.unwrap() {
@@ -396,7 +398,7 @@ mod test {
             component: true,
         });
         
-        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
         assert!(err.is_some());
         
         match err.unwrap() {
@@ -418,7 +420,7 @@ mod test {
             component: false,
         });
         
-        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
         assert!(err.is_some());
         
         match err.unwrap() {
@@ -439,7 +441,7 @@ mod test {
             component: false,
         });
         
-        let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
         assert!(err.is_some());
         
         match err.unwrap() {
