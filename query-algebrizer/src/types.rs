@@ -334,9 +334,9 @@ pub enum ColumnConstraint {
         left: QueryValue,
         right: QueryValue,
     },
-    HasType {
+    HasTypes {
         value: TableAlias,
-        value_type: ValueType,
+        value_types: ValueTypeSet,
         strict: bool,
     },
     NotExists(ComputedTable),
@@ -345,7 +345,11 @@ pub enum ColumnConstraint {
 
 impl ColumnConstraint {
     pub fn has_type(value: TableAlias, value_type: ValueType) -> ColumnConstraint {
-        ColumnConstraint::HasType { value, value_type, strict: false }
+        ColumnConstraint::HasTypes {
+            value,
+            value_types: ValueTypeSet::of_one(value_type),
+            strict: false
+        }
     }
 }
 
@@ -461,14 +465,20 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?} MATCHES {:?}", qa, thing)
             },
 
-            &HasType { ref value, value_type, strict } => {
-                write!(f, "({:?}.value_type_tag = {:?}", value, value_type)?;
-                if strict && value_type == ValueType::Double || value_type == ValueType::Long {
-                    write!(f, " AND typeof({:?}) = '{:?}')", value,
-                           if value_type == ValueType::Double { "real" } else { "integer" })
-                } else {
-                    write!(f, ")")
+            &HasTypes { ref value, ref value_types, strict } => {
+                // This is cludgey, but it's debug code.
+                write!(f, "(")?;
+                for value_type in value_types.iter() {
+                    write!(f, "({:?}.value_type_tag = {:?}", value, value_type)?;
+                    if strict && value_type == ValueType::Double || value_type == ValueType::Long {
+                        write!(f, " AND typeof({:?}) = '{:?}')", value,
+                               if value_type == ValueType::Double { "real" } else { "integer" })?;
+                    } else {
+                        write!(f, ")")?;
+                    }
+                    write!(f, " OR ")?;
                 }
+                write!(f, "1)")
             },
             &NotExists(ref ct) => {
                 write!(f, "NOT EXISTS {:?}", ct)

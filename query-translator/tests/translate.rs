@@ -209,7 +209,7 @@ fn test_unknown_attribute_keyword_value() {
     let SQLQuery { sql, args } = translate(&schema, query);
 
     // Only match keywords, not strings: tag = 13.
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = $v0 AND `datoms00`.value_type_tag = 13");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = $v0 AND (`datoms00`.value_type_tag = 13)");
     assert_eq!(args, vec![make_arg("$v0", ":ab/yyy")]);
 }
 
@@ -222,7 +222,7 @@ fn test_unknown_attribute_string_value() {
 
     // We expect all_datoms because we're querying for a string. Magic, that.
     // We don't want keywords etc., so tag = 10.
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v = $v0 AND `all_datoms00`.value_type_tag = 10");
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` FROM `all_datoms` AS `all_datoms00` WHERE `all_datoms00`.v = $v0 AND (`all_datoms00`.value_type_tag = 10)");
     assert_eq!(args, vec![make_arg("$v0", "horses")]);
 }
 
@@ -235,7 +235,7 @@ fn test_unknown_attribute_double_value() {
 
     // In general, doubles _could_ be 1.0, which might match a boolean or a ref. Set tag = 5 to
     // make sure we only match numbers.
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 9.95e0 AND `datoms00`.value_type_tag = 5");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` FROM `datoms` AS `datoms00` WHERE `datoms00`.v = 9.95e0 AND (`datoms00`.value_type_tag = 5)");
     assert_eq!(args, vec![]);
 }
 
@@ -284,6 +284,50 @@ fn test_unknown_ident() {
     let select = query_to_select(algebrized).expect("query to translate");
     let sql = select.query.to_sql_query().unwrap().sql;
     assert_eq!("SELECT 1 LIMIT 0", sql);
+}
+
+#[test]
+fn test_type_required_long() {
+    let schema = Schema::default();
+
+    let query = r#"[:find ?x :where [?x _ ?e] [(long ?e)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE ((`all_datoms00`.value_type_tag = 5 AND \
+                             typeof(`all_datoms00`.v) = 'integer'))");
+
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_type_required_double() {
+    let schema = Schema::default();
+
+    let query = r#"[:find ?x :where [?x _ ?e] [(double ?e)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE ((`all_datoms00`.value_type_tag = 5 AND \
+                             typeof(`all_datoms00`.v) = 'real'))");
+
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_type_required_boolean() {
+    let schema = Schema::default();
+
+    let query = r#"[:find ?x :where [?x _ ?e] [(boolean ?e)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE (`all_datoms00`.value_type_tag = 1)");
+
+    assert_eq!(args, vec![]);
 }
 
 #[test]
@@ -751,7 +795,7 @@ fn test_unbound_attribute_with_ground() {
                                      `all_datoms00`.value_type_tag AS `?v_value_type_tag` \
                      FROM `all_datoms` AS `all_datoms00` \
                      WHERE NOT EXISTS (SELECT 1 WHERE `all_datoms00`.v = 17 AND \
-                                                      `all_datoms00`.value_type_tag = 5)");
+                                                     (`all_datoms00`.value_type_tag = 5))");
 }
 
 

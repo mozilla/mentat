@@ -13,7 +13,7 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
 
-pub mod utils;
+mod utils;
 
 use utils::{
     alg,

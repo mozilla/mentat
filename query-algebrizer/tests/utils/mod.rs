@@ -8,6 +8,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+// This is required to prevent warnings about unused functions in this file just
+// because it's unused in a single file (tests that don't use every function in
+// this module will get warnings otherwise).
+#![allow(dead_code)]
+
 use mentat_core::{
     Attribute,
     Entid,
@@ -31,10 +36,7 @@ use mentat_query_algebrizer::{
     QueryInputs,
 };
 
-// Common utility functions used in multiple test files. Note: Import this with
-// `pub mod utils` (not `mod utils`), or you'll get spurious unused function
-// warnings when functions exist in this file but are only used by modules that
-// don't import with `pub` (yes, this is annoying).
+// Common utility functions used in multiple test files.
 
 // These are helpers that tests use to build Schema instances.
 pub fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
@@ -95,4 +97,3 @@ pub fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
     let parsed = parse_find_string(input).expect("query input to have parsed");
     algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
 }
-

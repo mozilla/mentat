@@ -53,7 +53,7 @@ impl ConjoiningClauses {
     /// There are several kinds of predicates in our Datalog:
     /// - A limited set of binary comparison operators: < > <= >= !=.
     ///   These are converted into SQLite binary comparisons and some type constraints.
-    /// - A set of type requirements constraining their argument to be a specific ValueType
+    /// - A set of type requirements constraining their argument to be a specific ValueType.
     /// - In the future, some predicates that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only the five built-in comparison binary operators.
@@ -83,7 +83,7 @@ impl ConjoiningClauses {
         let mut args = pred.args.into_iter();
 
         if let FnArg::Variable(v) = args.next().unwrap() {
-            self.add_type_requirement(v, ty);
+            self.add_type_requirement(v, ValueTypeSet::of_one(ty));
             Ok(())
         } else {
             bail!(ErrorKind::InvalidArgument(pred.operator.clone(), "variable".into(), 0))

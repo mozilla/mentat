@@ -218,7 +218,7 @@ pub struct ConjoiningClauses {
     pub extracted_types: BTreeMap<Variable, QualifiedAlias>,
 
     /// Map of variables to the set of type requirements we have for them.
-    required_types: BTreeMap<Variable, ValueType>,
+    required_types: BTreeMap<Variable, ValueTypeSet>,
 }
 
 impl PartialEq for ConjoiningClauses {
@@ -551,17 +551,27 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn add_type_requirement(&mut self, var: Variable, ty: ValueType) {
-        if let Some(existing) = self.required_types.insert(var.clone(), ty) {
-            // If we already have a required type for `var`, we're empty.
-            if existing != ty {
-                self.mark_known_empty(EmptyBecause::TypeMismatch {
-                    var: var.clone(),
-                    existing: ValueTypeSet::of_one(existing),
-                    desired: ValueTypeSet::of_one(ty)
-                });
-            }
+    /// Require that `var` be one of the types in `types`. If any existing
+    /// type requirements exist for `var`, the requirement after this
+    /// function returns will be the intersection of the requested types and
+    /// the type requirements in place prior to calling `add_type_requirement`.
+    ///
+    /// If the intersection will leave the variable so that it cannot be any
+    /// type, we'll call mark_known_empty.
+    pub fn add_type_requirement(&mut self, var: Variable, types: ValueTypeSet) {
+        let existing = self.required_types.get(&var).cloned().unwrap_or(ValueTypeSet::any());
+
+        // We have an existing requirement. The new requirement will be
+        // the intersection, but we'll mark_known_empty if that's empty.
+        let intersection = types.intersection(&existing);
+        if intersection.is_empty() {
+            self.mark_known_empty(EmptyBecause::TypeMismatch {
+                var: var.clone(),
+                existing: existing,
+                desired: types,
+            });
         }
+        self.required_types.insert(var, intersection);
     }
 
     /// Like `constrain_var_to_type` but in reverse: this expands the set of types
@@ -872,34 +882,56 @@ impl ConjoiningClauses {
     }
 
     pub fn process_required_types(&mut self) -> Result<()> {
+        if self.empty_because.is_some() {
+            return Ok(())
+        }
         // We can't call `mark_known_empty` inside the loop since it would be a
         // mutable borrow on self while we're iterating over `self.required_types`.
         // Doing it like this avoids needing to copy `self.required_types`.
         let mut empty_because: Option<EmptyBecause> = None;
-        for (var, &ty) in self.required_types.iter() {
-            if let Some(&already_known) = self.known_types.get(var) {
-                if already_known.exemplar() == Some(ty) {
-                    // If we're already certain the type and the constraint are
-                    // the same, then there's no need to constrain anything.
-                    continue;
-                }
-                if !already_known.contains(ty) && empty_because.is_none() {
+        for (var, types) in self.required_types.iter() {
+            if let Some(already_known) = self.known_types.get(var) {
+                if already_known.is_disjoint(types) {
                     // If we know the constraint can't be one of the types
                     // the variable could take, then we know we're empty.
                     empty_because = Some(EmptyBecause::TypeMismatch {
                         var: var.clone(),
-                        existing: already_known,
-                        desired: ValueTypeSet::of_one(ty)
+                        existing: already_known.clone(),
+                        desired: types.clone(),
                     });
                     break;
                 }
+                if already_known.is_subset(types) {
+                    // TODO: I'm not convinced that we can do nothing here.
+                    //
+                    // Consider `[:find ?x ?v :where [_ _ ?v] [(> ?v 10)] [?x :foo/long ?v]]`.
+                    //
+                    // That will produce SQL like:
+                    //
+                    // ```
+                    // SELECT datoms01.e AS `?x`, datoms00.v AS `?v`
+                    // FROM datoms datoms00, datoms01
+                    // WHERE datoms00.v > 10
+                    //  AND datoms01.v = datoms00.v
+                    //  AND datoms01.value_type_tag = datoms00.value_type_tag
+                    //  AND datoms01.a = 65537
+                    // ```
+                    //
+                    // Which is not optimal — the left side of the join will
+                    // produce lots of spurious bindings for datoms00.v.
+                    //
+                    // See https://github.com/mozilla/mentat/issues/520, and
+                    // https://github.com/mozilla/mentat/issues/293.
+                    continue;
+                }
             }
+
             let qa = self.extracted_types
-                .get(&var)
-                .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))?;
-            self.wheres.add_intersection(ColumnConstraint::HasType {
+                         .get(&var)
+                         .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))?;
+            self.wheres.add_intersection(ColumnConstraint::HasTypes {
                 value: qa.0.clone(),
-                value_type: ty,
+                value_types: *types,
                 strict: true,
             });
         }

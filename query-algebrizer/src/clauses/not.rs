@@ -53,10 +53,21 @@ impl ConjoiningClauses {
             template.apply_clause(&schema, clause)?;
         }
 
-        template.expand_column_bindings();
-        template.prune_extracted_types();
-        template.process_required_types()?;
+        if template.is_known_empty() {
+            return Ok(());
+        }
 
+        template.expand_column_bindings();
+        if template.is_known_empty() {
+            return Ok(());
+        }
+
+        template.prune_extracted_types();
+        if template.is_known_empty() {
+            return Ok(());
+        }
+
+        template.process_required_types()?;
         if template.is_known_empty() {
             return Ok(());
         }

@@ -12,6 +12,7 @@ use mentat_core::{
     SQLValueType,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query::Limit;
@@ -158,30 +159,53 @@ impl ToConstraint for ColumnConstraint {
                     right: right.into(),
                 }
             },
-            HasType { value: table, value_type, strict } => {
-                let type_column = QualifiedAlias::new(table.clone(), DatomsColumn::ValueTypeTag).to_column();
-                let loose = Constraint::equal(type_column,
-                                              ColumnOrExpression::Integer(value_type.value_type_tag()));
-                if !strict || (value_type != ValueType::Long && value_type != ValueType::Double) {
-                    loose
+            HasTypes { value: table, value_types, strict: strict_requested } => {
+                // If strict mode checking is on, and need to check exactly 1
+                // (not both or neither) of ValueType::Double and ValueType::Long
+                // we emit a Constraint::TypeCheck.
+                let num_numeric_checks = (value_types.contains(ValueType::Double) as i32) +
+                                         (value_types.contains(ValueType::Long) as i32);
+                let strict = strict_requested && num_numeric_checks == 1;
+
+                let types = if !strict && num_numeric_checks == 2 {
+                    // If we aren't operating in strict mode (either because it
+                    // wasn't requested, or because it doesn't make a difference),
+                    // and both ValueType::Double and ValueType::Long are being
+                    // checked, we remove the test for one of them, as they're
+                    // represented using the same value type tag (we choose to
+                    // remove the check for ValueType::Double, but it's an
+                    // arbitrary choice)
+                    value_types.difference(&ValueTypeSet::of_one(ValueType::Double))
                 } else {
-                    // HasType has requested that we check for strict equality, and we're
-                    // checking a ValueType where that makes a difference (a numeric type).
-                    let val_column = QualifiedAlias::new(table, DatomsColumn::Value).to_column();
-                    Constraint::And {
-                        constraints: vec![
-                            loose,
-                            Constraint::TypeCheck {
-                                value: val_column,
-                                datatype: match value_type {
-                                    ValueType::Long => SQLDatatype::Integer,
-                                    ValueType::Double => SQLDatatype::Real,
-                                    _ => unreachable!()
+                    value_types
+                };
+                let constraints = types.into_iter().map(|ty| {
+                    let type_column = QualifiedAlias::new(table.clone(), DatomsColumn::ValueTypeTag).to_column();
+                    let loose = Constraint::equal(type_column, ColumnOrExpression::Integer(ty.value_type_tag()));
+                    if !strict || (ty != ValueType::Long && ty != ValueType::Double) {
+                        loose
+                    } else {
+                        let val_column = QualifiedAlias::new(table.clone(), DatomsColumn::Value).to_column();
+                        // We're handling strict equality for a numeric type, so we need to emit
+                        // a `typeof(col) = '(real|integer)'` too. This should happen a maximum of
+                        // once per `HasTypes`
+                        Constraint::And {
+                            constraints: vec![
+                                loose,
+                                Constraint::TypeCheck {
+                                    value: val_column,
+                                    datatype: match ty {
+                                        ValueType::Long => SQLDatatype::Integer,
+                                        ValueType::Double => SQLDatatype::Real,
+                                        _ => unreachable!()
+                                    }
                                 }
-                            }
-                        ]
+                            ]
+                        }
                     }
-                }
+                }).collect::<Vec<_>>();
+
+                Constraint::Or { constraints }
             },
 
             NotExists(computed_table) => {
