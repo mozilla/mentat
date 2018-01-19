@@ -34,7 +34,7 @@ use types::{
     Inequality,
 };
 
-fn value_type_function_name(s: &str) -> Option<ValueType> {
+pub fn parse_type_predicate(s: &str) -> Option<ValueType> {
     match s {
         "ref" => Some(ValueType::Ref),
         "boolean" => Some(ValueType::Boolean),
@@ -62,8 +62,8 @@ impl ConjoiningClauses {
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
         if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
             self.apply_inequality(schema, op, predicate)
-        } else if let Some(ty) = value_type_function_name(predicate.operator.0.as_str()) {
-            self.apply_type_requirement(predicate, ty)
+        } else if let Some(ty) = parse_type_predicate(predicate.operator.0.as_str()) {
+            self.apply_type_requirement(&predicate, ty)
         } else {
             bail!(ErrorKind::UnknownFunction(predicate.operator.clone()))
         }
@@ -76,14 +76,13 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn apply_type_requirement(&mut self, pred: Predicate, ty: ValueType) -> Result<()> {
+    pub fn apply_type_requirement(&mut self, pred: &Predicate, ty: ValueType) -> Result<()> {
         if pred.args.len() != 1 {
             bail!(ErrorKind::InvalidNumberOfArguments(pred.operator.clone(), pred.args.len(), 1));
         }
-        let mut args = pred.args.into_iter();
 
-        if let FnArg::Variable(v) = args.next().unwrap() {
-            self.add_type_requirement(v, ValueTypeSet::of_one(ty));
+        if let &FnArg::Variable(ref v) = &pred.args[0] {
+            self.add_type_requirement(v.clone(), ValueTypeSet::of_one(ty));
             Ok(())
         } else {
             bail!(ErrorKind::InvalidArgument(pred.operator.clone(), "variable".into(), 0))

@@ -293,10 +293,10 @@ fn test_type_required_long() {
     let query = r#"[:find ?x :where [?x _ ?e] [(long ?e)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
-                     FROM `all_datoms` AS `all_datoms00` \
-                     WHERE ((`all_datoms00`.value_type_tag = 5 AND \
-                             typeof(`all_datoms00`.v) = 'integer'))");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE ((`datoms00`.value_type_tag = 5 AND \
+                             typeof(`datoms00`.v) = 'integer'))");
 
     assert_eq!(args, vec![]);
 }
@@ -308,10 +308,10 @@ fn test_type_required_double() {
     let query = r#"[:find ?x :where [?x _ ?e] [(double ?e)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
-                     FROM `all_datoms` AS `all_datoms00` \
-                     WHERE ((`all_datoms00`.value_type_tag = 5 AND \
-                             typeof(`all_datoms00`.v) = 'real'))");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE ((`datoms00`.value_type_tag = 5 AND \
+                             typeof(`datoms00`.v) = 'real'))");
 
     assert_eq!(args, vec![]);
 }
@@ -323,29 +323,21 @@ fn test_type_required_boolean() {
     let query = r#"[:find ?x :where [?x _ ?e] [(boolean ?e)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
-    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
-                     FROM `all_datoms` AS `all_datoms00` \
-                     WHERE (`all_datoms00`.value_type_tag = 1)");
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE (`datoms00`.value_type_tag = 1)");
 
     assert_eq!(args, vec![]);
 }
 
 #[test]
-fn test_type_require_avoids_all_datoms() {
+fn test_type_required_string() {
     let schema = Schema::default();
-    // Since the constraint is first, we know we don't need to use all_datoms.
-    let query = r#"[:find ?x :where [(keyword ?e)] [?x _ ?e]]"#;
+
+    let query = r#"[:find ?x :where [?x _ ?e] [(string ?e)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
-    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
-                     FROM `datoms` AS `datoms00` \
-                     WHERE (`datoms00`.value_type_tag = 13)");
-    assert_eq!(args, vec![]);
-
-    // Strings always need to use all_datoms.
-    let query = r#"[:find ?x :where [(string ?e)] [?x _ ?e]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
-
+    // Note: strings should use `all_datoms` and not `datoms`.
     assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
                      FROM `all_datoms` AS `all_datoms00` \
                      WHERE (`all_datoms00`.value_type_tag = 10)");

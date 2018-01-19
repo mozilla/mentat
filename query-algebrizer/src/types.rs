@@ -344,7 +344,7 @@ pub enum ColumnConstraint {
 }
 
 impl ColumnConstraint {
-    pub fn has_type(value: TableAlias, value_type: ValueType) -> ColumnConstraint {
+    pub fn has_unit_type(value: TableAlias, value_type: ValueType) -> ColumnConstraint {
         ColumnConstraint::HasTypes {
             value,
             value_types: ValueTypeSet::of_one(value_type),

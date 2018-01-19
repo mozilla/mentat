@@ -201,7 +201,7 @@ impl ConjoiningClauses {
                 } else {
                     // It must be a keyword.
                     self.constrain_column_to_constant(col.clone(), DatomsColumn::Value, TypedValue::Keyword(kw.clone()));
-                    self.wheres.add_intersection(ColumnConstraint::has_type(col.clone(), ValueType::Keyword));
+                    self.wheres.add_intersection(ColumnConstraint::has_unit_type(col.clone(), ValueType::Keyword));
                 };
             },
             PatternValuePlace::Constant(ref c) => {
@@ -237,7 +237,8 @@ impl ConjoiningClauses {
                 // Because everything we handle here is unambiguous, we generate a single type
                 // restriction from the value type of the typed value.
                 if value_type.is_none() {
-                    self.wheres.add_intersection(ColumnConstraint::has_type(col.clone(), typed_value_type));
+                    self.wheres.add_intersection(
+                        ColumnConstraint::has_unit_type(col.clone(), typed_value_type));
                 }
             },
         }
@@ -445,7 +446,7 @@ mod testing {
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::Boolean(true))),
-                   ColumnConstraint::has_type("datoms00".to_string(), ValueType::Boolean),
+                   ColumnConstraint::has_unit_type("datoms00".to_string(), ValueType::Boolean),
         ].into());
     }
 
@@ -589,7 +590,7 @@ mod testing {
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
                    ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String(Rc::new("hello".to_string())))),
-                   ColumnConstraint::has_type("all_datoms00".to_string(), ValueType::String),
+                   ColumnConstraint::has_unit_type("all_datoms00".to_string(), ValueType::String),
         ].into());
     }
 

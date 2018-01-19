@@ -83,6 +83,8 @@ use validate::{
     validate_or_join,
 };
 
+use self::predicate::parse_type_predicate;
+
 pub use self::inputs::QueryInputs;
 
 // We do this a lot for errors.
@@ -366,7 +368,7 @@ impl ConjoiningClauses {
         // Are we also trying to figure out the type of the value when the query runs?
         // If so, constrain that!
         if let Some(qa) = self.extracted_types.get(&var) {
-            self.wheres.add_intersection(ColumnConstraint::has_type(qa.0.clone(), vt));
+            self.wheres.add_intersection(ColumnConstraint::has_unit_type(qa.0.clone(), vt));
         }
 
         // Finally, store the binding for future use.
@@ -404,14 +406,6 @@ impl ConjoiningClauses {
 
     pub fn known_type_set(&self, var: &Variable) -> ValueTypeSet {
         self.known_types.get(var).cloned().unwrap_or(ValueTypeSet::any())
-    }
-
-    fn required_type_set(&self, var: &Variable) -> ValueTypeSet {
-        self.required_types.get(var).cloned().unwrap_or(ValueTypeSet::any())
-    }
-
-    fn possible_type_set(&self, var: &Variable) -> ValueTypeSet {
-        self.known_type_set(var).intersection(&self.required_type_set(var))
     }
 
     pub fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
@@ -733,12 +727,13 @@ impl ConjoiningClauses {
                 // TODO: see if the variable is projected, aggregated, or compared elsewhere in
                 // the query. If it's not, we don't need to use all_datoms here.
                 &PatternValuePlace::Variable(ref v) => {
-                    // Do we know that this variable can't be a string? If so, we don't need
-                    // AllDatoms.
-                    if !self.possible_type_set(v).contains(ValueType::String) {
-                        DatomsTable::Datoms
-                    } else {
+                    // If `required_types` and `known_types` don't exclude strings,
+                    // we need to query `all_datoms`.
+                    if self.required_types.get(v).map_or(true, |s| s.contains(ValueType::String)) &&
+                       self.known_types.get(v).map_or(true, |s| s.contains(ValueType::String)) {
                         DatomsTable::AllDatoms
+                    } else {
+                        DatomsTable::Datoms
                     }
                 }
                 &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>
@@ -905,8 +900,8 @@ impl ConjoiningClauses {
                     // the variable could take, then we know we're empty.
                     empty_because = Some(EmptyBecause::TypeMismatch {
                         var: var.clone(),
-                        existing: already_known.clone(),
-                        desired: types.clone(),
+                        existing: *already_known,
+                        desired: *types,
                     });
                     break;
                 }
@@ -973,6 +968,26 @@ impl ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
+    pub fn apply_clauses(&mut self, schema: &Schema, where_clauses: Vec<WhereClause>) -> Result<()> {
+        let mut deferred = Vec::with_capacity(where_clauses.len());
+        // We apply (top level) type predicates first as an optimization.
+        for c in where_clauses {
+            match &c {
+                &WhereClause::Pred(ref p) => {
+                    if let Some(ty) = parse_type_predicate(p.operator.0.as_str()) {
+                        self.apply_type_requirement(p, ty)?;
+                    }
+                },
+                _ => {}
+            };
+            deferred.push(c);
+        }
+        // Then we apply everything else.
+        for c in deferred {
+            self.apply_clause(schema, c)?;
+        }
+        Ok(())
+    }
     // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
     // and so on.
     pub fn apply_clause(&mut self, schema: &Schema, where_clause: WhereClause) -> Result<()> {

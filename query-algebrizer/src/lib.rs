@@ -179,10 +179,8 @@ pub fn algebrize_with_inputs(schema: &Schema,
 
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
-    let where_clauses = parsed.where_clauses;
-    for where_clause in where_clauses {
-        cc.apply_clause(schema, where_clause)?;
-    }
+    cc.apply_clauses(schema, parsed.where_clauses)?;
+
     cc.expand_column_bindings();
     cc.prune_extracted_types();
     cc.process_required_types()?;

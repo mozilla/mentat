@@ -49,9 +49,7 @@ impl ConjoiningClauses {
             }
         }
 
-        for clause in not_join.clauses.into_iter() {
-            template.apply_clause(&schema, clause)?;
-        }
+        template.apply_clauses(&schema, not_join.clauses)?;
 
         if template.is_known_empty() {
             return Ok(());
