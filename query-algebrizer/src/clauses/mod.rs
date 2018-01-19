@@ -406,6 +406,14 @@ impl ConjoiningClauses {
         self.known_types.get(var).cloned().unwrap_or(ValueTypeSet::any())
     }
 
+    fn required_type_set(&self, var: &Variable) -> ValueTypeSet {
+        self.required_types.get(var).cloned().unwrap_or(ValueTypeSet::any())
+    }
+
+    fn possible_type_set(&self, var: &Variable) -> ValueTypeSet {
+        self.known_type_set(var).intersection(&self.required_type_set(var))
+    }
+
     pub fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
         let column = column.into();
         // Do we have an external binding for this?
@@ -726,10 +734,11 @@ impl ConjoiningClauses {
                 // the query. If it's not, we don't need to use all_datoms here.
                 &PatternValuePlace::Variable(ref v) => {
                     // Do we know that this variable can't be a string? If so, we don't need
-                    // AllDatoms. None or String means it could be or definitely is.
-                    match self.known_types.get(v).map(|types| types.contains(ValueType::String)) {
-                        Some(false) => DatomsTable::Datoms,
-                        _           => DatomsTable::AllDatoms,
+                    // AllDatoms.
+                    if !self.possible_type_set(v).contains(ValueType::String) {
+                        DatomsTable::Datoms
+                    } else {
+                        DatomsTable::AllDatoms
                     }
                 }
                 &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>

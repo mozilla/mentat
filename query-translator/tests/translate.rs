@@ -331,6 +331,28 @@ fn test_type_required_boolean() {
 }
 
 #[test]
+fn test_type_require_avoids_all_datoms() {
+    let schema = Schema::default();
+    // Since the constraint is first, we know we don't need to use all_datoms.
+    let query = r#"[:find ?x :where [(keyword ?e)] [?x _ ?e]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE (`datoms00`.value_type_tag = 13)");
+    assert_eq!(args, vec![]);
+
+    // Strings always need to use all_datoms.
+    let query = r#"[:find ?x :where [(string ?e)] [?x _ ?e]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms00`.e AS `?x` \
+                     FROM `all_datoms` AS `all_datoms00` \
+                     WHERE (`all_datoms00`.value_type_tag = 10)");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
 fn test_numeric_less_than_unknown_attribute() {
     let schema = Schema::default();
 
