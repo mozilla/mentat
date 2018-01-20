@@ -8,7 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::HashMap;  
+use std::collections::HashMap;
 use std::process;
 
 use mentat::query::{
@@ -18,8 +18,8 @@ use mentat::query::{
 use mentat_core::TypedValue;
 
 use command_parser::{
-    Command, 
-    HELP_COMMAND, 
+    Command,
+    HELP_COMMAND,
     OPEN_COMMAND,
     LONG_QUERY_COMMAND,
     SHORT_QUERY_COMMAND,
@@ -33,12 +33,12 @@ use command_parser::{
 };
 use input::InputReader;
 use input::InputResult::{
-    MetaCommand, 
-    Empty, 
-    More, 
+    MetaCommand,
+    Empty,
+    More,
     Eof
 };
-use store::{ 
+use store::{
     Store,
     db_output_name
 };
@@ -127,7 +127,7 @@ impl Repl {
                     Ok(s) => println!("{}", s),
                     Err(e) => println!("{}", e)
                 };
-                
+
             }
             Command::Transact(transaction) => self.execute_transact(transaction),
             Command::Exit => {
@@ -153,7 +153,7 @@ impl Repl {
             }
         } else {
             for mut arg in args {
-                if arg.chars().nth(0).unwrap() == '.' { 
+                if arg.chars().nth(0).unwrap() == '.' {
                     arg.remove(0);
                 }
                 let msg = COMMAND_HELP.get(arg.as_str());
@@ -177,23 +177,23 @@ impl Repl {
         if results.is_empty() {
             println!("No results found.")
         }
-        
+
         let mut output:String = String::new();
         match results {
-            QueryResults::Scalar(Some(val)) => { 
-                output.push_str(&self.typed_value_as_string(val) ); 
+            QueryResults::Scalar(Some(val)) => {
+                output.push_str(&self.typed_value_as_string(val) );
             },
-            QueryResults::Tuple(Some(vals)) => { 
+            QueryResults::Tuple(Some(vals)) => {
                 for val in vals {
                     output.push_str(&format!("{}\t", self.typed_value_as_string(val)));
                 }
             },
-            QueryResults::Coll(vv) => { 
+            QueryResults::Coll(vv) => {
                 for val in vv {
                     output.push_str(&format!("{}\n", self.typed_value_as_string(val)));
                 }
             },
-            QueryResults::Rel(vvv) => { 
+            QueryResults::Rel(vvv) => {
                 for vv in vvv {
                     for v in vv {
                         output.push_str(&format!("{}\t", self.typed_value_as_string(v)));

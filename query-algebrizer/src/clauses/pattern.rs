@@ -81,7 +81,7 @@ impl ConjoiningClauses {
         // Sorry for the duplication; Rust makes it a pain to abstract this.
 
         // The transaction part of a pattern must be an entid, variable, or placeholder.
-        self.constrain_to_tx(&pattern.tx);         
+        self.constrain_to_tx(&pattern.tx);
         self.constrain_to_ref(&pattern.entity);
         self.constrain_to_ref(&pattern.attribute);
 

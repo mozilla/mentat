@@ -53,7 +53,7 @@ error_chain! {
             description("no such function")
             display("no function named {}", name)
         }
-    
+
         InvalidNumberOfArguments(function: PlainSymbol, number: usize, expected: usize) {
             description("invalid number of arguments")
             display("invalid number of arguments to {}: expected {}, got {}.", function, expected, number)

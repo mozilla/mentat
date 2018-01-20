@@ -25,19 +25,19 @@ We've observed that data storage is a particular area of difficulty for software
   - Model their domain entities and relationships.
   - Encode that model _efficiently_ and _correctly_ using the features available in the database.
   - Plan for future extensions and performance tuning.
-  
+
   In a SQL database, the same schema definition defines everything from high-level domain relationships through to numeric field sizes in the same smear of keywords. It's difficult for someone unfamiliar with the domain to determine from such a schema what's a domain fact and what's an implementation concession — are all part numbers always 16 characters long, or are we trying to save space? — or, indeed, whether a missing constraint is deliberate or a bug.
-  
+
   The developer must think about foreign key constraints, compound uniqueness, and nullability. They must consider indexing, synchronizing, and stable identifiers. Most developers simply don't do enough work in SQL to get all of these things right. Storage thus becomes the specialty of a few individuals.
 
    Which one of these is correct?
-   
+
    ```edn
    {:db/id          :person/email
      :db/valueType   :db.type/string
      :db/cardinality :db.cardinality/many     ; People can have multiple email addresses.
      :db/unique      :db.unique/identity      ; For our purposes, each email identifies one person.
-     :db/index       true}                    ; We want fast lookups by email.         
+     :db/index       true}                    ; We want fast lookups by email.
    {:db/id          :person/friend
      :db/valueType   :db.type/ref
      :db/cardinality :db.cardinality/many}    ; People can have many friends.
@@ -53,7 +53,7 @@ We've observed that data storage is a particular area of difficulty for software
      FOREIGN KEY friend REFERENCES people(id),  -- Bug: no compound uniqueness constraint, so we can have dupe friendships.
    );
    ```
-   
+
    They both have limitations — the Mentat schema allows only for an open world (it's possible to declare friendships with people whose email isn't known), and requires validation code to enforce email string correctness — but we think that even such a tiny SQL example is harder to understand and obscures important domain decisions.
 
 - Queries are intimately tied to structural storage choices. That not only hides the declarative domain-level meaning of the query — it's hard to tell what a query is trying to do when it's a 100-line mess of subqueries and `LEFT OUTER JOIN`s — but it also means a simple structural schema change requires auditing _every query_ for correctness.

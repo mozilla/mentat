@@ -84,7 +84,7 @@ pub fn run() -> i32 {
                 last_arg = Some(&arg);
                 None
             },
-        } 
+        }
     }).collect();
 
     let repl = repl::Repl::new();

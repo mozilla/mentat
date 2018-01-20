@@ -568,9 +568,9 @@ impl Attribute {
         match self.unique {
             Some(attribute::Unique::Value) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_VALUE.clone()); },
             Some(attribute::Unique::Identity) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone()); },
-            None => (), 
+            None => (),
         }
-        
+
         if self.index {
             attribute_map.insert(values::DB_INDEX.clone(), edn::Value::Boolean(true));
         }
@@ -667,7 +667,7 @@ impl Schema {
     /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
     pub fn to_edn_value(&self) -> edn::Value {
         edn::Value::Vector((&self.schema_map).iter()
-            .map(|(entid, attribute)| 
+            .map(|(entid, attribute)|
                 attribute.to_edn_value(self.get_ident(*entid).cloned()))
             .collect())
     }

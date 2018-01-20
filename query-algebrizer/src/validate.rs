@@ -352,7 +352,7 @@ mod tests {
             _ => panic!(),
         };
     }
-    
+
     /// Test that a `not-join` that does not use the joining var fails to validate.
     #[test]
     fn test_invalid_explicit_not_join_non_matching_join_vars() {
@@ -374,5 +374,5 @@ mod tests {
             WhereClause::NotJoin(not_join) => assert!(validate_not_join(&not_join).is_err()),
             _ => panic!(),
         }
-    }    
+    }
 }

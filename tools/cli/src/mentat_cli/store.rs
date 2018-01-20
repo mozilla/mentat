@@ -37,9 +37,9 @@ pub fn db_output_name(db_name: &String) -> String {
 impl Store {
     pub fn new(database: Option<String>) -> Result<Store, cli::Error> {
         let db_name = database.unwrap_or("".to_string());
-        
-        let mut handle = try!(new_connection(&db_name));        
-        let conn = try!(Conn::connect(&mut handle)); 
+
+        let mut handle = try!(new_connection(&db_name));
+        let conn = try!(Conn::connect(&mut handle));
         Ok(Store { handle, conn, db_name })
     }
 

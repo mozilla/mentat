@@ -10,21 +10,21 @@
 
 use combine::{
     any,
-    eof, 
+    eof,
     look_ahead,
-    many1, 
-    satisfy, 
-    sep_end_by, 
-    token, 
+    many1,
+    satisfy,
+    sep_end_by,
+    token,
     Parser
 };
 use combine::char::{
-    space, 
-    spaces, 
+    space,
+    spaces,
     string
 };
 use combine::combinator::{
-    choice, 
+    choice,
     try
 };
 
@@ -59,7 +59,7 @@ pub enum Command {
 
 impl Command {
     /// is_complete returns true if no more input is required for the command to be successfully executed.
-    /// false is returned if the command is not considered valid. 
+    /// false is returned if the command is not considered valid.
     /// Defaults to true for all commands except Query and Transact.
     /// TODO: for query and transact commands, they will be considered complete if a parsable EDN has been entered as an argument
     pub fn is_complete(&self) -> bool {
@@ -129,7 +129,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         }
                         Ok(Command::Open(args[0].clone()))
                     });
-    
+
     let no_arg_parser = || arguments()
                         .skip(spaces())
                         .skip(eof());
@@ -142,7 +142,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         }
                         Ok(Command::Close)
                     });
-                    
+
     let schema_parser = string(SCHEMA_COMMAND)
                     .with(no_arg_parser())
                     .map(|args| {
@@ -204,7 +204,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::*; 
+    use super::*;
 
     #[test]
     fn test_help_parser_multiple_args() {
@@ -298,7 +298,7 @@ mod tests {
             _ => assert!(false)
         }
     }
-    
+
     #[test]
     fn test_open_parser_no_args() {
         let input = ".open";
@@ -376,7 +376,7 @@ mod tests {
             _ => assert!(false)
         }
     }
-    
+
     #[test]
     fn test_schema_parser_with_args() {
         let input = ".schema arg1";
@@ -393,7 +393,7 @@ mod tests {
             _ => assert!(false)
         }
     }
-    
+
     #[test]
     fn test_schema_parser_no_args_trailing_whitespace() {
         let input = ".schema ";
