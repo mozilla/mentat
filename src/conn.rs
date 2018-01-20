@@ -40,6 +40,8 @@ use errors::*;
 use query::{
     lookup_value_for_attribute,
     q_once,
+    q_explain,
+    QueryExplanation,
     QueryInputs,
     QueryResults,
 };
@@ -212,6 +214,15 @@ impl Conn {
                &*self.current_schema(),
                query,
                inputs)
+    }
+
+    pub fn q_explain<T>(&self,
+                        sqlite: &rusqlite::Connection,
+                        query: &str,
+                        inputs: T) -> Result<QueryExplanation>
+        where T: Into<Option<QueryInputs>>
+    {
+        q_explain(sqlite, &*self.current_schema(), query, inputs)
     }
 
     pub fn lookup_value_for_attribute(&self,

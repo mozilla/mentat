@@ -11,6 +11,8 @@
 use rusqlite;
 use rusqlite::types::ToSql;
 
+use std::rc::Rc;
+
 use mentat_core::{
     Entid,
     Schema,
@@ -20,6 +22,7 @@ use mentat_core::{
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     algebrize_with_inputs,
+    EmptyBecause,
 };
 
 pub use mentat_query_algebrizer::{
@@ -90,6 +93,45 @@ impl IntoResult for QueryExecutionResult {
     }
 }
 
+/// A struct describing information about how Mentat would execute a query.
+pub enum QueryExplanation {
+    /// A query known in advance to be empty, and why we believe that.
+    KnownEmpty(EmptyBecause),
+    /// A query that takes actual work to execute.
+    ExecutionPlan {
+        /// The translated query and any bindings.
+        query: SQLQuery,
+        /// The output of SQLite's `EXPLAIN QUERY PLAN`.
+        steps: Vec<QueryPlanStep>,
+    },
+}
+
+/// A single row in the output of SQLite's `EXPLAIN QUERY PLAN`.
+/// See https://www.sqlite.org/eqp.html for an explanation of each field.
+pub struct QueryPlanStep {
+    pub select_id: i32,
+    pub order: i32,
+    pub from: i32,
+    pub detail: String,
+}
+
+fn algebrize_query<'schema, T>
+(schema: &'schema Schema,
+ query: FindQuery,
+ inputs: T) -> Result<AlgebraicQuery>
+    where T: Into<Option<QueryInputs>>
+{
+    let algebrized = algebrize_with_inputs(schema, query, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
+    let unbound = algebrized.unbound_variables();
+    // Because we are running once, we can check that all of our `:in` variables are bound at this point.
+    // If they aren't, the user has made an error -- perhaps writing the wrong variable in `:in`, or
+    // not binding in the `QueryInput`.
+    if !unbound.is_empty() {
+        bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
+    }
+    Ok(algebrized)
+}
+
 fn fetch_values<'sqlite, 'schema>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
@@ -111,7 +153,7 @@ fn fetch_values<'sqlite, 'schema>
     let query = FindQuery::simple(spec,
                                   vec![WhereClause::Pattern(pattern)]);
 
-    let algebrized = algebrize_with_inputs(schema, query, 0, QueryInputs::default())?;
+    let algebrized = algebrize_query(schema, query, None)?;
 
     run_algebrized_query(sqlite, algebrized)
 }
@@ -161,34 +203,61 @@ pub fn lookup_values_for_attribute<'sqlite, 'schema, 'attribute>
     lookup_values(sqlite, schema, entity, lookup_attribute(schema, attribute)?)
 }
 
+fn run_statement<'sqlite, 'stmt, 'bound>
+(statement: &'stmt mut rusqlite::Statement<'sqlite>,
+ bindings: &'bound [(String, Rc<rusqlite::types::Value>)]) -> Result<rusqlite::Rows<'stmt>> {
+
+    let rows = if bindings.is_empty() {
+        statement.query(&[])?
+    } else {
+        let refs: Vec<(&str, &ToSql)> =
+            bindings.iter()
+                    .map(|&(ref k, ref v)| (k.as_str(), v.as_ref() as &ToSql))
+                    .collect();
+        statement.query_named(&refs)?
+    };
+    Ok(rows)
+}
+
+fn run_sql_query<'sqlite, 'sql, 'bound, T, F>
+(sqlite: &'sqlite rusqlite::Connection,
+ sql: &'sql str,
+ bindings: &'bound [(String, Rc<rusqlite::types::Value>)],
+ mut mapper: F) -> Result<Vec<T>>
+    where F: FnMut(&rusqlite::Row) -> T
+{
+    let mut statement = sqlite.prepare(sql)?;
+    let mut rows = run_statement(&mut statement, &bindings)?;
+    let mut result = vec![];
+    while let Some(row_or_error) = rows.next() {
+        result.push(mapper(&row_or_error?));
+    }
+    Ok(result)
+}
+
+fn algebrize_query_str<'schema, 'query, T>
+(schema: &'schema Schema,
+ query: &'query str,
+ inputs: T) -> Result<AlgebraicQuery>
+    where T: Into<Option<QueryInputs>>
+{
+    let parsed = parse_find_string(query)?;
+    algebrize_query(schema, parsed, inputs)
+}
+
 fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebrized: AlgebraicQuery) -> QueryExecutionResult {
+    assert!(algebrized.unbound_variables().is_empty(),
+            "Unbound variables should be checked by now");
     if algebrized.is_known_empty() {
         // We don't need to do any SQL work at all.
         return Ok(QueryResults::empty(&algebrized.find_spec));
-    }
-
-    // Because we are running once, we can check that all of our `:in` variables are bound at this point.
-    // If they aren't, the user has made an error -- perhaps writing the wrong variable in `:in`, or
-    // not binding in the `QueryInput`.
-    let unbound = algebrized.unbound_variables();
-    if !unbound.is_empty() {
-        bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
     }
 
     let select = query_to_select(algebrized)?;
     let SQLQuery { sql, args } = select.query.to_sql_query()?;
 
     let mut statement = sqlite.prepare(sql.as_str())?;
-
-    let rows = if args.is_empty() {
-        statement.query(&[])?
-    } else {
-        let refs: Vec<(&str, &ToSql)> =
-            args.iter()
-                .map(|&(ref k, ref v)| (k.as_str(), v.as_ref() as &ToSql))
-                .collect();
-        statement.query_named(refs.as_slice())?
-    };
+    let rows = run_statement(&mut statement, &args)?;
 
     select.projector
           .project(rows)
@@ -209,8 +278,34 @@ pub fn q_once<'sqlite, 'schema, 'query, T>
  inputs: T) -> QueryExecutionResult
         where T: Into<Option<QueryInputs>>
 {
-    let parsed = parse_find_string(query)?;
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
+    let algebrized = algebrize_query_str(schema, query, inputs)?;
 
     run_algebrized_query(sqlite, algebrized)
+}
+
+pub fn q_explain<'sqlite, 'schema, 'query, T>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ query: &'query str,
+ inputs: T) -> Result<QueryExplanation>
+        where T: Into<Option<QueryInputs>>
+{
+    let algebrized = algebrize_query_str(schema, query, inputs)?;
+    if algebrized.is_known_empty() {
+        return Ok(QueryExplanation::KnownEmpty(algebrized.cc.empty_because.unwrap()));
+    }
+    let query = query_to_select(algebrized)?.query.to_sql_query()?;
+
+    let plan_sql = format!("EXPLAIN QUERY PLAN {}", query.sql);
+
+    let steps = run_sql_query(sqlite, &plan_sql, &query.args, |row| {
+        QueryPlanStep {
+            select_id: row.get(0),
+            order: row.get(1),
+            from: row.get(2),
+            detail: row.get(3)
+        }
+    })?;
+
+    Ok(QueryExplanation::ExecutionPlan { query, steps })
 }
