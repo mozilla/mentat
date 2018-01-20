@@ -12,8 +12,8 @@ use mentat_core::Schema;
 
 use mentat_query::{
     ContainsVariables,
-    NotJoin, 
-    UnifyVars, 
+    NotJoin,
+    UnifyVars,
 };
 
 use clauses::ConjoiningClauses;
@@ -24,7 +24,7 @@ use errors::{
 };
 
 use types::{
-    ColumnConstraint, 
+    ColumnConstraint,
     ComputedTable,
 };
 
@@ -36,7 +36,7 @@ impl ConjoiningClauses {
         };
 
         let mut template = self.use_as_template(&unified);
-        
+
         for v in unified.iter() {
             if self.value_bindings.contains_key(&v) {
                 let val = self.value_bindings.get(&v).unwrap().clone();
@@ -78,14 +78,14 @@ mod testing {
     use super::*;
 
     use mentat_core::{
-        Attribute, 
-        TypedValue, 
+        Attribute,
+        TypedValue,
         ValueType,
         ValueTypeSet,
     };
 
     use mentat_query::{
-        NamespacedKeyword, 
+        NamespacedKeyword,
         PlainSymbol,
         Variable
     };
@@ -93,8 +93,8 @@ mod testing {
     use self::mentat_query_parser::parse_find_string;
 
     use clauses::{
-        QueryInputs, 
-        add_attribute, 
+        QueryInputs,
+        add_attribute,
         associate_ident,
     };
 
@@ -104,20 +104,20 @@ mod testing {
     };
 
     use types::{
-        ColumnAlternation, 
-        ColumnConstraint, 
+        ColumnAlternation,
+        ColumnConstraint,
         ColumnConstraintOrAlternation,
-        ColumnIntersection, 
-        DatomsColumn, 
-        DatomsTable, 
+        ColumnIntersection,
+        DatomsColumn,
+        DatomsTable,
         Inequality,
         QualifiedAlias,
-        QueryValue, 
-        SourceAlias, 
+        QueryValue,
+        SourceAlias,
     };
 
     use {
-        algebrize, 
+        algebrize,
         algebrize_with_inputs,
     };
 
@@ -248,7 +248,7 @@ mod testing {
              :where [?x :foo/knows ?y]
                     [?x :foo/age 11]
                     [?x :foo/name "John"]
-                    (not-join [?x ?y] 
+                    (not-join [?x ?y]
                               [?x :foo/parent ?y])]"#;
         let cc = alg(&schema, query);
 
@@ -374,7 +374,7 @@ mod testing {
         assert_eq!(cc.column_bindings.get(&vx), Some(&vec![d0e]));
         assert_eq!(cc.from, vec![SourceAlias(DatomsTable::Datoms, d0)]);
     }
-    
+
     // not with an or
     #[test]
     fn test_not_with_or() {
@@ -524,7 +524,7 @@ mod testing {
         assert!(!cc.is_known_empty());
         compare_ccs(cc,
                     alg(&schema, r#"[:find ?x :where [?x :foo/knows "John"]]"#));
-                    
+
     }
 
     #[test]

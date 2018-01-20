@@ -275,9 +275,9 @@ mod test {
     use self::edn::NamespacedKeyword;
     use errors::Error;
 
-    fn add_attribute(schema: &mut Schema, 
-            ident: NamespacedKeyword, 
-            entid: Entid, 
+    fn add_attribute(schema: &mut Schema,
+            ident: NamespacedKeyword,
+            entid: Entid,
             attribute: Attribute) {
 
         schema.entid_map.insert(entid, ident.clone());
@@ -351,10 +351,10 @@ mod test {
             multival: false,
             component: false,
         });
-        
+
         let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
         assert!(err.is_some());
-        
+
         match err.unwrap() {
             Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/unique :db/unique_value without :db/index true for entid: :foo/bar"); },
             x => panic!("expected Bad Schema Assertion error, got {:?}", x),
@@ -373,10 +373,10 @@ mod test {
             multival: false,
             component: false,
         });
-        
+
         let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
         assert!(err.is_some());
-        
+
         match err.unwrap() {
             Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/unique :db/unique_identity without :db/index true for entid: :foo/bar"); },
             x => panic!("expected Bad Schema Assertion error, got {:?}", x),
@@ -395,10 +395,10 @@ mod test {
             multival: false,
             component: true,
         });
-        
+
         let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
         assert!(err.is_some());
-        
+
         match err.unwrap() {
             Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/isComponent true without :db/valueType :db.type/ref for entid: :foo/bar"); },
             x => panic!("expected Bad Schema Assertion error, got {:?}", x),
@@ -417,10 +417,10 @@ mod test {
             multival: false,
             component: false,
         });
-        
+
         let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
         assert!(err.is_some());
-        
+
         match err.unwrap() {
             Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/fulltext true without :db/index true for entid: :foo/bar"); },
             x => panic!("expected Bad Schema Assertion error, got {:?}", x),
@@ -438,10 +438,10 @@ mod test {
             multival: false,
             component: false,
         });
-        
+
         let err = validate_schema_map(&schema.entid_map, &schema.schema_map).err();
         assert!(err.is_some());
-        
+
         match err.unwrap() {
             Error(ErrorKind::BadSchemaAssertion(message), _) => { assert_eq!(message, ":db/fulltext true without :db/valueType :db.type/string for entid: :foo/bar"); },
             x => panic!("expected Bad Schema Assertion error, got {:?}", x),

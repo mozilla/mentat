@@ -65,7 +65,7 @@ pub mod tests {
         let mut conn = setup_conn_bare();
 
         assert!(ensure_current_version(&mut conn).is_ok());
-        
+
         let mut stmt = conn.prepare("SELECT key FROM tolstoy_metadata WHERE value = zeroblob(16)").unwrap();
         let mut keys_iter = stmt.query_map(&[], |r| r.get(0)).expect("query works");
 

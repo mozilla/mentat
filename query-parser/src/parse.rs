@@ -756,7 +756,7 @@ mod test {
         let e = edn::PlainSymbol::new("?e");
         let a = edn::PlainSymbol::new("?a");
         let v = edn::PlainSymbol::new("?v");
-        
+
         assert_edn_parses_to!(Where::not_join_clause,
                               "(not-join [?e] [?e ?a ?v])",
                               WhereClause::NotJoin(

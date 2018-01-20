@@ -19,7 +19,7 @@ use linefeed::{
 use self::InputResult::*;
 
 use command_parser::{
-    Command, 
+    Command,
     command,
 };
 

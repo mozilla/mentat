@@ -275,7 +275,7 @@ fn test_tx() {
     ]"#).expect("successful transaction");
 
     let r = conn.q_once(&mut c,
-                        r#"[:find ?tx 
+                        r#"[:find ?tx
                             :where [?x :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4" ?tx]]"#, None);
     match r {
         Result::Ok(QueryResults::Rel(ref v)) => {
@@ -309,7 +309,7 @@ fn test_tx_as_input() {
     let tx = (Variable::from_valid_name("?tx"), TypedValue::Ref(t.tx_id));
     let inputs = QueryInputs::with_value_sequence(vec![tx]);
     let r = conn.q_once(&mut c,
-                        r#"[:find ?uuid 
+                        r#"[:find ?uuid
                             :in ?tx
                             :where [?x :foo/uuid ?uuid ?tx]]"#, inputs);
     match r {
