@@ -615,28 +615,34 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
         // TODO: use something like Clojure's group_by to do this.
-        let mut tx_instant_set = false;
         for term in final_terms {
             match term {
-                Term::AddOrRetract(op, e, a, v) => {
+                Term::AddOrRetract(op, KnownEntid(e), a, v) => {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if entids::might_update_metadata(a) {
                         tx_might_update_metadata = true;
                     }
 
-                    if e == KnownEntid(self.tx_id) && a == entids::DB_TX_INSTANT {
-                        tx_instant_set = true;
+                    let added = op == OpType::Add;
+
+                    // We take the last encountered :db/txInstant value.
+                    if added &&
+                       e == self.tx_id &&
+                       a == entids::DB_TX_INSTANT {
                         if let TypedValue::Instant(instant) = v {
+                            // TODO: `instant` should be strictly after the last transaction
+                            // timestamp and strictly before the current transactor timestamp.
                             self.tx_instant = instant;
                         } else {
                             panic!("This type error should have been caught earlier.");
                         }
-                        // TODO: INSTANT to be strictly after the last transaction
-                        // timestamp and strictly before the current transactor timestamp.
+
+                        // We don't need to add the datom here: we'll do so for the current
+                        // timestamp at the end of the loop.
+                        continue;
                     }
 
-                    let added = op == OpType::Add;
-                    let reduced = (e.0, a, attribute, v, added);
+                    let reduced = (e, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
                         (false, true) => non_fts_many.push(reduced),
                         (false, false) => non_fts_one.push(reduced),
@@ -648,13 +654,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         // Transact [:db/add :db/txInstant NOW :db/tx] if it doesn't exist.
-        if !tx_instant_set {
-            non_fts_one.push((self.tx_id,
-                              entids::DB_TX_INSTANT,
-                              self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
-                              TypedValue::Instant(self.tx_instant),
-                              true));
-        }
+        non_fts_one.push((self.tx_id,
+                          entids::DB_TX_INSTANT,
+                          self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
+                          TypedValue::Instant(self.tx_instant),
+                          true));
 
         if !non_fts_one.is_empty() {
             self.store.insert_non_fts_searches(&non_fts_one[..], db::SearchType::Inexact)?;
