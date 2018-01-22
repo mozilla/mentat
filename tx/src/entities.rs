@@ -30,14 +30,16 @@ impl TempId {
     pub fn into_external(self) -> Option<String> {
         match self {
             TempId::External(s) => Some(s),
-            _ => None,
+            TempId::Tx |
+            TempId::Internal(_) => None,
         }
     }
 
     pub fn into_internal(self) -> Option<i64> {
         match self {
             TempId::Internal(x) => Some(x),
-            _ => None,
+            TempId::Tx |
+            TempId::External(_) => None,
         }
     }
 }
