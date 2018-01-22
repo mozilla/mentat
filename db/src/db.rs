@@ -1321,6 +1321,30 @@ mod tests {
     }
 
     #[test]
+    fn test_tx_assertions() {
+        let mut conn = TestConn::default();
+
+        // Test that txInstant can be asserted.
+        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:56:41.257Z\"]
+                                 [:db/add 100 :db.schema/version 1]
+                                 [:db/add 101 :db.schema/version 2]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/version 1 ?tx true]
+                          [101 :db.schema/version 2 ?tx true]
+                          [?tx :db/txInstant #inst \"2017-06-16T00:56:41.257Z\" ?tx true]]");
+
+        // Test other tx assertion.
+        assert_transact!(conn, "[[:db/add :db/tx :db.schema/version 7]
+                                 [:db/add 200 :db.schema/version 2]
+                                 [:db/add 201 :db.schema/version 3]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/version 2 ?tx true]
+                          [201 :db.schema/version 3 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]
+                          [?tx :db.schema/version 7 ?tx true]]");
+    }
+
+    #[test]
     fn test_retract() {
         let mut conn = TestConn::default();
 

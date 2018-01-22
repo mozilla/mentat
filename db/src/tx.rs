@@ -204,16 +204,18 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             partition_map: &'a PartitionMap,
             schema: &'a Schema,
             mentat_id_count: i64,
+            tx_id: Entid,
             temp_ids: intern_set::InternSet<TempId>,
             lookup_refs: intern_set::InternSet<AVPair>,
         }
 
         impl<'a> InProcess<'a> {
-            fn with_schema_and_partition_map(schema: &'a Schema, partition_map: &'a PartitionMap) -> InProcess<'a> {
+            fn with_schema_and_partition_map(schema: &'a Schema, partition_map: &'a PartitionMap, tx_id: Entid) -> InProcess<'a> {
                 InProcess {
                     partition_map,
                     schema,
                     mentat_id_count: 0,
+                    tx_id,
                     temp_ids: intern_set::InternSet::new(),
                     lookup_refs: intern_set::InternSet::new(),
                 }
@@ -266,6 +268,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
                         };
                         Ok(Either::Left(e))
+                    },
+
+                    // Special case: current tx ID.
+                    entmod::EntidOrLookupRefOrTempId::TempId(TempId::Tx) => {
+                        Ok(Either::Left(KnownEntid(self.tx_id)))
                     },
 
                     entmod::EntidOrLookupRefOrTempId::TempId(e) => {
@@ -333,7 +340,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        let mut in_process = InProcess::with_schema_and_partition_map(&self.schema, &self.partition_map);
+        let mut in_process = InProcess::with_schema_and_partition_map(&self.schema, &self.partition_map, self.tx_id);
 
         // We want to handle entities in the order they're given to us, while also "exploding" some
         // entities into many.  We therefore push the initial entities onto the back of the deque,
@@ -608,12 +615,24 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
         // TODO: use something like Clojure's group_by to do this.
+        let mut tx_instant_set = false;
         for term in final_terms {
             match term {
                 Term::AddOrRetract(op, e, a, v) => {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if entids::might_update_metadata(a) {
                         tx_might_update_metadata = true;
+                    }
+
+                    if e == KnownEntid(self.tx_id) && a == entids::DB_TX_INSTANT {
+                        tx_instant_set = true;
+                        if let TypedValue::Instant(instant) = v {
+                            self.tx_instant = instant;
+                        } else {
+                            panic!("This type error should have been caught earlier.");
+                        }
+                        // TODO: INSTANT to be strictly after the last transaction
+                        // timestamp and strictly before the current transactor timestamp.
                     }
 
                     let added = op == OpType::Add;
@@ -628,13 +647,14 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        // Transact [:db/add :db/txInstant NOW :db/tx].
-        // TODO: allow this to be present in the transaction data.
-        non_fts_one.push((self.tx_id,
-                          entids::DB_TX_INSTANT,
-                          self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
-                          TypedValue::Instant(self.tx_instant),
-                          true));
+        // Transact [:db/add :db/txInstant NOW :db/tx] if it doesn't exist.
+        if !tx_instant_set {
+            non_fts_one.push((self.tx_id,
+                              entids::DB_TX_INSTANT,
+                              self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
+                              TypedValue::Instant(self.tx_instant),
+                              true));
+        }
 
         if !non_fts_one.is_empty() {
             self.store.insert_non_fts_searches(&non_fts_one[..], db::SearchType::Inexact)?;

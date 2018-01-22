@@ -23,20 +23,21 @@ use self::edn::symbols::NamespacedKeyword;
 pub enum TempId {
     External(String),
     Internal(i64),
+    Tx, // Special identifier used to refer to the current transaction.
 }
 
 impl TempId {
     pub fn into_external(self) -> Option<String> {
         match self {
             TempId::External(s) => Some(s),
-            TempId::Internal(_) => None,
+            _ => None,
         }
     }
 
     pub fn into_internal(self) -> Option<i64> {
         match self {
             TempId::Internal(x) => Some(x),
-            TempId::External(_) => None,
+            _ => None,
         }
     }
 }
@@ -46,6 +47,7 @@ impl fmt::Display for TempId {
         match self {
             &TempId::External(ref s) => write!(f, "{}", s),
             &TempId::Internal(x) => write!(f, "<tempid {}>", x),
+            &TempId::Tx => write!(f, "<Tx>"),
         }
     }
 }
