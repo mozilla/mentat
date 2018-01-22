@@ -1328,6 +1328,43 @@ mod tests {
     }
 
     #[test]
+    fn test_tx_assertions() {
+        let mut conn = TestConn::default();
+
+        // Test that txInstant can be asserted.
+        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:56:41.257Z\"]
+                                 [:db/add 100 :db/ident :name/Ivan]
+                                 [:db/add 101 :db/ident :name/Petr]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db/ident :name/Ivan ?tx true]
+                          [101 :db/ident :name/Petr ?tx true]
+                          [?tx :db/txInstant #inst \"2017-06-16T00:56:41.257Z\" ?tx true]]");
+
+        // Test multiple txInstant with different values should fail.
+        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+                                 [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
+                                 [:db/add 102 :db/ident :name/Vlad]]",
+                         Err("Could not insert non-fts one statements into temporary search table!"));
+
+        // Test multiple txInstants with the same value.
+        // Test disabled: depends on #535.
+        // assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+        //                          [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+        //                          [:db/add 103 :db/ident :name/Dimitri]
+        //                          [:db/add 104 :db/ident :name/Anton]]");
+        // assert_matches!(conn.last_transaction(),
+        //                 "[[103 :db/ident :name/Dimitri ?tx true]
+        //                   [104 :db/ident :name/Anton ?tx true]
+        //                   [?tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\" ?tx true]]");
+
+        // Test txInstant retraction
+        // Test disabled: retracting a datom that doesn't exist should fail.
+        // assert_transact!(conn, "[[:db/retract :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+        //                          [:db/add 105 :db/ident :name/Vadim]]",
+        //                  Err("Should fail!"));
+    }
+
+    #[test]
     fn test_retract() {
         let mut conn = TestConn::default();
 
