@@ -45,6 +45,7 @@ pub fn get_connection() -> Connection {
 
 pub use mentat_core::{
     TypedValue,
+    Uuid,
     ValueType,
 };
 
