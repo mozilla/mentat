@@ -743,6 +743,10 @@ impl MentatStoring for rusqlite::Connection {
                value_type_tag0 SMALLINT NOT NULL,
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
+
+            // We create this unique index so that it's impossible to violate a cardinality constraint
+            // within a transaction.
+            r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.inexact_searches_unique ON inexact_searches (e0, a0) WHERE added0 = 1"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
             // TODO: don't encode search_type as a STRING.  This is explicit and much easier to read
             // than another flag, so we'll do it to start, and optimize later.
@@ -824,7 +828,7 @@ impl MentatStoring for rusqlite::Connection {
             let s: String = if search_type == SearchType::Exact {
                 format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
             } else {
-                format!("INSERT INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
+                format!("INSERT OR REPLACE INTO temp.inexact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", values)
             };
 
             // TODO: consider ensuring we inserted the expected number of rows.
@@ -2268,5 +2272,40 @@ mod tests {
         assert_transact!(conn,
                          "[{:test/_dangling 1.23}]",
                          Err("EDN value \'1.23\' is not the expected Mentat value type Ref"));
+    }
+
+    #[test]
+    fn test_cardinality_one_violation_existing_entity() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, r#"[
+            [:db/add 111 :db/ident :test/one]
+            [:db/add 111 :db/valueType :db.type/long]
+            [:db/add 111 :db/cardinality :db.cardinality/one]
+            [:db/add 112 :db/ident :test/unique]
+            [:db/add 112 :db/index true]
+            [:db/add 112 :db/valueType :db.type/string]
+            [:db/add 112 :db/cardinality :db.cardinality/one]
+            [:db/add 112 :db/unique :db.unique/identity]
+        ]"#);
+
+        assert_transact!(conn, r#"[
+            [:db/add "foo" :test/unique "x"]
+        ]"#);
+
+        // You can try to assert two values for the same entity and attribute,
+        // but only one will be transacted.
+        let report = assert_transact!(conn, r#"[
+            [:db/add "foo" :test/unique "x"]
+            [:db/add "foo" :test/one 123]
+            [:db/add "bar" :test/unique "x"]
+            [:db/add "bar" :test/one 124]
+        ]"#);
+        assert_eq!(report.tempids.get("foo"), report.tempids.get("bar"));
+
+        assert_matches!(conn.last_transaction(),
+                        r#"[[65536 :test/one 124 ?tx true]
+                            [?tx :db/txInstant ?ms ?tx true]]"#);
     }
 }
