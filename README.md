@@ -11,11 +11,9 @@ The Rust implementation gives us a smaller compiled output, better performance, 
 
 ## Motivation
 
-Mentat is intended to be a flexible relational (not key-value, not document-oriented) store that doesn't leak its storage schema to users, and doesn't make it hard to grow its domain schema and run arbitrary queries.
+Mentat is intended to be a flexible relational (not key-value, not document-oriented) store that makes it easy to describe, grow, and reuse your domain schema.
 
-Our short-term goal for Project Mentat is to build a system that, as the basis for a User Agent Service, can support multiple [Tofino](https://github.com/mozilla/tofino) UX experiments without having a storage engineer do significant data migration, schema work, or revving of special-purpose endpoints.
-
-By abstracting away the storage schema, and by exposing change listeners outside the database (not via triggers), we hope to allow both the data store itself and embedding applications to use better architectures, meeting performance goals in a way that allows future evolution.
+By abstracting away the storage schema, and by exposing change listeners outside the database (not via triggers), we hope to make domain schemas stable, and allow both the data store itself and embedding applications to use better architectures, meeting performance goals in a way that allows future evolution.
 
 ## Data storage is hard
 
