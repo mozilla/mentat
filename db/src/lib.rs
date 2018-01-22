@@ -8,6 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+// Oh, error_chain.
+#![recursion_limit="128"]
+
 #[macro_use]
 extern crate error_chain;
 extern crate itertools;
@@ -27,11 +30,6 @@ extern crate mentat_tx_parser;
 use std::iter::repeat;
 
 use itertools::Itertools;
-
-use mentat_core::{
-    DateTime,
-    Utc,
-};
 
 pub use errors::{Error, ErrorKind, ResultExt, Result};
 
@@ -115,9 +113,4 @@ pub fn repeat_values(values_per_tuple: usize, tuples: usize) -> String {
     // Like "(?, ?, ?), (?, ?, ?)".
     let values: String = repeat(inner).take(tuples).join(", ");
     values
-}
-
-/// Return the current time as a UTC `DateTime` instance.
-pub fn now() -> DateTime<Utc> {
-    Utc::now()
 }

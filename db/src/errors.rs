@@ -82,5 +82,10 @@ error_chain! {
             description("unrecognized or no ident found for entid")
             display("unrecognized or no ident found for entid: {}", entid)
         }
+
+        ConflictingDatoms {
+            description("conflicting datoms in tx")
+            display("conflicting datoms in tx")
+        }
     }
 }

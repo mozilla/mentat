@@ -233,6 +233,28 @@ impl TypedValue {
     }
 }
 
+trait MicrosecondPrecision {
+    /// Truncate the provided `DateTime` to microsecond precision.
+    fn microsecond_precision(self) -> Self;
+}
+
+impl MicrosecondPrecision for DateTime<Utc> {
+    fn microsecond_precision(self) -> DateTime<Utc> {
+        let nanoseconds = self.nanosecond();
+        if nanoseconds % 1000 == 0 {
+            return self;
+        }
+        let microseconds = nanoseconds / 1000;
+        let truncated = microseconds * 1000;
+        self.with_nanosecond(truncated).expect("valid timestamp")
+    }
+}
+
+/// Return the current time as a UTC `DateTime` instance with microsecond precision.
+pub fn now() -> DateTime<Utc> {
+    Utc::now().microsecond_precision()
+}
+
 // We don't do From<i64> or From<Entid> 'cos it's ambiguous.
 
 impl From<bool> for TypedValue {
@@ -245,9 +267,7 @@ impl From<bool> for TypedValue {
 /// `TypedValue::Instant`.
 impl From<DateTime<Utc>> for TypedValue {
     fn from(value: DateTime<Utc>) -> TypedValue {
-        let microseconds = value.nanosecond() / 1000;
-        let truncated = microseconds * 1000;
-        TypedValue::Instant(value.with_nanosecond(truncated).expect("valid timestamp"))
+        TypedValue::Instant(value.microsecond_precision())
     }
 }
 

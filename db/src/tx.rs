@@ -85,6 +85,7 @@ use mentat_core::{
     Schema,
     Utc,
     attribute,
+    now,
 };
 
 use mentat_core::intern_set::InternSet;
@@ -141,7 +142,7 @@ pub struct Tx<'conn, 'a> {
     tx_id: Entid,
 
     /// The timestamp when the transaction began to be committed.
-    tx_instant: DateTime<Utc>,
+    tx_instant: Option<DateTime<Utc>>,
 }
 
 impl<'conn, 'a> Tx<'conn, 'a> {
@@ -150,15 +151,14 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         partition_map: PartitionMap,
         schema_for_mutation: &'a Schema,
         schema: &'a Schema,
-        tx_id: Entid,
-        tx_instant: DateTime<Utc>) -> Tx<'conn, 'a> {
+        tx_id: Entid) -> Tx<'conn, 'a> {
         Tx {
             store: store,
             partition_map: partition_map,
             schema_for_mutation: Cow::Borrowed(schema_for_mutation),
             schema: schema,
             tx_id: tx_id,
-            tx_instant: tx_instant,
+            tx_instant: None,
         }
     }
 
@@ -206,16 +206,18 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             partition_map: &'a PartitionMap,
             schema: &'a Schema,
             mentat_id_count: i64,
+            tx_id: KnownEntid,
             temp_ids: InternSet<TempId>,
             lookup_refs: InternSet<AVPair>,
         }
 
         impl<'a> InProcess<'a> {
-            fn with_schema_and_partition_map(schema: &'a Schema, partition_map: &'a PartitionMap) -> InProcess<'a> {
+            fn with_schema_and_partition_map(schema: &'a Schema, partition_map: &'a PartitionMap, tx_id: KnownEntid) -> InProcess<'a> {
                 InProcess {
                     partition_map,
                     schema,
                     mentat_id_count: 0,
+                    tx_id,
                     temp_ids: InternSet::new(),
                     lookup_refs: InternSet::new(),
                 }
@@ -267,6 +269,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                             entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
                         };
                         Ok(Either::Left(e))
+                    },
+
+                    // Special case: current tx ID.
+                    entmod::EntidOrLookupRefOrTempId::TempId(TempId::Tx) => {
+                        Ok(Either::Left(self.tx_id))
                     },
 
                     entmod::EntidOrLookupRefOrTempId::TempId(e) => {
@@ -334,7 +341,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        let mut in_process = InProcess::with_schema_and_partition_map(&self.schema, &self.partition_map);
+        let mut in_process = InProcess::with_schema_and_partition_map(&self.schema, &self.partition_map, KnownEntid(self.tx_id));
 
         // We want to handle entities in the order they're given to us, while also "exploding" some
         // entities into many.  We therefore push the initial entities onto the back of the deque,
@@ -593,6 +600,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                                     final_populations.allocated,
                                                     inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
 
+        let tx_instant;
+
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
         // Assertions that are :db.cardinality/one and not :db.fulltext.
@@ -615,14 +624,37 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         // TODO: use something like Clojure's group_by to do this.
         for term in final_terms {
             match term {
-                Term::AddOrRetract(op, e, a, v) => {
+                Term::AddOrRetract(op, KnownEntid(e), a, v) => {
                     let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
                     if entids::might_update_metadata(a) {
                         tx_might_update_metadata = true;
                     }
 
                     let added = op == OpType::Add;
-                    let reduced = (e.0, a, attribute, v, added);
+
+                    // We take the last encountered :db/txInstant value.
+                    // If more than one is provided, the transactor will fail.
+                    if added &&
+                       e == self.tx_id &&
+                       a == entids::DB_TX_INSTANT {
+                        if let TypedValue::Instant(instant) = v {
+                            if let Some(ts) = self.tx_instant {
+                                if ts == instant {
+                                    // Dupes are fine.
+                                } else {
+                                    bail!(ErrorKind::ConflictingDatoms);
+                                }
+                            } else {
+                                self.tx_instant = Some(instant);
+                            }
+                            continue;
+                        } else {
+                            // The type error has been caught earlier.
+                            unreachable!()
+                        }
+                    }
+
+                    let reduced = (e, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
                         (false, true) => non_fts_many.push(reduced),
                         (false, false) => non_fts_one.push(reduced),
@@ -633,12 +665,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        // Transact [:db/add :db/txInstant NOW :db/tx].
-        // TODO: allow this to be present in the transaction data.
+        tx_instant = self.tx_instant.unwrap_or_else(now);
+
+        // Transact [:db/add :db/txInstant tx_instant :db/tx].
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
                           self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
-                          TypedValue::Instant(self.tx_instant),
+                          tx_instant.into(),
                           true));
 
         if !non_fts_one.is_empty() {
@@ -683,7 +716,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         Ok(TxReport {
             tx_id: self.tx_id,
-            tx_instant: self.tx_instant,
+            tx_instant,
             tempids: tempids,
         })
     }
@@ -694,12 +727,11 @@ fn start_tx<'conn, 'a>(conn: &'conn rusqlite::Connection,
                        mut partition_map: PartitionMap,
                        schema_for_mutation: &'a Schema,
                        schema: &'a Schema) -> Result<Tx<'conn, 'a>> {
-    let tx_instant = ::now(); // Label the transaction with the timestamp when we first see it: leading edge.
     let tx_id = partition_map.allocate_entid(":db.part/tx");
 
     conn.begin_tx_application()?;
 
-    Ok(Tx::new(conn, partition_map, schema_for_mutation, schema, tx_id, tx_instant))
+    Ok(Tx::new(conn, partition_map, schema_for_mutation, schema, tx_id))
 }
 
 fn conclude_tx(tx: Tx, report: TxReport) -> Result<(TxReport, PartitionMap, Option<Schema>)> {
