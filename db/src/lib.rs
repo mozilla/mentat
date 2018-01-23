@@ -55,6 +55,8 @@ pub use bootstrap::{
     USER0,
 };
 
+pub use schema::AttributeBuilder;
+
 pub use db::{
     TypedSQLValue,
     new_connection,

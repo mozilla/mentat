@@ -31,9 +31,6 @@ use std::rc::Rc;
 use enum_set::EnumSet;
 
 use self::ordered_float::OrderedFloat;
-use self::edn::{
-    NamespacedKeyword,
-};
 
 pub use uuid::Uuid;
 
@@ -44,6 +41,7 @@ pub use chrono::{
 
 pub use edn::{
     FromMicros,
+    NamespacedKeyword,
     ToMicros,
     Utc,
 };
@@ -102,7 +100,33 @@ impl enum_set::CLike for ValueType {
 }
 
 impl ValueType {
-    pub fn to_edn_value(self) -> edn::Value {
+    pub fn into_keyword(self) -> NamespacedKeyword {
+        NamespacedKeyword::new("db.type", match self {
+            ValueType::Ref => "ref",
+            ValueType::Boolean => "boolean",
+            ValueType::Instant => "instant",
+            ValueType::Long => "long",
+            ValueType::Double => "double",
+            ValueType::String => "string",
+            ValueType::Keyword => "keyword",
+            ValueType::Uuid => "uuid",
+        })
+    }
+
+    pub fn into_typed_value(self) -> TypedValue {
+        TypedValue::typed_ns_keyword("db.type", match self {
+            ValueType::Ref => "ref",
+            ValueType::Boolean => "boolean",
+            ValueType::Instant => "instant",
+            ValueType::Long => "long",
+            ValueType::Double => "double",
+            ValueType::String => "string",
+            ValueType::Keyword => "keyword",
+            ValueType::Uuid => "uuid",
+        })
+    }
+
+    pub fn into_edn_value(self) -> edn::Value {
         match self {
             ValueType::Ref => values::DB_TYPE_REF.clone(),
             ValueType::Boolean => values::DB_TYPE_BOOLEAN.clone(),
@@ -480,10 +504,22 @@ pub enum AttributeBitFlags {
 }
 
 pub mod attribute {
-    #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+    use TypedValue;
+
+    #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
     pub enum Unique {
         Value,
         Identity,
+    }
+
+    impl Unique {
+        // This is easier than rejigging DB_UNIQUE_VALUE to not be EDN.
+        pub fn into_typed_value(self) -> TypedValue {
+            match self {
+                Unique::Value => TypedValue::typed_ns_keyword("db.unique", "value"),
+                Unique::Identity => TypedValue::typed_ns_keyword("db.unique", "identity"),
+            }
+        }
     }
 }
 
@@ -561,7 +597,7 @@ impl Attribute {
             attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident));
         }
 
-        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.to_edn_value());
+        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.into_edn_value());
 
         attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
 
@@ -608,7 +644,7 @@ pub type IdentMap = BTreeMap<NamespacedKeyword, Entid>;
 pub type EntidMap = BTreeMap<Entid, NamespacedKeyword>;
 
 /// Map attribute entids to `Attribute` instances.
-pub type SchemaMap = BTreeMap<Entid, Attribute>;
+pub type AttributeMap = BTreeMap<Entid, Attribute>;
 
 /// Represents a Mentat schema.
 ///
@@ -633,43 +669,58 @@ pub struct Schema {
     ///
     /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
     /// `ident_map`).
-    pub schema_map: SchemaMap,
+    pub attribute_map: AttributeMap,
+}
+
+pub trait HasSchema {
+    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword>;
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid>;
+    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute>;
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute>;
+
+    /// Return true if the provided entid identifies an attribute in this schema.
+    fn is_attribute(&self, x: Entid) -> bool;
+
+    /// Return true if the provided ident identifies an attribute in this schema.
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool;
 }
 
 impl Schema {
-    pub fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
+    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
+    pub fn to_edn_value(&self) -> edn::Value {
+        edn::Value::Vector((&self.attribute_map).iter()
+            .map(|(entid, attribute)|
+                attribute.to_edn_value(self.get_ident(*entid).cloned()))
+            .collect())
+    }
+}
+
+impl HasSchema for Schema {
+    fn get_ident(&self, x: Entid) -> Option<&NamespacedKeyword> {
         self.entid_map.get(&x)
     }
 
-    pub fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+    fn get_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
         self.ident_map.get(x).map(|x| *x)
     }
 
-    pub fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
-        self.schema_map.get(&x)
+    fn attribute_for_entid(&self, x: Entid) -> Option<&Attribute> {
+        self.attribute_map.get(&x)
     }
 
-    pub fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
+    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<&Attribute> {
         self.get_entid(&ident)
             .and_then(|x| self.attribute_for_entid(x))
     }
 
     /// Return true if the provided entid identifies an attribute in this schema.
-    pub fn is_attribute(&self, x: Entid) -> bool {
-        self.schema_map.contains_key(&x)
+    fn is_attribute(&self, x: Entid) -> bool {
+        self.attribute_map.contains_key(&x)
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    pub fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.get_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
-    }
-
-    /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
-    pub fn to_edn_value(&self) -> edn::Value {
-        edn::Value::Vector((&self.schema_map).iter()
-            .map(|(entid, attribute)|
-                attribute.to_edn_value(self.get_ident(*entid).cloned()))
-            .collect())
     }
 }
 
@@ -685,7 +736,7 @@ mod test {
     }
 
     fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
-        schema.schema_map.insert(e, a);
+        schema.attribute_map.insert(e, a);
     }
 
     #[test]

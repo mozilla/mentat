@@ -54,6 +54,7 @@ pub use mentat_db::{
 };
 
 pub use query::{
+    IntoResult,
     NamespacedKeyword,
     PlainSymbol,
     QueryExplanation,

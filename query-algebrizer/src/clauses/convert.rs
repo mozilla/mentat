@@ -11,6 +11,7 @@
 use std::rc::Rc;
 
 use mentat_core::{
+    HasSchema,
     Schema,
     SQLValueType,
     TypedValue,

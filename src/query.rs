@@ -15,6 +15,7 @@ use std::rc::Rc;
 
 use mentat_core::{
     Entid,
+    HasSchema,
     Schema,
     TypedValue,
 };

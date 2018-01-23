@@ -83,7 +83,6 @@ pub type AVPair = (Entid, TypedValue);
 pub type AVMap<'a> = HashMap<&'a AVPair, Entid>;
 
 /// A transaction report summarizes an applied transaction.
-// TODO: include map of resolved tempids.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct TxReport {
     /// The transaction ID of the transaction.

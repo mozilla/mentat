@@ -43,7 +43,7 @@ use mentat_core::{
     attribute,
     Entid,
     Schema,
-    SchemaMap,
+    AttributeMap,
     TypedValue,
     ValueType,
 };
@@ -78,24 +78,24 @@ pub enum IdentAlteration {
 /// Summarizes changes to metadata such as a a `Schema` and (in the future) a `PartitionMap`.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct MetadataReport {
-    // Entids that were not present in the original `SchemaMap` that was mutated.
+    // Entids that were not present in the original `AttributeMap` that was mutated.
     pub attributes_installed: BTreeSet<Entid>,
 
-    // Entids that were present in the original `SchemaMap` that was mutated, together with a
+    // Entids that were present in the original `AttributeMap` that was mutated, together with a
     // representation of the mutations that were applied.
     pub attributes_altered: BTreeMap<Entid, Vec<AttributeAlteration>>,
 
-    // Idents that were installed into the `SchemaMap`.
+    // Idents that were installed into the `AttributeMap`.
     pub idents_altered: BTreeMap<Entid, IdentAlteration>,
 }
 
-/// Update a `SchemaMap` in place from the given `[e a typed_value]` triples.
+/// Update a `AttributeMap` in place from the given `[e a typed_value]` triples.
 ///
-/// This is suitable for producing a `SchemaMap` from the `schema` materialized view, which does not
+/// This is suitable for producing a `AttributeMap` from the `schema` materialized view, which does not
 /// contain install and alter markers.
 ///
 /// Returns a report summarizing the mutations that were applied.
-pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, assertions: U) -> Result<MetadataReport>
+pub fn update_attribute_map_from_entid_triples<U>(attribute_map: &mut AttributeMap, assertions: U) -> Result<MetadataReport>
     where U: IntoIterator<Item=(Entid, Entid, TypedValue)> {
 
     // Group mutations by impacted entid.
@@ -142,8 +142,8 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
                     //     builder.unique_value(false);
                     //     builder.unique_identity(false);
                     // },
-                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(Some(attribute::Unique::Value)); },
-                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(Some(attribute::Unique::Identity)); },
+                    TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(attribute::Unique::Value); },
+                    TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(attribute::Unique::Identity); },
                     _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
                 }
             },
@@ -179,7 +179,7 @@ pub fn update_schema_map_from_entid_triples<U>(schema_map: &mut SchemaMap, asser
     let mut attributes_altered: BTreeMap<Entid, Vec<AttributeAlteration>> = BTreeMap::default();
 
     for (entid, builder) in builders.into_iter() {
-        match schema_map.entry(entid) {
+        match attribute_map.entry(entid) {
             Entry::Vacant(entry) => {
                 builder.validate_install_attribute()
                     .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for new attribute with entid {} is not valid", entid)))?;
@@ -245,7 +245,7 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
     let asserted_triples = attribute_set.asserted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
     let altered_triples = attribute_set.altered.into_iter().map(|((e, a), (_old_value, new_value))| (e, a, new_value));
 
-    let report = update_schema_map_from_entid_triples(&mut schema.schema_map, asserted_triples.chain(altered_triples))?;
+    let report = update_attribute_map_from_entid_triples(&mut schema.attribute_map, asserted_triples.chain(altered_triples))?;
 
     let mut idents_altered: BTreeMap<Entid, IdentAlteration> = BTreeMap::new();
 
