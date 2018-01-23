@@ -2308,4 +2308,41 @@ mod tests {
                         r#"[[65536 :test/one 124 ?tx true]
                             [?tx :db/txInstant ?ms ?tx true]]"#);
     }
+
+    // TODO
+    /*
+    #[test]
+    fn test_cardinality_one_violation_new_entity() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, r#"[
+            [:db/add 111 :db/ident :test/one]
+            [:db/add 111 :db/valueType :db.type/long]
+            [:db/add 111 :db/cardinality :db.cardinality/one]
+            [:db/add 112 :db/ident :test/unique]
+            [:db/add 112 :db/index true]
+            [:db/add 112 :db/valueType :db.type/string]
+            [:db/add 112 :db/cardinality :db.cardinality/one]
+            [:db/add 112 :db/unique :db.unique/identity]
+        ]"#);
+
+        // You can try to assert two values for the same entity and attribute,
+        // but only one will be transacted.
+        // This variant (see also `test_cardinality_one_violation_existing_entity`)
+        // is particularly tricky because the unique attribute is a new entity,
+        // and so the search will fail, two entids will be allocated, and then
+        // insert will fail.
+        let report = assert_transact!(conn, r#"[
+            [:db/add "foo" :test/unique "x"]
+            [:db/add "foo" :test/one 123]
+            [:db/add "bar" :test/unique "x"]
+            [:db/add "bar" :test/one 124]
+        ]"#);
+        assert_matches!(conn.last_transaction(),
+                        r#"[[998 :test/unique "x" ?tx true]
+                            [998 :test/one 124 ?tx true]
+                            [?tx :db/txInstant ?ms ?tx true]]"#);
+    }
+    */
 }
