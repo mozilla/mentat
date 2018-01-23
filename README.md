@@ -77,7 +77,7 @@ One might say that Mentat's question is: "What if an SQLite database could store
 
 (Note that [domain-level schemas are very valuable](http://martinfowler.com/articles/schemaless/).)
 
-Another possible question would be: "What if we could bake some of the concepts of CQRS and event sourcing into a persistent relational store, such that the transaction log itself were of value to queries?"
+Another possible question would be: "What if we could bake some of the concepts of [CQRS and event sourcing](http://www.baeldung.com/cqrs-event-sourced-architecture-resources) into a persistent relational store, such that the transaction log itself were of value to queries?"
 
 Some thought has been given to how databases as values — long-term references to a snapshot of the store at an instant in time — could work in this model. It's not impossible; it simply has different performance characteristics.
 
