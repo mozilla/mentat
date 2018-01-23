@@ -16,6 +16,7 @@ use std::rc::Rc;
 use mentat_core::{
     Entid,
     HasSchema,
+    KnownEntid,
     Schema,
     TypedValue,
 };
@@ -159,49 +160,53 @@ fn fetch_values<'sqlite, 'schema>
     run_algebrized_query(sqlite, algebrized)
 }
 
-fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<Entid> {
+fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<KnownEntid> {
     schema.get_entid(attribute)
-          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.clone()).into())
+          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.name.clone()).into())
 }
 
 /// Return a single value for the provided entity and attribute.
 /// If the attribute is multi-valued, an arbitrary value is returned.
 /// If no value is present for that entity, `None` is returned.
 /// If `attribute` isn't an attribute, `None` is returned.
-pub fn lookup_value<'sqlite, 'schema>
+pub fn lookup_value<'sqlite, 'schema, E, A>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
- entity: Entid,
- attribute: Entid) -> Result<Option<TypedValue>> {
-    fetch_values(sqlite, schema, entity, attribute, true).into_scalar_result()
+ entity: E,
+ attribute: A) -> Result<Option<TypedValue>>
+ where E: Into<Entid>, A: Into<Entid> {
+    fetch_values(sqlite, schema, entity.into(), attribute.into(), true).into_scalar_result()
 }
 
-pub fn lookup_values<'sqlite, 'schema>
+pub fn lookup_values<'sqlite, 'schema, E, A>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
- entity: Entid,
- attribute: Entid) -> Result<Vec<TypedValue>> {
-    fetch_values(sqlite, schema, entity, attribute, false).into_coll_result()
+ entity: E,
+ attribute: A) -> Result<Vec<TypedValue>>
+ where E: Into<Entid>, A: Into<Entid> {
+    fetch_values(sqlite, schema, entity.into(), attribute.into(), false).into_coll_result()
 }
 
 /// Return a single value for the provided entity and attribute.
 /// If the attribute is multi-valued, an arbitrary value is returned.
 /// If no value is present for that entity, `None` is returned.
 /// If `attribute` doesn't name an attribute, an error is returned.
-pub fn lookup_value_for_attribute<'sqlite, 'schema, 'attribute>
+pub fn lookup_value_for_attribute<'sqlite, 'schema, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
- entity: Entid,
- attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>> {
-    lookup_value(sqlite, schema, entity, lookup_attribute(schema, attribute)?)
+ entity: E,
+ attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>>
+ where E: Into<Entid> {
+    lookup_value(sqlite, schema, entity.into(), lookup_attribute(schema, attribute)?)
 }
 
-pub fn lookup_values_for_attribute<'sqlite, 'schema, 'attribute>
+pub fn lookup_values_for_attribute<'sqlite, 'schema, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
- entity: Entid,
- attribute: &'attribute NamespacedKeyword) -> Result<Vec<TypedValue>> {
-    lookup_values(sqlite, schema, entity, lookup_attribute(schema, attribute)?)
+ entity: E,
+ attribute: &'attribute NamespacedKeyword) -> Result<Vec<TypedValue>>
+ where E: Into<Entid> {
+    lookup_values(sqlite, schema, entity.into(), lookup_attribute(schema, attribute)?)
 }
 
 fn run_statement<'sqlite, 'stmt, 'bound>

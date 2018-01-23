@@ -23,6 +23,7 @@ use chrono::FixedOffset;
 use mentat_core::{
     DateTime,
     HasSchema,
+    KnownEntid,
     TypedValue,
     ValueType,
     Utc,
@@ -115,7 +116,7 @@ fn test_scalar() {
     if let QueryResults::Scalar(Some(TypedValue::Keyword(ref rc))) = results {
         // Should be '24'.
         assert_eq!(&NamespacedKeyword::new("db.type", "keyword"), rc.as_ref());
-        assert_eq!(24,
+        assert_eq!(KnownEntid(24),
                    db.schema.get_entid(rc).unwrap());
     } else {
         panic!("Expected scalar.");
@@ -146,7 +147,7 @@ fn test_tuple() {
         let cardinality_one = NamespacedKeyword::new("db.cardinality", "one");
         assert_eq!(tuple.len(), 2);
         assert_eq!(tuple[0], TypedValue::Boolean(true));
-        assert_eq!(tuple[1], TypedValue::Ref(db.schema.get_entid(&cardinality_one).unwrap()));
+        assert_eq!(tuple[1], db.schema.get_entid(&cardinality_one).expect("c1").into());
     } else {
         panic!("Expected tuple.");
     }

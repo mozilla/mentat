@@ -100,7 +100,7 @@ impl ConjoiningClauses {
                 self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid),
             PatternNonValuePlace::Ident(ref ident) => {
                 if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid)
+                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid.into())
                 } else {
                     // A resolution failure means we're done here.
                     self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
@@ -125,7 +125,7 @@ impl ConjoiningClauses {
             },
             PatternNonValuePlace::Ident(ref ident) => {
                 if let Some(entid) = self.entid_for_ident(schema, ident) {
-                    self.constrain_attribute(col.clone(), entid);
+                    self.constrain_attribute(col.clone(), entid.into());
 
                     if !schema.is_attribute(entid) {
                         self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(ident.cloned()));
@@ -191,7 +191,7 @@ impl ConjoiningClauses {
                 // such.
                 if let Some(ValueType::Ref) = value_type {
                     if let Some(entid) = self.entid_for_ident(schema, kw) {
-                        self.constrain_column_to_entity(col.clone(), DatomsColumn::Value, entid)
+                        self.constrain_column_to_entity(col.clone(), DatomsColumn::Value, entid.into())
                     } else {
                         // A resolution failure means we're done here: this attribute must have an
                         // entity value.
@@ -252,7 +252,7 @@ impl ConjoiningClauses {
             },
             PatternNonValuePlace::Ident(ref ident) => {
                 if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid)
+                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid.into())
                 } else {
                     // A resolution failure means we're done here.
                     self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));

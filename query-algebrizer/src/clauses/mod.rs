@@ -26,6 +26,7 @@ use mentat_core::{
     Attribute,
     Entid,
     HasSchema,
+    KnownEntid,
     Schema,
     TypedValue,
     ValueType,
@@ -441,7 +442,7 @@ impl ConjoiningClauses {
                     match bound_val {
                         TypedValue::Keyword(ref kw) => {
                             if let Some(entid) = self.entid_for_ident(schema, kw) {
-                                self.constrain_column_to_entity(table, column, entid);
+                                self.constrain_column_to_entity(table, column, entid.into());
                             } else {
                                 // Impossible.
                                 // For attributes this shouldn't occur, because we check the binding in
@@ -649,7 +650,7 @@ impl ConjoiningClauses {
         self.empty_because = Some(why);
     }
 
-    fn entid_for_ident<'s, 'a>(&self, schema: &'s Schema, ident: &'a NamespacedKeyword) -> Option<Entid> {
+    fn entid_for_ident<'s, 'a>(&self, schema: &'s Schema, ident: &'a NamespacedKeyword) -> Option<KnownEntid> {
         schema.get_entid(&ident)
     }
 
@@ -714,7 +715,7 @@ impl ConjoiningClauses {
             &PatternNonValuePlace::Ident(ref kw) =>
                 schema.attribute_for_ident(kw)
                       .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
-                      .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
+                      .and_then(|(attribute, _entid)| self.table_for_attribute_and_value(attribute, value)),
             &PatternNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
                       .ok_or_else(|| EmptyBecause::InvalidAttributeEntid(id))
@@ -737,7 +738,7 @@ impl ConjoiningClauses {
                         // Don't recurse: avoid needing to clone the keyword.
                         schema.attribute_for_ident(kw)
                               .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
-                              .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
+                              .and_then(|(attribute, _entid)| self.table_for_attribute_and_value(attribute, value)),
                     Some(v) => {
                         // This pattern cannot match: the caller has bound a non-entity value to an
                         // attribute place.
@@ -772,8 +773,9 @@ impl ConjoiningClauses {
 
     fn get_attribute_for_value<'s>(&self, schema: &'s Schema, value: &TypedValue) -> Option<&'s Attribute> {
         match value {
+            // We know this one is known if the attribute lookup succeeds…
             &TypedValue::Ref(id) => schema.attribute_for_entid(id),
-            &TypedValue::Keyword(ref kw) => schema.attribute_for_ident(kw),
+            &TypedValue::Keyword(ref kw) => schema.attribute_for_ident(kw).map(|(a, _id)| a),
             _ => None,
         }
     }
@@ -781,9 +783,10 @@ impl ConjoiningClauses {
     fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<&'s Attribute> {
         match pattern.attribute {
             PatternNonValuePlace::Entid(id) =>
+                // We know this one is known if the attribute lookup succeeds…
                 schema.attribute_for_entid(id),
             PatternNonValuePlace::Ident(ref kw) =>
-                schema.attribute_for_ident(kw),
+                schema.attribute_for_ident(kw).map(|(a, _id)| a),
             PatternNonValuePlace::Variable(ref var) =>
                 // If the pattern has a variable, we've already determined that the binding -- if
                 // any -- is acceptable and yields a table. Here, simply look to see if it names
@@ -796,7 +799,7 @@ impl ConjoiningClauses {
     }
 
     fn get_value_type<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<ValueType> {
-        self.get_attribute(schema, pattern).map(|x| x.value_type)
+        self.get_attribute(schema, pattern).map(|a| a.value_type)
     }
 }
 

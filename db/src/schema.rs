@@ -21,6 +21,7 @@ use mentat_core::{
     EntidMap,
     HasSchema,
     IdentMap,
+    KnownEntid,
     Schema,
     AttributeMap,
     TypedValue,
@@ -173,7 +174,7 @@ impl AttributeBuilder {
 
 pub trait SchemaBuilding {
     fn require_ident(&self, entid: Entid) -> Result<&symbols::NamespacedKeyword>;
-    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<Entid>;
+    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<KnownEntid>;
     fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute>;
     fn from_ident_map_and_attribute_map(ident_map: IdentMap, attribute_map: AttributeMap) -> Result<Schema>;
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
@@ -185,7 +186,7 @@ impl SchemaBuilding for Schema {
         self.get_ident(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
-    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<Entid> {
+    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<KnownEntid> {
         self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.to_string()).into())
     }
 
@@ -248,7 +249,7 @@ impl SchemaTypeChecking for Schema {
                 (ValueType::Keyword, tv @ TypedValue::Keyword(_)) => Ok(tv),
                 // Ref coerces a little: we interpret some things depending on the schema as a Ref.
                 (ValueType::Ref, TypedValue::Long(x)) => Ok(TypedValue::Ref(x)),
-                (ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| TypedValue::Ref(entid)),
+                (ValueType::Ref, TypedValue::Keyword(ref x)) => self.require_entid(&x).map(|entid| entid.into()),
 
                 // Otherwise, we have a type mismatch.
                 // Enumerate all of the types here to allow the compiler to help us.

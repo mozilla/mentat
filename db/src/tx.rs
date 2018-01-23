@@ -64,7 +64,6 @@ use edn::{
 use entids;
 use errors::{ErrorKind, Result};
 use internal_types::{
-    KnownEntid,
     KnownEntidOr,
     LookupRef,
     LookupRefOrTempId,
@@ -82,6 +81,7 @@ use mentat_core::util::Either;
 
 use mentat_core::{
     DateTime,
+    KnownEntid,
     Schema,
     Utc,
     attribute,
@@ -230,14 +230,13 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
 
             fn ensure_ident_exists(&self, e: &NamespacedKeyword) -> Result<KnownEntid> {
-                let entid = self.schema.require_entid(e)?;
-                Ok(KnownEntid(entid))
+                self.schema.require_entid(e)
             }
 
             fn intern_lookup_ref(&mut self, lookup_ref: &entmod::LookupRef) -> Result<LookupRef> {
                 let lr_a: i64 = match lookup_ref.a {
                     entmod::Entid::Entid(ref a) => *a,
-                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?.into(),
                 };
                 let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
 
@@ -283,7 +282,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             fn entity_a_into_term_a(&mut self, x: entmod::Entid) -> Result<Entid> {
                 let a = match x {
                     entmod::Entid::Entid(ref a) => *a,
-                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?,
+                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?.into(),
                 };
                 Ok(a)
             }
