@@ -144,6 +144,7 @@ impl Generation {
     ///
     /// TODO: Considering doing this in place; the function already consumes `self`.
     pub fn evolve_one_step(self, temp_id_map: &TempIdMap) -> Generation {
+        println!("EVOLVE ONE STEP: {:?}\n", temp_id_map);
         let mut next = Generation::default();
 
         for UpsertE(t, a, v) in self.upserts_e {

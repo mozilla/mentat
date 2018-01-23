@@ -2310,7 +2310,6 @@ mod tests {
     }
 
     // TODO
-    /*
     #[test]
     fn test_cardinality_one_violation_new_entity() {
         let mut conn = TestConn::default();
@@ -2344,5 +2343,4 @@ mod tests {
                             [998 :test/one 124 ?tx true]
                             [?tx :db/txInstant ?ms ?tx true]]"#);
     }
-    */
 }
