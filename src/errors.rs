@@ -15,7 +15,11 @@ use rusqlite;
 use std::collections::BTreeSet;
 
 use edn;
+use mentat_core::{
+    Attribute,
+};
 use mentat_db;
+use mentat_query;
 use mentat_query_algebrizer;
 use mentat_query_parser;
 use mentat_query_projector;
@@ -62,6 +66,11 @@ error_chain! {
         InvalidVocabularyVersion {
             description("invalid vocabulary version")
             display("invalid vocabulary version")
+        }
+
+        ConflictingAttributeDefinitions(vocabulary: String, version: ::vocabulary::Version, attribute: String, current: Attribute, requested: Attribute) {
+            description("conflicting attribute definitions")
+            display("vocabulary {}/{} already has attribute {}, and the requested definition differs", vocabulary, version, attribute)
         }
     }
 }

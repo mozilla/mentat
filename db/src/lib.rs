@@ -44,7 +44,7 @@ pub mod errors;
 mod metadata;
 mod schema;
 pub mod types;
-mod internal_types;
+pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod upsert_resolution;
 mod tx;
 
@@ -70,7 +70,11 @@ pub use db::{
     new_connection,
 };
 
-pub use tx::transact;
+pub use tx::{
+    transact,
+    transact_terms,
+};
+
 pub use types::{
     DB,
     PartitionMap,
