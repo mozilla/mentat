@@ -51,6 +51,13 @@ impl QueryInputs {
         QueryInputs::with_values(values)
     }
 
+    pub fn with_type_sequence(types: Vec<(Variable, ValueType)>) -> QueryInputs {
+        QueryInputs {
+            types: types.into_iter().collect(),
+            values: BTreeMap::default(),
+        }
+    }
+
     pub fn with_values(values: BTreeMap<Variable, TypedValue>) -> QueryInputs {
         QueryInputs {
             types: values.iter().map(|(var, val)| (var.clone(), val.value_type())).collect(),

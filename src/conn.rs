@@ -65,7 +65,9 @@ use errors::*;
 use query::{
     lookup_value_for_attribute,
     lookup_values_for_attribute,
+    PreparedResult,
     q_once,
+    q_prepare,
     q_explain,
     QueryExplanation,
     QueryInputs,
@@ -138,6 +140,8 @@ pub trait Queryable {
         where T: Into<Option<QueryInputs>>;
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>>;
+    fn q_prepare<T>(&self, query: &str, inputs: T) -> PreparedResult
+        where T: Into<Option<QueryInputs>>;
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid>;
     fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
@@ -167,6 +171,11 @@ impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
         self.0.q_once(query, inputs)
     }
 
+    fn q_prepare<T>(&self, query: &str, inputs: T) -> PreparedResult
+        where T: Into<Option<QueryInputs>> {
+        self.0.q_prepare(query, inputs)
+    }
+
     fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>> {
         self.0.q_explain(query, inputs)
@@ -191,6 +200,15 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
                &self.schema,
                query,
                inputs)
+    }
+
+    fn q_prepare<T>(&self, query: &str, inputs: T) -> PreparedResult
+        where T: Into<Option<QueryInputs>> {
+
+        q_prepare(&*(self.transaction),
+                  &self.schema,
+                  query,
+                  inputs)
     }
 
     fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
@@ -379,6 +397,11 @@ impl Queryable for Store {
         self.conn.q_once(&self.sqlite, query, inputs)
     }
 
+    fn q_prepare<T>(&self, query: &str, inputs: T) -> PreparedResult
+        where T: Into<Option<QueryInputs>> {
+        self.conn.q_prepare(&self.sqlite, query, inputs)
+    }
+
     fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>> {
         self.conn.q_explain(&self.sqlite, query, inputs)
@@ -443,6 +466,19 @@ impl Conn {
                &*metadata.schema,        // Doesn't clone, unlike `current_schema`.
                query,
                inputs)
+    }
+
+    pub fn q_prepare<'sqlite, 'query, T>(&self,
+                        sqlite: &'sqlite rusqlite::Connection,
+                        query: &'query str,
+                        inputs: T) -> PreparedResult<'sqlite>
+        where T: Into<Option<QueryInputs>> {
+
+        let metadata = self.metadata.lock().unwrap();
+        q_prepare(sqlite,
+                  &*metadata.schema,
+                  query,
+                  inputs)
     }
 
     pub fn q_explain<T>(&self,
@@ -568,6 +604,9 @@ mod tests {
     use mentat_core::{
         TypedValue,
     };
+    use query::{
+        Variable,
+    };
 
     use ::QueryResults;
 
@@ -670,6 +709,43 @@ mod tests {
         // The DB part table changed.
         let tempid_offset_after = get_next_entid(&conn);
         assert_eq!(tempid_offset + 3, tempid_offset_after);
+    }
+
+    #[test]
+    fn test_simple_prepared_query() {
+        let mut c = db::new_connection("").expect("Couldn't open conn.");
+        let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+        conn.transact(&mut c, r#"[
+            [:db/add "s" :db/ident :foo/boolean]
+            [:db/add "s" :db/valueType :db.type/boolean]
+            [:db/add "s" :db/cardinality :db.cardinality/one]
+        ]"#).expect("successful transaction");
+
+        let report = conn.transact(&mut c, r#"[
+            [:db/add "u" :foo/boolean true]
+            [:db/add "p" :foo/boolean false]
+        ]"#).expect("successful transaction");
+        let yes = report.tempids.get("u").expect("found it").clone();
+
+        let vv = Variable::from_valid_name("?v");
+
+        let values = QueryInputs::with_value_sequence(vec![(vv, true.into())]);
+
+        let read = conn.begin_read(&mut c).expect("read");
+
+        // N.B., you might choose to algebrize _without_ validating that the
+        // types are known. In this query we know that `?v` must be a boolean,
+        // and so we can kinda generate our own required input types!
+        let mut prepared = read.q_prepare(r#"[:find [?x ...]
+                                              :in ?v
+                                              :where [?x :foo/boolean ?v]]"#,
+                                          values).expect("prepare succeeded");
+
+        let yeses = prepared.run(None).expect("result");
+        assert_eq!(yeses.results, QueryResults::Coll(vec![TypedValue::Ref(yes)]));
+
+        let yeses_again = prepared.run(None).expect("result");
+        assert_eq!(yeses_again.results, QueryResults::Coll(vec![TypedValue::Ref(yes)]));
     }
 
     #[test]
