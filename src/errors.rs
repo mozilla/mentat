@@ -87,5 +87,10 @@ error_chain! {
             description("missing core vocabulary")
             display("missing core attribute {}", kw)
         }
+
+        PreparedQuerySchemaMismatch {
+            description("schema changed since query was prepared")
+            display("schema changed since query was prepared")
+        }
     }
 }
