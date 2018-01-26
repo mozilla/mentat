@@ -83,8 +83,6 @@ use validate::{
     validate_or_join,
 };
 
-use self::predicate::parse_type_predicate;
-
 pub use self::inputs::QueryInputs;
 
 // We do this a lot for errors.
@@ -969,22 +967,18 @@ impl ConjoiningClauses {
 
 impl ConjoiningClauses {
     pub fn apply_clauses(&mut self, schema: &Schema, where_clauses: Vec<WhereClause>) -> Result<()> {
-        let mut deferred = Vec::with_capacity(where_clauses.len());
         // We apply (top level) type predicates first as an optimization.
-        for c in where_clauses {
-            match &c {
-                &WhereClause::Pred(ref p) => {
-                    if let Some(ty) = parse_type_predicate(p.operator.0.as_str()) {
-                        self.apply_type_requirement(p, ty)?;
-                    }
-                },
-                _ => {}
-            };
-            deferred.push(c);
+        for clause in where_clauses.iter() {
+            if let &WhereClause::TypeAnnotation(ref anno) = clause {
+                self.apply_type_anno(anno)?;
+            }
         }
         // Then we apply everything else.
-        for c in deferred {
-            self.apply_clause(schema, c)?;
+        for clause in where_clauses {
+            if let &WhereClause::TypeAnnotation(_) = &clause {
+                continue;
+            }
+            self.apply_clause(schema, clause)?;
         }
         Ok(())
     }
@@ -1009,6 +1003,9 @@ impl ConjoiningClauses {
             WhereClause::NotJoin(n) => {
                 validate_not_join(&n)?;
                 self.apply_not_join(schema, n)
+            },
+            WhereClause::TypeAnnotation(anno) => {
+                self.apply_type_anno(&anno)
             },
             _ => unimplemented!(),
         }

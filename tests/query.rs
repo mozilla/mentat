@@ -558,13 +558,11 @@ fn test_type_reqs() {
         "ref",
     ];
 
-    let entid_binding = QueryInputs::with_value_sequence(vec![
-        (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
-    ]);
-
     for name in type_names {
         let q = format!("[:find [?v ...] :in ?e :where [?e _ ?v] [({} ?v)]]", name);
-        let results = conn.q_once(&mut c, &q, entid_binding.clone()).unwrap();
+        let results = conn.q_once(&mut c, &q, QueryInputs::with_value_sequence(vec![
+            (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
+        ])).unwrap();
         match results {
             QueryResults::Coll(vals) => {
                 assert_eq!(vals.len(), 1, "Query should find exactly 1 item");
@@ -585,7 +583,9 @@ fn test_type_reqs() {
                           :in ?e
                           :where [?e _ ?v] [(long ?v)]]"#;
 
-    let res = conn.q_once(&mut c, longs_query, entid_binding.clone()).unwrap();
+    let res = conn.q_once(&mut c, longs_query, QueryInputs::with_value_sequence(vec![
+        (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
+    ])).unwrap();
     match res {
         QueryResults::Coll(vals) => {
             assert_eq!(vals, vec![TypedValue::Long(5), TypedValue::Long(33)])

@@ -51,7 +51,7 @@ use mentat_query_sql::{
     ProjectedColumn,
     Projection,
     SelectQuery,
-    SQLDatatype,
+    SQLTypeAffinity,
     TableList,
     TableOrSubquery,
     Values,
@@ -194,9 +194,9 @@ impl ToConstraint for ColumnConstraint {
                                 loose,
                                 Constraint::TypeCheck {
                                     value: val_column,
-                                    datatype: match ty {
-                                        ValueType::Long => SQLDatatype::Integer,
-                                        ValueType::Double => SQLDatatype::Real,
+                                    affinity: match ty {
+                                        ValueType::Long => SQLTypeAffinity::Integer,
+                                        ValueType::Double => SQLTypeAffinity::Real,
                                         _ => unreachable!()
                                     }
                                 }

@@ -12,6 +12,7 @@ extern crate combine;
 extern crate edn;
 extern crate mentat_parser_utils;
 extern crate mentat_query;
+extern crate mentat_core;
 
 use std; // To refer to std::result::Result.
 
@@ -19,6 +20,8 @@ use std::collections::BTreeSet;
 
 use self::combine::{eof, many, many1, optional, parser, satisfy, satisfy_map, Parser, ParseResult, Stream};
 use self::combine::combinator::{any, choice, or, try};
+
+use self::mentat_core::ValueType;
 
 use self::mentat_parser_utils::{
     KeywordMapParser,
@@ -56,6 +59,7 @@ use self::mentat_query::{
     Predicate,
     QueryFunction,
     SrcVar,
+    TypeAnnotation,
     UnifyVars,
     Variable,
     VariableOrPlaceholder,
@@ -286,6 +290,44 @@ def_parser!(Where, pred, WhereClause, {
                 })))
 });
 
+def_parser!(Query, type_anno_type, ValueType, {
+    satisfy_map(|v: &edn::ValueAndSpan| {
+        match v.inner {
+            edn::SpannedValue::PlainSymbol(ref s) => {
+                let name = s.0.as_str();
+                match name {
+                    "ref" => Some(ValueType::Ref),
+                    "boolean" => Some(ValueType::Boolean),
+                    "instant" => Some(ValueType::Instant),
+                    "long" => Some(ValueType::Long),
+                    "double" => Some(ValueType::Double),
+                    "string" => Some(ValueType::String),
+                    "keyword" => Some(ValueType::Keyword),
+                    "uuid" => Some(ValueType::Uuid),
+                    _ => None
+                }
+            },
+            _ => None,
+        }
+    })
+});
+
+/// A type annotation.
+def_parser!(Where, type_annotation, WhereClause, {
+    // Accept either a nested list or a nested vector here:
+    // `[(string ?x)]` or `[[string ?x]]`
+    vector()
+        .of_exactly(seq()
+            .of_exactly((Query::type_anno_type(), Query::variable())
+                .map(|(ty, var)| {
+                    WhereClause::TypeAnnotation(
+                        TypeAnnotation {
+                            value_type: ty,
+                            variable: var,
+                        })
+                })))
+});
+
 /// A vector containing a parenthesized function expression and a binding.
 def_parser!(Where, where_fn, WhereClause, {
     // Accept either a nested list or a nested vector here:
@@ -356,6 +398,7 @@ def_parser!(Where, clause, WhereClause, {
             try(Where::not_join_clause()),
             try(Where::not_clause()),
 
+            try(Where::type_annotation()),
             try(Where::pred()),
             try(Where::where_fn()),
     ])
@@ -948,5 +991,22 @@ mod test {
                                   binding: Binding::BindRel(vec![VariableOrPlaceholder::Placeholder,
                                                                  VariableOrPlaceholder::Variable(Variable::from_valid_name("?y"))]),
                               }));
+    }
+
+    #[test]
+    fn test_type_anno() {
+        assert_edn_parses_to!(Where::type_annotation,
+                              "[(string ?x)]",
+                              WhereClause::TypeAnnotation(TypeAnnotation {
+                                  value_type: ValueType::String,
+                                  variable: Variable::from_valid_name("?x"),
+                              }));
+        assert_edn_parses_to!(Where::clause,
+                              "[[long ?foo]]",
+                              WhereClause::TypeAnnotation(TypeAnnotation {
+                                  value_type: ValueType::Long,
+                                  variable: Variable::from_valid_name("?foo"),
+                              }));
+
     }
 }

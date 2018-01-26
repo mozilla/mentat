@@ -108,12 +108,12 @@ pub enum Constraint {
     },
     TypeCheck {
         value: ColumnOrExpression,
-        datatype: SQLDatatype
+        affinity: SQLTypeAffinity
     }
 }
 
 /// Type safe representation of the possible return values from `typeof`
-pub enum SQLDatatype {
+pub enum SQLTypeAffinity {
     Null, // "null"
     Integer, // "integer"
     Real, // "real"
@@ -326,14 +326,14 @@ impl QueryFragment for Op {
     }
 }
 
-impl QueryFragment for SQLDatatype {
+impl QueryFragment for SQLTypeAffinity {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         out.push_sql(match *self {
-            SQLDatatype::Null => "'null'",
-            SQLDatatype::Integer => "'integer'",
-            SQLDatatype::Real => "'real'",
-            SQLDatatype::Text => "'text'",
-            SQLDatatype::Blob => "'blob'",
+            SQLTypeAffinity::Null => "'null'",
+            SQLTypeAffinity::Integer => "'integer'",
+            SQLTypeAffinity::Real => "'real'",
+            SQLTypeAffinity::Text => "'text'",
+            SQLTypeAffinity::Blob => "'blob'",
         });
         Ok(())
     }
@@ -394,11 +394,11 @@ impl QueryFragment for Constraint {
                 out.push_sql(")");
                 Ok(())
             },
-            &TypeCheck { ref value, ref datatype } => {
+            &TypeCheck { ref value, ref affinity } => {
                 out.push_sql("typeof(");
                 value.push_sql(out)?;
                 out.push_sql(") = ");
-                datatype.push_sql(out)?;
+                affinity.push_sql(out)?;
                 Ok(())
             },
         }

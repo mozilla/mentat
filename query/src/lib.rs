@@ -56,6 +56,7 @@ pub use edn::{
 
 use mentat_core::{
     TypedValue,
+    ValueType,
 };
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
@@ -769,6 +770,12 @@ pub struct NotJoin {
     pub clauses: Vec<WhereClause>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TypeAnnotation {
+    pub value_type: ValueType,
+    pub variable: Variable,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WhereClause {
@@ -778,6 +785,7 @@ pub enum WhereClause {
     WhereFn(WhereFn),
     RuleExpr,
     Pattern(Pattern),
+    TypeAnnotation(TypeAnnotation),
 }
 
 #[allow(dead_code)]
@@ -852,12 +860,13 @@ impl ContainsVariables for WhereClause {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
         use WhereClause::*;
         match self {
-            &OrJoin(ref o)  => o.accumulate_mentioned_variables(acc),
-            &Pred(ref p)    => p.accumulate_mentioned_variables(acc),
-            &Pattern(ref p) => p.accumulate_mentioned_variables(acc),
-            &NotJoin(ref n) => n.accumulate_mentioned_variables(acc),
-            &WhereFn(ref f) => f.accumulate_mentioned_variables(acc),
-            &RuleExpr       => (),
+            &OrJoin(ref o)         => o.accumulate_mentioned_variables(acc),
+            &Pred(ref p)           => p.accumulate_mentioned_variables(acc),
+            &Pattern(ref p)        => p.accumulate_mentioned_variables(acc),
+            &NotJoin(ref n)        => n.accumulate_mentioned_variables(acc),
+            &WhereFn(ref f)        => f.accumulate_mentioned_variables(acc),
+            &TypeAnnotation(ref a) => a.accumulate_mentioned_variables(acc),
+            &RuleExpr              => (),
         }
     }
 }
@@ -917,6 +926,13 @@ impl ContainsVariables for Predicate {
                 acc_ref(acc, v)
             }
         }
+    }
+}
+
+
+impl ContainsVariables for TypeAnnotation {
+    fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
+        acc_ref(acc, &self.variable);
     }
 }
 

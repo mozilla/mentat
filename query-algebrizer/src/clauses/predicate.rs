@@ -17,6 +17,7 @@ use mentat_core::{
 use mentat_query::{
     FnArg,
     Predicate,
+    TypeAnnotation,
 };
 
 use clauses::ConjoiningClauses;
@@ -34,26 +35,11 @@ use types::{
     Inequality,
 };
 
-pub fn parse_type_predicate(s: &str) -> Option<ValueType> {
-    match s {
-        "ref" => Some(ValueType::Ref),
-        "boolean" => Some(ValueType::Boolean),
-        "instant" => Some(ValueType::Instant),
-        "long" => Some(ValueType::Long),
-        "double" => Some(ValueType::Double),
-        "string" => Some(ValueType::String),
-        "keyword" => Some(ValueType::Keyword),
-        "uuid" => Some(ValueType::Uuid),
-        _ => None
-    }
-}
-
 /// Application of predicates.
 impl ConjoiningClauses {
     /// There are several kinds of predicates in our Datalog:
     /// - A limited set of binary comparison operators: < > <= >= !=.
     ///   These are converted into SQLite binary comparisons and some type constraints.
-    /// - A set of type requirements constraining their argument to be a specific ValueType.
     /// - In the future, some predicates that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only the five built-in comparison binary operators.
@@ -62,8 +48,6 @@ impl ConjoiningClauses {
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
         if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
             self.apply_inequality(schema, op, predicate)
-        } else if let Some(ty) = parse_type_predicate(predicate.operator.0.as_str()) {
-            self.apply_type_requirement(&predicate, ty)
         } else {
             bail!(ErrorKind::UnknownFunction(predicate.operator.clone()))
         }
@@ -76,17 +60,11 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn apply_type_requirement(&mut self, pred: &Predicate, ty: ValueType) -> Result<()> {
-        if pred.args.len() != 1 {
-            bail!(ErrorKind::InvalidNumberOfArguments(pred.operator.clone(), pred.args.len(), 1));
-        }
-
-        if let &FnArg::Variable(ref v) = &pred.args[0] {
-            self.add_type_requirement(v.clone(), ValueTypeSet::of_one(ty));
-            Ok(())
-        } else {
-            bail!(ErrorKind::InvalidArgument(pred.operator.clone(), "variable".into(), 0))
-        }
+    /// Apply a type annotation, which is a construct like a predicate that constrains the argument
+    /// to be a specific ValueType.
+    pub fn apply_type_anno(&mut self, anno: &TypeAnnotation) -> Result<()> {
+        self.add_type_requirement(anno.variable.clone(), ValueTypeSet::of_one(anno.value_type));
+        Ok(())
     }
 
     /// This function:
