@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    SQLTypeAffinity,
     SQLValueType,
     TypedValue,
     ValueType,
@@ -51,11 +52,12 @@ use mentat_query_sql::{
     ProjectedColumn,
     Projection,
     SelectQuery,
-    SQLTypeAffinity,
     TableList,
     TableOrSubquery,
     Values,
 };
+
+use std::collections::HashMap;
 
 use super::Result;
 
@@ -97,6 +99,51 @@ impl ToConstraint for ColumnConstraintOrAlternation {
             Constraint(c) => c.to_constraint(),
         }
     }
+}
+
+fn affinity_count(tag: i32) -> usize {
+    ValueTypeSet::any().into_iter()
+                       .filter(|t| t.value_type_tag() == tag)
+                       .count()
+}
+
+fn type_constraint(table: &TableAlias, tag: i32, to_check: Option<Vec<SQLTypeAffinity>>) -> Constraint {
+    let type_column = QualifiedAlias::new(table.clone(),
+                                          DatomsColumn::ValueTypeTag).to_column();
+    let check_type_tag = Constraint::equal(type_column, ColumnOrExpression::Integer(tag));
+    if let Some(affinities) = to_check {
+        let check_affinities = Constraint::Or {
+            constraints: affinities.into_iter().map(|affinity| {
+                Constraint::TypeCheck {
+                    value: QualifiedAlias::new(table.clone(),
+                                               DatomsColumn::Value).to_column(),
+                    affinity,
+                }
+            }).collect()
+        };
+        Constraint::And {
+            constraints: vec![
+                check_type_tag,
+                check_affinities
+            ]
+        }
+    } else {
+        check_type_tag
+    }
+}
+
+// Returns a map of tags to a vector of all the possible affinities that those tags can represent
+// given the types in `value_types`.
+fn possible_affinities(value_types: ValueTypeSet) -> HashMap<i32, Vec<SQLTypeAffinity>> {
+    let mut result = HashMap::new();
+    for ty in value_types {
+        let (tag, affinity_to_check) = ty.sql_representation();
+        let mut affinities = result.entry(tag).or_insert_with(Vec::new);
+        if let Some(affinity) = affinity_to_check {
+            affinities.push(affinity);
+        }
+    }
+    result
 }
 
 impl ToConstraint for ColumnConstraint {
@@ -159,52 +206,23 @@ impl ToConstraint for ColumnConstraint {
                     right: right.into(),
                 }
             },
-            HasTypes { value: table, value_types, strict: strict_requested } => {
-                // If strict mode checking is on, and need to check exactly 1
-                // (not both or neither) of ValueType::Double and ValueType::Long
-                // we emit a Constraint::TypeCheck.
-                let num_numeric_checks = (value_types.contains(ValueType::Double) as i32) +
-                                         (value_types.contains(ValueType::Long) as i32);
-                let strict = strict_requested && num_numeric_checks == 1;
-
-                let types = if !strict && num_numeric_checks == 2 {
-                    // If we aren't operating in strict mode (either because it
-                    // wasn't requested, or because it doesn't make a difference),
-                    // and both ValueType::Double and ValueType::Long are being
-                    // checked, we remove the test for one of them, as they're
-                    // represented using the same value type tag (we choose to
-                    // remove the check for ValueType::Double, but it's an
-                    // arbitrary choice)
-                    value_types.difference(&ValueTypeSet::of_one(ValueType::Double))
+            HasTypes { value: table, value_types, check_value } => {
+                let constraints = if check_value {
+                    possible_affinities(value_types)
+                        .into_iter()
+                        .map(|(tag, affinities)| {
+                            let to_check = if affinities.len() == 0 || affinities.len() == affinity_count(tag) {
+                                None
+                            } else {
+                                Some(affinities)
+                            };
+                            type_constraint(&table, tag, to_check)
+                        }).collect()
                 } else {
-                    value_types
+                    value_types.into_iter()
+                               .map(|vt| type_constraint(&table, vt.value_type_tag(), None))
+                               .collect()
                 };
-                let constraints = types.into_iter().map(|ty| {
-                    let type_column = QualifiedAlias::new(table.clone(), DatomsColumn::ValueTypeTag).to_column();
-                    let loose = Constraint::equal(type_column, ColumnOrExpression::Integer(ty.value_type_tag()));
-                    if !strict || (ty != ValueType::Long && ty != ValueType::Double) {
-                        loose
-                    } else {
-                        let val_column = QualifiedAlias::new(table.clone(), DatomsColumn::Value).to_column();
-                        // We're handling strict equality for a numeric type, so we need to emit
-                        // a `typeof(col) = '(real|integer)'` too. This should happen a maximum of
-                        // once per `HasTypes`
-                        Constraint::And {
-                            constraints: vec![
-                                loose,
-                                Constraint::TypeCheck {
-                                    value: val_column,
-                                    affinity: match ty {
-                                        ValueType::Long => SQLTypeAffinity::Integer,
-                                        ValueType::Double => SQLTypeAffinity::Real,
-                                        _ => unreachable!()
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }).collect::<Vec<_>>();
-
                 Constraint::Or { constraints }
             },
 

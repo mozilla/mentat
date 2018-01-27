@@ -296,7 +296,7 @@ fn test_type_required_long() {
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
                      FROM `datoms` AS `datoms00` \
                      WHERE ((`datoms00`.value_type_tag = 5 AND \
-                             typeof(`datoms00`.v) = 'integer'))");
+                             (typeof(`datoms00`.v) = 'integer')))");
 
     assert_eq!(args, vec![]);
 }
@@ -311,7 +311,7 @@ fn test_type_required_double() {
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
                      FROM `datoms` AS `datoms00` \
                      WHERE ((`datoms00`.value_type_tag = 5 AND \
-                             typeof(`datoms00`.v) = 'real'))");
+                             (typeof(`datoms00`.v) = 'real')))");
 
     assert_eq!(args, vec![]);
 }

@@ -19,6 +19,7 @@ use std::boxed::Box;
 use mentat_core::{
     Entid,
     TypedValue,
+    SQLTypeAffinity,
 };
 
 use mentat_query::{
@@ -110,15 +111,6 @@ pub enum Constraint {
         value: ColumnOrExpression,
         affinity: SQLTypeAffinity
     }
-}
-
-/// Type safe representation of the possible return values from `typeof`
-pub enum SQLTypeAffinity {
-    Null, // "null"
-    Integer, // "integer"
-    Real, // "real"
-    Text, // "text"
-    Blob, // "blob"
 }
 
 impl Constraint {
@@ -326,19 +318,6 @@ impl QueryFragment for Op {
     }
 }
 
-impl QueryFragment for SQLTypeAffinity {
-    fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
-        out.push_sql(match *self {
-            SQLTypeAffinity::Null => "'null'",
-            SQLTypeAffinity::Integer => "'integer'",
-            SQLTypeAffinity::Real => "'real'",
-            SQLTypeAffinity::Text => "'text'",
-            SQLTypeAffinity::Blob => "'blob'",
-        });
-        Ok(())
-    }
-}
-
 impl QueryFragment for Constraint {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::Constraint::*;
@@ -398,7 +377,13 @@ impl QueryFragment for Constraint {
                 out.push_sql("typeof(");
                 value.push_sql(out)?;
                 out.push_sql(") = ");
-                affinity.push_sql(out)?;
+                out.push_sql(match *affinity {
+                    SQLTypeAffinity::Null => "'null'",
+                    SQLTypeAffinity::Integer => "'integer'",
+                    SQLTypeAffinity::Real => "'real'",
+                    SQLTypeAffinity::Text => "'text'",
+                    SQLTypeAffinity::Blob => "'blob'",
+                });
                 Ok(())
             },
         }

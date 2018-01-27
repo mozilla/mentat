@@ -934,7 +934,7 @@ impl ConjoiningClauses {
             self.wheres.add_intersection(ColumnConstraint::HasTypes {
                 value: qa.0.clone(),
                 value_types: *types,
-                strict: true,
+                check_value: true,
             });
         }
         if let Some(reason) = empty_because {

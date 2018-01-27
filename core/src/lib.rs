@@ -281,25 +281,33 @@ impl From<i32> for TypedValue {
     }
 }
 
+/// Type safe representation of the possible return values from SQLite's `typeof`
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum SQLTypeAffinity {
+    Null, // "null"
+    Integer, // "integer"
+    Real, // "real"
+    Text, // "text"
+    Blob, // "blob"
+}
+
 // Put this here rather than in `db` simply because it's widely needed.
 pub trait SQLValueType {
     fn value_type_tag(&self) -> i32;
     fn accommodates_integer(&self, int: i64) -> bool;
+
+    /// Return a pair of the ValueTypeTag for this value type, and the SQLTypeAffinity required
+    /// to distinguish it from any other types that share the same tag.
+    ///
+    /// Background: The tag alone is not enough to determine the type of a value, since multiple
+    /// ValueTypes may share the same tag (for example, ValueType::Long and ValueType::Double).
+    /// However, each ValueType can be determined by checking both the tag and the type's affinity.
+    fn sql_representation(&self) -> (ValueTypeTag, Option<SQLTypeAffinity>);
 }
 
 impl SQLValueType for ValueType {
     fn value_type_tag(&self) -> i32 {
-        match *self {
-            ValueType::Ref =>      0,
-            ValueType::Boolean =>  1,
-            ValueType::Instant =>  4,
-            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-            ValueType::Long =>     5,
-            ValueType::Double =>   5,
-            ValueType::String =>  10,
-            ValueType::Uuid =>    11,
-            ValueType::Keyword => 13,
-        }
+        self.sql_representation().0
     }
 
     /// Returns true if the provided integer is in the SQLite value space of this type. For
@@ -324,6 +332,20 @@ impl SQLValueType for ValueType {
             ValueType::String       => false,
             Keyword                 => false,
             Uuid                    => false,
+        }
+    }
+
+    fn sql_representation(&self) -> (ValueTypeTag, Option<SQLTypeAffinity>) {
+        match *self {
+            ValueType::Ref     => (0, None),
+            ValueType::Boolean => (1, None),
+            ValueType::Instant => (4, None),
+            // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
+            ValueType::Long    => (5, Some(SQLTypeAffinity::Integer)),
+            ValueType::Double  => (5, Some(SQLTypeAffinity::Real)),
+            ValueType::String  => (10, None),
+            ValueType::Uuid    => (11, None),
+            ValueType::Keyword => (13, None),
         }
     }
 }

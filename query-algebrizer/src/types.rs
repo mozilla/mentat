@@ -337,7 +337,7 @@ pub enum ColumnConstraint {
     HasTypes {
         value: TableAlias,
         value_types: ValueTypeSet,
-        strict: bool,
+        check_value: bool,
     },
     NotExists(ComputedTable),
     Matches(QualifiedAlias, QueryValue),
@@ -348,7 +348,7 @@ impl ColumnConstraint {
         ColumnConstraint::HasTypes {
             value,
             value_types: ValueTypeSet::of_one(value_type),
-            strict: false
+            check_value: false,
         }
     }
 }
@@ -465,12 +465,12 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?} MATCHES {:?}", qa, thing)
             },
 
-            &HasTypes { ref value, ref value_types, strict } => {
+            &HasTypes { ref value, ref value_types, check_value } => {
                 // This is cludgey, but it's debug code.
                 write!(f, "(")?;
                 for value_type in value_types.iter() {
                     write!(f, "({:?}.value_type_tag = {:?}", value, value_type)?;
-                    if strict && value_type == ValueType::Double || value_type == ValueType::Long {
+                    if check_value && value_type == ValueType::Double || value_type == ValueType::Long {
                         write!(f, " AND typeof({:?}) = '{:?}')", value,
                                if value_type == ValueType::Double { "real" } else { "integer" })?;
                     } else {
