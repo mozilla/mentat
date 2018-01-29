@@ -15,7 +15,6 @@ extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
 extern crate mentat_query_algebrizer;       // For errors.
-extern crate rusqlite;
 
 use std::str::FromStr;
 
