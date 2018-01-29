@@ -89,9 +89,16 @@ def_parser!(Tx, lookup_ref, LookupRef, {
 });
 
 def_parser!(Tx, entid_or_lookup_ref_or_temp_id, EntidOrLookupRefOrTempId, {
-    Tx::entid().map(EntidOrLookupRefOrTempId::Entid)
+    Tx::db_tx().map(EntidOrLookupRefOrTempId::TempId)
+        .or(Tx::entid().map(EntidOrLookupRefOrTempId::Entid))
         .or(Tx::lookup_ref().map(EntidOrLookupRefOrTempId::LookupRef))
         .or(Tx::temp_id().map(EntidOrLookupRefOrTempId::TempId))
+});
+
+def_matches_namespaced_keyword!(Tx, literal_db_tx, "db", "tx");
+
+def_parser!(Tx, db_tx, TempId, {
+    Tx::literal_db_tx().map(|_| TempId::Tx)
 });
 
 def_parser!(Tx, temp_id, TempId, {
