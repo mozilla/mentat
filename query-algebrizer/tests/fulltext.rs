@@ -13,36 +13,23 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
 
+mod utils;
+
 use mentat_core::{
     Attribute,
-    Entid,
     Schema,
     ValueType,
-};
-
-use mentat_query_parser::{
-    parse_find_string,
 };
 
 use mentat_query::{
     NamespacedKeyword,
 };
 
-use mentat_query_algebrizer::{
-    ConjoiningClauses,
-    algebrize,
+use utils::{
+    add_attribute,
+    alg,
+    associate_ident,
 };
-
-
-// These are helpers that tests use to build Schema instances.
-fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
-    schema.entid_map.insert(e, i.clone());
-    schema.ident_map.insert(i.clone(), e);
-}
-
-fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
-    schema.attribute_map.insert(e, a);
-}
 
 fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
@@ -78,11 +65,6 @@ fn prepopulated_schema() -> Schema {
         ..Default::default()
     });
     schema
-}
-
-fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
-    let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
 }
 
 #[test]

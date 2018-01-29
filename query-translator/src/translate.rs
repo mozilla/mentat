@@ -9,9 +9,12 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    SQLTypeAffinity,
     SQLValueType,
     TypedValue,
     ValueType,
+    ValueTypeTag,
+    ValueTypeSet,
 };
 
 use mentat_query::Limit;
@@ -55,6 +58,8 @@ use mentat_query_sql::{
     Values,
 };
 
+use std::collections::HashMap;
+
 use super::Result;
 
 trait ToConstraint {
@@ -95,6 +100,51 @@ impl ToConstraint for ColumnConstraintOrAlternation {
             Constraint(c) => c.to_constraint(),
         }
     }
+}
+
+fn affinity_count(tag: i32) -> usize {
+    ValueTypeSet::any().into_iter()
+                       .filter(|t| t.value_type_tag() == tag)
+                       .count()
+}
+
+fn type_constraint(table: &TableAlias, tag: i32, to_check: Option<Vec<SQLTypeAffinity>>) -> Constraint {
+    let type_column = QualifiedAlias::new(table.clone(),
+                                          DatomsColumn::ValueTypeTag).to_column();
+    let check_type_tag = Constraint::equal(type_column, ColumnOrExpression::Integer(tag));
+    if let Some(affinities) = to_check {
+        let check_affinities = Constraint::Or {
+            constraints: affinities.into_iter().map(|affinity| {
+                Constraint::TypeCheck {
+                    value: QualifiedAlias::new(table.clone(),
+                                               DatomsColumn::Value).to_column(),
+                    affinity,
+                }
+            }).collect()
+        };
+        Constraint::And {
+            constraints: vec![
+                check_type_tag,
+                check_affinities
+            ]
+        }
+    } else {
+        check_type_tag
+    }
+}
+
+// Returns a map of tags to a vector of all the possible affinities that those tags can represent
+// given the types in `value_types`.
+fn possible_affinities(value_types: ValueTypeSet) -> HashMap<ValueTypeTag, Vec<SQLTypeAffinity>> {
+    let mut result = HashMap::with_capacity(value_types.len());
+    for ty in value_types {
+        let (tag, affinity_to_check) = ty.sql_representation();
+        let mut affinities = result.entry(tag).or_insert_with(Vec::new);
+        if let Some(affinity) = affinity_to_check {
+            affinities.push(affinity);
+        }
+    }
+    result
 }
 
 impl ToConstraint for ColumnConstraint {
@@ -157,10 +207,24 @@ impl ToConstraint for ColumnConstraint {
                     right: right.into(),
                 }
             },
-
-            HasType(table, value_type) => {
-                let column = QualifiedAlias::new(table, DatomsColumn::ValueTypeTag).to_column();
-                Constraint::equal(column, ColumnOrExpression::Integer(value_type.value_type_tag()))
+            HasTypes { value: table, value_types, check_value } => {
+                let constraints = if check_value {
+                    possible_affinities(value_types)
+                        .into_iter()
+                        .map(|(tag, affinities)| {
+                            let to_check = if affinities.is_empty() || affinities.len() == affinity_count(tag) {
+                                None
+                            } else {
+                                Some(affinities)
+                            };
+                            type_constraint(&table, tag, to_check)
+                        }).collect()
+                } else {
+                    value_types.into_iter()
+                               .map(|vt| type_constraint(&table, vt.value_type_tag(), None))
+                               .collect()
+                };
+                Constraint::Or { constraints }
             },
 
             NotExists(computed_table) => {

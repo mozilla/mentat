@@ -281,25 +281,49 @@ impl From<i32> for TypedValue {
     }
 }
 
+/// Type safe representation of the possible return values from SQLite's `typeof`
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum SQLTypeAffinity {
+    Null,    // "null"
+    Integer, // "integer"
+    Real,    // "real"
+    Text,    // "text"
+    Blob,    // "blob"
+}
+
 // Put this here rather than in `db` simply because it's widely needed.
 pub trait SQLValueType {
-    fn value_type_tag(&self) -> i32;
+    fn value_type_tag(&self) -> ValueTypeTag;
     fn accommodates_integer(&self, int: i64) -> bool;
+
+    /// Return a pair of the ValueTypeTag for this value type, and the SQLTypeAffinity required
+    /// to distinguish it from any other types that share the same tag.
+    ///
+    /// Background: The tag alone is not enough to determine the type of a value, since multiple
+    /// ValueTypes may share the same tag (for example, ValueType::Long and ValueType::Double).
+    /// However, each ValueType can be determined by checking both the tag and the type's affinity.
+    fn sql_representation(&self) -> (ValueTypeTag, Option<SQLTypeAffinity>);
 }
 
 impl SQLValueType for ValueType {
-    fn value_type_tag(&self) -> i32 {
+    fn sql_representation(&self) -> (ValueTypeTag, Option<SQLTypeAffinity>) {
         match *self {
-            ValueType::Ref =>      0,
-            ValueType::Boolean =>  1,
-            ValueType::Instant =>  4,
+            ValueType::Ref     => (0, None),
+            ValueType::Boolean => (1, None),
+            ValueType::Instant => (4, None),
+
             // SQLite distinguishes integral from decimal types, allowing long and double to share a tag.
-            ValueType::Long =>     5,
-            ValueType::Double =>   5,
-            ValueType::String =>  10,
-            ValueType::Uuid =>    11,
-            ValueType::Keyword => 13,
+            ValueType::Long    => (5, Some(SQLTypeAffinity::Integer)),
+            ValueType::Double  => (5, Some(SQLTypeAffinity::Real)),
+            ValueType::String  => (10, None),
+            ValueType::Uuid    => (11, None),
+            ValueType::Keyword => (13, None),
         }
+    }
+
+    #[inline]
+    fn value_type_tag(&self) -> ValueTypeTag {
+        self.sql_representation().0
     }
 
     /// Returns true if the provided integer is in the SQLite value space of this type. For
@@ -412,6 +436,12 @@ impl ValueTypeSet {
         ValueTypeSet(self.0.intersection(other.0))
     }
 
+    /// Returns the set difference between `self` and `other`, which is the
+    /// set of items in `self` that are not in `other`.
+    pub fn difference(&self, other: &ValueTypeSet) -> ValueTypeSet {
+        ValueTypeSet(self.0 - other.0)
+    }
+
     /// Return an arbitrary type that's part of this set.
     /// For a set containing a single type, this will be that type.
     pub fn exemplar(&self) -> Option<ValueType> {
@@ -420,6 +450,11 @@ impl ValueTypeSet {
 
     pub fn is_subset(&self, other: &ValueTypeSet) -> bool {
         self.0.is_subset(&other.0)
+    }
+
+    /// Returns true if `self` and `other` contain no items in common.
+    pub fn is_disjoint(&self, other: &ValueTypeSet) -> bool {
+        self.0.is_disjoint(&other.0)
     }
 
     pub fn contains(&self, vt: ValueType) -> bool {
@@ -432,6 +467,10 @@ impl ValueTypeSet {
 
     pub fn is_unit(&self) -> bool {
         self.0.len() == 1
+    }
+
+    pub fn iter(&self) -> ::enum_set::Iter<ValueType> {
+        self.0.iter()
     }
 }
 

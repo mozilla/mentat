@@ -96,9 +96,7 @@ impl ConjoiningClauses {
             // [:find ?x :where (or (and [?x _ 5] [?x :foo/bar 7]))]
             // which is equivalent to dropping the `or` _and_ the `and`!
             OrWhereClause::And(clauses) => {
-                for clause in clauses {
-                    self.apply_clause(schema, clause)?;
-                }
+                self.apply_clauses(schema, clauses)?;
                 Ok(())
             },
         }
@@ -564,9 +562,7 @@ impl ConjoiningClauses {
             let mut receptacle = template.make_receptacle();
             match clause {
                 OrWhereClause::And(clauses) => {
-                    for clause in clauses {
-                        receptacle.apply_clause(&schema, clause)?;
-                    }
+                    receptacle.apply_clauses(&schema, clauses)?;
                 },
                 OrWhereClause::Clause(clause) => {
                     receptacle.apply_clause(&schema, clause)?;
@@ -577,6 +573,7 @@ impl ConjoiningClauses {
             } else {
                 receptacle.expand_column_bindings();
                 receptacle.prune_extracted_types();
+                receptacle.process_required_types()?;
                 acc.push(receptacle);
             }
         }

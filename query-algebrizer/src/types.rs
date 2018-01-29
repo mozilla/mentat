@@ -334,9 +334,23 @@ pub enum ColumnConstraint {
         left: QueryValue,
         right: QueryValue,
     },
-    HasType(TableAlias, ValueType),
+    HasTypes {
+        value: TableAlias,
+        value_types: ValueTypeSet,
+        check_value: bool,
+    },
     NotExists(ComputedTable),
     Matches(QualifiedAlias, QueryValue),
+}
+
+impl ColumnConstraint {
+    pub fn has_unit_type(value: TableAlias, value_type: ValueType) -> ColumnConstraint {
+        ColumnConstraint::HasTypes {
+            value,
+            value_types: ValueTypeSet::of_one(value_type),
+            check_value: false,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -451,8 +465,20 @@ impl Debug for ColumnConstraint {
                 write!(f, "{:?} MATCHES {:?}", qa, thing)
             },
 
-            &HasType(ref qa, value_type) => {
-                write!(f, "{:?}.value_type_tag = {:?}", qa, value_type)
+            &HasTypes { ref value, ref value_types, check_value } => {
+                // This is cludgey, but it's debug code.
+                write!(f, "(")?;
+                for value_type in value_types.iter() {
+                    write!(f, "({:?}.value_type_tag = {:?}", value, value_type)?;
+                    if check_value && value_type == ValueType::Double || value_type == ValueType::Long {
+                        write!(f, " AND typeof({:?}) = '{:?}')", value,
+                               if value_type == ValueType::Double { "real" } else { "integer" })?;
+                    } else {
+                        write!(f, ")")?;
+                    }
+                    write!(f, " OR ")?;
+                }
+                write!(f, "1)")
             },
             &NotExists(ref ct) => {
                 write!(f, "NOT EXISTS {:?}", ct)

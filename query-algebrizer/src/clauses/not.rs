@@ -49,16 +49,26 @@ impl ConjoiningClauses {
             }
         }
 
-        for clause in not_join.clauses.into_iter() {
-            template.apply_clause(&schema, clause)?;
-        }
+        template.apply_clauses(&schema, not_join.clauses)?;
 
         if template.is_known_empty() {
             return Ok(());
         }
 
-        // We are only expanding column bindings here and not pruning extracted types as we are not projecting values.
         template.expand_column_bindings();
+        if template.is_known_empty() {
+            return Ok(());
+        }
+
+        template.prune_extracted_types();
+        if template.is_known_empty() {
+            return Ok(());
+        }
+
+        template.process_required_types()?;
+        if template.is_known_empty() {
+            return Ok(());
+        }
 
         let subquery = ComputedTable::Subquery(template);
 

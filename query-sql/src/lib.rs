@@ -19,6 +19,7 @@ use std::boxed::Box;
 use mentat_core::{
     Entid,
     TypedValue,
+    SQLTypeAffinity,
 };
 
 use mentat_query::{
@@ -105,6 +106,10 @@ pub enum Constraint {
     },
     NotExists {
         subquery: TableOrSubquery,
+    },
+    TypeCheck {
+        value: ColumnOrExpression,
+        affinity: SQLTypeAffinity
     }
 }
 
@@ -367,7 +372,20 @@ impl QueryFragment for Constraint {
                 subquery.push_sql(out)?;
                 out.push_sql(")");
                 Ok(())
-            }
+            },
+            &TypeCheck { ref value, ref affinity } => {
+                out.push_sql("typeof(");
+                value.push_sql(out)?;
+                out.push_sql(") = ");
+                out.push_sql(match *affinity {
+                    SQLTypeAffinity::Null => "'null'",
+                    SQLTypeAffinity::Integer => "'integer'",
+                    SQLTypeAffinity::Real => "'real'",
+                    SQLTypeAffinity::Text => "'text'",
+                    SQLTypeAffinity::Blob => "'blob'",
+                });
+                Ok(())
+            },
         }
     }
 }
