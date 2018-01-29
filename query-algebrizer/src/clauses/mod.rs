@@ -557,21 +557,39 @@ impl ConjoiningClauses {
     /// the type requirements in place prior to calling `add_type_requirement`.
     ///
     /// If the intersection will leave the variable so that it cannot be any
-    /// type, we'll call mark_known_empty.
+    /// type, we'll call `mark_known_empty`.
     pub fn add_type_requirement(&mut self, var: Variable, types: ValueTypeSet) {
-        let existing = self.required_types.get(&var).cloned().unwrap_or(ValueTypeSet::any());
-
-        // We have an existing requirement. The new requirement will be
-        // the intersection, but we'll mark_known_empty if that's empty.
-        let intersection = types.intersection(&existing);
-        if intersection.is_empty() {
-            self.mark_known_empty(EmptyBecause::TypeMismatch {
-                var: var.clone(),
-                existing: existing,
-                desired: types,
-            });
+        if types.is_empty() {
+            // This shouldn't happen, but if it does…
+            self.mark_known_empty(EmptyBecause::NoValidTypes(var));
+            return;
         }
-        self.required_types.insert(var, intersection);
+
+        // Optimize for the empty case.
+        let empty_because = match self.required_types.entry(var.clone()) {
+            Entry::Vacant(entry) => {
+                entry.insert(types);
+                return;
+            },
+            Entry::Occupied(mut entry) => {
+                // We have an existing requirement. The new requirement will be
+                // the intersection, but we'll `mark_known_empty` if that's empty.
+                let existing = *entry.get();
+                let intersection = types.intersection(&existing);
+                entry.insert(intersection);
+
+                if !intersection.is_empty() {
+                    return;
+                }
+
+                EmptyBecause::TypeMismatch {
+                    var: var,
+                    existing: existing,
+                    desired: types,
+                }
+            },
+        };
+        self.mark_known_empty(empty_because);
     }
 
     /// Like `constrain_var_to_type` but in reverse: this expands the set of types
