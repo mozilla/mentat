@@ -13,9 +13,12 @@ use std::process;
 
 use mentat::query::{
     QueryExplanation,
-    QueryResults,
 };
-use mentat_core::TypedValue;
+
+use mentat::{
+    QueryResults,
+    TypedValue,
+};
 
 use command_parser::{
     Command,
@@ -31,16 +34,18 @@ use command_parser::{
     LONG_QUERY_EXPLAIN_COMMAND,
     SHORT_QUERY_EXPLAIN_COMMAND,
 };
+
 use input::InputReader;
 use input::InputResult::{
     MetaCommand,
     Empty,
     More,
-    Eof
+    Eof,
 };
+
 use store::{
-    Store,
-    db_output_name
+    OpenStore,
+    db_output_name,
 };
 
 lazy_static! {
@@ -64,13 +69,13 @@ lazy_static! {
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
-    store: Store
+    store: OpenStore
 }
 
 impl Repl {
     /// Constructs a new `Repl`.
     pub fn new() -> Result<Repl, String> {
-        let store = Store::new(None).map_err(|e| e.to_string())?;
+        let store = OpenStore::new(None).map_err(|e| e.to_string())?;
         Ok(Repl{
             store: store,
         })

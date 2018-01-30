@@ -8,25 +8,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use rusqlite;
-
 use edn;
 
-use errors as cli;
+use errors::Result;
 
 use mentat::{
-    new_connection,
     QueryExplanation,
+    Queryable,
+    Store,
 };
 
 use mentat::query::QueryResults;
 
-use mentat::conn::Conn;
 use mentat_db::types::TxReport;
 
-pub struct Store {
-    handle: rusqlite::Connection,
-    conn: Conn,
+pub struct OpenStore {
+    store: Store,
     pub db_name: String,
 }
 
@@ -34,40 +31,45 @@ pub fn db_output_name(db_name: &String) -> String {
     if db_name.is_empty() { "in-memory db".to_string() } else { db_name.clone() }
 }
 
-impl Store {
-    pub fn new(database: Option<String>) -> Result<Store, cli::Error> {
+impl OpenStore {
+    pub fn new(database: Option<String>) -> Result<OpenStore> {
         let db_name = database.unwrap_or("".to_string());
-
-        let mut handle = try!(new_connection(&db_name));
-        let conn = try!(Conn::connect(&mut handle));
-        Ok(Store { handle, conn, db_name })
+        Ok(OpenStore {
+            store: Store::open(db_name.as_str())?,
+            db_name: db_name,
+        })
     }
 
-    pub fn open(&mut self, database: Option<String>) -> Result<(), cli::Error> {
-        self.db_name = database.unwrap_or("".to_string());
-        self.handle = try!(new_connection(&self.db_name));
-        self.conn = try!(Conn::connect(&mut self.handle));
+    pub fn open(&mut self, database: Option<String>) -> Result<()> {
+        let name = database.unwrap_or("".to_string());
+        let next = Store::open(name.as_str())?;
+        self.db_name = name;
+        self.store = next;
+
         Ok(())
     }
 
-    pub fn close(&mut self) -> Result<(), cli::Error> {
+    pub fn close(&mut self) -> Result<()> {
         self.db_name = "".to_string();
         self.open(None)
     }
 
-    pub fn query(&self, query: String) -> Result<QueryResults, cli::Error> {
-        Ok(self.conn.q_once(&self.handle, &query, None)?)
+    pub fn query(&self, query: String) -> Result<QueryResults> {
+        Ok(self.store.q_once(&query, None)?)
     }
 
-    pub fn explain_query(&self, query: String) -> Result<QueryExplanation, cli::Error> {
-        Ok(self.conn.q_explain(&self.handle, &query, None)?)
+    pub fn explain_query(&self, query: String) -> Result<QueryExplanation> {
+        Ok(self.store.q_explain(&query, None)?)
     }
 
-    pub fn transact(&mut self, transaction: String) -> Result<TxReport, cli::Error> {
-        Ok(self.conn.transact(&mut self.handle, &transaction)?)
+    pub fn transact(&mut self, transaction: String) -> Result<TxReport> {
+        let mut tx = self.store.begin_transaction()?;
+        let report = tx.transact(&transaction)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     pub fn fetch_schema(&self) -> edn::Value {
-        self.conn.current_schema().to_edn_value()
+        self.store.conn().current_schema().to_edn_value()
     }
 }
