@@ -143,6 +143,8 @@ impl NamespacedKeyword {
     /// let keyword = NamespacedKeyword::new("foo", "bar");
     /// assert_eq!(keyword.to_string(), ":foo/bar");
     /// ```
+    ///
+    /// See also the `kw!` macro in the main `mentat` crate.
     pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
         let n = name.into();
         let ns = namespace.into();

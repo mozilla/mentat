@@ -23,12 +23,12 @@
 //! Typical use is the following:
 //!
 //! ```
+//! #[macro_use(kw)]
 //! extern crate mentat;
 //! extern crate mentat_db;          // So we can use SQLite connection utilities.
 //!
 //! use mentat::{
 //!     Conn,
-//!     NamespacedKeyword,
 //!     ValueType,
 //! };
 //!
@@ -64,10 +64,10 @@
 //!
 //!         // Make sure our vocabulary is installed, and install if necessary.
 //!         in_progress.ensure_vocabulary(&Definition {
-//!             name: NamespacedKeyword::new("example", "links"),
+//!             name: kw!(:example/links),
 //!             version: 1,
 //!             attributes: vec![
-//!                 (NamespacedKeyword::new("link", "title"),
+//!                 (kw!(:link/title),
 //!                  vocabulary::AttributeBuilder::default()
 //!                    .value_type(ValueType::String)
 //!                    .multival(false)
