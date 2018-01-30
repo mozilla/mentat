@@ -42,9 +42,11 @@ impl OpenStore {
 
     pub fn open(&mut self, database: Option<String>) -> Result<()> {
         let name = database.unwrap_or("".to_string());
-        let next = Store::open(name.as_str())?;
-        self.db_name = name;
-        self.store = next;
+        if self.db_name.is_empty() || name != self.db_name {
+            let next = Store::open(name.as_str())?;
+            self.db_name = name;
+            self.store = next;
+        }
 
         Ok(())
     }
