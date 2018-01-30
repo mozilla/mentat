@@ -377,6 +377,13 @@ impl Conn {
         q_explain(sqlite, &*self.current_schema(), query, inputs)
     }
 
+    pub fn lookup_values_for_attribute(&self,
+                                       sqlite: &rusqlite::Connection,
+                                       entity: Entid,
+                                       attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>> {
+        lookup_values_for_attribute(sqlite, &*self.current_schema(), entity, attribute)
+    }
+
     pub fn lookup_value_for_attribute(&self,
                                       sqlite: &rusqlite::Connection,
                                       entity: Entid,
