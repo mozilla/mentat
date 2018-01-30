@@ -83,22 +83,19 @@
 
 use std::collections::BTreeMap;
 
-use mentat_core::{
-    Attribute,
-    Entid,
-    HasSchema,
-    KnownEntid,
-    NamespacedKeyword,
-    TypedValue,
-    ValueType,
-};
-
 pub use mentat_core::attribute;
 use mentat_core::attribute::Unique;
+use mentat_core::KnownEntid;
 
 use ::{
     CORE_SCHEMA_VERSION,
+    Attribute,
+    Entid,
+    HasSchema,
     IntoResult,
+    NamespacedKeyword,
+    TypedValue,
+    ValueType,
 };
 
 use ::conn::{
