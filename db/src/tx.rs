@@ -633,11 +633,21 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                     let added = op == OpType::Add;
 
                     // We take the last encountered :db/txInstant value.
+                    // If more than one is provided, the transactor will fail.
                     if added &&
                        e == self.tx_id &&
                        a == entids::DB_TX_INSTANT {
                         if let TypedValue::Instant(instant) = v {
-                            self.tx_instant = Some(instant);
+                            if let Some(ts) = self.tx_instant {
+                                if ts == instant {
+                                    // Dupes are fine.
+                                } else {
+                                    bail!(ErrorKind::ConflictingDatoms);
+                                }
+                            } else {
+                                self.tx_instant = Some(instant);
+                            }
+                            continue;
                         } else {
                             // The type error has been caught earlier.
                             unreachable!()
@@ -657,14 +667,12 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 
         tx_instant = self.tx_instant.unwrap_or_else(now);
 
-        // Transact [:db/add :db/txInstant NOW :db/tx] if it doesn't exist.
-        if self.tx_instant == None {
-            non_fts_one.push((self.tx_id,
-                              entids::DB_TX_INSTANT,
-                              self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
-                              TypedValue::Instant(tx_instant),
-                              true));
-        }
+        // Transact [:db/add :db/txInstant tx_instant :db/tx].
+        non_fts_one.push((self.tx_id,
+                          entids::DB_TX_INSTANT,
+                          self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
+                          tx_instant.into(),
+                          true));
 
         if !non_fts_one.is_empty() {
             self.store.insert_non_fts_searches(&non_fts_one[..], db::SearchType::Inexact)?;

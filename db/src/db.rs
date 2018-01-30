@@ -1344,18 +1344,17 @@ mod tests {
         assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
                                  [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
                                  [:db/add 102 :db/ident :name/Vlad]]",
-                         Err("Could not insert non-fts one statements into temporary search table!"));
+                         Err("conflicting datoms in tx"));
 
         // Test multiple txInstants with the same value.
-        // Test disabled: depends on #535.
-        // assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
-        //                          [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
-        //                          [:db/add 103 :db/ident :name/Dimitri]
-        //                          [:db/add 104 :db/ident :name/Anton]]");
-        // assert_matches!(conn.last_transaction(),
-        //                 "[[103 :db/ident :name/Dimitri ?tx true]
-        //                   [104 :db/ident :name/Anton ?tx true]
-        //                   [?tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\" ?tx true]]");
+        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+                                 [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+                                 [:db/add 103 :db/ident :name/Dimitri]
+                                 [:db/add 104 :db/ident :name/Anton]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[103 :db/ident :name/Dimitri ?tx true]
+                          [104 :db/ident :name/Anton ?tx true]
+                          [?tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\" ?tx true]]");
 
         // Test txInstant retraction
         // Test disabled: retracting a datom that doesn't exist should fail.
