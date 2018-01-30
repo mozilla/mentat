@@ -40,6 +40,10 @@ pub use mentat_core::{
     ValueType,
 };
 
+pub use mentat_query::{
+    FindSpec,
+};
+
 pub use mentat_db::{
     CORE_SCHEMA_VERSION,
     DB_SCHEMA_CORE,
@@ -80,19 +84,13 @@ pub fn get_name() -> String {
     return String::from("mentat");
 }
 
-/// Open a Mentat store at the provided path.
-pub fn open(path: &str) -> errors::Result<(rusqlite::Connection, Conn)> {
-    let mut connection = new_connection(path)?;
-    let conn = Conn::connect(&mut connection)?;
-    Ok((connection, conn))
-}
-
 pub use query::{
     IntoResult,
     PlainSymbol,
     QueryExecutionResult,
     QueryExplanation,
     QueryInputs,
+    QueryOutput,
     QueryPlanStep,
     QueryResults,
     Variable,
@@ -104,6 +102,7 @@ pub use conn::{
     InProgress,
     Metadata,
     Queryable,
+    Store,
 };
 
 #[cfg(test)]

@@ -20,6 +20,8 @@ extern crate mentat_query_sql;
 extern crate mentat_sql;
 
 use std::iter;
+use std::rc::Rc;
+
 use rusqlite::{
     Row,
     Rows,
@@ -79,11 +81,74 @@ error_chain! {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct QueryOutput {
+    pub spec: Rc<FindSpec>,
+    pub results: QueryResults,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum QueryResults {
     Scalar(Option<TypedValue>),
     Tuple(Option<Vec<TypedValue>>),
     Coll(Vec<TypedValue>),
     Rel(Vec<Vec<TypedValue>>),
+}
+
+impl From<QueryOutput> for QueryResults {
+    fn from(o: QueryOutput) -> QueryResults {
+        o.results
+    }
+}
+
+impl QueryOutput {
+    pub fn empty_factory(spec: &FindSpec) -> Box<Fn() -> QueryResults> {
+        use self::FindSpec::*;
+        match spec {
+            &FindScalar(_) => Box::new(|| QueryResults::Scalar(None)),
+            &FindTuple(_)  => Box::new(|| QueryResults::Tuple(None)),
+            &FindColl(_)   => Box::new(|| QueryResults::Coll(vec![])),
+            &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.results.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.results.is_empty()
+    }
+
+    pub fn empty(spec: &Rc<FindSpec>) -> QueryOutput {
+        use self::FindSpec::*;
+        let results =
+            match &**spec {
+                &FindScalar(_) => QueryResults::Scalar(None),
+                &FindTuple(_)  => QueryResults::Tuple(None),
+                &FindColl(_)   => QueryResults::Coll(vec![]),
+                &FindRel(_)    => QueryResults::Rel(vec![]),
+            };
+        QueryOutput {
+            spec: spec.clone(),
+            results: results,
+        }
+    }
+
+    pub fn into_scalar(self) -> Result<Option<TypedValue>> {
+        self.results.into_scalar()
+    }
+
+    pub fn into_coll(self) -> Result<Vec<TypedValue>> {
+        self.results.into_coll()
+    }
+
+    pub fn into_tuple(self) -> Result<Option<Vec<TypedValue>>> {
+        self.results.into_tuple()
+    }
+
+    pub fn into_rel(self) -> Result<Vec<Vec<TypedValue>>> {
+        self.results.into_rel()
+    }
 }
 
 impl QueryResults {
@@ -104,26 +169,6 @@ impl QueryResults {
             &Tuple(ref o)  => o.is_none(),
             &Coll(ref v)   => v.is_empty(),
             &Rel(ref v)    => v.is_empty(),
-        }
-    }
-
-    pub fn empty(spec: &FindSpec) -> QueryResults {
-        use self::FindSpec::*;
-        match spec {
-            &FindScalar(_) => QueryResults::Scalar(None),
-            &FindTuple(_)  => QueryResults::Tuple(None),
-            &FindColl(_)   => QueryResults::Coll(vec![]),
-            &FindRel(_)    => QueryResults::Rel(vec![]),
-        }
-    }
-
-    pub fn empty_factory(spec: &FindSpec) -> Box<Fn() -> QueryResults> {
-        use self::FindSpec::*;
-        match spec {
-            &FindScalar(_) => Box::new(|| QueryResults::Scalar(None)),
-            &FindTuple(_)  => Box::new(|| QueryResults::Tuple(None)),
-            &FindColl(_)   => Box::new(|| QueryResults::Coll(vec![])),
-            &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
         }
     }
 
@@ -304,69 +349,87 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 }
 
 pub trait Projector {
-    fn project<'stmt>(&self, rows: Rows<'stmt>) -> Result<QueryResults>;
+    fn project<'stmt>(&self, rows: Rows<'stmt>) -> Result<QueryOutput>;
 }
 
 /// A projector that produces a `QueryResult` containing fixed data.
 /// Takes a boxed function that should return an empty result set of the desired type.
 struct ConstantProjector {
+    spec: Rc<FindSpec>,
     results_factory: Box<Fn() -> QueryResults>,
 }
 
 impl ConstantProjector {
-    fn new(results_factory: Box<Fn() -> QueryResults>) -> ConstantProjector {
-        ConstantProjector { results_factory: results_factory }
+    fn new(spec: Rc<FindSpec>, results_factory: Box<Fn() -> QueryResults>) -> ConstantProjector {
+        ConstantProjector {
+            spec: spec,
+            results_factory: results_factory,
+        }
     }
 }
 
 impl Projector for ConstantProjector {
-    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryResults> {
-        Ok((self.results_factory)())
+    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryOutput> {
+        let results = (self.results_factory)();
+        let spec = self.spec.clone();
+        Ok(QueryOutput {
+            spec: spec,
+            results: results,
+        })
     }
 }
 
 struct ScalarProjector {
+    spec: Rc<FindSpec>,
     template: TypedIndex,
 }
 
 impl ScalarProjector {
-    fn with_template(template: TypedIndex) -> ScalarProjector {
+    fn with_template(spec: Rc<FindSpec>, template: TypedIndex) -> ScalarProjector {
         ScalarProjector {
+            spec: spec,
             template: template,
         }
     }
 
-    fn combine(sql: Projection, mut templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
+    fn combine(spec: Rc<FindSpec>, sql: Projection, mut templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
         let template = templates.pop().expect("Expected a single template");
         Ok(CombinedProjection {
             sql_projection: sql,
-            datalog_projector: Box::new(ScalarProjector::with_template(template)),
+            datalog_projector: Box::new(ScalarProjector::with_template(spec, template)),
             distinct: false,
         })
     }
 }
 
 impl Projector for ScalarProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryResults> {
-        if let Some(r) = rows.next() {
-            let row = r?;
-            let binding = self.template.lookup(&row)?;
-            Ok(QueryResults::Scalar(Some(binding)))
-        } else {
-            Ok(QueryResults::Scalar(None))
-        }
+    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
+        let results =
+            if let Some(r) = rows.next() {
+                let row = r?;
+                let binding = self.template.lookup(&row)?;
+                QueryResults::Scalar(Some(binding))
+            } else {
+                QueryResults::Scalar(None)
+            };
+        Ok(QueryOutput {
+            spec: self.spec.clone(),
+            results: results,
+        })
     }
 }
 
 /// A tuple projector produces a single vector. It's the single-result version of rel.
 struct TupleProjector {
+    spec: Rc<FindSpec>,
     len: usize,
     templates: Vec<TypedIndex>,
 }
 
 impl TupleProjector {
-    fn with_templates(len: usize, templates: Vec<TypedIndex>) -> TupleProjector {
+    fn with_templates(spec: Rc<FindSpec>, len: usize, templates: Vec<TypedIndex>) -> TupleProjector {
         TupleProjector {
+            spec: spec,
             len: len,
             templates: templates,
         }
@@ -382,8 +445,8 @@ impl TupleProjector {
             .collect::<Result<Vec<TypedValue>>>()
     }
 
-    fn combine(column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
-        let p = TupleProjector::with_templates(column_count, templates);
+    fn combine(spec: Rc<FindSpec>, column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
+        let p = TupleProjector::with_templates(spec, column_count, templates);
         Ok(CombinedProjection {
             sql_projection: sql,
             datalog_projector: Box::new(p),
@@ -393,14 +456,19 @@ impl TupleProjector {
 }
 
 impl Projector for TupleProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryResults> {
-        if let Some(r) = rows.next() {
-            let row = r?;
-            let bindings = self.collect_bindings(row)?;
-            Ok(QueryResults::Tuple(Some(bindings)))
-        } else {
-            Ok(QueryResults::Tuple(None))
-        }
+    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
+        let results =
+            if let Some(r) = rows.next() {
+                let row = r?;
+                let bindings = self.collect_bindings(row)?;
+                QueryResults::Tuple(Some(bindings))
+            } else {
+                QueryResults::Tuple(None)
+            };
+        Ok(QueryOutput {
+            spec: self.spec.clone(),
+            results: results,
+        })
     }
 }
 
@@ -410,13 +478,15 @@ impl Projector for TupleProjector {
 /// Each column in the inner vector is the result of taking one or two columns from
 /// the `Row`: one for the value and optionally one for the type tag.
 struct RelProjector {
+    spec: Rc<FindSpec>,
     len: usize,
     templates: Vec<TypedIndex>,
 }
 
 impl RelProjector {
-    fn with_templates(len: usize, templates: Vec<TypedIndex>) -> RelProjector {
+    fn with_templates(spec: Rc<FindSpec>, len: usize, templates: Vec<TypedIndex>) -> RelProjector {
         RelProjector {
+            spec: spec,
             len: len,
             templates: templates,
         }
@@ -431,8 +501,8 @@ impl RelProjector {
             .collect::<Result<Vec<TypedValue>>>()
     }
 
-    fn combine(column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
-        let p = RelProjector::with_templates(column_count, templates);
+    fn combine(spec: Rc<FindSpec>, column_count: usize, sql: Projection, templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
+        let p = RelProjector::with_templates(spec, column_count, templates);
         Ok(CombinedProjection {
             sql_projection: sql,
             datalog_projector: Box::new(p),
@@ -442,49 +512,57 @@ impl RelProjector {
 }
 
 impl Projector for RelProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryResults> {
+    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
         let mut out: Vec<Vec<TypedValue>> = vec![];
         while let Some(r) = rows.next() {
             let row = r?;
             let bindings = self.collect_bindings(row)?;
             out.push(bindings);
         }
-        Ok(QueryResults::Rel(out))
+        Ok(QueryOutput {
+            spec: self.spec.clone(),
+            results: QueryResults::Rel(out),
+        })
     }
 }
 
 /// A coll projector produces a vector of values.
 /// Each value is sourced from the same column.
 struct CollProjector {
+    spec: Rc<FindSpec>,
     template: TypedIndex,
 }
 
 impl CollProjector {
-    fn with_template(template: TypedIndex) -> CollProjector {
+    fn with_template(spec: Rc<FindSpec>, template: TypedIndex) -> CollProjector {
         CollProjector {
+            spec: spec,
             template: template,
         }
     }
 
-    fn combine(sql: Projection, mut templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
+    fn combine(spec: Rc<FindSpec>, sql: Projection, mut templates: Vec<TypedIndex>) -> Result<CombinedProjection> {
         let template = templates.pop().expect("Expected a single template");
         Ok(CombinedProjection {
             sql_projection: sql,
-            datalog_projector: Box::new(CollProjector::with_template(template)),
+            datalog_projector: Box::new(CollProjector::with_template(spec, template)),
             distinct: true,
         })
     }
 }
 
 impl Projector for CollProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryResults> {
+    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
         let mut out: Vec<TypedValue> = vec![];
         while let Some(r) = rows.next() {
             let row = r?;
             let binding = self.template.lookup(&row)?;
             out.push(binding);
         }
-        Ok(QueryResults::Coll(out))
+        Ok(QueryOutput {
+            spec: self.spec.clone(),
+            results: QueryResults::Coll(out),
+        })
     }
 }
 
@@ -523,37 +601,38 @@ impl CombinedProjection {
 pub fn query_projection(query: &AlgebraicQuery) -> Result<CombinedProjection> {
     use self::FindSpec::*;
 
+    let spec = query.find_spec.clone();
     if query.is_known_empty() {
         // Do a few gyrations to produce empty results of the right kind for the query.
-        let empty = QueryResults::empty_factory(&query.find_spec);
-        let constant_projector = ConstantProjector::new(empty);
+        let empty = QueryOutput::empty_factory(&spec);
+        let constant_projector = ConstantProjector::new(spec, empty);
         Ok(CombinedProjection {
             sql_projection: Projection::One,
             datalog_projector: Box::new(constant_projector),
             distinct: false,
         })
     } else {
-        match query.find_spec {
+        match *query.find_spec {
             FindColl(ref element) => {
                 let (cols, templates) = project_elements(1, iter::once(element), query)?;
-                CollProjector::combine(cols, templates).map(|p| p.flip_distinct_for_limit(&query.limit))
+                CollProjector::combine(spec, cols, templates).map(|p| p.flip_distinct_for_limit(&query.limit))
             },
 
             FindScalar(ref element) => {
                 let (cols, templates) = project_elements(1, iter::once(element), query)?;
-                ScalarProjector::combine(cols, templates)
+                ScalarProjector::combine(spec, cols, templates)
             },
 
             FindRel(ref elements) => {
                 let column_count = query.find_spec.expected_column_count();
                 let (cols, templates) = project_elements(column_count, elements, query)?;
-                RelProjector::combine(column_count, cols, templates).map(|p| p.flip_distinct_for_limit(&query.limit))
+                RelProjector::combine(spec, column_count, cols, templates).map(|p| p.flip_distinct_for_limit(&query.limit))
             },
 
             FindTuple(ref elements) => {
                 let column_count = query.find_spec.expected_column_count();
                 let (cols, templates) = project_elements(column_count, elements, query)?;
-                TupleProjector::combine(column_count, cols, templates)
+                TupleProjector::combine(spec, column_count, cols, templates)
             },
         }
     }

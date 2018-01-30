@@ -57,7 +57,8 @@ fn test_rel() {
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
                          "[:find ?x ?ident :where [?x :db/ident ?ident]]", None)
-        .expect("Query failed");
+        .expect("Query failed")
+        .results;
     let end = time::PreciseTime::now();
 
     // This will need to change each time we add a default ident.
@@ -87,7 +88,8 @@ fn test_failing_scalar() {
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
                          "[:find ?x . :where [?x :db/fulltext true]]", None)
-        .expect("Query failed");
+        .expect("Query failed")
+        .results;
     let end = time::PreciseTime::now();
 
     assert_eq!(0, results.len());
@@ -109,7 +111,8 @@ fn test_scalar() {
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
                          "[:find ?ident . :where [24 :db/ident ?ident]]", None)
-        .expect("Query failed");
+        .expect("Query failed")
+        .results;
     let end = time::PreciseTime::now();
 
     assert_eq!(1, results.len());
@@ -139,7 +142,8 @@ fn test_tuple() {
                            :where [:db/txInstant :db/index ?index]
                                   [:db/txInstant :db/cardinality ?cardinality]]",
                          None)
-        .expect("Query failed");
+        .expect("Query failed")
+        .results;
     let end = time::PreciseTime::now();
 
     assert_eq!(1, results.len());
@@ -166,7 +170,8 @@ fn test_coll() {
     let start = time::PreciseTime::now();
     let results = q_once(&c, &db.schema,
                          "[:find [?e ...] :where [?e :db/ident _]]", None)
-        .expect("Query failed");
+        .expect("Query failed")
+        .results;
     let end = time::PreciseTime::now();
 
     assert_eq!(40, results.len());
@@ -191,7 +196,8 @@ fn test_inputs() {
     let inputs = QueryInputs::with_value_sequence(vec![ee]);
     let results = q_once(&c, &db.schema,
                          "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs)
-                        .expect("query to succeed");
+                        .expect("query to succeed")
+                        .results;
 
     if let QueryResults::Scalar(Some(TypedValue::Keyword(value))) = results {
         assert_eq!(value.as_ref(), &NamespacedKeyword::new("db.install", "valueType"));
@@ -239,9 +245,11 @@ fn test_instants_and_uuids() {
     let r = conn.q_once(&mut c,
                         r#"[:find [?x ?u ?when]
                             :where [?x :foo/uuid ?u ?tx]
-                                   [?tx :db/txInstant ?when]]"#, None);
+                                   [?tx :db/txInstant ?when]]"#, None)
+                .expect("results")
+                .into();
     match r {
-        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+        QueryResults::Tuple(Some(vals)) => {
             let mut vals = vals.into_iter();
             match (vals.next(), vals.next(), vals.next(), vals.next()) {
                 (Some(TypedValue::Ref(e)),
@@ -279,9 +287,11 @@ fn test_tx() {
 
     let r = conn.q_once(&mut c,
                         r#"[:find ?tx
-                            :where [?x :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4" ?tx]]"#, None);
+                            :where [?x :foo/uuid #uuid "cf62d552-6569-4d1b-b667-04703041dfc4" ?tx]]"#, None)
+                .expect("results")
+                .into();
     match r {
-        Result::Ok(QueryResults::Rel(ref v)) => {
+        QueryResults::Rel(ref v) => {
             assert_eq!(*v, vec![
                 vec![TypedValue::Ref(t.tx_id),]
             ]);
@@ -314,9 +324,11 @@ fn test_tx_as_input() {
     let r = conn.q_once(&mut c,
                         r#"[:find ?uuid
                             :in ?tx
-                            :where [?x :foo/uuid ?uuid ?tx]]"#, inputs);
+                            :where [?x :foo/uuid ?uuid ?tx]]"#, inputs)
+                .expect("results")
+                .into();
     match r {
-        Result::Ok(QueryResults::Rel(ref v)) => {
+        QueryResults::Rel(ref v) => {
             assert_eq!(*v, vec![
                 vec![TypedValue::Uuid(Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4").expect("Valid UUID")),]
             ]);
@@ -350,9 +362,11 @@ fn test_fulltext() {
 
     let r = conn.q_once(&mut c,
                         r#"[:find [?x ?val ?score]
-                            :where [(fulltext $ :foo/fts "darkness") [[?x ?val _ ?score]]]]"#, None);
+                            :where [(fulltext $ :foo/fts "darkness") [[?x ?val _ ?score]]]]"#, None)
+                .expect("results")
+                .into();
     match r {
-        Result::Ok(QueryResults::Tuple(Some(vals))) => {
+        QueryResults::Tuple(Some(vals)) => {
             let mut vals = vals.into_iter();
             match (vals.next(), vals.next(), vals.next(), vals.next()) {
                 (Some(TypedValue::Ref(x)),
@@ -413,9 +427,11 @@ fn test_fulltext() {
                     [?a :foo/term ?term]
                     [(fulltext $ :foo/fts ?term) [[?x ?val]]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?a"), TypedValue::Ref(a))]);
-    let r = conn.q_once(&mut c, query, inputs);
+    let r = conn.q_once(&mut c, query, inputs)
+                .expect("results")
+                .into();
     match r {
-        Result::Ok(QueryResults::Rel(rels)) => {
+        QueryResults::Rel(rels) => {
             assert_eq!(rels, vec![
                 vec![TypedValue::Ref(v),
                      TypedValue::String("I've come to talk with you again".to_string().into()),
@@ -449,9 +465,11 @@ fn test_instant_range_query() {
                             :order (asc ?date)
                             :where
                             [?x :foo/date ?date]
-                            [(< ?date #inst "2017-01-01T11:00:02.000Z")]]"#, None);
+                            [(< ?date #inst "2017-01-01T11:00:02.000Z")]]"#, None)
+                .expect("results")
+                .into();
     match r {
-        Result::Ok(QueryResults::Coll(vals)) => {
+        QueryResults::Coll(vals) => {
             assert_eq!(vals,
                        vec![TypedValue::Ref(*ids.get("b").unwrap()),
                             TypedValue::Ref(*ids.get("c").unwrap())]);
@@ -533,7 +551,9 @@ fn test_type_reqs() {
 
     let eid_query = r#"[:find ?eid :where [?eid :test/string "foo"]]"#;
 
-    let res = conn.q_once(&mut c, eid_query, None).unwrap();
+    let res = conn.q_once(&mut c, eid_query, None)
+                  .expect("results")
+                  .into();
 
     let entid = match res {
         QueryResults::Rel(ref vs) if vs.len() == 1 && vs[0].len() == 1 && vs[0][0].matches_type(ValueType::Ref) =>
@@ -562,8 +582,10 @@ fn test_type_reqs() {
     for name in type_names {
         let q = format!("[:find [?v ...] :in ?e :where [?e _ ?v] [({} ?v)]]", name);
         let results = conn.q_once(&mut c, &q, QueryInputs::with_value_sequence(vec![
-            (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
-        ])).unwrap();
+                               (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
+                           ]))
+                          .expect("results")
+                          .into();
         match results {
             QueryResults::Coll(vals) => {
                 assert_eq!(vals.len(), 1, "Query should find exactly 1 item");
@@ -585,8 +607,10 @@ fn test_type_reqs() {
                           :where [?e _ ?v] [(long ?v)]]"#;
 
     let res = conn.q_once(&mut c, longs_query, QueryInputs::with_value_sequence(vec![
-        (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
-    ])).unwrap();
+                      (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
+                  ]))
+                  .expect("results")
+                  .into();
     match res {
         QueryResults::Coll(vals) => {
             assert_eq!(vals, vec![TypedValue::Long(5), TypedValue::Long(33)])

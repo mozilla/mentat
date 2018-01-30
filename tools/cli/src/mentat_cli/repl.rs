@@ -9,13 +9,20 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::HashMap;
+use std::io::Write;
 use std::process;
 
-use mentat::query::{
+use tabwriter::TabWriter;
+
+use mentat::{
+    Queryable,
     QueryExplanation,
+    QueryOutput,
     QueryResults,
+    Store,
+    TxReport,
+    TypedValue,
 };
-use mentat_core::TypedValue;
 
 use command_parser::{
     Command,
@@ -31,16 +38,13 @@ use command_parser::{
     LONG_QUERY_EXPLAIN_COMMAND,
     SHORT_QUERY_EXPLAIN_COMMAND,
 };
+
 use input::InputReader;
 use input::InputResult::{
     MetaCommand,
     Empty,
     More,
-    Eof
-};
-use store::{
-    Store,
-    db_output_name
+    Eof,
 };
 
 lazy_static! {
@@ -64,14 +68,24 @@ lazy_static! {
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
-    store: Store
+    path: String,
+    store: Store,
 }
 
 impl Repl {
+    pub fn db_name(&self) -> String {
+        if self.path.is_empty() {
+            "in-memory db".to_string()
+        } else {
+            self.path.clone()
+        }
+    }
+
     /// Constructs a new `Repl`.
     pub fn new() -> Result<Repl, String> {
-        let store = Store::new(None).map_err(|e| e.to_string())?;
+        let store = Store::open("").map_err(|e| e.to_string())?;
         Ok(Repl{
+            path: "".to_string(),
             store: store,
         })
     }
@@ -103,7 +117,7 @@ impl Repl {
                     }
                     break;
                 },
-                Err(e) => println!("{}", e.to_string()),
+                Err(e) => eprintln!("{}", e.to_string()),
             }
         }
     }
@@ -113,36 +127,49 @@ impl Repl {
         match cmd {
             Command::Help(args) => self.help_command(args),
             Command::Open(db) => {
-                match self.store.open(Some(db.clone())) {
-                    Ok(_) => println!("Database {:?} opened", db_output_name(&db)),
-                    Err(e) => println!("{}", e.to_string())
+                match self.open(db) {
+                    Ok(_) => println!("Database {:?} opened", self.db_name()),
+                    Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
             Command::QueryExplain(query) => self.explain_query(query),
             Command::Schema => {
-                let edn = self.store.fetch_schema();
+                let edn = self.store.conn().current_schema().to_edn_value();
                 match edn.to_pretty(120) {
                     Ok(s) => println!("{}", s),
-                    Err(e) => println!("{}", e)
+                    Err(e) => eprintln!("{}", e)
                 };
 
             }
             Command::Transact(transaction) => self.execute_transact(transaction),
             Command::Exit => {
                 self.close();
-                println!("Exiting...");
+                eprintln!("Exiting...");
                 process::exit(0);
             }
         }
     }
 
+    fn open<T>(&mut self, path: T) -> ::mentat::errors::Result<()>
+    where T: Into<String> {
+        let path = path.into();
+        if self.path.is_empty() || path != self.path {
+            let next = Store::open(path.as_str())?;
+            self.path = path;
+            self.store = next;
+        }
+
+        Ok(())
+    }
+
+    // Close the current store by opening a new in-memory store in its place.
     fn close(&mut self) {
-        let old_db_name = self.store.db_name.clone();
-        match self.store.close() {
-            Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-            Err(e) => println!("{}", e)
+        let old_db_name = self.db_name();
+        match self.open("") {
+            Ok(_) => println!("Database {:?} closed.", old_db_name),
+            Err(e) => eprintln!("{}", e),
         };
     }
 
@@ -160,54 +187,76 @@ impl Repl {
                 if msg.is_some() {
                     println!(".{} - {}", arg, msg.unwrap());
                 } else {
-                    println!("Unrecognised command {}", arg);
+                    eprintln!("Unrecognised command {}", arg);
                 }
             }
         }
     }
 
     pub fn execute_query(&self, query: String) {
-        let results = match self.store.query(query){
-            Result::Ok(vals) => {
-                vals
-            },
-            Result::Err(err) => return println!("{:?}.", err),
-        };
+        self.store.q_once(query.as_str(), None)
+            .map_err(|e| e.into())
+            .and_then(|o| self.print_results(o))
+            .map_err(|err| {
+                eprintln!("{:?}.", err);
+            }).ok();
+    }
 
-        if results.is_empty() {
-            println!("No results found.")
+    fn print_results(&self, query_output: QueryOutput) -> Result<(), ::errors::Error> {
+        let stdout = ::std::io::stdout();
+        let mut output = TabWriter::new(stdout.lock());
+
+        // Print the column headers.
+        for e in query_output.spec.columns() {
+            write!(output, "| {}\t", e)?;
         }
+        writeln!(output, "|")?;
+        for _ in 0..query_output.spec.expected_column_count() {
+            write!(output, "---\t")?;
+        }
+        writeln!(output, "")?;
 
-        let mut output:String = String::new();
-        match results {
-            QueryResults::Scalar(Some(val)) => {
-                output.push_str(&self.typed_value_as_string(val) );
-            },
-            QueryResults::Tuple(Some(vals)) => {
-                for val in vals {
-                    output.push_str(&format!("{}\t", self.typed_value_as_string(val)));
+        match query_output.results {
+            QueryResults::Scalar(v) => {
+                if let Some(val) = v {
+                    writeln!(output, "| {}\t |", &self.typed_value_as_string(val))?;
                 }
             },
+
+            QueryResults::Tuple(vv) => {
+                if let Some(vals) = vv {
+                    for val in vals {
+                        write!(output, "| {}\t", self.typed_value_as_string(val))?;
+                    }
+                    writeln!(output, "|")?;
+                }
+            },
+
             QueryResults::Coll(vv) => {
                 for val in vv {
-                    output.push_str(&format!("{}\n", self.typed_value_as_string(val)));
+                    writeln!(output, "| {}\t|", self.typed_value_as_string(val))?;
                 }
             },
+
             QueryResults::Rel(vvv) => {
                 for vv in vvv {
                     for v in vv {
-                        output.push_str(&format!("{}\t", self.typed_value_as_string(v)));
+                        write!(output, "| {}\t", self.typed_value_as_string(v))?;
                     }
-                    output.push_str("\n");
+                    writeln!(output, "|")?;
                 }
             },
-            _ => output.push_str(&format!("No results found."))
         }
-        println!("\n{}", output);
+        for _ in 0..query_output.spec.expected_column_count() {
+            write!(output, "---\t")?;
+        }
+        writeln!(output, "")?;
+        output.flush()?;
+        Ok(())
     }
 
     pub fn explain_query(&self, query: String) {
-        match self.store.explain_query(query) {
+        match self.store.q_explain(query.as_str(), None) {
             Result::Err(err) =>
                 println!("{:?}.", err),
             Result::Ok(QueryExplanation::KnownEmpty(empty_because)) =>
@@ -244,10 +293,17 @@ impl Repl {
     }
 
     pub fn execute_transact(&mut self, transaction: String) {
-        match self.store.transact(transaction) {
+        match self.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
-            Result::Err(err) => println!("{:?}.", err),
+            Result::Err(err) => eprintln!("Error: {:?}.", err),
         }
+    }
+
+    fn transact(&mut self, transaction: String) -> ::mentat::errors::Result<TxReport> {
+        let mut tx = self.store.begin_transaction()?;
+        let report = tx.transact(&transaction)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     fn typed_value_as_string(&self, value: TypedValue) -> String {
@@ -261,12 +317,5 @@ impl Repl {
             TypedValue::String(s) => format!("{:?}", s.to_string()),
             TypedValue::Uuid(u) => format!("{}", u),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
     }
 }
