@@ -34,6 +34,7 @@ use mentat_core::intern_set::InternSet;
 
 use mentat_db::db;
 use mentat_db::{
+    to_namespaced_keyword,
     transact,
     transact_terms,
     PartitionMap,
@@ -48,7 +49,12 @@ use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
+use entity_builder::{
+    InProgressBuilder,
+};
+
 use errors::*;
+
 use query::{
     lookup_value_for_attribute,
     lookup_values_for_attribute,
@@ -57,10 +63,6 @@ use query::{
     QueryExplanation,
     QueryInputs,
     QueryOutput,
-};
-
-use entity_builder::{
-    InProgressBuilder,
 };
 
 /// Connection metadata required to query from, or apply transactions to, a Mentat store.

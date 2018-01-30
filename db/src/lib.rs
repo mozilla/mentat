@@ -33,18 +33,18 @@ use itertools::Itertools;
 
 pub use errors::{Error, ErrorKind, ResultExt, Result};
 
+mod add_retract_alter_set;
 pub mod db;
 mod bootstrap;
 pub mod debug;
-mod add_retract_alter_set;
 pub mod entids;
 pub mod errors;
+pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod metadata;
 mod schema;
-pub mod types;
-pub mod internal_types;    // pub because we need them for building entities programmatically.
-mod upsert_resolution;
 mod tx;
+pub mod types;
+mod upsert_resolution;
 
 // Export these for reference from tests. cfg(test) should work, but doesn't.
 // #[cfg(test)]
@@ -57,10 +57,11 @@ pub use schema::{
     AttributeBuilder,
     AttributeValidation,
 };
-
 pub use bootstrap::{
     CORE_SCHEMA_VERSION,
 };
+
+use edn::symbols;
 
 pub use entids::{
     DB_SCHEMA_CORE,
@@ -81,8 +82,6 @@ pub use types::{
     PartitionMap,
     TxReport,
 };
-
-use edn::symbols;
 
 pub fn to_namespaced_keyword(s: &str) -> Result<symbols::NamespacedKeyword> {
     let splits = [':', '/'];
