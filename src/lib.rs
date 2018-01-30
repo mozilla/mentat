@@ -80,9 +80,12 @@ pub fn get_name() -> String {
     return String::from("mentat");
 }
 
-// Will ultimately not return the sqlite connection directly
-pub fn get_connection() -> Connection {
-    return Connection::open_in_memory().unwrap();
+/// Open a Mentat store at the provided path.
+pub fn open(path: &str) -> errors::Result<(rusqlite::Connection, Conn)> {
+    let mut connection = new_connection(path)?;
+    let conn = Conn::connect(&mut connection)?;
+    Ok((connection, conn))
+}
 
 pub use query::{
     IntoResult,

@@ -25,7 +25,6 @@
 //! ```
 //! #[macro_use(kw)]
 //! extern crate mentat;
-//! extern crate mentat_db;          // So we can use SQLite connection utilities.
 //!
 //! use mentat::{
 //!     Conn,
@@ -41,8 +40,7 @@
 //! };
 //!
 //! fn main() {
-//!     let mut sqlite = mentat_db::db::new_connection("").expect("SQLite connected");
-//!     let mut conn = Conn::connect(&mut sqlite).expect("connected");
+//!     let (mut sqlite, mut conn) = mentat::open("").expect("connected");
 //!
 //!     {
 //!         // Read the list of installed vocabularies.
@@ -574,17 +572,11 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
 
 #[cfg(test)]
 mod tests {
-    use ::{
-        Conn,
-        new_connection,
-    };
-
     use super::HasVocabularies;
 
     #[test]
     fn test_read_vocabularies() {
-        let mut sqlite = new_connection("").expect("could open conn");
-        let mut conn = Conn::connect(&mut sqlite).expect("could open store");
+        let (mut sqlite, mut conn) = ::open("").expect("opened");
         let vocabularies = conn.begin_read(&mut sqlite).expect("in progress")
                                .read_vocabularies().expect("OK");
         assert_eq!(vocabularies.len(), 1);
@@ -594,9 +586,8 @@ mod tests {
 
     #[test]
     fn test_core_schema() {
-        let mut c = new_connection("").expect("could open conn");
-        let mut conn = Conn::connect(&mut c).expect("could open store");
-        let in_progress = conn.begin_transaction(&mut c).expect("in progress");
+        let (mut sqlite, mut conn) = ::open("").expect("opened");
+        let in_progress = conn.begin_transaction(&mut sqlite).expect("in progress");
         let vocab = in_progress.read_vocabularies().expect("vocabulary");
         assert_eq!(1, vocab.len());
         assert_eq!(1, vocab.get(&kw!(:db.schema/core)).expect("core vocab").version);

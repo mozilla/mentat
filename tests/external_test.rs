@@ -20,7 +20,7 @@ fn can_import_sqlite() {
         data: Option<Vec<u8>>,
     }
 
-    let conn = mentat::get_connection();
+    let conn = mentat::new_connection("").expect("SQLite connected");
 
     conn.execute("CREATE TABLE person (
                   id              INTEGER PRIMARY KEY,
