@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#![macro_use]
+
 // We have a little bit of a dilemma in Mentat.
 // The public data format for transacting is, fundamentally, a big string: EDN.
 // The internal data format for transacting is required to encode the complexities of
@@ -23,7 +25,7 @@
 //             a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
 //             v: Value::Text("v1".into()),
 //         }),
-//         a: Entid::Ident(NamespacedKeyword::new("test", "a")),
+//         a: Entid::Ident(kw!(:test/a)),
 //         v: AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("v".into()), Span(44, 47))),
 //     }));
 //
@@ -383,9 +385,9 @@ mod testing {
         let mut sqlite = mentat_db::db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
 
-        let foo_one = NamespacedKeyword::new("foo", "one");
-        let foo_many = NamespacedKeyword::new("foo", "many");
-        let foo_ref = NamespacedKeyword::new("foo", "ref");
+        let foo_one = kw!(:foo/one);
+        let foo_many = kw!(:foo/many);
+        let foo_ref = kw!(:foo/ref);
         let report: TxReport;
 
         // Give ourselves a schema to work with!

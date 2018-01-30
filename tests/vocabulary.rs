@@ -11,6 +11,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
@@ -47,16 +48,16 @@ use mentat::errors::{
 
 lazy_static! {
     static ref FOO_NAME: NamespacedKeyword = {
-        NamespacedKeyword::new("foo", "name")
+        kw!(:foo/name)
     };
 
     static ref FOO_MOMENT: NamespacedKeyword = {
-        NamespacedKeyword::new("foo", "moment")
+        kw!(:foo/moment)
     };
 
     static ref FOO_VOCAB: vocabulary::Definition = {
         vocabulary::Definition {
-            name: NamespacedKeyword::new("org.mozilla", "foo"),
+            name: kw!(:org.mozilla/foo),
             version: 1,
             attributes: vec![
                 (FOO_NAME.clone(),
@@ -129,24 +130,24 @@ fn test_add_vocab() {
                   .fulltext(true)
                   .build();
     let bar_only = vec![
-        (NamespacedKeyword::new("foo", "bar"), bar.clone()),
+        (kw!(:foo/bar), bar.clone()),
     ];
     let baz_only = vec![
-        (NamespacedKeyword::new("foo", "baz"), baz.clone()),
+        (kw!(:foo/baz), baz.clone()),
     ];
     let bar_and_baz = vec![
-        (NamespacedKeyword::new("foo", "bar"), bar.clone()),
-        (NamespacedKeyword::new("foo", "baz"), baz.clone()),
+        (kw!(:foo/bar), bar.clone()),
+        (kw!(:foo/baz), baz.clone()),
     ];
 
     let foo_v1_a = vocabulary::Definition {
-        name: NamespacedKeyword::new("org.mozilla", "foo"),
+        name: kw!(:org.mozilla/foo),
         version: 1,
         attributes: bar_only.clone(),
     };
 
     let foo_v1_b = vocabulary::Definition {
-        name: NamespacedKeyword::new("org.mozilla", "foo"),
+        name: kw!(:org.mozilla/foo),
         version: 1,
         attributes: bar_and_baz.clone(),
     };
@@ -244,11 +245,11 @@ fn test_add_vocab() {
                             .multival(true)
                             .build();
     let bar_and_malformed_baz = vec![
-        (NamespacedKeyword::new("foo", "bar"), bar),
-        (NamespacedKeyword::new("foo", "baz"), malformed_baz.clone()),
+        (kw!(:foo/bar), bar),
+        (kw!(:foo/baz), malformed_baz.clone()),
     ];
     let foo_v1_malformed = vocabulary::Definition {
-        name: NamespacedKeyword::new("org.mozilla", "foo"),
+        name: kw!(:org.mozilla/foo),
         version: 1,
         attributes: bar_and_malformed_baz.clone(),
     };

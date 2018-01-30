@@ -11,6 +11,7 @@
 extern crate chrono;
 extern crate time;
 
+#[macro_use]
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
@@ -482,9 +483,9 @@ fn test_lookup() {
     ]"#).unwrap().tempids;
 
     let entid = ids.get("b").unwrap();
-    let foo_date = NamespacedKeyword::new("foo", "date");
-    let foo_many = NamespacedKeyword::new("foo", "many");
-    let db_ident = NamespacedKeyword::new("db", "ident");
+    let foo_date = kw!(:foo/date);
+    let foo_many = kw!(:foo/many);
+    let db_ident = kw!(:db/ident);
     let expected = TypedValue::Instant(DateTime::<Utc>::from_str("2016-01-01T11:00:00.000Z").unwrap());
 
     // Fetch a value.
