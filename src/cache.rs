@@ -159,7 +159,10 @@ mod tests {
             {  :foo/bar        200
                :foo/baz        true }]"#).expect("transaction expected to succeed");
         let schema = conn.current_schema();
-        conn.attribute_cache().add_to_cache(&sqlite, &schema, NamespacedKeyword::new("foo", "bar"), false ).expect("No errors on add to cache");
+        let kw = NamespacedKeyword::new("foo", "bar");
+        conn.attribute_cache().add_to_cache(&sqlite, &schema, kw.clone(), false ).expect("No errors on add to cache");
+        let entid = schema.get_entid(&kw).expect("expected entid for keyword");
+        assert!(conn.attribute_cache().is_cached(&entid));
     }
 
     #[test]
@@ -205,6 +208,8 @@ mod tests {
         let kw = NamespacedKeyword::new("foo", "bar");
 
         conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), false).expect("No errors on add to cache");
+        let entid = schema.get_entid(&kw).expect("expected entid for keyword");
+        assert!(conn.attribute_cache().is_cached(&entid));
         conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), true).expect("No errors on add to cache");
     }
 
@@ -227,11 +232,16 @@ mod tests {
         let kwr = NamespacedKeyword::new("foo", "bar");
         let kwz = NamespacedKeyword::new("foo", "baz");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr, false).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr.clone(), false).expect("No errors on add to cache");
+        let entid = schema.get_entid(&kwr).expect("expected entid for keyword");
+        assert!(conn.attribute_cache().is_cached(&entid));
         conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone(), true).expect("No errors on add to cache");
+        let entid = schema.get_entid(&kwz).expect("expected entid for keyword");
+        assert!(conn.attribute_cache().is_cached(&entid));
 
         // test that we can remove an item from cache
         conn.attribute_cache().remove_from_cache(&schema,kwz).expect("No errors on remove from cache");
+        assert!(!conn.attribute_cache().is_cached(&entid));
     }
 
     #[test]
