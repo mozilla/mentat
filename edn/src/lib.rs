@@ -42,4 +42,10 @@ pub use types::{
     Value,
     ValueAndSpan,
 };
-pub use symbols::{Keyword, NamespacedKeyword, PlainSymbol, NamespacedSymbol};
+
+pub use symbols::{
+    Keyword,
+    NamespacedKeyword,
+    NamespacedSymbol,
+    PlainSymbol,
+};

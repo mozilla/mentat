@@ -8,15 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate chrono;
 extern crate enum_set;
+extern crate ordered_float;
+extern crate uuid;
 
 #[macro_use]
 extern crate lazy_static;
-extern crate ordered_float;
 
-extern crate chrono;
 extern crate edn;
-extern crate uuid;
 
 pub mod values;
 
