@@ -87,5 +87,10 @@ error_chain! {
             description("missing core vocabulary")
             display("missing core attribute {}", kw)
         }
+
+        CacheMiss(name: String) {
+            description("Attribute is not to be found in the cache")
+            display("Attribute not present in cache: '{}'", name)
+        }
     }
 }

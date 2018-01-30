@@ -49,6 +49,10 @@ use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
+use cache::{
+    AttributeCache,
+};
+
 use entity_builder::{
     InProgressBuilder,
 };
@@ -104,6 +108,8 @@ pub struct Conn {
 
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
+
+    attribute_cache: Mutex<AttributeCache>,
 }
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -387,7 +393,8 @@ impl Conn {
     // Intentionally not public.
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
-            metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema)))
+            metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema))),
+            attribute_cache: Mutex::new(AttributeCache::new())
         }
     }
 
@@ -506,6 +513,32 @@ impl Conn {
         in_progress.commit()?;
 
         Ok(report)
+    }
+
+    // TODO: Figure out how to set max cache size and max result size and implement those on cache
+    // Question: Should those be only for lazy cache? The eager cache could perhaps grow infinitely
+    // and it becomes up to the client to manage memory usage by excising from cache when no longer
+    // needed
+    pub fn cache(&mut self,
+                 sqlite: &mut rusqlite::Connection,
+                 attribute: &str,
+                 should_cache: bool,
+                 lazy: bool) -> Result<()> {
+        // fetch the attribute for the given name
+        let schema = self.current_schema();
+
+        if let Some(attr) = to_namespaced_keyword(&attribute).map(|kw| schema.get_entid(&kw))? {
+            let mut cache = self.attribute_cache.lock().unwrap();
+            if should_cache {
+                // add to cache
+                cache.add_to_cache(sqlite, &schema, attr.clone(), lazy)
+            } else {
+                // remove from cache
+                cache.remove_from_cache(attr.clone())
+            }
+        } else {
+            bail!(ErrorKind::UnknownAttribute(attribute.to_string()))
+        }
     }
 }
 
@@ -709,5 +742,88 @@ mod tests {
             Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(_)), _) => { },
             x => panic!("expected EDN parse error, got {:?}", x),
         }
+    }
+
+    #[test]
+    fn test_add_to_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"
+                                 [:db/add 111 :db/ident :foo/bar]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/ident :foo/baz]
+                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+
+        assert_eq!(Ok(()), conn.cache(sqlite,":foo/bar", true));
+    }
+
+    #[test]
+    fn test_add_to_cache_failure_no_attribute() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"
+                                 [:db/add 111 :db/ident :foo/bar]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/ident :foo/baz]
+                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+
+        assert_eq!(Err("Attribute for ident {} not present in current schema"), conn.cache(sqlite,"", true));
+    }
+
+    #[test]
+    fn test_add_to_cache_wrong_attribute() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"
+                                 [:db/add 111 :db/ident :foo/bar]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/ident :foo/baz]
+                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+
+        assert_eq!(Err("Attribute for ident {} not present in current schema"), conn.cache(sqlite,":foo/bat", true));
+    }
+
+    #[test]
+    fn test_add_attribute_already_in_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"
+                                 [:db/add 111 :db/ident :foo/bar]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/ident :foo/baz]
+                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+
+        assert_eq!(Ok(()), conn.cache(sqlite,":foo/bar", true));
+        assert_eq!(Err(""), conn.cache(sqlite,":foo/bar", true));
+    }
+
+    #[test]
+    fn test_remove_from_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"
+                                 [:db/add 111 :db/ident :foo/bar]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/ident :foo/baz]
+                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+
+        assert_eq!(Ok(()), conn.cache(sqlite,":foo/bar", true));
+        assert_eq!(Ok(()), conn.cache(sqlite,":foo/baz", true));
+
+        // test that we can remove an item from cache
+        assert_eq!(Ok(()), conn.cache(sqlite,":foo/baz", false));
+    }
+
+    #[test]
+    fn test_remove_attribute_not_in_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"
+                                 [:db/add 111 :db/ident :foo/bar]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 222 :db/ident :foo/baz]
+                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+
+        assert_eq!(Err(""), conn.cache(sqlite,":foo/baz", false));
     }
 }
