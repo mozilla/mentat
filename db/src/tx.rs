@@ -85,6 +85,7 @@ use mentat_core::{
     Schema,
     Utc,
     attribute,
+    now,
 };
 
 use mentat_core::intern_set::InternSet;
@@ -654,7 +655,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        tx_instant = self.tx_instant.unwrap_or(::now());
+        tx_instant = self.tx_instant.unwrap_or_else(now);
 
         // Transact [:db/add :db/txInstant NOW :db/tx] if it doesn't exist.
         if self.tx_instant == None {

@@ -28,11 +28,6 @@ use std::iter::repeat;
 
 use itertools::Itertools;
 
-use mentat_core::{
-    DateTime,
-    Utc,
-};
-
 pub use errors::{Error, ErrorKind, ResultExt, Result};
 
 pub mod db;
@@ -115,9 +110,4 @@ pub fn repeat_values(values_per_tuple: usize, tuples: usize) -> String {
     // Like "(?, ?, ?), (?, ?, ?)".
     let values: String = repeat(inner).take(tuples).join(", ");
     values
-}
-
-/// Return the current time as a UTC `DateTime` instance.
-pub fn now() -> DateTime<Utc> {
-    Utc::now()
 }
