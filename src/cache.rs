@@ -29,6 +29,15 @@ use query::{
     Variable,
 };
 
+pub enum CacheType {
+    Lazy,
+    Eager,
+}
+
+pub enum CacheAction {
+    Add,
+    Remove,
+}
 
 pub struct AttributeCache {
     eager_cache: HashMap<KnownEntid, HashMap<TypedValue, TypedValue>>,   // values keyed by attribute
@@ -50,25 +59,20 @@ impl AttributeCache {
         self.lazy_cache.contains_key(attribute) || self.eager_cache.contains_key(attribute)
     }
 
-    pub fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword, lazy: bool) -> Result<()> {
+    pub fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword, cache_type: CacheType) -> Result<()> {
         let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
-        println!("caching entity {:?} for {:?}", entid, attribute);
         // check to see if already in cache, return error if so.
         if self.is_cached(&entid) {
-            println!("attribute is already cached");
             return Ok(());
         }
-        if lazy {
-            println!("inserting into lazy cache");
-            self.lazy_cache.insert(entid.clone(), HashMap::new());
-        } else {
-            println!("inserting into eager cache");
-            // fetch results and add to cache
-            let eager_values = self.values_for_attribute(sqlite, schema, &entid)?;
-            println!("caching values {:?}", eager_values);
-            self.eager_cache.insert(entid.clone(), eager_values);
-        }
-        println!("bumping connection count");
+        match cache_type {
+            CacheType::Lazy => self.lazy_cache.insert(entid.clone(), HashMap::new()),
+            CacheType::Eager => {
+                // fetch results and add to cache
+                let eager_values = self.values_for_attribute(sqlite, schema, &entid)?;
+                self.eager_cache.insert(entid.clone(), eager_values)
+            },
+        };
         *self.connection_cache.entry(entid.clone()).or_insert(0) += 1;
         Ok(())
     }
@@ -160,7 +164,7 @@ mod tests {
                :foo/baz        true }]"#).expect("transaction expected to succeed");
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bar");
-        conn.attribute_cache().add_to_cache(&sqlite, &schema, kw.clone(), false ).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&sqlite, &schema, kw.clone(), CacheType::Eager ).expect("No errors on add to cache");
         let entid = schema.get_entid(&kw).expect("expected entid for keyword");
         assert!(conn.attribute_cache().is_cached(&entid));
     }
@@ -182,7 +186,7 @@ mod tests {
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bat");
 
-        let res = conn.attribute_cache().add_to_cache(&sqlite, &schema,kw.clone(), false);
+        let res = conn.attribute_cache().add_to_cache(&sqlite, &schema,kw.clone(), CacheType::Eager);
         match res.unwrap_err() {
             Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, kw.to_string()),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
@@ -207,10 +211,10 @@ mod tests {
 
         let kw = NamespacedKeyword::new("foo", "bar");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), false).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), CacheType::Eager).expect("No errors on add to cache");
         let entid = schema.get_entid(&kw).expect("expected entid for keyword");
         assert!(conn.attribute_cache().is_cached(&entid));
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), true).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), CacheType::Lazy).expect("No errors on add to cache");
     }
 
     #[test]
@@ -232,10 +236,10 @@ mod tests {
         let kwr = NamespacedKeyword::new("foo", "bar");
         let kwz = NamespacedKeyword::new("foo", "baz");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr.clone(), false).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr.clone(), CacheType::Eager).expect("No errors on add to cache");
         let entid = schema.get_entid(&kwr).expect("expected entid for keyword");
         assert!(conn.attribute_cache().is_cached(&entid));
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone(), true).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone(), CacheType::Lazy).expect("No errors on add to cache");
         let entid = schema.get_entid(&kwz).expect("expected entid for keyword");
         assert!(conn.attribute_cache().is_cached(&entid));
 

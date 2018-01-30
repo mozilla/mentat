@@ -49,8 +49,11 @@ use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
-use cache::{
-    AttributeCache,
+use cache::AttributeCache;
+
+pub use cache::{
+    CacheType,
+    CacheAction,
 };
 
 use entity_builder::{
@@ -526,19 +529,18 @@ impl Conn {
     pub fn cache(&mut self,
                  sqlite: &mut rusqlite::Connection,
                  attribute: &str,
-                 should_cache: bool,
-                 lazy: bool) -> Result<()> {
+                 cache_action: CacheAction,
+                 cache_type: CacheType) -> Result<()> {
         // fetch the attribute for the given name
         let schema = self.current_schema();
 
         let attr = to_namespaced_keyword(&attribute)?;
         let mut cache = self.attribute_cache.lock().unwrap();
-        if should_cache {
+        match cache_action {
             // add to cache
-            cache.add_to_cache(sqlite, &schema, attr.clone(), lazy)
-        } else {
+            CacheAction::Add => cache.add_to_cache(sqlite, &schema, attr.clone(), cache_type),
             // remove from cache
-            cache.remove_from_cache(&schema, attr.clone())
+            CacheAction::Remove => cache.remove_from_cache(&schema, attr.clone()),
         }
     }
 }
@@ -755,7 +757,7 @@ mod tests {
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).unwrap();
 
-        let res = conn.cache(&mut sqlite,"", true, false);
+        let res = conn.cache(&mut sqlite,"", CacheAction::Add, CacheType::Lazy);
         match res.unwrap_err() {
             Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(msg)), _) => assert_eq!(msg, "InvalidNamespacedKeyword: "),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
