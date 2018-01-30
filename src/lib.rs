@@ -31,7 +31,20 @@ extern crate mentat_tx;
 extern crate mentat_tx_parser;
 
 pub use mentat_core::{
+    Attribute,
+    Entid,
+    HasSchema,
     NamespacedKeyword,
+    TypedValue,
+    Uuid,
+    ValueType,
+};
+
+pub use mentat_db::{
+    CORE_SCHEMA_VERSION,
+    DB_SCHEMA_CORE,
+    TxReport,
+    new_connection,
 };
 
 /// Produce the appropriate `NamespacedKeyword` for the provided namespace and name.
@@ -70,20 +83,6 @@ pub fn get_name() -> String {
 // Will ultimately not return the sqlite connection directly
 pub fn get_connection() -> Connection {
     return Connection::open_in_memory().unwrap();
-
-pub use mentat_core::{
-    Attribute,
-    Entid,
-    TypedValue,
-    Uuid,
-    ValueType,
-};
-
-pub use mentat_db::{
-    CORE_SCHEMA_VERSION,
-    DB_SCHEMA_CORE,
-    new_connection,
-};
 
 pub use query::{
     IntoResult,
