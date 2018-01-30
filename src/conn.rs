@@ -10,7 +10,7 @@
 
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite;
 use rusqlite::{
@@ -421,6 +421,10 @@ impl Conn {
         self.metadata.lock().unwrap().schema.clone()
     }
 
+    pub fn attribute_cache(&self) -> MutexGuard<AttributeCache> {
+        self.attribute_cache.lock().unwrap()
+    }
+
     /// Query the Mentat store, using the given connection and the current metadata.
     pub fn q_once<T>(&self,
                      sqlite: &rusqlite::Connection,
@@ -527,17 +531,14 @@ impl Conn {
         // fetch the attribute for the given name
         let schema = self.current_schema();
 
-        if let Some(attr) = to_namespaced_keyword(&attribute).map(|kw| schema.get_entid(&kw))? {
-            let mut cache = self.attribute_cache.lock().unwrap();
-            if should_cache {
-                // add to cache
-                cache.add_to_cache(sqlite, &schema, attr.clone(), lazy)
-            } else {
-                // remove from cache
-                cache.remove_from_cache(attr.clone())
-            }
+        let attr = to_namespaced_keyword(&attribute)?;
+        let mut cache = self.attribute_cache.lock().unwrap();
+        if should_cache {
+            // add to cache
+            cache.add_to_cache(sqlite, &schema, attr.clone(), lazy)
         } else {
-            bail!(ErrorKind::UnknownAttribute(attribute.to_string()))
+            // remove from cache
+            cache.remove_from_cache(&schema, attr.clone())
         }
     }
 }
@@ -745,85 +746,19 @@ mod tests {
     }
 
     #[test]
-    fn test_add_to_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"
-                                 [:db/add 111 :db/ident :foo/bar]
-                                 [:db/add 111 :db/valueType :db.type/long]
-                                 [:db/add 222 :db/ident :foo/baz]
-                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
-
-        assert_eq!(Ok(()), conn.cache(sqlite,":foo/bar", true));
-    }
-
-    #[test]
     fn test_add_to_cache_failure_no_attribute() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"
-                                 [:db/add 111 :db/ident :foo/bar]
-                                 [:db/add 111 :db/valueType :db.type/long]
-                                 [:db/add 222 :db/ident :foo/baz]
-                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).unwrap();
 
-        assert_eq!(Err("Attribute for ident {} not present in current schema"), conn.cache(sqlite,"", true));
-    }
-
-    #[test]
-    fn test_add_to_cache_wrong_attribute() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"
-                                 [:db/add 111 :db/ident :foo/bar]
-                                 [:db/add 111 :db/valueType :db.type/long]
-                                 [:db/add 222 :db/ident :foo/baz]
-                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
-
-        assert_eq!(Err("Attribute for ident {} not present in current schema"), conn.cache(sqlite,":foo/bat", true));
-    }
-
-    #[test]
-    fn test_add_attribute_already_in_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"
-                                 [:db/add 111 :db/ident :foo/bar]
-                                 [:db/add 111 :db/valueType :db.type/long]
-                                 [:db/add 222 :db/ident :foo/baz]
-                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
-
-        assert_eq!(Ok(()), conn.cache(sqlite,":foo/bar", true));
-        assert_eq!(Err(""), conn.cache(sqlite,":foo/bar", true));
-    }
-
-    #[test]
-    fn test_remove_from_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"
-                                 [:db/add 111 :db/ident :foo/bar]
-                                 [:db/add 111 :db/valueType :db.type/long]
-                                 [:db/add 222 :db/ident :foo/baz]
-                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
-
-        assert_eq!(Ok(()), conn.cache(sqlite,":foo/bar", true));
-        assert_eq!(Ok(()), conn.cache(sqlite,":foo/baz", true));
-
-        // test that we can remove an item from cache
-        assert_eq!(Ok(()), conn.cache(sqlite,":foo/baz", false));
-    }
-
-    #[test]
-    fn test_remove_attribute_not_in_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"
-                                 [:db/add 111 :db/ident :foo/bar]
-                                 [:db/add 111 :db/valueType :db.type/long]
-                                 [:db/add 222 :db/ident :foo/baz]
-                                 [:db/add 222 :db/valueType :db.type/bool]"#).unwrap();
-
-        assert_eq!(Err(""), conn.cache(sqlite,":foo/baz", false));
+        let res = conn.cache(&mut sqlite,"", true, false);
+        match res.unwrap_err() {
+            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(msg)), _) => assert_eq!(msg, "InvalidNamespacedKeyword: "),
+            x => panic!("expected UnknownAttribute error, got {:?}", x),
+        }
     }
 }

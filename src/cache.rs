@@ -14,7 +14,9 @@ use rusqlite;
 
 use errors::*;
 use mentat_core::{
+    HasSchema,
     KnownEntid,
+    NamespacedKeyword,
     Schema,
     TypedValue,
 };
@@ -48,19 +50,26 @@ impl AttributeCache {
         self.lazy_cache.contains_key(attribute) || self.eager_cache.contains_key(attribute)
     }
 
-    pub fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: KnownEntid, lazy: bool) -> Result<()> {
+    pub fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword, lazy: bool) -> Result<()> {
+        let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+        println!("caching entity {:?} for {:?}", entid, attribute);
         // check to see if already in cache, return error if so.
-        if self.is_cached(&attribute) {
+        if self.is_cached(&entid) {
+            println!("attribute is already cached");
             return Ok(());
         }
         if lazy {
-            self.lazy_cache.insert(attribute.clone(), HashMap::new());
+            println!("inserting into lazy cache");
+            self.lazy_cache.insert(entid.clone(), HashMap::new());
         } else {
+            println!("inserting into eager cache");
             // fetch results and add to cache
-            let eager_values = self.values_for_attribute(sqlite, schema, &attribute)?;
-            self.eager_cache.insert(attribute.clone(), eager_values);
+            let eager_values = self.values_for_attribute(sqlite, schema, &entid)?;
+            println!("caching values {:?}", eager_values);
+            self.eager_cache.insert(entid.clone(), eager_values);
         }
-        *self.connection_cache.entry(attribute.clone()).or_insert(0) += 1;
+        println!("bumping connection count");
+        *self.connection_cache.entry(entid.clone()).or_insert(0) += 1;
         Ok(())
     }
 
@@ -79,48 +88,173 @@ impl AttributeCache {
             }))
     }
 
-    pub fn remove_from_cache(&mut self, attribute: KnownEntid) -> Result<()> {
-        if !self.is_cached(&attribute) {
-            bail!(ErrorKind::CacheMiss(String::new()))
+    pub fn remove_from_cache<'schema>(&mut self, schema: &'schema Schema, attribute: NamespacedKeyword) -> Result<()> {
+        let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+        if !self.is_cached(&entid) {
+            bail!(ErrorKind::CacheMiss(attribute.to_string()))
         }
-        if let Some(x) = self.connection_cache.get_mut(&attribute) {
+        if let Some(x) = self.connection_cache.get_mut(&entid) {
             *x -= 1;
             if *x == 0 {
-                self.eager_cache.remove(&attribute);
-                self.lazy_cache.remove(&attribute);
+                self.eager_cache.remove(&entid);
+                self.lazy_cache.remove(&entid);
             }
         }
         Ok(())
     }
 
-    pub fn fetch_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: KnownEntid) -> Result<HashMap<TypedValue, TypedValue>> {
-        if !self.is_cached(&attribute) {
-            bail!(ErrorKind::CacheMiss(String::new()))
+    pub fn fetch_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword) -> Result<HashMap<TypedValue, TypedValue>> {
+        let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+        if !self.is_cached(&entid) {
+            bail!(ErrorKind::CacheMiss(attribute.to_string()))
         }
-        if let Some(res) = self.eager_cache.get(&attribute) {
+        if let Some(res) = self.eager_cache.get(&entid) {
             Ok(res.clone())
         } else {
-            let res = self.values_for_attribute(sqlite, schema, &attribute)?;
-            self.lazy_cache.insert(attribute.clone(), res.clone());
+            let res = self.values_for_attribute(sqlite, schema, &entid)?;
+            self.lazy_cache.insert(entid.clone(), res.clone());
             Ok(res)
         }
     }
 
-    pub fn fetch_attribute_for_entid<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: KnownEntid, entid: KnownEntid) -> Result<TypedValue> {
-        if !self.is_cached(&attribute) {
-            bail!(ErrorKind::CacheMiss(String::new()))
+    pub fn fetch_attribute_for_entid<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword, entid: KnownEntid) -> Result<TypedValue> {
+        let attr_entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+        if !self.is_cached(&attr_entid) {
+            bail!(ErrorKind::CacheMiss(attribute.to_string()))
         }
         let entity: TypedValue = entid.into();
-        if let Some(res) = self.eager_cache.get(&attribute) {
+        if let Some(res) = self.eager_cache.get(&attr_entid) {
             let r = res.get(&entity).ok_or_else(|| ErrorKind::CacheMiss(String::new()))?;
             Ok(r.clone())
         } else {
-            let mut map = self.lazy_cache.entry(attribute).or_insert(HashMap::new());
+            let mut map = self.lazy_cache.entry(attr_entid).or_insert(HashMap::new());
             let res = map.entry(entity)
-                        .or_insert(lookup_value(sqlite, schema, entid, attribute)
-                            .map_err(|_e|ErrorKind::CacheMiss(String::new()))?
-                            .ok_or_else(||ErrorKind::CacheMiss(String::new()))?);
+                        .or_insert(lookup_value(sqlite, schema, entid, attr_entid)
+                            .map_err(|_e|ErrorKind::CacheMiss(attribute.to_string()))?
+                            .ok_or_else(||ErrorKind::CacheMiss(attribute.to_string()))?);
             Ok(res.clone())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mentat_db::db;
+    use conn::Conn;
+    use mentat_db::TxReport;
+
+    #[test]
+    fn test_add_to_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let schema = conn.current_schema();
+        conn.attribute_cache().add_to_cache(&sqlite, &schema, NamespacedKeyword::new("foo", "bar"), false ).expect("No errors on add to cache");
+    }
+
+    #[test]
+    fn test_add_to_cache_wrong_attribute() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let schema = conn.current_schema();
+        let kw = NamespacedKeyword::new("foo", "bat");
+
+        let res = conn.attribute_cache().add_to_cache(&sqlite, &schema,kw.clone(), false);
+        match res.unwrap_err() {
+            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, kw.to_string()),
+            x => panic!("expected UnknownAttribute error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_add_attribute_already_in_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let schema = conn.current_schema();
+
+        let kw = NamespacedKeyword::new("foo", "bar");
+
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), false).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), true).expect("No errors on add to cache");
+    }
+
+    #[test]
+    fn test_remove_from_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let schema = conn.current_schema();
+
+        let kwr = NamespacedKeyword::new("foo", "bar");
+        let kwz = NamespacedKeyword::new("foo", "baz");
+
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr, false).expect("No errors on add to cache");
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone(), true).expect("No errors on add to cache");
+
+        // test that we can remove an item from cache
+        conn.attribute_cache().remove_from_cache(&schema,kwz).expect("No errors on remove from cache");
+    }
+
+    #[test]
+    fn test_remove_attribute_not_in_cache() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+        let report = conn.transact(&mut sqlite, r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let schema = conn.current_schema();
+
+        let kw = NamespacedKeyword::new("foo", "baz");
+        let res = conn.attribute_cache().remove_from_cache(&schema, kw.clone());
+        match res.unwrap_err() {
+            Error(ErrorKind::CacheMiss(msg), _) => assert_eq!(msg, kw.to_string()),
+            x => panic!("expected CacheMiss error, got {:?}", x),
         }
     }
 }
