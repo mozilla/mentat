@@ -80,13 +80,6 @@ pub fn get_name() -> String {
     return String::from("mentat");
 }
 
-/// Open a Mentat store at the provided path.
-pub fn open(path: &str) -> errors::Result<(rusqlite::Connection, Conn)> {
-    let mut connection = new_connection(path)?;
-    let conn = Conn::connect(&mut connection)?;
-    Ok((connection, conn))
-}
-
 pub use query::{
     IntoResult,
     PlainSymbol,
@@ -103,6 +96,7 @@ pub use conn::{
     InProgress,
     Metadata,
     Queryable,
+    Store,
 };
 
 #[cfg(test)]

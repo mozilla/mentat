@@ -27,7 +27,7 @@
 //! extern crate mentat;
 //!
 //! use mentat::{
-//!     Conn,
+//!     Store,
 //!     ValueType,
 //! };
 //!
@@ -40,11 +40,11 @@
 //! };
 //!
 //! fn main() {
-//!     let (mut sqlite, mut conn) = mentat::open("").expect("connected");
+//!     let mut store = Store::open("").expect("connected");
 //!
 //!     {
 //!         // Read the list of installed vocabularies.
-//!         let reader = conn.begin_read(&mut sqlite).expect("began read");
+//!         let reader = store.begin_read().expect("began read");
 //!         let vocabularies = reader.read_vocabularies().expect("read");
 //!         for (name, vocabulary) in vocabularies.iter() {
 //!             println!("Vocab {} is at version {}.", name, vocabulary.version);
@@ -55,7 +55,7 @@
 //!     }
 //!
 //!     {
-//!         let mut in_progress = conn.begin_transaction(&mut sqlite).expect("began transaction");
+//!         let mut in_progress = store.begin_transaction().expect("began transaction");
 //!
 //!         // Make sure the core vocabulary exists.
 //!         in_progress.verify_core_schema().expect("verified");
@@ -569,13 +569,19 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
 
 #[cfg(test)]
 mod tests {
-    use super::HasVocabularies;
+    use ::{
+        Store,
+    };
+
+    use super::{
+        HasVocabularies,
+    };
 
     #[test]
     fn test_read_vocabularies() {
-        let (mut sqlite, mut conn) = ::open("").expect("opened");
-        let vocabularies = conn.begin_read(&mut sqlite).expect("in progress")
-                               .read_vocabularies().expect("OK");
+        let mut store = Store::open("").expect("opened");
+        let vocabularies = store.begin_read().expect("in progress")
+                                .read_vocabularies().expect("OK");
         assert_eq!(vocabularies.len(), 1);
         let core = vocabularies.get(&kw!(:db.schema/core)).expect("exists");
         assert_eq!(core.version, 1);
@@ -583,8 +589,8 @@ mod tests {
 
     #[test]
     fn test_core_schema() {
-        let (mut sqlite, mut conn) = ::open("").expect("opened");
-        let in_progress = conn.begin_transaction(&mut sqlite).expect("in progress");
+        let mut store = Store::open("").expect("opened");
+        let in_progress = store.begin_transaction().expect("in progress");
         let vocab = in_progress.read_vocabularies().expect("vocabulary");
         assert_eq!(1, vocab.len());
         assert_eq!(1, vocab.get(&kw!(:db.schema/core)).expect("core vocab").version);

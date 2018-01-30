@@ -104,6 +104,24 @@ pub struct Conn {
     // the schema changes. #315.
 }
 
+/// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
+/// for applications that don't require complex connection management.
+pub struct Store {
+    conn: Conn,
+    sqlite: rusqlite::Connection,
+}
+
+impl Store {
+    pub fn open(path: &str) -> Result<Store> {
+        let mut connection = ::new_connection(path)?;
+        let conn = Conn::connect(&mut connection)?;
+        Ok(Store {
+            conn: conn,
+            sqlite: connection,
+        })
+    }
+}
+
 pub trait Queryable {
     fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>>;
@@ -320,6 +338,46 @@ impl<'a, 'c> InProgress<'a, 'c> {
         }
 
         Ok(())
+    }
+}
+
+impl Store {
+    pub fn dismantle(self) -> (rusqlite::Connection, Conn) {
+        (self.sqlite, self.conn)
+    }
+
+    pub fn conn(&self) -> &Conn {
+        &self.conn
+    }
+
+    pub fn begin_read<'m>(&'m mut self) -> Result<InProgressRead<'m, 'm>> {
+        self.conn.begin_read(&mut self.sqlite)
+    }
+
+    pub fn begin_transaction<'m>(&'m mut self) -> Result<InProgress<'m, 'm>> {
+        self.conn.begin_transaction(&mut self.sqlite)
+    }
+}
+
+impl Queryable for Store {
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+        where T: Into<Option<QueryInputs>> {
+        self.conn.q_once(&self.sqlite, query, inputs)
+    }
+
+    fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
+        where T: Into<Option<QueryInputs>> {
+        self.conn.q_explain(&self.sqlite, query, inputs)
+    }
+
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+        where E: Into<Entid> {
+        self.conn.lookup_values_for_attribute(&self.sqlite, entity.into(), attribute)
+    }
+
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+        where E: Into<Entid> {
+        self.conn.lookup_value_for_attribute(&self.sqlite, entity.into(), attribute)
     }
 }
 
