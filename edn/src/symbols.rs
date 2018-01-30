@@ -10,6 +10,13 @@
 
 use std::fmt::{Display, Formatter};
 
+#[macro_export]
+macro_rules! ns_keyword {
+    ($ns: expr, $name: expr) => {{
+        $crate::NamespacedKeyword::new($ns, $name)
+    }}
+}
+
 /// A simplification of Clojure's Symbol.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct PlainSymbol(pub String);
@@ -300,13 +307,6 @@ impl Display for NamespacedKeyword {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, ":{}/{}", self.namespace, self.name)
     }
-}
-
-#[macro_export]
-macro_rules! ns_keyword {
-    ($ns: expr, $name: expr) => {{
-        $crate::NamespacedKeyword::new($ns, $name)
-    }}
 }
 
 #[test]
