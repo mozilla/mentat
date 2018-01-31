@@ -21,6 +21,7 @@ error_chain! {
 
     foreign_links {
         Rusqlite(rusqlite::Error);
+        IoError(::std::io::Error);
     }
 
     links {

@@ -14,11 +14,10 @@ use errors::Result;
 
 use mentat::{
     QueryExplanation,
+    QueryOutput,
     Queryable,
     Store,
 };
-
-use mentat::query::QueryResults;
 
 use mentat_db::types::TxReport;
 
@@ -56,7 +55,7 @@ impl OpenStore {
         self.open(None)
     }
 
-    pub fn query(&self, query: String) -> Result<QueryResults> {
+    pub fn query(&self, query: String) -> Result<QueryOutput> {
         Ok(self.store.q_once(&query, None)?)
     }
 

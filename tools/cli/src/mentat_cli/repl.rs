@@ -14,11 +14,9 @@ use std::process;
 
 use tabwriter::TabWriter;
 
-use mentat::query::{
-    QueryExplanation,
-};
-
 use mentat::{
+    QueryExplanation,
+    QueryOutput,
     QueryResults,
     TypedValue,
 };
@@ -175,47 +173,65 @@ impl Repl {
     }
 
     pub fn execute_query(&self, query: String) {
-        let results = match self.store.query(query){
-            Result::Ok(vals) => {
-                vals
-            },
-            Result::Err(err) => return println!("{:?}.", err),
-        };
+        self.store
+            .query(query)
+            .and_then(|o| self.print_results(o))
+            .map_err(|err| {
+                eprintln!("{:?}.", err);
+            }).ok();
+    }
 
-        if results.is_empty() {
-            println!("No results found.")
-        }
-
+    fn print_results(&self, query_output: QueryOutput) -> Result<(), ::errors::Error> {
         let stdout = ::std::io::stdout();
         let mut output = TabWriter::new(stdout.lock());
-        match results {
-            QueryResults::Scalar(Some(val)) => {
-                write!(output, "{}", &self.typed_value_as_string(val)).expect("write succeeded");
-            },
-            QueryResults::Tuple(Some(vals)) => {
-                for val in vals {
-                    write!(output, "{}\t", self.typed_value_as_string(val))
-                        .expect("write succeeded");
+
+        // Print the column headers.
+        for e in query_output.spec.columns() {
+            write!(output, "| {}\t", e)?;
+        }
+        writeln!(output, "|")?;
+        for _ in 0..query_output.spec.expected_column_count() {
+            write!(output, "---\t")?;
+        }
+        writeln!(output, "")?;
+
+        match query_output.results {
+            QueryResults::Scalar(v) => {
+                if let Some(val) = v {
+                    writeln!(output, "| {}\t |", &self.typed_value_as_string(val))?;
                 }
             },
+
+            QueryResults::Tuple(vv) => {
+                if let Some(vals) = vv {
+                    for val in vals {
+                        write!(output, "| {}\t", self.typed_value_as_string(val))?;
+                    }
+                    writeln!(output, "|")?;
+                }
+            },
+
             QueryResults::Coll(vv) => {
                 for val in vv {
-                    write!(output, "{}\n", self.typed_value_as_string(val))
-                        .expect("write succeeded");
+                    writeln!(output, "| {}\t|", self.typed_value_as_string(val))?;
                 }
             },
+
             QueryResults::Rel(vvv) => {
                 for vv in vvv {
                     for v in vv {
-                        write!(output, "{}\t", self.typed_value_as_string(v))
-                            .expect("write succeeded");
+                        write!(output, "| {}\t", self.typed_value_as_string(v))?;
                     }
-                    write!(output, "\n").expect("newline succeeded");
+                    writeln!(output, "|")?;
                 }
             },
-            _ => eprintln!("No results found."),
         }
-        output.flush().expect("flushed");
+        for _ in 0..query_output.spec.expected_column_count() {
+            write!(output, "---\t")?;
+        }
+        writeln!(output, "")?;
+        output.flush()?;
+        Ok(())
     }
 
     pub fn explain_query(&self, query: String) {
