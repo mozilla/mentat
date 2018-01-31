@@ -73,6 +73,7 @@ fn validate_attribute_map(entid_map: &EntidMap, attribute_map: &AttributeMap) ->
 
 #[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct AttributeBuilder {
+    helpful: bool,
     value_type: Option<ValueType>,
     multival: Option<bool>,
     unique: Option<Option<attribute::Unique>>,
@@ -82,6 +83,15 @@ pub struct AttributeBuilder {
 }
 
 impl AttributeBuilder {
+    /// Make a new AttributeBuilder for human consumption: it will help you
+    /// by flipping relevant flags.
+    pub fn new() -> Self {
+        AttributeBuilder {
+            helpful: true,
+            ..Default::default()
+        }
+    }
+
     pub fn value_type<'a>(&'a mut self, value_type: ValueType) -> &'a mut Self {
         self.value_type = Some(value_type);
         self
@@ -93,6 +103,9 @@ impl AttributeBuilder {
     }
 
     pub fn unique<'a>(&'a mut self, unique: attribute::Unique) -> &'a mut Self {
+        if self.helpful && unique == attribute::Unique::Identity {
+            self.index = Some(true);
+        }
         self.unique = Some(Some(unique));
         self
     }
@@ -104,6 +117,9 @@ impl AttributeBuilder {
 
     pub fn fulltext<'a>(&'a mut self, fulltext: bool) -> &'a mut Self {
         self.fulltext = Some(fulltext);
+        if self.helpful && fulltext {
+            self.index = Some(true);
+        }
         self
     }
 
