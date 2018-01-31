@@ -24,6 +24,7 @@
 
 // perhaps mentat has useful primitives, but let's begin by just "doing the work"
 
+use std::collections::HashMap;
 use rusqlite;
 
 use Result;
@@ -41,42 +42,18 @@ use mentat_core::{
 use mentat_core::SQLValueType;
 use edn::FromMicros;
 
-struct TxPart {
+pub struct TxPart {
     e: Entid,
     a: i32,
-    v: Vec<u8>,
+    v: Vec<u8>, // should be TypedValue to allow for variety of types
     added: i32,
-    value_type_tag: i32
+    value_type_tag: i32 // with v as TypedValue, shouldn't be necessary
 }
 
-struct Tx {
+pub struct Tx {
     tx: Entid,
     tx_instant: DateTime<Utc>,
     parts: Vec<TxPart>
-}
-
-impl Tx {
-    fn new(conn: &rusqlite::Connection, tx: i64, tx_instant: i64) -> Result<Tx> {
-        let mut stmt = conn.prepare("SELECT e,a,v,added,value_type_tag FROM transactions WHERE tx = :tx")?;
-        let mapped_rows = stmt.query_map_named(&[(":tx", &tx)], |row| TxPart {
-            e: row.get(0),
-            a: row.get(1),
-            v: row.get(2),
-            added: row.get(3),
-            value_type_tag: row.get(4)
-        })?;
-
-        let mut parts = Vec::new();
-        for part in mapped_rows {
-            parts.push(part?);
-        }
-
-        Ok(Tx {
-            tx: tx,
-            tx_instant: DateTime::<Utc>::from_micros(tx_instant),
-            parts: parts
-        })
-    }
 }
 
 trait TxReader {
@@ -99,8 +76,41 @@ impl TxClient {
 
 impl TxReader for TxClient {
     fn txs(&self) -> Result<Vec<Tx>> {
-        let mut stmt = self.conn.prepare("SELECT tx, v FROM transactions GROUP BY tx")?;
-        let mapped_rows = stmt.query_map(&[], |row| Tx::new(&self.conn, row.get(0), row.get(1)))?;
+        let mut txes_by_tx = HashMap::new();
+        let mut parts_keyed_by_tx = HashMap::new();
+
+        let mut stmt = self.conn.prepare("SELECT e, a, v, tx, added, value_type_tag, CASE a WHEN :txInstant THEN 1 ELSE 0 END is_transaction FROM transactions ORDER BY is_transaction DESC")?;
+        let mapped_rows = stmt.query_map_named(&[(":txInstant", entids::DB_TX_INSTANT)], |row| {
+            let e = row.get(0);
+            let a = row.get(1);
+            let v = row.get(2);
+            let tx = row.get(3);
+            let added = row.get(4);
+            let value_type_tag = row.get(5);
+            
+            // Row represents a transaction.
+            if a == entids::DB_TX_INSTANT {
+                txes_by_tx.insert(tx, Tx {
+                    tx: tx,
+                    tx_instant: DateTime::<Utc>::from_micros(v),
+                    parts: Vec::new()
+                });
+            // Row represents part of a transaction. Our query statement above guarantees
+            // that we've already processed corresponding transaction at this point.
+            } else {
+                if let Entry::Occupied(o) = txes_by_tx.entry(tx) {
+                    *o.get_mut().parts.push(TxPart {
+                        e: e,
+                        a: a,
+                        v: v, // TODO tx_instant conversion implied that this value is i64... but it can be many things
+                        added: added,
+                        value_type_tag: value_type_tag
+                    });
+                } else {
+                    // Shouldn't happen if our query is correct.
+                }
+            }
+        })?;
 
         let mut txes = Vec::new();
         for tx in mapped_rows {
