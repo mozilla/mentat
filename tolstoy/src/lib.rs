@@ -20,22 +20,11 @@ extern crate futures;
 extern crate serde;
 extern crate serde_json;
 extern crate mentat_db;
+extern crate mentat_core;
 extern crate rusqlite;
-extern crate edn;
 extern crate uuid;
 
 pub mod schema;
 pub mod metadata;
-
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
-
-    foreign_links {
-        IOError(std::io::Error);
-        HttpError(hyper::Error);
-        SqlError(rusqlite::Error);
-        UuidParseError(edn::UuidParseError);
-    }
-}
+pub mod tx_processor;
+pub mod errors;
