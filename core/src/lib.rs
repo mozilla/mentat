@@ -301,6 +301,12 @@ impl From<i32> for TypedValue {
     }
 }
 
+impl From<f64> for TypedValue {
+    fn from(value: f64) -> TypedValue {
+        TypedValue::Double(OrderedFloat(value))
+    }
+}
+
 /// Type safe representation of the possible return values from SQLite's `typeof`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum SQLTypeAffinity {
