@@ -9,7 +9,10 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::HashMap;
+use std::io::Write;
 use std::process;
+
+use tabwriter::TabWriter;
 
 use mentat::query::{
     QueryExplanation,
@@ -108,7 +111,7 @@ impl Repl {
                     }
                     break;
                 },
-                Err(e) => println!("{}", e.to_string()),
+                Err(e) => eprintln!("{}", e.to_string()),
             }
         }
     }
@@ -120,7 +123,7 @@ impl Repl {
             Command::Open(db) => {
                 match self.store.open(Some(db.clone())) {
                     Ok(_) => println!("Database {:?} opened", db_output_name(&db)),
-                    Err(e) => println!("{}", e.to_string())
+                    Err(e) => eprintln!("{}", e.to_string())
                 };
             },
             Command::Close => self.close(),
@@ -130,14 +133,14 @@ impl Repl {
                 let edn = self.store.fetch_schema();
                 match edn.to_pretty(120) {
                     Ok(s) => println!("{}", s),
-                    Err(e) => println!("{}", e)
+                    Err(e) => eprintln!("{}", e)
                 };
 
             }
             Command::Transact(transaction) => self.execute_transact(transaction),
             Command::Exit => {
                 self.close();
-                println!("Exiting...");
+                eprintln!("Exiting...");
                 process::exit(0);
             }
         }
@@ -147,7 +150,7 @@ impl Repl {
         let old_db_name = self.store.db_name.clone();
         match self.store.close() {
             Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-            Err(e) => println!("{}", e)
+            Err(e) => eprintln!("{}", e)
         };
     }
 
@@ -165,7 +168,7 @@ impl Repl {
                 if msg.is_some() {
                     println!(".{} - {}", arg, msg.unwrap());
                 } else {
-                    println!("Unrecognised command {}", arg);
+                    eprintln!("Unrecognised command {}", arg);
                 }
             }
         }
@@ -183,32 +186,36 @@ impl Repl {
             println!("No results found.")
         }
 
-        let mut output:String = String::new();
+        let stdout = ::std::io::stdout();
+        let mut output = TabWriter::new(stdout.lock());
         match results {
             QueryResults::Scalar(Some(val)) => {
-                output.push_str(&self.typed_value_as_string(val) );
+                write!(output, "{}", &self.typed_value_as_string(val)).expect("write succeeded");
             },
             QueryResults::Tuple(Some(vals)) => {
                 for val in vals {
-                    output.push_str(&format!("{}\t", self.typed_value_as_string(val)));
+                    write!(output, "{}\t", self.typed_value_as_string(val))
+                        .expect("write succeeded");
                 }
             },
             QueryResults::Coll(vv) => {
                 for val in vv {
-                    output.push_str(&format!("{}\n", self.typed_value_as_string(val)));
+                    write!(output, "{}\n", self.typed_value_as_string(val))
+                        .expect("write succeeded");
                 }
             },
             QueryResults::Rel(vvv) => {
                 for vv in vvv {
                     for v in vv {
-                        output.push_str(&format!("{}\t", self.typed_value_as_string(v)));
+                        write!(output, "{}\t", self.typed_value_as_string(v))
+                            .expect("write succeeded");
                     }
-                    output.push_str("\n");
+                    write!(output, "\n").expect("newline succeeded");
                 }
             },
-            _ => output.push_str(&format!("No results found."))
+            _ => eprintln!("No results found."),
         }
-        println!("\n{}", output);
+        output.flush().expect("flushed");
     }
 
     pub fn explain_query(&self, query: String) {
@@ -251,7 +258,7 @@ impl Repl {
     pub fn execute_transact(&mut self, transaction: String) {
         match self.store.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
-            Result::Err(err) => println!("Error: {:?}.", err),
+            Result::Err(err) => eprintln!("Error: {:?}.", err),
         }
     }
 
@@ -266,12 +273,5 @@ impl Repl {
             TypedValue::String(s) => format!("{:?}", s.to_string()),
             TypedValue::Uuid(u) => format!("{}", u),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
     }
 }

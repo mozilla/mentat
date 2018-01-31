@@ -12,13 +12,14 @@ doc = false
 test = false
 
 [dependencies]
-getopts = "0.2"
+combine = "2.2.2"
 env_logger = "0.3"
+getopts = "0.2"
+lazy_static = "0.2"
 linefeed = "0.4"
 log = "0.3"
+tabwriter = "1"
 tempfile = "1.1"
-combine = "2.2.2"
-lazy_static = "0.2"
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
 [dependencies.rusqlite]

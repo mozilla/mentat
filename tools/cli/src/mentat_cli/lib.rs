@@ -19,6 +19,7 @@ extern crate env_logger;
 extern crate getopts;
 extern crate linefeed;
 extern crate rusqlite;
+extern crate tabwriter;
 
 extern crate mentat;
 extern crate edn;
