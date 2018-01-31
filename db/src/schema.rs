@@ -32,29 +32,41 @@ use metadata::{
     AttributeAlteration,
 };
 
-/// Return `Ok(())` if `attribute_map` defines a valid Mentat schema.
-fn validate_attribute_map(entid_map: &EntidMap, attribute_map: &AttributeMap) -> Result<()> {
-    for (entid, attribute) in attribute_map {
-        let ident = || entid_map.get(entid).map(|ident| ident.to_string()).unwrap_or(entid.to_string());
-        if attribute.unique == Some(attribute::Unique::Value) && !attribute.index {
+pub trait AttributeValidation {
+    fn validate<F>(&self, ident: F) -> Result<()> where F: Fn() -> String;
+}
+
+impl AttributeValidation for Attribute {
+    fn validate<F>(&self, ident: F) -> Result<()> where F: Fn() -> String {
+        if self.unique == Some(attribute::Unique::Value) && !self.index {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value without :db/index true for entid: {}", ident())))
         }
-        if attribute.unique == Some(attribute::Unique::Identity) && !attribute.index {
+        if self.unique == Some(attribute::Unique::Identity) && !self.index {
+    println!("Unique identity without index. Bailing.");
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/index true for entid: {}", ident())))
         }
-        if attribute.fulltext && attribute.value_type != ValueType::String {
+        if self.fulltext && self.value_type != ValueType::String {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/valueType :db.type/string for entid: {}", ident())))
         }
-        if attribute.fulltext && !attribute.index {
+        if self.fulltext && !self.index {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/index true for entid: {}", ident())))
         }
-        if attribute.component && attribute.value_type != ValueType::Ref {
+        if self.component && self.value_type != ValueType::Ref {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/isComponent true without :db/valueType :db.type/ref for entid: {}", ident())))
         }
         // TODO: consider warning if we have :db/index true for :db/valueType :db.type/string,
         // since this may be inefficient.  More generally, we should try to drive complex
         // :db/valueType (string, uri, json in the future) users to opt-in to some hash-indexing
         // scheme, as discussed in https://github.com/mozilla/mentat/issues/69.
+        Ok(())
+    }
+}
+
+/// Return `Ok(())` if `attribute_map` defines a valid Mentat schema.
+fn validate_attribute_map(entid_map: &EntidMap, attribute_map: &AttributeMap) -> Result<()> {
+    for (entid, attribute) in attribute_map {
+        let ident = || entid_map.get(entid).map(|ident| ident.to_string()).unwrap_or(entid.to_string());
+        attribute.validate(ident)?;
     }
     Ok(())
 }

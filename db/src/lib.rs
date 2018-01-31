@@ -53,7 +53,10 @@ pub use bootstrap::{
     USER0,
 };
 
-pub use schema::AttributeBuilder;
+pub use schema::{
+    AttributeBuilder,
+    AttributeValidation,
+};
 
 pub use bootstrap::{
     CORE_SCHEMA_VERSION,

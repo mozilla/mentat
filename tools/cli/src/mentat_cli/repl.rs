@@ -251,7 +251,7 @@ impl Repl {
     pub fn execute_transact(&mut self, transaction: String) {
         match self.store.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
-            Result::Err(err) => println!("{:?}.", err),
+            Result::Err(err) => println!("Error: {:?}.", err),
         }
     }
 
