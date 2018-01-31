@@ -49,7 +49,10 @@ use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
-use cache::AttributeCache;
+use cache::{
+    Cacheable,
+    AttributeCache,
+};
 
 pub use cache::{
     CacheType,
@@ -526,6 +529,14 @@ impl Conn {
     // Question: Should those be only for lazy cache? The eager cache could perhaps grow infinitely
     // and it becomes up to the client to manage memory usage by excising from cache when no longer
     // needed
+    /// Adds or removes the values of a given attribute to an in memory cache
+    /// The attribute should be a namespaced string `:foo/bar`.
+    /// cache_action determines if the attribute should be added or removed from the cache.
+    /// CacheAction::Add is idempotent - each attribute is only added once and cannot be both lazy
+    /// and eager.
+    /// CacheAction::Remove throws an error if the attribute does not currently exist in the cache.
+    /// CacheType::Eager fetches all the values of the attribute and caches them on add.
+    /// CacheType::Lazy caches values only after they have first been fetched.
     pub fn cache(&mut self,
                  sqlite: &mut rusqlite::Connection,
                  attribute: &str,
@@ -538,9 +549,9 @@ impl Conn {
         let mut cache = self.attribute_cache.lock().unwrap();
         match cache_action {
             // add to cache
-            CacheAction::Add => cache.add_to_cache(sqlite, &schema, attr.clone(), cache_type),
+            CacheAction::Add => cache.add_to_cache(sqlite, &schema, attr, cache_type),
             // remove from cache
-            CacheAction::Remove => cache.remove_from_cache(&schema, attr.clone()),
+            CacheAction::Remove => cache.remove_from_cache(&attr),
         }
     }
 }
