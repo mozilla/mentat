@@ -127,6 +127,12 @@ impl fmt::Debug for Variable {
     }
 }
 
+impl std::fmt::Display for Variable {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QueryFunction(pub PlainSymbol);
 
@@ -441,6 +447,16 @@ pub enum Element {
     Variable(Variable),
     // Aggregate(Aggregate),   // TODO
     // Pull(Pull),             // TODO
+}
+
+impl std::fmt::Display for Element {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &Element::Variable(ref var) => {
+                write!(f, "{}", var)
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
