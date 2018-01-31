@@ -559,6 +559,16 @@ impl FindSpec {
     pub fn requires_distinct(&self) -> bool {
         !self.is_unit_limited()
     }
+
+    pub fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        use FindSpec::*;
+        match self {
+            &FindScalar(ref e) => Box::new(std::iter::once(e)),
+            &FindColl(ref e)   => Box::new(std::iter::once(e)),
+            &FindTuple(ref v)  => Box::new(v.iter()),
+            &FindRel(ref v)    => Box::new(v.iter()),
+        }
+    }
 }
 
 // Datomic accepts variable or placeholder.  DataScript accepts recursive bindings.  Mentat sticks
