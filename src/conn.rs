@@ -56,7 +56,7 @@ use query::{
     q_explain,
     QueryExplanation,
     QueryInputs,
-    QueryResults,
+    QueryOutput,
 };
 
 use entity_builder::{
@@ -125,7 +125,7 @@ impl Store {
 pub trait Queryable {
     fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>>;
-    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>>;
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid>;
@@ -150,7 +150,7 @@ pub struct InProgress<'a, 'c> {
 pub struct InProgressRead<'a, 'c>(InProgress<'a, 'c>);
 
 impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
-    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
         self.0.q_once(query, inputs)
     }
@@ -172,7 +172,7 @@ impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
 }
 
 impl<'a, 'c> Queryable for InProgress<'a, 'c> {
-    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
 
         q_once(&*(self.transaction),
@@ -360,7 +360,7 @@ impl Store {
 }
 
 impl Queryable for Store {
-    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
+    fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
         self.conn.q_once(&self.sqlite, query, inputs)
     }
@@ -416,7 +416,7 @@ impl Conn {
     pub fn q_once<T>(&self,
                      sqlite: &rusqlite::Connection,
                      query: &str,
-                     inputs: T) -> Result<QueryResults>
+                     inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
 
         let metadata = self.metadata.lock().unwrap();
@@ -516,6 +516,8 @@ mod tests {
         TypedValue,
     };
 
+    use ::QueryResults;
+
     use mentat_db::USER0;
 
     #[test]
@@ -603,7 +605,7 @@ mod tests {
 
             let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                                     .expect("query succeeded");
-            assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
+            assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one))));
 
             let report = in_progress.transact(t2).expect("t2 succeeded");
             in_progress.commit().expect("commit succeeded");
@@ -647,7 +649,7 @@ mod tests {
             let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                                     .expect("query succeeded");
 
-            assert_eq!(during, QueryResults::Scalar(Some(TypedValue::Ref(one))));
+            assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one))));
 
             // And we can do direct lookup, too.
             let kw = in_progress.lookup_value_for_attribute(one, &edn::NamespacedKeyword::new("db", "ident"))
@@ -660,7 +662,7 @@ mod tests {
 
         let after = conn.q_once(&mut sqlite, "[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                         .expect("query succeeded");
-        assert_eq!(after, QueryResults::Scalar(None));
+        assert_eq!(after.results, QueryResults::Scalar(None));
 
         // The DB part table is unchanged.
         let tempid_offset_after = get_next_entid(&conn);

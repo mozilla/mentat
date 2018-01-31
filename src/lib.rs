@@ -40,6 +40,10 @@ pub use mentat_core::{
     ValueType,
 };
 
+pub use mentat_query::{
+    FindSpec,
+};
+
 pub use mentat_db::{
     CORE_SCHEMA_VERSION,
     DB_SCHEMA_CORE,
@@ -85,6 +89,7 @@ pub use query::{
     PlainSymbol,
     QueryExplanation,
     QueryInputs,
+    QueryOutput,
     QueryPlanStep,
     QueryResults,
     Variable,

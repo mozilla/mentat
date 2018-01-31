@@ -20,6 +20,7 @@ extern crate mentat_query;
 
 use std::collections::BTreeSet;
 use std::ops::Sub;
+use std::rc::Rc;
 
 mod errors;
 mod types;
@@ -61,7 +62,7 @@ pub use types::{
 #[derive(Debug)]
 pub struct AlgebraicQuery {
     default_source: SrcVar,
-    pub find_spec: FindSpec,
+    pub find_spec: Rc<FindSpec>,
     has_aggregates: bool,
     pub with: BTreeSet<Variable>,
     pub order: Option<Vec<OrderBy>>,
@@ -192,7 +193,7 @@ pub fn algebrize_with_inputs(schema: &Schema,
     let limit = if parsed.find_spec.is_unit_limited() { Limit::Fixed(1) } else { parsed.limit };
     let q = AlgebraicQuery {
         default_source: parsed.default_source,
-        find_spec: parsed.find_spec,
+        find_spec: Rc::new(parsed.find_spec),
         has_aggregates: false,           // TODO: we don't parse them yet.
         with: with,
         order: order,
