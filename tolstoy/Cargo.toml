@@ -16,11 +16,11 @@ uuid = { version = "0.5", features = ["v4", "serde"] }
 
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
+[dependencies.mentat_core]
+path = "../core"
+
 [dependencies.mentat_db]
 path = "../db"
-
-[dependencies.edn]
-path = "../edn"
 
 [dependencies.rusqlite]
 version = "0.12"

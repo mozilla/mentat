@@ -37,7 +37,7 @@ pub mod db;
 mod bootstrap;
 pub mod debug;
 mod add_retract_alter_set;
-mod entids;
+pub mod entids;
 pub mod errors;
 mod metadata;
 mod schema;
