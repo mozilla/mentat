@@ -15,9 +15,12 @@ use std::process;
 use tabwriter::TabWriter;
 
 use mentat::{
+    Queryable,
     QueryExplanation,
     QueryOutput,
     QueryResults,
+    Store,
+    TxReport,
     TypedValue,
 };
 
@@ -44,11 +47,6 @@ use input::InputResult::{
     Eof,
 };
 
-use store::{
-    OpenStore,
-    db_output_name,
-};
-
 lazy_static! {
     static ref COMMAND_HELP: HashMap<&'static str, &'static str> = {
         let mut map = HashMap::new();
@@ -70,14 +68,24 @@ lazy_static! {
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
-    store: OpenStore
+    path: String,
+    store: Store,
 }
 
 impl Repl {
+    pub fn db_name(&self) -> String {
+        if self.path.is_empty() {
+            "in-memory db".to_string()
+        } else {
+            self.path.clone()
+        }
+    }
+
     /// Constructs a new `Repl`.
     pub fn new() -> Result<Repl, String> {
-        let store = OpenStore::new(None).map_err(|e| e.to_string())?;
+        let store = Store::open("").map_err(|e| e.to_string())?;
         Ok(Repl{
+            path: "".to_string(),
             store: store,
         })
     }
@@ -119,16 +127,16 @@ impl Repl {
         match cmd {
             Command::Help(args) => self.help_command(args),
             Command::Open(db) => {
-                match self.store.open(Some(db.clone())) {
-                    Ok(_) => println!("Database {:?} opened", db_output_name(&db)),
-                    Err(e) => eprintln!("{}", e.to_string())
+                match self.open(db) {
+                    Ok(_) => println!("Database {:?} opened", self.db_name()),
+                    Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
             Command::QueryExplain(query) => self.explain_query(query),
             Command::Schema => {
-                let edn = self.store.fetch_schema();
+                let edn = self.store.conn().current_schema().to_edn_value();
                 match edn.to_pretty(120) {
                     Ok(s) => println!("{}", s),
                     Err(e) => eprintln!("{}", e)
@@ -144,11 +152,24 @@ impl Repl {
         }
     }
 
+    fn open<T>(&mut self, path: T) -> ::mentat::errors::Result<()>
+    where T: Into<String> {
+        let path = path.into();
+        if self.path.is_empty() || path != self.path {
+            let next = Store::open(path.as_str())?;
+            self.path = path;
+            self.store = next;
+        }
+
+        Ok(())
+    }
+
+    // Close the current store by opening a new in-memory store in its place.
     fn close(&mut self) {
-        let old_db_name = self.store.db_name.clone();
-        match self.store.close() {
-            Ok(_) => println!("Database {:?} closed", db_output_name(&old_db_name)),
-            Err(e) => eprintln!("{}", e)
+        let old_db_name = self.db_name();
+        match self.open("") {
+            Ok(_) => println!("Database {:?} closed.", old_db_name),
+            Err(e) => eprintln!("{}", e),
         };
     }
 
@@ -173,8 +194,8 @@ impl Repl {
     }
 
     pub fn execute_query(&self, query: String) {
-        self.store
-            .query(query)
+        self.store.q_once(query.as_str(), None)
+            .map_err(|e| e.into())
             .and_then(|o| self.print_results(o))
             .map_err(|err| {
                 eprintln!("{:?}.", err);
@@ -235,7 +256,7 @@ impl Repl {
     }
 
     pub fn explain_query(&self, query: String) {
-        match self.store.explain_query(query) {
+        match self.store.q_explain(query.as_str(), None) {
             Result::Err(err) =>
                 println!("{:?}.", err),
             Result::Ok(QueryExplanation::KnownEmpty(empty_because)) =>
@@ -272,10 +293,17 @@ impl Repl {
     }
 
     pub fn execute_transact(&mut self, transaction: String) {
-        match self.store.transact(transaction) {
+        match self.transact(transaction) {
             Result::Ok(report) => println!("{:?}", report),
             Result::Err(err) => eprintln!("Error: {:?}.", err),
         }
+    }
+
+    fn transact(&mut self, transaction: String) -> ::mentat::errors::Result<TxReport> {
+        let mut tx = self.store.begin_transaction()?;
+        let report = tx.transact(&transaction)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     fn typed_value_as_string(&self, value: TypedValue) -> String {

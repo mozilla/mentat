@@ -30,7 +30,6 @@ extern crate mentat_db;
 use getopts::Options;
 
 pub mod command_parser;
-pub mod store;
 pub mod input;
 pub mod repl;
 pub mod errors;
