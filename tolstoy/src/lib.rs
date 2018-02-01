@@ -28,16 +28,4 @@ extern crate uuid;
 pub mod schema;
 pub mod metadata;
 pub mod tx_client;
-
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
-
-    foreign_links {
-        IOError(std::io::Error);
-        HttpError(hyper::Error);
-        SqlError(rusqlite::Error);
-        UuidParseError(edn::UuidParseError);
-    }
-}
+pub mod errors;

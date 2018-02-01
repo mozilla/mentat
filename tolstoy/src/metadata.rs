@@ -14,7 +14,7 @@ use rusqlite;
 use uuid::Uuid;
 
 use schema;
-use Result;
+use errors::Result;
 
 trait HeadTrackable {
     fn remote_head(&self) -> Result<Uuid>;
