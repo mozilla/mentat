@@ -131,13 +131,13 @@ fn test_default_attributebuilder_complains() {
                   .validate(|| "Foo".to_string())
                   .is_err());
 
-    assert!(!vocabulary::AttributeBuilder::new()
+    assert!(vocabulary::AttributeBuilder::new()
                   .value_type(ValueType::String)
                   .multival(true)
                   .fulltext(true)
                   .build()
                   .validate(|| "Foo".to_string())
-                  .is_err());
+                  .is_ok());
 }
 
 #[test]
