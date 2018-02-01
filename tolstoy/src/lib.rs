@@ -22,7 +22,6 @@ extern crate serde_json;
 extern crate mentat_db;
 extern crate mentat_core;
 extern crate rusqlite;
-extern crate edn;
 extern crate uuid;
 
 pub mod schema;

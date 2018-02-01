@@ -13,7 +13,7 @@
 use std;
 use hyper;
 use rusqlite;
-use edn;
+use uuid;
 use mentat_db;
 
 error_chain! {
@@ -25,7 +25,7 @@ error_chain! {
         IOError(std::io::Error);
         HttpError(hyper::Error);
         SqlError(rusqlite::Error);
-        UuidParseError(edn::UuidParseError);
+        UuidParseError(uuid::ParseError);
     }
 
     links {

@@ -10,48 +10,61 @@
 
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
+use std::collections::HashMap;
 
 use rusqlite;
 
 use errors::{
     Result,
-    ErrorKind
-};
-
-use mentat_db::types::{
-    Entid
+    ErrorKind,
 };
 
 use mentat_db::{
     entids,
-    TypedSQLValue
+    TypedSQLValue,
 };
 
 use mentat_core::{
-    TypedValue
+    TypedValue,
+    Entid,
 };
 
 #[derive(Debug)]
 pub struct TxPart {
     pub e: Entid,
-    pub a: i64,
+    pub a: Entid,
     pub v: TypedValue,
-    pub added: i32
+    pub added: bool,
 }
 
+// Notes on 'parts' representation:
+// Currently it's suitable for uses which necessitate pulling in the entire tx into memory,
+// and don't require efficient querying/monitoring by attributes of parts.
+//
+// Example: streaming transactions to/from the server.
+//
+// In the future, consider:
+// - A structure that makes typical tx-listener questions — "does this transaction mention
+//   an attribute or entity I care about?" — efficient. That might be a trie, it might be a
+//   bunch of extra data structures (e.g., a set of mentioned attributes), or something else.
+//   With an unsorted Vec<TxPart>, looking for a mentioned attribute requires linear search of the entire vector.
+// - A structure that doesn't require pulling the entire tx into memory. This might be a cursor,
+//   a rowid range, or something else that's scoped to the lifetime of a particular database transaction,
+//   in order to preserve isolation.
 #[derive(Debug)]
 pub struct Tx {
     pub tx: Entid,
     pub tx_instant: TypedValue,
-    pub parts: Vec<TxPart>
+    pub parts: Vec<TxPart>,
 }
 
-struct RawTx {
+struct RawDatom {
     e: Entid,
-    a: i64,
-    v: TypedValue,
+    a: Entid,
+    v: TypedValue, // composite of 'v' and 'value_type_tag'
     tx: Entid,
-    added: i32
+    added: bool,
+    is_transaction: bool
 }
 
 pub trait TxReader {
@@ -62,52 +75,61 @@ pub struct TxClient {}
 
 impl TxReader for TxClient {
     fn all(sqlite: &rusqlite::Connection) -> Result<Vec<Tx>> {
-        // Make sure a=txInstant rows are first, so that we process
-        // all transactions before we process any transaction parts.
         let mut stmt = sqlite.prepare(
             "SELECT
                 e, a, v, tx, added, value_type_tag,
                 CASE a WHEN :txInstant THEN 1 ELSE 0 END is_transaction
-            FROM transactions ORDER BY is_transaction DESC, tx ASC"
+            FROM transactions"
         )?;
-        let rows: Vec<Result<RawTx>> = stmt.query_and_then_named(&[(":txInstant", &entids::DB_TX_INSTANT)], |row| -> Result<RawTx> {
-            Ok(RawTx {
+        let datoms: Vec<Result<RawDatom>> = stmt.query_and_then_named(&[(":txInstant", &entids::DB_TX_INSTANT)], |row| -> Result<RawDatom> {
+            Ok(RawDatom {
                 e: row.get(0),
                 a: row.get(1),
                 v: TypedValue::from_sql_value_pair(row.get(2), row.get(5))?,
                 tx: row.get(3),
-                added: row.get(4)
+                added: row.get(4),
+                is_transaction: row.get(6),
             })
         })?.collect();
 
         // It's convenient to have a consistently ordered set of results,
         // so we use a sorting map.
         let mut txes_by_tx = BTreeMap::new();
-        for row_result in rows {
-            let row = row_result?;
-            // Row represents a transaction.
-            if row.a == entids::DB_TX_INSTANT {
-                txes_by_tx.insert(row.tx, Tx {
-                    tx: row.tx,
-                    tx_instant: row.v,
-                    parts: Vec::new()
+        let mut tx_parts_by_tx = HashMap::new();
+
+        // On first pass, build our Txes and TxParts for each.
+        for datom_result in datoms {
+            let datom = datom_result?;
+            // Datom represents a transaction.
+            if datom.is_transaction {
+                txes_by_tx.insert(datom.tx, Tx {
+                    tx: datom.tx,
+                    tx_instant: datom.v,
+                    parts: Vec::new(),
                 });
-            // Row represents part of a transaction. Our query statement above guarantees
+            // Datom represents part of a transaction. Our query statement above guarantees
             // that we've already processed corresponding transaction at this point.
             } else {
-                if let Entry::Occupied(mut t) = txes_by_tx.entry(row.tx) {
-                    t.get_mut().parts.push(TxPart {
-                        e: row.e,
-                        a: row.a,
-                        v: row.v,
-                        added: row.added
-                    });
-                } else {
-                    bail!(ErrorKind::UnexpectedState(format!("Encountered transaction part before transaction {:?}", row.tx)))
-                }
+                let parts = tx_parts_by_tx.entry(datom.tx).or_insert(Vec::new());
+                parts.push(TxPart {
+                    e: datom.e,
+                    a: datom.a,
+                    v: datom.v,
+                    added: datom.added,
+                });
             }
         }
 
+        // On second pass, consume TxParts map and associate parts with corresponding Txes.
+        for (e, tx_parts) in tx_parts_by_tx.into_iter() {
+            if let Entry::Occupied(mut tx) = txes_by_tx.entry(e) {
+                tx.get_mut().parts = tx_parts;
+            } else {
+                bail!(ErrorKind::UnexpectedState(format!("Missing transactions datoms for tx={:?}", e)));
+            }
+        }
+
+        // Finally, consume the Tx map and a Vec of its values.
         Ok(txes_by_tx.into_iter().map(|(_, tx)| tx).collect())
     }
 }
