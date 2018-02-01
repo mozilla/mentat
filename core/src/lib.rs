@@ -231,6 +231,12 @@ impl TypedValue {
     pub fn current_instant() -> TypedValue {
         Utc::now().into()
     }
+
+    /// Construct a new `TypedValue::Instant` instance from the provided
+    /// microsecond timestamp.
+    pub fn instant(micros: i64) -> TypedValue {
+        DateTime::<Utc>::from_micros(micros).into()
+    }
 }
 
 trait MicrosecondPrecision {
