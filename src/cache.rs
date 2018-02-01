@@ -9,6 +9,8 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::BTreeMap;
+use std::cmp::Ord;
+use std::fmt::Debug;
 
 use rusqlite;
 
@@ -22,120 +24,130 @@ use mentat_core::{
 };
 
 use query::{
-    lookup_value,
     q_once,
     IntoResult,
     QueryInputs,
     Variable,
 };
 
-pub enum CacheType {
-    Lazy,
-    Eager,
-}
-
 pub enum CacheAction {
     Add,
     Remove,
 }
 
-pub trait Cacheable<K, V> {
-    fn new() -> Self;
-    fn is_cached(&self, key: &K) -> bool;
-    fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: K, cache_type: CacheType) -> Result<()>;
-    fn remove_from_cache(&mut self, key: &K) -> Result<()>;
-    fn get<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: K) -> Result<V>;
+pub trait ValueProvider<K, V>: Sized {
+    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: &K) -> Result<V>;
+}
+
+pub trait Cacheable {
+    type Key;
+    type Value;
+    type ValueProvider;
+
+    fn new(value_provider: Self::ValueProvider) -> Self;
+    fn contains_key(&self, key: &Self::Key) -> bool;
+    fn add<'sqlite, 'schema>(&mut self,
+                             sqlite: &'sqlite rusqlite::Connection,
+                             schema: &'schema Schema,
+                             key: Self::Key) -> Result<()>;
+    fn remove(&mut self, key: &Self::Key) -> Result<Self::Value>;
+    fn get(&mut self, key: &Self::Key) -> Result<&Self::Value>;
+}
+
+pub struct EagerCache<K, V, VP> where K: Ord, VP: ValueProvider<K, V> {
+    cache: BTreeMap<K, V>,
+    value_provider: VP,
+}
+
+impl<K, V, VP> Cacheable for EagerCache<K, V, VP> where K: Ord + Clone + Debug, V: Clone, VP: ValueProvider<K, V> {
+    type Key = K;
+    type Value = V;
+    type ValueProvider = VP;
+
+    fn new(value_provider: Self::ValueProvider) -> Self {
+        EagerCache {
+            cache: BTreeMap::new(),
+            value_provider,
+        }
+    }
+
+    fn contains_key(&self, key: &Self::Key) -> bool {
+        self.cache.contains_key(key)
+    }
+
+    fn add<'sqlite, 'schema>(&mut self,
+                                            sqlite: &'sqlite rusqlite::Connection,
+                                            schema: &'schema Schema,
+                                            key: Self::Key) -> Result<()> {
+        // fetch results and add to cache
+        let values = self.value_provider.values_for_attribute(sqlite, schema, &key)?;
+        self.cache.insert(key.clone(), values);
+        Ok(())
+    }
+
+    fn remove(&mut self, key: &Self::Key) -> Result<Self::Value> {
+        let r = self.cache.remove(key).ok_or_else(||ErrorKind::CacheMiss(format!("{:?}", key)))?;
+        Ok(r)
+    }
+
+    fn get(&mut self, key: &Self::Key) -> Result<&Self::Value> {
+        Ok(self.cache.get(&key).ok_or_else(|| ErrorKind::CacheMiss(format!("{:?}", key)))?)
+    }
 }
 
 pub struct AttributeCache {
-    eager_cache: BTreeMap<NamespacedKeyword, BTreeMap<TypedValue, TypedValue>>,   // values keyed by attribute
-    lazy_cache: BTreeMap<NamespacedKeyword, BTreeMap<TypedValue, TypedValue>>,   // values keyed by attribute
-}
-
-impl Cacheable<NamespacedKeyword,BTreeMap<TypedValue, TypedValue>> for AttributeCache {
-    fn new() -> Self {
-        AttributeCache {
-            eager_cache: BTreeMap::new(),
-            lazy_cache: BTreeMap::new(),
-        }
-    }
-    fn is_cached(&self, key: &NamespacedKeyword) -> bool {
-        self.lazy_cache.contains_key(key) || self.eager_cache.contains_key(key)
-    }
-
-    fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: NamespacedKeyword, cache_type: CacheType) -> Result<()> {
-        // check to see if already in cache, return error if so.
-        if self.is_cached(&key) {
-            return Ok(());
-        }
-        match cache_type {
-            CacheType::Lazy => self.lazy_cache.insert(key.clone(), BTreeMap::new()),
-            CacheType::Eager => {
-                // fetch results and add to cache
-                let eager_values = self.values_for_attribute(sqlite, schema, &key)?;
-                self.eager_cache.insert(key.clone(), eager_values)
-            },
-        };
-        Ok(())
-    }
-
-    fn remove_from_cache(&mut self, key: &NamespacedKeyword) -> Result<()> {
-        if !self.is_cached(key) {
-            bail!(ErrorKind::CacheMiss(key.to_string()))
-        }
-        self.eager_cache.remove(key);
-        self.lazy_cache.remove(key);
-        Ok(())
-    }
-
-    fn get<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: NamespacedKeyword) -> Result<BTreeMap<TypedValue, TypedValue>> {
-        if !self.is_cached(&key) {
-            bail!(ErrorKind::CacheMiss(key.to_string()))
-        }
-        if let Some(res) = self.eager_cache.get(&key) {
-            Ok(res.clone())
-        } else {
-            let res = self.values_for_attribute(sqlite, schema, &key)?;
-            self.lazy_cache.insert(key.clone(), res.clone());
-            Ok(res)
-        }
-    }
+    cache: EagerCache<NamespacedKeyword, BTreeMap<TypedValue, TypedValue>, AttributeValueProvider>,   // values keyed by attribute
 }
 
 impl AttributeCache {
-    fn values_for_attribute<'sqlite, 'schema>(&self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: &NamespacedKeyword) -> Result<BTreeMap<TypedValue, TypedValue>> {
-        let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+
+    pub fn new() -> Self {
+        AttributeCache {
+            cache: EagerCache::new(AttributeValueProvider::default()),
+        }
+    }
+
+    fn contains_key(&self, key: &NamespacedKeyword) -> bool {
+        self.cache.contains_key(key)
+    }
+
+    pub fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: NamespacedKeyword) -> Result<()> {
+        self.cache.add( sqlite, schema, key)
+    }
+
+    pub fn remove_from_cache(&mut self, key: &NamespacedKeyword) -> Result<BTreeMap<TypedValue, TypedValue>> {
+        self.cache.remove(key)
+    }
+
+    pub fn get<'sqlite, 'schema>(&mut self, key: &NamespacedKeyword) -> Result<&BTreeMap<TypedValue, TypedValue>> {
+        self.cache.get( key)
+    }
+
+    pub fn get_for_entid(&mut self, key: NamespacedKeyword, entid: KnownEntid) -> Result<Option<&TypedValue>> {
+        let entity: TypedValue = entid.into();
+        let map = self.cache.get(&key)?;
+        Ok(map.get(&entity))
+    }
+}
+
+#[derive(Default)]
+struct AttributeValueProvider{}
+
+impl ValueProvider<NamespacedKeyword, BTreeMap<TypedValue, TypedValue>> for AttributeValueProvider {
+    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: &NamespacedKeyword) -> Result<BTreeMap<TypedValue, TypedValue>> {
+        let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(format!("{:?}", attribute)))?;
         Ok(q_once(sqlite,
-               schema,
-               r#"[:find ?entity ?value
+                  schema,
+                  r#"[:find ?entity ?value
                                           :in ?attribute
                                           :where [?entity ?attribute ?value]]"#,
-               QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?attribute"), TypedValue::Long(entid.0))]))
+                  QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?attribute"), TypedValue::Long(entid.0))]))
             .into_rel_result()?
             .iter()
             .fold(BTreeMap::new(), |mut map, row| {
                 map.entry(row[0].clone()).or_insert(row[1].clone());
                 map
             }))
-    }
-
-    pub fn get_for_entid<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: NamespacedKeyword, entid: KnownEntid) -> Result<TypedValue> {
-        if !self.is_cached(&key) {
-            bail!(ErrorKind::CacheMiss(key.to_string()))
-        }
-        let entity: TypedValue = entid.into();
-        if let Some(res) = self.eager_cache.get(&key) {
-            let r = res.get(&entity).ok_or_else(|| ErrorKind::CacheMiss(String::new()))?;
-            Ok(r.clone())
-        } else {
-            let mut map = self.lazy_cache.entry(key.clone()).or_insert(BTreeMap::new());
-            let attr_entid = schema.get_entid(&key).ok_or_else(|| ErrorKind::UnknownAttribute(key.to_string()))?;
-            let res = map.entry(entity)
-                        .or_insert(lookup_value(sqlite, schema, entid, attr_entid)
-                            .map_err(|_e|ErrorKind::CacheMiss(key.to_string()))?
-                            .ok_or_else(||ErrorKind::CacheMiss(key.to_string()))?);
-            Ok(res.clone())
-        }
     }
 }
 

@@ -50,12 +50,10 @@ use mentat_tx::entities::TempId;
 use mentat_tx_parser;
 
 use cache::{
-    Cacheable,
     AttributeCache,
 };
 
 pub use cache::{
-    CacheType,
     CacheAction,
 };
 
@@ -540,19 +538,17 @@ impl Conn {
     pub fn cache(&mut self,
                  sqlite: &mut rusqlite::Connection,
                  attribute: &str,
-                 cache_action: CacheAction,
-                 cache_type: CacheType) -> Result<()> {
+                 cache_action: CacheAction) -> Result<()> {
         // fetch the attribute for the given name
         let schema = self.current_schema();
 
         let attr = to_namespaced_keyword(&attribute)?;
         let mut cache = self.attribute_cache.lock().unwrap();
         match cache_action {
-            // add to cache
-            CacheAction::Add => cache.add_to_cache(sqlite, &schema, attr, cache_type),
-            // remove from cache
-            CacheAction::Remove => cache.remove_from_cache(&attr),
+            CacheAction::Add => { cache.add_to_cache(sqlite, &schema, attr)?; },
+            CacheAction::Remove => { cache.remove_from_cache(&attr)?; },
         }
+        Ok(())
     }
 }
 
