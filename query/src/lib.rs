@@ -127,6 +127,12 @@ impl fmt::Debug for Variable {
     }
 }
 
+impl std::fmt::Display for Variable {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QueryFunction(pub PlainSymbol);
 
@@ -443,6 +449,16 @@ pub enum Element {
     // Pull(Pull),             // TODO
 }
 
+impl std::fmt::Display for Element {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &Element::Variable(ref var) => {
+                write!(f, "{}", var)
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Limit {
     None,
@@ -542,6 +558,16 @@ impl FindSpec {
     /// duplicate results.
     pub fn requires_distinct(&self) -> bool {
         !self.is_unit_limited()
+    }
+
+    pub fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        use FindSpec::*;
+        match self {
+            &FindScalar(ref e) => Box::new(std::iter::once(e)),
+            &FindColl(ref e)   => Box::new(std::iter::once(e)),
+            &FindTuple(ref v)  => Box::new(v.iter()),
+            &FindRel(ref v)    => Box::new(v.iter()),
+        }
     }
 }
 

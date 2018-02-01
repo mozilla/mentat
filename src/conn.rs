@@ -105,6 +105,8 @@ pub struct Conn {
 }
 
 pub trait Queryable {
+    fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
+        where T: Into<Option<QueryInputs>>;
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryResults>
         where T: Into<Option<QueryInputs>>;
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
@@ -135,6 +137,11 @@ impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
         self.0.q_once(query, inputs)
     }
 
+    fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
+        where T: Into<Option<QueryInputs>> {
+        self.0.q_explain(query, inputs)
+    }
+
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid> {
         self.0.lookup_values_for_attribute(entity, attribute)
@@ -154,6 +161,14 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
                &self.schema,
                query,
                inputs)
+    }
+
+    fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
+        where T: Into<Option<QueryInputs>> {
+        q_explain(&*(self.transaction),
+                  &self.schema,
+                  query,
+                  inputs)
     }
 
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
@@ -360,6 +375,13 @@ impl Conn {
         where T: Into<Option<QueryInputs>>
     {
         q_explain(sqlite, &*self.current_schema(), query, inputs)
+    }
+
+    pub fn lookup_values_for_attribute(&self,
+                                       sqlite: &rusqlite::Connection,
+                                       entity: Entid,
+                                       attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>> {
+        lookup_values_for_attribute(sqlite, &*self.current_schema(), entity, attribute)
     }
 
     pub fn lookup_value_for_attribute(&self,

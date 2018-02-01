@@ -18,7 +18,7 @@ extern crate lazy_static;
 
 extern crate rusqlite;
 
-extern crate edn;
+pub extern crate edn;
 extern crate mentat_core;
 extern crate mentat_db;
 extern crate mentat_query;
@@ -30,7 +30,44 @@ extern crate mentat_sql;
 extern crate mentat_tx;
 extern crate mentat_tx_parser;
 
-use rusqlite::Connection;
+pub use mentat_core::{
+    Attribute,
+    Entid,
+    HasSchema,
+    NamespacedKeyword,
+    TypedValue,
+    Uuid,
+    ValueType,
+};
+
+pub use mentat_db::{
+    CORE_SCHEMA_VERSION,
+    DB_SCHEMA_CORE,
+    TxReport,
+    new_connection,
+};
+
+/// Produce the appropriate `NamespacedKeyword` for the provided namespace and name.
+/// This lives here because we can't re-export macros:
+/// https://github.com/rust-lang/rust/issues/29638.
+#[macro_export]
+macro_rules! kw {
+    ( : $ns:ident / $n:ident ) => {
+        // We don't need to go through `new` -- `ident` is strict enough.
+        $crate::NamespacedKeyword {
+            namespace: stringify!($ns).into(),
+            name: stringify!($n).into(),
+        }
+    };
+
+    ( : $ns:ident$(. $nss:ident)+ / $n:ident ) => {
+        // We don't need to go through `new` -- `ident` is strict enough.
+        $crate::NamespacedKeyword {
+            namespace: concat!(stringify!($ns) $(, ".", stringify!($nss))+).into(),
+            name: stringify!($n).into(),
+        }
+    };
+}
 
 pub mod errors;
 pub mod ident;
@@ -43,29 +80,17 @@ pub fn get_name() -> String {
     return String::from("mentat");
 }
 
-// Will ultimately not return the sqlite connection directly
-pub fn get_connection() -> Connection {
-    return Connection::open_in_memory().unwrap();
+/// Open a Mentat store at the provided path.
+pub fn open(path: &str) -> errors::Result<(rusqlite::Connection, Conn)> {
+    let mut connection = new_connection(path)?;
+    let conn = Conn::connect(&mut connection)?;
+    Ok((connection, conn))
 }
-
-pub use mentat_core::{
-    Attribute,
-    Entid,
-    TypedValue,
-    Uuid,
-    ValueType,
-};
-
-pub use mentat_db::{
-    CORE_SCHEMA_VERSION,
-    DB_SCHEMA_CORE,
-    new_connection,
-};
 
 pub use query::{
     IntoResult,
-    NamespacedKeyword,
     PlainSymbol,
+    QueryExecutionResult,
     QueryExplanation,
     QueryInputs,
     QueryPlanStep,
@@ -84,9 +109,16 @@ pub use conn::{
 #[cfg(test)]
 mod tests {
     use edn::symbols::Keyword;
+    use super::*;
 
     #[test]
     fn can_import_edn() {
         assert_eq!("foo", Keyword::new("foo").0);
+    }
+
+    #[test]
+    fn test_kw() {
+        assert_eq!(kw!(:foo/bar), NamespacedKeyword::new("foo", "bar"));
+        assert_eq!(kw!(:org.mozilla.foo/bar_baz), NamespacedKeyword::new("org.mozilla.foo", "bar_baz"));
     }
 }
