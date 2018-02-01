@@ -18,7 +18,7 @@ extern crate lazy_static;
 
 extern crate rusqlite;
 
-extern crate edn;
+pub extern crate edn;
 extern crate mentat_core;
 extern crate mentat_db;
 extern crate mentat_query;
@@ -87,6 +87,7 @@ pub fn get_name() -> String {
 pub use query::{
     IntoResult,
     PlainSymbol,
+    QueryExecutionResult,
     QueryExplanation,
     QueryInputs,
     QueryOutput,
