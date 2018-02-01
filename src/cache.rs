@@ -174,8 +174,8 @@ mod tests {
                :foo/baz        true }]"#).expect("transaction expected to succeed");
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bar");
-        conn.attribute_cache().add_to_cache(&sqlite, &schema, kw.clone(), CacheType::Eager ).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().is_cached(&kw));
+        conn.attribute_cache().add_to_cache(&sqlite, &schema, kw.clone() ).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_key(&kw));
     }
 
     #[test]
@@ -195,9 +195,9 @@ mod tests {
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bat");
 
-        let res = conn.attribute_cache().add_to_cache(&sqlite, &schema,kw.clone(), CacheType::Eager);
+        let res = conn.attribute_cache().add_to_cache(&sqlite, &schema,kw.clone());
         match res.unwrap_err() {
-            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, kw.to_string()),
+            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, format!("{:?}", kw)),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
         }
     }
@@ -220,10 +220,10 @@ mod tests {
 
         let kw = NamespacedKeyword::new("foo", "bar");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), CacheType::Eager).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().is_cached(&kw));
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone(), CacheType::Lazy).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().is_cached(&kw));
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_key(&kw));
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_key(&kw));
     }
 
     #[test]
@@ -245,14 +245,14 @@ mod tests {
         let kwr = NamespacedKeyword::new("foo", "bar");
         let kwz = NamespacedKeyword::new("foo", "baz");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr.clone(), CacheType::Eager).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().is_cached(&kwr));
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone(), CacheType::Lazy).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().is_cached(&kwz));
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_key(&kwr));
+        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_key(&kwz));
 
         // test that we can remove an item from cache
         conn.attribute_cache().remove_from_cache(&kwz).expect("No errors on remove from cache");
-        assert!(!conn.attribute_cache().is_cached(&kwz));
+        assert!(!conn.attribute_cache().contains_key(&kwz));
     }
 
     #[test]
@@ -274,7 +274,7 @@ mod tests {
         let kw = NamespacedKeyword::new("foo", "baz");
         let res = conn.attribute_cache().remove_from_cache(&kw);
         match res.unwrap_err() {
-            Error(ErrorKind::CacheMiss(msg), _) => assert_eq!(msg, kw.to_string()),
+            Error(ErrorKind::CacheMiss(msg), _) => assert_eq!(msg, format!("{:?}", kw)),
             x => panic!("expected CacheMiss error, got {:?}", x),
         }
     }

@@ -764,7 +764,7 @@ mod tests {
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).unwrap();
 
-        let res = conn.cache(&mut sqlite,"", CacheAction::Add, CacheType::Lazy);
+        let res = conn.cache(&mut sqlite,"", CacheAction::Add);
         match res.unwrap_err() {
             Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(msg)), _) => assert_eq!(msg, "InvalidNamespacedKeyword: "),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
