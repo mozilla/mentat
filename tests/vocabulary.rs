@@ -31,6 +31,9 @@ use mentat_core::{
     HasSchema,
 };
 
+// To check our working.
+use mentat_db::AttributeValidation;
+
 use mentat::{
     Conn,
     NamespacedKeyword,
@@ -61,13 +64,13 @@ lazy_static! {
             version: 1,
             attributes: vec![
                 (FOO_NAME.clone(),
-                vocabulary::AttributeBuilder::default()
+                vocabulary::AttributeBuilder::new()
                     .value_type(ValueType::String)
                     .multival(false)
                     .unique(vocabulary::attribute::Unique::Identity)
                     .build()),
                 (FOO_MOMENT.clone(),
-                vocabulary::AttributeBuilder::default()
+                vocabulary::AttributeBuilder::new()
                     .value_type(ValueType::Instant)
                     .multival(false)
                     .index(true)
@@ -118,13 +121,33 @@ fn test_real_world() {
 }
 
 #[test]
+fn test_default_attributebuilder_complains() {
+    // ::new is helpful. ::default is not.
+    assert!(vocabulary::AttributeBuilder::default()
+                  .value_type(ValueType::String)
+                  .multival(true)
+                  .fulltext(true)
+                  .build()
+                  .validate(|| "Foo".to_string())
+                  .is_err());
+
+    assert!(vocabulary::AttributeBuilder::new()
+                  .value_type(ValueType::String)
+                  .multival(true)
+                  .fulltext(true)
+                  .build()
+                  .validate(|| "Foo".to_string())
+                  .is_ok());
+}
+
+#[test]
 fn test_add_vocab() {
-    let bar = vocabulary::AttributeBuilder::default()
+    let bar = vocabulary::AttributeBuilder::new()
                   .value_type(ValueType::Instant)
                   .multival(false)
                   .index(true)
                   .build();
-    let baz = vocabulary::AttributeBuilder::default()
+    let baz = vocabulary::AttributeBuilder::new()
                   .value_type(ValueType::String)
                   .multival(true)
                   .fulltext(true)

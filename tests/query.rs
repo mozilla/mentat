@@ -339,6 +339,7 @@ fn test_fulltext() {
         [:db/add "s" :db/ident :foo/fts]
         [:db/add "s" :db/valueType :db.type/string]
         [:db/add "s" :db/fulltext true]
+        [:db/add "s" :db/index true]
         [:db/add "s" :db/cardinality :db.cardinality/many]
     ]"#).unwrap();
 
