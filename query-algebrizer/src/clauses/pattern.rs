@@ -754,6 +754,7 @@ mod testing {
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::String,
+            index: true,
             fulltext: true,
             ..Default::default()
         });

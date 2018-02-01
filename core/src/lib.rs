@@ -8,15 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate chrono;
 extern crate enum_set;
+extern crate ordered_float;
+extern crate uuid;
 
 #[macro_use]
 extern crate lazy_static;
-extern crate ordered_float;
 
-extern crate chrono;
 extern crate edn;
-extern crate uuid;
 
 pub mod values;
 
@@ -231,6 +231,12 @@ impl TypedValue {
     pub fn current_instant() -> TypedValue {
         Utc::now().into()
     }
+
+    /// Construct a new `TypedValue::Instant` instance from the provided
+    /// microsecond timestamp.
+    pub fn instant(micros: i64) -> TypedValue {
+        DateTime::<Utc>::from_micros(micros).into()
+    }
 }
 
 trait MicrosecondPrecision {
@@ -298,6 +304,12 @@ impl From<u32> for TypedValue {
 impl From<i32> for TypedValue {
     fn from(value: i32) -> TypedValue {
         TypedValue::Long(value as i64)
+    }
+}
+
+impl From<f64> for TypedValue {
+    fn from(value: f64) -> TypedValue {
+        TypedValue::Double(OrderedFloat(value))
     }
 }
 

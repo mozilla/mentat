@@ -47,8 +47,10 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
+
 use schema::{
     AttributeBuilder,
+    AttributeValidation,
 };
 
 /// An alteration to an attribute.
@@ -181,14 +183,20 @@ pub fn update_attribute_map_from_entid_triples<U>(attribute_map: &mut AttributeM
     for (entid, builder) in builders.into_iter() {
         match attribute_map.entry(entid) {
             Entry::Vacant(entry) => {
+                // Validate once…
                 builder.validate_install_attribute()
-                    .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for new attribute with entid {} is not valid", entid)))?;
+                       .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for new attribute with entid {} is not valid", entid)))?;
+
+                // … and twice, now we have the Attribute.
+                let a = builder.build();
+                a.validate(|| entid.to_string())?;
                 entry.insert(builder.build());
                 attributes_installed.insert(entid);
             },
+
             Entry::Occupied(mut entry) => {
                 builder.validate_alter_attribute()
-                    .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for existing attribute with entid {} is not valid", entid)))?;
+                       .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for existing attribute with entid {} is not valid", entid)))?;
                 let mutations = builder.mutate(entry.get_mut());
                 attributes_altered.insert(entid, mutations);
             },

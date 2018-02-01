@@ -10,6 +10,13 @@
 
 use std::fmt::{Display, Formatter};
 
+#[macro_export]
+macro_rules! ns_keyword {
+    ($ns: expr, $name: expr) => {{
+        $crate::NamespacedKeyword::new($ns, $name)
+    }}
+}
+
 /// A simplification of Clojure's Symbol.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct PlainSymbol(pub String);
@@ -136,6 +143,8 @@ impl NamespacedKeyword {
     /// let keyword = NamespacedKeyword::new("foo", "bar");
     /// assert_eq!(keyword.to_string(), ":foo/bar");
     /// ```
+    ///
+    /// See also the `kw!` macro in the main `mentat` crate.
     pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
         let n = name.into();
         let ns = namespace.into();
@@ -300,13 +309,6 @@ impl Display for NamespacedKeyword {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, ":{}/{}", self.namespace, self.name)
     }
-}
-
-#[macro_export]
-macro_rules! ns_keyword {
-    ($ns: expr, $name: expr) => {{
-        $crate::NamespacedKeyword::new($ns, $name)
-    }}
 }
 
 #[test]

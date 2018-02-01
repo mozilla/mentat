@@ -11,6 +11,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
@@ -30,6 +31,9 @@ use mentat_core::{
     HasSchema,
 };
 
+// To check our working.
+use mentat_db::AttributeValidation;
+
 use mentat::{
     Conn,
     NamespacedKeyword,
@@ -47,26 +51,26 @@ use mentat::errors::{
 
 lazy_static! {
     static ref FOO_NAME: NamespacedKeyword = {
-        NamespacedKeyword::new("foo", "name")
+        kw!(:foo/name)
     };
 
     static ref FOO_MOMENT: NamespacedKeyword = {
-        NamespacedKeyword::new("foo", "moment")
+        kw!(:foo/moment)
     };
 
     static ref FOO_VOCAB: vocabulary::Definition = {
         vocabulary::Definition {
-            name: NamespacedKeyword::new("org.mozilla", "foo"),
+            name: kw!(:org.mozilla/foo),
             version: 1,
             attributes: vec![
                 (FOO_NAME.clone(),
-                vocabulary::AttributeBuilder::default()
+                vocabulary::AttributeBuilder::new()
                     .value_type(ValueType::String)
                     .multival(false)
                     .unique(vocabulary::attribute::Unique::Identity)
                     .build()),
                 (FOO_MOMENT.clone(),
-                vocabulary::AttributeBuilder::default()
+                vocabulary::AttributeBuilder::new()
                     .value_type(ValueType::Instant)
                     .multival(false)
                     .index(true)
@@ -117,36 +121,56 @@ fn test_real_world() {
 }
 
 #[test]
+fn test_default_attributebuilder_complains() {
+    // ::new is helpful. ::default is not.
+    assert!(vocabulary::AttributeBuilder::default()
+                  .value_type(ValueType::String)
+                  .multival(true)
+                  .fulltext(true)
+                  .build()
+                  .validate(|| "Foo".to_string())
+                  .is_err());
+
+    assert!(vocabulary::AttributeBuilder::new()
+                  .value_type(ValueType::String)
+                  .multival(true)
+                  .fulltext(true)
+                  .build()
+                  .validate(|| "Foo".to_string())
+                  .is_ok());
+}
+
+#[test]
 fn test_add_vocab() {
-    let bar = vocabulary::AttributeBuilder::default()
+    let bar = vocabulary::AttributeBuilder::new()
                   .value_type(ValueType::Instant)
                   .multival(false)
                   .index(true)
                   .build();
-    let baz = vocabulary::AttributeBuilder::default()
+    let baz = vocabulary::AttributeBuilder::new()
                   .value_type(ValueType::String)
                   .multival(true)
                   .fulltext(true)
                   .build();
     let bar_only = vec![
-        (NamespacedKeyword::new("foo", "bar"), bar.clone()),
+        (kw!(:foo/bar), bar.clone()),
     ];
     let baz_only = vec![
-        (NamespacedKeyword::new("foo", "baz"), baz.clone()),
+        (kw!(:foo/baz), baz.clone()),
     ];
     let bar_and_baz = vec![
-        (NamespacedKeyword::new("foo", "bar"), bar.clone()),
-        (NamespacedKeyword::new("foo", "baz"), baz.clone()),
+        (kw!(:foo/bar), bar.clone()),
+        (kw!(:foo/baz), baz.clone()),
     ];
 
     let foo_v1_a = vocabulary::Definition {
-        name: NamespacedKeyword::new("org.mozilla", "foo"),
+        name: kw!(:org.mozilla/foo),
         version: 1,
         attributes: bar_only.clone(),
     };
 
     let foo_v1_b = vocabulary::Definition {
-        name: NamespacedKeyword::new("org.mozilla", "foo"),
+        name: kw!(:org.mozilla/foo),
         version: 1,
         attributes: bar_and_baz.clone(),
     };
@@ -244,11 +268,11 @@ fn test_add_vocab() {
                             .multival(true)
                             .build();
     let bar_and_malformed_baz = vec![
-        (NamespacedKeyword::new("foo", "bar"), bar),
-        (NamespacedKeyword::new("foo", "baz"), malformed_baz.clone()),
+        (kw!(:foo/bar), bar),
+        (kw!(:foo/baz), malformed_baz.clone()),
     ];
     let foo_v1_malformed = vocabulary::Definition {
-        name: NamespacedKeyword::new("org.mozilla", "foo"),
+        name: kw!(:org.mozilla/foo),
         version: 1,
         attributes: bar_and_malformed_baz.clone(),
     };

@@ -1421,6 +1421,24 @@ mod tests {
                           [200 :db.schema/attribute 101]]");
     }
 
+    // Unique is required!
+    #[test]
+    fn test_upsert_issue_538() {
+        let mut conn = TestConn::default();
+        assert_transact!(conn, "
+            [{:db/ident :person/name
+              :db/valueType :db.type/string
+              :db/cardinality :db.cardinality/many}
+             {:db/ident :person/age
+              :db/valueType :db.type/long
+              :db/cardinality :db.cardinality/one}
+             {:db/ident :person/email
+              :db/valueType :db.type/string
+              :db/unique :db.unique/identity
+              :db/cardinality :db.cardinality/many}]",
+              Err("bad schema assertion: :db/unique :db/unique_identity without :db/index true for entid: 65538"));
+    }
+
     // TODO: don't use :db/ident to test upserts!
     #[test]
     fn test_upsert_vector() {

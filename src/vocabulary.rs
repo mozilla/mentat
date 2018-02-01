@@ -23,12 +23,11 @@
 //! Typical use is the following:
 //!
 //! ```
+//! #[macro_use(kw)]
 //! extern crate mentat;
-//! extern crate mentat_db;          // So we can use SQLite connection utilities.
 //!
 //! use mentat::{
-//!     Conn,
-//!     NamespacedKeyword,
+//!     Store,
 //!     ValueType,
 //! };
 //!
@@ -41,12 +40,11 @@
 //! };
 //!
 //! fn main() {
-//!     let mut sqlite = mentat_db::db::new_connection("").expect("SQLite connected");
-//!     let mut conn = Conn::connect(&mut sqlite).expect("connected");
+//!     let mut store = Store::open("").expect("connected");
 //!
 //!     {
 //!         // Read the list of installed vocabularies.
-//!         let reader = conn.begin_read(&mut sqlite).expect("began read");
+//!         let reader = store.begin_read().expect("began read");
 //!         let vocabularies = reader.read_vocabularies().expect("read");
 //!         for (name, vocabulary) in vocabularies.iter() {
 //!             println!("Vocab {} is at version {}.", name, vocabulary.version);
@@ -57,18 +55,18 @@
 //!     }
 //!
 //!     {
-//!         let mut in_progress = conn.begin_transaction(&mut sqlite).expect("began transaction");
+//!         let mut in_progress = store.begin_transaction().expect("began transaction");
 //!
 //!         // Make sure the core vocabulary exists.
 //!         in_progress.verify_core_schema().expect("verified");
 //!
 //!         // Make sure our vocabulary is installed, and install if necessary.
 //!         in_progress.ensure_vocabulary(&Definition {
-//!             name: NamespacedKeyword::new("example", "links"),
+//!             name: kw!(:example/links),
 //!             version: 1,
 //!             attributes: vec![
-//!                 (NamespacedKeyword::new("link", "title"),
-//!                  vocabulary::AttributeBuilder::default()
+//!                 (kw!(:link/title),
+//!                  vocabulary::AttributeBuilder::new()
 //!                    .value_type(ValueType::String)
 //!                    .multival(false)
 //!                    .fulltext(true)
@@ -85,22 +83,19 @@
 
 use std::collections::BTreeMap;
 
-use mentat_core::{
-    Attribute,
-    Entid,
-    HasSchema,
-    KnownEntid,
-    NamespacedKeyword,
-    TypedValue,
-    ValueType,
-};
-
 pub use mentat_core::attribute;
 use mentat_core::attribute::Unique;
+use mentat_core::KnownEntid;
 
 use ::{
     CORE_SCHEMA_VERSION,
+    Attribute,
+    Entid,
+    HasSchema,
     IntoResult,
+    NamespacedKeyword,
+    TypedValue,
+    ValueType,
 };
 
 use ::conn::{
@@ -170,25 +165,25 @@ impl Vocabularies {
 
 lazy_static! {
     static ref DB_SCHEMA_CORE: NamespacedKeyword = {
-        NamespacedKeyword::new("db.schema", "core")
+        kw!(:db.schema/core)
     };
     static ref DB_SCHEMA_ATTRIBUTE: NamespacedKeyword = {
-        NamespacedKeyword::new("db.schema", "attribute")
+        kw!(:db.schema/attribute)
     };
     static ref DB_SCHEMA_VERSION: NamespacedKeyword = {
-        NamespacedKeyword::new("db.schema", "version")
+        kw!(:db.schema/version)
     };
     static ref DB_IDENT: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "ident")
+        kw!(:db/ident)
     };
     static ref DB_UNIQUE: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "unique")
+        kw!(:db/unique)
     };
     static ref DB_UNIQUE_VALUE: NamespacedKeyword = {
-        NamespacedKeyword::new("db.unique", "value")
+        kw!(:db.unique/value)
     };
     static ref DB_UNIQUE_IDENTITY: NamespacedKeyword = {
-        NamespacedKeyword::new("db.unique", "identity")
+        kw!(:db.unique/identity)
     };
     static ref DB_IS_COMPONENT: NamespacedKeyword = {
         NamespacedKeyword::new("db", "isComponent")
@@ -197,19 +192,19 @@ lazy_static! {
         NamespacedKeyword::new("db", "valueType")
     };
     static ref DB_INDEX: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "index")
+        kw!(:db/index)
     };
     static ref DB_FULLTEXT: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "fulltext")
+        kw!(:db/fulltext)
     };
     static ref DB_CARDINALITY: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "cardinality")
+        kw!(:db/cardinality)
     };
     static ref DB_CARDINALITY_ONE: NamespacedKeyword = {
-        NamespacedKeyword::new("db.cardinality", "one")
+        kw!(:db.cardinality/one)
     };
     static ref DB_CARDINALITY_MANY: NamespacedKeyword = {
-        NamespacedKeyword::new("db.cardinality", "many")
+        kw!(:db.cardinality/many)
     };
 
     // Not yet supported.
@@ -575,31 +570,29 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
 #[cfg(test)]
 mod tests {
     use ::{
-        NamespacedKeyword,
-        Conn,
-        new_connection,
+        Store,
     };
 
-    use super::HasVocabularies;
+    use super::{
+        HasVocabularies,
+    };
 
     #[test]
     fn test_read_vocabularies() {
-        let mut sqlite = new_connection("").expect("could open conn");
-        let mut conn = Conn::connect(&mut sqlite).expect("could open store");
-        let vocabularies = conn.begin_read(&mut sqlite).expect("in progress")
-                               .read_vocabularies().expect("OK");
+        let mut store = Store::open("").expect("opened");
+        let vocabularies = store.begin_read().expect("in progress")
+                                .read_vocabularies().expect("OK");
         assert_eq!(vocabularies.len(), 1);
-        let core = vocabularies.get(&NamespacedKeyword::new("db.schema", "core")).expect("exists");
+        let core = vocabularies.get(&kw!(:db.schema/core)).expect("exists");
         assert_eq!(core.version, 1);
     }
 
     #[test]
     fn test_core_schema() {
-        let mut c = new_connection("").expect("could open conn");
-        let mut conn = Conn::connect(&mut c).expect("could open store");
-        let in_progress = conn.begin_transaction(&mut c).expect("in progress");
+        let mut store = Store::open("").expect("opened");
+        let in_progress = store.begin_transaction().expect("in progress");
         let vocab = in_progress.read_vocabularies().expect("vocabulary");
         assert_eq!(1, vocab.len());
-        assert_eq!(1, vocab.get(&NamespacedKeyword::new("db.schema", "core")).expect("core vocab").version);
+        assert_eq!(1, vocab.get(&kw!(:db.schema/core)).expect("core vocab").version);
     }
 }

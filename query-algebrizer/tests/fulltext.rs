@@ -45,6 +45,7 @@ fn prepopulated_schema() -> Schema {
     });
     add_attribute(&mut schema, 66, Attribute {
         value_type: ValueType::String,
+        index: true,
         fulltext: true,
         multival: true,
         ..Default::default()

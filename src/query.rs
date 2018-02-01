@@ -60,7 +60,8 @@ use mentat_query_translator::{
 };
 
 pub use mentat_query_projector::{
-    QueryResults,
+    QueryOutput,        // Includes the columns/find spec.
+    QueryResults,       // The results themselves.
 };
 
 use errors::{
@@ -68,7 +69,7 @@ use errors::{
     Result,
 };
 
-pub type QueryExecutionResult = Result<QueryResults>;
+pub type QueryExecutionResult = Result<QueryOutput>;
 
 pub trait IntoResult {
     fn into_scalar_result(self) -> Result<Option<TypedValue>>;
@@ -256,7 +257,7 @@ fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebriz
             "Unbound variables should be checked by now");
     if algebrized.is_known_empty() {
         // We don't need to do any SQL work at all.
-        return Ok(QueryResults::empty(&algebrized.find_spec));
+        return Ok(QueryOutput::empty(&algebrized.find_spec));
     }
 
     let select = query_to_select(algebrized)?;
