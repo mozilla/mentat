@@ -8,29 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-// read all txs from the database
-// return a list of structures that represent all we need to know about transactions
-
-// so, what do we need here then?
-// we need a "way in"!
-
-// could just query the transactions database directly, read stuff in, and represent
-// it as some data structure on the way out
-
-// will need to weed out transactions as we work through the records
-// -> and then associate with it the "chunks"
-
-// "transaction" then is a meta-concept, it's a label for a collection of concrete changes
-
-// perhaps mentat has useful primitives, but let's begin by just "doing the work"
-
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 
 use rusqlite;
 
 use errors::{
-    Result
+    Result,
+    ErrorKind
 };
 
 use mentat_db::types::{
@@ -43,103 +28,86 @@ use mentat_db::{
 };
 
 use mentat_core::{
-    DateTime,
-    Utc,
     TypedValue
 };
 
-use edn::FromMicros;
-
+#[derive(Debug)]
 pub struct TxPart {
+    pub e: Entid,
+    pub a: i64,
+    pub v: TypedValue,
+    pub added: i32
+}
+
+#[derive(Debug)]
+pub struct Tx {
+    pub tx: Entid,
+    pub tx_instant: TypedValue,
+    pub parts: Vec<TxPart>
+}
+
+struct RawTx {
     e: Entid,
     a: i64,
     v: TypedValue,
+    tx: Entid,
     added: i32
 }
 
-pub struct Tx {
-    tx: Entid,
-    tx_instant: DateTime<Utc>,
-    parts: Vec<TxPart>
+pub trait TxReader {
+    fn all(sqlite: &rusqlite::Connection) -> Result<Vec<Tx>>;
 }
 
-trait TxReader {
-    fn txs(&self) -> Result<Vec<Tx>>;
-}
-
-struct TxClient {
-    conn: rusqlite::Connection
-}
-
-// TODO This needs to take a mentat connection, as we're making assumptions about
-// what that connection will provide (a transactions table).
-impl TxClient {
-    fn new(conn: rusqlite::Connection) -> Self {
-        TxClient {
-            conn: conn
-        }
-    }
-}
+pub struct TxClient {}
 
 impl TxReader for TxClient {
-    fn txs(&self) -> Result<Vec<Tx>> {
-        let mut txes_by_tx = HashMap::new();
-
+    fn all(sqlite: &rusqlite::Connection) -> Result<Vec<Tx>> {
         // Make sure a=txInstant rows are first, so that we process
         // all transactions before we process any transaction parts.
-        let mut stmt = self.conn.prepare(
+        let mut stmt = sqlite.prepare(
             "SELECT
                 e, a, v, tx, added, value_type_tag,
                 CASE a WHEN :txInstant THEN 1 ELSE 0 END is_transaction
-            FROM transactions ORDER BY is_transaction DESC"
+            FROM transactions ORDER BY is_transaction DESC, tx ASC"
         )?;
-        let _ = stmt.query_and_then_named(&[(":txInstant", &entids::DB_TX_INSTANT)], |row| {
-            let e = row.get(0);
-            let a = row.get(1);
-            let v_instant: i64 = row.get(2); // TODO unify this and typed_value below
-            let tx = row.get(3);
-            let added = row.get(4);
-            let value_type_tag = row.get(5);
+        let rows: Vec<Result<RawTx>> = stmt.query_and_then_named(&[(":txInstant", &entids::DB_TX_INSTANT)], |row| -> Result<RawTx> {
+            Ok(RawTx {
+                e: row.get(0),
+                a: row.get(1),
+                v: TypedValue::from_sql_value_pair(row.get(2), row.get(5))?,
+                tx: row.get(3),
+                added: row.get(4)
+            })
+        })?.collect();
 
-            let raw_value: rusqlite::types::Value = row.get(2);
-            let typed_value = match TypedValue::from_sql_value_pair(raw_value, value_type_tag) {
-                Ok(v) => v,
-                Err(e) => return Err(e)
-            };
-
+        // It's convenient to have a consistently ordered set of results,
+        // so we use a sorting map.
+        let mut txes_by_tx = BTreeMap::new();
+        for row_result in rows {
+            let row = row_result?;
             // Row represents a transaction.
-            if a == entids::DB_TX_INSTANT {
-                txes_by_tx.insert(tx, Tx {
-                    tx: tx,
-                    // TODO enforce correct type of v and return ErrorKind::BadSQLValuePair
-                    // otherwise.
-                    tx_instant: DateTime::<Utc>::from_micros(v_instant),
+            if row.a == entids::DB_TX_INSTANT {
+                txes_by_tx.insert(row.tx, Tx {
+                    tx: row.tx,
+                    tx_instant: row.v,
                     parts: Vec::new()
                 });
-                Ok(())
             // Row represents part of a transaction. Our query statement above guarantees
             // that we've already processed corresponding transaction at this point.
             } else {
-                if let Entry::Occupied(mut t) = txes_by_tx.entry(tx) {
+                if let Entry::Occupied(mut t) = txes_by_tx.entry(row.tx) {
                     t.get_mut().parts.push(TxPart {
-                        e: e,
-                        a: a,
-                        v: typed_value,
-                        added: added
+                        e: row.e,
+                        a: row.a,
+                        v: row.v,
+                        added: row.added
                     });
-                    Ok(())
                 } else {
-                    // TODO not ok... ErrorKind::UnexpectedError
-                    Ok(())
+                    bail!(ErrorKind::UnexpectedState(format!("Encountered transaction part before transaction {:?}", row.tx)))
                 }
             }
-        })?;
+        }
 
         Ok(txes_by_tx.into_iter().map(|(_, tx)| tx).collect())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }
