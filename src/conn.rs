@@ -50,7 +50,7 @@ use mentat_tx::entities::TempId;
 use mentat_tx_parser;
 
 use cache::{
-    AttributeCache,
+    AttributeCacher,
 };
 
 pub use cache::{
@@ -113,7 +113,7 @@ pub struct Conn {
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
 
-    attribute_cache: Mutex<AttributeCache>,
+    attribute_cache: Mutex<AttributeCacher>,
 }
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -398,7 +398,7 @@ impl Conn {
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
             metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema))),
-            attribute_cache: Mutex::new(AttributeCache::new())
+            attribute_cache: Mutex::new(AttributeCacher::new())
         }
     }
 
@@ -425,7 +425,7 @@ impl Conn {
         self.metadata.lock().unwrap().schema.clone()
     }
 
-    pub fn attribute_cache(&self) -> MutexGuard<AttributeCache> {
+    pub fn attribute_cache(&self) -> MutexGuard<AttributeCacher> {
         self.attribute_cache.lock().unwrap()
     }
 
@@ -545,8 +545,8 @@ impl Conn {
         let attr = to_namespaced_keyword(&attribute)?;
         let mut cache = self.attribute_cache.lock().unwrap();
         match cache_action {
-            CacheAction::Add => { cache.add_to_cache(sqlite, &schema, attr)?; },
-            CacheAction::Remove => { cache.remove_from_cache(&attr)?; },
+            CacheAction::Register => { cache.register_attribute(sqlite, &schema, attr)?; },
+            CacheAction::Deregister => { cache.deregister_attribute(&attr); },
         }
         Ok(())
     }
@@ -764,7 +764,7 @@ mod tests {
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).unwrap();
 
-        let res = conn.cache(&mut sqlite,"", CacheAction::Add);
+        let res = conn.cache(&mut sqlite,"", CacheAction::Register);
         match res.unwrap_err() {
             Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(msg)), _) => assert_eq!(msg, "InvalidNamespacedKeyword: "),
             x => panic!("expected UnknownAttribute error, got {:?}", x),

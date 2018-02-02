@@ -31,12 +31,12 @@ use query::{
 };
 
 pub enum CacheAction {
-    Add,
-    Remove,
+    Register,
+    Deregister,
 }
 
 pub trait ValueProvider<K, V>: Sized {
-    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: &K) -> Result<V>;
+    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema) -> Result<BTreeMap<K, V>>;
 }
 
 pub trait Cacheable {
@@ -46,12 +46,13 @@ pub trait Cacheable {
 
     fn new(value_provider: Self::ValueProvider) -> Self;
     fn contains_key(&self, key: &Self::Key) -> bool;
-    fn add<'sqlite, 'schema>(&mut self,
+    fn cache_values<'sqlite, 'schema>(&mut self,
                              sqlite: &'sqlite rusqlite::Connection,
-                             schema: &'schema Schema,
-                             key: Self::Key) -> Result<()>;
-    fn remove(&mut self, key: &Self::Key) -> Result<Self::Value>;
-    fn get(&mut self, key: &Self::Key) -> Result<&Self::Value>;
+                             schema: &'schema Schema) -> Result<()>;
+    fn update_values<'sqlite, 'schema>(&mut self,
+                                       sqlite: &'sqlite rusqlite::Connection,
+                                       schema: &'schema Schema) -> Result<()>;
+    fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
 }
 
 pub struct EagerCache<K, V, VP> where K: Ord, VP: ValueProvider<K, V> {
@@ -75,77 +76,85 @@ impl<K, V, VP> Cacheable for EagerCache<K, V, VP> where K: Ord + Clone + Debug, 
         self.cache.contains_key(key)
     }
 
-    fn add<'sqlite, 'schema>(&mut self,
+    fn cache_values<'sqlite, 'schema>(&mut self,
                                             sqlite: &'sqlite rusqlite::Connection,
-                                            schema: &'schema Schema,
-                                            key: Self::Key) -> Result<()> {
+                                            schema: &'schema Schema) -> Result<()> {
         // fetch results and add to cache
-        let values = self.value_provider.values_for_attribute(sqlite, schema, &key)?;
-        self.cache.insert(key.clone(), values);
+        self.cache = self.value_provider.values_for_attribute(sqlite, schema)?;
         Ok(())
     }
 
-    fn remove(&mut self, key: &Self::Key) -> Result<Self::Value> {
-        let r = self.cache.remove(key).ok_or_else(||ErrorKind::CacheMiss(format!("{:?}", key)))?;
-        Ok(r)
+    fn update_values<'sqlite, 'schema>(&mut self,
+                                      sqlite: &'sqlite rusqlite::Connection,
+                                      schema: &'schema Schema) -> Result<()> {
+        self.cache_values(sqlite, schema)
     }
 
-    fn get(&mut self, key: &Self::Key) -> Result<&Self::Value> {
-        Ok(self.cache.get(&key).ok_or_else(|| ErrorKind::CacheMiss(format!("{:?}", key)))?)
+    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
+        self.cache.get(&key)
     }
 }
 
-pub struct AttributeCache {
-    cache: EagerCache<NamespacedKeyword, BTreeMap<TypedValue, TypedValue>, AttributeValueProvider>,   // values keyed by attribute
+pub struct AttributeCacher {
+    cache: BTreeMap<NamespacedKeyword, EagerCache<TypedValue, Vec<TypedValue>, AttributeValueProvider>>,   // values keyed by attribute
 }
 
-impl AttributeCache {
+impl AttributeCacher {
 
     pub fn new() -> Self {
-        AttributeCache {
-            cache: EagerCache::new(AttributeValueProvider::default()),
+        AttributeCacher {
+            cache: BTreeMap::new(),
         }
     }
 
-    fn contains_key(&self, key: &NamespacedKeyword) -> bool {
-        self.cache.contains_key(key)
+    fn contains_attribute(&self, attribute: &NamespacedKeyword) -> bool {
+        self.cache.contains_key(attribute)
     }
 
-    pub fn add_to_cache<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, key: NamespacedKeyword) -> Result<()> {
-        self.cache.add( sqlite, schema, key)
+    pub fn register_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword) -> Result<()> {
+        if schema.identifies_attribute(&attribute) {
+            let value_provider = AttributeValueProvider{ attribute: attribute.clone() };
+            let mut cacher = EagerCache::new(value_provider);
+            cacher.cache_values(sqlite, schema)?;
+            self.cache.insert(attribute, cacher);
+            Ok(())
+        } else {
+            bail!(ErrorKind::UnknownAttribute(attribute.to_string()))
+        }
     }
 
-    pub fn remove_from_cache(&mut self, key: &NamespacedKeyword) -> Result<BTreeMap<TypedValue, TypedValue>> {
-        self.cache.remove(key)
+    pub fn deregister_attribute(&mut self, attribute: &NamespacedKeyword) -> Option<BTreeMap<TypedValue, Vec<TypedValue>>> {
+        self.cache.remove(attribute).map(|m| m.cache )
     }
 
-    pub fn get<'sqlite, 'schema>(&mut self, key: &NamespacedKeyword) -> Result<&BTreeMap<TypedValue, TypedValue>> {
-        self.cache.get( key)
+    pub fn get(&mut self, attribute: &NamespacedKeyword) -> Option<&BTreeMap<TypedValue, Vec<TypedValue>>> {
+        self.cache.get( attribute ).map(|m| &m.cache )
     }
 
-    pub fn get_for_entid(&mut self, key: NamespacedKeyword, entid: KnownEntid) -> Result<Option<&TypedValue>> {
-        let entity: TypedValue = entid.into();
-        let map = self.cache.get(&key)?;
-        Ok(map.get(&entity))
+    pub fn get_for_entid(&mut self, attribute: NamespacedKeyword, entid: KnownEntid) -> Option<&Vec<TypedValue>> {
+        if let Some(c) = self.cache.get(&attribute) {
+            c.get(&entid.into())
+        } else { None }
     }
 }
 
-#[derive(Default)]
-struct AttributeValueProvider{}
+struct AttributeValueProvider {
+    attribute: NamespacedKeyword,
+}
 
-impl ValueProvider<NamespacedKeyword, BTreeMap<TypedValue, TypedValue>> for AttributeValueProvider {
-    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: &NamespacedKeyword) -> Result<BTreeMap<TypedValue, TypedValue>> {
-        let entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(format!("{:?}", attribute)))?;
+impl ValueProvider<TypedValue, Vec<TypedValue>> for AttributeValueProvider {
+    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema) -> Result<BTreeMap<TypedValue, Vec<TypedValue>>> {
         Ok(q_once(sqlite,
                   schema,
                   r#"[:find ?entity ?value
                                           :in ?attribute
-                                          :where [?entity ?attribute ?value]]"#,
-                  QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?attribute"), TypedValue::Long(entid.0))]))
+                                          :where [?entity ?a        ?value]
+                                                 [?a      :db/ident ?attribute]]"#,
+                  QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?attribute"), self.attribute.clone().into())]))
             .into_rel_result()?
-            .iter()
+            .into_iter()
             .fold(BTreeMap::new(), |mut map, row| {
-                map.entry(row[0].clone()).or_insert(row[1].clone());
+                map.entry(row[0].clone()).or_insert(vec![]).push(row[1].clone());
                 map
             }))
     }
@@ -174,8 +183,8 @@ mod tests {
                :foo/baz        true }]"#).expect("transaction expected to succeed");
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bar");
-        conn.attribute_cache().add_to_cache(&sqlite, &schema, kw.clone() ).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_key(&kw));
+        conn.attribute_cache().register_attribute(&sqlite, &schema, kw.clone() ).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_attribute(&kw));
     }
 
     #[test]
@@ -195,9 +204,9 @@ mod tests {
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bat");
 
-        let res = conn.attribute_cache().add_to_cache(&sqlite, &schema,kw.clone());
+        let res = conn.attribute_cache().register_attribute(&sqlite, &schema,kw.clone());
         match res.unwrap_err() {
-            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, format!("{:?}", kw)),
+            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, kw.to_string()),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
         }
     }
@@ -220,10 +229,10 @@ mod tests {
 
         let kw = NamespacedKeyword::new("foo", "bar");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_key(&kw));
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_key(&kw));
+        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_attribute(&kw));
+        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_attribute(&kw));
     }
 
     #[test]
@@ -245,14 +254,14 @@ mod tests {
         let kwr = NamespacedKeyword::new("foo", "bar");
         let kwz = NamespacedKeyword::new("foo", "baz");
 
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwr.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_key(&kwr));
-        conn.attribute_cache().add_to_cache(&mut sqlite, &schema,kwz.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_key(&kwz));
+        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kwr.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_attribute(&kwr));
+        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kwz.clone()).expect("No errors on add to cache");
+        assert!(conn.attribute_cache().contains_attribute(&kwz));
 
         // test that we can remove an item from cache
-        conn.attribute_cache().remove_from_cache(&kwz).expect("No errors on remove from cache");
-        assert!(!conn.attribute_cache().contains_key(&kwz));
+        conn.attribute_cache().deregister_attribute(&kwz).expect("No errors on remove from cache");
+        assert!(!conn.attribute_cache().contains_attribute(&kwz));
     }
 
     #[test]
@@ -272,11 +281,7 @@ mod tests {
         let schema = conn.current_schema();
 
         let kw = NamespacedKeyword::new("foo", "baz");
-        let res = conn.attribute_cache().remove_from_cache(&kw);
-        match res.unwrap_err() {
-            Error(ErrorKind::CacheMiss(msg), _) => assert_eq!(msg, format!("{:?}", kw)),
-            x => panic!("expected CacheMiss error, got {:?}", x),
-        }
+        assert_eq!(None, conn.attribute_cache().deregister_attribute(&kw));
     }
 }
 
