@@ -10,13 +10,11 @@
 
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
-use std::collections::HashMap;
 
 use rusqlite;
 
 use errors::{
     Result,
-    ErrorKind,
 };
 
 use mentat_db::{
@@ -132,7 +130,7 @@ impl TxReader for TxClient {
             }
         }
 
-        // Finally, consume the Tx map and a Vec of its values.
+        // Finally, consume the Tx map into a Vec of its values.
         Ok(txes_by_tx.into_iter().map(|(_, tx)| tx).collect())
     }
 }
