@@ -36,7 +36,7 @@ pub enum CacheAction {
 }
 
 pub trait ValueProvider<K, V>: Sized {
-    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema) -> Result<BTreeMap<K, V>>;
+    fn fetch_values<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema) -> Result<BTreeMap<K, V>>;
 }
 
 pub trait Cacheable {
@@ -45,7 +45,6 @@ pub trait Cacheable {
     type ValueProvider;
 
     fn new(value_provider: Self::ValueProvider) -> Self;
-    fn contains_key(&self, key: &Self::Key) -> bool;
     fn cache_values<'sqlite, 'schema>(&mut self,
                              sqlite: &'sqlite rusqlite::Connection,
                              schema: &'schema Schema) -> Result<()>;
@@ -72,15 +71,11 @@ impl<K, V, VP> Cacheable for EagerCache<K, V, VP> where K: Ord + Clone + Debug, 
         }
     }
 
-    fn contains_key(&self, key: &Self::Key) -> bool {
-        self.cache.contains_key(key)
-    }
-
     fn cache_values<'sqlite, 'schema>(&mut self,
                                             sqlite: &'sqlite rusqlite::Connection,
                                             schema: &'schema Schema) -> Result<()> {
         // fetch results and add to cache
-        self.cache = self.value_provider.values_for_attribute(sqlite, schema)?;
+        self.cache = self.value_provider.fetch_values(sqlite, schema)?;
         Ok(())
     }
 
@@ -105,10 +100,6 @@ impl AttributeCacher {
         AttributeCacher {
             cache: BTreeMap::new(),
         }
-    }
-
-    fn contains_attribute(&self, attribute: &NamespacedKeyword) -> bool {
-        self.cache.contains_key(attribute)
     }
 
     pub fn register_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema, attribute: NamespacedKeyword) -> Result<()> {
@@ -143,7 +134,7 @@ struct AttributeValueProvider {
 }
 
 impl ValueProvider<TypedValue, Vec<TypedValue>> for AttributeValueProvider {
-    fn values_for_attribute<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema) -> Result<BTreeMap<TypedValue, Vec<TypedValue>>> {
+    fn fetch_values<'sqlite, 'schema>(&mut self, sqlite: &'sqlite rusqlite::Connection, schema: &'schema Schema) -> Result<BTreeMap<TypedValue, Vec<TypedValue>>> {
         Ok(q_once(sqlite,
                   schema,
                   r#"[:find ?entity ?value
@@ -165,38 +156,47 @@ mod tests {
     use super::*;
     use mentat_db::db;
     use conn::Conn;
-    use mentat_db::TxReport;
+
+    fn assert_values_present_for_attribute(attribute_cache: &mut AttributeCacher, attribute: &NamespacedKeyword, values: Vec<Vec<TypedValue>>) {
+        let cached_values: Vec<Vec<TypedValue>> = attribute_cache.get(&attribute)
+            .expect("Expected cached values")
+            .values()
+            .cloned()
+            .collect();
+        assert_eq!(cached_values, values);
+    }
 
     #[test]
     fn test_add_to_cache() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
                :db/valueType   :db.type/long },
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :foo/bar        100
                :foo/baz        false },
             {  :foo/bar        200
                :foo/baz        true }]"#).expect("transaction expected to succeed");
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bar");
-        conn.attribute_cache().register_attribute(&sqlite, &schema, kw.clone() ).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_attribute(&kw));
+        let mut attribute_cache = AttributeCacher::new();
+        attribute_cache.register_attribute(&sqlite, &schema, kw.clone() ).expect("No errors on add to cache");
+        assert_values_present_for_attribute(&mut attribute_cache, &kw, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
     }
 
     #[test]
     fn test_add_to_cache_wrong_attribute() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
                :db/valueType   :db.type/long },
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :foo/bar        100
                :foo/baz        false },
             {  :foo/bar        200
@@ -204,7 +204,8 @@ mod tests {
         let schema = conn.current_schema();
         let kw = NamespacedKeyword::new("foo", "bat");
 
-        let res = conn.attribute_cache().register_attribute(&sqlite, &schema,kw.clone());
+        let mut attribute_cache = AttributeCacher::new();
+        let res = attribute_cache.register_attribute(&sqlite, &schema,kw.clone());
         match res.unwrap_err() {
             Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, kw.to_string()),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
@@ -215,12 +216,12 @@ mod tests {
     fn test_add_attribute_already_in_cache() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
                :db/valueType   :db.type/long },
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :foo/bar        100
                :foo/baz        false },
             {  :foo/bar        200
@@ -228,23 +229,24 @@ mod tests {
         let schema = conn.current_schema();
 
         let kw = NamespacedKeyword::new("foo", "bar");
+        let mut attribute_cache = AttributeCacher::new();
 
-        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_attribute(&kw));
-        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_attribute(&kw));
+        attribute_cache.register_attribute(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
+        assert_values_present_for_attribute(&mut attribute_cache, &kw, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
+        attribute_cache.register_attribute(&mut sqlite, &schema,kw.clone()).expect("No errors on add to cache");
+        assert_values_present_for_attribute(&mut attribute_cache, &kw, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
     }
 
     #[test]
     fn test_remove_from_cache() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
                :db/valueType   :db.type/long },
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :foo/bar        100
                :foo/baz        false },
             {  :foo/bar        200
@@ -254,34 +256,36 @@ mod tests {
         let kwr = NamespacedKeyword::new("foo", "bar");
         let kwz = NamespacedKeyword::new("foo", "baz");
 
-        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kwr.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_attribute(&kwr));
-        conn.attribute_cache().register_attribute(&mut sqlite, &schema,kwz.clone()).expect("No errors on add to cache");
-        assert!(conn.attribute_cache().contains_attribute(&kwz));
+        let mut attribute_cache = AttributeCacher::new();
+
+        attribute_cache.register_attribute(&mut sqlite, &schema,kwr.clone()).expect("No errors on add to cache");
+        assert_values_present_for_attribute(&mut attribute_cache, &kwr, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
+        attribute_cache.register_attribute(&mut sqlite, &schema,kwz.clone()).expect("No errors on add to cache");
+        assert_values_present_for_attribute(&mut attribute_cache, &kwz, vec![vec![TypedValue::Boolean(false)], vec![TypedValue::Boolean(true)]]);
 
         // test that we can remove an item from cache
-        conn.attribute_cache().deregister_attribute(&kwz).expect("No errors on remove from cache");
-        assert!(!conn.attribute_cache().contains_attribute(&kwz));
+        attribute_cache.deregister_attribute(&kwz).expect("No errors on remove from cache");
+        assert_eq!(attribute_cache.get(&kwz), None);
     }
 
     #[test]
     fn test_remove_attribute_not_in_cache() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
                :db/valueType   :db.type/long },
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :foo/bar        100
                :foo/baz        false },
             {  :foo/bar        200
                :foo/baz        true }]"#).expect("transaction expected to succeed");
-        let schema = conn.current_schema();
+        let mut attribute_cache = AttributeCacher::new();
 
         let kw = NamespacedKeyword::new("foo", "baz");
-        assert_eq!(None, conn.attribute_cache().deregister_attribute(&kw));
+        assert_eq!(None, attribute_cache.deregister_attribute(&kw));
     }
 }
 

@@ -758,7 +758,7 @@ mod tests {
     fn test_add_to_cache_failure_no_attribute() {
         let mut sqlite = db::new_connection("").unwrap();
         let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let report = conn.transact(&mut sqlite, r#"[
+        let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
                :db/valueType   :db.type/long },
             {  :db/ident       :foo/baz
