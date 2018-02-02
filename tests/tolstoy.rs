@@ -31,9 +31,9 @@ fn test_reader() {
 
     let txes = TxClient::all(&c).expect("bootstrap transactions");
 
-    // Don't inspect the bootstrap, but we'd like to see it's there.
+    // Don't inspect the bootstrap transaction, but we'd like to see it's there.
     assert_eq!(1, txes.len());
-    assert_eq!(76, txes[0].parts.len());
+    assert_eq!(94, txes[0].parts.len());
 
     let ids = conn.transact(&mut c, r#"[
         [:db/add "s" :db/ident :foo/numba]

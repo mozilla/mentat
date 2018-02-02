@@ -96,7 +96,7 @@ impl TxReader for TxClient {
             let datom = datom_result?;
 
             // Datom represents a transaction.
-            if datom.a == entids::DB_TX_INSTANT {
+            if datom.a == entids::DB_TX_INSTANT && datom.tx == datom.e {
                 // Does the Tx already exist in the map? That means we've inserted it
                 // with an incomplete tx_instant; update it.
                 if let Entry::Occupied(mut tx) = txes_by_tx.entry(datom.tx) {
@@ -111,14 +111,14 @@ impl TxReader for TxClient {
                 });
             // Datom represents a transaction part.
             } else {
-                // Does the Tx for this part already exist in the map?
-                // Append this part to the parts list.
                 let part = TxPart {
                     e: datom.e,
                     a: datom.a,
                     v: datom.v,
                     added: datom.added,
                 };
+                // Does the Tx for this part already exist in the map?
+                // Append this part to the parts list.
                 if let Entry::Occupied(mut tx) = txes_by_tx.entry(datom.tx) {
                     tx.get_mut().parts.push(part);
                     continue;
