@@ -17,7 +17,7 @@ use mentat::conn::Conn;
 use mentat::new_connection;
 use mentat_tolstoy::tx_client::{
     TxReader,
-    TxClient
+    TxClient,
 };
 use mentat_core::{
     ValueType,

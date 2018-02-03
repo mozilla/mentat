@@ -12,6 +12,7 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 lazy_static = "0.2"
+itertools = "0.6.5"
 uuid = { version = "0.5", features = ["v4", "serde"] }
 
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }

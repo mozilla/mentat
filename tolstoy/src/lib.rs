@@ -23,6 +23,7 @@ extern crate mentat_db;
 extern crate mentat_core;
 extern crate rusqlite;
 extern crate uuid;
+extern crate itertools;
 
 pub mod schema;
 pub mod metadata;
