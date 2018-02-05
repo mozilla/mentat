@@ -34,6 +34,7 @@ use itertools::Itertools;
 pub use errors::{Error, ErrorKind, ResultExt, Result};
 
 mod add_retract_alter_set;
+pub mod cache;
 pub mod db;
 mod bootstrap;
 pub mod debug;

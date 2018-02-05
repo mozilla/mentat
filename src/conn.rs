@@ -544,9 +544,10 @@ impl Conn {
 
         let attr = to_namespaced_keyword(&attribute)?;
         let mut cache = self.attribute_cache.lock().unwrap();
+        let attribute_entid = schema.get_entid(&attr).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
         match cache_action {
-            CacheAction::Register => { cache.register_attribute(sqlite, &schema, attr)?; },
-            CacheAction::Deregister => { cache.deregister_attribute(&attr); },
+            CacheAction::Register => { cache.register_attribute(sqlite, attribute_entid)?; },
+            CacheAction::Deregister => { cache.deregister_attribute(&attribute_entid); },
         }
         Ok(())
     }
