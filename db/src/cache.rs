@@ -22,10 +22,7 @@ use db::{
 };
 use mentat_core::{
     Entid,
-    HasSchema,
     KnownEntid,
-    NamespacedKeyword,
-    Schema,
     TypedValue,
 };
 
@@ -46,6 +43,7 @@ pub trait Cacheable {
     fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
 }
 
+#[derive(Clone)]
 pub struct EagerCache<K, V, VP> where K: Ord, VP: ValueProvider<K, V> {
     pub cache: BTreeMap<K, V>,
     value_provider: VP,
@@ -80,6 +78,7 @@ impl<K, V, VP> Cacheable for EagerCache<K, V, VP> where K: Ord + Clone + Debug, 
     }
 }
 
+#[derive(Clone)]
 pub struct AttributeValueProvider {
     pub attribute: KnownEntid,
 }

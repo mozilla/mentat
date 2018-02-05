@@ -33,6 +33,7 @@ pub enum CacheAction {
     Deregister,
 }
 
+#[derive(Clone)]
 pub struct AttributeCacher {
     cache: BTreeMap<Entid, EagerCache<Entid, Vec<TypedValue>, AttributeValueProvider>>,   // values keyed by attribute
 }
@@ -61,9 +62,15 @@ impl AttributeCacher {
         self.cache.get( &attribute.0 ).map(|m| &m.cache )
     }
 
-    pub fn get_for_entid(&mut self, attribute: &KnownEntid, entid: &KnownEntid) -> Option<&Vec<TypedValue>> {
+    pub fn get_values_for_entid(&mut self, attribute: &KnownEntid, entid: &KnownEntid) -> Option<&Vec<TypedValue>> {
         if let Some(c) = self.cache.get(&attribute.0) {
             c.get(&entid.0)
+        } else { None }
+    }
+
+    pub fn get_value_for_entid(&mut self, attribute: &KnownEntid, entid: &KnownEntid) -> Option<&TypedValue> {
+        if let Some(c) = self.get_values_for_entid(attribute, entid) {
+            c.first()
         } else { None }
     }
 }
@@ -179,8 +186,14 @@ mod tests {
         let mut attribute_cache = AttributeCacher::new();
 
         attribute_cache.register_attribute(&mut sqlite, attr_entid.clone()).expect("No errors on add to cache");
-        let val = attribute_cache.get_for_entid(&attr_entid, &KnownEntid(entid)).expect("Expected value");
-        assert_eq!(*val, vec![TypedValue::Long(100)]);
+        {
+            let val = attribute_cache.get_values_for_entid(&attr_entid, &KnownEntid(entid)).expect("Expected value");
+            assert_eq!(*val, vec![TypedValue::Long(100)]);
+        }
+        {
+            let val = attribute_cache.get_value_for_entid(&attr_entid, &KnownEntid(entid)).expect("Expected value");
+            assert_eq!(*val, TypedValue::Long(100));
+        }
     }
 }
 
