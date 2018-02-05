@@ -73,7 +73,25 @@ mod tests {
     use super::*;
     use mentat_core::HasSchema;
     use mentat_db::db;
+    use mentat_db::types::TypedValue;
+
     use conn::Conn;
+
+    fn populate_db() -> (Conn, rusqlite::Connection) {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let _report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+        let _report = conn.transact(&mut sqlite, r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        (conn, sqlite)
+    }
 
     fn assert_values_present_for_attribute(attribute_cache: &mut AttributeCacher, attribute: &KnownEntid, values: Vec<Vec<TypedValue>>) {
         let cached_values: Vec<Vec<TypedValue>> = attribute_cache.get(&attribute)
@@ -86,18 +104,7 @@ mod tests {
 
     #[test]
     fn test_add_to_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :db/ident       :foo/bar
-               :db/valueType   :db.type/long },
-            {  :db/ident       :foo/baz
-               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :foo/bar        100
-               :foo/baz        false },
-            {  :foo/bar        200
-               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let (conn, mut sqlite) = populate_db();
         let schema = conn.current_schema();
         let mut attribute_cache = AttributeCacher::new();
         let kw = kw!(:foo/bar);
@@ -108,18 +115,7 @@ mod tests {
 
     #[test]
     fn test_add_attribute_already_in_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :db/ident       :foo/bar
-               :db/valueType   :db.type/long },
-            {  :db/ident       :foo/baz
-               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :foo/bar        100
-               :foo/baz        false },
-            {  :foo/bar        200
-               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let (conn, mut sqlite) = populate_db();
         let schema = conn.current_schema();
 
         let kw = kw!(:foo/bar);
@@ -134,18 +130,7 @@ mod tests {
 
     #[test]
     fn test_remove_from_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :db/ident       :foo/bar
-               :db/valueType   :db.type/long },
-            {  :db/ident       :foo/baz
-               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :foo/bar        100
-               :foo/baz        false },
-            {  :foo/bar        200
-               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let (conn, mut sqlite) = populate_db();
         let schema = conn.current_schema();
 
         let kwr = kw!(:foo/bar);
@@ -167,24 +152,37 @@ mod tests {
 
     #[test]
     fn test_remove_attribute_not_in_cache() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :db/ident       :foo/bar
-               :db/valueType   :db.type/long },
-            {  :db/ident       :foo/baz
-               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
-        let _report = conn.transact(&mut sqlite, r#"[
-            {  :foo/bar        100
-               :foo/baz        false },
-            {  :foo/bar        200
-               :foo/baz        true }]"#).expect("transaction expected to succeed");
+        let (conn, mut sqlite) = populate_db();
         let mut attribute_cache = AttributeCacher::new();
 
         let schema = conn.current_schema();
         let kw = kw!(:foo/baz);
         let entid = schema.get_entid(&kw).expect("Expected entid for attribute");
         assert_eq!(None, attribute_cache.deregister_attribute(&entid));
+    }
+
+
+
+    #[test]
+    fn test_fetch_attribute_value_for_entid() {
+        let (conn, mut sqlite) = populate_db();
+        let schema = conn.current_schema();
+
+        let entities = conn.q_once(&sqlite, r#"[:find ?e :where [?e :foo/bar 100]]"#, None).expect("Expected query to work").into_rel().expect("expected rel results");
+        let first = entities.first().expect("expected a result");
+        let entid = match first.first() {
+            Some(&TypedValue::Ref(entid)) => entid,
+            x => panic!("expected Some(Ref), got {:?}", x),
+        };
+
+        let kwr = kw!(:foo/bar);
+        let attr_entid = schema.get_entid(&kwr).expect("Expected entid for attribute");
+
+        let mut attribute_cache = AttributeCacher::new();
+
+        attribute_cache.register_attribute(&mut sqlite, attr_entid.clone()).expect("No errors on add to cache");
+        let val = attribute_cache.get_for_entid(&attr_entid, &KnownEntid(entid)).expect("Expected value");
+        assert_eq!(*val, vec![TypedValue::Long(100)]);
     }
 }
 
