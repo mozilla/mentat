@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_add_to_cache() {
-        let (conn, mut sqlite) = populate_db();
+        let (conn, sqlite) = populate_db();
         let schema = conn.current_schema();
         let mut attribute_cache = AttributeCacher::new();
         let kw = kw!(:foo/bar);
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_remove_attribute_not_in_cache() {
-        let (conn, mut sqlite) = populate_db();
+        let (conn, _sqlite) = populate_db();
         let mut attribute_cache = AttributeCacher::new();
 
         let schema = conn.current_schema();
@@ -160,8 +160,6 @@ mod tests {
         let entid = schema.get_entid(&kw).expect("Expected entid for attribute");
         assert_eq!(None, attribute_cache.deregister_attribute(&entid));
     }
-
-
 
     #[test]
     fn test_fetch_attribute_value_for_entid() {

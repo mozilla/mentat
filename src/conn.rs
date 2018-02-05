@@ -34,7 +34,6 @@ use mentat_core::intern_set::InternSet;
 
 use mentat_db::db;
 use mentat_db::{
-    to_namespaced_keyword,
     transact,
     transact_terms,
     PartitionMap,
@@ -537,14 +536,13 @@ impl Conn {
     /// CacheType::Lazy caches values only after they have first been fetched.
     pub fn cache(&mut self,
                  sqlite: &mut rusqlite::Connection,
-                 attribute: &str,
+                 attribute: &NamespacedKeyword,
                  cache_action: CacheAction) -> Result<()> {
         // fetch the attribute for the given name
         let schema = self.current_schema();
 
-        let attr = to_namespaced_keyword(&attribute)?;
         let mut cache = self.attribute_cache.lock().unwrap();
-        let attribute_entid = schema.get_entid(&attr).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+        let attribute_entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
         match cache_action {
             CacheAction::Register => { cache.register_attribute(sqlite, attribute_entid)?; },
             CacheAction::Deregister => { cache.deregister_attribute(&attribute_entid); },
@@ -558,6 +556,9 @@ mod tests {
     use super::*;
 
     extern crate mentat_parser_utils;
+
+    use std::time::Instant;
+
     use mentat_core::{
         TypedValue,
     };
@@ -765,10 +766,81 @@ mod tests {
             {  :db/ident       :foo/baz
                :db/valueType   :db.type/boolean }]"#).unwrap();
 
-        let res = conn.cache(&mut sqlite,"", CacheAction::Register);
+        let kw = kw!(:foo/bat);
+        let res = conn.cache(&mut sqlite,&kw, CacheAction::Register);
         match res.unwrap_err() {
-            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(msg)), _) => assert_eq!(msg, "InvalidNamespacedKeyword: "),
+            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, ":foo/bat"),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
         }
+    }
+
+    // TODO expand tests to cover lookup_value_for_attribute comparing with and without caching
+    #[test]
+    fn test_lookup_attribute_with_caching() {
+
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let _report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+
+        {
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("transaction");
+            for _ in 1..10000 {
+                let _report = in_progress.transact(r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true },
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        300
+               :foo/baz        true },
+            {  :foo/bar        400
+               :foo/baz        false },
+            {  :foo/bar        500
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+            }
+            in_progress.commit().expect("Committed");
+        }
+
+        let entities = conn.q_once(&sqlite, r#"[:find ?e . :where [?e :foo/bar 400]]"#, None).expect("Expected query to work").into_scalar().expect("expected rel results");
+        let first = entities.expect("expected a result");
+        let entid = match first {
+            TypedValue::Ref(entid) => entid,
+            x => panic!("expected Some(Ref), got {:?}", x),
+        };
+
+        let kw = kw!(:foo/bar);
+        let start = Instant::now();
+        let uncached_val = conn.lookup_value_for_attribute(&sqlite, entid, &kw).expect("Expected value on lookup");
+        let finish = Instant::now();
+        let uncached_elapsed_time = finish.duration_since(start);
+        println!("Uncached time: {:?}", uncached_elapsed_time);
+
+        conn.cache(&mut sqlite, &kw, CacheAction::Register).expect("expected caching to work");
+
+        let start = Instant::now();
+        let cached_val = conn.lookup_value_for_attribute(&sqlite, entid, &kw).expect("Expected value on lookup");
+        let finish = Instant::now();
+        let cached_elapsed_time = finish.duration_since(start);
+        assert_eq!(cached_val, uncached_val);
+
+        println!("Cached time: {:?}", cached_elapsed_time);
+
+        // Third time's the charm.
+
+        let start = Instant::now();
+        let cached_val = conn.lookup_value_for_attribute(&sqlite, entid, &kw).expect("Expected value on lookup");
+        let finish = Instant::now();
+        let cached_elapsed_time = finish.duration_since(start);
+        assert_eq!(cached_val, uncached_val);
+
+        println!("Cached time: {:?}", cached_elapsed_time);
+
+
+        //assert!(cached_elapsed_time < uncached_elapsed_time);
     }
 }
