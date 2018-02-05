@@ -27,5 +27,5 @@ extern crate itertools;
 
 pub mod schema;
 pub mod metadata;
-pub mod tx_client;
+pub mod tx_processor;
 pub mod errors;

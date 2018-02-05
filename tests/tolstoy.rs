@@ -12,28 +12,97 @@ extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_tolstoy;
 
+use std::collections::BTreeMap;
+
 use mentat::conn::Conn;
 
 use mentat::new_connection;
-use mentat_tolstoy::tx_client::{
-    TxReader,
-    TxClient,
+use mentat_tolstoy::tx_processor::{
+    TxReceiver,
+    DatomsIterator,
+    Processor,
+    TxPart,
 };
+use mentat_tolstoy::errors::Result;
 use mentat_core::{
     ValueType,
-    TypedValue
+    TypedValue,
+    Entid,
 };
+
+struct TxCountingReceiver {
+    pub tx_count: u32,
+    pub is_done: bool,
+}
+
+impl TxCountingReceiver {
+    fn new() -> TxCountingReceiver {
+        TxCountingReceiver {
+            tx_count: 0,
+            is_done: false
+        }
+    }
+}
+
+impl TxReceiver for TxCountingReceiver {
+    fn tx(&mut self, tx_id: Entid, d: &mut DatomsIterator) -> Result<()> {
+        self.tx_count = self.tx_count + 1;
+        Ok(())
+    }
+
+    fn done(&mut self) -> Result<()> {
+        self.is_done = true;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct TestingReceiver {
+    pub txes: BTreeMap<Entid, Vec<TxPart>>,
+    pub is_done: bool,
+}
+
+impl TestingReceiver {
+    fn new() -> TestingReceiver {
+        TestingReceiver {
+            txes: BTreeMap::new(),
+            is_done: false,
+        }
+    }
+}
+
+impl TxReceiver for TestingReceiver {
+    fn tx(&mut self, tx_id: Entid, d: &mut DatomsIterator) -> Result<()> {
+        let datoms = self.txes.entry(tx_id).or_insert(vec![]);
+        for datom in d {
+            datoms.push(datom?);
+        }
+        Ok(())
+    }
+
+    fn done(&mut self) -> Result<()> {
+        self.is_done = true;
+        Ok(())
+    }
+}
+
+fn assert_tx_datoms_count(receiver: &TestingReceiver, tx_num: usize, expected_datoms: usize) {
+    let tx = receiver.txes.keys().nth(tx_num).expect("first tx");
+    let datoms = receiver.txes.get(tx).expect("datoms");
+    assert_eq!(expected_datoms, datoms.len());
+}
 
 #[test]
 fn test_reader() {
     let mut c = new_connection("").expect("Couldn't open conn.");
     let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
 
-    let txes = TxClient::all(&c).expect("bootstrap transactions");
-
     // Don't inspect the bootstrap transaction, but we'd like to see it's there.
-    assert_eq!(1, txes.len());
-    assert_eq!(94, txes[0].parts.len());
+    let mut receiver = TxCountingReceiver::new();
+    assert_eq!(false, receiver.is_done);
+    Processor::process(&c, &mut receiver).expect("processor");
+    assert_eq!(true, receiver.is_done);
+    assert_eq!(1, receiver.tx_count);
 
     let ids = conn.transact(&mut c, r#"[
         [:db/add "s" :db/ident :foo/numba]
@@ -42,34 +111,33 @@ fn test_reader() {
     ]"#).expect("successful transaction").tempids;
     let numba_entity_id = ids.get("s").unwrap();
 
-    let txes = TxClient::all(&c).expect("got transactions");
+    // Expect to see one more transaction of four parts (one for tx datom itself).
+    let mut receiver = TestingReceiver::new();
+    Processor::process(&c, &mut receiver).expect("processor");
 
-    // Expect to see one more transaction of three parts.
-    assert_eq!(2, txes.len());
-    assert_eq!(3, txes[1].parts.len());
-
-    println!("{:?}", txes[1]);
+    assert_eq!(2, receiver.txes.keys().count());
+    assert_tx_datoms_count(&receiver, 1, 4);
 
     let ids = conn.transact(&mut c, r#"[
         [:db/add "b" :foo/numba 123]
     ]"#).expect("successful transaction").tempids;
     let asserted_e = ids.get("b").unwrap();
 
-    let txes = TxClient::all(&c).expect("got transactions");
+    // Expect to see a single two part transaction
+    let mut receiver = TestingReceiver::new();
+    Processor::process(&c, &mut receiver).expect("processor");
 
-    // Expect to see a single part transactions
-    // TODO verify that tx itself looks sane
-    assert_eq!(3, txes.len());
-    assert_eq!(1, txes[2].parts.len());
+    assert_eq!(3, receiver.txes.keys().count());
+    assert_tx_datoms_count(&receiver, 2, 2);
 
     // Inspect the transaction part.
-    let part = &txes[2].parts[0];
+    let tx_id = receiver.txes.keys().nth(2).expect("tx");
+    let datoms = receiver.txes.get(tx_id).expect("datoms");
+    let part = &datoms[0];
 
     assert_eq!(asserted_e, &part.e);
     assert_eq!(numba_entity_id, &part.a);
     assert!(part.v.matches_type(ValueType::Long));
     assert_eq!(TypedValue::Long(123), part.v);
     assert_eq!(true, part.added);
-
-    // TODO retractions
 }
