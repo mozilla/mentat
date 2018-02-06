@@ -45,7 +45,8 @@ impl TxCountingReceiver {
 }
 
 impl TxReceiver for TxCountingReceiver {
-    fn tx(&mut self, tx_id: Entid, d: &mut DatomsIterator) -> Result<()> {
+    fn tx<T>(&mut self, tx_id: Entid, d: &mut T) -> Result<()>
+        where T: Iterator<Item=TxPart> {
         self.tx_count = self.tx_count + 1;
         Ok(())
     }
@@ -72,10 +73,11 @@ impl TestingReceiver {
 }
 
 impl TxReceiver for TestingReceiver {
-    fn tx(&mut self, tx_id: Entid, d: &mut DatomsIterator) -> Result<()> {
+    fn tx<T>(&mut self, tx_id: Entid, d: &mut T) -> Result<()>
+        where T: Iterator<Item=TxPart> {
         let datoms = self.txes.entry(tx_id).or_insert(vec![]);
         for datom in d {
-            datoms.push(datom?);
+            datoms.push(datom);
         }
         Ok(())
     }

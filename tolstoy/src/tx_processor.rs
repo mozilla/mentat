@@ -43,37 +43,37 @@ pub struct Tx {
 }
 
 pub trait TxReceiver {
-    fn tx(&mut self, tx_id: Entid, d: &mut DatomsIterator) -> Result<()>;
+    fn tx<T>(&mut self, tx_id: Entid, d: &mut T) -> Result<()>
+        where T: Iterator<Item=TxPart>;
     fn done(&mut self) -> Result<()>;
 }
 
 pub struct Processor {}
 
-type DemRows<'s> = Peekable<rusqlite::AndThenRows<'s, Result<TxPart>>>;
-
-pub struct DatomsIterator<'conn> {
+pub struct DatomsIterator<'conn, 't, T>
+where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     at_first: bool,
     at_last: bool,
     first: &'conn TxPart,
-    rows: DemRows<'conn>,
+    rows: &'t mut Peekable<T>,
 }
 
-impl<'conn> DatomsIterator<'conn> {
-    fn new<I>(first: &'conn TxPart, rows: &'conn mut DemRows<'conn>) -> DatomsIterator<'conn>
-    where
-        I: Iterator<Item=Result<TxPart>>
+impl<'conn, 't, T> DatomsIterator<'conn, 't, T>
+where T: Sized + Iterator<Item=Result<TxPart>> + 't {
+    fn new(first: &'conn TxPart, rows: &'t mut Peekable<T>) -> DatomsIterator<'conn, 't, T>
     {
         DatomsIterator {
             at_first: true,
             at_last: false,
             first: first,
-            rows: Box::new(rows),
+            rows: rows,
         }
     }
 }
 
-impl<'conn> Iterator for DatomsIterator<'conn> {
-    type Item = Result<TxPart>;
+impl<'conn, 't, T> Iterator for DatomsIterator<'conn, 't, T>
+where T: Sized + Iterator<Item=Result<TxPart>> + 't {
+    type Item = TxPart;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.at_last {
@@ -82,7 +82,7 @@ impl<'conn> Iterator for DatomsIterator<'conn> {
 
         if self.at_first {
             self.at_first = false;
-            return Some(Ok(self.first.clone()));
+            return Some(self.first.clone());
         }
 
         // Look ahead to see if we're about to cross into
@@ -90,51 +90,40 @@ impl<'conn> Iterator for DatomsIterator<'conn> {
         {
             let next_option = self.rows.peek();
             match next_option {
-                Some(next_result) => {
-                    match *next_result {
-                        Ok(ref next) => {
-                            if next.tx != self.first.tx {
-                                self.at_last = true;
-                                return None;
-                            }
-                        },
-                        _ => ()
+                Some(&Ok(ref next)) => {
+                    if next.tx != self.first.tx {
+                        self.at_last = true;
+                        return None;
                     }
                 },
                 _ => ()
             }
         }
-        
+
         // We're in the correct partition.
-        if let Some(row) = self.rows.next() {
-            let datom = match row {
-                Ok(r) => r,
-                Err(e) => {
-                    self.at_last = true;
-                    return Some(Err(e));
-                }
-            };
-
-            if datom.a == entids::DB_TX_INSTANT && datom.tx == datom.e {
-                self.at_last = true;
+        if let Some(result) = self.rows.next() {
+            match result {
+                Err(_) => None,
+                Ok(datom) => {
+                    Some(TxPart {
+                        e: datom.e,
+                        a: datom.a,
+                        v: datom.v.clone(),
+                        tx: datom.tx,
+                        added: datom.added,
+                    })
+                },
             }
-
-            return Some(Ok(TxPart {
-                e: datom.e,
-                a: datom.a,
-                v: datom.v.clone(),
-                tx: datom.tx,
-                added: datom.added,
-            }));
         } else {
             self.at_last = true;
-            return None;
+            None
         }
     }
 }
 
 impl Processor {
-    pub fn process(sqlite: &rusqlite::Connection, receiver: &mut TxReceiver) -> Result<()> {
+    pub fn process<R>(sqlite: &rusqlite::Connection, receiver: &mut R) -> Result<()>
+    where R: TxReceiver {
         let mut stmt = sqlite.prepare(
             "SELECT e, a, v, tx, added, value_type_tag FROM transactions ORDER BY tx"
         )?;
@@ -154,7 +143,7 @@ impl Processor {
         let mut peekable = rows.peekable();
         while let Some(row) = peekable.next() {
             let datom = row?;
-            
+
             // if current_tx == Some(row.tx)
             match current_tx {
                 Some(tx) => {
