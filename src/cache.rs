@@ -78,6 +78,7 @@ impl AttributeCacher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
     use mentat_core::{
         HasSchema,
         KnownEntid,
@@ -92,14 +93,21 @@ mod tests {
         let mut conn = Conn::connect(&mut sqlite).unwrap();
         let _report = conn.transact(&mut sqlite, r#"[
             {  :db/ident       :foo/bar
-               :db/valueType   :db.type/long },
+               :db/valueType   :db.type/long
+               :db/cardinality :db.cardinality/one },
             {  :db/ident       :foo/baz
-               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+               :db/valueType   :db.type/boolean
+               :db/cardinality :db.cardinality/one },
+            {  :db/ident       :foo/bap
+               :db/valueType   :db.type/string
+               :db/cardinality :db.cardinality/many}]"#).expect("transaction expected to succeed");
         let _report = conn.transact(&mut sqlite, r#"[
             {  :foo/bar        100
-               :foo/baz        false },
+               :foo/baz        false
+               :foo/bap        ["one","two","buckle my shoe"] },
             {  :foo/bar        200
-               :foo/baz        true }]"#).expect("transaction expected to succeed");
+               :foo/baz        true
+               :foo/bap        ["three", "four", "knock at my door"] }]"#).expect("transaction expected to succeed");
         (conn, sqlite)
     }
 
@@ -176,10 +184,9 @@ mod tests {
         let (conn, mut sqlite) = populate_db();
         let schema = conn.current_schema();
 
-        let entities = conn.q_once(&sqlite, r#"[:find ?e :where [?e :foo/bar 100]]"#, None).expect("Expected query to work").into_rel().expect("expected rel results");
-        let first = entities.first().expect("expected a result");
-        let entid = match first.first() {
-            Some(&TypedValue::Ref(entid)) => entid,
+        let entities = conn.q_once(&sqlite, r#"[:find ?e . :where [?e :foo/bar 100]]"#, None).expect("Expected query to work").into_scalar().expect("expected scalar results");
+        let entid = match entities {
+            Some(TypedValue::Ref(entid)) => entid,
             x => panic!("expected Some(Ref), got {:?}", x),
         };
 
@@ -189,14 +196,29 @@ mod tests {
         let mut attribute_cache = AttributeCacher::new();
 
         attribute_cache.register_attribute(&mut sqlite, attr_entid.clone()).expect("No errors on add to cache");
-        {
-            let val = attribute_cache.get_values_for_entid(&attr_entid, &entid).expect("Expected value");
-            assert_eq!(*val, vec![TypedValue::Long(100)]);
-        }
-        {
-            let val = attribute_cache.get_value_for_entid(&attr_entid, &entid).expect("Expected value");
-            assert_eq!(*val, TypedValue::Long(100));
-        }
+        let val = attribute_cache.get_value_for_entid(&attr_entid, &entid).expect("Expected value");
+        assert_eq!(*val, TypedValue::Long(100));
+    }
+
+    #[test]
+    fn test_fetch_attribute_values_for_entid() {
+        let (conn, mut sqlite) = populate_db();
+        let schema = conn.current_schema();
+
+        let entities = conn.q_once(&sqlite, r#"[:find ?e . :where [?e :foo/bar 100]]"#, None).expect("Expected query to work").into_scalar().expect("expected scalar results");
+        let entid = match entities {
+            Some(TypedValue::Ref(entid)) => entid,
+            x => panic!("expected Some(Ref), got {:?}", x),
+        };
+
+        let kwp = kw!(:foo/bap);
+        let attr_entid = schema.get_entid(&kwp).expect("Expected entid for attribute").0;
+
+        let mut attribute_cache = AttributeCacher::new();
+
+        attribute_cache.register_attribute(&mut sqlite, attr_entid.clone()).expect("No errors on add to cache");
+        let val = attribute_cache.get_values_for_entid(&attr_entid, &entid).expect("Expected value");
+        assert_eq!(*val, vec![TypedValue::String(Rc::new("buckle my shoe".to_string())), TypedValue::String(Rc::new("one".to_string())), TypedValue::String(Rc::new("two".to_string()))]);
     }
 }
 
