@@ -115,6 +115,8 @@ fn test_reader() {
     let mut receiver = TestingReceiver::new();
     Processor::process(&c, &mut receiver).expect("processor");
 
+    println!("{:#?}", receiver);
+
     assert_eq!(2, receiver.txes.keys().count());
     assert_tx_datoms_count(&receiver, 1, 4);
 
