@@ -18,7 +18,6 @@ use errors::{
 };
 
 use mentat_db::{
-    entids,
     TypedSQLValue,
 };
 
@@ -121,6 +120,16 @@ where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     }
 }
 
+fn to_tx_part(row: &::rusqlite::Row) -> Result<TxPart> {
+    Ok(TxPart {
+        e: row.get(0),
+        a: row.get(1),
+        v: TypedValue::from_sql_value_pair(row.get(2), row.get(5))?,
+        tx: row.get(3),
+        added: row.get(4),
+    })
+}
+
 impl Processor {
     pub fn process<R>(sqlite: &rusqlite::Connection, receiver: &mut R) -> Result<()>
     where R: TxReceiver {
@@ -128,20 +137,9 @@ impl Processor {
             "SELECT e, a, v, tx, added, value_type_tag FROM transactions ORDER BY tx"
         )?;
 
-        let mut rows = stmt.query_and_then(&[], |row| -> Result<TxPart> {
-            Ok(TxPart {
-                e: row.get(0),
-                a: row.get(1),
-                v: TypedValue::from_sql_value_pair(row.get(2), row.get(5))?,
-                tx: row.get(3),
-                added: row.get(4),
-            })
-        })?;
-
+        let mut rows = stmt.query_and_then(&[], to_tx_part)?.peekable();
         let mut current_tx = None;
-
-        let mut peekable = rows.peekable();
-        while let Some(row) = peekable.next() {
+        while let Some(row) = rows.next() {
             let datom = row?;
 
             // if current_tx == Some(row.tx)
@@ -153,7 +151,7 @@ impl Processor {
                         current_tx = Some(datom.tx);
                         receiver.tx(
                             datom.tx,
-                            &mut DatomsIterator::new(&datom, &mut peekable)
+                            &mut DatomsIterator::new(&datom, &mut rows)
                         )?;
                         continue;
                     }
@@ -162,7 +160,7 @@ impl Processor {
                     current_tx = Some(datom.tx);
                     receiver.tx(
                         datom.tx,
-                        &mut DatomsIterator::new(&datom, &mut peekable)
+                        &mut DatomsIterator::new(&datom, &mut rows)
                     )?;
                 }
             }
