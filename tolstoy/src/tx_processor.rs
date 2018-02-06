@@ -24,7 +24,7 @@ use mentat_core::{
     TypedValue,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct TxPart {
     pub e: Entid,
     pub a: Entid,
@@ -41,17 +41,17 @@ pub trait TxReceiver {
 
 pub struct Processor {}
 
-pub struct DatomsIterator<'conn, 't, T>
+pub struct DatomsIterator<'dbtx, 't, T>
 where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     at_first: bool,
     at_last: bool,
-    first: &'conn TxPart,
+    first: &'dbtx TxPart,
     rows: &'t mut Peekable<T>,
 }
 
-impl<'conn, 't, T> DatomsIterator<'conn, 't, T>
+impl<'dbtx, 't, T> DatomsIterator<'dbtx, 't, T>
 where T: Sized + Iterator<Item=Result<TxPart>> + 't {
-    fn new(first: &'conn TxPart, rows: &'t mut Peekable<T>) -> DatomsIterator<'conn, 't, T>
+    fn new(first: &'dbtx TxPart, rows: &'t mut Peekable<T>) -> DatomsIterator<'dbtx, 't, T>
     {
         DatomsIterator {
             at_first: true,
@@ -62,7 +62,7 @@ where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     }
 }
 
-impl<'conn, 't, T> Iterator for DatomsIterator<'conn, 't, T>
+impl<'dbtx, 't, T> Iterator for DatomsIterator<'dbtx, 't, T>
 where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     type Item = TxPart;
 
@@ -127,7 +127,7 @@ fn to_tx_part(row: &rusqlite::Row) -> Result<TxPart> {
 }
 
 impl Processor {
-    pub fn process<R>(sqlite: &rusqlite::Connection, receiver: &mut R) -> Result<()>
+    pub fn process<R>(sqlite: &rusqlite::Transaction, receiver: &mut R) -> Result<()>
     where R: TxReceiver {
         let mut stmt = sqlite.prepare(
             "SELECT e, a, v, value_type_tag, tx, added FROM transactions ORDER BY tx"

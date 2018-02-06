@@ -14,28 +14,22 @@ use rusqlite;
 use uuid::Uuid;
 
 use schema;
-use errors::Result;
+use errors::{
+    Result,
+    ErrorKind,
+};
 
-trait HeadTrackable {
-    fn remote_head(&self) -> Result<Uuid>;
-    fn set_remote_head(&mut self, uuid: &Uuid) -> Result<()>;
+pub trait HeadTrackable {
+    fn remote_head(tx: &rusqlite::Transaction) -> Result<Uuid>;
+    fn set_remote_head(tx: &rusqlite::Transaction, uuid: &Uuid) -> Result<()>;
 }
 
-struct SyncMetadataClient {
-    conn: rusqlite::Connection
-}
+pub struct SyncMetadataClient {}
 
-impl SyncMetadataClient {
-    fn new(conn: rusqlite::Connection) -> Self {
-        SyncMetadataClient {
-            conn: conn
-        }
-    }
-}
-
+// TODO take a transaction, not a conn + make all these static
 impl HeadTrackable for SyncMetadataClient {
-    fn remote_head(&self) -> Result<Uuid> {
-        self.conn.query_row(
+    fn remote_head(tx: &rusqlite::Transaction) -> Result<Uuid> {
+        tx.query_row(
             "SELECT value FROM tolstoy_metadata WHERE key = ?",
             &[&schema::REMOTE_HEAD_KEY], |r| {
                 let bytes: Vec<u8> = r.get(0);
@@ -44,11 +38,19 @@ impl HeadTrackable for SyncMetadataClient {
         )?.map_err(|e| e.into())
     }
 
-    fn set_remote_head(&mut self, uuid: &Uuid) -> Result<()> {
-        let tx = self.conn.transaction()?;
+    fn set_remote_head(tx: &rusqlite::Transaction, uuid: &Uuid) -> Result<()> {
         let uuid_bytes = uuid.as_bytes().to_vec();
-        tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?", &[&uuid_bytes, &schema::REMOTE_HEAD_KEY])?;
-        tx.commit().map_err(|e| e.into())
+        match tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?",
+            &[&uuid_bytes, &schema::REMOTE_HEAD_KEY]) {
+                Ok(updated) => {
+                    if updated == 1 {
+                        Ok(())
+                    } else {
+                        bail!(ErrorKind::DuplicateMetadata(schema::REMOTE_HEAD_KEY.into()));
+                    }
+                },
+                Err(err) => Err(err.into())
+        }
     }
 }
 
@@ -58,17 +60,17 @@ mod tests {
 
     #[test]
     fn test_get_remote_head_default() {
-        let conn = schema::tests::setup_conn();
-        let metadata_client: SyncMetadataClient = SyncMetadataClient::new(conn);
-        assert_eq!(Uuid::nil(), metadata_client.remote_head().expect("fetch succeeded"));
+        let mut conn = schema::tests::setup_conn();
+        let tx = conn.transaction().expect("db tx");
+        assert_eq!(Uuid::nil(), SyncMetadataClient::remote_head(&tx).expect("fetch succeeded"));
     }
 
     #[test]
     fn test_set_and_get_remote_head() {
-        let conn = schema::tests::setup_conn();
+        let mut conn = schema::tests::setup_conn();
         let uuid = Uuid::new_v4();
-        let mut metadata_client: SyncMetadataClient = SyncMetadataClient::new(conn);
-        metadata_client.set_remote_head(&uuid).expect("update succeeded");
-        assert_eq!(uuid, metadata_client.remote_head().expect("fetch succeeded"));
+        let tx = conn.transaction().expect("db tx");
+        SyncMetadataClient::set_remote_head(&tx, &uuid).expect("update succeeded");
+        assert_eq!(uuid, SyncMetadataClient::remote_head(&tx).expect("fetch succeeded"));
     }
 }

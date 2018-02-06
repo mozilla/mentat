@@ -95,13 +95,15 @@ fn assert_tx_datoms_count(receiver: &TestingReceiver, tx_num: usize, expected_da
 fn test_reader() {
     let mut c = new_connection("").expect("Couldn't open conn.");
     let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
-
-    // Don't inspect the bootstrap transaction, but we'd like to see it's there.
-    let mut receiver = TxCountingReceiver::new();
-    assert_eq!(false, receiver.is_done);
-    Processor::process(&c, &mut receiver).expect("processor");
-    assert_eq!(true, receiver.is_done);
-    assert_eq!(1, receiver.tx_count);
+    {
+        let db_tx = c.transaction().expect("db tx");
+        // Don't inspect the bootstrap transaction, but we'd like to see it's there.
+        let mut receiver = TxCountingReceiver::new();
+        assert_eq!(false, receiver.is_done);
+        Processor::process(&db_tx, &mut receiver).expect("processor");
+        assert_eq!(true, receiver.is_done);
+        assert_eq!(1, receiver.tx_count);
+    }
 
     let ids = conn.transact(&mut c, r#"[
         [:db/add "s" :db/ident :foo/numba]
@@ -110,35 +112,42 @@ fn test_reader() {
     ]"#).expect("successful transaction").tempids;
     let numba_entity_id = ids.get("s").unwrap();
 
-    // Expect to see one more transaction of four parts (one for tx datom itself).
-    let mut receiver = TestingReceiver::new();
-    Processor::process(&c, &mut receiver).expect("processor");
+    {
+        let db_tx = c.transaction().expect("db tx");
+        // Expect to see one more transaction of four parts (one for tx datom itself).
+        let mut receiver = TestingReceiver::new();
+        Processor::process(&db_tx, &mut receiver).expect("processor");
 
-    println!("{:#?}", receiver);
+        println!("{:#?}", receiver);
 
-    assert_eq!(2, receiver.txes.keys().count());
-    assert_tx_datoms_count(&receiver, 1, 4);
+        assert_eq!(2, receiver.txes.keys().count());
+        assert_tx_datoms_count(&receiver, 1, 4);
+    }
 
     let ids = conn.transact(&mut c, r#"[
         [:db/add "b" :foo/numba 123]
     ]"#).expect("successful transaction").tempids;
     let asserted_e = ids.get("b").unwrap();
 
-    // Expect to see a single two part transaction
-    let mut receiver = TestingReceiver::new();
-    Processor::process(&c, &mut receiver).expect("processor");
+    {
+        let db_tx = c.transaction().expect("db tx");
 
-    assert_eq!(3, receiver.txes.keys().count());
-    assert_tx_datoms_count(&receiver, 2, 2);
+        // Expect to see a single two part transaction
+        let mut receiver = TestingReceiver::new();
+        Processor::process(&db_tx, &mut receiver).expect("processor");
 
-    // Inspect the transaction part.
-    let tx_id = receiver.txes.keys().nth(2).expect("tx");
-    let datoms = receiver.txes.get(tx_id).expect("datoms");
-    let part = &datoms[0];
+        assert_eq!(3, receiver.txes.keys().count());
+        assert_tx_datoms_count(&receiver, 2, 2);
 
-    assert_eq!(asserted_e, &part.e);
-    assert_eq!(numba_entity_id, &part.a);
-    assert!(part.v.matches_type(ValueType::Long));
-    assert_eq!(TypedValue::Long(123), part.v);
-    assert_eq!(true, part.added);
+        // Inspect the transaction part.
+        let tx_id = receiver.txes.keys().nth(2).expect("tx");
+        let datoms = receiver.txes.get(tx_id).expect("datoms");
+        let part = &datoms[0];
+
+        assert_eq!(asserted_e, &part.e);
+        assert_eq!(numba_entity_id, &part.a);
+        assert!(part.v.matches_type(ValueType::Long));
+        assert_eq!(TypedValue::Long(123), part.v);
+        assert_eq!(true, part.added);
+    }
 }

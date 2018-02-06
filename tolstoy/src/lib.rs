@@ -8,11 +8,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+// For error_chain:
+#![recursion_limit="128"]
+
 #[macro_use]
 extern crate error_chain;
 
 #[macro_use]
 extern crate lazy_static;
+
+#[macro_use]
+extern crate serde_derive;
 
 extern crate hyper;
 extern crate tokio_core;
@@ -28,3 +34,5 @@ pub mod schema;
 pub mod metadata;
 pub mod tx_processor;
 pub mod errors;
+pub mod syncer;
+pub mod tx_mapper;
