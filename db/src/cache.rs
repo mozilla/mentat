@@ -22,12 +22,13 @@ use db::{
 };
 use mentat_core::{
     Entid,
-    KnownEntid,
     TypedValue,
 };
 
+pub type CacheMap<K, V> = BTreeMap<K, V>;
+
 pub trait ValueProvider<K, V>: Sized {
-    fn fetch_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<BTreeMap<K, V>>;
+    fn fetch_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<CacheMap<K, V>>;
 }
 
 pub trait Cacheable {
@@ -45,18 +46,21 @@ pub trait Cacheable {
 
 #[derive(Clone)]
 pub struct EagerCache<K, V, VP> where K: Ord, VP: ValueProvider<K, V> {
-    pub cache: BTreeMap<K, V>,
+    pub cache: CacheMap<K, V>,
     value_provider: VP,
 }
 
-impl<K, V, VP> Cacheable for EagerCache<K, V, VP> where K: Ord + Clone + Debug, V: Clone, VP: ValueProvider<K, V> {
+impl<K, V, VP> Cacheable for EagerCache<K, V, VP>
+    where K: Ord + Clone + Debug + ::std::hash::Hash,
+          V: Clone,
+          VP: ValueProvider<K, V> {
     type Key = K;
     type Value = V;
     type ValueProvider = VP;
 
     fn new(value_provider: Self::ValueProvider) -> Self {
         EagerCache {
-            cache: BTreeMap::new(),
+            cache: CacheMap::new(),
             value_provider,
         }
     }
@@ -80,21 +84,21 @@ impl<K, V, VP> Cacheable for EagerCache<K, V, VP> where K: Ord + Clone + Debug, 
 
 #[derive(Clone)]
 pub struct AttributeValueProvider {
-    pub attribute: KnownEntid,
+    pub attribute: Entid,
 }
 
 impl ValueProvider<Entid, Vec<TypedValue>> for AttributeValueProvider {
-    fn fetch_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<BTreeMap<Entid, Vec<TypedValue>>> {
+    fn fetch_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<CacheMap<Entid, Vec<TypedValue>>> {
         let sql = "SELECT e, v, value_type_tag FROM datoms WHERE a = ? ORDER BY e ASC";
         let mut stmt = sqlite.prepare(sql)?;
-        let value_iter = stmt.query_map(&[&self.attribute.0], |row| {
+        let value_iter = stmt.query_map(&[&self.attribute], |row| {
             let entid: Entid = row.get(0);
             let value_type_tag: i32 = row.get(2);
             let value = TypedValue::from_sql_value_pair(row.get(1), value_type_tag).map(|x| x).unwrap();
             (entid, value)
         }).map_err(|e| e.into());
         value_iter.map(|v| {
-            v.fold(BTreeMap::new(), |mut map, row| {
+            v.fold(CacheMap::new(), |mut map, row| {
                 let _ = row.map(|r| {
                     map.entry(r.0).or_insert(vec![]).push(r.1);
                 });

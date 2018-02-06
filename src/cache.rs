@@ -14,7 +14,6 @@ use rusqlite;
 
 use mentat_core::{
     Entid,
-    KnownEntid,
     TypedValue,
 };
 
@@ -22,6 +21,7 @@ use mentat_db::cache::{
     AttributeValueProvider,
     Cacheable,
     EagerCache,
+    CacheMap,
 };
 
 use errors::{
@@ -46,29 +46,29 @@ impl AttributeCacher {
         }
     }
 
-    pub fn register_attribute<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection, attribute: KnownEntid) -> Result<()> {
+    pub fn register_attribute<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection, attribute: Entid) -> Result<()> {
         let value_provider = AttributeValueProvider{ attribute: attribute.clone() };
         let mut cacher = EagerCache::new(value_provider);
         cacher.cache_values(sqlite)?;
-        self.cache.insert(attribute.0, cacher);
+        self.cache.insert(attribute, cacher);
         Ok(())
     }
 
-    pub fn deregister_attribute(&mut self, attribute: &KnownEntid) -> Option<BTreeMap<Entid, Vec<TypedValue>>> {
-        self.cache.remove(&attribute.0).map(|m| m.cache )
+    pub fn deregister_attribute(&mut self, attribute: &Entid) -> Option<CacheMap<Entid, Vec<TypedValue>>> {
+        self.cache.remove(&attribute).map(|m| m.cache )
     }
 
-    pub fn get(&mut self, attribute: &KnownEntid) -> Option<&BTreeMap<Entid, Vec<TypedValue>>> {
-        self.cache.get( &attribute.0 ).map(|m| &m.cache )
+    pub fn get(&self, attribute: &Entid) -> Option<&CacheMap<Entid, Vec<TypedValue>>> {
+        self.cache.get( &attribute ).map(|m| &m.cache )
     }
 
-    pub fn get_values_for_entid(&mut self, attribute: &KnownEntid, entid: &KnownEntid) -> Option<&Vec<TypedValue>> {
-        if let Some(c) = self.cache.get(&attribute.0) {
-            c.get(&entid.0)
+    pub fn get_values_for_entid(&self, attribute: &Entid, entid: &Entid) -> Option<&Vec<TypedValue>> {
+        if let Some(c) = self.cache.get(&attribute) {
+            c.get(&entid)
         } else { None }
     }
 
-    pub fn get_value_for_entid(&mut self, attribute: &KnownEntid, entid: &KnownEntid) -> Option<&TypedValue> {
+    pub fn get_value_for_entid(&self, attribute: &Entid, entid: &Entid) -> Option<&TypedValue> {
         if let Some(c) = self.get_values_for_entid(attribute, entid) {
             c.first()
         } else { None }
@@ -78,7 +78,10 @@ impl AttributeCacher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mentat_core::HasSchema;
+    use mentat_core::{
+        HasSchema,
+        KnownEntid,
+    };
     use mentat_db::db;
     use mentat_db::types::TypedValue;
 
@@ -101,7 +104,7 @@ mod tests {
     }
 
     fn assert_values_present_for_attribute(attribute_cache: &mut AttributeCacher, attribute: &KnownEntid, values: Vec<Vec<TypedValue>>) {
-        let cached_values: Vec<Vec<TypedValue>> = attribute_cache.get(&attribute)
+        let cached_values: Vec<Vec<TypedValue>> = attribute_cache.get(&attribute.0)
             .expect("Expected cached values")
             .values()
             .cloned()
@@ -116,7 +119,7 @@ mod tests {
         let mut attribute_cache = AttributeCacher::new();
         let kw = kw!(:foo/bar);
         let entid = schema.get_entid(&kw).expect("Expected entid for attribute");
-        attribute_cache.register_attribute(&sqlite, entid.clone() ).expect("No errors on add to cache");
+        attribute_cache.register_attribute(&sqlite, entid.0.clone() ).expect("No errors on add to cache");
         assert_values_present_for_attribute(&mut attribute_cache, &entid, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
     }
 
@@ -129,9 +132,9 @@ mod tests {
         let entid = schema.get_entid(&kw).expect("Expected entid for attribute");
         let mut attribute_cache = AttributeCacher::new();
 
-        attribute_cache.register_attribute(&mut sqlite, entid.clone()).expect("No errors on add to cache");
+        attribute_cache.register_attribute(&mut sqlite, entid.0.clone()).expect("No errors on add to cache");
         assert_values_present_for_attribute(&mut attribute_cache, &entid, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
-        attribute_cache.register_attribute(&mut sqlite, entid.clone()).expect("No errors on add to cache");
+        attribute_cache.register_attribute(&mut sqlite, entid.0.clone()).expect("No errors on add to cache");
         assert_values_present_for_attribute(&mut attribute_cache, &entid, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
     }
 
@@ -147,14 +150,14 @@ mod tests {
 
         let mut attribute_cache = AttributeCacher::new();
 
-        attribute_cache.register_attribute(&mut sqlite, entidr.clone()).expect("No errors on add to cache");
+        attribute_cache.register_attribute(&mut sqlite, entidr.0.clone()).expect("No errors on add to cache");
         assert_values_present_for_attribute(&mut attribute_cache, &entidr, vec![vec![TypedValue::Long(100)], vec![TypedValue::Long(200)]]);
-        attribute_cache.register_attribute(&mut sqlite, entidz.clone()).expect("No errors on add to cache");
+        attribute_cache.register_attribute(&mut sqlite, entidz.0.clone()).expect("No errors on add to cache");
         assert_values_present_for_attribute(&mut attribute_cache, &entidz, vec![vec![TypedValue::Boolean(false)], vec![TypedValue::Boolean(true)]]);
 
         // test that we can remove an item from cache
-        attribute_cache.deregister_attribute(&entidz).expect("No errors on remove from cache");
-        assert_eq!(attribute_cache.get(&entidz), None);
+        attribute_cache.deregister_attribute(&entidz.0).expect("No errors on remove from cache");
+        assert_eq!(attribute_cache.get(&entidz.0), None);
     }
 
     #[test]
@@ -164,7 +167,7 @@ mod tests {
 
         let schema = conn.current_schema();
         let kw = kw!(:foo/baz);
-        let entid = schema.get_entid(&kw).expect("Expected entid for attribute");
+        let entid = schema.get_entid(&kw).expect("Expected entid for attribute").0;
         assert_eq!(None, attribute_cache.deregister_attribute(&entid));
     }
 
@@ -181,17 +184,17 @@ mod tests {
         };
 
         let kwr = kw!(:foo/bar);
-        let attr_entid = schema.get_entid(&kwr).expect("Expected entid for attribute");
+        let attr_entid = schema.get_entid(&kwr).expect("Expected entid for attribute").0;
 
         let mut attribute_cache = AttributeCacher::new();
 
         attribute_cache.register_attribute(&mut sqlite, attr_entid.clone()).expect("No errors on add to cache");
         {
-            let val = attribute_cache.get_values_for_entid(&attr_entid, &KnownEntid(entid)).expect("Expected value");
+            let val = attribute_cache.get_values_for_entid(&attr_entid, &entid).expect("Expected value");
             assert_eq!(*val, vec![TypedValue::Long(100)]);
         }
         {
-            let val = attribute_cache.get_value_for_entid(&attr_entid, &KnownEntid(entid)).expect("Expected value");
+            let val = attribute_cache.get_value_for_entid(&attr_entid, &entid).expect("Expected value");
             assert_eq!(*val, TypedValue::Long(100));
         }
     }
