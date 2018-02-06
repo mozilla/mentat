@@ -33,12 +33,6 @@ pub struct TxPart {
     pub added: bool,
 }
 
-#[derive(Debug, Clone)]
-pub struct Tx {
-    pub tx: Entid,
-    pub tx_instant: TypedValue,
-}
-
 pub trait TxReceiver {
     fn tx<T>(&mut self, tx_id: Entid, d: &mut T) -> Result<()>
         where T: Iterator<Item=TxPart>;
