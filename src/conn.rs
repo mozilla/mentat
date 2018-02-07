@@ -10,7 +10,7 @@
 
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use rusqlite;
 use rusqlite::{
@@ -48,7 +48,20 @@ use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
+use cache::{
+    AttributeCacher,
+};
+
+pub use cache::{
+    CacheAction,
+};
+
+use entity_builder::{
+    InProgressBuilder,
+};
+
 use errors::*;
+
 use query::{
     lookup_value_for_attribute,
     lookup_values_for_attribute,
@@ -57,10 +70,6 @@ use query::{
     QueryExplanation,
     QueryInputs,
     QueryOutput,
-};
-
-use entity_builder::{
-    InProgressBuilder,
 };
 
 /// Connection metadata required to query from, or apply transactions to, a Mentat store.
@@ -102,6 +111,8 @@ pub struct Conn {
 
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
+
+    attribute_cache: RwLock<AttributeCacher>,
 }
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -143,6 +154,7 @@ pub struct InProgress<'a, 'c> {
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
+    cache: RwLockWriteGuard<'a, AttributeCacher>,
 }
 
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
@@ -191,12 +203,14 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
 
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid> {
-        lookup_values_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
+        let cc = &*self.cache;
+        lookup_values_for_attribute(&*(self.transaction), &self.schema, cc, entity, attribute)
     }
 
     fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
         where E: Into<Entid> {
-        lookup_value_for_attribute(&*(self.transaction), &self.schema, entity, attribute)
+        let cc = &*self.cache;
+        lookup_value_for_attribute(&*(self.transaction), &self.schema, cc, entity, attribute)
     }
 }
 
@@ -385,7 +399,8 @@ impl Conn {
     // Intentionally not public.
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
-            metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema)))
+            metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema))),
+            attribute_cache: RwLock::new(AttributeCacher::new())
         }
     }
 
@@ -410,6 +425,10 @@ impl Conn {
         //
         // Improving this is tracked by https://github.com/mozilla/mentat/issues/356.
         self.metadata.lock().unwrap().schema.clone()
+    }
+
+    pub fn attribute_cache<'s>(&'s self) -> RwLockReadGuard<'s, AttributeCacher> {
+        self.attribute_cache.read().unwrap()
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.
@@ -439,14 +458,16 @@ impl Conn {
                                        sqlite: &rusqlite::Connection,
                                        entity: Entid,
                                        attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>> {
-        lookup_values_for_attribute(sqlite, &*self.current_schema(), entity, attribute)
+        let cc: &AttributeCacher = &*self.attribute_cache();
+        lookup_values_for_attribute(sqlite, &*self.current_schema(), cc, entity, attribute)
     }
 
     pub fn lookup_value_for_attribute(&self,
                                       sqlite: &rusqlite::Connection,
                                       entity: Entid,
                                       attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
-        lookup_value_for_attribute(sqlite, &*self.current_schema(), entity, attribute)
+        let cc: &AttributeCacher = &*self.attribute_cache();
+        lookup_value_for_attribute(sqlite, &*self.current_schema(), cc, entity, attribute)
     }
 
     /// Take a SQLite transaction.
@@ -469,6 +490,7 @@ impl Conn {
             generation: current_generation,
             partition_map: current_partition_map,
             schema: (*current_schema).clone(),
+            cache: self.attribute_cache.write().unwrap(),
         })
     }
 
@@ -505,6 +527,34 @@ impl Conn {
 
         Ok(report)
     }
+
+    // TODO: Figure out how to set max cache size and max result size and implement those on cache
+    // Question: Should those be only for lazy cache? The eager cache could perhaps grow infinitely
+    // and it becomes up to the client to manage memory usage by excising from cache when no longer
+    // needed
+    /// Adds or removes the values of a given attribute to an in memory cache
+    /// The attribute should be a namespaced string `:foo/bar`.
+    /// cache_action determines if the attribute should be added or removed from the cache.
+    /// CacheAction::Add is idempotent - each attribute is only added once and cannot be both lazy
+    /// and eager.
+    /// CacheAction::Remove throws an error if the attribute does not currently exist in the cache.
+    /// CacheType::Eager fetches all the values of the attribute and caches them on add.
+    /// CacheType::Lazy caches values only after they have first been fetched.
+    pub fn cache(&mut self,
+                 sqlite: &mut rusqlite::Connection,
+                 attribute: &NamespacedKeyword,
+                 cache_action: CacheAction) -> Result<()> {
+        // fetch the attribute for the given name
+        let schema = self.current_schema();
+
+        let mut cache = self.attribute_cache.write().unwrap();
+        let attribute_entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
+        match cache_action {
+            CacheAction::Register => { cache.register_attribute(sqlite, attribute_entid.0)?; },
+            CacheAction::Deregister => { cache.deregister_attribute(&attribute_entid.0); },
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -512,6 +562,9 @@ mod tests {
     use super::*;
 
     extern crate mentat_parser_utils;
+
+    use std::time::Instant;
+
     use mentat_core::{
         TypedValue,
     };
@@ -706,6 +759,84 @@ mod tests {
         match report.unwrap_err() {
             Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(_)), _) => { },
             x => panic!("expected EDN parse error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_add_to_cache_failure_no_attribute() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let _report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).unwrap();
+
+        let kw = kw!(:foo/bat);
+        let res = conn.cache(&mut sqlite,&kw, CacheAction::Register);
+        match res.unwrap_err() {
+            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, ":foo/bat"),
+            x => panic!("expected UnknownAttribute error, got {:?}", x),
+        }
+    }
+
+    // TODO expand tests to cover lookup_value_for_attribute comparing with and without caching
+    #[test]
+    fn test_lookup_attribute_with_caching() {
+
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let _report = conn.transact(&mut sqlite, r#"[
+            {  :db/ident       :foo/bar
+               :db/valueType   :db.type/long },
+            {  :db/ident       :foo/baz
+               :db/valueType   :db.type/boolean }]"#).expect("transaction expected to succeed");
+
+        {
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("transaction");
+            for _ in 1..100 {
+                let _report = in_progress.transact(r#"[
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        200
+               :foo/baz        true },
+            {  :foo/bar        100
+               :foo/baz        false },
+            {  :foo/bar        300
+               :foo/baz        true },
+            {  :foo/bar        400
+               :foo/baz        false },
+            {  :foo/bar        500
+               :foo/baz        true }]"#).expect("transaction expected to succeed");
+            }
+            in_progress.commit().expect("Committed");
+        }
+
+        let entities = conn.q_once(&sqlite, r#"[:find ?e . :where [?e :foo/bar 400]]"#, None).expect("Expected query to work").into_scalar().expect("expected rel results");
+        let first = entities.expect("expected a result");
+        let entid = match first {
+            TypedValue::Ref(entid) => entid,
+            x => panic!("expected Some(Ref), got {:?}", x),
+        };
+
+        let kw = kw!(:foo/bar);
+        let start = Instant::now();
+        let uncached_val = conn.lookup_value_for_attribute(&sqlite, entid, &kw).expect("Expected value on lookup");
+        let finish = Instant::now();
+        let uncached_elapsed_time = finish.duration_since(start);
+        println!("Uncached time: {:?}", uncached_elapsed_time);
+
+        conn.cache(&mut sqlite, &kw, CacheAction::Register).expect("expected caching to work");
+
+        for _ in 1..5 {
+            let start = Instant::now();
+            let cached_val = conn.lookup_value_for_attribute(&sqlite, entid, &kw).expect("Expected value on lookup");
+            let finish = Instant::now();
+            let cached_elapsed_time = finish.duration_since(start);
+            assert_eq!(cached_val, uncached_val);
+
+            println!("Cached time: {:?}", cached_elapsed_time);
+            assert!(cached_elapsed_time < uncached_elapsed_time);
         }
     }
 }

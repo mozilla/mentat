@@ -73,6 +73,7 @@ macro_rules! kw {
     };
 }
 
+pub mod cache;
 pub mod errors;
 pub mod ident;
 pub mod vocabulary;
