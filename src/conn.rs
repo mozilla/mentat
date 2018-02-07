@@ -794,7 +794,7 @@ mod tests {
 
         {
             let mut in_progress = conn.begin_transaction(&mut sqlite).expect("transaction");
-            for _ in 1..10000 {
+            for _ in 1..100 {
                 let _report = in_progress.transact(r#"[
             {  :foo/bar        100
                :foo/baz        false },
@@ -828,7 +828,7 @@ mod tests {
 
         conn.cache(&mut sqlite, &kw, CacheAction::Register).expect("expected caching to work");
 
-        for _ in 1..10 {
+        for _ in 1..5 {
             let start = Instant::now();
             let cached_val = conn.lookup_value_for_attribute(&sqlite, entid, &kw).expect("Expected value on lookup");
             let finish = Instant::now();

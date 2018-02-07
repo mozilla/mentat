@@ -183,12 +183,10 @@ pub fn lookup_value<'sqlite, 'schema, 'cache, E, A>
  where E: Into<Entid>, A: Into<Entid> {
     let entid = entity.into();
     let attrid = attribute.into();
-    let cached = cache.get_value_for_entid(&attrid, &entid).map(|x| x.clone());
+    let cached = cache.get_value_for_entid(&attrid, &entid).cloned();
     if cached.is_some() {
-        println!("returning from cache");
         return Ok(cached);
     }
-    println!("fetching from db");
     fetch_values(sqlite, schema, entid, attrid, true).into_scalar_result()
 }
 
@@ -201,11 +199,9 @@ pub fn lookup_values<'sqlite, 'schema, 'cache, E, A>
  where E: Into<Entid>, A: Into<Entid> {
     let entid = entity.into();
     let attrid = attribute.into();
-    if let Some(cached) = cache.get_values_for_entid(&attrid, &entid).map(|x| x.clone()) {
-        println!("returning from cache");
+    if let Some(cached) = cache.get_values_for_entid(&attrid, &entid).cloned() {
         return Ok(cached);
     }
-    println!("fetching from db");
     fetch_values(sqlite, schema, entid, attrid, false).into_coll_result()
 }
 

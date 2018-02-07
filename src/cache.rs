@@ -35,43 +35,39 @@ pub enum CacheAction {
 
 #[derive(Clone)]
 pub struct AttributeCacher {
-    cache: BTreeMap<Entid, EagerCache<Entid, Vec<TypedValue>, AttributeValueProvider>>,   // values keyed by attribute
+    a_e_vs_cache: BTreeMap<Entid, EagerCache<Entid, Vec<TypedValue>, AttributeValueProvider>>,   // values keyed by attribute
 }
 
 impl AttributeCacher {
 
     pub fn new() -> Self {
         AttributeCacher {
-            cache: BTreeMap::new(),
+            a_e_vs_cache: BTreeMap::new(),
         }
     }
 
     pub fn register_attribute<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection, attribute: Entid) -> Result<()> {
-        let value_provider = AttributeValueProvider{ attribute: attribute.clone() };
+        let value_provider = AttributeValueProvider{ attribute: attribute };
         let mut cacher = EagerCache::new(value_provider);
         cacher.cache_values(sqlite)?;
-        self.cache.insert(attribute, cacher);
+        self.a_e_vs_cache.insert(attribute, cacher);
         Ok(())
     }
 
     pub fn deregister_attribute(&mut self, attribute: &Entid) -> Option<CacheMap<Entid, Vec<TypedValue>>> {
-        self.cache.remove(&attribute).map(|m| m.cache )
+        self.a_e_vs_cache.remove(&attribute).map(|m| m.cache)
     }
 
     pub fn get(&self, attribute: &Entid) -> Option<&CacheMap<Entid, Vec<TypedValue>>> {
-        self.cache.get( &attribute ).map(|m| &m.cache )
+        self.a_e_vs_cache.get( &attribute ).map(|m| &m.cache)
     }
 
     pub fn get_values_for_entid(&self, attribute: &Entid, entid: &Entid) -> Option<&Vec<TypedValue>> {
-        if let Some(c) = self.cache.get(&attribute) {
-            c.get(&entid)
-        } else { None }
+        self.a_e_vs_cache.get(&attribute).and_then(|c| c.get(&entid))
     }
 
     pub fn get_value_for_entid(&self, attribute: &Entid, entid: &Entid) -> Option<&TypedValue> {
-        if let Some(c) = self.get_values_for_entid(attribute, entid) {
-            c.first()
-        } else { None }
+        self.get_values_for_entid(attribute, entid).and_then(|c| c.first())
     }
 }
 

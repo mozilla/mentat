@@ -8,8 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::BTreeMap;
 use std::cmp::Ord;
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 use rusqlite;
@@ -27,20 +27,15 @@ use mentat_core::{
 
 pub type CacheMap<K, V> = BTreeMap<K, V>;
 
-pub trait ValueProvider<K, V>: Sized {
+pub trait ValueProvider<K, V>: Clone {
     fn fetch_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<CacheMap<K, V>>;
 }
 
 pub trait Cacheable {
     type Key;
     type Value;
-    type ValueProvider;
 
-    fn new(value_provider: Self::ValueProvider) -> Self;
-    fn cache_values<'sqlite>(&mut self,
-                                      sqlite: &'sqlite rusqlite::Connection) -> Result<()>;
-    fn update_values<'sqlite>(&mut self,
-                                       sqlite: &'sqlite rusqlite::Connection) -> Result<()>;
+    fn cache_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<()>;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
 }
 
@@ -50,31 +45,26 @@ pub struct EagerCache<K, V, VP> where K: Ord, VP: ValueProvider<K, V> {
     value_provider: VP,
 }
 
+impl<K, V, VP> EagerCache<K, V, VP> where K: Ord, VP: ValueProvider<K, V> {
+    pub fn new(value_provider: VP) -> Self  {
+        EagerCache {
+            cache: CacheMap::new(),
+            value_provider: value_provider,
+        }
+    }
+}
+
 impl<K, V, VP> Cacheable for EagerCache<K, V, VP>
     where K: Ord + Clone + Debug + ::std::hash::Hash,
           V: Clone,
           VP: ValueProvider<K, V> {
     type Key = K;
     type Value = V;
-    type ValueProvider = VP;
 
-    fn new(value_provider: Self::ValueProvider) -> Self {
-        EagerCache {
-            cache: CacheMap::new(),
-            value_provider,
-        }
-    }
-
-    fn cache_values<'sqlite>(&mut self,
-                                      sqlite: &'sqlite rusqlite::Connection) -> Result<()> {
+    fn cache_values<'sqlite>(&mut self, sqlite: &'sqlite rusqlite::Connection) -> Result<()> {
         // fetch results and add to cache
         self.cache = self.value_provider.fetch_values(sqlite)?;
         Ok(())
-    }
-
-    fn update_values<'sqlite>(&mut self,
-                                       sqlite: &'sqlite rusqlite::Connection) -> Result<()> {
-        self.cache_values(sqlite)
     }
 
     fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
