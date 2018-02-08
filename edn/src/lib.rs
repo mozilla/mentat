@@ -14,6 +14,10 @@ extern crate num;
 extern crate ordered_float;
 extern crate pretty;
 extern crate uuid;
+extern crate serde;
+
+#[macro_use]
+extern crate serde_derive;
 
 pub mod symbols;
 pub mod types;
