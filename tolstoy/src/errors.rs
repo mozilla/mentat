@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -15,6 +15,8 @@ use hyper;
 use rusqlite;
 use uuid;
 use mentat_db;
+use serde_cbor;
+use serde_json;
 
 error_chain! {
     types {
@@ -24,8 +26,12 @@ error_chain! {
     foreign_links {
         IOError(std::io::Error);
         HttpError(hyper::Error);
+        HyperUriError(hyper::error::UriError);
         SqlError(rusqlite::Error);
         UuidParseError(uuid::ParseError);
+        Utf8Error(std::str::Utf8Error);
+        JsonError(serde_json::Error);
+        CborError(serde_cbor::error::Error);
     }
 
     links {
@@ -33,9 +39,29 @@ error_chain! {
     }
 
     errors {
+        TxIncorrectlyMapped(n: usize) {
+            description("encountered more than one uuid mapping for tx")
+            display("expected one, found {} uuid mappings for tx", n)
+        }
+
         UnexpectedState(t: String) {
             description("encountered unexpected state")
             display("encountered unexpected state: {}", t)
+        }
+
+        NotYetImplemented(t: String) {
+            description("not yet implemented")
+            display("not yet implemented: {}", t)
+        }
+
+        DuplicateMetadata(k: String) {
+            description("encountered more than one metadata value for key")
+            display("encountered more than one metadata value for key: {}", k)
+        }
+
+        UploadingProcessorUnfinished {
+            description("Uploading Tx processor couldn't finish")
+            display("Uploading Tx processor couldn't finish")
         }
     }
 }

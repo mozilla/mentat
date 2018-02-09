@@ -12,9 +12,13 @@ extern crate chrono;
 extern crate enum_set;
 extern crate ordered_float;
 extern crate uuid;
+extern crate serde;
 
 #[macro_use]
 extern crate lazy_static;
+
+#[macro_use]
+extern crate serde_derive;
 
 extern crate edn;
 
@@ -175,7 +179,7 @@ impl fmt::Display for ValueType {
 /// Represents a Mentat value in a particular value set.
 // TODO: expand to include :db.type/{instant,url,uuid}.
 // TODO: BigInt?
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq,Serialize,Deserialize)]
 pub enum TypedValue {
     Ref(Entid),
     Boolean(bool),

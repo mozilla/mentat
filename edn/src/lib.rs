@@ -15,6 +15,13 @@ extern crate ordered_float;
 extern crate pretty;
 extern crate uuid;
 
+#[cfg(feature = "serde_support")]
+extern crate serde;
+
+#[cfg(feature = "serde_support")]
+#[macro_use]
+extern crate serde_derive;
+
 pub mod symbols;
 pub mod types;
 pub mod pretty_print;

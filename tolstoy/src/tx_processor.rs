@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -24,19 +24,13 @@ use mentat_core::{
     TypedValue,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct TxPart {
     pub e: Entid,
     pub a: Entid,
     pub v: TypedValue,
     pub tx: Entid,
     pub added: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct Tx {
-    pub tx: Entid,
-    pub tx_instant: TypedValue,
 }
 
 pub trait TxReceiver {
@@ -47,17 +41,17 @@ pub trait TxReceiver {
 
 pub struct Processor {}
 
-pub struct DatomsIterator<'conn, 't, T>
+pub struct DatomsIterator<'dbtx, 't, T>
 where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     at_first: bool,
     at_last: bool,
-    first: &'conn TxPart,
+    first: &'dbtx TxPart,
     rows: &'t mut Peekable<T>,
 }
 
-impl<'conn, 't, T> DatomsIterator<'conn, 't, T>
+impl<'dbtx, 't, T> DatomsIterator<'dbtx, 't, T>
 where T: Sized + Iterator<Item=Result<TxPart>> + 't {
-    fn new(first: &'conn TxPart, rows: &'t mut Peekable<T>) -> DatomsIterator<'conn, 't, T>
+    fn new(first: &'dbtx TxPart, rows: &'t mut Peekable<T>) -> DatomsIterator<'dbtx, 't, T>
     {
         DatomsIterator {
             at_first: true,
@@ -68,7 +62,7 @@ where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     }
 }
 
-impl<'conn, 't, T> Iterator for DatomsIterator<'conn, 't, T>
+impl<'dbtx, 't, T> Iterator for DatomsIterator<'dbtx, 't, T>
 where T: Sized + Iterator<Item=Result<TxPart>> + 't {
     type Item = TxPart;
 
@@ -133,7 +127,7 @@ fn to_tx_part(row: &rusqlite::Row) -> Result<TxPart> {
 }
 
 impl Processor {
-    pub fn process<R>(sqlite: &rusqlite::Connection, receiver: &mut R) -> Result<()>
+    pub fn process<R>(sqlite: &rusqlite::Transaction, receiver: &mut R) -> Result<()>
     where R: TxReceiver {
         let mut stmt = sqlite.prepare(
             "SELECT e, a, v, value_type_tag, tx, added FROM transactions ORDER BY tx"

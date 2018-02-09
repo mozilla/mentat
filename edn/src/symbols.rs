@@ -70,6 +70,7 @@ pub struct NamespacedSymbol {
 pub struct Keyword(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct NamespacedKeyword {
     // We derive PartialOrd, which implements a lexicographic order based
     // on the order of members, so put namespace first.
