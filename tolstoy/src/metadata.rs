@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -15,8 +15,8 @@ use uuid::Uuid;
 
 use schema;
 use errors::{
-    Result,
     ErrorKind,
+    Result,
 };
 
 pub trait HeadTrackable {
@@ -26,7 +26,6 @@ pub trait HeadTrackable {
 
 pub struct SyncMetadataClient {}
 
-// TODO take a transaction, not a conn + make all these static
 impl HeadTrackable for SyncMetadataClient {
     fn remote_head(tx: &rusqlite::Transaction) -> Result<Uuid> {
         tx.query_row(
@@ -40,17 +39,12 @@ impl HeadTrackable for SyncMetadataClient {
 
     fn set_remote_head(tx: &rusqlite::Transaction, uuid: &Uuid) -> Result<()> {
         let uuid_bytes = uuid.as_bytes().to_vec();
-        match tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?",
-            &[&uuid_bytes, &schema::REMOTE_HEAD_KEY]) {
-                Ok(updated) => {
-                    if updated == 1 {
-                        Ok(())
-                    } else {
-                        bail!(ErrorKind::DuplicateMetadata(schema::REMOTE_HEAD_KEY.into()));
-                    }
-                },
-                Err(err) => Err(err.into())
+        let updated = tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?",
+            &[&uuid_bytes, &schema::REMOTE_HEAD_KEY])?;
+        if updated != 1 {
+            bail!(ErrorKind::DuplicateMetadata(schema::REMOTE_HEAD_KEY.into()));
         }
+        Ok(())
     }
 }
 

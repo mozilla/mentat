@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -24,6 +24,7 @@ extern crate hyper;
 extern crate tokio_core;
 extern crate futures;
 extern crate serde;
+extern crate serde_cbor;
 extern crate serde_json;
 extern crate mentat_db;
 extern crate mentat_core;

@@ -139,7 +139,7 @@ fn possible_affinities(value_types: ValueTypeSet) -> HashMap<ValueTypeTag, Vec<S
     let mut result = HashMap::with_capacity(value_types.len());
     for ty in value_types {
         let (tag, affinity_to_check) = ty.sql_representation();
-        let mut affinities = result.entry(tag).or_insert_with(Vec::new);
+        let affinities = result.entry(tag).or_insert_with(Vec::new);
         if let Some(affinity) = affinity_to_check {
             affinities.push(affinity);
         }

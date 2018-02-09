@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -15,6 +15,7 @@ use hyper;
 use rusqlite;
 use uuid;
 use mentat_db;
+use serde_cbor;
 use serde_json;
 
 error_chain! {
@@ -30,6 +31,7 @@ error_chain! {
         UuidParseError(uuid::ParseError);
         Utf8Error(std::str::Utf8Error);
         JsonError(serde_json::Error);
+        CborError(serde_cbor::error::Error);
     }
 
     links {
@@ -54,7 +56,7 @@ error_chain! {
 
         DuplicateMetadata(k: String) {
             description("encountered more than one metadata value for key")
-            display("found more than one value mappings for key {}", k)
+            display("encountered more than one metadata value for key: {}", k)
         }
 
         UploadingProcessorUnfinished {

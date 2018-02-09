@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -12,18 +12,20 @@ use std;
 use std::str::FromStr;
 use std::collections::HashMap;
 
-use metadata::SyncMetadataClient;
-use metadata::HeadTrackable;
-use mentat_core::Entid;
-
-use rusqlite;
-use tokio_core::reactor::Core;
+use futures::{future, Future, Stream};
+use hyper;
 use hyper::Client;
 use hyper::{Method, Request, StatusCode, Error as HyperError};
-use hyper::header::{ContentLength, ContentType};
-use futures::{future, Future, Stream};
+use hyper::header::{ContentType};
+use rusqlite;
+use serde_cbor;
 use serde_json;
+use tokio_core::reactor::Core;
 use uuid::Uuid;
+
+use mentat_core::Entid;
+use metadata::SyncMetadataClient;
+use metadata::HeadTrackable;
 
 use errors::{
     ErrorKind,
@@ -83,7 +85,7 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
         for datom in d {
             let datom_uuid = Uuid::new_v4();
             tx_chunks.push(datom_uuid);
-            self.remote_client.put_chunk(&datom_uuid, serde_json::to_string(&datom)?)?
+            self.remote_client.put_chunk(&datom_uuid, serde_cbor::to_vec(&datom)?)?
         }
 
         // Upload tx.
@@ -109,7 +111,7 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
 }
 
 impl Syncer {
-    pub fn flow(sqlite: &mut rusqlite::Connection) -> Result<()> {
+    pub fn flow(sqlite: &mut rusqlite::Connection, username: String) -> Result<()> {
         // Sketch of an upload flow:
         // get remote head
         // compare with local head
@@ -119,8 +121,7 @@ impl Syncer {
         // - move local remote head
         
         // TODO configure this sync with some auth data
-        let username = "grisha-1";
-        let remote_client = RemoteClient::new(BASE_URL.into(), username.into());
+        let remote_client = RemoteClient::new(BASE_URL.into(), username);
 
         let mut db_tx = sqlite.transaction()?;
 
@@ -190,6 +191,7 @@ impl RemoteClient {
     }
 
     fn bound_base_uri(&self) -> String {
+        // TODO escaping
         format!("{}/{}/{}", self.base_uri, API_VERSION, self.user_id)
     }
 
@@ -206,7 +208,9 @@ impl RemoteClient {
         Ok(Uuid::from_str(std::str::from_utf8(&got)?)?)
     }
 
-    fn put(&self, uri: String, payload: String, expected: StatusCode) -> Result<()> {
+    fn put<T>(&self, uri: String, payload: T, expected: StatusCode) -> Result<()>
+    where hyper::Body: std::convert::From<T>,
+        T: {
         let mut core = Core::new()?;
         let client = Client::new(&core.handle());
 
@@ -214,7 +218,6 @@ impl RemoteClient {
 
         let mut req = Request::new(Method::Put, uri);
         req.headers_mut().set(ContentType::json());
-        req.headers_mut().set(ContentLength(payload.len() as u64));
         req.set_body(payload);
 
         let put = client.request(req).and_then(|res| {
@@ -261,7 +264,7 @@ impl RemoteClient {
         self.put(uri, json, StatusCode::NoContent)
     }
 
-    fn put_chunk(&self, chunk_uuid: &Uuid, payload: String) -> Result<()> {
+    fn put_chunk(&self, chunk_uuid: &Uuid, payload: Vec<u8>) -> Result<()> {
         let uri = format!("{}/chunks/{}", self.bound_base_uri(), chunk_uuid);
         self.put(uri, payload, StatusCode::Created)
     }
