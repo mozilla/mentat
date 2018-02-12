@@ -145,3 +145,14 @@ Project Mentat is currently licensed under the Apache License v2.0. See the `LIC
 Mentat uses partial indices, which are available in SQLite 3.8.0 and higher.
 
 It also uses FTS4, which is [a compile time option](http://www.sqlite.org/fts3.html#section_2).
+
+By default, Mentat specifies the `"bundled"` feature for `rusqlite`, which uses a relatively recent
+version of SQLite. If you want to link against the system version of SQLite, omit `"bundled_sqlite3"`
+from Mentat's features.
+
+```toml
+[dependencies.mentat]
+version = "0.6"
+# System sqlite is known to be new.
+default-features = false
+```

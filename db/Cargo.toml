@@ -12,8 +12,7 @@ time = "0.1"
 
 [dependencies.rusqlite]
 version = "0.12"
-# System sqlite might be very old.
-features = ["bundled", "limits"]
+features = ["limits"]
 
 [dependencies.edn]
 path = "../edn"
