@@ -14,6 +14,11 @@ use std::process;
 
 use tabwriter::TabWriter;
 
+use termion::{
+    color,
+    style,
+};
+
 use mentat::{
     Queryable,
     QueryExplanation,
@@ -64,6 +69,10 @@ lazy_static! {
             "Shortcut for `.explain_query`. Show the SQL and query plan that would be executed for a given query.");
         map
     };
+}
+
+fn eprint_out(s: &str) {
+    eprint!("{green}{s}{reset}", green = color::Fg(::GREEN), s = s, reset = color::Fg(color::Reset));
 }
 
 /// Executes input and maintains state of persistent items.
