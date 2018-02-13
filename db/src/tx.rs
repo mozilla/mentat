@@ -51,7 +51,9 @@ use std::collections::{
     BTreeSet,
     VecDeque,
 };
-use std::rc::Rc;
+use std::rc::{
+    Rc,
+};
 
 use db;
 use db::{
@@ -105,6 +107,7 @@ use schema::{
 };
 use types::{
     Attribute,
+    AttributeSet,
     AVPair,
     AVMap,
     Entid,
@@ -114,6 +117,30 @@ use types::{
     ValueType,
 };
 use upsert_resolution::Generation;
+
+use std::os::raw::c_char;
+use std::os::raw::c_int;
+use std::ffi::CString;
+
+pub const ANDROID_LOG_DEBUG: i32 = 3;
+#[cfg(all(target_os="android", not(test)))]
+extern { pub fn __android_log_write(prio: c_int, tag: *const c_char, text: *const c_char) -> c_int; }
+
+#[cfg(all(target_os="android", not(test)))]
+pub fn d(message: &str) {
+    let tag = "mentat_db::tx";
+    let message = CString::new(message).unwrap();
+    let message = message.as_ptr();
+    let tag = CString::new(tag).unwrap();
+    let tag = tag.as_ptr();
+    unsafe { __android_log_write(ANDROID_LOG_DEBUG, tag, message) };
+}
+
+#[cfg(all(not(target_os="android")))]
+pub fn d(message: &str) {
+    let tag = "mentat_db::tx";
+    println!("d: {}: {}", tag, message);
+}
 
 /// A transaction on its way to being applied.
 #[derive(Debug)]
@@ -600,6 +627,11 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                                                     final_populations.allocated,
                                                     inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
 
+        let affected_attrs: AttributeSet = final_terms.iter().filter_map(|t| {
+            match t {
+                &Term::AddOrRetract(_, _, attrid, _) => Some(attrid),
+            }
+        }). collect();
         let tx_instant;
 
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
@@ -689,7 +721,6 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         if !fts_many.is_empty() {
             self.store.insert_fts_searches(&fts_many[..], db::SearchType::Exact)?;
         }
-
         self.store.commit_transaction(self.tx_id)?;
         }
 
@@ -718,6 +749,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             tx_id: self.tx_id,
             tx_instant,
             tempids: tempids,
+            changeset: affected_attrs,
         })
     }
 }
@@ -749,7 +781,7 @@ fn conclude_tx(tx: Tx, report: TxReport) -> Result<(TxReport, PartitionMap, Opti
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
-pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection,
+pub fn transact<'conn, 'a, 'id, I>(conn: &'conn rusqlite::Connection,
                               partition_map: PartitionMap,
                               schema_for_mutation: &'a Schema,
                               schema: &'a Schema,
@@ -762,15 +794,92 @@ pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection,
 }
 
 /// Just like `transact`, but accepts lower-level inputs to allow bypassing the parser interface.
-pub fn transact_terms<'conn, 'a, I>(conn: &'conn rusqlite::Connection,
+pub fn transact_terms<'conn, 'a, 'id, I>(conn: &'conn rusqlite::Connection,
                                     partition_map: PartitionMap,
                                     schema_for_mutation: &'a Schema,
                                     schema: &'a Schema,
                                     terms: I,
                                     tempid_set: InternSet<TempId>) -> Result<(TxReport, PartitionMap, Option<Schema>)>
     where I: IntoIterator<Item=TermWithTempIds> {
-
     let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema)?;
     let report = tx.transact_simple_terms(terms, tempid_set)?;
     conclude_tx(tx, report)
+}
+
+pub struct TxObserver {
+    notify_fn: Option<Box<FnMut(String, Vec<TxReport>)>>,
+    attributes: AttributeSet,
+    registration_time: Option<DateTime<Utc>>,
+}
+
+impl TxObserver {
+    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: FnMut(String, Vec<TxReport>) + 'static {
+        TxObserver {
+            notify_fn: Some(Box::new(notify_fn)),
+            attributes,
+            registration_time: None,
+        }
+    }
+
+    fn set_registered(&mut self) {
+        self.registration_time = Some(now());
+    }
+
+    fn notify(&mut self, key: String, reports: &Vec<TxReport>) {
+        let mut matching_reports: Vec<TxReport> = vec![];
+        // if let Some(registration_time) = self.registration_time {
+        //     if registration_time.le(&reports[0].tx_instant) {
+                matching_reports = reports.iter().filter_map( |report| {
+                    if self.attributes.intersection(&report.changeset).next().is_some(){
+                        Some(report.clone())
+                    } else {
+                        None
+                    }
+                }).collect();
+        //     }
+        // }
+        if !matching_reports.is_empty() {
+            if let Some(ref mut notify_fn) = self.notify_fn {
+                d(&format!("Notifying {:?} about tx {:?}", key, matching_reports));
+                (notify_fn)(key, matching_reports);
+            } else {
+                d("no notify function specified for TxObserver");
+            }
+        } else {
+            d(&format!("No matching reports for observer {:?} registered for updates on attributes {:?}: {:?}", key, reports, self.attributes));
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct TxObservationService {
+    observers: BTreeMap<String, TxObserver>,
+}
+
+impl TxObservationService {
+    // For testing purposes
+    pub fn is_registered(&self, key: &String) -> bool {
+        self.observers.contains_key(key)
+    }
+
+    pub fn register(&mut self, key: String, mut observer: TxObserver) {
+        observer.set_registered();
+        self.observers.insert(key.clone(), observer);
+    }
+
+    pub fn deregister(&mut self, key: &String) {
+        self.observers.remove(key);
+    }
+
+    pub fn has_observers(&self) -> bool {
+        !self.observers.is_empty()
+    }
+
+    pub fn transaction_did_commit(&mut self, reports: &Vec<TxReport>) {
+        // notify all observers about their relevant transactions
+        for (key, observer) in self.observers.iter_mut() {
+            d(&format!("Notifying observer registered for key {:?}", key));
+            observer.notify(key.clone(), reports);
+        }
+    }
 }

@@ -49,19 +49,27 @@ use tx_mapper::TxMapper;
 // See https://github.com/mozilla/mentat/issues/571
 // Below is some debug Android-friendly logging:
 
-// use std::os::raw::c_char;
-// use std::os::raw::c_int;
-// use std::ffi::CString;
-// pub const ANDROID_LOG_DEBUG: i32 = 3;
-// extern { pub fn __android_log_write(prio: c_int, tag: *const c_char, text: *const c_char) -> c_int; }
+use std::os::raw::c_char;
+use std::os::raw::c_int;
+use std::ffi::CString;
+pub const ANDROID_LOG_DEBUG: i32 = 3;
+#[cfg(all(target_os="android", not(test)))]
+extern { pub fn __android_log_write(prio: c_int, tag: *const c_char, text: *const c_char) -> c_int; }
 
+#[cfg(all(target_os="android", not(test)))]
 pub fn d(message: &str) {
-    println!("d: {}", message);
-    // let message = CString::new(message).unwrap();
-    // let message = message.as_ptr();
-    // let tag = CString::new("RustyToodle").unwrap();
-    // let tag = tag.as_ptr();
-    // unsafe { __android_log_write(ANDROID_LOG_DEBUG, tag, message) };
+    let tag = "mentat_tolstoy::syncer";
+    let message = CString::new(message).unwrap();
+    let message = message.as_ptr();
+    let tag = CString::new(tag).unwrap();
+    let tag = tag.as_ptr();
+    unsafe { __android_log_write(ANDROID_LOG_DEBUG, tag, message) };
+}
+
+#[cfg(all(not(target_os="android")))]
+pub fn d(message: &str) {
+    let tag = "mentat_tolstoy::syncer";
+    println!("d: {}: {}", tag, message);
 }
 
 pub struct Syncer {}
@@ -88,11 +96,13 @@ impl TxReceiver for InquiringTxReceiver {
     fn tx<T>(&mut self, tx_id: Entid, _datoms: &mut T) -> Result<()>
     where T: Iterator<Item=TxPart> {
         self.last_tx = Some(tx_id);
+        d(&format!("got new last_tx: {:?}", self.last_tx));
         Ok(())
     }
 
     fn done(&mut self) -> Result<()> {
         self.is_done = true;
+        d(&format!("done!"));
         Ok(())
     }
 }
@@ -154,7 +164,7 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
             Some(parent) => {
                 d(&format!("putting transaction: {:?}, {:?}, {:?}", &tx_uuid, &parent, &tx_chunks));
                 self.remote_client.put_transaction(&tx_uuid, &parent, &tx_chunks)?;
-                
+
             },
             None => {
                 d(&format!("putting transaction: {:?}, {:?}, {:?}", &tx_uuid, &self.remote_head, &tx_chunks));
@@ -194,6 +204,7 @@ impl Syncer {
         let mut uploader = UploadingTxReceiver::new(remote_client, remote_head);
         Processor::process(db_tx, from_tx, &mut uploader)?;
         if !uploader.is_done {
+            d(&format!("upload_ours: TxProcessorUnfinished!"));
             bail!(ErrorKind::TxProcessorUnfinished);
         }
         // Last tx uuid uploaded by the tx receiver.
@@ -214,11 +225,13 @@ impl Syncer {
 
     fn download_theirs(_db_tx: &mut rusqlite::Transaction, remote_client: &RemoteClient, remote_head: &Uuid) -> Result<Vec<Tx>> {
         let new_txs = remote_client.get_transactions(remote_head)?;
+        d(&format!("there are {} new_txs on the remote client", new_txs.len()));
         let mut tx_list = Vec::new();
 
         for tx in new_txs {
             let mut tx_parts = Vec::new();
             let chunks = remote_client.get_chunks(&tx)?;
+            d(&format!("received {} chunks from remote client", chunks.len()));
 
             // We pass along all of the downloaded parts, including transaction's
             // metadata datom. Transactor is expected to do the right thing, and
@@ -233,7 +246,7 @@ impl Syncer {
                 parts: tx_parts
             });
         }
-        
+
         d(&format!("got tx list: {:?}", &tx_list));
 
         Ok(tx_list)
@@ -243,7 +256,7 @@ impl Syncer {
         d(&format!("sync flowing"));
 
         ensure_current_version(db_tx)?;
-        
+
         // TODO configure this sync with some auth data
         let remote_client = RemoteClient::new(server_uri.clone(), user_uuid.clone());
 
@@ -261,10 +274,20 @@ impl Syncer {
         let mut inquiring_tx_receiver = InquiringTxReceiver::new();
         // TODO don't just start from the beginning... but then again, we should do this
         // without walking the table at all, and use the tx index.
-        Processor::process(db_tx, None, &mut inquiring_tx_receiver)?;
+        let inq_res = Processor::process(db_tx, None, &mut inquiring_tx_receiver);
+        match inq_res {
+            Ok(_) => d(&format!("inquiry ok")),
+            Err(e) => {
+                d(&format!("inquiry err: {:?}", e));
+                return Err(e);
+            }
+        }
+        d(&format!("After Processor::process inquiring_tx_receiver"));
         if !inquiring_tx_receiver.is_done {
+            d(&format!("!inquiring_tx_receiver.is_done"));
             bail!(ErrorKind::TxProcessorUnfinished);
         }
+        d(&format!("TxMapper::get... local head"));
         let (have_local_changes, local_store_empty) = match inquiring_tx_receiver.last_tx {
             Some(tx) => {
                 match TxMapper::get(db_tx, tx)? {
@@ -274,6 +297,7 @@ impl Syncer {
             },
             None => (false, true)
         };
+        d(&format!("has_local_changes {:?}, local_empty {:?}", have_local_changes, local_store_empty));
 
         // Check if the server is empty - populate it.
         if remote_head == Uuid::nil() {
@@ -284,7 +308,7 @@ impl Syncer {
         // Check if the server is the same as us, and if our HEAD moved.
         } else if locally_known_remote_head == remote_head {
             d(&format!("server unchanged since last sync."));
-            
+
             if !have_local_changes {
                 d(&format!("local HEAD did not move. Nothing to do!"));
                 return Ok(SyncResult::NoChanges);
@@ -385,7 +409,7 @@ impl RemoteClient {
         let uri = uri.parse()?;
 
         d(&format!("parsed uri {:?}", uri));
-        
+
         let work = client.get(uri).and_then(|res| {
             println!("Response: {}", res.status());
 
@@ -400,7 +424,6 @@ impl RemoteClient {
         d(&format!("running..."));
 
         let head_json = core.run(work)?;
-        d(&format!("got head: {:?}", &head_json.head));
         Ok(head_json.head)
     }
 
@@ -450,7 +473,7 @@ impl RemoteClient {
         let uri = uri.parse()?;
 
         d(&format!("parsed uri {:?}", uri));
-        
+
         let work = client.get(uri).and_then(|res| {
             println!("Response: {}", res.status());
 
@@ -483,7 +506,7 @@ impl RemoteClient {
         let uri = uri.parse()?;
 
         d(&format!("parsed uri {:?}", uri));
-        
+
         let work = client.get(uri).and_then(|res| {
             println!("Response: {}", res.status());
 
@@ -516,7 +539,7 @@ impl RemoteClient {
         let uri = uri.parse()?;
 
         d(&format!("parsed uri {:?}", uri));
-        
+
         let work = client.get(uri).and_then(|res| {
             println!("Response: {}", res.status());
 

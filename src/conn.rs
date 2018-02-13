@@ -48,6 +48,8 @@ use mentat_db::{
     transact,
     transact_terms,
     PartitionMap,
+    TxObservationService,
+    TxObserver,
     TxReport,
 };
 
@@ -119,8 +121,9 @@ pub struct Conn {
 
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
-
     attribute_cache: RwLock<SQLiteAttributeCache>,
+
+    tx_observer_service: Mutex<TxObservationService>,
 }
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -186,8 +189,9 @@ pub struct InProgress<'a, 'c> {
     partition_map: PartitionMap,
     schema: Schema,
     cache: RwLockWriteGuard<'a, SQLiteAttributeCache>,
-
     use_caching: bool,
+    tx_reports: Vec<TxReport>,
+    observer_service: Option<&'a Mutex<TxObservationService>>,
 }
 
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
@@ -336,6 +340,29 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
     }
 }
 
+use std::os::raw::c_char;
+use std::os::raw::c_int;
+use std::ffi::CString;
+
+pub const ANDROID_LOG_DEBUG: i32 = 3;
+#[cfg(all(target_os="android", not(test)))]
+extern { pub fn __android_log_write(prio: c_int, tag: *const c_char, text: *const c_char) -> c_int; }
+
+#[cfg(all(target_os="android", not(test)))]
+pub fn d(message: &str) {
+    let tag = "mentat::conn";
+    let message = CString::new(message).unwrap();
+    let message = message.as_ptr();
+    let tag = CString::new(tag).unwrap();
+    let tag = tag.as_ptr();
+    unsafe { __android_log_write(ANDROID_LOG_DEBUG, tag, message) };
+}
+
+#[cfg(all(not(target_os="android")))]
+pub fn d(message: &str) {
+    let tag = "mentat::conn";
+    println!("d: {}: {}", tag, message);
+}
 
 impl<'a, 'c> InProgress<'a, 'c> {
     pub fn builder(self) -> InProgressBuilder<'a, 'c> {
@@ -354,6 +381,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
                                                                        &self.schema,
                                                                        terms,
                                                                        tempid_set)?;
+        self.tx_reports.push(report.clone());
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -371,6 +399,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
         //    `Default::default` in those situations to extract the partition map, and so there
         //    would still be some cost.
         let (report, next_partition_map, next_schema) = transact(&self.transaction, self.partition_map.clone(), &self.schema, &self.schema, entities)?;
+        self.tx_reports.push(report.clone());
+
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -402,6 +432,14 @@ impl<'a, 'c> InProgress<'a, 'c> {
 
         // Commit the SQLite transaction while we hold the mutex.
         self.transaction.commit()?;
+
+        // notify any observers about a transaction that has been made.
+        if let Some(observer_service) = self.observer_service {
+            d(&format!("got an observer!"));
+            observer_service.lock().unwrap().transaction_did_commit(&self.tx_reports);
+        } else {
+            d(&format!("don't got no observer!"));
+        }
 
         metadata.generation += 1;
         metadata.partition_map = self.partition_map;
@@ -450,6 +488,16 @@ impl Store {
                         direction,
                         CacheAction::Register)
     }
+
+    pub fn register_observer(&mut self, key: String, observer: TxObserver) {
+        self.conn.register_observer(key, observer);
+    }
+
+    pub fn unregister_observer(&mut self, key: &String) {
+        println!("Store: unregistering observer for key {:?}", key);
+        self.conn.unregister_observer(key);
+        println!("Store: unregistered observer for key {:?}", key);
+    }
 }
 
 impl Queryable for Store {
@@ -497,8 +545,14 @@ impl Conn {
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
             metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema))),
-            attribute_cache: Default::default()
+            attribute_cache: Default::default(),
+            tx_observer_service: Mutex::new(TxObservationService::default()),
         }
+    }
+
+    #[cfg(test)]
+    pub fn is_registered_as_observer(&self, key: &String) -> bool {
+        self.tx_observer_service.lock().unwrap().is_registered(key)
     }
 
     /// Prepare the provided SQLite handle for use as a Mentat store. Creates tables but
@@ -648,6 +702,8 @@ impl Conn {
             schema: (*current_schema).clone(),
             cache: self.attribute_cache.write().unwrap(),
             use_caching: true,
+            tx_reports: Vec::new(),
+            observer_service: if self.tx_observer_service.lock().unwrap().has_observers() { Some(&self.tx_observer_service) } else { None },
         })
     }
 
@@ -731,6 +787,16 @@ impl Conn {
             },
         }
     }
+
+    pub fn register_observer(&mut self, key: String, observer: TxObserver) {
+        self.tx_observer_service.lock().unwrap().register(key, observer);
+    }
+
+    pub fn unregister_observer(&mut self, key: &String) {
+        println!("Conn: unregistering observer for key {:?}", key);
+        self.tx_observer_service.lock().unwrap().deregister(key);
+        println!("Conn: unregistered observer for key {:?}", key);
+    }
 }
 
 #[cfg(test)]
@@ -739,16 +805,41 @@ mod tests {
 
     extern crate mentat_parser_utils;
 
+    use std::cell::{
+        RefCell
+    };
+    use std::collections::{
+        BTreeSet,
+    };
+    use std::ops::Deref;
+    use std::rc::{
+        Rc,
+    };
     use std::time::Instant;
 
     use mentat_core::{
         TypedValue,
     };
-    use query::{
+
+    use ::entity_builder::{
+        BuildTerms,
+    };
+
+    use ::query::{
         Variable,
     };
 
     use ::QueryResults;
+
+    use ::vocabulary::{
+        AttributeBuilder,
+        Definition,
+        VersionedStore,
+    };
+
+    use ::vocabulary::attribute::{
+        Unique
+    };
 
     use mentat_db::USER0;
 
@@ -1056,5 +1147,204 @@ mod tests {
             println!("Cached time: {:?}", cached_elapsed_time);
             assert!(cached_elapsed_time < uncached_elapsed_time);
         }
+    }
+
+    #[test]
+    fn test_register_observer() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        let key = "Test Observer".to_string();
+        let tx_observer = TxObserver::new(BTreeSet::new(), move |_obs_key, _batch| {});
+
+        conn.register_observer(key.clone(), tx_observer);
+        assert!(conn.is_registered_as_observer(&key));
+    }
+
+    #[test]
+    fn test_deregister_observer() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        let key = "Test Observer".to_string();
+
+        let tx_observer = TxObserver::new(BTreeSet::new(), move |_obs_key, _batch| {});
+
+        conn.register_observer(key.clone(), tx_observer);
+        assert!(conn.is_registered_as_observer(&key));
+
+        conn.unregister_observer(&key);
+
+        assert!(!conn.is_registered_as_observer(&key));
+    }
+
+    fn add_schema(conn: &mut Conn, mut sqlite: &mut rusqlite::Connection) {
+        // transact some schema
+        let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected in progress");
+        in_progress.ensure_vocabulary(&Definition {
+            name: kw!(:todo/items),
+            version: 1,
+            attributes: vec![
+                (kw!(:todo/uuid),
+                AttributeBuilder::new()
+                    .value_type(ValueType::Uuid)
+                    .multival(false)
+                    .unique(Unique::Value)
+                    .index(true)
+                    .build()),
+                (kw!(:todo/name),
+                AttributeBuilder::new()
+                    .value_type(ValueType::String)
+                    .multival(false)
+                    .fulltext(true)
+                    .build()),
+                (kw!(:todo/completion_date),
+                AttributeBuilder::new()
+                    .value_type(ValueType::Instant)
+                    .multival(false)
+                    .build()),
+                (kw!(:label/name),
+                AttributeBuilder::new()
+                    .value_type(ValueType::String)
+                    .multival(false)
+                    .unique(Unique::Value)
+                    .fulltext(true)
+                    .index(true)
+                    .build()),
+                (kw!(:label/color),
+                AttributeBuilder::new()
+                    .value_type(ValueType::String)
+                    .multival(false)
+                    .build()),
+            ],
+        }).expect("expected vocubulary");
+        in_progress.commit().expect("Expected vocabulary committed");
+    }
+
+    #[test]
+    fn test_observer_notified_on_registered_change() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        add_schema(&mut conn, &mut sqlite);
+
+        let name_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/name)).expect("entid to exist for name").into();
+        let date_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/completion_date)).expect("entid to exist for completion_date").into();
+        let mut registered_attrs = BTreeSet::new();
+        registered_attrs.insert(name_entid.clone());
+        registered_attrs.insert(date_entid.clone());
+
+        let key = "Test Observing".to_string();
+
+        let txids = Rc::new(RefCell::new(Vec::new()));
+        let changes = Rc::new(RefCell::new(Vec::new()));
+        let called_key: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+
+        let mut_txids = Rc::clone(&txids);
+        let mut_changes = Rc::clone(&changes);
+        let mut_key = Rc::clone(&called_key);
+        let tx_observer = TxObserver::new(registered_attrs, move |obs_key, batch| {
+            let mut k = mut_key.borrow_mut();
+            *k = Some(obs_key.clone());
+            let mut t = mut_txids.borrow_mut();
+            let mut c = mut_changes.borrow_mut();
+            for report in batch.iter() {
+                t.push(report.tx_id.clone());
+                c.push(report.changeset.clone());
+            }
+            t.sort();
+        });
+
+        conn.register_observer(key.clone(), tx_observer);
+        assert!(conn.is_registered_as_observer(&key));
+
+        let mut tx_ids = Vec::new();
+        let mut changesets = Vec::new();
+        {
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected transaction");
+            for i in 0..3 {
+                let name = format!("todo{}", i);
+                let uuid = Uuid::new_v4();
+                let mut builder = in_progress.builder().describe_tempid(&name);
+                builder.add_kw( &kw!(:todo/uuid), TypedValue::Uuid(uuid)).expect("Expected added uuid");
+                builder.add_kw(&kw!(:todo/name), TypedValue::typed_string(&name)).expect("Expected added name");
+                if i % 2 == 0 {
+                    builder.add_kw(&kw!(:todo/completion_date), TypedValue::current_instant()).expect("Expected added date");
+                }
+                let (ip, r) = builder.transact();
+                let report = r.expect("expected a report");
+                tx_ids.push(report.tx_id.clone());
+                changesets.push(report.changeset.clone());
+                in_progress = ip;
+            }
+            let mut builder = in_progress.builder().describe_tempid("Label");
+            builder.add_kw(&kw!(:label/name), TypedValue::typed_string("Label 1")).expect("Expected added name");
+            builder.add_kw(&kw!(:label/color), TypedValue::typed_string("blue")).expect("Expected added color");
+            builder.commit().expect("expect transaction to occur");
+        }
+
+        let val = called_key.deref();
+        assert_eq!(val, &RefCell::new(Some(key.clone())));
+        let t = txids.deref();
+        assert_eq!(t, &RefCell::new(tx_ids));
+
+        let c = changes.deref();
+        assert_eq!(c, &RefCell::new(changesets));
+    }
+
+    #[test]
+    fn test_observer_not_notified_on_unregistered_change() {
+        let mut sqlite = db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        add_schema(&mut conn, &mut sqlite);
+
+        let name_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/name)).expect("entid to exist for name").into();
+        let date_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/completion_date)).expect("entid to exist for completion_date").into();
+        let mut registered_attrs = BTreeSet::new();
+        registered_attrs.insert(name_entid.clone());
+        registered_attrs.insert(date_entid.clone());
+
+        let key = "Test Observing".to_string();
+
+        let txids = Rc::new(RefCell::new(Vec::new()));
+        let changes = Rc::new(RefCell::new(Vec::new()));
+        let called_key: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+
+        let mut_txids = Rc::clone(&txids);
+        let mut_changes = Rc::clone(&changes);
+        let mut_key = Rc::clone(&called_key);
+        let tx_observer = TxObserver::new(registered_attrs, move |obs_key, batch| {
+            let mut k = mut_key.borrow_mut();
+            *k = Some(obs_key.clone());
+            let mut t = mut_txids.borrow_mut();
+            let mut c = mut_changes.borrow_mut();
+            for report in batch.iter() {
+                t.push(report.tx_id.clone());
+                c.push(report.changeset.clone());
+            }
+            t.sort();
+        });
+
+        conn.register_observer(key.clone(), tx_observer);
+        assert!(conn.is_registered_as_observer(&key));
+
+        {
+            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected transaction");
+            for i in 0..3 {
+                let name = format!("label{}", i);
+                let mut builder = in_progress.builder().describe_tempid(&name);
+                builder.add_kw(&kw!(:label/name), TypedValue::typed_string(&name)).expect("Expected added name");
+                builder.add_kw(&kw!(:label/color), TypedValue::typed_string("blue")).expect("Expected added color");
+                let (ip, _) = builder.transact();
+                in_progress = ip;
+            }
+        }
+
+        let val = called_key.deref();
+        assert_eq!(val, &RefCell::new(None));
+        let t = txids.deref();
+        assert_eq!(t, &RefCell::new(vec![]));
+
+        let c = changes.deref();
+        assert_eq!(c, &RefCell::new(vec![]));
     }
 }
