@@ -25,5 +25,4 @@ path = "../db"
 
 [dependencies.rusqlite]
 version = "0.12"
-# System sqlite might be very old.
-features = ["bundled", "limits"]
+features = ["limits"]
