@@ -1,0 +1,58 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Test all",
+            "command": "cargo",
+            "args": [
+                "test",
+                "--all",
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "test"
+        },
+        {
+            "type": "shell",
+            "label": "Run CLI",
+            "command": "cargo",
+            "args": [
+                "cli",
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "test"
+        },
+        {
+            "type": "shell",
+            "label": "Build CLI",
+            "command": "cargo",
+            "args": [
+                "build",
+                "-p",
+                "mentat_cli",
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "build"
+        },
+        {
+            "type": "shell",
+            "label": "Build Mentat",
+            "command": "cargo",
+            "args": [
+                "build",
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "build"
+        }
+    ]
+}
