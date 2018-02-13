@@ -21,6 +21,7 @@ extern crate linefeed;
 extern crate rusqlite;
 extern crate tabwriter;
 extern crate termion;
+extern crate time;
 
 extern crate mentat;
 extern crate edn;
