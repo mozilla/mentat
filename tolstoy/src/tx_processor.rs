@@ -127,11 +127,14 @@ fn to_tx_part(row: &rusqlite::Row) -> Result<TxPart> {
 }
 
 impl Processor {
-    pub fn process<R>(sqlite: &rusqlite::Transaction, receiver: &mut R) -> Result<()>
+    pub fn process<R>(sqlite: &rusqlite::Transaction, from_tx: Option<Entid>, receiver: &mut R) -> Result<()>
     where R: TxReceiver {
-        let mut stmt = sqlite.prepare(
-            "SELECT e, a, v, value_type_tag, tx, added FROM transactions ORDER BY tx"
-        )?;
+        let tx_filter = match from_tx {
+            Some(tx) => format!(" WHERE tx > {} ", tx),
+            None => format!("")
+        };
+        let select_query = format!("SELECT e, a, v, value_type_tag, tx, added FROM transactions {} ORDER BY tx", tx_filter);
+        let mut stmt = sqlite.prepare(&select_query)?;
 
         let mut rows = stmt.query_and_then(&[], to_tx_part)?.peekable();
         let mut current_tx = None;

@@ -111,6 +111,28 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
 }
 
 impl Syncer {
+    fn upload_ours(db_tx: &mut rusqlite::Transaction, from_tx: Option<Entid>, remote_client: &RemoteClient, remote_head: &Uuid) -> Result<()> {
+        let mut uploader = UploadingTxReceiver::new(remote_client, remote_head);
+        Processor::process(db_tx, from_tx, &mut uploader)?;
+        if !uploader.is_done {
+            bail!(ErrorKind::UploadingProcessorUnfinished);
+        }
+        // Last tx uuid uploaded by the tx receiver.
+        // It's going to be our new head.
+        if let Some(last_tx_uploaded) = uploader.rolling_temp_head {
+            // Upload remote head.
+            remote_client.put_head(&last_tx_uploaded)?;
+
+            // On succes:
+            // - persist local mappings from the receiver
+            // - update our local "remote head".
+            TxMapper::set_bulk(db_tx, &uploader.tx_temp_uuids)?;
+            SyncMetadataClient::set_remote_head(db_tx, &last_tx_uploaded)?;
+        }
+
+        Ok(())
+    }
+
     pub fn flow(sqlite: &mut rusqlite::Connection, username: String) -> Result<()> {
         // Sketch of an upload flow:
         // get remote head
@@ -132,35 +154,72 @@ impl Syncer {
         // but failed to advance our own local head. If that's the case, and we can recognize it,
         // our sync becomes much cheaper.
 
-        // Don't know how to download, merge, resolve conflicts, etc yet.
-        if locally_known_remote_head != remote_head {
-            bail!(ErrorKind::NotYetImplemented(
-                format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
-            ));
+        // Check if the server is empty - populate it.
+        if remote_head == Uuid::nil() {
+            Syncer::upload_ours(&mut db_tx, None, &remote_client, &remote_head)?;
+        
+        // Check if the server is the same as us - nothing to do.
+        } else if locally_known_remote_head == remote_head {
+            return Ok(());
+
+        // Server is not the same as us.
+        } else {
+            // Check if the server can be fast-forwarded.
+            if let Some(upload_from_tx) = TxMapper::get_tx_for_uuid(&db_tx, &remote_head)? {
+                Syncer::upload_ours(&mut db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
+            
+            // Server has new transactions which aren't known locally.
+            } else {
+                // We need to download and merge them first!
+                bail!(ErrorKind::NotYetImplemented(
+                    format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
+                ));
+            }
         }
 
-        // Local and remote heads agree.
-        // In theory, it should be safe to upload our stuff now.
-        let mut uploader = UploadingTxReceiver::new(&remote_client, &remote_head);
-        Processor::process(&db_tx, &mut uploader)?;
-        if !uploader.is_done {
-            bail!(ErrorKind::UploadingProcessorUnfinished);
-        }
-        // Last tx uuid uploaded by the tx receiver.
-        // It's going to be our new head.
-        if let Some(last_tx_uploaded) = uploader.rolling_temp_head {
-            // Upload remote head.
-            remote_client.put_head(&last_tx_uploaded)?;
+        // if we don't have the tx e mapped in the tu table, then we've never uploaded it
+        // but on a first sync, that is what you'd expect
+        // so how do we know it's safe to download?
+        // if remote head is ahead of us, and we never synced, and we don't know how to merge yet,
+        // the only way is to sync to an empty state. e.g. locally we just have _one_ transaction,
+        // and that's the bootstrap one.
 
-            // On succes:
-            // - persist local mappings from the receiver
-            // - update our local "remote head".
-            TxMapper::set_bulk(&mut db_tx, &uploader.tx_temp_uuids)?;
-            SyncMetadataClient::set_remote_head(&db_tx, &last_tx_uploaded)?;
+        // more generally though, this won't matter. we do care about making a distinction between
+        // a fast-forward sync and a merge.
+        
+        // so that's the primitive here:
+        // - is it a fast-forward sync?
+        // - or is it a merge?
 
-            // Commit everything: tx->uuid mappings and the new HEAD. We're synced!
-            db_tx.commit()?;
-        }
+        // fetch remote head. if it's the same as our known remote head, do nothing.
+        // - unless it's 0000, then we can upload our state to the server!
+        // otherwise:
+        // - does our latest tx appear in the remote timeline? meaning that remote timeline
+        // -- is derived from our local HEAD.
+        // -- then it's a fast-forward.
+        // but:
+        // - when two different clients come to sync against each other, they will both have
+        // -- bootstrap transactions. that is, our "first sync" is always a merge for the second client,
+        // -- even if the second client has no user data at all.
+        // -- so we need to be able to merge and smush the bootstrap tx at the very least!
+
+        // -> without this, we can sync against ourselves only - pure replication, a.k.a. backup.
+        
+        // == flow ==
+        // initiate download flow
+        // fetch txs from the server given our known remote head
+        // get chunks for each tx
+        // transform downloaded chunks and txs into some local representation (TxPart?)
+        // validate that what we downloaded is sane
+        // - entids are known (locally or supplied in the downloaded chunks), values are sane, etc.
+        // maybe turn these into Terms? Term is a datom with known entid.
+        // transact the stuff!
+        // once all is transacted, we're ready to upload our state.
+        // need to make sure that the server state didn't change while we were doing this!
+
+        // Commit everything, if there's anything to commit!
+        // Any new tx->uuid mappings and the new HEAD. We're synced!
+        db_tx.commit()?;
 
         Ok(())
     }

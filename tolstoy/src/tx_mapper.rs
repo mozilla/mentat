@@ -46,6 +46,24 @@ impl TxMapper {
         }
     }
 
+    pub fn get_tx_for_uuid(db_tx: &rusqlite::Transaction, uuid: &Uuid) -> Result<Option<Entid>> {
+        let mut stmt = db_tx.prepare_cached(
+            "SELECT tx FROM tolstoy_tu WHERE uuid = ?"
+        )?;
+
+        let uuid_bytes = uuid.as_bytes().to_vec();
+        let results = stmt.query_map(&[&uuid_bytes], |r| r.get(0))?;
+
+        let mut txs = vec![];
+        txs.extend(results);
+        if txs.len() == 0 {
+            return Ok(None);
+        } else if txs.len() > 1 {
+            bail!(ErrorKind::TxIncorrectlyMapped(txs.len()));
+        }
+        Ok(Some(txs.remove(0)?))
+    }
+
     fn get(db_tx: &mut rusqlite::Transaction, tx: Entid) -> Result<Option<Uuid>> {
         let mut stmt = db_tx.prepare_cached(
             "SELECT uuid FROM tolstoy_tu WHERE tx = ?"
@@ -54,7 +72,7 @@ impl TxMapper {
         let results = stmt.query_and_then(&[&tx], |r| -> Result<Uuid>{
             let bytes: Vec<u8> = r.get(0);
             Uuid::from_bytes(bytes.as_slice()).map_err(|e| e.into())
-        })?.peekable();
+        })?;
 
         let mut uuids = vec![];
         uuids.extend(results);

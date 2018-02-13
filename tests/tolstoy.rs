@@ -100,7 +100,7 @@ fn test_reader() {
         // Don't inspect the bootstrap transaction, but we'd like to see it's there.
         let mut receiver = TxCountingReceiver::new();
         assert_eq!(false, receiver.is_done);
-        Processor::process(&db_tx, &mut receiver).expect("processor");
+        Processor::process(&db_tx, None, &mut receiver).expect("processor");
         assert_eq!(true, receiver.is_done);
         assert_eq!(1, receiver.tx_count);
     }
@@ -112,16 +112,19 @@ fn test_reader() {
     ]"#).expect("successful transaction").tempids;
     let numba_entity_id = ids.get("s").unwrap();
 
+    let mut bootstrap_tx = None;
     {
         let db_tx = c.transaction().expect("db tx");
         // Expect to see one more transaction of four parts (one for tx datom itself).
         let mut receiver = TestingReceiver::new();
-        Processor::process(&db_tx, &mut receiver).expect("processor");
+        Processor::process(&db_tx, None, &mut receiver).expect("processor");
 
         println!("{:#?}", receiver);
 
         assert_eq!(2, receiver.txes.keys().count());
         assert_tx_datoms_count(&receiver, 1, 4);
+
+        bootstrap_tx = Some(*receiver.txes.keys().nth(0).expect("bootstrap tx"));
     }
 
     let ids = conn.transact(&mut c, r#"[
@@ -134,13 +137,15 @@ fn test_reader() {
 
         // Expect to see a single two part transaction
         let mut receiver = TestingReceiver::new();
-        Processor::process(&db_tx, &mut receiver).expect("processor");
 
-        assert_eq!(3, receiver.txes.keys().count());
-        assert_tx_datoms_count(&receiver, 2, 2);
+        // Note that we're asking for the bootstrap tx to be skipped by the processor.
+        Processor::process(&db_tx, bootstrap_tx, &mut receiver).expect("processor");
+
+        assert_eq!(2, receiver.txes.keys().count());
+        assert_tx_datoms_count(&receiver, 1, 2);
 
         // Inspect the transaction part.
-        let tx_id = receiver.txes.keys().nth(2).expect("tx");
+        let tx_id = receiver.txes.keys().nth(1).expect("tx");
         let datoms = receiver.txes.get(tx_id).expect("datoms");
         let part = &datoms[0];
 
