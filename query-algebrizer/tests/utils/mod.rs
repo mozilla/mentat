@@ -29,11 +29,12 @@ use mentat_query::{
 };
 
 use mentat_query_algebrizer::{
-    algebrize,
-    algebrize_with_inputs,
     ConjoiningClauses,
     Error,
+    Known,
     QueryInputs,
+    algebrize,
+    algebrize_with_inputs,
 };
 
 // Common utility functions used in multiple test files.
@@ -83,17 +84,17 @@ impl SchemaBuilder {
     }
 }
 
-pub fn bails(schema: &Schema, input: &str) -> Error {
+pub fn bails(known: Known, input: &str) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect_err("algebrize to have failed")
+    algebrize(known, parsed).expect_err("algebrize to have failed")
 }
 
-pub fn bails_with_inputs(schema: &Schema, input: &str, inputs: QueryInputs) -> Error {
+pub fn bails_with_inputs(known: Known, input: &str, inputs: QueryInputs) -> Error {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize_with_inputs(schema, parsed, 0, inputs).expect_err("algebrize to have failed")
+    algebrize_with_inputs(known, parsed, 0, inputs).expect_err("algebrize to have failed")
 }
 
-pub fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+pub fn alg(known: Known, input: &str) -> ConjoiningClauses {
     let parsed = parse_find_string(input).expect("query input to have parsed");
-    algebrize(schema.into(), parsed).expect("algebrizing to have succeeded").cc
+    algebrize(known, parsed).expect("algebrizing to have succeeded").cc
 }

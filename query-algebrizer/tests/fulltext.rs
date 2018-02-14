@@ -31,6 +31,8 @@ use utils::{
     associate_ident,
 };
 
+use mentat_query_algebrizer::Known;
+
 fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
     associate_ident(&mut schema, NamespacedKeyword::new("foo", "name"), 65);
@@ -71,15 +73,16 @@ fn prepopulated_schema() -> Schema {
 #[test]
 fn test_apply_fulltext() {
     let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
 
     // If you use a non-FTS attribute, we will short-circuit.
     let query = r#"[:find ?val
                     :where [(fulltext $ :foo/name "hello") [[?entity ?val _ _]]]]"#;
-    assert!(alg(&schema, query).is_known_empty());
+    assert!(alg(known, query).is_known_empty());
 
     // If you get a type mismatch, we will short-circuit.
     let query = r#"[:find ?val
                     :where [(fulltext $ :foo/description "hello") [[?entity ?val ?tx ?score]]]
                     [?score :foo/bar _]]"#;
-    assert!(alg(&schema, query).is_known_empty());
+    assert!(alg(known, query).is_known_empty());
 }

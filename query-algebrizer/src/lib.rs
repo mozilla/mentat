@@ -28,6 +28,8 @@ mod validate;
 mod clauses;
 
 use mentat_core::{
+    CachedAttributes,
+    Entid,
     Schema,
     TypedValue,
     ValueType,
@@ -59,6 +61,68 @@ pub use types::{
     EmptyBecause,
 };
 
+/// A convenience wrapper around things known in memory: the schema and caches.
+/// We use a trait object here to avoid making dozens of functions generic over the type
+/// of the cache. If performance becomes a concern, we should hard-code specific kinds of
+/// cache right here, and/or eliminate the Option.
+#[derive(Clone, Copy)]
+pub struct Known<'s, 'c> {
+    pub schema: &'s Schema,
+    pub cache: Option<&'c CachedAttributes>,
+}
+
+impl<'s, 'c> Known<'s, 'c> {
+    pub fn for_schema(s: &'s Schema) -> Known<'s, 'static> {
+        Known {
+            schema: s,
+            cache: None,
+        }
+    }
+
+    pub fn new(s: &'s Schema, c: Option<&'c CachedAttributes>) -> Known<'s, 'c> {
+        Known {
+            schema: s,
+            cache: c,
+        }
+    }
+}
+
+/// This is `CachedAttributes`, but with handy generic parameters.
+/// Why not make the trait generic? Because then we can't use it as a trait object in `Known`.
+impl<'s, 'c> Known<'s, 'c> {
+    pub fn is_attribute_cached_reverse<U>(&self, entid: U) -> bool where U: Into<Entid> {
+        self.cache
+            .map(|cache| cache.is_attribute_cached_reverse(entid.into()))
+            .unwrap_or(false)
+    }
+
+    pub fn is_attribute_cached_forward<U>(&self, entid: U) -> bool where U: Into<Entid> {
+        self.cache
+            .map(|cache| cache.is_attribute_cached_forward(entid.into()))
+            .unwrap_or(false)
+    }
+
+    pub fn get_values_for_entid<U, V>(&self, schema: &Schema, attribute: U, entid: V) -> Option<&Vec<TypedValue>>
+    where U: Into<Entid>, V: Into<Entid> {
+        self.cache.and_then(|cache| cache.get_values_for_entid(schema, attribute.into(), entid.into()))
+    }
+
+    pub fn get_value_for_entid<U, V>(&self, schema: &Schema, attribute: U, entid: V) -> Option<&TypedValue>
+    where U: Into<Entid>, V: Into<Entid> {
+        self.cache.and_then(|cache| cache.get_value_for_entid(schema, attribute.into(), entid.into()))
+    }
+
+    pub fn get_entid_for_value<U>(&self, attribute: U, value: &TypedValue) -> Option<Entid>
+    where U: Into<Entid> {
+        self.cache.and_then(|cache| cache.get_entid_for_value(attribute.into(), value))
+    }
+
+    pub fn get_entids_for_value<U>(&self, attribute: U, value: &TypedValue) -> Option<&BTreeSet<Entid>>
+    where U: Into<Entid> {
+        self.cache.and_then(|cache| cache.get_entids_for_value(attribute.into(), value))
+    }
+}
+
 #[derive(Debug)]
 pub struct AlgebraicQuery {
     default_source: SrcVar,
@@ -83,12 +147,12 @@ impl AlgebraicQuery {
     }
 }
 
-pub fn algebrize_with_counter(schema: &Schema, parsed: FindQuery, counter: usize) -> Result<AlgebraicQuery> {
-    algebrize_with_inputs(schema, parsed, counter, QueryInputs::default())
+pub fn algebrize_with_counter(known: Known, parsed: FindQuery, counter: usize) -> Result<AlgebraicQuery> {
+    algebrize_with_inputs(known, parsed, counter, QueryInputs::default())
 }
 
-pub fn algebrize(schema: &Schema, parsed: FindQuery) -> Result<AlgebraicQuery> {
-    algebrize_with_inputs(schema, parsed, 0, QueryInputs::default())
+pub fn algebrize(known: Known, parsed: FindQuery) -> Result<AlgebraicQuery> {
+    algebrize_with_inputs(known, parsed, 0, QueryInputs::default())
 }
 
 /// Take an ordering list. Any variables that aren't fixed by the query are used to produce
@@ -166,7 +230,7 @@ fn simplify_limit(mut query: AlgebraicQuery) -> Result<AlgebraicQuery> {
     Ok(query)
 }
 
-pub fn algebrize_with_inputs(schema: &Schema,
+pub fn algebrize_with_inputs(known: Known,
                              parsed: FindQuery,
                              counter: usize,
                              inputs: QueryInputs) -> Result<AlgebraicQuery> {
@@ -180,7 +244,7 @@ pub fn algebrize_with_inputs(schema: &Schema,
 
     // TODO: integrate default source into pattern processing.
     // TODO: flesh out the rest of find-into-context.
-    cc.apply_clauses(schema, parsed.where_clauses)?;
+    cc.apply_clauses(known, parsed.where_clauses)?;
 
     cc.expand_column_bindings();
     cc.prune_extracted_types();

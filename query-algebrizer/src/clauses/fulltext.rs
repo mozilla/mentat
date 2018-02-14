@@ -10,7 +10,6 @@
 
 use mentat_core::{
     HasSchema,
-    Schema,
     TypedValue,
     ValueType,
 };
@@ -48,9 +47,11 @@ use types::{
     SourceAlias,
 };
 
+use Known;
+
 impl ConjoiningClauses {
     #[allow(unused_variables)]
-    pub fn apply_fulltext<'s>(&mut self, schema: &'s Schema, where_fn: WhereFn) -> Result<()> {
+    pub fn apply_fulltext(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 3 {
             bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
         }
@@ -96,6 +97,8 @@ impl ConjoiningClauses {
             _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable".into(), 0)),
         }
 
+        let schema = known.schema;
+
         // TODO: accept placeholder and set of attributes.  Alternately, consider putting the search
         // term before the attribute arguments and collect the (variadic) attributes into a set.
         // let a: Entid  = self.resolve_attribute_argument(&where_fn.operator, 1, args.next().unwrap())?;
@@ -130,7 +133,7 @@ impl ConjoiningClauses {
         if !attribute.fulltext {
             // We can never get results from a non-fulltext attribute!
             println!("Can't run fulltext on non-fulltext attribute {}.", a);
-            self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(a));
+            self.mark_known_empty(EmptyBecause::NonFulltextAttribute(a));
             return Ok(());
         }
 
@@ -258,6 +261,7 @@ mod testing {
 
     use mentat_core::{
         Attribute,
+        Schema,
         ValueType,
     };
 
@@ -294,8 +298,10 @@ mod testing {
             ..Default::default()
         });
 
+        let known = Known::for_schema(&schema);
+
         let op = PlainSymbol::new("fulltext");
-        cc.apply_fulltext(&schema, WhereFn {
+        cc.apply_fulltext(known, WhereFn {
             operator: op,
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
@@ -353,7 +359,7 @@ mod testing {
 
         let mut cc = ConjoiningClauses::default();
         let op = PlainSymbol::new("fulltext");
-        cc.apply_fulltext(&schema, WhereFn {
+        cc.apply_fulltext(known, WhereFn {
             operator: op,
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),

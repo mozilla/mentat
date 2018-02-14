@@ -42,6 +42,7 @@ use mentat_core::{
 
 use mentat_core::intern_set::InternSet;
 
+use mentat_db::cache::SQLiteAttributeCache;
 use mentat_db::db;
 use mentat_db::{
     transact,
@@ -61,13 +62,6 @@ use mentat_tx_parser;
 use mentat_tolstoy::Syncer;
 
 use uuid::Uuid;
-use cache::{
-    AttributeCacher,
-};
-
-pub use cache::{
-    CacheAction,
-};
 
 use entity_builder::{
     InProgressBuilder,
@@ -76,15 +70,17 @@ use entity_builder::{
 use errors::*;
 
 use query::{
-    lookup_value_for_attribute,
-    lookup_values_for_attribute,
+    Known,
     PreparedResult,
-    q_once,
-    q_prepare,
-    q_explain,
     QueryExplanation,
     QueryInputs,
     QueryOutput,
+    lookup_value_for_attribute,
+    lookup_values_for_attribute,
+    q_explain,
+    q_once,
+    q_prepare,
+    q_uncached,
 };
 
 /// Connection metadata required to query from, or apply transactions to, a Mentat store.
@@ -127,7 +123,7 @@ pub struct Conn {
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
 
-    attribute_cache: RwLock<AttributeCacher>,
+    attribute_cache: RwLock<SQLiteAttributeCache>,
 }
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -190,7 +186,9 @@ pub struct InProgress<'a, 'c> {
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
-    cache: RwLockWriteGuard<'a, AttributeCacher>,
+    cache: RwLockWriteGuard<'a, SQLiteAttributeCache>,
+
+    use_caching: bool,
 }
 
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
@@ -228,39 +226,50 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
 
-        q_once(&*(self.transaction),
-               &self.schema,
-               query,
-               inputs)
+        if self.use_caching {
+            let known = Known::new(&self.schema, Some(&*self.cache));
+            q_once(&*(self.transaction),
+                   known,
+                   query,
+                   inputs)
+        } else {
+            q_uncached(&*(self.transaction),
+                       &self.schema,
+                       query,
+                       inputs)
+        }
     }
 
     fn q_prepare<T>(&self, query: &str, inputs: T) -> PreparedResult
         where T: Into<Option<QueryInputs>> {
 
+        let known = Known::new(&self.schema, Some(&*self.cache));
         q_prepare(&*(self.transaction),
-                  &self.schema,
+                  known,
                   query,
                   inputs)
     }
 
     fn q_explain<T>(&self, query: &str, inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>> {
+
+        let known = Known::new(&self.schema, Some(&*self.cache));
         q_explain(&*(self.transaction),
-                  &self.schema,
+                  known,
                   query,
                   inputs)
     }
 
     fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid> {
-        let cc = &*self.cache;
-        lookup_values_for_attribute(&*(self.transaction), &self.schema, cc, entity, attribute)
+        let known = Known::new(&self.schema, Some(&*self.cache));
+        lookup_values_for_attribute(&*(self.transaction), known, entity, attribute)
     }
 
     fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
         where E: Into<Entid> {
-        let cc = &*self.cache;
-        lookup_value_for_attribute(&*(self.transaction), &self.schema, cc, entity, attribute)
+        let known = Known::new(&self.schema, Some(&*self.cache));
+        lookup_value_for_attribute(&*(self.transaction), known, entity, attribute)
     }
 }
 
@@ -332,6 +341,11 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
 impl<'a, 'c> InProgress<'a, 'c> {
     pub fn builder(self) -> InProgressBuilder<'a, 'c> {
         InProgressBuilder::new(self)
+    }
+
+    /// Choose whether to use in-memory caches for running queries.
+    pub fn use_caching(&mut self, yesno: bool) {
+        self.use_caching = yesno;
     }
 
     pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
@@ -406,6 +420,13 @@ impl<'a, 'c> InProgress<'a, 'c> {
 }
 
 impl Store {
+    /// Intended for use from tests.
+    pub fn sqlite_mut(&mut self) -> &mut rusqlite::Connection {
+        &mut self.sqlite
+    }
+}
+
+impl Store {
     pub fn dismantle(self) -> (rusqlite::Connection, Conn) {
         (self.sqlite, self.conn)
     }
@@ -420,6 +441,15 @@ impl Store {
 
     pub fn begin_transaction<'m>(&'m mut self) -> Result<InProgress<'m, 'm>> {
         self.conn.begin_transaction(&mut self.sqlite)
+    }
+
+    pub fn cache(&mut self, attr: &NamespacedKeyword, direction: CacheDirection) -> Result<()> {
+        let schema = &self.conn.current_schema();
+        self.conn.cache(&mut self.sqlite,
+                        schema,
+                        attr,
+                        direction,
+                        CacheAction::Register)
     }
 }
 
@@ -450,6 +480,19 @@ impl Queryable for Store {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CacheDirection {
+    Forward,
+    Reverse,
+    Both,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CacheAction {
+    Register,
+    Deregister,
+}
+
 impl Syncable for Store {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
         let uuid = Uuid::parse_str(&user_uuid)?;
@@ -462,7 +505,7 @@ impl Conn {
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
             metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema))),
-            attribute_cache: RwLock::new(AttributeCacher::new())
+            attribute_cache: Default::default()
         }
     }
 
@@ -500,9 +543,14 @@ impl Conn {
         self.metadata.lock().unwrap().schema.clone()
     }
 
-    pub fn attribute_cache<'s>(&'s self) -> RwLockReadGuard<'s, AttributeCacher> {
+    pub fn attribute_cache<'s>(&'s self) -> RwLockReadGuard<'s, SQLiteAttributeCache> {
         self.attribute_cache.read().unwrap()
     }
+
+    pub fn attribute_cache_mut<'s>(&'s self) -> RwLockWriteGuard<'s, SQLiteAttributeCache> {
+        self.attribute_cache.write().unwrap()
+    }
+
 
     /// Query the Mentat store, using the given connection and the current metadata.
     pub fn q_once<T>(&self,
@@ -511,11 +559,29 @@ impl Conn {
                      inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
 
+        // Doesn't clone, unlike `current_schema`.
         let metadata = self.metadata.lock().unwrap();
+        let cache = &*self.attribute_cache.read().unwrap();
+        let known = Known::new(&*metadata.schema, Some(cache));
         q_once(sqlite,
-               &*metadata.schema,        // Doesn't clone, unlike `current_schema`.
+               known,
                query,
                inputs)
+    }
+
+    /// Query the Mentat store, using the given connection and the current metadata,
+    /// but without using the cache.
+    pub fn q_uncached<T>(&self,
+                         sqlite: &rusqlite::Connection,
+                         query: &str,
+                         inputs: T) -> Result<QueryOutput>
+        where T: Into<Option<QueryInputs>> {
+
+        let metadata = self.metadata.lock().unwrap();
+        q_uncached(sqlite,
+                   &*metadata.schema,        // Doesn't clone, unlike `current_schema`.
+                   query,
+                   inputs)
     }
 
     pub fn q_prepare<'sqlite, 'query, T>(&self,
@@ -525,8 +591,10 @@ impl Conn {
         where T: Into<Option<QueryInputs>> {
 
         let metadata = self.metadata.lock().unwrap();
+        let cache = &*self.attribute_cache.read().unwrap();
+        let known = Known::new(&*metadata.schema, Some(cache));
         q_prepare(sqlite,
-                  &*metadata.schema,
+                  known,
                   query,
                   inputs)
     }
@@ -537,23 +605,33 @@ impl Conn {
                         inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>>
     {
-        q_explain(sqlite, &*self.current_schema(), query, inputs)
+        let metadata = self.metadata.lock().unwrap();
+        let cache = &*self.attribute_cache.read().unwrap();
+        let known = Known::new(&*metadata.schema, Some(cache));
+        q_explain(sqlite,
+                  known,
+                  query,
+                  inputs)
     }
 
     pub fn lookup_values_for_attribute(&self,
                                        sqlite: &rusqlite::Connection,
                                        entity: Entid,
                                        attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>> {
-        let cc: &AttributeCacher = &*self.attribute_cache();
-        lookup_values_for_attribute(sqlite, &*self.current_schema(), cc, entity, attribute)
+        let schema = &*self.current_schema();
+        let cache = &*self.attribute_cache();
+        let known = Known::new(schema, Some(cache));
+        lookup_values_for_attribute(sqlite, known, entity, attribute)
     }
 
     pub fn lookup_value_for_attribute(&self,
                                       sqlite: &rusqlite::Connection,
                                       entity: Entid,
                                       attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
-        let cc: &AttributeCacher = &*self.attribute_cache();
-        lookup_value_for_attribute(sqlite, &*self.current_schema(), cc, entity, attribute)
+        let schema = &*self.current_schema();
+        let cache = &*self.attribute_cache();
+        let known = Known::new(schema, Some(cache));
+        lookup_value_for_attribute(sqlite, known, entity, attribute)
     }
 
     /// Take a SQLite transaction.
@@ -577,6 +655,7 @@ impl Conn {
             partition_map: current_partition_map,
             schema: (*current_schema).clone(),
             cache: self.attribute_cache.write().unwrap(),
+            use_caching: true,
         })
     }
 
@@ -585,6 +664,14 @@ impl Conn {
     pub fn begin_read<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgressRead<'m, 'conn>> {
         self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Deferred)
             .map(InProgressRead)
+    }
+
+    pub fn begin_uncached_read<'m, 'conn>(&'m mut self, sqlite: &'conn mut rusqlite::Connection) -> Result<InProgressRead<'m, 'conn>> {
+        self.begin_transaction_with_behavior(sqlite, TransactionBehavior::Deferred)
+            .map(|mut ip| {
+                ip.use_caching(false);
+                InProgressRead(ip)
+            })
     }
 
     /// IMMEDIATE means 'start the transaction now, but don't exclude readers'. It prevents other
@@ -628,18 +715,29 @@ impl Conn {
     /// CacheType::Lazy caches values only after they have first been fetched.
     pub fn cache(&mut self,
                  sqlite: &mut rusqlite::Connection,
+                 schema: &Schema,
                  attribute: &NamespacedKeyword,
+                 cache_direction: CacheDirection,
                  cache_action: CacheAction) -> Result<()> {
-        // fetch the attribute for the given name
-        let schema = self.current_schema();
-
-        let mut cache = self.attribute_cache.write().unwrap();
-        let attribute_entid = schema.get_entid(&attribute).ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?;
-        match cache_action {
-            CacheAction::Register => { cache.register_attribute(sqlite, attribute_entid.0)?; },
-            CacheAction::Deregister => { cache.deregister_attribute(&attribute_entid.0); },
+        match self.current_schema().attribute_for_ident(&attribute) {
+            None => bail!(ErrorKind::UnknownAttribute(attribute.to_string())),
+            Some((_attribute, attribute_entid)) => {
+                let mut cache = self.attribute_cache.write().unwrap();
+                match cache_action {
+                    CacheAction::Register => {
+                        match cache_direction {
+                            CacheDirection::Both => cache.register(schema, sqlite, attribute_entid),
+                            CacheDirection::Forward => cache.register_forward(schema, sqlite, attribute_entid),
+                            CacheDirection::Reverse => cache.register_reverse(schema, sqlite, attribute_entid),
+                        }.map_err(|e| e.into())
+                    },
+                    CacheAction::Deregister => {
+                        cache.unregister(attribute_entid);
+                        Ok(())
+                    },
+                }
+            },
         }
-        Ok(())
     }
 }
 
@@ -899,7 +997,8 @@ mod tests {
                :db/valueType   :db.type/boolean }]"#).unwrap();
 
         let kw = kw!(:foo/bat);
-        let res = conn.cache(&mut sqlite,&kw, CacheAction::Register);
+        let schema = conn.current_schema();
+        let res = conn.cache(&mut sqlite, &schema, &kw, CacheDirection::Forward, CacheAction::Register);
         match res.unwrap_err() {
             Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, ":foo/bat"),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
@@ -952,7 +1051,8 @@ mod tests {
         let uncached_elapsed_time = finish.duration_since(start);
         println!("Uncached time: {:?}", uncached_elapsed_time);
 
-        conn.cache(&mut sqlite, &kw, CacheAction::Register).expect("expected caching to work");
+        let schema = conn.current_schema();
+        conn.cache(&mut sqlite, &schema, &kw, CacheDirection::Forward, CacheAction::Register).expect("expected caching to work");
 
         for _ in 1..5 {
             let start = Instant::now();

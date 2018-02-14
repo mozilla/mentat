@@ -39,6 +39,7 @@ pub use mentat_core::{
     HasSchema,
     KnownEntid,
     NamespacedKeyword,
+    Schema,
     TypedValue,
     Uuid,
     ValueType,
@@ -87,17 +88,12 @@ macro_rules! kw {
     };
 }
 
-pub mod cache;
 pub mod errors;
 pub mod ident;
 pub mod vocabulary;
 pub mod conn;
 pub mod query;
 pub mod entity_builder;
-
-pub fn get_name() -> String {
-    return String::from("mentat");
-}
 
 pub use query::{
     IntoResult,
@@ -113,6 +109,8 @@ pub use query::{
 };
 
 pub use conn::{
+    CacheAction,
+    CacheDirection,
     Conn,
     InProgress,
     Metadata,

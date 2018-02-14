@@ -25,6 +25,8 @@ use time::{
 };
 
 use mentat::{
+    CacheDirection,
+    NamespacedKeyword,
     Queryable,
     QueryExplanation,
     QueryOutput,
@@ -39,6 +41,7 @@ use command_parser::{
     Command,
     HELP_COMMAND,
     OPEN_COMMAND,
+    CACHE_COMMAND,
     LONG_QUERY_COMMAND,
     SHORT_QUERY_COMMAND,
     SCHEMA_COMMAND,
@@ -66,6 +69,7 @@ lazy_static! {
         map.insert(SHORT_EXIT_COMMAND, "Shortcut for `.exit`. Close the current database and exit the REPL.");
         map.insert(HELP_COMMAND, "Show help for commands.");
         map.insert(OPEN_COMMAND, "Open a database at path.");
+        map.insert(CACHE_COMMAND, "Cache an attribute. Usage: `.cache :foo/bar reverse`");
         map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
         map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
         map.insert(SCHEMA_COMMAND, "Output the schema for the current open database.");
@@ -81,6 +85,17 @@ lazy_static! {
 
 fn eprint_out(s: &str) {
     eprint!("{green}{s}{reset}", green = color::Fg(::GREEN), s = s, reset = color::Fg(color::Reset));
+}
+
+fn parse_namespaced_keyword(input: &str) -> Option<NamespacedKeyword> {
+    let splits = [':', '/'];
+    let mut i = input.split(&splits[..]);
+    match (i.next(), i.next(), i.next(), i.next()) {
+        (Some(""), Some(namespace), Some(name), None) => {
+            Some(NamespacedKeyword::new(namespace, name))
+        },
+        _ => None,
+    }
 }
 
 fn format_time(duration: Duration) {
@@ -168,6 +183,17 @@ impl Repl {
         }
     }
 
+    fn cache(&mut self, attr: String, direction: CacheDirection) {
+        if let Some(kw) = parse_namespaced_keyword(attr.as_str()) {
+            match self.store.cache(&kw, direction) {
+                Result::Ok(_) => (),
+                Result::Err(e) => eprintln!("Couldn't cache attribute: {}", e),
+            };
+        } else {
+            eprintln!("Invalid attribute {}", attr);
+        }
+    }
+
     /// Runs a single command input.
     fn handle_command(&mut self, cmd: Command) {
         let should_time = self.timer_on && cmd.is_timed();
@@ -177,6 +203,7 @@ impl Repl {
         match cmd {
             Command::Help(args) => self.help_command(args),
             Command::Timer(on) => self.toggle_timer(on),
+            Command::Cache(attr, direction) => self.cache(attr, direction),
             Command::Open(db) => {
                 match self.open(db) {
                     Ok(_) => println!("Database {:?} opened", self.db_name()),

@@ -23,8 +23,8 @@ use mentat_core::{
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
-    algebrize_with_inputs,
     EmptyBecause,
+    algebrize_with_inputs,
 };
 
 pub use mentat_query_algebrizer::{
@@ -63,6 +63,10 @@ use mentat_query_translator::{
     query_to_select,
 };
 
+pub use mentat_query_algebrizer::{
+    Known,
+};
+
 pub use mentat_query_projector::{
     QueryOutput,        // Includes the columns/find spec.
     QueryResults,       // The results themselves.
@@ -71,10 +75,6 @@ pub use mentat_query_projector::{
 use errors::{
     ErrorKind,
     Result,
-};
-
-use cache::{
-    AttributeCacher,
 };
 
 pub type QueryExecutionResult = Result<QueryOutput>;
@@ -154,13 +154,13 @@ pub struct QueryPlanStep {
     pub detail: String,
 }
 
-fn algebrize_query<'schema, T>
-(schema: &'schema Schema,
+fn algebrize_query<T>
+(known: Known,
  query: FindQuery,
  inputs: T) -> Result<AlgebraicQuery>
     where T: Into<Option<QueryInputs>>
 {
-    let algebrized = algebrize_with_inputs(schema, query, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
+    let algebrized = algebrize_with_inputs(known, query, 0, inputs.into().unwrap_or(QueryInputs::default()))?;
     let unbound = algebrized.unbound_variables();
     // Because we are running once, we can check that all of our `:in` variables are bound at this point.
     // If they aren't, the user has made an error -- perhaps writing the wrong variable in `:in`, or
@@ -171,9 +171,9 @@ fn algebrize_query<'schema, T>
     Ok(algebrized)
 }
 
-fn fetch_values<'sqlite, 'schema>
+fn fetch_values<'sqlite>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
+ known: Known,
  entity: Entid,
  attribute: Entid,
  only_one: bool) -> QueryExecutionResult {
@@ -192,7 +192,7 @@ fn fetch_values<'sqlite, 'schema>
     let query = FindQuery::simple(spec,
                                   vec![WhereClause::Pattern(pattern)]);
 
-    let algebrized = algebrize_query(schema, query, None)?;
+    let algebrized = algebrize_query(known, query, None)?;
 
     run_algebrized_query(sqlite, algebrized)
 }
@@ -208,57 +208,62 @@ fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<Kn
 /// If `attribute` isn't an attribute, `None` is returned.
 pub fn lookup_value<'sqlite, 'schema, 'cache, E, A>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
- cache: &'cache AttributeCacher,
+ known: Known,
  entity: E,
  attribute: A) -> Result<Option<TypedValue>>
- where E: Into<Entid>, A: Into<Entid> {
+ where E: Into<Entid>,
+       A: Into<Entid> {
     let entid = entity.into();
     let attrid = attribute.into();
-    let cached = cache.get_value_for_entid(&attrid, &entid).cloned();
-    if cached.is_some() {
-        return Ok(cached);
+
+    if known.is_attribute_cached_forward(attrid) {
+        Ok(known.get_value_for_entid(known.schema, attrid, entid).cloned())
+    } else {
+        fetch_values(sqlite, known, entid, attrid, true).into_scalar_result()
     }
-    fetch_values(sqlite, schema, entid, attrid, true).into_scalar_result()
 }
 
-pub fn lookup_values<'sqlite, 'schema, 'cache, E, A>
+pub fn lookup_values<'sqlite, E, A>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
- cache: &'cache AttributeCacher,
+ known: Known,
  entity: E,
  attribute: A) -> Result<Vec<TypedValue>>
- where E: Into<Entid>, A: Into<Entid> {
+ where E: Into<Entid>,
+       A: Into<Entid> {
     let entid = entity.into();
     let attrid = attribute.into();
-    if let Some(cached) = cache.get_values_for_entid(&attrid, &entid).cloned() {
-        return Ok(cached);
+
+    if known.is_attribute_cached_forward(attrid) {
+        Ok(known.get_values_for_entid(known.schema, attrid, entid)
+                .cloned()
+                .unwrap_or_else(|| vec![]))
+    } else {
+        fetch_values(sqlite, known, entid, attrid, false).into_coll_result()
     }
-    fetch_values(sqlite, schema, entid, attrid, false).into_coll_result()
 }
 
 /// Return a single value for the provided entity and attribute.
 /// If the attribute is multi-valued, an arbitrary value is returned.
 /// If no value is present for that entity, `None` is returned.
 /// If `attribute` doesn't name an attribute, an error is returned.
-pub fn lookup_value_for_attribute<'sqlite, 'schema, 'cache, 'attribute, E>
+pub fn lookup_value_for_attribute<'sqlite, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
- cache: &'cache AttributeCacher,
+ known: Known,
  entity: E,
  attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>>
  where E: Into<Entid> {
-    lookup_value(sqlite, schema, cache, entity.into(), lookup_attribute(schema, attribute)?)
+    let attribute = lookup_attribute(known.schema, attribute)?;
+    lookup_value(sqlite, known, entity.into(), attribute)
 }
 
-pub fn lookup_values_for_attribute<'sqlite, 'schema, 'cache, 'attribute, E>
+pub fn lookup_values_for_attribute<'sqlite, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
- cache: &'cache AttributeCacher,
+ known: Known,
  entity: E,
  attribute: &'attribute NamespacedKeyword) -> Result<Vec<TypedValue>>
  where E: Into<Entid> {
-    lookup_values(sqlite, schema, cache, entity.into(), lookup_attribute(schema, attribute)?)
+    let attribute = lookup_attribute(known.schema, attribute)?;
+    lookup_values(sqlite, known, entity.into(), attribute)
 }
 
 fn run_statement<'sqlite, 'stmt, 'bound>
@@ -293,14 +298,13 @@ fn run_sql_query<'sqlite, 'sql, 'bound, T, F>
     Ok(result)
 }
 
-fn algebrize_query_str<'schema, 'query, T>
-(schema: &'schema Schema,
+fn algebrize_query_str<'query, T>
+(known: Known,
  query: &'query str,
  inputs: T) -> Result<AlgebraicQuery>
-    where T: Into<Option<QueryInputs>>
-{
+    where T: Into<Option<QueryInputs>> {
     let parsed = parse_find_string(query)?;
-    algebrize_query(schema, parsed, inputs)
+    algebrize_query(known, parsed, inputs)
 }
 
 fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebrized: AlgebraicQuery) -> QueryExecutionResult {
@@ -329,26 +333,39 @@ fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebriz
 /// instances.
 /// The caller is responsible for ensuring that the SQLite connection has an open transaction if
 /// isolation is required.
-pub fn q_once<'sqlite, 'schema, 'query, T>
+pub fn q_once<'sqlite, 'query, T>
+(sqlite: &'sqlite rusqlite::Connection,
+ known: Known,
+ query: &'query str,
+ inputs: T) -> QueryExecutionResult
+        where T: Into<Option<QueryInputs>>
+{
+    let algebrized = algebrize_query_str(known, query, inputs)?;
+    run_algebrized_query(sqlite, algebrized)
+}
+
+/// Just like `q_once`, but doesn't use any cached values.
+pub fn q_uncached<'sqlite, 'schema, 'query, T>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
  query: &'query str,
  inputs: T) -> QueryExecutionResult
         where T: Into<Option<QueryInputs>>
 {
-    let algebrized = algebrize_query_str(schema, query, inputs)?;
+    let known = Known::for_schema(schema);
+    let algebrized = algebrize_query_str(known, query, inputs)?;
 
     run_algebrized_query(sqlite, algebrized)
 }
 
-pub fn q_prepare<'sqlite, 'schema, 'query, T>
+pub fn q_prepare<'sqlite, 'query, T>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
+ known: Known,
  query: &'query str,
  inputs: T) -> PreparedResult<'sqlite>
         where T: Into<Option<QueryInputs>>
 {
-    let algebrized = algebrize_query_str(schema, query, inputs)?;
+    let algebrized = algebrize_query_str(known, query, inputs)?;
 
     let unbound = algebrized.unbound_variables();
     if !unbound.is_empty() {
@@ -375,14 +392,14 @@ pub fn q_prepare<'sqlite, 'schema, 'query, T>
     })
 }
 
-pub fn q_explain<'sqlite, 'schema, 'query, T>
+pub fn q_explain<'sqlite, 'query, T>
 (sqlite: &'sqlite rusqlite::Connection,
- schema: &'schema Schema,
+ known: Known,
  query: &'query str,
  inputs: T) -> Result<QueryExplanation>
         where T: Into<Option<QueryInputs>>
 {
-    let algebrized = algebrize_query_str(schema, query, inputs)?;
+    let algebrized = algebrize_query_str(known, query, inputs)?;
     if algebrized.is_known_empty() {
         return Ok(QueryExplanation::KnownEmpty(algebrized.cc.empty_because.unwrap()));
     }

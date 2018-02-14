@@ -15,6 +15,8 @@ use std::fmt::{
     Result,
 };
 
+use std::rc::Rc;
+
 use mentat_core::{
     Entid,
     TypedValue,
@@ -26,6 +28,7 @@ use mentat_query::{
     Direction,
     NamespacedKeyword,
     Order,
+    SrcVar,
     Variable,
 };
 
@@ -489,6 +492,8 @@ impl Debug for ColumnConstraint {
 
 #[derive(PartialEq, Clone)]
 pub enum EmptyBecause {
+    CachedAttributeHasNoValues { entity: Entid, attr: Entid },
+    CachedAttributeHasNoEntity { value: TypedValue, attr: Entid },
     ConflictingBindings { var: Variable, existing: TypedValue, desired: TypedValue },
 
     // A variable is known to be of two conflicting sets of types.
@@ -501,6 +506,7 @@ pub enum EmptyBecause {
     NonInstantArgument,
     NonNumericArgument,
     NonStringFulltextValue,
+    NonFulltextAttribute(Entid),
     UnresolvedIdent(NamespacedKeyword),
     InvalidAttributeIdent(NamespacedKeyword),
     InvalidAttributeEntid(Entid),
@@ -513,6 +519,12 @@ impl Debug for EmptyBecause {
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         use self::EmptyBecause::*;
         match self {
+            &CachedAttributeHasNoEntity { ref value, ref attr } => {
+                write!(f, "(?e, {}, {:?}, _) not present in store", attr, value)
+            },
+            &CachedAttributeHasNoValues { ref entity, ref attr } => {
+                write!(f, "({}, {}, ?v, _) not present in store", entity, attr)
+            },
             &ConflictingBindings { ref var, ref existing, ref desired } => {
                 write!(f, "Var {:?} can't be {:?} because it's already bound to {:?}",
                        var, desired, existing)
@@ -549,6 +561,9 @@ impl Debug for EmptyBecause {
             &InvalidAttributeEntid(entid) => {
                 write!(f, "{} is not an attribute", entid)
             },
+            &NonFulltextAttribute(entid) => {
+                write!(f, "{} is not a fulltext attribute", entid)
+            },
             &InvalidBinding(ref column, ref tv) => {
                 write!(f, "{:?} cannot name column {:?}", tv, column)
             },
@@ -561,4 +576,53 @@ impl Debug for EmptyBecause {
             },
         }
     }
+}
+
+// Intermediate data structures for resolving patterns.
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum EvolvedNonValuePlace {
+    Placeholder,
+    Variable(Variable),
+    Entid(Entid),                       // Will always be +ve. See #190.
+}
+
+// TODO: some of these aren't necessary?
+#[derive(Debug, Eq, PartialEq)]
+pub enum EvolvedValuePlace {
+    Placeholder,
+    Variable(Variable),
+    Entid(Entid),
+    Value(TypedValue),
+    EntidOrInteger(i64),
+    IdentOrKeyword(Rc<NamespacedKeyword>),
+}
+
+pub enum PlaceOrEmpty<T> {
+    Place(T),
+    Empty(EmptyBecause),
+}
+
+impl<T> PlaceOrEmpty<T> {
+    pub fn and_then<U, F: FnOnce(T) -> PlaceOrEmpty<U>>(self, f: F) -> PlaceOrEmpty<U> {
+        match self {
+            PlaceOrEmpty::Place(x) => f(x),
+            PlaceOrEmpty::Empty(e) => PlaceOrEmpty::Empty(e),
+        }
+    }
+
+    pub fn then<F: FnOnce(T)>(self, f: F) {
+        match self {
+            PlaceOrEmpty::Place(x) => f(x),
+            PlaceOrEmpty::Empty(_e) => (),
+        }
+    }
+}
+
+pub struct EvolvedPattern {
+    pub source: SrcVar,
+    pub entity: EvolvedNonValuePlace,
+    pub attribute: EvolvedNonValuePlace,
+    pub value: EvolvedValuePlace,
+    pub tx: EvolvedNonValuePlace,
 }

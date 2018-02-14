@@ -87,5 +87,15 @@ error_chain! {
             description("conflicting datoms in tx")
             display("conflicting datoms in tx")
         }
+
+        UnknownAttribute(attr: Entid) {
+            description("unknown attribute")
+            display("unknown attribute for entid: {}", attr)
+        }
+
+        CannotCacheNonUniqueAttributeInReverse(attr: Entid) {
+            description("cannot reverse-cache non-unique attribute")
+            display("cannot reverse-cache non-unique attribute: {}", attr)
+        }
     }
 }

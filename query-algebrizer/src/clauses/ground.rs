@@ -43,6 +43,8 @@ use types::{
     VariableColumn,
 };
 
+use Known;
+
 impl ConjoiningClauses {
     /// Take a relation: a matrix of values which will successively bind to named variables of
     /// the provided types.
@@ -113,7 +115,7 @@ impl ConjoiningClauses {
         Ok(())
     }
 
-    pub fn apply_ground<'s>(&mut self, schema: &'s Schema, where_fn: WhereFn) -> Result<()> {
+    pub fn apply_ground(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 1 {
             bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 1));
         }
@@ -129,6 +131,8 @@ impl ConjoiningClauses {
             // The binding must not duplicate bound variables.
             bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
+
+        let schema = known.schema;
 
         // Scalar and tuple bindings are a little special: because there's only one value,
         // we can immediately substitute the value as a known value in the CC, additionally
@@ -350,10 +354,12 @@ mod testing {
             ..Default::default()
         });
 
+        let known = Known::for_schema(&schema);
+
         // It's awkward enough to write these expansions that we give the details for the simplest
         // case only.  See the tests of the translator for more extensive (albeit looser) coverage.
         let op = PlainSymbol::new("ground");
-        cc.apply_ground(&schema, WhereFn {
+        cc.apply_ground(known, WhereFn {
             operator: op,
             args: vec![
                 FnArg::EntidOrInteger(10),
