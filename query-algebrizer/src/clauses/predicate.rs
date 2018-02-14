@@ -35,6 +35,8 @@ use types::{
     Inequality,
 };
 
+use Known;
+
 /// Application of predicates.
 impl ConjoiningClauses {
     /// There are several kinds of predicates in our Datalog:
@@ -43,11 +45,11 @@ impl ConjoiningClauses {
     /// - In the future, some predicates that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only the five built-in comparison binary operators.
-    pub fn apply_predicate<'s>(&mut self, schema: &'s Schema, predicate: Predicate) -> Result<()> {
+    pub fn apply_predicate(&mut self, known: Known, predicate: Predicate) -> Result<()> {
         // Because we'll be growing the set of built-in predicates, handling each differently,
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
         if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
-            self.apply_inequality(schema, op, predicate)
+            self.apply_inequality(known, op, predicate)
         } else {
             bail!(ErrorKind::UnknownFunction(predicate.operator.clone()))
         }
@@ -71,7 +73,7 @@ impl ConjoiningClauses {
     /// - Resolves variables and converts types to those more amenable to SQL.
     /// - Ensures that the predicate functions name a known operator.
     /// - Accumulates an `Inequality` constraint into the `wheres` list.
-    pub fn apply_inequality<'s>(&mut self, schema: &'s Schema, comparison: Inequality, predicate: Predicate) -> Result<()> {
+    pub fn apply_inequality(&mut self, known: Known, comparison: Inequality, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }
@@ -87,13 +89,13 @@ impl ConjoiningClauses {
         // The types we're handling here must be the intersection of the possible types of the arguments,
         // the known types of any variables, and the types supported by our inequality operators.
         let supported_types = comparison.supported_types();
-        let mut left_types = self.potential_types(schema, &left)?
+        let mut left_types = self.potential_types(known.schema, &left)?
                                  .intersection(&supported_types);
         if left_types.is_empty() {
             bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
         }
 
-        let mut right_types = self.potential_types(schema, &right)?
+        let mut right_types = self.potential_types(known.schema, &right)?
                                   .intersection(&supported_types);
         if right_types.is_empty() {
             bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 1));
@@ -203,7 +205,8 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -214,7 +217,7 @@ mod testing {
 
         let op = PlainSymbol::new("<");
         let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
-        assert!(cc.apply_inequality(&schema, comp, Predicate {
+        assert!(cc.apply_inequality(known, comp, Predicate {
              operator: op,
              args: vec![
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
@@ -263,7 +266,8 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -274,14 +278,14 @@ mod testing {
 
         let op = PlainSymbol::new(">=");
         let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
-        assert!(cc.apply_inequality(&schema, comp, Predicate {
+        assert!(cc.apply_inequality(known, comp, Predicate {
              operator: op,
              args: vec![
                 FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
             ]}).is_ok());
 
         assert!(!cc.is_known_empty());
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),

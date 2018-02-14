@@ -32,9 +32,12 @@ use errors as cli;
 
 use edn;
 
+use mentat::CacheDirection;
+
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
 pub static OPEN_EMPTY_COMMAND: &'static str = &"empty";
+pub static CACHE_COMMAND: &'static str = &"cache";
 pub static CLOSE_COMMAND: &'static str = &"close";
 pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
@@ -55,6 +58,7 @@ pub enum Command {
     Help(Vec<String>),
     Open(String),
     OpenEmpty(String),
+    Cache(String, CacheDirection),
     Query(String),
     Schema,
     Sync(Vec<String>),
@@ -82,6 +86,7 @@ impl Command {
             &Command::Close |
             &Command::Exit |
             &Command::Sync(_) |
+            &Command::Cache(_, _) |
             &Command::Schema => true
         }
     }
@@ -95,6 +100,7 @@ impl Command {
             &Command::Help(_) |
             &Command::Open(_) |
             &Command::OpenEmpty(_) |
+            &Command::Cache(_, _) |
             &Command::Close |
             &Command::Exit |
             &Command::Sync(_) |
@@ -109,6 +115,9 @@ impl Command {
             },
             &Command::Transact(ref args) => {
                 format!(".{} {}", LONG_TRANSACT_COMMAND, args)
+            },
+            &Command::Cache(ref attr, ref direction) => {
+                format!(".{} {} {:?}", CACHE_COMMAND, attr, direction)
             },
             &Command::Timer(on) => {
                 format!(".{} {}", LONG_TIMER_COMMAND, on)
@@ -142,6 +151,7 @@ impl Command {
 }
 
 pub fn command(s: &str) -> Result<Command, cli::Error> {
+    let argument = || many1::<String, _>(satisfy(|c: char| !c.is_whitespace()));
     let arguments = || sep_end_by::<Vec<_>, _, _>(many1(satisfy(|c: char| !c.is_whitespace())), many1::<Vec<_>, _>(space())).expected("arguments");
 
     let help_parser = string(HELP_COMMAND)
@@ -157,6 +167,18 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                     .map(|args| {
                         Ok(Command::Timer(args))
                     });
+
+    let direction_parser = || string("forward")
+                                .map(|_| CacheDirection::Forward)
+                           .or(string("reverse").map(|_| CacheDirection::Reverse))
+                           .or(string("both").map(|_| CacheDirection::Both));
+
+    let cache_parser = string(CACHE_COMMAND)
+                    .with(spaces())
+                    .with(argument().skip(spaces()).and(direction_parser())
+                    .map(|(arg, direction)| {
+                        Ok(Command::Cache(arg, direction))
+                    }));
 
     let open_parser = string(OPEN_COMMAND)
                     .with(spaces())
@@ -256,9 +278,10 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 11], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 12], _>
           ([&mut try(help_parser),
             &mut try(timer_parser),
+            &mut try(cache_parser),
             &mut try(open_parser),
             &mut try(open_empty_parser),
             &mut try(close_parser),

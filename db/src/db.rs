@@ -916,15 +916,16 @@ impl MentatStoring for rusqlite::Connection {
 
             // First, insert all fulltext string values.
             // `fts_params` reference computed values in `block`.
-            let fts_params: Vec<&ToSql> = block.iter()
-                                               .filter(|&&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref _searchid)| {
-                                                   value.is_some()
-                                               })
-             .flat_map(|&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref searchid)| {
-                // Avoid inner heap allocation.
-                once(value as &ToSql)
-                    .chain(once(searchid as &ToSql))
-            }).collect();
+            let fts_params: Vec<&ToSql> =
+                block.iter()
+                     .filter(|&&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref _searchid)| {
+                         value.is_some()
+                     })
+                     .flat_map(|&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref searchid)| {
+                         // Avoid inner heap allocation.
+                         once(value as &ToSql)
+                             .chain(once(searchid as &ToSql))
+                     }).collect();
 
             // TODO: make this maximally efficient. It's not terribly inefficient right now.
             let fts_values: String = repeat_values(2, string_count);

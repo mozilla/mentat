@@ -13,9 +13,12 @@ use std::cmp;
 use std::collections::{
     BTreeMap,
     BTreeSet,
+    VecDeque,
 };
 
-use std::collections::btree_map::Entry;
+use std::collections::btree_map::{
+    Entry,
+};
 
 use std::fmt::{
     Debug,
@@ -37,12 +40,13 @@ use mentat_core::counter::RcCounter;
 
 use mentat_query::{
     NamespacedKeyword,
-    NonIntegerConstant,
-    Pattern,
-    PatternNonValuePlace,
-    PatternValuePlace,
     Variable,
     WhereClause,
+};
+
+#[cfg(test)]
+use mentat_query::{
+    PatternNonValuePlace,
 };
 
 use errors::{
@@ -59,7 +63,11 @@ use types::{
     DatomsColumn,
     DatomsTable,
     EmptyBecause,
+    EvolvedNonValuePlace,
+    EvolvedPattern,
+    EvolvedValuePlace,
     FulltextColumn,
+    PlaceOrEmpty,
     QualifiedAlias,
     QueryValue,
     SourceAlias,
@@ -84,6 +92,8 @@ use validate::{
 };
 
 pub use self::inputs::QueryInputs;
+
+use Known;
 
 // We do this a lot for errors.
 trait RcCloned<T> {
@@ -146,6 +156,8 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
     }
 }
 
+type VariableBindings = BTreeMap<Variable, TypedValue>;
+
 /// A `ConjoiningClauses` (CC) is a collection of clauses that are combined with `JOIN`.
 /// The topmost form in a query is a `ConjoiningClauses`.
 ///
@@ -205,7 +217,7 @@ pub struct ConjoiningClauses {
     ///
     /// and for `?val` provide `TypedValue::String("foo".to_string())`, the query will be known at
     /// algebrizing time to be empty.
-    value_bindings: BTreeMap<Variable, TypedValue>,
+    value_bindings: VariableBindings,
 
     /// A map from var to type. Whenever a var maps unambiguously to two different types, it cannot
     /// yield results, so we don't represent that case here. If a var isn't present in the map, it
@@ -535,6 +547,23 @@ impl ConjoiningClauses {
         self.narrow_types_for_var(variable, ValueTypeSet::of_numeric_types());
     }
 
+    pub fn can_constrain_var_to_type(&self, var: &Variable, this_type: ValueType) -> Option<EmptyBecause> {
+        self.can_constrain_var_to_types(var, ValueTypeSet::of_one(this_type))
+    }
+
+    fn can_constrain_var_to_types(&self, var: &Variable, these_types: ValueTypeSet) -> Option<EmptyBecause> {
+        if let Some(existing) = self.known_types.get(var) {
+            if existing.intersection(&these_types).is_empty() {
+                return Some(EmptyBecause::TypeMismatch {
+                    var: var.clone(),
+                    existing: existing.clone(),
+                    desired: these_types,
+                });
+            }
+        }
+        None
+    }
+
     /// Constrains the var if there's no existing type.
     /// Marks as known-empty if it's impossible for this type to apply because there's a conflicting
     /// type already known.
@@ -673,17 +702,17 @@ impl ConjoiningClauses {
     }
 
     /// Ensure that the given place has the correct types to be a tx-id.
-    fn constrain_to_tx(&mut self, tx: &PatternNonValuePlace) {
+    fn constrain_to_tx(&mut self, tx: &EvolvedNonValuePlace) {
         self.constrain_to_ref(tx);
     }
 
     /// Ensure that the given place can be an entity, and is congruent with existing types.
     /// This is used for `entity` and `attribute` places in a pattern.
-    fn constrain_to_ref(&mut self, value: &PatternNonValuePlace) {
+    fn constrain_to_ref(&mut self, value: &EvolvedNonValuePlace) {
         // If it's a variable, record that it has the right type.
         // Ident or attribute resolution errors (the only other check we need to do) will be done
         // by the caller.
-        if let &PatternNonValuePlace::Variable(ref v) = value {
+        if let &EvolvedNonValuePlace::Variable(ref v) = value {
             self.constrain_var_to_type(v.clone(), ValueType::Ref)
         }
     }
@@ -705,17 +734,17 @@ impl ConjoiningClauses {
         schema.get_entid(&ident)
     }
 
-    fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
+    fn table_for_attribute_and_value<'s, 'a>(&self, attribute: &'s Attribute, value: &'a EvolvedValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         if attribute.fulltext {
             match value {
-                &PatternValuePlace::Placeholder =>
+                &EvolvedValuePlace::Placeholder =>
                     Ok(DatomsTable::Datoms),            // We don't need the value.
 
                 // TODO: an existing non-string binding can cause this pattern to fail.
-                &PatternValuePlace::Variable(_) =>
+                &EvolvedValuePlace::Variable(_) =>
                     Ok(DatomsTable::AllDatoms),
 
-                &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>
+                &EvolvedValuePlace::Value(TypedValue::String(_)) =>
                     Ok(DatomsTable::AllDatoms),
 
                 _ => {
@@ -729,7 +758,7 @@ impl ConjoiningClauses {
         }
     }
 
-    fn table_for_unknown_attribute<'s, 'a>(&self, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
+    fn table_for_unknown_attribute<'s, 'a>(&self, value: &'a EvolvedValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         // If the value is known to be non-textual, we can simply use the regular datoms
         // table (TODO: and exclude on `index_fulltext`!).
         //
@@ -742,7 +771,7 @@ impl ConjoiningClauses {
             match value {
                 // TODO: see if the variable is projected, aggregated, or compared elsewhere in
                 // the query. If it's not, we don't need to use all_datoms here.
-                &PatternValuePlace::Variable(ref v) => {
+                &EvolvedValuePlace::Variable(ref v) => {
                     // If `required_types` and `known_types` don't exclude strings,
                     // we need to query `all_datoms`.
                     if self.required_types.get(v).map_or(true, |s| s.contains(ValueType::String)) &&
@@ -752,7 +781,7 @@ impl ConjoiningClauses {
                         DatomsTable::Datoms
                     }
                 }
-                &PatternValuePlace::Constant(NonIntegerConstant::Text(_)) =>
+                &EvolvedValuePlace::Value(TypedValue::String(_)) =>
                     DatomsTable::AllDatoms,
                 _ =>
                     DatomsTable::Datoms,
@@ -763,21 +792,17 @@ impl ConjoiningClauses {
     /// If the attribute input or value binding doesn't name an attribute, or doesn't name an
     /// attribute that is congruent with the supplied value, we return an `EmptyBecause`.
     /// The caller is responsible for marking the CC as known-empty if this is a fatal failure.
-    fn table_for_places<'s, 'a>(&self, schema: &'s Schema, attribute: &'a PatternNonValuePlace, value: &'a PatternValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
+    fn table_for_places<'s, 'a>(&self, schema: &'s Schema, attribute: &'a EvolvedNonValuePlace, value: &'a EvolvedValuePlace) -> ::std::result::Result<DatomsTable, EmptyBecause> {
         match attribute {
-            &PatternNonValuePlace::Ident(ref kw) =>
-                schema.attribute_for_ident(kw)
-                      .ok_or_else(|| EmptyBecause::InvalidAttributeIdent(kw.cloned()))
-                      .and_then(|(attribute, _entid)| self.table_for_attribute_and_value(attribute, value)),
-            &PatternNonValuePlace::Entid(id) =>
+            &EvolvedNonValuePlace::Entid(id) =>
                 schema.attribute_for_entid(id)
                       .ok_or_else(|| EmptyBecause::InvalidAttributeEntid(id))
                       .and_then(|attribute| self.table_for_attribute_and_value(attribute, value)),
             // TODO: In a prepared context, defer this decision until a second algebrizing phase.
             // #278.
-            &PatternNonValuePlace::Placeholder =>
+            &EvolvedNonValuePlace::Placeholder =>
                 self.table_for_unknown_attribute(value),
-            &PatternNonValuePlace::Variable(ref v) => {
+            &EvolvedNonValuePlace::Variable(ref v) => {
                 // See if we have a binding for the variable.
                 match self.bound_value(v) {
                     // TODO: In a prepared context, defer this decision until a second algebrizing phase.
@@ -786,7 +811,7 @@ impl ConjoiningClauses {
                         self.table_for_unknown_attribute(value),
                     Some(TypedValue::Ref(id)) =>
                         // Recurse: it's easy.
-                        self.table_for_places(schema, &PatternNonValuePlace::Entid(id), value),
+                        self.table_for_places(schema, &EvolvedNonValuePlace::Entid(id), value),
                     Some(TypedValue::Keyword(ref kw)) =>
                         // Don't recurse: avoid needing to clone the keyword.
                         schema.attribute_for_ident(kw)
@@ -815,7 +840,7 @@ impl ConjoiningClauses {
     /// This is a mutating method because it mutates the aliaser function!
     /// Note that if this function decides that a pattern cannot match, it will flip
     /// `empty_because`.
-    fn alias_table<'s, 'a>(&mut self, schema: &'s Schema, pattern: &'a Pattern) -> Option<SourceAlias> {
+    fn alias_table<'s, 'a>(&mut self, schema: &'s Schema, pattern: &'a EvolvedPattern) -> Option<SourceAlias> {
         self.table_for_places(schema, &pattern.attribute, &pattern.value)
             .map_err(|reason| {
                 self.mark_known_empty(reason);
@@ -833,25 +858,22 @@ impl ConjoiningClauses {
         }
     }
 
-    fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<&'s Attribute> {
+    fn get_attribute<'s, 'a>(&self, schema: &'s Schema, pattern: &'a EvolvedPattern) -> Option<&'s Attribute> {
         match pattern.attribute {
-            PatternNonValuePlace::Entid(id) =>
+            EvolvedNonValuePlace::Entid(id) =>
                 // We know this one is known if the attribute lookup succeeds…
                 schema.attribute_for_entid(id),
-            PatternNonValuePlace::Ident(ref kw) =>
-                schema.attribute_for_ident(kw).map(|(a, _id)| a),
-            PatternNonValuePlace::Variable(ref var) =>
+            EvolvedNonValuePlace::Variable(ref var) =>
                 // If the pattern has a variable, we've already determined that the binding -- if
                 // any -- is acceptable and yields a table. Here, simply look to see if it names
                 // an attribute so we can find out the type.
                 self.value_bindings.get(var)
                                    .and_then(|val| self.get_attribute_for_value(schema, val)),
-            _ =>
-                None,
+            EvolvedNonValuePlace::Placeholder => None,
         }
     }
 
-    fn get_value_type<'s, 'a>(&self, schema: &'s Schema, pattern: &'a Pattern) -> Option<ValueType> {
+    fn get_value_type<'s, 'a>(&self, schema: &'s Schema, pattern: &'a EvolvedPattern) -> Option<ValueType> {
         self.get_attribute(schema, pattern).map(|a| a.value_type)
     }
 }
@@ -984,43 +1006,83 @@ impl ConjoiningClauses {
 }
 
 impl ConjoiningClauses {
-    pub fn apply_clauses(&mut self, schema: &Schema, where_clauses: Vec<WhereClause>) -> Result<()> {
+    fn apply_evolved_patterns(&mut self, known: Known, mut patterns: VecDeque<EvolvedPattern>) -> Result<()> {
+        while let Some(pattern) = patterns.pop_front() {
+            match self.evolve_pattern(known, pattern) {
+                PlaceOrEmpty::Place(re_evolved) => self.apply_pattern(known, re_evolved),
+                PlaceOrEmpty::Empty(because) => {
+                    self.mark_known_empty(because);
+                    patterns.clear();
+                },
+            }
+        }
+        Ok(())
+    }
+
+    pub fn apply_clauses(&mut self, known: Known, where_clauses: Vec<WhereClause>) -> Result<()> {
         // We apply (top level) type predicates first as an optimization.
         for clause in where_clauses.iter() {
             if let &WhereClause::TypeAnnotation(ref anno) = clause {
                 self.apply_type_anno(anno)?;
             }
         }
+
         // Then we apply everything else.
+        // Note that we collect contiguous runs of patterns so that we can evolve them
+        // together to take advantage of mutual partial evaluation.
+        let mut remaining = where_clauses.len();
+        let mut patterns: VecDeque<EvolvedPattern> = VecDeque::with_capacity(remaining);
         for clause in where_clauses {
+            remaining -= 1;
             if let &WhereClause::TypeAnnotation(_) = &clause {
                 continue;
             }
-            self.apply_clause(schema, clause)?;
+            match clause {
+                WhereClause::Pattern(p) => {
+                    match self.make_evolved_pattern(known, p) {
+                        PlaceOrEmpty::Place(evolved) => patterns.push_back(evolved),
+                        PlaceOrEmpty::Empty(because) => {
+                            self.mark_known_empty(because);
+                            return Ok(());
+                        }
+                    }
+                },
+                _ => {
+                    if !patterns.is_empty() {
+                        self.apply_evolved_patterns(known, patterns)?;
+                        patterns = VecDeque::with_capacity(remaining);
+                    }
+                    self.apply_clause(known, clause)?;
+                },
+            }
         }
-        Ok(())
+        self.apply_evolved_patterns(known, patterns)
     }
+
     // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
     // and so on.
-    pub fn apply_clause(&mut self, schema: &Schema, where_clause: WhereClause) -> Result<()> {
+    pub fn apply_clause(&mut self, known: Known, where_clause: WhereClause) -> Result<()> {
         match where_clause {
             WhereClause::Pattern(p) => {
-                self.apply_pattern(schema, p);
+                match self.make_evolved_pattern(known, p) {
+                    PlaceOrEmpty::Place(evolved) => self.apply_pattern(known, evolved),
+                    PlaceOrEmpty::Empty(because) => self.mark_known_empty(because),
+                }
                 Ok(())
             },
             WhereClause::Pred(p) => {
-                self.apply_predicate(schema, p)
+                self.apply_predicate(known, p)
             },
             WhereClause::WhereFn(f) => {
-                self.apply_where_fn(schema, f)
+                self.apply_where_fn(known, f)
             },
             WhereClause::OrJoin(o) => {
                 validate_or_join(&o)?;
-                self.apply_or_join(schema, o)
+                self.apply_or_join(known, o)
             },
             WhereClause::NotJoin(n) => {
                 validate_not_join(&n)?;
-                self.apply_not_join(schema, n)
+                self.apply_not_join(known, n)
             },
             WhereClause::TypeAnnotation(anno) => {
                 self.apply_type_anno(&anno)

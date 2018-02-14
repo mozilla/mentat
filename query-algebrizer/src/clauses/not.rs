@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use mentat_core::Schema;
-
 use mentat_query::{
     ContainsVariables,
     NotJoin,
@@ -28,8 +26,10 @@ use types::{
     ComputedTable,
 };
 
+use Known;
+
 impl ConjoiningClauses {
-    pub fn apply_not_join(&mut self, schema: &Schema, not_join: NotJoin) -> Result<()> {
+    pub fn apply_not_join(&mut self, known: Known, not_join: NotJoin) -> Result<()> {
         let unified = match not_join.unify_vars {
             UnifyVars::Implicit => not_join.collect_mentioned_variables(),
             UnifyVars::Explicit(vs) => vs,
@@ -49,7 +49,7 @@ impl ConjoiningClauses {
             }
         }
 
-        template.apply_clauses(&schema, not_join.clauses)?;
+        template.apply_clauses(known, not_join.clauses)?;
 
         if template.is_known_empty() {
             return Ok(());
@@ -67,6 +67,12 @@ impl ConjoiningClauses {
 
         template.process_required_types()?;
         if template.is_known_empty() {
+            return Ok(());
+        }
+
+        // If we don't impose any constraints on the output, we might as well
+        // not exist.
+        if template.wheres.is_empty() {
             return Ok(());
         }
 
@@ -133,13 +139,15 @@ mod testing {
     };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
+        let known = Known::for_schema(schema);
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+        algebrize(known, parsed).expect("algebrize failed").cc
     }
 
     fn alg_with_inputs(schema: &Schema, input: &str, inputs: QueryInputs) -> ConjoiningClauses {
+        let known = Known::for_schema(schema);
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize_with_inputs(schema.into(), parsed, 0, inputs).expect("algebrize failed").cc
+        algebrize_with_inputs(known, parsed, 0, inputs).expect("algebrize failed").cc
     }
 
     fn prepopulated_schema() -> Schema {
@@ -292,7 +300,7 @@ mod testing {
         let age = QueryValue::Entid(68);
 
         let john = QueryValue::TypedValue(TypedValue::typed_string("John"));
-        let eleven = QueryValue::PrimitiveLong(11);
+        let eleven = QueryValue::TypedValue(TypedValue::Long(11));
 
         let mut subquery = ConjoiningClauses::default();
         subquery.from = vec![SourceAlias(DatomsTable::Datoms, d3)];
@@ -541,12 +549,13 @@ mod testing {
     #[test]
     fn test_unbound_var_fails() {
         let schema = prepopulated_schema();
+        let known = Known::for_schema(&schema);
         let query = r#"
         [:find ?x
          :in ?y
          :where (not [?x :foo/knows ?y])]"#;
         let parsed = parse_find_string(query).expect("parse failed");
-        let err = algebrize(&schema, parsed).err();
+        let err = algebrize(known, parsed).err();
         assert!(err.is_some());
          match err.unwrap() {
             Error(ErrorKind::UnboundVariable(var), _) => { assert_eq!(var, PlainSymbol("?x".to_string())); },

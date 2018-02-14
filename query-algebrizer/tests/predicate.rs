@@ -31,6 +31,7 @@ use mentat_query::{
 use mentat_query_algebrizer::{
     EmptyBecause,
     ErrorKind,
+    Known,
 };
 
 use utils::{
@@ -60,13 +61,14 @@ fn prepopulated_schema() -> Schema {
 #[test]
 fn test_instant_predicates_require_instants() {
     let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
 
     // You can't use a string for an inequality: this is a straight-up error.
     let query = r#"[:find ?e
                     :where
                     [?e :foo/date ?t]
                     [(> ?t "2017-06-16T00:56:41.257Z")]]"#;
-    match bails(&schema, query).0 {
+    match bails(known, query).0 {
         ErrorKind::InvalidArgument(op, why, idx) => {
             assert_eq!(op, PlainSymbol::new(">"));
             assert_eq!(why, "numeric or instant");
@@ -79,7 +81,7 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/date ?t]
                     [(> "2017-06-16T00:56:41.257Z", ?t)]]"#;
-    match bails(&schema, query).0 {
+    match bails(known, query).0 {
         ErrorKind::InvalidArgument(op, why, idx) => {
             assert_eq!(op, PlainSymbol::new(">"));
             assert_eq!(why, "numeric or instant");
@@ -95,7 +97,7 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/date ?t]
                     [(> ?t 1234512345)]]"#;
-    let cc = alg(&schema, query);
+    let cc = alg(known, query);
     assert!(cc.is_known_empty());
     assert_eq!(cc.empty_because.unwrap(),
                EmptyBecause::TypeMismatch {
@@ -109,7 +111,7 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/double ?t]
                     [(< ?t 1234512345)]]"#;
-    let cc = alg(&schema, query);
+    let cc = alg(known, query);
     assert!(!cc.is_known_empty());
     assert_eq!(cc.known_type(&Variable::from_valid_name("?t")).expect("?t is known"),
                ValueType::Double);

@@ -23,6 +23,7 @@ extern crate serde_derive;
 extern crate edn;
 
 pub mod values;
+mod cache;
 
 use std::collections::{
     BTreeMap,
@@ -49,6 +50,8 @@ pub use edn::{
     ToMicros,
     Utc,
 };
+
+pub use cache::CachedAttributes;
 
 /// Core types defining a Mentat knowledge base.
 

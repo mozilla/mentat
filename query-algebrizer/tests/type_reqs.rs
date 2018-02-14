@@ -26,6 +26,8 @@ use mentat_core::{
     ValueType,
 };
 
+use mentat_query_algebrizer::Known;
+
 fn prepopulated_schema() -> Schema {
     SchemaBuilder::new()
         .define_simple_attr("test", "boolean", ValueType::Boolean, false)
@@ -52,12 +54,13 @@ fn test_empty_known() {
         "ref",
     ];
     let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
     for known_type in type_names.iter() {
         for required in type_names.iter() {
             let q = format!("[:find ?e :where [?e :test/{} ?v] [({} ?v)]]",
                             known_type, required);
             println!("Query: {}", q);
-            let cc = alg(&schema, &q);
+            let cc = alg(known, &q);
             // It should only be empty if the known type and our requirement differ.
             assert_eq!(cc.empty_because.is_some(), known_type != required,
                        "known_type = {}; required = {}", known_type, required);
@@ -68,13 +71,15 @@ fn test_empty_known() {
 #[test]
 fn test_multiple() {
     let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
     let q = "[:find ?e :where [?e _ ?v] [(long ?v)] [(double ?v)]]";
-    let cc = alg(&schema, &q);
+    let cc = alg(known, &q);
     assert!(cc.empty_because.is_some());
 }
 
 #[test]
 fn test_unbound() {
     let schema = prepopulated_schema();
-    bails(&schema, "[:find ?e :where [(string ?e)]]");
+    let known = Known::for_schema(&schema);
+    bails(known, "[:find ?e :where [(string ?e)]]");
 }

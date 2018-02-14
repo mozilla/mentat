@@ -9,10 +9,11 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    Entid,
     HasSchema,
-    Schema,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_query::{
@@ -20,18 +21,27 @@ use mentat_query::{
     PatternValuePlace,
     PatternNonValuePlace,
     SrcVar,
+    Variable,
 };
 
 use super::RcCloned;
 
-use clauses::ConjoiningClauses;
+use clauses::{
+    ConjoiningClauses,
+};
 
 use types::{
     ColumnConstraint,
     DatomsColumn,
     EmptyBecause,
+    EvolvedNonValuePlace,
+    EvolvedPattern,
+    EvolvedValuePlace,
+    PlaceOrEmpty,
     SourceAlias,
 };
+
+use Known;
 
 /// Application of patterns.
 impl ConjoiningClauses {
@@ -71,7 +81,7 @@ impl ConjoiningClauses {
     ///   existence subquery instead of a join.
     ///
     /// This method is only public for use from `or.rs`.
-    pub fn apply_pattern_clause_for_alias<'s>(&mut self, schema: &'s Schema, pattern: &Pattern, alias: &SourceAlias) {
+    pub fn apply_pattern_clause_for_alias(&mut self, known: Known, pattern: &EvolvedPattern, alias: &SourceAlias) {
         if self.is_known_empty() {
             return;
         }
@@ -88,33 +98,25 @@ impl ConjoiningClauses {
 
         let ref col = alias.1;
 
+        let schema = known.schema;
         match pattern.entity {
-            PatternNonValuePlace::Placeholder =>
+            EvolvedNonValuePlace::Placeholder =>
                 // Placeholders don't contribute any column bindings, nor do
                 // they constrain the query -- there's no need to produce
                 // IS NOT NULL, because we don't store nulls in our schema.
                 (),
-            PatternNonValuePlace::Variable(ref v) =>
+            EvolvedNonValuePlace::Variable(ref v) =>
                 self.bind_column_to_var(schema, col.clone(), DatomsColumn::Entity, v.clone()),
-            PatternNonValuePlace::Entid(entid) =>
+            EvolvedNonValuePlace::Entid(entid) =>
                 self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid),
-            PatternNonValuePlace::Ident(ref ident) => {
-                if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Entity, entid.into())
-                } else {
-                    // A resolution failure means we're done here.
-                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
-                    return;
-                }
-            }
         }
 
         match pattern.attribute {
-            PatternNonValuePlace::Placeholder =>
+            EvolvedNonValuePlace::Placeholder =>
                 (),
-            PatternNonValuePlace::Variable(ref v) =>
+            EvolvedNonValuePlace::Variable(ref v) =>
                 self.bind_column_to_var(schema, col.clone(), DatomsColumn::Attribute, v.clone()),
-            PatternNonValuePlace::Entid(entid) => {
+            EvolvedNonValuePlace::Entid(entid) => {
                 if !schema.is_attribute(entid) {
                     // Furthermore, that entid must resolve to an attribute. If it doesn't, this
                     // query is meaningless.
@@ -123,20 +125,6 @@ impl ConjoiningClauses {
                 }
                 self.constrain_attribute(col.clone(), entid)
             },
-            PatternNonValuePlace::Ident(ref ident) => {
-                if let Some(entid) = self.entid_for_ident(schema, ident) {
-                    self.constrain_attribute(col.clone(), entid.into());
-
-                    if !schema.is_attribute(entid) {
-                        self.mark_known_empty(EmptyBecause::InvalidAttributeIdent(ident.cloned()));
-                        return;
-                    }
-                } else {
-                    // A resolution failure means we're done here.
-                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
-                    return;
-                }
-            }
         }
 
         // Determine if the pattern's value type is known.
@@ -147,10 +135,10 @@ impl ConjoiningClauses {
         let value_type = self.get_value_type(schema, pattern);
 
         match pattern.value {
-            PatternValuePlace::Placeholder =>
+            EvolvedValuePlace::Placeholder =>
                 (),
 
-            PatternValuePlace::Variable(ref v) => {
+            EvolvedValuePlace::Variable(ref v) => {
                 if let Some(this_type) = value_type {
                     // Wouldn't it be nice if we didn't need to clone in the found case?
                     // It doesn't matter too much: collisons won't be too frequent.
@@ -162,7 +150,18 @@ impl ConjoiningClauses {
 
                 self.bind_column_to_var(schema, col.clone(), DatomsColumn::Value, v.clone());
             },
-            PatternValuePlace::EntidOrInteger(i) =>
+            EvolvedValuePlace::Entid(i) => {
+                match value_type {
+                    Some(ValueType::Ref) | None => {
+                        self.constrain_column_to_entity(col.clone(), DatomsColumn::Value, i);
+                    },
+                    Some(value_type) => {
+                        self.mark_known_empty(EmptyBecause::ValueTypeMismatch(value_type, TypedValue::Ref(i)));
+                    },
+                }
+            },
+
+            EvolvedValuePlace::EntidOrInteger(i) =>
                 // If we know the valueType, then we can determine whether this is an entid or an
                 // integer. If we don't, then we must generate a more general query with a
                 // value_type_tag.
@@ -180,9 +179,11 @@ impl ConjoiningClauses {
                     // - Constraining the value column to the plain numeric value '1'.
                     // - Constraining its type column to one of a set of types.
                     //
+                    // TODO: isn't there a bug here? We'll happily take a numeric value
+                    // for a non-numeric attribute!
                     self.constrain_value_to_numeric(col.clone(), i);
                 },
-            PatternValuePlace::IdentOrKeyword(ref kw) => {
+            EvolvedValuePlace::IdentOrKeyword(ref kw) => {
                 // If we know the valueType, then we can determine whether this is an ident or a
                 // keyword. If we don't, then we must generate a more general query with a
                 // value_type_tag.
@@ -204,9 +205,9 @@ impl ConjoiningClauses {
                     self.wheres.add_intersection(ColumnConstraint::has_unit_type(col.clone(), ValueType::Keyword));
                 };
             },
-            PatternValuePlace::Constant(ref c) => {
+            EvolvedValuePlace::Value(ref c) => {
                 // TODO: don't allocate.
-                let typed_value = c.clone().into_typed_value();
+                let typed_value = c.clone();
                 if !typed_value.is_congruent_with(value_type) {
                     // If the attribute and its value don't match, the pattern must fail.
                     // We can never have a congruence failure if `value_type` is `None`, so we
@@ -244,34 +245,388 @@ impl ConjoiningClauses {
         }
 
         match pattern.tx {
-            PatternNonValuePlace::Placeholder => (),
-            PatternNonValuePlace::Variable(ref v) => {
+            EvolvedNonValuePlace::Placeholder => (),
+            EvolvedNonValuePlace::Variable(ref v) => {
                 self.bind_column_to_var(schema, col.clone(), DatomsColumn::Tx, v.clone());
             },
-            PatternNonValuePlace::Entid(entid) => {
+            EvolvedNonValuePlace::Entid(entid) => {
                 self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid);
             },
-            PatternNonValuePlace::Ident(ref ident) => {
-                if let Some(entid) = self.entid_for_ident(schema, ident.as_ref()) {
-                    self.constrain_column_to_entity(col.clone(), DatomsColumn::Tx, entid.into())
-                } else {
-                    // A resolution failure means we're done here.
-                    self.mark_known_empty(EmptyBecause::UnresolvedIdent(ident.cloned()));
-                    return;
-                }
-            }
         }
     }
 
-    pub fn apply_pattern<'s, 'p>(&mut self, schema: &'s Schema, pattern: Pattern) {
-        // For now we only support the default source.
-        match pattern.source {
-            Some(SrcVar::DefaultSrc) | None => (),
-            _ => unimplemented!(),
-        };
+    fn reverse_lookup(&mut self, known: Known, var: &Variable, attr: Entid, val: &TypedValue) -> bool {
+        if let Some(attribute) = known.schema.attribute_for_entid(attr) {
+            let unique = attribute.unique.is_some();
+            if unique {
+                match known.get_entid_for_value(attr, val) {
+                    None => {
+                        self.mark_known_empty(EmptyBecause::CachedAttributeHasNoEntity {
+                            value: val.clone(),
+                            attr: attr,
+                        });
+                        true
+                    },
+                    Some(item) => {
+                        self.bind_value(var, TypedValue::Ref(item));
+                        true
+                    },
+                }
+            } else {
+                match known.get_entids_for_value(attr, val) {
+                    None => {
+                        self.mark_known_empty(EmptyBecause::CachedAttributeHasNoEntity {
+                            value: val.clone(),
+                            attr: attr,
+                        });
+                        true
+                    },
+                    Some(items) => {
+                        if items.len() == 1 {
+                            let item = items.iter().next().cloned().unwrap();
+                            self.bind_value(var, TypedValue::Ref(item));
+                            true
+                        } else {
+                            // Oh well.
+                            // TODO: handle multiple values.
+                            false
+                        }
+                    },
+                }
+            }
+        } else {
+            self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(attr));
+            true
+        }
+    }
 
-        if let Some(alias) = self.alias_table(schema, &pattern) {
-            self.apply_pattern_clause_for_alias(schema, &pattern, &alias);
+    // TODO: generalize.
+    // TODO: use constant values -- extract transformation code from apply_pattern_clause_for_alias.
+    // TODO: loop over all patterns until no more cache values apply?
+    fn attempt_cache_lookup(&mut self, known: Known, pattern: &EvolvedPattern) -> bool {
+        // Precondition: default source. If it's not default, don't call this.
+        assert!(pattern.source == SrcVar::DefaultSrc);
+
+        let schema = known.schema;
+
+        if pattern.tx != EvolvedNonValuePlace::Placeholder {
+            return false;
+        }
+
+        // See if we can use the cache.
+        match pattern.attribute {
+            EvolvedNonValuePlace::Entid(attr) => {
+                if !schema.is_attribute(attr) {
+                    // Furthermore, that entid must resolve to an attribute. If it doesn't, this
+                    // query is meaningless.
+                    self.mark_known_empty(EmptyBecause::InvalidAttributeEntid(attr));
+                    return true;
+                }
+
+                let cached_forward = known.is_attribute_cached_forward(attr);
+                let cached_reverse = known.is_attribute_cached_reverse(attr);
+
+                if (cached_forward || cached_reverse) &&
+                   pattern.tx == EvolvedNonValuePlace::Placeholder {
+
+                    let attribute = schema.attribute_for_entid(attr).unwrap();
+
+                    // There are two patterns we can handle:
+                    //     [?e :some/unique 123 _ _]     -- reverse lookup
+                    //     [123 :some/attr ?v _ _]       -- forward lookup
+                    match pattern.entity {
+                        // Reverse lookup.
+                        EvolvedNonValuePlace::Variable(ref var) => {
+                            match pattern.value {
+                                // TODO: EntidOrInteger etc.
+                                EvolvedValuePlace::IdentOrKeyword(ref kw) => {
+                                    match attribute.value_type {
+                                        ValueType::Ref => {
+                                            // It's an ident.
+                                            // TODO
+                                            return false;
+                                        },
+                                        ValueType::Keyword => {
+                                            let tv: TypedValue = TypedValue::Keyword(kw.clone());
+                                            return self.reverse_lookup(known, var, attr, &tv);
+                                        },
+                                        t => {
+                                            let tv: TypedValue = TypedValue::Keyword(kw.clone());
+                                            // Anything else can't match an IdentOrKeyword.
+                                            self.mark_known_empty(EmptyBecause::ValueTypeMismatch(t, tv));
+                                            return true;
+                                        },
+                                    }
+                                },
+                                EvolvedValuePlace::Value(ref val) => {
+                                    if cached_reverse {
+                                        return self.reverse_lookup(known, var, attr, val);
+                                    }
+                                }
+                                _ => {},      // TODO: check constant values against cache.
+                            }
+                        },
+
+                        // Forward lookup.
+                        EvolvedNonValuePlace::Entid(entity) => {
+                            match pattern.value {
+                                EvolvedValuePlace::Variable(ref var) => {
+                                    if cached_forward {
+                                        match known.get_value_for_entid(known.schema, attr, entity) {
+                                            None => {
+                                                self.mark_known_empty(EmptyBecause::CachedAttributeHasNoValues {
+                                                    entity: entity,
+                                                    attr: attr,
+                                                });
+                                                return true;
+                                            },
+                                            Some(item) => {
+                                                println!("{} is known to be {:?}", var, item);
+                                                self.bind_value(var, item.clone());
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {},      // TODO: check constant values against cache.
+                            }
+                        },
+                        _ => {},
+                    }
+                }
+            },
+            _ => {},
+        }
+        false
+    }
+
+    /// Transform a pattern place into a narrower type.
+    /// If that's impossible, returns Empty.
+    fn make_evolved_non_value(&self, known: &Known, col: DatomsColumn, non_value: PatternNonValuePlace) -> PlaceOrEmpty<EvolvedNonValuePlace> {
+        use self::PlaceOrEmpty::*;
+        match non_value {
+            PatternNonValuePlace::Placeholder => Place(EvolvedNonValuePlace::Placeholder),
+            PatternNonValuePlace::Entid(e) => Place(EvolvedNonValuePlace::Entid(e)),
+            PatternNonValuePlace::Ident(kw) => {
+                // Resolve the ident.
+                if let Some(entid) = known.schema.get_entid(&kw) {
+                    Place(EvolvedNonValuePlace::Entid(entid.into()))
+                } else {
+                    Empty(EmptyBecause::UnresolvedIdent((&*kw).clone()))
+                }
+            },
+            PatternNonValuePlace::Variable(var) => {
+                // See if we have it!
+                match self.bound_value(&var) {
+                    None => Place(EvolvedNonValuePlace::Variable(var)),
+                    Some(TypedValue::Ref(entid)) => Place(EvolvedNonValuePlace::Entid(entid)),
+                    Some(TypedValue::Keyword(kw)) => {
+                        // We'll allow this only if it's an ident.
+                        if let Some(entid) = known.schema.get_entid(&kw) {
+                            Place(EvolvedNonValuePlace::Entid(entid.into()))
+                        } else {
+                            Empty(EmptyBecause::UnresolvedIdent((&*kw).clone()))
+                        }
+                    },
+                    Some(v) => {
+                        Empty(EmptyBecause::InvalidBinding(col.into(), v))
+                    },
+                }
+            },
+        }
+    }
+
+    fn make_evolved_entity(&self, known: &Known, entity: PatternNonValuePlace) -> PlaceOrEmpty<EvolvedNonValuePlace> {
+        self.make_evolved_non_value(known, DatomsColumn::Entity, entity)
+    }
+
+    fn make_evolved_tx(&self, known: &Known, tx: PatternNonValuePlace) -> PlaceOrEmpty<EvolvedNonValuePlace> {
+        // TODO: make sure that, if it's an entid, it names a tx.
+        self.make_evolved_non_value(known, DatomsColumn::Tx, tx)
+    }
+
+    pub fn make_evolved_attribute(&self, known: &Known, attribute: PatternNonValuePlace) -> PlaceOrEmpty<(EvolvedNonValuePlace, Option<ValueType>)> {
+        use self::PlaceOrEmpty::*;
+        self.make_evolved_non_value(known, DatomsColumn::Attribute, attribute)
+            .and_then(|a| {
+                // Make sure that, if it's an entid, it names an attribute.
+                if let EvolvedNonValuePlace::Entid(e) = a {
+                    if let Some(attr) = known.schema.attribute_for_entid(e) {
+                        Place((a, Some(attr.value_type)))
+                    } else {
+                        Empty(EmptyBecause::InvalidAttributeEntid(e))
+                    }
+                } else {
+                    Place((a, None))
+                }
+            })
+    }
+
+    pub fn make_evolved_value(&self,
+                              known: &Known,
+                              value_type: Option<ValueType>,
+                              value: PatternValuePlace) -> PlaceOrEmpty<EvolvedValuePlace> {
+        use self::PlaceOrEmpty::*;
+        match value {
+            PatternValuePlace::Placeholder => Place(EvolvedValuePlace::Placeholder),
+            PatternValuePlace::EntidOrInteger(e) => {
+                match value_type {
+                    Some(ValueType::Ref) => Place(EvolvedValuePlace::Entid(e)),
+                    Some(ValueType::Long) => Place(EvolvedValuePlace::Value(TypedValue::Long(e))),
+                    Some(ValueType::Double) => Place(EvolvedValuePlace::Value((e as f64).into())),
+                    Some(t) => Empty(EmptyBecause::ValueTypeMismatch(t, TypedValue::Long(e))),
+                    None => Place(EvolvedValuePlace::EntidOrInteger(e)),
+                }
+            },
+            PatternValuePlace::IdentOrKeyword(kw) => {
+                match value_type {
+                    Some(ValueType::Ref) => {
+                        // Resolve the ident.
+                        if let Some(entid) = known.schema.get_entid(&kw) {
+                            Place(EvolvedValuePlace::Entid(entid.into()))
+                        } else {
+                            Empty(EmptyBecause::UnresolvedIdent((&*kw).clone()))
+                        }
+                    },
+                    Some(ValueType::Keyword) => {
+                        Place(EvolvedValuePlace::Value(TypedValue::Keyword(kw)))
+                    },
+                    Some(t) => {
+                        Empty(EmptyBecause::ValueTypeMismatch(t, TypedValue::Keyword(kw)))
+                    },
+                    None => {
+                        Place(EvolvedValuePlace::IdentOrKeyword(kw))
+                    },
+                }
+            },
+            PatternValuePlace::Variable(var) => {
+                // See if we have it!
+                match self.bound_value(&var) {
+                    None => Place(EvolvedValuePlace::Variable(var)),
+                    Some(TypedValue::Ref(entid)) => {
+                        if let Some(empty) = self.can_constrain_var_to_type(&var, ValueType::Ref) {
+                            Empty(empty)
+                        } else {
+                            Place(EvolvedValuePlace::Entid(entid))
+                        }
+                    },
+                    Some(val) => {
+                        if let Some(empty) = self.can_constrain_var_to_type(&var, val.value_type()) {
+                            Empty(empty)
+                        } else {
+                            Place(EvolvedValuePlace::Value(val))
+                        }
+                    },
+                }
+            },
+            PatternValuePlace::Constant(nic) => {
+                Place(EvolvedValuePlace::Value(nic.into_typed_value()))
+            },
+        }
+    }
+
+    pub fn make_evolved_pattern(&self, known: Known, pattern: Pattern) -> PlaceOrEmpty<EvolvedPattern> {
+        let (e, a, v, tx, source) = (pattern.entity, pattern.attribute, pattern.value, pattern.tx, pattern.source);
+        use self::PlaceOrEmpty::*;
+        match self.make_evolved_entity(&known, e) {
+            Empty(because) => Empty(because),
+            Place(e) => {
+                match self.make_evolved_attribute(&known, a) {
+                    Empty(because) => Empty(because),
+                    Place((a, value_type)) => {
+                        match self.make_evolved_value(&known, value_type, v) {
+                            Empty(because) => Empty(because),
+                            Place(v) => {
+                                match self.make_evolved_tx(&known, tx) {
+                                    Empty(because) => Empty(because),
+                                    Place(tx) => {
+                                        PlaceOrEmpty::Place(EvolvedPattern {
+                                            source: source.unwrap_or(SrcVar::DefaultSrc),
+                                            entity: e,
+                                            attribute: a,
+                                            value: v,
+                                            tx: tx,
+                                        })
+                                    },
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        }
+    }
+
+    /// Re-examine the pattern to see if it can be specialized or is now known to fail.
+    #[allow(unused_variables)]
+    pub fn evolve_pattern(&mut self, known: Known, mut pattern: EvolvedPattern) -> PlaceOrEmpty<EvolvedPattern> {
+        use self::PlaceOrEmpty::*;
+
+        let mut new_entity: Option<EvolvedNonValuePlace> = None;
+        let mut new_value: Option<EvolvedValuePlace> = None;
+
+        match &pattern.entity {
+            &EvolvedNonValuePlace::Variable(ref var) => {
+                // See if we have it yet!
+                match self.bound_value(&var) {
+                    None => (),
+                    Some(TypedValue::Ref(entid)) => {
+                        new_entity = Some(EvolvedNonValuePlace::Entid(entid));
+                    },
+                    Some(v) => {
+                        return Empty(EmptyBecause::TypeMismatch {
+                            var: var.clone(),
+                            existing: self.known_type_set(&var),
+                            desired: ValueTypeSet::of_one(ValueType::Ref),
+                        });
+                    },
+                };
+            },
+            _ => (),
+        }
+        match &pattern.value {
+            &EvolvedValuePlace::Variable(ref var) => {
+                // See if we have it yet!
+                match self.bound_value(&var) {
+                    None => (),
+                    Some(tv) => {
+                        new_value = Some(EvolvedValuePlace::Value(tv.clone()));
+                    },
+                };
+            },
+            _ => (),
+        }
+
+
+        if let Some(e) = new_entity {
+            pattern.entity = e;
+        }
+        if let Some(v) = new_value {
+            pattern.value = v;
+        }
+        Place(pattern)
+    }
+
+    pub fn apply_parsed_pattern(&mut self, known: Known, pattern: Pattern) {
+        use self::PlaceOrEmpty::*;
+        match self.make_evolved_pattern(known, pattern) {
+            Empty(e) => self.mark_known_empty(e),
+            Place(p) => self.apply_pattern(known, p),
+        };
+    }
+
+    pub fn apply_pattern(&mut self, known: Known, pattern: EvolvedPattern) {
+        // For now we only support the default source.
+        if pattern.source != SrcVar::DefaultSrc {
+            unimplemented!();
+        }
+
+        if self.attempt_cache_lookup(known, &pattern) {
+            return;
+        }
+
+        if let Some(alias) = self.alias_table(known.schema, &pattern) {
+            self.apply_pattern_clause_for_alias(known, &pattern, &alias);
             self.from.push(alias);
         } else {
             // We didn't determine a table, likely because there was a mismatch
@@ -296,6 +651,7 @@ mod testing {
     use mentat_core::attribute::Unique;
     use mentat_core::{
         Attribute,
+        Schema,
         ValueTypeSet,
     };
 
@@ -329,15 +685,17 @@ mod testing {
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
-        algebrize(schema.into(), parsed).expect("algebrize failed").cc
+        let known = Known::for_schema(schema);
+        algebrize(known, parsed).expect("algebrize failed").cc
     }
 
     #[test]
     fn test_unknown_ident() {
         let mut cc = ConjoiningClauses::default();
         let schema = Schema::default();
+        let known = Known::for_schema(&schema);
 
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
             attribute: ident("foo", "bar"),
@@ -355,7 +713,8 @@ mod testing {
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
 
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
             attribute: ident("foo", "bar"),
@@ -378,7 +737,8 @@ mod testing {
         });
 
         let x = Variable::from_valid_name("?x");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -418,7 +778,8 @@ mod testing {
         let schema = Schema::default();
 
         let x = Variable::from_valid_name("?x");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -467,7 +828,8 @@ mod testing {
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), TypedValue::Keyword(Rc::new(NamespacedKeyword::new("foo", "bar"))));
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -510,7 +872,8 @@ mod testing {
 
         cc.input_variables.insert(a.clone());
         cc.value_bindings.insert(a.clone(), hello.clone());
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -532,7 +895,8 @@ mod testing {
         let x = Variable::from_valid_name("?x");
         let a = Variable::from_valid_name("?a");
         let v = Variable::from_valid_name("?v");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(a.clone()),
@@ -562,7 +926,8 @@ mod testing {
         let schema = Schema::default();
 
         let x = Variable::from_valid_name("?x");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
@@ -612,14 +977,15 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),
             value: PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new("idgoeshere".to_string()))),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -686,7 +1052,8 @@ mod testing {
         let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
         let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -733,7 +1100,8 @@ mod testing {
         let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
         let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -768,7 +1136,8 @@ mod testing {
         let variables: BTreeSet<Variable> = vec![Variable::from_valid_name("?y")].into_iter().collect();
         let mut cc = ConjoiningClauses::with_inputs(variables, inputs);
 
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -802,14 +1171,15 @@ mod testing {
 
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),
             value: PatternValuePlace::Variable(y.clone()),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "bar"),
@@ -844,14 +1214,15 @@ mod testing {
         let x = Variable::from_valid_name("?x");
         let y = Variable::from_valid_name("?y");
         let z = Variable::from_valid_name("?z");
-        cc.apply_pattern(&schema, Pattern {
+        let known = Known::for_schema(&schema);
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Variable(y.clone()),
             value: PatternValuePlace::Constant(NonIntegerConstant::Boolean(true)),
             tx: PatternNonValuePlace::Placeholder,
         });
-        cc.apply_pattern(&schema, Pattern {
+        cc.apply_parsed_pattern(known, Pattern {
             source: None,
             entity: PatternNonValuePlace::Variable(z.clone()),
             attribute: PatternNonValuePlace::Variable(y.clone()),

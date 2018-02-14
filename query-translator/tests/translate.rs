@@ -34,6 +34,7 @@ use mentat_core::{
 
 use mentat_query_parser::parse_find_string;
 use mentat_query_algebrizer::{
+    Known,
     QueryInputs,
     algebrize,
     algebrize_with_inputs,
@@ -54,8 +55,9 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 }
 
 fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
+    let known = Known::for_schema(schema);
     let parsed = parse_find_string(query).expect("parse to succeed");
-    let algebrized = algebrize_with_inputs(schema, parsed, 0, inputs).expect("algebrize to succeed");
+    let algebrized = algebrize_with_inputs(known, parsed, 0, inputs).expect("algebrize to succeed");
     let select = query_to_select(algebrized).expect("translate to succeed");
     select.query.to_sql_query().unwrap()
 }
@@ -182,10 +184,11 @@ fn test_bound_variable_limit_affects_distinct() {
 #[test]
 fn test_bound_variable_limit_affects_types() {
     let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
 
     let query = r#"[:find ?x ?limit :in ?limit :where [?x _ ?limit] :limit ?limit]"#;
     let parsed = parse_find_string(query).expect("parse failed");
-    let algebrized = algebrize(&schema, parsed).expect("algebrize failed");
+    let algebrized = algebrize(known, parsed).expect("algebrize failed");
 
     // The type is known.
     assert_eq!(Some(ValueType::Long),
@@ -272,10 +275,11 @@ fn test_unknown_attribute_integer_value() {
 #[test]
 fn test_unknown_ident() {
     let schema = Schema::default();
+    let known = Known::for_schema(&schema);
 
     let impossible = r#"[:find ?x :where [?x :db/ident :no/exist]]"#;
     let parsed = parse_find_string(impossible).expect("parse failed");
-    let algebrized = algebrize(&schema, parsed).expect("algebrize failed");
+    let algebrized = algebrize(known, parsed).expect("algebrize failed");
 
     // This query cannot return results: the ident doesn't resolve for a ref-typed attribute.
     assert!(algebrized.is_known_empty());

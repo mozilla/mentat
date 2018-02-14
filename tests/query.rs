@@ -32,14 +32,16 @@ use mentat_core::{
 };
 
 use mentat::{
+    IntoResult,
     NamespacedKeyword,
     PlainSymbol,
     QueryInputs,
     QueryResults,
     Variable,
     new_connection,
-    q_once,
 };
+
+use mentat::query::q_uncached;
 
 use mentat::conn::Conn;
 
@@ -55,8 +57,8 @@ fn test_rel() {
 
     // Rel.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
-                         "[:find ?x ?ident :where [?x :db/ident ?ident]]", None)
+    let results = q_uncached(&c, &db.schema,
+                             "[:find ?x ?ident :where [?x :db/ident ?ident]]", None)
         .expect("Query failed")
         .results;
     let end = time::PreciseTime::now();
@@ -86,8 +88,8 @@ fn test_failing_scalar() {
 
     // Scalar that fails.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
-                         "[:find ?x . :where [?x :db/fulltext true]]", None)
+    let results = q_uncached(&c, &db.schema,
+                             "[:find ?x . :where [?x :db/fulltext true]]", None)
         .expect("Query failed")
         .results;
     let end = time::PreciseTime::now();
@@ -109,8 +111,8 @@ fn test_scalar() {
 
     // Scalar that succeeds.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
-                         "[:find ?ident . :where [24 :db/ident ?ident]]", None)
+    let results = q_uncached(&c, &db.schema,
+                             "[:find ?ident . :where [24 :db/ident ?ident]]", None)
         .expect("Query failed")
         .results;
     let end = time::PreciseTime::now();
@@ -137,11 +139,11 @@ fn test_tuple() {
 
     // Tuple.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
-                         "[:find [?index ?cardinality]
-                           :where [:db/txInstant :db/index ?index]
-                                  [:db/txInstant :db/cardinality ?cardinality]]",
-                         None)
+    let results = q_uncached(&c, &db.schema,
+                             "[:find [?index ?cardinality]
+                               :where [:db/txInstant :db/index ?index]
+                                      [:db/txInstant :db/cardinality ?cardinality]]",
+                             None)
         .expect("Query failed")
         .results;
     let end = time::PreciseTime::now();
@@ -168,8 +170,8 @@ fn test_coll() {
 
     // Coll.
     let start = time::PreciseTime::now();
-    let results = q_once(&c, &db.schema,
-                         "[:find [?e ...] :where [?e :db/ident _]]", None)
+    let results = q_uncached(&c, &db.schema,
+                             "[:find [?e ...] :where [?e :db/ident _]]", None)
         .expect("Query failed")
         .results;
     let end = time::PreciseTime::now();
@@ -194,8 +196,8 @@ fn test_inputs() {
     // entids::DB_INSTALL_VALUE_TYPE = 5.
     let ee = (Variable::from_valid_name("?e"), TypedValue::Ref(5));
     let inputs = QueryInputs::with_value_sequence(vec![ee]);
-    let results = q_once(&c, &db.schema,
-                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs)
+    let results = q_uncached(&c, &db.schema,
+                             "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs)
                         .expect("query to succeed")
                         .results;
 
@@ -215,8 +217,8 @@ fn test_unbound_inputs() {
     // Bind the wrong var by 'mistake'.
     let xx = (Variable::from_valid_name("?x"), TypedValue::Ref(5));
     let inputs = QueryInputs::with_value_sequence(vec![xx]);
-    let results = q_once(&c, &db.schema,
-                         "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs);
+    let results = q_uncached(&c, &db.schema,
+                             "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs);
 
     match results {
         Result::Err(Error(ErrorKind::UnboundVariables(vars), _)) => {
@@ -619,4 +621,39 @@ fn test_type_reqs() {
             panic!("Query returned unexpected type: {:?}", v);
         }
     };
+}
+
+#[test]
+fn test_cache_usage() {
+    let mut c = new_connection("").expect("opened connection");
+    let conn = Conn::connect(&mut c).expect("connected");
+
+    let db_ident = (*conn.current_schema()).get_entid(&kw!(:db/ident)).expect("db_ident");
+    let db_type = (*conn.current_schema()).get_entid(&kw!(:db/valueType)).expect("db_ident");
+    println!("db/ident is {}", db_ident.0);
+    println!("db/type is {}", db_type.0);
+    let query = format!("[:find ?ident . :where [?e {} :db/doc][?e {} ?type][?type {} ?ident]]",
+                        db_ident.0, db_type.0, db_ident.0);
+
+    println!("Query is {}", query);
+
+    let schema = conn.current_schema();
+    (*conn.attribute_cache_mut()).register(&schema, &mut c, db_ident).expect("registered");
+    (*conn.attribute_cache_mut()).register(&schema, &mut c, db_type).expect("registered");
+
+    let ident = conn.q_once(&c, query.as_str(), None).into_scalar_result().expect("query");
+    assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
+
+    let ident = conn.q_uncached(&c, query.as_str(), None).into_scalar_result().expect("query");
+    assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
+
+    let start = time::PreciseTime::now();
+    conn.q_once(&c, query.as_str(), None).into_scalar_result().expect("query");
+    let end = time::PreciseTime::now();
+    println!("Cached took {}µs", start.to(end).num_microseconds().unwrap());
+
+    let start = time::PreciseTime::now();
+    conn.q_uncached(&c, query.as_str(), None).into_scalar_result().expect("query");
+    let end = time::PreciseTime::now();
+    println!("Uncached took {}µs", start.to(end).num_microseconds().unwrap());
 }
