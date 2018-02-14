@@ -34,6 +34,7 @@ pub use mentat_core::{
     Attribute,
     Entid,
     HasSchema,
+    KnownEntid,
     NamespacedKeyword,
     TypedValue,
     Uuid,
