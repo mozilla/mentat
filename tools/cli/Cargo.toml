@@ -20,6 +20,8 @@ linefeed = "0.4"
 log = "0.3"
 tabwriter = "1"
 tempfile = "1.1"
+termion = "1"
+time = "0.1"
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
 [dependencies.rusqlite]
