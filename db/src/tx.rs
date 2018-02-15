@@ -193,7 +193,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
             }
         }
 
-        Ok((temp_id_map))
+        Ok(temp_id_map)
     }
 
     /// Pipeline stage 1: convert `Entity` instances into `Term` instances, ready for term

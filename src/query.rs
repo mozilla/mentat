@@ -51,6 +51,10 @@ use mentat_query_parser::{
     parse_find_string,
 };
 
+use mentat_query_projector::{
+    Projector,
+};
+
 use mentat_sql::{
     SQLQuery,
 };
@@ -69,7 +73,39 @@ use errors::{
     Result,
 };
 
+use cache::{
+    AttributeCacher,
+};
+
 pub type QueryExecutionResult = Result<QueryOutput>;
+pub type PreparedResult<'sqlite> = Result<PreparedQuery<'sqlite>>;
+
+pub enum PreparedQuery<'sqlite> {
+    Empty {
+        find_spec: Rc<FindSpec>,
+    },
+    Bound {
+        statement: rusqlite::Statement<'sqlite>,
+        args: Vec<(String, Rc<rusqlite::types::Value>)>,
+        projector: Box<Projector>,
+    },
+}
+
+impl<'sqlite> PreparedQuery<'sqlite> {
+    pub fn run<T>(&mut self, _inputs: T) -> QueryExecutionResult where T: Into<Option<QueryInputs>> {
+        match self {
+            &mut PreparedQuery::Empty { ref find_spec } => {
+                Ok(QueryOutput::empty(find_spec))
+            },
+            &mut PreparedQuery::Bound { ref mut statement, ref args, ref projector } => {
+                let rows = run_statement(statement, args)?;
+                projector
+                      .project(rows)
+                      .map_err(|e| e.into())
+            }
+        }
+    }
+}
 
 pub trait IntoResult {
     fn into_scalar_result(self) -> Result<Option<TypedValue>>;
@@ -170,44 +206,59 @@ fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<Kn
 /// If the attribute is multi-valued, an arbitrary value is returned.
 /// If no value is present for that entity, `None` is returned.
 /// If `attribute` isn't an attribute, `None` is returned.
-pub fn lookup_value<'sqlite, 'schema, E, A>
+pub fn lookup_value<'sqlite, 'schema, 'cache, E, A>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
+ cache: &'cache AttributeCacher,
  entity: E,
  attribute: A) -> Result<Option<TypedValue>>
  where E: Into<Entid>, A: Into<Entid> {
-    fetch_values(sqlite, schema, entity.into(), attribute.into(), true).into_scalar_result()
+    let entid = entity.into();
+    let attrid = attribute.into();
+    let cached = cache.get_value_for_entid(&attrid, &entid).cloned();
+    if cached.is_some() {
+        return Ok(cached);
+    }
+    fetch_values(sqlite, schema, entid, attrid, true).into_scalar_result()
 }
 
-pub fn lookup_values<'sqlite, 'schema, E, A>
+pub fn lookup_values<'sqlite, 'schema, 'cache, E, A>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
+ cache: &'cache AttributeCacher,
  entity: E,
  attribute: A) -> Result<Vec<TypedValue>>
  where E: Into<Entid>, A: Into<Entid> {
-    fetch_values(sqlite, schema, entity.into(), attribute.into(), false).into_coll_result()
+    let entid = entity.into();
+    let attrid = attribute.into();
+    if let Some(cached) = cache.get_values_for_entid(&attrid, &entid).cloned() {
+        return Ok(cached);
+    }
+    fetch_values(sqlite, schema, entid, attrid, false).into_coll_result()
 }
 
 /// Return a single value for the provided entity and attribute.
 /// If the attribute is multi-valued, an arbitrary value is returned.
 /// If no value is present for that entity, `None` is returned.
 /// If `attribute` doesn't name an attribute, an error is returned.
-pub fn lookup_value_for_attribute<'sqlite, 'schema, 'attribute, E>
+pub fn lookup_value_for_attribute<'sqlite, 'schema, 'cache, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
+ cache: &'cache AttributeCacher,
  entity: E,
  attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>>
  where E: Into<Entid> {
-    lookup_value(sqlite, schema, entity.into(), lookup_attribute(schema, attribute)?)
+    lookup_value(sqlite, schema, cache, entity.into(), lookup_attribute(schema, attribute)?)
 }
 
-pub fn lookup_values_for_attribute<'sqlite, 'schema, 'attribute, E>
+pub fn lookup_values_for_attribute<'sqlite, 'schema, 'cache, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
  schema: &'schema Schema,
+ cache: &'cache AttributeCacher,
  entity: E,
  attribute: &'attribute NamespacedKeyword) -> Result<Vec<TypedValue>>
  where E: Into<Entid> {
-    lookup_values(sqlite, schema, entity.into(), lookup_attribute(schema, attribute)?)
+    lookup_values(sqlite, schema, cache, entity.into(), lookup_attribute(schema, attribute)?)
 }
 
 fn run_statement<'sqlite, 'stmt, 'bound>
@@ -288,6 +339,40 @@ pub fn q_once<'sqlite, 'schema, 'query, T>
     let algebrized = algebrize_query_str(schema, query, inputs)?;
 
     run_algebrized_query(sqlite, algebrized)
+}
+
+pub fn q_prepare<'sqlite, 'schema, 'query, T>
+(sqlite: &'sqlite rusqlite::Connection,
+ schema: &'schema Schema,
+ query: &'query str,
+ inputs: T) -> PreparedResult<'sqlite>
+        where T: Into<Option<QueryInputs>>
+{
+    let algebrized = algebrize_query_str(schema, query, inputs)?;
+
+    let unbound = algebrized.unbound_variables();
+    if !unbound.is_empty() {
+        // TODO: Allow binding variables at execution time, not just
+        // preparation time.
+        bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
+    }
+
+    if algebrized.is_known_empty() {
+        // We don't need to do any SQL work at all.
+        return Ok(PreparedQuery::Empty {
+            find_spec: algebrized.find_spec,
+        });
+    }
+
+    let select = query_to_select(algebrized)?;
+    let SQLQuery { sql, args } = select.query.to_sql_query()?;
+    let statement = sqlite.prepare(sql.as_str())?;
+
+    Ok(PreparedQuery::Bound {
+        statement,
+        args,
+        projector: select.projector
+    })
 }
 
 pub fn q_explain<'sqlite, 'schema, 'query, T>

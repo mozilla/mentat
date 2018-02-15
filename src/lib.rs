@@ -37,6 +37,7 @@ pub use mentat_core::{
     Attribute,
     Entid,
     HasSchema,
+    KnownEntid,
     NamespacedKeyword,
     TypedValue,
     Uuid,
@@ -53,6 +54,16 @@ pub use mentat_db::{
     TxReport,
     new_connection,
 };
+
+/// Produce the appropriate `Variable` for the provided valid ?-prefixed name.
+/// This lives here because we can't re-export macros:
+/// https://github.com/rust-lang/rust/issues/29638.
+#[macro_export]
+macro_rules! var {
+    ( ? $var:ident ) => {
+        $crate::Variable::from_valid_name(concat!("?", stringify!($var)))
+    };
+}
 
 /// Produce the appropriate `NamespacedKeyword` for the provided namespace and name.
 /// This lives here because we can't re-export macros:
@@ -76,6 +87,7 @@ macro_rules! kw {
     };
 }
 
+pub mod cache;
 pub mod errors;
 pub mod ident;
 pub mod vocabulary;
@@ -123,5 +135,14 @@ mod tests {
     fn test_kw() {
         assert_eq!(kw!(:foo/bar), NamespacedKeyword::new("foo", "bar"));
         assert_eq!(kw!(:org.mozilla.foo/bar_baz), NamespacedKeyword::new("org.mozilla.foo", "bar_baz"));
+    }
+
+    #[test]
+    fn test_var() {
+        let foo_baz = var!(?foo_baz);
+        let vu = var!(?vü);
+        assert_eq!(foo_baz, Variable::from_valid_name("?foo_baz"));
+        assert_eq!(vu, Variable::from_valid_name("?vü"));
+        assert_eq!(foo_baz.as_str(), "?foo_baz");
     }
 }
