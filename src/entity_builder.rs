@@ -259,11 +259,21 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
     pub fn add_kw<E, V>(&mut self, e: E, a: &NamespacedKeyword, v: V) -> Result<()>
     where E: IntoThing<KnownEntidOr<TempIdHandle>>,
           V: IntoThing<TypedValueOr<TempIdHandle>> {
+        let (attribute, value) = self.extract_kw_value(a, v.into_thing())?;
+        self.add(e, attribute, value)
+    }
+
+    pub fn retract_kw<E, V>(&mut self, e: E, a: &NamespacedKeyword, v: V) -> Result<()>
+    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
+          V: IntoThing<TypedValueOr<TempIdHandle>> {
+        let (attribute, value) = self.extract_kw_value(a, v.into_thing())?;
+        self.retract(e, attribute, value)
+    }
+
+    fn extract_kw_value(&mut self, a: &NamespacedKeyword, v: TypedValueOr<TempIdHandle>) -> Result<(KnownEntid, TypedValueOr<TempIdHandle>)> {
         let attribute: KnownEntid;
-        let value: TypedValueOr<TempIdHandle>;
         if let Some((attr, aa)) = self.in_progress.attribute_for_ident(a) {
-            let vv = v.into_thing();
-            if let Either::Left(ref tv) = vv {
+            if let Either::Left(ref tv) = v {
                 let provided = tv.value_type();
                 let expected = attr.value_type;
                 if provided != expected {
@@ -271,11 +281,10 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
                 }
             }
             attribute = aa;
-            value = vv;
         } else {
             bail!(ErrorKind::UnknownAttribute(a.to_string()));
         }
-        self.add(e, attribute, value)
+        Ok((attribute, v))
     }
 }
 
@@ -283,6 +292,11 @@ impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
     pub fn add_kw<V>(&mut self, a: &NamespacedKeyword, v: V) -> Result<()>
     where V: IntoThing<TypedValueOr<TempIdHandle>> {
         self.builder.add_kw(self.entity.clone(), a, v)
+    }
+
+    pub fn retract_kw<V>(&mut self, a: &NamespacedKeyword, v: V) -> Result<()>
+    where V: IntoThing<TypedValueOr<TempIdHandle>> {
+        self.builder.retract_kw(self.entity.clone(), a, v)
     }
 
     /// Build the terms from this builder and transact them against the current
