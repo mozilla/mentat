@@ -38,8 +38,6 @@ pub mod tx_processor;
 pub mod errors;
 pub mod syncer;
 pub mod tx_mapper;
-<<<<<<< HEAD
-
 pub use syncer::Syncer;
 pub use errors::{
     Error,
@@ -47,5 +45,3 @@ pub use errors::{
     Result,
     ResultExt,
 };
-=======
->>>>>>> master
