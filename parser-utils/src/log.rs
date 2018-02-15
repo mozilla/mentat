@@ -8,28 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io::Write;
-
 use combine::{
     ParseError,
     Parser,
     ParseResult,
     Stream,
 };
-
-/// println!, but to stderr.
-///
-/// Doesn't pollute stdout, which is useful when running tests under Emacs, which parses the output
-/// of the test suite to format errors and can get confused when user output is interleaved into the
-/// stdout stream.
-///
-/// Cribbed from http://stackoverflow.com/a/27590832.
-macro_rules! println_stderr(
-    ($($arg:tt)*) => { {
-        let r = writeln!(&mut ::std::io::stderr(), $($arg)*);
-        r.expect("failed printing to stderr");
-    } }
-);
 
 #[derive(Clone)]
 pub struct Log<P, T>(P, T)
@@ -50,8 +34,8 @@ impl<I, P, T> Parser for Log<P, T>
         let head = input.clone().uncons();
         let result = self.0.parse_stream(input.clone());
         match result {
-            Ok((ref value, _)) => println_stderr!("{:?}: [{:?} ...] => Ok({:?})", self.1, head.ok(), value),
-            Err(_) => println_stderr!("{:?}: [{:?} ...] => Err(_)", self.1, head.ok()),
+            Ok((ref value, _)) => eprintln!("{:?}: [{:?} ...] => Ok({:?})", self.1, head.ok(), value),
+            Err(_) => eprintln!("{:?}: [{:?} ...] => Err(_)", self.1, head.ok()),
         }
         result
     }
