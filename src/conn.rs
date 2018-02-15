@@ -48,6 +48,10 @@ use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
 
+use mentat_tolstoy::Syncer;
+
+use uuid::Uuid;
+
 use errors::*;
 use query::{
     lookup_value_for_attribute,
@@ -131,6 +135,10 @@ pub trait Queryable {
         where E: Into<Entid>;
     fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
         where E: Into<Entid>;
+}
+
+pub trait Syncable {
+    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
 }
 
 /// Represents an in-progress, not yet committed, set of changes to the store.
@@ -378,6 +386,13 @@ impl Queryable for Store {
     fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
         where E: Into<Entid> {
         self.conn.lookup_value_for_attribute(&self.sqlite, entity.into(), attribute)
+    }
+}
+
+impl Syncable for Store {
+    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
+        let uuid = Uuid::parse_str(&user_uuid)?;
+        Ok(Syncer::flow(&mut self.sqlite, server_uri, &uuid)?)
     }
 }
 

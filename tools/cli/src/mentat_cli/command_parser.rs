@@ -44,6 +44,7 @@ pub static LONG_EXIT_COMMAND: &'static str = &"exit";
 pub static SHORT_EXIT_COMMAND: &'static str = &"e";
 pub static LONG_QUERY_EXPLAIN_COMMAND: &'static str = &"explain_query";
 pub static SHORT_QUERY_EXPLAIN_COMMAND: &'static str = &"eq";
+pub static SYNC_COMMAND: &'static str = &"sync";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
@@ -53,6 +54,7 @@ pub enum Command {
     Open(String),
     Query(String),
     Schema,
+    Sync(Vec<String>),
     Transact(String),
     QueryExplain(String),
 }
@@ -73,6 +75,7 @@ impl Command {
             &Command::Open(_) |
             &Command::Close |
             &Command::Exit |
+            &Command::Sync(_) |
             &Command::Schema => true
         }
     }
@@ -99,6 +102,9 @@ impl Command {
             },
             &Command::Schema => {
                 format!(".{}", SCHEMA_COMMAND)
+            },
+            &Command::Sync(ref args) => {
+                format!(".{} {:?}", SYNC_COMMAND, args)
             },
             &Command::QueryExplain(ref args) => {
                 format!(".{} {}", LONG_QUERY_EXPLAIN_COMMAND, args)
@@ -152,6 +158,19 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Schema)
                     });
 
+    let sync_parser = string(SYNC_COMMAND)
+                    .with(spaces())
+                    .with(arguments())
+                    .map(|args| {
+                        if args.len() < 1 {
+                            bail!(cli::ErrorKind::CommandParse("Missing required argument".to_string()));
+                        }
+                        if args.len() > 2 {
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[2])));
+                        }
+                        Ok(Command::Sync(args.clone()))
+                    });
+
     let exit_parser = try(string(LONG_EXIT_COMMAND)).or(try(string(SHORT_EXIT_COMMAND)))
                     .with(no_arg_parser())
                     .map(|args| {
@@ -189,7 +208,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 8], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 9], _>
           ([&mut try(help_parser),
             &mut try(open_parser),
             &mut try(close_parser),
@@ -197,6 +216,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
             &mut try(exit_parser),
             &mut try(query_parser),
             &mut try(schema_parser),
+            &mut try(sync_parser),
             &mut try(transact_parser)]))
         .parse(s)
         .unwrap_or((Err(cli::ErrorKind::CommandParse(format!("Invalid command {:?}", s)).into()), "")).0
@@ -282,6 +302,19 @@ mod tests {
         match cmd {
             Command::Open(arg) => {
                 assert_eq!(arg, "/path/to/my.db".to_string());
+            },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_sync_parser_path_arg() {
+        let input = ".sync https://example.com/api/ 316ea470-ce35-4adf-9c61-e0de6e289c59";
+        let cmd = command(&input).expect("Expected open command");
+        match cmd {
+            Command::Sync(args) => {
+                assert_eq!(args[0], "https://example.com/api/".to_string());
+                assert_eq!(args[1], "316ea470-ce35-4adf-9c61-e0de6e289c59".to_string());
             },
             _ => assert!(false)
         }

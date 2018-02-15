@@ -22,6 +22,7 @@ chrono = "0.4"
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 lazy_static = "0.2"
 time = "0.1"
+uuid = "0.5"
 
 [dependencies.rusqlite]
 version = "0.12"
