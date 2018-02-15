@@ -10,7 +10,17 @@
 
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::path::{
+    Path,
+};
+
+use std::sync::{
+    Arc,
+    Mutex,
+    RwLock,
+    RwLockReadGuard,
+    RwLockWriteGuard,
+};
 
 use rusqlite;
 use rusqlite::{
@@ -128,6 +138,17 @@ pub struct Store {
 }
 
 impl Store {
+    pub fn create_empty(path: &str) -> Result<Conn> {
+        if !path.is_empty() {
+            if Path::new(path).exists() {
+                bail!(ErrorKind::PathAlreadyExists(path.to_string()));
+            }
+        }
+
+        let mut connection = ::new_connection(path)?;
+        Conn::empty(&mut connection)
+    }
+
     pub fn open(path: &str) -> Result<Store> {
         let mut connection = ::new_connection(path)?;
         let conn = Conn::connect(&mut connection)?;
@@ -440,6 +461,17 @@ impl Conn {
             attribute_cache: RwLock::new(AttributeCacher::new())
         }
     }
+
+    /// Prepare the provided SQLite handle for use as a Mentat store. Creates tables but
+    /// _does not_ write the bootstrap schema. This constructor should only be used by
+    /// consumers that expect to populate raw transaction data themselves.
+    fn empty(sqlite: &mut rusqlite::Connection) -> Result<Conn> {
+        let (tx, db) = db::create_empty_current_version(sqlite)
+            .chain_err(|| "Unable to initialize Mentat store")?;
+        tx.commit()?;
+        Ok(Conn::new(db.partition_map, db.schema))
+    }
+
 
     pub fn connect(sqlite: &mut rusqlite::Connection) -> Result<Conn> {
         let db = db::ensure_current_version(sqlite)

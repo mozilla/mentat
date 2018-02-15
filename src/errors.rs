@@ -54,6 +54,11 @@ error_chain! {
     }
 
     errors {
+        PathAlreadyExists(path: String) {
+            description("path already exists")
+            display("path {} already exists", path)
+        }
+
         UnboundVariables(names: BTreeSet<String>) {
             description("unbound variables at query execution time")
             display("variables {:?} unbound at query execution time", names)
