@@ -9,16 +9,16 @@
 // specific language governing permissions and limitations under the License.
 
 use std;
-use std::str::FromStr;
 use std::collections::HashMap;
 
 use futures::{future, Future, Stream};
 use hyper;
-use hyper::Client;
+use hyper_tls;
 use hyper::{Method, Request, StatusCode, Error as HyperError};
 use hyper::header::{ContentType};
 use rusqlite;
-use serde_cbor;
+// TODO:
+// use serde_cbor;
 use serde_json;
 use tokio_core::reactor::Core;
 use uuid::Uuid;
@@ -26,6 +26,7 @@ use uuid::Uuid;
 use mentat_core::Entid;
 use metadata::SyncMetadataClient;
 use metadata::HeadTrackable;
+use schema::ensure_current_version;
 
 use errors::{
     ErrorKind,
@@ -40,8 +41,25 @@ use tx_processor::{
 
 use tx_mapper::TxMapper;
 
-static API_VERSION: &str = "0.1";
-static BASE_URL: &str = "https://mentat.dev.lcip.org/mentatsync/";
+// TODO it would be nice to be able to pass
+// in a logger into Syncer::flow; would allow for a "debug mode"
+// and getting useful logs out of clients.
+// Below is some debug Android-friendly logging:
+
+// use std::os::raw::c_char;
+// use std::os::raw::c_int;
+// use std::ffi::CString;
+// pub const ANDROID_LOG_DEBUG: i32 = 3;
+// extern { pub fn __android_log_write(prio: c_int, tag: *const c_char, text: *const c_char) -> c_int; }
+
+pub fn d(message: &str) {
+    println!("d: {}", message);
+    // let message = CString::new(message).unwrap();
+    // let message = message.as_ptr();
+    // let tag = CString::new("RustyToodle").unwrap();
+    // let tag = tag.as_ptr();
+    // unsafe { __android_log_write(ANDROID_LOG_DEBUG, tag, message) };
+}
 
 pub struct Syncer {}
 
@@ -66,7 +84,7 @@ impl<'c> UploadingTxReceiver<'c> {
 }
 
 impl<'c> TxReceiver for UploadingTxReceiver<'c> {
-    fn tx<T>(&mut self, tx_id: Entid, d: &mut T) -> Result<()>
+    fn tx<T>(&mut self, tx_id: Entid, datoms: &mut T) -> Result<()>
     where T: Iterator<Item=TxPart> {
         // Yes, we generate a new UUID for a given Tx, even if we might
         // already have one mapped locally. Pre-existing local mapping will
@@ -82,10 +100,14 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
         // TODO separate bits of network work should be combined into single 'future'
 
         // Upload all chunks.
-        for datom in d {
+        for datom in datoms {
             let datom_uuid = Uuid::new_v4();
             tx_chunks.push(datom_uuid);
-            self.remote_client.put_chunk(&datom_uuid, serde_cbor::to_vec(&datom)?)?
+            d(&format!("putting chunk: {:?}, {:?}", &datom_uuid, &datom));
+            // TODO switch over to CBOR once we're past debugging stuff.
+            // let cbor_val = serde_cbor::to_value(&datom)?;
+            // self.remote_client.put_chunk(&datom_uuid, &serde_cbor::ser::to_vec_sd(&cbor_val)?)?;
+            self.remote_client.put_chunk(&datom_uuid, &serde_json::to_string(&datom)?)?;
         }
 
         // Upload tx.
@@ -95,11 +117,18 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
         // Comes at a cost of possibly increasing racing against other clients.
         match self.rolling_temp_head {
             Some(parent) => {
+                d(&format!("putting transaction: {:?}, {:?}, {:?}", &tx_uuid, &parent, &tx_chunks));
                 self.remote_client.put_transaction(&tx_uuid, &parent, &tx_chunks)?;
-                self.rolling_temp_head = Some(tx_uuid.clone());
+                
             },
-            None => self.remote_client.put_transaction(&tx_uuid, self.remote_head, &tx_chunks)?
+            None => {
+                d(&format!("putting transaction: {:?}, {:?}, {:?}", &tx_uuid, &self.remote_head, &tx_chunks));
+                self.remote_client.put_transaction(&tx_uuid, self.remote_head, &tx_chunks)?;
+            }
         }
+
+        d(&format!("updating rolling head: {:?}", tx_uuid));
+        self.rolling_temp_head = Some(tx_uuid.clone());
 
         Ok(())
     }
@@ -133,89 +162,51 @@ impl Syncer {
         Ok(())
     }
 
-    pub fn flow(sqlite: &mut rusqlite::Connection, username: String) -> Result<()> {
-        // Sketch of an upload flow:
-        // get remote head
-        // compare with local head
-        // if the same:
-        // - upload any local chunks, transactions
-        // - move server remote head
-        // - move local remote head
+    pub fn flow(sqlite: &mut rusqlite::Connection, server_uri: &String, user_uuid: &Uuid) -> Result<()> {
+        d(&format!("sync flowing"));
+
+        ensure_current_version(sqlite)?;
         
         // TODO configure this sync with some auth data
-        let remote_client = RemoteClient::new(BASE_URL.into(), username);
-
+        let remote_client = RemoteClient::new(server_uri.clone(), user_uuid.clone());
         let mut db_tx = sqlite.transaction()?;
 
         let remote_head = remote_client.get_head()?;
-        let locally_known_remote_head = SyncMetadataClient::remote_head(&db_tx)?;
+        d(&format!("remote head {:?}", remote_head));
 
-        // TODO it's possible that we've successfully advanced remote head previously,
-        // but failed to advance our own local head. If that's the case, and we can recognize it,
-        // our sync becomes much cheaper.
+        let locally_known_remote_head = SyncMetadataClient::remote_head(&db_tx)?;
+        d(&format!("local head {:?}", locally_known_remote_head));
 
         // Check if the server is empty - populate it.
         if remote_head == Uuid::nil() {
+            d(&format!("empty server!"));
             Syncer::upload_ours(&mut db_tx, None, &remote_client, &remote_head)?;
         
         // Check if the server is the same as us - nothing to do.
         } else if locally_known_remote_head == remote_head {
+            d(&format!("nothing to do!"));
             return Ok(());
 
         // Server is not the same as us.
         } else {
+            d(&format!("server not the same..."));
             // Check if the server can be fast-forwarded.
+            // TODO it's possible that we've successfully advanced remote head previously,
+            // but failed to advance our own local head. If that's the case, and we can recognize it,
+            // our sync becomes just bumping our local head. AFAICT below would currently fail.
             if let Some(upload_from_tx) = TxMapper::get_tx_for_uuid(&db_tx, &remote_head)? {
+                d(&format!("... but can be fast-forwarded"));
                 Syncer::upload_ours(&mut db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
             
             // Server has new transactions which aren't known locally.
             } else {
+                d(&format!("merge needed. bail! bail!"));
                 // We need to download and merge them first!
                 bail!(ErrorKind::NotYetImplemented(
                     format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
                 ));
             }
         }
-
-        // if we don't have the tx e mapped in the tu table, then we've never uploaded it
-        // but on a first sync, that is what you'd expect
-        // so how do we know it's safe to download?
-        // if remote head is ahead of us, and we never synced, and we don't know how to merge yet,
-        // the only way is to sync to an empty state. e.g. locally we just have _one_ transaction,
-        // and that's the bootstrap one.
-
-        // more generally though, this won't matter. we do care about making a distinction between
-        // a fast-forward sync and a merge.
-        
-        // so that's the primitive here:
-        // - is it a fast-forward sync?
-        // - or is it a merge?
-
-        // fetch remote head. if it's the same as our known remote head, do nothing.
-        // - unless it's 0000, then we can upload our state to the server!
-        // otherwise:
-        // - does our latest tx appear in the remote timeline? meaning that remote timeline
-        // -- is derived from our local HEAD.
-        // -- then it's a fast-forward.
-        // but:
-        // - when two different clients come to sync against each other, they will both have
-        // -- bootstrap transactions. that is, our "first sync" is always a merge for the second client,
-        // -- even if the second client has no user data at all.
-        // -- so we need to be able to merge and smush the bootstrap tx at the very least!
-
-        // -> without this, we can sync against ourselves only - pure replication, a.k.a. backup.
-        
-        // == flow ==
-        // initiate download flow
-        // fetch txs from the server given our known remote head
-        // get chunks for each tx
-        // transform downloaded chunks and txs into some local representation (TxPart?)
-        // validate that what we downloaded is sane
-        // - entids are known (locally or supplied in the downloaded chunks), values are sane, etc.
-        // maybe turn these into Terms? Term is a datom with known entid.
-        // transact the stuff!
-        // once all is transacted, we're ready to upload our state.
-        // need to make sure that the server state didn't change while we were doing this!
 
         // Commit everything, if there's anything to commit!
         // Any new tx->uuid mappings and the new HEAD. We're synced!
@@ -225,9 +216,9 @@ impl Syncer {
     }
 }
 
-#[derive(Serialize)]
-struct SerializedHead<'a> {
-    head: &'a Uuid
+#[derive(Serialize,Deserialize)]
+struct SerializedHead {
+    head: Uuid
 }
 
 #[derive(Serialize)]
@@ -238,42 +229,63 @@ struct SerializedTransaction<'a> {
 
 struct RemoteClient {
     base_uri: String,
-    user_id: String
+    user_uuid: Uuid
 }
 
+
 impl RemoteClient {
-    fn new(base_uri: String, user_id: String) -> Self {
+    fn new(base_uri: String, user_uuid: Uuid) -> Self {
         RemoteClient {
             base_uri: base_uri,
-            user_id: user_id
+            user_uuid: user_uuid
         }
     }
 
     fn bound_base_uri(&self) -> String {
         // TODO escaping
-        format!("{}/{}/{}", self.base_uri, API_VERSION, self.user_id)
+        format!("{}/{}", self.base_uri, self.user_uuid)
     }
 
     fn get_uuid(&self, uri: String) -> Result<Uuid> {
         let mut core = Core::new()?;
-        let client = Client::new(&core.handle());
+        let client = hyper::Client::configure()
+            .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+            .build(&core.handle());
+
+        d(&format!("client"));
 
         let uri = uri.parse()?;
-        let get = client.get(uri).and_then(|res| {
-            res.body().concat2()
+
+        d(&format!("parsed uri {:?}", uri));
+        
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let head_json: SerializedHead = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(head_json)
+            })
         });
 
-        let got = core.run(get)?;
-        Ok(Uuid::from_str(std::str::from_utf8(&got)?)?)
+        d(&format!("running..."));
+
+        let head_json = core.run(work)?;
+        d(&format!("got head: {:?}", &head_json.head));
+        Ok(head_json.head)
     }
 
     fn put<T>(&self, uri: String, payload: T, expected: StatusCode) -> Result<()>
-    where hyper::Body: std::convert::From<T>,
-        T: {
+    where hyper::Body: std::convert::From<T>, {
         let mut core = Core::new()?;
-        let client = Client::new(&core.handle());
+        let client = hyper::Client::configure()
+            .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+            .build(&core.handle());
 
         let uri = uri.parse()?;
+
+        d(&format!("PUT {:?}", uri));
 
         let mut req = Request::new(Method::Put, uri);
         req.headers_mut().set(ContentType::json());
@@ -283,9 +295,9 @@ impl RemoteClient {
             let status_code = res.status();
 
             if status_code != expected {
+                d(&format!("bad put response: {:?}", status_code));
                 future::err(HyperError::Status)
             } else {
-                // body will be empty...
                 future::ok(())
             }
         });
@@ -303,6 +315,7 @@ impl RemoteClient {
 
         let uri = format!("{}/transactions/{}", self.bound_base_uri(), transaction_uuid);
         let json = serde_json::to_string(&transaction)?;
+        d(&format!("serialized transaction: {:?}", json));
         self.put(uri, json, StatusCode::Created)
     }
 
@@ -314,32 +327,33 @@ impl RemoteClient {
     fn put_head(&self, uuid: &Uuid) -> Result<()> {
         // {"head": uuid}
         let head = SerializedHead {
-            head: uuid
+            head: uuid.clone()
         };
 
         let uri = format!("{}/head", self.bound_base_uri());
-        
         let json = serde_json::to_string(&head)?;
+        d(&format!("serialized head: {:?}", json));
         self.put(uri, json, StatusCode::NoContent)
     }
 
-    fn put_chunk(&self, chunk_uuid: &Uuid, payload: Vec<u8>) -> Result<()> {
+    fn put_chunk(&self, chunk_uuid: &Uuid, payload: &String) -> Result<()> {
         let uri = format!("{}/chunks/{}", self.bound_base_uri(), chunk_uuid);
-        self.put(uri, payload, StatusCode::Created)
+        d(&format!("serialized chunk: {:?}", payload));
+        // TODO don't want to clone every datom!
+        self.put(uri, payload.clone(), StatusCode::Created)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn test_remote_client(uri: &str, user_id: &str) -> RemoteClient {
-        RemoteClient::new(uri.into(), user_id.into())
-    }
+    use std::str::FromStr;
 
     #[test]
     fn test_remote_client_bound_uri() {
-        let remote_client = test_remote_client("https://example.com/api", "test-user");
-        assert_eq!("https://example.com/api/0.1/test-user", remote_client.bound_base_uri());
+        let user_uuid = Uuid::from_str(&"316ea470-ce35-4adf-9c61-e0de6e289c59").expect("uuid");
+        let server_uri = String::from("https://example.com/api/0.1");
+        let remote_client = RemoteClient::new(server_uri, user_uuid);
+        assert_eq!("https://example.com/api/0.1/316ea470-ce35-4adf-9c61-e0de6e289c59", remote_client.bound_base_uri());
     }
 }

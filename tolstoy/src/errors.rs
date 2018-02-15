@@ -63,5 +63,10 @@ error_chain! {
             description("Uploading Tx processor couldn't finish")
             display("Uploading Tx processor couldn't finish")
         }
+
+        BadServerResponse(s: String) {
+            description("Received bad response from the server")
+            display("Received bad response from the server: {}", s)
+        }
     }
 }
