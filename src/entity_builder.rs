@@ -176,6 +176,11 @@ impl<T> EntityBuilder<T> where T: BuildTerms {
     where V: IntoThing<TypedValueOr<TempIdHandle>> {
         self.builder.add(self.entity.clone(), a, v)
     }
+
+    pub fn retract<V>(&mut self, a: KnownEntid, v: V) -> Result<()>
+    where V: IntoThing<TypedValueOr<TempIdHandle>> {
+        self.builder.retract(self.entity.clone(), a, v)
+    }
 }
 
 pub struct InProgressBuilder<'a, 'c> {
