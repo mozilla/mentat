@@ -54,7 +54,9 @@
 // the transactor -- is intimately tied to EDN and to spanned values.
 
 use mentat_core::{
+    HasSchema,
     KnownEntid,
+    NamespacedKeyword,
     TypedValue,
 };
 
@@ -83,6 +85,7 @@ use conn::{
 };
 
 use errors::{
+    ErrorKind,
     Result,
 };
 
@@ -243,6 +246,27 @@ impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
 }
 
 impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
+    pub fn add_kw<V>(&mut self, a: &NamespacedKeyword, v: V) -> Result<()>
+    where V: IntoThing<TypedValueOr<TempIdHandle>> {
+        let attribute: KnownEntid;
+        let value: TypedValueOr<TempIdHandle>;
+        if let Some((attr, aa)) = self.builder.in_progress.attribute_for_ident(a) {
+            let vv = v.into_thing();
+            if let Either::Left(ref tv) = vv {
+                let provided = tv.value_type();
+                let expected = attr.value_type;
+                if provided != expected {
+                    bail!(ErrorKind::ValueTypeMismatch(provided, expected));
+                }
+            }
+            attribute = aa;
+            value = vv;
+        } else {
+            bail!(ErrorKind::UnknownAttribute(a.to_string()));
+        }
+        self.add(attribute, value)
+    }
+
     /// Build the terms from this builder and transact them against the current
     /// `InProgress`. This method _always_ returns the `InProgress` -- failure doesn't
     /// imply an automatic rollback.
