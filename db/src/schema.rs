@@ -42,7 +42,6 @@ impl AttributeValidation for Attribute {
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value without :db/index true for entid: {}", ident())))
         }
         if self.unique == Some(attribute::Unique::Identity) && !self.index {
-    println!("Unique identity without index. Bailing.");
             bail!(ErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/index true for entid: {}", ident())))
         }
         if self.fulltext && self.value_type != ValueType::String {

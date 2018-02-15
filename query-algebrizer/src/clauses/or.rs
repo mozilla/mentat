@@ -436,7 +436,6 @@ impl ConjoiningClauses {
                 patterns.into_iter()
                         .map(|pattern| {
                             let mut receptacle = template.make_receptacle();
-                            println!("Applying pattern with attribute {:?}", pattern.attribute);
                             receptacle.apply_pattern_clause_for_alias(known, &pattern, &source_alias);
                             receptacle
                         })
@@ -458,7 +457,6 @@ impl ConjoiningClauses {
             // we know that we can blindly merge: collisions aren't possible.
             if let Some(first) = receptacles.peek() {
                 for (v, cols) in &first.column_bindings {
-                    println!("Adding {:?}: {:?}", v, cols);
                     match self.column_bindings.entry(v.clone()) {
                         Entry::Vacant(e) => {
                             e.insert(cols.clone());
