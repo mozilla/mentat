@@ -54,7 +54,9 @@
 // the transactor -- is intimately tied to EDN and to spanned values.
 
 use mentat_core::{
+    HasSchema,
     KnownEntid,
+    NamespacedKeyword,
     TypedValue,
 };
 
@@ -83,6 +85,7 @@ use conn::{
 };
 
 use errors::{
+    ErrorKind,
     Result,
 };
 
@@ -99,6 +102,7 @@ pub struct EntityBuilder<T: BuildTerms + Sized> {
 }
 
 pub trait BuildTerms where Self: Sized {
+    fn named_tempid(&mut self, name: String) -> TempIdHandle;
     fn describe_tempid(self, name: &str) -> EntityBuilder<Self>;
     fn describe<E>(self, entity: E) -> EntityBuilder<Self> where E: IntoThing<KnownEntidOr<TempIdHandle>>;
     fn add<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
@@ -110,6 +114,10 @@ pub trait BuildTerms where Self: Sized {
 }
 
 impl BuildTerms for TermBuilder {
+    fn named_tempid(&mut self, name: String) -> TempIdHandle {
+        self.tempids.intern(TempId::External(name))
+    }
+
     fn describe_tempid(mut self, name: &str) -> EntityBuilder<Self> {
         let e = self.named_tempid(name.into());
         self.describe(e)
@@ -151,10 +159,6 @@ impl TermBuilder {
             tempids: InternSet::new(),
             terms: vec![],
         }
-    }
-
-    pub fn named_tempid(&mut self, name: String) -> TempIdHandle {
-        self.tempids.intern(TempId::External(name))
     }
 
     #[allow(dead_code)]
@@ -217,6 +221,10 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
 }
 
 impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
+    fn named_tempid(&mut self, name: String) -> TempIdHandle {
+        self.builder.named_tempid(name)
+    }
+
     fn describe_tempid(mut self, name: &str) -> EntityBuilder<InProgressBuilder<'a, 'c>> {
         let e = self.builder.named_tempid(name.into());
         self.describe(e)
@@ -242,7 +250,36 @@ impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
     }
 }
 
+impl<'a, 'c> InProgressBuilder<'a, 'c> {
+    pub fn add_kw<E, V>(&mut self, e: E, a: &NamespacedKeyword, v: V) -> Result<()>
+    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
+          V: IntoThing<TypedValueOr<TempIdHandle>> {
+        let attribute: KnownEntid;
+        let value: TypedValueOr<TempIdHandle>;
+        if let Some((attr, aa)) = self.in_progress.attribute_for_ident(a) {
+            let vv = v.into_thing();
+            if let Either::Left(ref tv) = vv {
+                let provided = tv.value_type();
+                let expected = attr.value_type;
+                if provided != expected {
+                    bail!(ErrorKind::ValueTypeMismatch(provided, expected));
+                }
+            }
+            attribute = aa;
+            value = vv;
+        } else {
+            bail!(ErrorKind::UnknownAttribute(a.to_string()));
+        }
+        self.add(e, attribute, value)
+    }
+}
+
 impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
+    pub fn add_kw<V>(&mut self, a: &NamespacedKeyword, v: V) -> Result<()>
+    where V: IntoThing<TypedValueOr<TempIdHandle>> {
+        self.builder.add_kw(self.entity.clone(), a, v)
+    }
+
     /// Build the terms from this builder and transact them against the current
     /// `InProgress`. This method _always_ returns the `InProgress` -- failure doesn't
     /// imply an automatic rollback.
@@ -378,6 +415,38 @@ mod testing {
         } else {
             panic!("Should have rejected the entid.");
         }
+    }
+
+    #[test]
+    fn test_in_progress_builder() {
+        let mut sqlite = mentat_db::db::new_connection("").unwrap();
+        let mut conn = Conn::connect(&mut sqlite).unwrap();
+
+        // Give ourselves a schema to work with!
+        conn.transact(&mut sqlite, r#"[
+            [:db/add "o" :db/ident :foo/one]
+            [:db/add "o" :db/valueType :db.type/long]
+            [:db/add "o" :db/cardinality :db.cardinality/one]
+            [:db/add "m" :db/ident :foo/many]
+            [:db/add "m" :db/valueType :db.type/string]
+            [:db/add "m" :db/cardinality :db.cardinality/many]
+            [:db/add "r" :db/ident :foo/ref]
+            [:db/add "r" :db/valueType :db.type/ref]
+            [:db/add "r" :db/cardinality :db.cardinality/one]
+        ]"#).unwrap();
+
+        let in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
+
+        // We can use this or not!
+        let a_many = in_progress.get_entid(&kw!(:foo/many)).expect(":foo/many");
+
+        let mut builder = in_progress.builder();
+        let e_x = builder.named_tempid("x".into());
+        let v_many_1 = TypedValue::typed_string("Some text");
+        let v_many_2 = TypedValue::typed_string("Other text");
+        builder.add_kw(e_x.clone(), &kw!(:foo/many), v_many_1).expect("add succeeded");
+        builder.add(e_x.clone(), a_many, v_many_2).expect("add succeeded");
+        builder.commit().expect("commit succeeded");
     }
 
     #[test]

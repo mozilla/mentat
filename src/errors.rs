@@ -17,6 +17,7 @@ use std::collections::BTreeSet;
 use edn;
 use mentat_core::{
     Attribute,
+    ValueType,
 };
 use mentat_db;
 use mentat_query;
@@ -91,6 +92,11 @@ error_chain! {
         PreparedQuerySchemaMismatch {
             description("schema changed since query was prepared")
             display("schema changed since query was prepared")
+        }
+
+        ValueTypeMismatch(provided: ValueType, expected: ValueType) {
+            description("provided value doesn't match value type")
+            display("provided value of type {} doesn't match attribute value type {}", provided, expected)
         }
     }
 }
