@@ -214,43 +214,52 @@ fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
         .chain_err(|| "Could not get_user_version")
 }
 
-// TODO: rename "SQL" functions to align with "datoms" functions.
-pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
+/// Do just enough work that either `create_current_version` or sync can populate the DB.
+pub fn create_empty_current_version(conn: &mut rusqlite::Connection) -> Result<(rusqlite::Transaction, DB)> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Exclusive)?;
 
     for statement in (&V1_STATEMENTS).iter() {
         tx.execute(statement, &[])?;
     }
 
+    set_user_version(&tx, CURRENT_VERSION)?;
+
+    let bootstrap_schema = bootstrap::bootstrap_schema();
     let bootstrap_partition_map = bootstrap::bootstrap_partition_map();
+
+    Ok((tx, DB::new(bootstrap_partition_map, bootstrap_schema)))
+}
+
+// TODO: rename "SQL" functions to align with "datoms" functions.
+pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
+    let (tx, mut db) = create_empty_current_version(conn)?;
+
     // TODO: think more carefully about allocating new parts and bitmasking part ranges.
     // TODO: install these using bootstrap assertions.  It's tricky because the part ranges are implicit.
     // TODO: one insert, chunk into 999/3 sections, for safety.
     // This is necessary: `transact` will only UPDATE parts, not INSERT them if they're missing.
-    for (part, partition) in bootstrap_partition_map.iter() {
+    for (part, partition) in db.partition_map.iter() {
         // TODO: Convert "keyword" part to SQL using Value conversion.
         tx.execute("INSERT INTO parts VALUES (?, ?, ?)", &[part, &partition.start, &partition.index])?;
     }
 
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
-    let bootstrap_schema = bootstrap::bootstrap_schema();
     let bootstrap_schema_for_mutation = Schema::default(); // The bootstrap transaction will populate this schema.
-    let (_report, next_partition_map, next_schema) = transact(&tx, bootstrap_partition_map, &bootstrap_schema_for_mutation, &bootstrap_schema, bootstrap::bootstrap_entities())?;
+
+    let (_report, next_partition_map, next_schema) = transact(&tx, db.partition_map, &bootstrap_schema_for_mutation, &db.schema, bootstrap::bootstrap_entities())?;
     // TODO: validate metadata mutations that aren't schema related, like additional partitions.
     if let Some(next_schema) = next_schema {
-        if next_schema != bootstrap_schema {
+        if next_schema != db.schema {
             // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
             bail!(ErrorKind::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
         }
     }
 
-    set_user_version(&tx, CURRENT_VERSION)?;
-
     // TODO: use the drop semantics to do this automagically?
     tx.commit()?;
 
-    let bootstrap_db = DB::new(next_partition_map, bootstrap_schema);
-    Ok(bootstrap_db)
+    db.partition_map = next_partition_map;
+    Ok(db)
 }
 
 // (def v2-statements v1-statements)
