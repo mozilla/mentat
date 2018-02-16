@@ -138,7 +138,7 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn create_empty(path: &str) -> Result<Conn> {
+    pub fn open_empty(path: &str) -> Result<Store> {
         if !path.is_empty() {
             if Path::new(path).exists() {
                 bail!(ErrorKind::PathAlreadyExists(path.to_string()));
@@ -146,7 +146,11 @@ impl Store {
         }
 
         let mut connection = ::new_connection(path)?;
-        Conn::empty(&mut connection)
+        let conn = Conn::empty(&mut connection)?;
+        Ok(Store {
+            conn: conn,
+            sqlite: connection,
+        })
     }
 
     pub fn open(path: &str) -> Result<Store> {

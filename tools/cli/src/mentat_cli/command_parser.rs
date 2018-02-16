@@ -34,6 +34,7 @@ use edn;
 
 pub static HELP_COMMAND: &'static str = &"help";
 pub static OPEN_COMMAND: &'static str = &"open";
+pub static OPEN_EMPTY_COMMAND: &'static str = &"empty";
 pub static CLOSE_COMMAND: &'static str = &"close";
 pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
@@ -53,6 +54,7 @@ pub enum Command {
     Exit,
     Help(Vec<String>),
     Open(String),
+    OpenEmpty(String),
     Query(String),
     Schema,
     Sync(Vec<String>),
@@ -76,6 +78,7 @@ impl Command {
             &Command::Timer(_) |
             &Command::Help(_) |
             &Command::Open(_) |
+            &Command::OpenEmpty(_) |
             &Command::Close |
             &Command::Exit |
             &Command::Sync(_) |
@@ -91,6 +94,7 @@ impl Command {
             &Command::Timer(_) |
             &Command::Help(_) |
             &Command::Open(_) |
+            &Command::OpenEmpty(_) |
             &Command::Close |
             &Command::Exit |
             &Command::Sync(_) |
@@ -114,6 +118,9 @@ impl Command {
             },
             &Command::Open(ref args) => {
                 format!(".{} {}", OPEN_COMMAND, args)
+            },
+            &Command::OpenEmpty(ref args) => {
+                format!(".{} {}", OPEN_EMPTY_COMMAND, args)
             },
             &Command::Close => {
                 format!(".{}", CLOSE_COMMAND)
@@ -162,6 +169,19 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                             bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[1])));
                         }
                         Ok(Command::Open(args[0].clone()))
+                    });
+    
+    let open_empty_parser = string(OPEN_EMPTY_COMMAND)
+                    .with(spaces())
+                    .with(arguments())
+                    .map(|args| {
+                        if args.len() < 1 {
+                            bail!(cli::ErrorKind::CommandParse("Missing required argument".to_string()));
+                        }
+                        if args.len() > 1 {
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[1])));
+                        }
+                        Ok(Command::OpenEmpty(args[0].clone()))
                     });
 
     let no_arg_parser = || arguments()
@@ -236,10 +256,11 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 10], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 11], _>
           ([&mut try(help_parser),
             &mut try(timer_parser),
             &mut try(open_parser),
+            &mut try(open_empty_parser),
             &mut try(close_parser),
             &mut try(explain_query_parser),
             &mut try(exit_parser),

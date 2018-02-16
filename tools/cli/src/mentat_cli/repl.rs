@@ -189,6 +189,12 @@ impl Repl {
                     Err(e) => eprintln!("{:?}", e)
                 };
             }
+            Command::OpenEmpty(db) => {
+                match self.open_empty(db) {
+                    Ok(_) => println!("Empty database {:?} opened", self.db_name()),
+                    Err(e) => eprintln!("{}", e.to_string()),
+                };
+            },
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
             Command::QueryExplain(query) => self.explain_query(query),
@@ -221,6 +227,18 @@ impl Repl {
         let path = path.into();
         if self.path.is_empty() || path != self.path {
             let next = Store::open(path.as_str())?;
+            self.path = path;
+            self.store = next;
+        }
+
+        Ok(())
+    }
+
+    fn open_empty<T>(&mut self, path: T) -> ::mentat::errors::Result<()>
+    where T: Into<String> {
+        let path = path.into();
+        if self.path.is_empty() || path != self.path {
+            let next = Store::open_empty(path.as_str())?;
             self.path = path;
             self.store = next;
         }
