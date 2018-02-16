@@ -174,8 +174,23 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
     }
 }
 
+// For returning out of the downloader as an ordered list.
+#[derive(Debug)]
+pub struct Tx {
+    pub tx: Uuid,
+    pub parts: Vec<TxPart>,
+}
+
+pub enum SyncResult {
+    EmptyServer,
+    NoChanges,
+    ServerFastForward,
+    LocalFastForward(Vec<Tx>),
+    Merge,
+}
+
 impl Syncer {
-    fn upload_ours(db_tx: &mut rusqlite::Transaction, from_tx: Option<Entid>, remote_client: &RemoteClient, remote_head: &Uuid) -> Result<()> {
+    fn fast_forward_server(db_tx: &mut rusqlite::Transaction, from_tx: Option<Entid>, remote_client: &RemoteClient, remote_head: &Uuid) -> Result<()> {
         let mut uploader = UploadingTxReceiver::new(remote_client, remote_head);
         Processor::process(db_tx, from_tx, &mut uploader)?;
         if !uploader.is_done {
@@ -197,19 +212,45 @@ impl Syncer {
         Ok(())
     }
 
-    pub fn flow(sqlite: &mut rusqlite::Connection, server_uri: &String, user_uuid: &Uuid) -> Result<()> {
+    fn download_theirs(_db_tx: &mut rusqlite::Transaction, remote_client: &RemoteClient, remote_head: &Uuid) -> Result<Vec<Tx>> {
+        let new_txs = remote_client.get_transactions(remote_head)?;
+        let mut tx_list = Vec::new();
+
+        for tx in new_txs {
+            let mut tx_parts = Vec::new();
+            let chunks = remote_client.get_chunks(&tx)?;
+
+            // We pass along all of the downloaded parts, including transaction's
+            // metadata datom. Transactor is expected to do the right thing, and
+            // use txInstant from one of our datoms.
+            for chunk in chunks {
+                let part = remote_client.get_chunk(&chunk)?;
+                tx_parts.push(part);
+            }
+
+            tx_list.push(Tx {
+                tx: tx,
+                parts: tx_parts
+            });
+        }
+        
+        d(&format!("got tx list: {:?}", &tx_list));
+
+        Ok(tx_list)
+    }
+
+    pub fn flow(db_tx: &mut rusqlite::Transaction, server_uri: &String, user_uuid: &Uuid) -> Result<SyncResult> {
         d(&format!("sync flowing"));
 
-        ensure_current_version(sqlite)?;
+        ensure_current_version(db_tx)?;
         
         // TODO configure this sync with some auth data
         let remote_client = RemoteClient::new(server_uri.clone(), user_uuid.clone());
-        let mut db_tx = sqlite.transaction()?;
 
         let remote_head = remote_client.get_head()?;
         d(&format!("remote head {:?}", remote_head));
 
-        let locally_known_remote_head = SyncMetadataClient::remote_head(&db_tx)?;
+        let locally_known_remote_head = SyncMetadataClient::remote_head(db_tx)?;
         d(&format!("local head {:?}", locally_known_remote_head));
 
         // Local head: latest transaction that we have in the store,
@@ -220,24 +261,25 @@ impl Syncer {
         let mut inquiring_tx_receiver = InquiringTxReceiver::new();
         // TODO don't just start from the beginning... but then again, we should do this
         // without walking the table at all, and use the tx index.
-        Processor::process(&db_tx, None, &mut inquiring_tx_receiver)?;
+        Processor::process(db_tx, None, &mut inquiring_tx_receiver)?;
         if !inquiring_tx_receiver.is_done {
             bail!(ErrorKind::TxProcessorUnfinished);
         }
-        let have_local_changes = match inquiring_tx_receiver.last_tx {
+        let (have_local_changes, local_store_empty) = match inquiring_tx_receiver.last_tx {
             Some(tx) => {
-                match TxMapper::get(&db_tx, tx)? {
-                    Some(_) => false,
-                    None => true
+                match TxMapper::get(db_tx, tx)? {
+                    Some(_) => (false, false),
+                    None => (true, false)
                 }
             },
-            None => false
+            None => (false, true)
         };
 
         // Check if the server is empty - populate it.
         if remote_head == Uuid::nil() {
             d(&format!("empty server!"));
-            Syncer::upload_ours(&mut db_tx, None, &remote_client, &remote_head)?;
+            Syncer::fast_forward_server(db_tx, None, &remote_client, &remote_head)?;
+            return Ok(SyncResult::EmptyServer);
         
         // Check if the server is the same as us, and if our HEAD moved.
         } else if locally_known_remote_head == remote_head {
@@ -245,36 +287,38 @@ impl Syncer {
             
             if !have_local_changes {
                 d(&format!("local HEAD did not move. Nothing to do!"));
-                return Ok(());
+                return Ok(SyncResult::NoChanges);
             }
 
             d(&format!("local HEAD moved."));
             // TODO it's possible that we've successfully advanced remote head previously,
             // but failed to advance our own local head. If that's the case, and we can recognize it,
             // our sync becomes just bumping our local head. AFAICT below would currently fail.
-            if let Some(upload_from_tx) = TxMapper::get_tx_for_uuid(&db_tx, &locally_known_remote_head)? {
+            if let Some(upload_from_tx) = TxMapper::get_tx_for_uuid(db_tx, &locally_known_remote_head)? {
                 d(&format!("Fast-forwarding the server."));
-                Syncer::upload_ours(&mut db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
+                Syncer::fast_forward_server(db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
+                return Ok(SyncResult::ServerFastForward);
             } else {
                 d(&format!("Unable to fast-forward the server; missing local tx mapping"));
                 bail!(ErrorKind::TxIncorrectlyMapped(0));
             }
             
-        // We diverged from the server.
-        // We'll need to rebase/merge ourselves on top of it.
+        // We diverged from the server. If we're lucky, we can just fast-forward local.
+        // Otherwise, a merge (or a rebase) is required.
         } else {
             d(&format!("server changed since last sync."));
 
-            bail!(ErrorKind::NotYetImplemented(
-                format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
+            // TODO local store moved forward since we last synced. Need to merge or rebase.
+            if !local_store_empty && have_local_changes {
+                return Ok(SyncResult::Merge);
+            }
+
+            d(&format!("fast-forwarding local store."));
+            return Ok(SyncResult::LocalFastForward(
+                Syncer::download_theirs(db_tx, &remote_client, &locally_known_remote_head)?
             ));
         }
-
-        // Commit everything, if there's anything to commit!
-        // Any new tx->uuid mappings and the new HEAD. We're synced!
-        db_tx.commit()?;
-
-        Ok(())
+        // Our caller will commit the tx with our changes when it's done.
     }
 }
 
@@ -289,9 +333,24 @@ struct SerializedTransaction<'a> {
     chunks: &'a Vec<Uuid>
 }
 
+#[derive(Deserialize)]
+struct DeserializableTransaction {
+    parent: Uuid,
+    chunks: Vec<Uuid>,
+    id: Uuid,
+    seq: i64,
+}
+
+#[derive(Deserialize)]
+struct SerializedTransactions {
+    limit: i64,
+    from: Uuid,
+    transactions: Vec<Uuid>,
+}
+
 struct RemoteClient {
     base_uri: String,
-    user_uuid: Uuid
+    user_uuid: Uuid,
 }
 
 
@@ -308,9 +367,14 @@ impl RemoteClient {
         format!("{}/{}", self.base_uri, self.user_uuid)
     }
 
+    // TODO what we want is a method that returns a deserialized json structure.
+    // It'll need a type T so that consumers can specify what downloaded json will
+    // map to. I ran into borrow issues doing that - probably need to restructure
+    // this and use PhantomData markers or somesuch.
+    // But for now, we get code duplication.
     fn get_uuid(&self, uri: String) -> Result<Uuid> {
         let mut core = Core::new()?;
-        // TODO enable TLS, see https://github.com/mozilla/mentat/issues/569
+        // TODO https://github.com/mozilla/mentat/issues/569
         // let client = hyper::Client::configure()
         //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
         //     .build(&core.handle());
@@ -326,10 +390,10 @@ impl RemoteClient {
             println!("Response: {}", res.status());
 
             res.body().concat2().and_then(move |body| {
-                let head_json: SerializedHead = serde_json::from_slice(&body).map_err(|e| {
+                let json: SerializedHead = serde_json::from_slice(&body).map_err(|e| {
                     std::io::Error::new(std::io::ErrorKind::Other, e)
                 })?;
-                Ok(head_json)
+                Ok(json)
             })
         });
 
@@ -343,7 +407,7 @@ impl RemoteClient {
     fn put<T>(&self, uri: String, payload: T, expected: StatusCode) -> Result<()>
     where hyper::Body: std::convert::From<T>, {
         let mut core = Core::new()?;
-        // TODO enable TLS, see https://github.com/mozilla/mentat/issues/569
+        // TODO https://github.com/mozilla/mentat/issues/569
         // let client = hyper::Client::configure()
         //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
         //     .build(&core.handle());
@@ -370,6 +434,105 @@ impl RemoteClient {
 
         core.run(put)?;
         Ok(())
+    }
+
+    fn get_transactions(&self, parent_uuid: &Uuid) -> Result<Vec<Uuid>> {
+        let mut core = Core::new()?;
+        // TODO https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
+
+        let uri = format!("{}/transactions?from={}", self.bound_base_uri(), parent_uuid);
+        let uri = uri.parse()?;
+
+        d(&format!("parsed uri {:?}", uri));
+        
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let json: SerializedTransactions = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(json)
+            })
+        });
+
+        d(&format!("running..."));
+
+        let transactions_json = core.run(work)?;
+        d(&format!("got transactions: {:?}", &transactions_json.transactions));
+        Ok(transactions_json.transactions)
+    }
+
+    fn get_chunks(&self, transaction_uuid: &Uuid) -> Result<Vec<Uuid>> {
+        let mut core = Core::new()?;
+        // TODO https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
+
+        let uri = format!("{}/transactions/{}", self.bound_base_uri(), transaction_uuid);
+        let uri = uri.parse()?;
+
+        d(&format!("parsed uri {:?}", uri));
+        
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let json: DeserializableTransaction = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(json)
+            })
+        });
+
+        d(&format!("running..."));
+
+        let transaction_json = core.run(work)?;
+        d(&format!("got transaction chunks: {:?}", &transaction_json.chunks));
+        Ok(transaction_json.chunks)
+    }
+
+    fn get_chunk(&self, chunk_uuid: &Uuid) -> Result<TxPart> {
+        let mut core = Core::new()?;
+        // TODO https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
+
+        let uri = format!("{}/chunks/{}", self.bound_base_uri(), chunk_uuid);
+        let uri = uri.parse()?;
+
+        d(&format!("parsed uri {:?}", uri));
+        
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let json: TxPart = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(json)
+            })
+        });
+
+        d(&format!("running..."));
+
+        let chunk = core.run(work)?;
+        d(&format!("got transaction chunk: {:?}", &chunk));
+        Ok(chunk)
     }
 
     fn put_transaction(&self, transaction_uuid: &Uuid, parent_uuid: &Uuid, chunks: &Vec<Uuid>) -> Result<()> {

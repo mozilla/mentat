@@ -52,16 +52,13 @@ use mentat_db::{
 };
 
 use mentat_db::internal_types::TermWithTempIds;
+use mentat_db::db::PartitionMapping;
 
 use mentat_tx;
 
 use mentat_tx::entities::TempId;
 
 use mentat_tx_parser;
-
-use mentat_tolstoy::Syncer;
-
-use uuid::Uuid;
 
 use entity_builder::{
     InProgressBuilder,
@@ -129,8 +126,8 @@ pub struct Conn {
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
 /// for applications that don't require complex connection management.
 pub struct Store {
+    pub sqlite: rusqlite::Connection,
     conn: Conn,
-    sqlite: rusqlite::Connection,
 }
 
 impl Store {
@@ -157,6 +154,12 @@ impl Store {
             sqlite: connection,
         })
     }
+
+    pub fn fast_forward_user_partition(&mut self, new_head: Entid) -> Result<()> {
+        let mut metadata = self.conn.metadata.lock().unwrap();
+        metadata.partition_map.expand_up_to(":db.part/user", new_head);
+        db::update_partition_map(&mut self.sqlite, &metadata.partition_map).map_err(|e| e.into())
+    }
 }
 
 pub trait Queryable {
@@ -170,10 +173,6 @@ pub trait Queryable {
         where E: Into<Entid>;
     fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
         where E: Into<Entid>;
-}
-
-pub trait Syncable {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
 }
 
 /// Represents an in-progress, not yet committed, set of changes to the store.
@@ -491,13 +490,6 @@ pub enum CacheDirection {
 pub enum CacheAction {
     Register,
     Deregister,
-}
-
-impl Syncable for Store {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
-        let uuid = Uuid::parse_str(&user_uuid)?;
-        Ok(Syncer::flow(&mut self.sqlite, server_uri, &uuid)?)
-    }
 }
 
 impl Conn {

@@ -33,6 +33,13 @@ impl TxMapper {
         Ok(())
     }
 
+    // TODO upsert...? error checking..?
+    pub fn set_tx_uuid(db_tx: &mut rusqlite::Transaction, tx: Entid, uuid: &Uuid) -> Result<()> {
+        let uuid_bytes = uuid.as_bytes().to_vec();
+        db_tx.execute("INSERT INTO tolstoy_tu (tx, uuid) VALUES (?, ?)", &[&tx, &uuid_bytes])?;
+        Ok(())
+    }
+
     // TODO for when we're downloading, right?
     pub fn get_or_set_uuid_for_tx(db_tx: &mut rusqlite::Transaction, tx: Entid) -> Result<Uuid> {
         match TxMapper::get(db_tx, tx)? {
@@ -92,8 +99,8 @@ pub mod tests {
 
     #[test]
     fn test_getters() {
-        let mut conn = schema::tests::setup_conn();
-        let mut tx = conn.transaction().expect("db tx");
+        let mut conn = schema::tests::setup_conn_bare();
+        let mut tx = schema::tests::setup_tx(&mut conn);
         assert_eq!(None, TxMapper::get(&mut tx, 1).expect("success"));
         let set_uuid = TxMapper::get_or_set_uuid_for_tx(&mut tx, 1).expect("success");
         assert_eq!(Some(set_uuid), TxMapper::get(&mut tx, 1).expect("success"));
@@ -101,8 +108,8 @@ pub mod tests {
 
     #[test]
     fn test_bulk_setter() {
-        let mut conn = schema::tests::setup_conn();
-        let mut tx = conn.transaction().expect("db tx");
+        let mut conn = schema::tests::setup_conn_bare();
+        let mut tx = schema::tests::setup_tx(&mut conn);
         let mut map = HashMap::new();
 
         TxMapper::set_bulk(&mut tx, &map).expect("empty map success");

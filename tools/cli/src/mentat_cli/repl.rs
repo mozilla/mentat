@@ -32,10 +32,11 @@ use mentat::{
     QueryOutput,
     QueryResults,
     Store,
-    Syncable,
     TxReport,
     TypedValue,
 };
+
+use mentat::sync::Syncable;
 
 use command_parser::{
     Command,

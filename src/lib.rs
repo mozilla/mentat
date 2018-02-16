@@ -29,9 +29,11 @@ extern crate mentat_query_parser;
 extern crate mentat_query_projector;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
-extern crate mentat_tolstoy;
 extern crate mentat_tx;
 extern crate mentat_tx_parser;
+
+#[cfg(feature = "syncable")]
+extern crate mentat_tolstoy;
 
 pub use mentat_core::{
     Attribute,
@@ -95,6 +97,13 @@ pub mod conn;
 pub mod query;
 pub mod entity_builder;
 
+#[cfg(feature = "syncable")]
+pub mod sync;
+
+pub fn get_name() -> String {
+    return String::from("mentat");
+}
+
 pub use query::{
     IntoResult,
     PlainSymbol,
@@ -115,7 +124,6 @@ pub use conn::{
     InProgress,
     Metadata,
     Queryable,
-    Syncable,
     Store,
 };
 

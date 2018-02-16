@@ -108,5 +108,10 @@ error_chain! {
             description("provided value doesn't match value type")
             display("provided value of type {} doesn't match attribute value type {}", provided, expected)
         }
+
+        NotYetImplemented(t: String) {
+            description("not yet implemented")
+            display("not yet implemented: {}", t)
+        }
     }
 }

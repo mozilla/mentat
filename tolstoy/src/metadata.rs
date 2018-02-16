@@ -54,16 +54,16 @@ mod tests {
 
     #[test]
     fn test_get_remote_head_default() {
-        let mut conn = schema::tests::setup_conn();
-        let tx = conn.transaction().expect("db tx");
+        let mut conn = schema::tests::setup_conn_bare();
+        let tx = schema::tests::setup_tx(&mut conn);
         assert_eq!(Uuid::nil(), SyncMetadataClient::remote_head(&tx).expect("fetch succeeded"));
     }
 
     #[test]
     fn test_set_and_get_remote_head() {
-        let mut conn = schema::tests::setup_conn();
+        let mut conn = schema::tests::setup_conn_bare();
+        let tx = schema::tests::setup_tx(&mut conn);
         let uuid = Uuid::new_v4();
-        let tx = conn.transaction().expect("db tx");
         SyncMetadataClient::set_remote_head(&tx, &uuid).expect("update succeeded");
         assert_eq!(uuid, SyncMetadataClient::remote_head(&tx).expect("fetch succeeded"));
     }

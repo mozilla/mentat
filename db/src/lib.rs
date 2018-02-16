@@ -47,8 +47,7 @@ mod tx;
 pub mod types;
 mod upsert_resolution;
 
-// Export these for reference from tests. cfg(test) should work, but doesn't.
-// #[cfg(test)]
+// Export these for reference from sync code and tests.
 pub use bootstrap::{
     TX0,
     USER0,
