@@ -64,7 +64,7 @@ impl TxMapper {
         Ok(Some(txs.remove(0)?))
     }
 
-    fn get(db_tx: &mut rusqlite::Transaction, tx: Entid) -> Result<Option<Uuid>> {
+    pub fn get(db_tx: &rusqlite::Transaction, tx: Entid) -> Result<Option<Uuid>> {
         let mut stmt = db_tx.prepare_cached(
             "SELECT uuid FROM tolstoy_tu WHERE tx = ?"
         )?;
