@@ -77,6 +77,7 @@ use mentat_db::{
 };
 
 use mentat_db::internal_types::TermWithTempIds;
+use mentat_db::db::PartitionMapping;
 
 use mentat_query_pull::{
     pull_attributes_for_entities,
@@ -87,10 +88,6 @@ use edn::entities::{
     TempId,
     OpType,
 };
-
-use mentat_tolstoy::Syncer;
-
-use uuid::Uuid;
 
 use entity_builder::{
     InProgressBuilder,
@@ -167,8 +164,8 @@ pub struct Conn {
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
 /// for applications that don't require complex connection management.
 pub struct Store {
+    pub sqlite: rusqlite::Connection,
     conn: Conn,
-    sqlite: rusqlite::Connection,
 }
 
 impl Store {
@@ -187,6 +184,12 @@ impl Store {
         let report = ip.transact(transaction)?;
         ip.commit()?;
         Ok(report)
+    }
+
+    pub fn fast_forward_user_partition(&mut self, new_head: Entid) -> Result<()> {
+        let mut metadata = self.conn.metadata.lock().unwrap();
+        metadata.partition_map.expand_up_to(":db.part/user", new_head);
+        db::update_partition_map(&mut self.sqlite, &metadata.partition_map).map_err(|e| e.into())
     }
 }
 
@@ -209,10 +212,6 @@ pub trait Pullable {
           A: IntoIterator<Item=Entid>;
     fn pull_attributes_for_entity<A>(&self, entity: Entid, attributes: A) -> Result<StructuredMap>
     where A: IntoIterator<Item=Entid>;
-}
-
-pub trait Syncable {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
 }
 
 /// Represents an in-progress, not yet committed, set of changes to the store.
@@ -684,17 +683,6 @@ pub enum CacheAction {
     Deregister,
 }
 
-impl Syncable for Store {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
-        let uuid = Uuid::parse_str(&user_uuid)?;
-        let mut db_tx = self.sqlite.transaction()?;
-        Syncer::flow(&mut db_tx, server_uri, &uuid)?;
-        db_tx.commit()?;
-
-        Ok(())
-    }
-}
-
 impl Conn {
     // Intentionally not public.
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
@@ -975,6 +963,8 @@ mod tests {
         Duration,
         Instant,
     };
+
+    use uuid::Uuid;
 
     use mentat_core::{
         CachedAttributes,

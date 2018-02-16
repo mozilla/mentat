@@ -33,6 +33,13 @@ impl TxMapper {
         Ok(())
     }
 
+    // TODO upsert...? error checking..?
+    pub fn set_tx_uuid(db_tx: &mut rusqlite::Transaction, tx: Entid, uuid: &Uuid) -> Result<()> {
+        let uuid_bytes = uuid.as_bytes().to_vec();
+        db_tx.execute("INSERT INTO tolstoy_tu (tx, uuid) VALUES (?, ?)", &[&tx, &uuid_bytes])?;
+        Ok(())
+    }
+
     // TODO for when we're downloading, right?
     pub fn get_or_set_uuid_for_tx(db_tx: &mut rusqlite::Transaction, tx: Entid) -> Result<Uuid> {
         match TxMapper::get(db_tx, tx)? {
