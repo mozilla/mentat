@@ -20,6 +20,8 @@ extern crate getopts;
 extern crate linefeed;
 extern crate rusqlite;
 extern crate tabwriter;
+extern crate termion;
+extern crate time;
 
 extern crate mentat;
 extern crate edn;
@@ -28,6 +30,13 @@ extern crate mentat_core;
 extern crate mentat_db;
 
 use getopts::Options;
+
+use termion::{
+    color,
+};
+
+static BLUE: color::Rgb = color::Rgb(0x99, 0xaa, 0xFF);
+static GREEN: color::Rgb = color::Rgb(0x77, 0xFF, 0x99);
 
 pub mod command_parser;
 pub mod input;

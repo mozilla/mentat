@@ -14,6 +14,16 @@ use std::process;
 
 use tabwriter::TabWriter;
 
+use termion::{
+    color,
+    style,
+};
+
+use time::{
+    Duration,
+    PreciseTime,
+};
+
 use mentat::{
     Queryable,
     QueryExplanation,
@@ -69,10 +79,42 @@ lazy_static! {
     };
 }
 
+fn eprint_out(s: &str) {
+    eprint!("{green}{s}{reset}", green = color::Fg(::GREEN), s = s, reset = color::Fg(color::Reset));
+}
+
+fn format_time(duration: Duration) {
+    let m_micros = duration.num_microseconds();
+    if let Some(micros) = m_micros {
+        if micros < 10_000 {
+            eprintln!("{bold}{micros}{reset}µs",
+                      bold = style::Bold,
+                      micros = micros,
+                      reset = style::Reset);
+            return;
+        }
+    }
+    let millis = duration.num_milliseconds();
+    if millis < 5_000 {
+        eprintln!("{bold}{millis}.{micros}{reset}ms",
+                    bold = style::Bold,
+                    millis = millis,
+                    micros = m_micros.unwrap_or(0) / 1000,
+                    reset = style::Reset);
+        return;
+    }
+    eprintln!("{bold}{seconds}.{millis}{reset}s",
+              bold = style::Bold,
+              seconds = duration.num_seconds(),
+              millis = millis,
+              reset = style::Reset);
+}
+
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
     path: String,
     store: Store,
+    timer_on: bool,
 }
 
 impl Repl {
@@ -90,6 +132,7 @@ impl Repl {
         Ok(Repl{
             path: "".to_string(),
             store: store,
+            timer_on: false,
         })
     }
 
@@ -127,8 +170,13 @@ impl Repl {
 
     /// Runs a single command input.
     fn handle_command(&mut self, cmd: Command) {
+        let should_time = self.timer_on && cmd.is_timed();
+
+        let start = PreciseTime::now();
+
         match cmd {
             Command::Help(args) => self.help_command(args),
+            Command::Timer(on) => self.toggle_timer(on),
             Command::Open(db) => {
                 match self.open(db) {
                     Ok(_) => println!("Database {:?} opened", self.db_name()),
@@ -159,6 +207,13 @@ impl Repl {
                 process::exit(0);
             }
         }
+
+        let end = PreciseTime::now();
+        if should_time {
+            eprint_out("Run time");
+            eprint!(": ");
+            format_time(start.to(end));
+        }
     }
 
     fn open<T>(&mut self, path: T) -> ::mentat::errors::Result<()>
@@ -180,6 +235,10 @@ impl Repl {
             Ok(_) => println!("Database {:?} closed.", old_db_name),
             Err(e) => eprintln!("{}", e),
         };
+    }
+
+    fn toggle_timer(&mut self, on: bool) {
+        self.timer_on = on;
     }
 
     fn help_command(&self, args: Vec<String>) {

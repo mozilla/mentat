@@ -17,6 +17,10 @@ use linefeed::{
     Signal,
 };
 
+use termion::{
+    color,
+};
+
 use self::InputResult::*;
 
 use command_parser::{
@@ -95,7 +99,11 @@ impl InputReader {
     /// In this case, the input received so far is buffered internally.
     pub fn read_input(&mut self) -> Result<InputResult, cli::Error> {
         let prompt = if self.in_process_cmd.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT };
-        let line = match self.read_line(prompt) {
+        let prompt = format!("{blue}{prompt}{reset}",
+                             blue = color::Fg(::BLUE),
+                             prompt = prompt,
+                             reset = color::Fg(color::Reset));
+        let line = match self.read_line(prompt.as_str()) {
             UserAction::TextInput(s) => s,
             UserAction::Interrupt if self.in_process_cmd.is_some() => {
                 self.in_process_cmd = None;

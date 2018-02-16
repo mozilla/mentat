@@ -38,6 +38,7 @@ pub static CLOSE_COMMAND: &'static str = &"close";
 pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
 pub static SCHEMA_COMMAND: &'static str = &"schema";
+pub static LONG_TIMER_COMMAND: &'static str = &"timer";
 pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
 pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
 pub static LONG_EXIT_COMMAND: &'static str = &"exit";
@@ -55,6 +56,7 @@ pub enum Command {
     Query(String),
     Schema,
     Sync(Vec<String>),
+    Timer(bool),
     Transact(String),
     QueryExplain(String),
 }
@@ -71,12 +73,27 @@ impl Command {
             &Command::QueryExplain(ref args) => {
                 edn::parse::value(&args).is_ok()
             },
+            &Command::Timer(_) |
             &Command::Help(_) |
             &Command::Open(_) |
             &Command::Close |
             &Command::Exit |
             &Command::Sync(_) |
             &Command::Schema => true
+        }
+    }
+
+    pub fn is_timed(&self) -> bool {
+        match self {
+            &Command::Query(_) |
+            &Command::Transact(_)  => true,
+            &Command::QueryExplain(_) |
+            &Command::Timer(_) |
+            &Command::Help(_) |
+            &Command::Open(_) |
+            &Command::Close |
+            &Command::Exit |
+            &Command::Schema => false
         }
     }
 
@@ -87,6 +104,9 @@ impl Command {
             },
             &Command::Transact(ref args) => {
                 format!(".{} {}", LONG_TRANSACT_COMMAND, args)
+            },
+            &Command::Timer(on) => {
+                format!(".{} {}", LONG_TIMER_COMMAND, on)
             },
             &Command::Help(ref args) => {
                 format!(".{} {:?}", HELP_COMMAND, args)
@@ -121,6 +141,13 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                     .with(arguments())
                     .map(|args| {
                         Ok(Command::Help(args.clone()))
+                    });
+
+    let timer_parser = string(LONG_TIMER_COMMAND)
+                    .with(spaces())
+                    .with(string("on").map(|_| true).or(string("off").map(|_| false)))
+                    .map(|args| {
+                        Ok(Command::Timer(args))
                     });
 
     let open_parser = string(OPEN_COMMAND)
@@ -210,6 +237,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
     .skip(token('.'))
     .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 9], _>
           ([&mut try(help_parser),
+            &mut try(timer_parser),
             &mut try(open_parser),
             &mut try(close_parser),
             &mut try(explain_query_parser),
