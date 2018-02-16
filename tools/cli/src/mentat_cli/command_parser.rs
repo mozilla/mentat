@@ -93,6 +93,7 @@ impl Command {
             &Command::Open(_) |
             &Command::Close |
             &Command::Exit |
+            &Command::Sync(_) |
             &Command::Schema => false
         }
     }
@@ -235,7 +236,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 9], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 10], _>
           ([&mut try(help_parser),
             &mut try(timer_parser),
             &mut try(open_parser),
