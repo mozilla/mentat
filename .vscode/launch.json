@@ -6,6 +6,12 @@
     "configurations": [
         {
             "type": "lldb",
+            "request": "attach",
+            "name": "Attach to CLI (debug)",
+            "program": "${workspaceFolder}/target/debug/mentat_cli"
+        },
+        {
+            "type": "lldb",
             "request": "launch",
             "name": "CLI",
             "stdio": "*",
