@@ -59,9 +59,14 @@ error_chain! {
             display("encountered more than one metadata value for key: {}", k)
         }
 
-        UploadingProcessorUnfinished {
-            description("Uploading Tx processor couldn't finish")
-            display("Uploading Tx processor couldn't finish")
+        TxProcessorUnfinished {
+            description("Tx processor couldn't finish")
+            display("Tx processor couldn't finish")
+        }
+
+        BadServerResponse(s: String) {
+            description("Received bad response from the server")
+            display("Received bad response from the server: {}", s)
         }
     }
 }

@@ -30,6 +30,7 @@ use mentat::{
     QueryOutput,
     QueryResults,
     Store,
+    Syncable,
     TxReport,
     TypedValue,
 };
@@ -41,6 +42,7 @@ use command_parser::{
     LONG_QUERY_COMMAND,
     SHORT_QUERY_COMMAND,
     SCHEMA_COMMAND,
+    SYNC_COMMAND,
     LONG_TRANSACT_COMMAND,
     SHORT_TRANSACT_COMMAND,
     LONG_EXIT_COMMAND,
@@ -67,6 +69,7 @@ lazy_static! {
         map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
         map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
         map.insert(SCHEMA_COMMAND, "Output the schema for the current open database.");
+        map.insert(SYNC_COMMAND, "Synchronize database against a Sync Server URL for a provided user UUID.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
         map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
         map.insert(LONG_QUERY_EXPLAIN_COMMAND, "Show the SQL and query plan that would be executed for a given query.");
@@ -180,6 +183,12 @@ impl Repl {
                     Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
+            Command::Sync(args) => {
+                match self.store.sync(&args[0], &args[1]) {
+                    Ok(_) => println!("Synced!"),
+                    Err(e) => eprintln!("{:?}", e)
+                };
+            }
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
             Command::QueryExplain(query) => self.explain_query(query),

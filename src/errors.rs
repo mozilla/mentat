@@ -12,6 +12,8 @@
 
 use rusqlite;
 
+use uuid;
+
 use std::collections::BTreeSet;
 
 use edn;
@@ -26,6 +28,7 @@ use mentat_query_parser;
 use mentat_query_projector;
 use mentat_query_translator;
 use mentat_sql;
+use mentat_tolstoy;
 use mentat_tx_parser;
 
 error_chain! {
@@ -36,6 +39,7 @@ error_chain! {
     foreign_links {
         EdnParseError(edn::ParseError);
         Rusqlite(rusqlite::Error);
+        UuidParseError(uuid::ParseError);
     }
 
     links {
@@ -46,6 +50,7 @@ error_chain! {
         TranslatorError(mentat_query_translator::Error, mentat_query_translator::ErrorKind);
         SqlError(mentat_sql::Error, mentat_sql::ErrorKind);
         TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
+        SyncError(mentat_tolstoy::Error, mentat_tolstoy::ErrorKind);
     }
 
     errors {

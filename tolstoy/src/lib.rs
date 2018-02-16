@@ -21,6 +21,7 @@ extern crate lazy_static;
 extern crate serde_derive;
 
 extern crate hyper;
+extern crate hyper_tls;
 extern crate tokio_core;
 extern crate futures;
 extern crate serde;
@@ -37,3 +38,10 @@ pub mod tx_processor;
 pub mod errors;
 pub mod syncer;
 pub mod tx_mapper;
+pub use syncer::Syncer;
+pub use errors::{
+    Error,
+    ErrorKind,
+    Result,
+    ResultExt,
+};

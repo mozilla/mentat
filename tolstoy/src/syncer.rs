@@ -9,16 +9,16 @@
 // specific language governing permissions and limitations under the License.
 
 use std;
-use std::str::FromStr;
 use std::collections::HashMap;
 
 use futures::{future, Future, Stream};
 use hyper;
-use hyper::Client;
+use hyper_tls;
 use hyper::{Method, Request, StatusCode, Error as HyperError};
 use hyper::header::{ContentType};
 use rusqlite;
-use serde_cbor;
+// TODO:
+// use serde_cbor;
 use serde_json;
 use tokio_core::reactor::Core;
 use uuid::Uuid;
@@ -26,6 +26,7 @@ use uuid::Uuid;
 use mentat_core::Entid;
 use metadata::SyncMetadataClient;
 use metadata::HeadTrackable;
+use schema::ensure_current_version;
 
 use errors::{
     ErrorKind,
@@ -40,10 +41,57 @@ use tx_processor::{
 
 use tx_mapper::TxMapper;
 
-static API_VERSION: &str = "0.1";
-static BASE_URL: &str = "https://mentat.dev.lcip.org/mentatsync/";
+// TODO it would be nice to be able to pass
+// in a logger into Syncer::flow; would allow for a "debug mode"
+// and getting useful logs out of clients.
+// Below is some debug Android-friendly logging:
+
+// use std::os::raw::c_char;
+// use std::os::raw::c_int;
+// use std::ffi::CString;
+// pub const ANDROID_LOG_DEBUG: i32 = 3;
+// extern { pub fn __android_log_write(prio: c_int, tag: *const c_char, text: *const c_char) -> c_int; }
+
+pub fn d(message: &str) {
+    println!("d: {}", message);
+    // let message = CString::new(message).unwrap();
+    // let message = message.as_ptr();
+    // let tag = CString::new("RustyToodle").unwrap();
+    // let tag = tag.as_ptr();
+    // unsafe { __android_log_write(ANDROID_LOG_DEBUG, tag, message) };
+}
 
 pub struct Syncer {}
+
+// TODO this is sub-optimal, we don't need to walk the table
+// to query the last thing in it w/ an index on tx!!
+// but it's the hammer at hand!
+struct InquiringTxReceiver {
+    pub last_tx: Option<Entid>,
+    pub is_done: bool,
+}
+
+impl InquiringTxReceiver {
+    fn new() -> InquiringTxReceiver {
+        InquiringTxReceiver {
+            last_tx: None,
+            is_done: false,
+        }
+    }
+}
+
+impl TxReceiver for InquiringTxReceiver {
+    fn tx<T>(&mut self, tx_id: Entid, _datoms: &mut T) -> Result<()>
+    where T: Iterator<Item=TxPart> {
+        self.last_tx = Some(tx_id);
+        Ok(())
+    }
+
+    fn done(&mut self) -> Result<()> {
+        self.is_done = true;
+        Ok(())
+    }
+}
 
 struct UploadingTxReceiver<'c> {
     pub tx_temp_uuids: HashMap<Entid, Uuid>,
@@ -66,7 +114,7 @@ impl<'c> UploadingTxReceiver<'c> {
 }
 
 impl<'c> TxReceiver for UploadingTxReceiver<'c> {
-    fn tx<T>(&mut self, tx_id: Entid, d: &mut T) -> Result<()>
+    fn tx<T>(&mut self, tx_id: Entid, datoms: &mut T) -> Result<()>
     where T: Iterator<Item=TxPart> {
         // Yes, we generate a new UUID for a given Tx, even if we might
         // already have one mapped locally. Pre-existing local mapping will
@@ -82,10 +130,14 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
         // TODO separate bits of network work should be combined into single 'future'
 
         // Upload all chunks.
-        for datom in d {
+        for datom in datoms {
             let datom_uuid = Uuid::new_v4();
             tx_chunks.push(datom_uuid);
-            self.remote_client.put_chunk(&datom_uuid, serde_cbor::to_vec(&datom)?)?
+            d(&format!("putting chunk: {:?}, {:?}", &datom_uuid, &datom));
+            // TODO switch over to CBOR once we're past debugging stuff.
+            // let cbor_val = serde_cbor::to_value(&datom)?;
+            // self.remote_client.put_chunk(&datom_uuid, &serde_cbor::ser::to_vec_sd(&cbor_val)?)?;
+            self.remote_client.put_chunk(&datom_uuid, &serde_json::to_string(&datom)?)?;
         }
 
         // Upload tx.
@@ -95,11 +147,18 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
         // Comes at a cost of possibly increasing racing against other clients.
         match self.rolling_temp_head {
             Some(parent) => {
+                d(&format!("putting transaction: {:?}, {:?}, {:?}", &tx_uuid, &parent, &tx_chunks));
                 self.remote_client.put_transaction(&tx_uuid, &parent, &tx_chunks)?;
-                self.rolling_temp_head = Some(tx_uuid.clone());
+                
             },
-            None => self.remote_client.put_transaction(&tx_uuid, self.remote_head, &tx_chunks)?
+            None => {
+                d(&format!("putting transaction: {:?}, {:?}, {:?}", &tx_uuid, &self.remote_head, &tx_chunks));
+                self.remote_client.put_transaction(&tx_uuid, self.remote_head, &tx_chunks)?;
+            }
         }
+
+        d(&format!("updating rolling head: {:?}", tx_uuid));
+        self.rolling_temp_head = Some(tx_uuid.clone());
 
         Ok(())
     }
@@ -111,40 +170,11 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
 }
 
 impl Syncer {
-    pub fn flow(sqlite: &mut rusqlite::Connection, username: String) -> Result<()> {
-        // Sketch of an upload flow:
-        // get remote head
-        // compare with local head
-        // if the same:
-        // - upload any local chunks, transactions
-        // - move server remote head
-        // - move local remote head
-        
-        // TODO configure this sync with some auth data
-        let remote_client = RemoteClient::new(BASE_URL.into(), username);
-
-        let mut db_tx = sqlite.transaction()?;
-
-        let remote_head = remote_client.get_head()?;
-        let locally_known_remote_head = SyncMetadataClient::remote_head(&db_tx)?;
-
-        // TODO it's possible that we've successfully advanced remote head previously,
-        // but failed to advance our own local head. If that's the case, and we can recognize it,
-        // our sync becomes much cheaper.
-
-        // Don't know how to download, merge, resolve conflicts, etc yet.
-        if locally_known_remote_head != remote_head {
-            bail!(ErrorKind::NotYetImplemented(
-                format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
-            ));
-        }
-
-        // Local and remote heads agree.
-        // In theory, it should be safe to upload our stuff now.
-        let mut uploader = UploadingTxReceiver::new(&remote_client, &remote_head);
-        Processor::process(&db_tx, &mut uploader)?;
+    fn upload_ours(db_tx: &mut rusqlite::Transaction, from_tx: Option<Entid>, remote_client: &RemoteClient, remote_head: &Uuid) -> Result<()> {
+        let mut uploader = UploadingTxReceiver::new(remote_client, remote_head);
+        Processor::process(db_tx, from_tx, &mut uploader)?;
         if !uploader.is_done {
-            bail!(ErrorKind::UploadingProcessorUnfinished);
+            bail!(ErrorKind::TxProcessorUnfinished);
         }
         // Last tx uuid uploaded by the tx receiver.
         // It's going to be our new head.
@@ -155,20 +185,97 @@ impl Syncer {
             // On succes:
             // - persist local mappings from the receiver
             // - update our local "remote head".
-            TxMapper::set_bulk(&mut db_tx, &uploader.tx_temp_uuids)?;
-            SyncMetadataClient::set_remote_head(&db_tx, &last_tx_uploaded)?;
-
-            // Commit everything: tx->uuid mappings and the new HEAD. We're synced!
-            db_tx.commit()?;
+            TxMapper::set_bulk(db_tx, &uploader.tx_temp_uuids)?;
+            SyncMetadataClient::set_remote_head(db_tx, &last_tx_uploaded)?;
         }
+
+        Ok(())
+    }
+
+    pub fn flow(sqlite: &mut rusqlite::Connection, server_uri: &String, user_uuid: &Uuid) -> Result<()> {
+        d(&format!("sync flowing"));
+
+        ensure_current_version(sqlite)?;
+        
+        // TODO configure this sync with some auth data
+        let remote_client = RemoteClient::new(server_uri.clone(), user_uuid.clone());
+        let mut db_tx = sqlite.transaction()?;
+
+        let remote_head = remote_client.get_head()?;
+        d(&format!("remote head {:?}", remote_head));
+
+        let locally_known_remote_head = SyncMetadataClient::remote_head(&db_tx)?;
+        d(&format!("local head {:?}", locally_known_remote_head));
+
+        // Local head: latest transaction that we have in the store,
+        // but with one caveat: its tx might will not be mapped if it's
+        // never been synced successfully.
+        // In other words: if latest tx isn't mapped, then HEAD moved
+        // since last sync and server needs to be updated.
+        let mut inquiring_tx_receiver = InquiringTxReceiver::new();
+        // TODO don't just start from the beginning... but then again, we should do this
+        // without walking the table at all, and use the tx index.
+        Processor::process(&db_tx, None, &mut inquiring_tx_receiver)?;
+        if !inquiring_tx_receiver.is_done {
+            bail!(ErrorKind::TxProcessorUnfinished);
+        }
+        let have_local_changes = match inquiring_tx_receiver.last_tx {
+            Some(tx) => {
+                match TxMapper::get(&db_tx, tx)? {
+                    Some(_) => false,
+                    None => true
+                }
+            },
+            None => false
+        };
+
+        // Check if the server is empty - populate it.
+        if remote_head == Uuid::nil() {
+            d(&format!("empty server!"));
+            Syncer::upload_ours(&mut db_tx, None, &remote_client, &remote_head)?;
+        
+        // Check if the server is the same as us, and if our HEAD moved.
+        } else if locally_known_remote_head == remote_head {
+            d(&format!("server unchanged since last sync."));
+            
+            if !have_local_changes {
+                d(&format!("local HEAD did not move. Nothing to do!"));
+                return Ok(());
+            }
+
+            d(&format!("local HEAD moved."));
+            // TODO it's possible that we've successfully advanced remote head previously,
+            // but failed to advance our own local head. If that's the case, and we can recognize it,
+            // our sync becomes just bumping our local head. AFAICT below would currently fail.
+            if let Some(upload_from_tx) = TxMapper::get_tx_for_uuid(&db_tx, &locally_known_remote_head)? {
+                d(&format!("Fast-forwarding the server."));
+                Syncer::upload_ours(&mut db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
+            } else {
+                d(&format!("Unable to fast-forward the server; missing local tx mapping"));
+                bail!(ErrorKind::TxIncorrectlyMapped(0));
+            }
+            
+        // We diverged from the server.
+        // We'll need to rebase/merge ourselves on top of it.
+        } else {
+            d(&format!("server changed since last sync."));
+
+            bail!(ErrorKind::NotYetImplemented(
+                format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
+            ));
+        }
+
+        // Commit everything, if there's anything to commit!
+        // Any new tx->uuid mappings and the new HEAD. We're synced!
+        db_tx.commit()?;
 
         Ok(())
     }
 }
 
-#[derive(Serialize)]
-struct SerializedHead<'a> {
-    head: &'a Uuid
+#[derive(Serialize,Deserialize)]
+struct SerializedHead {
+    head: Uuid
 }
 
 #[derive(Serialize)]
@@ -179,42 +286,65 @@ struct SerializedTransaction<'a> {
 
 struct RemoteClient {
     base_uri: String,
-    user_id: String
+    user_uuid: Uuid
 }
 
+
 impl RemoteClient {
-    fn new(base_uri: String, user_id: String) -> Self {
+    fn new(base_uri: String, user_uuid: Uuid) -> Self {
         RemoteClient {
             base_uri: base_uri,
-            user_id: user_id
+            user_uuid: user_uuid
         }
     }
 
     fn bound_base_uri(&self) -> String {
         // TODO escaping
-        format!("{}/{}/{}", self.base_uri, API_VERSION, self.user_id)
+        format!("{}/{}", self.base_uri, self.user_uuid)
     }
 
     fn get_uuid(&self, uri: String) -> Result<Uuid> {
         let mut core = Core::new()?;
-        let client = Client::new(&core.handle());
+        let client = hyper::Client::configure()
+            .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+            .build(&core.handle());
+        // let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
 
         let uri = uri.parse()?;
-        let get = client.get(uri).and_then(|res| {
-            res.body().concat2()
+
+        d(&format!("parsed uri {:?}", uri));
+        
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let head_json: SerializedHead = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(head_json)
+            })
         });
 
-        let got = core.run(get)?;
-        Ok(Uuid::from_str(std::str::from_utf8(&got)?)?)
+        d(&format!("running..."));
+
+        let head_json = core.run(work)?;
+        d(&format!("got head: {:?}", &head_json.head));
+        Ok(head_json.head)
     }
 
     fn put<T>(&self, uri: String, payload: T, expected: StatusCode) -> Result<()>
-    where hyper::Body: std::convert::From<T>,
-        T: {
+    where hyper::Body: std::convert::From<T>, {
         let mut core = Core::new()?;
-        let client = Client::new(&core.handle());
+        let client = hyper::Client::configure()
+            .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+            .build(&core.handle());
+        // let client = hyper::Client::new(&core.handle());
 
         let uri = uri.parse()?;
+
+        d(&format!("PUT {:?}", uri));
 
         let mut req = Request::new(Method::Put, uri);
         req.headers_mut().set(ContentType::json());
@@ -224,9 +354,9 @@ impl RemoteClient {
             let status_code = res.status();
 
             if status_code != expected {
+                d(&format!("bad put response: {:?}", status_code));
                 future::err(HyperError::Status)
             } else {
-                // body will be empty...
                 future::ok(())
             }
         });
@@ -244,6 +374,7 @@ impl RemoteClient {
 
         let uri = format!("{}/transactions/{}", self.bound_base_uri(), transaction_uuid);
         let json = serde_json::to_string(&transaction)?;
+        d(&format!("serialized transaction: {:?}", json));
         self.put(uri, json, StatusCode::Created)
     }
 
@@ -255,32 +386,33 @@ impl RemoteClient {
     fn put_head(&self, uuid: &Uuid) -> Result<()> {
         // {"head": uuid}
         let head = SerializedHead {
-            head: uuid
+            head: uuid.clone()
         };
 
         let uri = format!("{}/head", self.bound_base_uri());
-        
         let json = serde_json::to_string(&head)?;
+        d(&format!("serialized head: {:?}", json));
         self.put(uri, json, StatusCode::NoContent)
     }
 
-    fn put_chunk(&self, chunk_uuid: &Uuid, payload: Vec<u8>) -> Result<()> {
+    fn put_chunk(&self, chunk_uuid: &Uuid, payload: &String) -> Result<()> {
         let uri = format!("{}/chunks/{}", self.bound_base_uri(), chunk_uuid);
-        self.put(uri, payload, StatusCode::Created)
+        d(&format!("serialized chunk: {:?}", payload));
+        // TODO don't want to clone every datom!
+        self.put(uri, payload.clone(), StatusCode::Created)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn test_remote_client(uri: &str, user_id: &str) -> RemoteClient {
-        RemoteClient::new(uri.into(), user_id.into())
-    }
+    use std::str::FromStr;
 
     #[test]
     fn test_remote_client_bound_uri() {
-        let remote_client = test_remote_client("https://example.com/api", "test-user");
-        assert_eq!("https://example.com/api/0.1/test-user", remote_client.bound_base_uri());
+        let user_uuid = Uuid::from_str(&"316ea470-ce35-4adf-9c61-e0de6e289c59").expect("uuid");
+        let server_uri = String::from("https://example.com/api/0.1");
+        let remote_client = RemoteClient::new(server_uri, user_uuid);
+        assert_eq!("https://example.com/api/0.1/316ea470-ce35-4adf-9c61-e0de6e289c59", remote_client.bound_base_uri());
     }
 }
