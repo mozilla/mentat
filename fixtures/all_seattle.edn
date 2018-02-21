@@ -1,0 +1,2021 @@
+[
+{:db/id "a17592186045438" :district/name "East"}
+{:db/id "a17592186045438" :district/region :region/e}
+{:db/id "a17592186045439" :neighborhood/name "Capitol Hill"}
+{:db/id "a17592186045439" :neighborhood/district "a17592186045438"}
+{:db/id "a17592186045440" :community/name "15th Ave Community"}
+{:db/id "a17592186045440" :community/url "http://groups.yahoo.com/group/15thAve_Community/"}
+{:db/id "a17592186045440" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045440" :community/category "15th avenue residents"}
+{:db/id "a17592186045440" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045440" :community/type :community.type/email-list}
+{:db/id "a17592186045441" :district/name "Southwest"}
+{:db/id "a17592186045441" :district/region :region/sw}
+{:db/id "a17592186045442" :neighborhood/name "Admiral (West Seattle)"}
+{:db/id "a17592186045442" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045443" :community/name "Admiral Neighborhood Association"}
+{:db/id "a17592186045443" :community/url "http://groups.yahoo.com/group/AdmiralNeighborhood/"}
+{:db/id "a17592186045443" :community/neighborhood "a17592186045442"}
+{:db/id "a17592186045443" :community/category "neighborhood association"}
+{:db/id "a17592186045443" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045443" :community/type :community.type/email-list}
+{:db/id "a17592186045444" :neighborhood/name "Alki"}
+{:db/id "a17592186045444" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045445" :community/name "Alki News"}
+{:db/id "a17592186045445" :community/url "http://groups.yahoo.com/group/alkibeachcommunity/"}
+{:db/id "a17592186045445" :community/neighborhood "a17592186045444"}
+{:db/id "a17592186045445" :community/category "members of the Alki Community Council and residents of the Alki Beach neighborhood"}
+{:db/id "a17592186045445" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045445" :community/type :community.type/email-list}
+{:db/id "a17592186045446" :community/name "Alki News/Alki Community Council"}
+{:db/id "a17592186045446" :community/url "http://alkinews.wordpress.com/"}
+{:db/id "a17592186045446" :community/neighborhood "a17592186045444"}
+{:db/id "a17592186045446" :community/category "council meetings"}
+{:db/id "a17592186045446" :community/category "news"}
+{:db/id "a17592186045446" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045446" :community/type :community.type/blog}
+{:db/id "a17592186045447" :district/name "Downtown"}
+{:db/id "a17592186045447" :district/region :region/w}
+{:db/id "a17592186045448" :neighborhood/name "Belltown"}
+{:db/id "a17592186045448" :neighborhood/district "a17592186045447"}
+{:db/id "a17592186045449" :community/name "All About Belltown"}
+{:db/id "a17592186045449" :community/url "http://www.belltown.org/"}
+{:db/id "a17592186045449" :community/neighborhood "a17592186045448"}
+{:db/id "a17592186045449" :community/category "community council"}
+{:db/id "a17592186045449" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045449" :community/type :community.type/website}
+{:db/id "a17592186045450" :district/name "Greater Duwamish"}
+{:db/id "a17592186045450" :district/region :region/se}
+{:db/id "a17592186045451" :neighborhood/name "South Park"}
+{:db/id "a17592186045451" :neighborhood/district "a17592186045450"}
+{:db/id "a17592186045452" :community/name "All About South Park"}
+{:db/id "a17592186045452" :community/url "http://www.allaboutsouthpark.com/"}
+{:db/id "a17592186045452" :community/neighborhood "a17592186045451"}
+{:db/id "a17592186045452" :community/category "neighborhood info"}
+{:db/id "a17592186045452" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045452" :community/type :community.type/website}
+{:db/id "a17592186045453" :neighborhood/name "West Seattle"}
+{:db/id "a17592186045453" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045454" :community/name "ArtsWest"}
+{:db/id "a17592186045454" :community/url "http://www.artswest.org/?q=node/28"}
+{:db/id "a17592186045454" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045454" :community/category "arts"}
+{:db/id "a17592186045454" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045454" :community/type :community.type/website}
+{:db/id "a17592186045455" :district/name "Ballard"}
+{:db/id "a17592186045455" :district/region :region/nw}
+{:db/id "a17592186045456" :neighborhood/name "Ballard"}
+{:db/id "a17592186045456" :neighborhood/district "a17592186045455"}
+{:db/id "a17592186045457" :community/name "At Large in Ballard"}
+{:db/id "a17592186045457" :community/url "http://blog.seattlepi.com/ballard/"}
+{:db/id "a17592186045457" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045457" :community/category "human interest"}
+{:db/id "a17592186045457" :community/category "news"}
+{:db/id "a17592186045457" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045457" :community/type :community.type/blog}
+{:db/id "a17592186045458" :district/name "Northeast"}
+{:db/id "a17592186045458" :district/region :region/ne}
+{:db/id "a17592186045459" :neighborhood/name "Regional Sites"}
+{:db/id "a17592186045459" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045460" :community/name "Aurora Seattle"}
+{:db/id "a17592186045460" :community/url "http://www.auroraseattle.com/"}
+{:db/id "a17592186045460" :community/neighborhood "a17592186045459"}
+{:db/id "a17592186045460" :community/category "news"}
+{:db/id "a17592186045460" :community/category "planning"}
+{:db/id "a17592186045460" :community/category "traffic"}
+{:db/id "a17592186045460" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045460" :community/type :community.type/blog}
+{:db/id "a17592186045461" :community/name "Ballard Avenue"}
+{:db/id "a17592186045461" :community/url "http://www.ballardavenue.blogspot.com/"}
+{:db/id "a17592186045461" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045461" :community/category "personal ballard-centric blog"}
+{:db/id "a17592186045461" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045461" :community/type :community.type/blog}
+{:db/id "a17592186045462" :community/name "Ballard Blog"}
+{:db/id "a17592186045462" :community/url "http://ballardblog.com/"}
+{:db/id "a17592186045462" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045462" :community/category "criminal activity"}
+{:db/id "a17592186045462" :community/category "events"}
+{:db/id "a17592186045462" :community/category "human interest"}
+{:db/id "a17592186045462" :community/category "news"}
+{:db/id "a17592186045462" :community/category "shopping"}
+{:db/id "a17592186045462" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045462" :community/type :community.type/blog}
+{:db/id "a17592186045463" :community/name "Ballard Chamber of Commerce"}
+{:db/id "a17592186045463" :community/url "http://www.ballardchamber.com/"}
+{:db/id "a17592186045463" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045463" :community/category "chamber of commerce"}
+{:db/id "a17592186045463" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045463" :community/type :community.type/website}
+{:db/id "a17592186045464" :community/name "Ballard District Council"}
+{:db/id "a17592186045464" :community/url "http://www.ballarddistrictcouncil.org/"}
+{:db/id "a17592186045464" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045464" :community/category "district council"}
+{:db/id "a17592186045464" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045464" :community/type :community.type/website}
+{:db/id "a17592186045465" :community/name "Ballard Gossip Girl"}
+{:db/id "a17592186045465" :community/url "http://www.ballardgossipgirl.com/"}
+{:db/id "a17592186045465" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045465" :community/category "nightlift"}
+{:db/id "a17592186045465" :community/category "restaurants"}
+{:db/id "a17592186045465" :community/category "shopping"}
+{:db/id "a17592186045465" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045465" :community/type :community.type/blog}
+{:db/id "a17592186045466" :community/name "Ballard Historical Society"}
+{:db/id "a17592186045466" :community/url "http://www.ballardhistory.org/"}
+{:db/id "a17592186045466" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045466" :community/category "historical society"}
+{:db/id "a17592186045466" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045466" :community/type :community.type/website}
+{:db/id "a17592186045467" :community/name "Ballard Moms"}
+{:db/id "a17592186045467" :community/url "http://groups.yahoo.com/group/BallardMoms/"}
+{:db/id "a17592186045467" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045467" :community/category "Ballard parents"}
+{:db/id "a17592186045467" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045467" :community/type :community.type/email-list}
+{:db/id "a17592186045468" :community/name "Ballard Neighbor Connection"}
+{:db/id "a17592186045468" :community/url "http://groups.yahoo.com/group/BallardNeighborConnection/"}
+{:db/id "a17592186045468" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045468" :community/category "neighborhood residents"}
+{:db/id "a17592186045468" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045468" :community/type :community.type/email-list}
+{:db/id "a17592186045469" :community/name "ballardite blog"}
+{:db/id "a17592186045469" :community/url "http://www.ballardite.blogspot.com/"}
+{:db/id "a17592186045469" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045469" :community/category "news"}
+{:db/id "a17592186045469" :community/category "personal"}
+{:db/id "a17592186045469" :community/orgtype :community.orgtype/personal}
+{:db/id "a17592186045469" :community/type :community.type/blog}
+{:db/id "a17592186045470" :community/name "Beach Drive Blog"}
+{:db/id "a17592186045470" :community/url "http://www.mortgageporter.com/beach_drive/"}
+{:db/id "a17592186045470" :community/neighborhood "a17592186045444"}
+{:db/id "a17592186045470" :community/category "crime"}
+{:db/id "a17592186045470" :community/category "home sales"}
+{:db/id "a17592186045470" :community/category "news"}
+{:db/id "a17592186045470" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045470" :community/type :community.type/blog}
+{:db/id "a17592186045471" :neighborhood/name "Beacon Hill"}
+{:db/id "a17592186045471" :neighborhood/district "a17592186045450"}
+{:db/id "a17592186045472" :community/name "Beacon Hill Alliance of Neighbors"}
+{:db/id "a17592186045472" :community/url "http://www.cityofseattle.net/ban/"}
+{:db/id "a17592186045472" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045472" :community/category "community"}
+{:db/id "a17592186045472" :community/category "public safety"}
+{:db/id "a17592186045472" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045472" :community/type :community.type/website}
+{:db/id "a17592186045473" :community/name "Beacon Hill Blog"}
+{:db/id "a17592186045473" :community/url "http://beaconhill.seattle.wa.us/"}
+{:db/id "a17592186045473" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045473" :community/category "criminal activity"}
+{:db/id "a17592186045473" :community/category "events"}
+{:db/id "a17592186045473" :community/category "food"}
+{:db/id "a17592186045473" :community/category "news"}
+{:db/id "a17592186045473" :community/category "nightlife"}
+{:db/id "a17592186045473" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045473" :community/type :community.type/blog}
+{:db/id "a17592186045474" :community/name "Beacon Hill Burglaries"}
+{:db/id "a17592186045474" :community/url "http://maps.google.com/maps/ms?ie=UTF8&hl=en&msa=0&msid=107398592337461190820.000449fcf97ff8bfbe281&z=14or"}
+{:db/id "a17592186045474" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045474" :community/category "criminal activity"}
+{:db/id "a17592186045474" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045474" :community/type :community.type/email-list}
+{:db/id "a17592186045475" :community/name "Beacon Hill Community Site"}
+{:db/id "a17592186045475" :community/url "http://beaconhillcommunity.wetpaint.com/"}
+{:db/id "a17592186045475" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045475" :community/category "announcements"}
+{:db/id "a17592186045475" :community/category "community concerns"}
+{:db/id "a17592186045475" :community/category "news"}
+{:db/id "a17592186045475" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045475" :community/type :community.type/wiki}
+{:db/id "a17592186045476" :community/name "belltown"}
+{:db/id "a17592186045476" :community/url "http://www.belltownpeople.com/"}
+{:db/id "a17592186045476" :community/neighborhood "a17592186045448"}
+{:db/id "a17592186045476" :community/category "events"}
+{:db/id "a17592186045476" :community/category "news"}
+{:db/id "a17592186045476" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045476" :community/type :community.type/blog}
+{:db/id "a17592186045477" :district/name "Southeast"}
+{:db/id "a17592186045477" :district/region :region/se}
+{:db/id "a17592186045478" :neighborhood/name "Columbia City"}
+{:db/id "a17592186045478" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045479" :community/name "Bike Works!"}
+{:db/id "a17592186045479" :community/url "http://www.bikeworks.org/"}
+{:db/id "a17592186045479" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045479" :community/category "community group"}
+{:db/id "a17592186045479" :community/type :community.type/website}
+{:db/id "a17592186045480" :neighborhood/name "Georgetown"}
+{:db/id "a17592186045480" :neighborhood/district "a17592186045450"}
+{:db/id "a17592186045481" :community/name "Blogging Georgetown"}
+{:db/id "a17592186045481" :community/url "http://www.blogginggeorgetown.com/"}
+{:db/id "a17592186045481" :community/neighborhood "a17592186045480"}
+{:db/id "a17592186045481" :community/category "911 blotter"}
+{:db/id "a17592186045481" :community/category "events"}
+{:db/id "a17592186045481" :community/category "news"}
+{:db/id "a17592186045481" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045481" :community/type :community.type/blog}
+{:db/id "a17592186045482" :community/name "Blogging Georgetown"}
+{:db/id "a17592186045482" :community/url "http://www.facebook.com/blogginggeorgetown"}
+{:db/id "a17592186045482" :community/neighborhood "a17592186045480"}
+{:db/id "a17592186045482" :community/category "911 blotter"}
+{:db/id "a17592186045482" :community/category "events"}
+{:db/id "a17592186045482" :community/category "news"}
+{:db/id "a17592186045482" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045482" :community/type :community.type/facebook-page}
+{:db/id "a17592186045483" :district/name "Northwest"}
+{:db/id "a17592186045483" :district/region :region/nw}
+{:db/id "a17592186045484" :neighborhood/name "Broadview"}
+{:db/id "a17592186045484" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045485" :community/name "Broadview Community Council"}
+{:db/id "a17592186045485" :community/url "http://groups.google.com/group/broadview-community-council"}
+{:db/id "a17592186045485" :community/neighborhood "a17592186045484"}
+{:db/id "a17592186045485" :community/category "community council"}
+{:db/id "a17592186045485" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045485" :community/type :community.type/email-list}
+{:db/id "a17592186045486" :community/name "Broadview Community Council"}
+{:db/id "a17592186045486" :community/url "http://www.broadviewseattle.org/"}
+{:db/id "a17592186045486" :community/neighborhood "a17592186045484"}
+{:db/id "a17592186045486" :community/category "community council"}
+{:db/id "a17592186045486" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045486" :community/type :community.type/blog}
+{:db/id "a17592186045487" :community/name "Capitol Hill Community Council"}
+{:db/id "a17592186045487" :community/url "http://chcc.wikidot.com/"}
+{:db/id "a17592186045487" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045487" :community/category "community council"}
+{:db/id "a17592186045487" :community/category "events"}
+{:db/id "a17592186045487" :community/category "news"}
+{:db/id "a17592186045487" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045487" :community/type :community.type/wiki}
+{:db/id "a17592186045488" :community/name "Capitol Hill Housing"}
+{:db/id "a17592186045488" :community/url "http://capitolhillhousing.org/"}
+{:db/id "a17592186045488" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045488" :community/category "affordable housing"}
+{:db/id "a17592186045488" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045488" :community/type :community.type/website}
+{:db/id "a17592186045489" :community/name "Capitol Hill Triangle"}
+{:db/id "a17592186045489" :community/url "http://chtriangle.blogspot.com/"}
+{:db/id "a17592186045489" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045489" :community/category "local miscellany"}
+{:db/id "a17592186045489" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045489" :community/type :community.type/blog}
+{:db/id "a17592186045490" :district/name "Central"}
+{:db/id "a17592186045490" :district/region :region/e}
+{:db/id "a17592186045491" :neighborhood/name "Central District"}
+{:db/id "a17592186045491" :neighborhood/district "a17592186045490"}
+{:db/id "a17592186045492" :community/name "Central Area Community Festival Association"}
+{:db/id "a17592186045492" :community/url "http://www.cacf.com/"}
+{:db/id "a17592186045492" :community/neighborhood "a17592186045491"}
+{:db/id "a17592186045492" :community/category "festival planning association"}
+{:db/id "a17592186045492" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045492" :community/type :community.type/website}
+{:db/id "a17592186045493" :community/name "Central Ballard Community Council"}
+{:db/id "a17592186045493" :community/url "http://www.neighborhoodlink.com/seattle/cbcc/"}
+{:db/id "a17592186045493" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045493" :community/category "community council"}
+{:db/id "a17592186045493" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045493" :community/type :community.type/website}
+{:db/id "a17592186045494" :community/name "Central District News"}
+{:db/id "a17592186045494" :community/url "http://www.centraldistrictnews.com/"}
+{:db/id "a17592186045494" :community/neighborhood "a17592186045491"}
+{:db/id "a17592186045494" :community/category "drink"}
+{:db/id "a17592186045494" :community/category "events"}
+{:db/id "a17592186045494" :community/category "food"}
+{:db/id "a17592186045494" :community/category "news"}
+{:db/id "a17592186045494" :community/category "reviews"}
+{:db/id "a17592186045494" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045494" :community/type :community.type/blog}
+{:db/id "a17592186045495" :neighborhood/name "International District"}
+{:db/id "a17592186045495" :neighborhood/district "a17592186045447"}
+{:db/id "a17592186045496" :community/name "Chinatown/International District"}
+{:db/id "a17592186045496" :community/url "http://www.cidbia.org/"}
+{:db/id "a17592186045496" :community/neighborhood "a17592186045495"}
+{:db/id "a17592186045496" :community/category "business improvement association"}
+{:db/id "a17592186045496" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045496" :community/type :community.type/website}
+{:db/id "a17592186045497" :community/name "Chinese Information and Service Center"}
+{:db/id "a17592186045497" :community/url "http://www.cisc-seattle.org/"}
+{:db/id "a17592186045497" :community/neighborhood "a17592186045495"}
+{:db/id "a17592186045497" :community/category "advocacy"}
+{:db/id "a17592186045497" :community/category "referral"}
+{:db/id "a17592186045497" :community/category "support services"}
+{:db/id "a17592186045497" :community/orgtype :community.orgtype/nonprofit}
+{:db/id "a17592186045497" :community/type :community.type/website}
+{:db/id "a17592186045498" :community/name "CHS Capitol Hill Seattle Blog"}
+{:db/id "a17592186045498" :community/url "http://www.capitolhillseattle.com/"}
+{:db/id "a17592186045498" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045498" :community/category "criminal activity"}
+{:db/id "a17592186045498" :community/category "drink"}
+{:db/id "a17592186045498" :community/category "events"}
+{:db/id "a17592186045498" :community/category "food"}
+{:db/id "a17592186045498" :community/category "news"}
+{:db/id "a17592186045498" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045498" :community/type :community.type/blog}
+{:db/id "a17592186045499" :community/name "Columbia Citizens"}
+{:db/id "a17592186045499" :community/url "http://columbiacitizens.net/"}
+{:db/id "a17592186045499" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045499" :community/category "etc."}
+{:db/id "a17592186045499" :community/category "favorite places"}
+{:db/id "a17592186045499" :community/category "neighborhood community site; buying/selling"}
+{:db/id "a17592186045499" :community/category "restaurants"}
+{:db/id "a17592186045499" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045499" :community/type :community.type/wiki}
+{:db/id "a17592186045500" :community/name "Columbia Citizens"}
+{:db/id "a17592186045500" :community/url "http://twitter.com/CCitizens"}
+{:db/id "a17592186045500" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045500" :community/category "twitter for Columbia Citizens"}
+{:db/id "a17592186045500" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045500" :community/type :community.type/twitter}
+{:db/id "a17592186045501" :community/name "Columbia Citizens"}
+{:db/id "a17592186045501" :community/url "http://www.facebook.com/pages/Columbia-Citizens/48558627705"}
+{:db/id "a17592186045501" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045501" :community/category "etc."}
+{:db/id "a17592186045501" :community/category "favorite places"}
+{:db/id "a17592186045501" :community/category "neighborhood community site; buying/selling"}
+{:db/id "a17592186045501" :community/category "restaurants"}
+{:db/id "a17592186045501" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045501" :community/type :community.type/facebook-page}
+{:db/id "a17592186045502" :community/name "Columbia City Blog"}
+{:db/id "a17592186045502" :community/url "http://www.columbiacityblog.com/"}
+{:db/id "a17592186045502" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045502" :community/category "events"}
+{:db/id "a17592186045502" :community/category "food"}
+{:db/id "a17592186045502" :community/category "news"}
+{:db/id "a17592186045502" :community/category "shopping"}
+{:db/id "a17592186045502" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045502" :community/type :community.type/blog}
+{:db/id "a17592186045503" :community/name "Columbia City, Seattle"}
+{:db/id "a17592186045503" :community/url "http://www.columbiacityseattle.com/"}
+{:db/id "a17592186045503" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045503" :community/category "business association"}
+{:db/id "a17592186045503" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045503" :community/type :community.type/website}
+{:db/id "a17592186045504" :neighborhood/name "Rainier Valley"}
+{:db/id "a17592186045504" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045505" :community/name "Columbia City: Rainier Valley"}
+{:db/id "a17592186045505" :community/url "http://www.rainiervalley.org/"}
+{:db/id "a17592186045505" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045505" :community/category "portal"}
+{:db/id "a17592186045505" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045505" :community/type :community.type/website}
+{:db/id "a17592186045506" :district/name "Delridge"}
+{:db/id "a17592186045506" :district/region :region/sw}
+{:db/id "a17592186045507" :community/name "Community Harvest of Southwest Seattle"}
+{:db/id "a17592186045507" :community/url "http://gleanit.org"}
+{:db/id "a17592186045507" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045507" :community/category "sustainable food"}
+{:db/id "a17592186045507" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045507" :community/type :community.type/website}
+{:db/id "a17592186045508" :neighborhood/name "Crown Hill"}
+{:db/id "a17592186045508" :neighborhood/district "a17592186045455"}
+{:db/id "a17592186045509" :community/name "Crown Hill Neighbors"}
+{:db/id "a17592186045509" :community/url "http://www.crownhillneighbors.org"}
+{:db/id "a17592186045509" :community/neighborhood "a17592186045508"}
+{:db/id "a17592186045509" :community/category "neighborhood-issues"}
+{:db/id "a17592186045509" :community/category "neighborhood-planning"}
+{:db/id "a17592186045509" :community/category "news"}
+{:db/id "a17592186045509" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045509" :community/type :community.type/website}
+{:db/id "a17592186045510" :neighborhood/name "Delridge"}
+{:db/id "a17592186045510" :neighborhood/district "a17592186045506"}
+{:db/id "a17592186045511" :community/name "Delridge Grassroots Leadership"}
+{:db/id "a17592186045511" :community/url "http://delridge.blogspot.com/"}
+{:db/id "a17592186045511" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045511" :community/category "community organization"}
+{:db/id "a17592186045511" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045511" :community/type :community.type/website}
+{:db/id "a17592186045512" :community/name "Delridge Neighborhoods Development Association"}
+{:db/id "a17592186045512" :community/url "http://www.dnda.org/"}
+{:db/id "a17592186045512" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045512" :community/category "neighborhood association"}
+{:db/id "a17592186045512" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045512" :community/type :community.type/website}
+{:db/id "a17592186045513" :community/name "Delridge Produce Cooperative"}
+{:db/id "a17592186045513" :community/url "http://sites.google.com/site/delridgeproducecooperative/"}
+{:db/id "a17592186045513" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045513" :community/category "produce coop"}
+{:db/id "a17592186045513" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045513" :community/type :community.type/website}
+{:db/id "a17592186045514" :district/name "Lake Union"}
+{:db/id "a17592186045514" :district/region :region/w}
+{:db/id "a17592186045515" :neighborhood/name "South Lake Union"}
+{:db/id "a17592186045515" :neighborhood/district "a17592186045514"}
+{:db/id "a17592186045516" :community/name "Discover SLU"}
+{:db/id "a17592186045516" :community/url "http://www.discoverslu.com"}
+{:db/id "a17592186045516" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045516" :community/category "dining"}
+{:db/id "a17592186045516" :community/category "events"}
+{:db/id "a17592186045516" :community/category "news"}
+{:db/id "a17592186045516" :community/category "shopping"}
+{:db/id "a17592186045516" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045516" :community/type :community.type/website}
+{:db/id "a17592186045517" :community/name "Discover SLU"}
+{:db/id "a17592186045517" :community/url "http://www.facebook.com/discoverslu"}
+{:db/id "a17592186045517" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045517" :community/category "dining"}
+{:db/id "a17592186045517" :community/category "events"}
+{:db/id "a17592186045517" :community/category "news"}
+{:db/id "a17592186045517" :community/category "shopping"}
+{:db/id "a17592186045517" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045517" :community/type :community.type/facebook-page}
+{:db/id "a17592186045518" :community/name "Discover SLU"}
+{:db/id "a17592186045518" :community/url "http://www.twitter.com/southlakeunion"}
+{:db/id "a17592186045518" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045518" :community/category "dining"}
+{:db/id "a17592186045518" :community/category "events"}
+{:db/id "a17592186045518" :community/category "news"}
+{:db/id "a17592186045518" :community/category "shopping"}
+{:db/id "a17592186045518" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045518" :community/type :community.type/twitter}
+{:db/id "a17592186045519" :neighborhood/name "Downtown"}
+{:db/id "a17592186045519" :neighborhood/district "a17592186045447"}
+{:db/id "a17592186045520" :community/name "Downtown Dispatch"}
+{:db/id "a17592186045520" :community/url "http://downtowndispatch.com/"}
+{:db/id "a17592186045520" :community/neighborhood "a17592186045519"}
+{:db/id "a17592186045520" :community/category "news and events"}
+{:db/id "a17592186045520" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045520" :community/type :community.type/blog}
+{:db/id "a17592186045521" :community/name "Downtown Seattle Association"}
+{:db/id "a17592186045521" :community/url "http://www.downtownseattle.com/"}
+{:db/id "a17592186045521" :community/neighborhood "a17592186045519"}
+{:db/id "a17592186045521" :community/category "business association"}
+{:db/id "a17592186045521" :community/type :community.type/website}
+{:db/id "a17592186045522" :community/name "East Ballard Community Association Blog"}
+{:db/id "a17592186045522" :community/url "http://eastballard.wordpress.com/"}
+{:db/id "a17592186045522" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045522" :community/category "community association"}
+{:db/id "a17592186045522" :community/category "events"}
+{:db/id "a17592186045522" :community/category "meeting"}
+{:db/id "a17592186045522" :community/category "news"}
+{:db/id "a17592186045522" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045522" :community/type :community.type/blog}
+{:db/id "a17592186045523" :neighborhood/name "Eastlake"}
+{:db/id "a17592186045523" :neighborhood/district "a17592186045514"}
+{:db/id "a17592186045524" :community/name "Eastlake Ave. "}
+{:db/id "a17592186045524" :community/url "http://eastlakeave.neighborlogs.com/"}
+{:db/id "a17592186045524" :community/neighborhood "a17592186045523"}
+{:db/id "a17592186045524" :community/category "criminal activity"}
+{:db/id "a17592186045524" :community/category "events"}
+{:db/id "a17592186045524" :community/category "news"}
+{:db/id "a17592186045524" :community/category "traffic"}
+{:db/id "a17592186045524" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045524" :community/type :community.type/blog}
+{:db/id "a17592186045525" :community/name "Eastlake Ave. "}
+{:db/id "a17592186045525" :community/url "http://twitter.com/eastlakeave"}
+{:db/id "a17592186045525" :community/neighborhood "a17592186045523"}
+{:db/id "a17592186045525" :community/category "updates on blog posts"}
+{:db/id "a17592186045525" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045525" :community/type :community.type/blog}
+{:db/id "a17592186045526" :community/name "Eastlake Community Council"}
+{:db/id "a17592186045526" :community/url "http://www.eastlakeseattle.org/"}
+{:db/id "a17592186045526" :community/neighborhood "a17592186045523"}
+{:db/id "a17592186045526" :community/category "community council"}
+{:db/id "a17592186045526" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045526" :community/type :community.type/website}
+{:db/id "a17592186045527" :community/name "Eastlake Community Council"}
+{:db/id "a17592186045527" :community/url "http://www.facebook.com/group.php?gid=7145111961"}
+{:db/id "a17592186045527" :community/neighborhood "a17592186045523"}
+{:db/id "a17592186045527" :community/category "community council"}
+{:db/id "a17592186045527" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045527" :community/type :community.type/facebook-page}
+{:db/id "a17592186045528" :neighborhood/name "Fauntleroy"}
+{:db/id "a17592186045528" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045529" :community/name "Fauntleroy Community Association"}
+{:db/id "a17592186045529" :community/url "http://fauntleroy.net/"}
+{:db/id "a17592186045529" :community/neighborhood "a17592186045528"}
+{:db/id "a17592186045529" :community/category "community association"}
+{:db/id "a17592186045529" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045529" :community/type :community.type/website}
+{:db/id "a17592186045530" :community/name "Fauntleroy Community Association"}
+{:db/id "a17592186045530" :community/url "http://www.facebook.com/pages/Seattle-WA/Fauntleroy-Community-Association/63181596775?v=wall&viewas=1779772562&ref=ts"}
+{:db/id "a17592186045530" :community/neighborhood "a17592186045528"}
+{:db/id "a17592186045530" :community/category "community assocation"}
+{:db/id "a17592186045530" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045530" :community/type :community.type/facebook-page}
+{:db/id "a17592186045531" :neighborhood/name "First Hill"}
+{:db/id "a17592186045531" :neighborhood/district "a17592186045438"}
+{:db/id "a17592186045532" :community/name "First Hill Improvement Association"}
+{:db/id "a17592186045532" :community/url "http://www.firsthill.org/"}
+{:db/id "a17592186045532" :community/neighborhood "a17592186045531"}
+{:db/id "a17592186045532" :community/category "neighborhood association"}
+{:db/id "a17592186045532" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045532" :community/type :community.type/website}
+{:db/id "a17592186045533" :neighborhood/name "Fremont"}
+{:db/id "a17592186045533" :neighborhood/district "a17592186045514"}
+{:db/id "a17592186045534" :community/name "Fremont Arts Council"}
+{:db/id "a17592186045534" :community/url "http://groups.yahoo.com/group/fremontartscouncil/"}
+{:db/id "a17592186045534" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045534" :community/category "fremont arts council members"}
+{:db/id "a17592186045534" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045534" :community/type :community.type/email-list}
+{:db/id "a17592186045535" :community/name "Fremont Arts Council"}
+{:db/id "a17592186045535" :community/url "http://www.fremontartscouncil.org/"}
+{:db/id "a17592186045535" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045535" :community/category "communtiy group"}
+{:db/id "a17592186045535" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045535" :community/type :community.type/website}
+{:db/id "a17592186045536" :community/name "Fremont Chamber of Commerce"}
+{:db/id "a17592186045536" :community/url "http://www.fremontseattle.com/"}
+{:db/id "a17592186045536" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045536" :community/category "chamber of commerce"}
+{:db/id "a17592186045536" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045536" :community/type :community.type/website}
+{:db/id "a17592186045537" :community/name "Fremont Universe"}
+{:db/id "a17592186045537" :community/url "http://twitter.com/fremontuniverse"}
+{:db/id "a17592186045537" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045537" :community/category "events"}
+{:db/id "a17592186045537" :community/category "food"}
+{:db/id "a17592186045537" :community/category "news"}
+{:db/id "a17592186045537" :community/category "reviews"}
+{:db/id "a17592186045537" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045537" :community/type :community.type/twitter}
+{:db/id "a17592186045538" :community/name "Fremont Universe"}
+{:db/id "a17592186045538" :community/url "http://www.facebook.com/pages/Fremont-Universe-Seattle/88279594341?ref=s"}
+{:db/id "a17592186045538" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045538" :community/category "events"}
+{:db/id "a17592186045538" :community/category "food"}
+{:db/id "a17592186045538" :community/category "news"}
+{:db/id "a17592186045538" :community/category "reviews"}
+{:db/id "a17592186045538" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045538" :community/type :community.type/facebook-page}
+{:db/id "a17592186045539" :community/name "Fremont Universe"}
+{:db/id "a17592186045539" :community/url "http://www.fremontuniverse.com/"}
+{:db/id "a17592186045539" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045539" :community/category "events"}
+{:db/id "a17592186045539" :community/category "food"}
+{:db/id "a17592186045539" :community/category "news"}
+{:db/id "a17592186045539" :community/category "reviews"}
+{:db/id "a17592186045539" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045539" :community/type :community.type/blog}
+{:db/id "a17592186045540" :district/name "Magnolia/Queen Anne"}
+{:db/id "a17592186045540" :district/region :region/w}
+{:db/id "a17592186045541" :neighborhood/name "Magnolia"}
+{:db/id "a17592186045541" :neighborhood/district "a17592186045540"}
+{:db/id "a17592186045542" :community/name "Friends of Discovery Park"}
+{:db/id "a17592186045542" :community/url "http://www.friendsdiscoverypark.org/"}
+{:db/id "a17592186045542" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045542" :community/category "park issues"}
+{:db/id "a17592186045542" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045542" :community/type :community.type/website}
+{:db/id "a17592186045543" :community/name "Friends of Fremont Peak Park"}
+{:db/id "a17592186045543" :community/url "http://www.fremontpeakpark.org/"}
+{:db/id "a17592186045543" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045543" :community/category "community organization"}
+{:db/id "a17592186045543" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045543" :community/type :community.type/website}
+{:db/id "a17592186045544" :community/name "Friends of Frink Park"}
+{:db/id "a17592186045544" :community/url "http://www.frinkpark.org/"}
+{:db/id "a17592186045544" :community/neighborhood "a17592186045491"}
+{:db/id "a17592186045544" :community/category "park issues"}
+{:db/id "a17592186045544" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045544" :community/type :community.type/website}
+{:db/id "a17592186045545" :neighborhood/name "Green Lake"}
+{:db/id "a17592186045545" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045546" :community/name "Friends of Green Lake"}
+{:db/id "a17592186045546" :community/url "http://www.friendsofgreenlake.org/"}
+{:db/id "a17592186045546" :community/neighborhood "a17592186045545"}
+{:db/id "a17592186045546" :community/category "neighborhood group"}
+{:db/id "a17592186045546" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045546" :community/type :community.type/website}
+{:db/id "a17592186045547" :neighborhood/name "Seward Park"}
+{:db/id "a17592186045547" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045548" :community/name "Friends of Seward Park"}
+{:db/id "a17592186045548" :community/url "http://www.sewardpark.org/"}
+{:db/id "a17592186045548" :community/neighborhood "a17592186045547"}
+{:db/id "a17592186045548" :community/category "park issues"}
+{:db/id "a17592186045548" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045548" :community/type :community.type/website}
+{:db/id "a17592186045549" :neighborhood/name "Genesee-Schmitz"}
+{:db/id "a17592186045549" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045550" :community/name "Genesee-Schmitz Neighborhood Council"}
+{:db/id "a17592186045550" :community/url "http://genesee-schmitz.org/"}
+{:db/id "a17592186045550" :community/neighborhood "a17592186045549"}
+{:db/id "a17592186045550" :community/category "neighborhood council"}
+{:db/id "a17592186045550" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045550" :community/type :community.type/blog}
+{:db/id "a17592186045551" :community/name "Georgetown Art Center"}
+{:db/id "a17592186045551" :community/url "http://georgetownartcenter.blogspot.com/"}
+{:db/id "a17592186045551" :community/neighborhood "a17592186045480"}
+{:db/id "a17592186045551" :community/category "community arts"}
+{:db/id "a17592186045551" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045551" :community/type :community.type/blog}
+{:db/id "a17592186045552" :community/name "Georgetown Neighborhood"}
+{:db/id "a17592186045552" :community/url "http://www.georgetownneighborhood.com/"}
+{:db/id "a17592186045552" :community/neighborhood "a17592186045480"}
+{:db/id "a17592186045552" :community/category "community council"}
+{:db/id "a17592186045552" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045552" :community/type :community.type/website}
+{:db/id "a17592186045553" :community/name "Georgetown Seattle"}
+{:db/id "a17592186045553" :community/url "http://groups.yahoo.com/group/Georgetown-Seattle/"}
+{:db/id "a17592186045553" :community/neighborhood "a17592186045480"}
+{:db/id "a17592186045553" :community/category "community members"}
+{:db/id "a17592186045553" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045553" :community/type :community.type/email-list}
+{:db/id "a17592186045554" :community/name "Greenlake Community Council"}
+{:db/id "a17592186045554" :community/url "http://www.greenlakecommunitycouncil.org/"}
+{:db/id "a17592186045554" :community/neighborhood "a17592186045545"}
+{:db/id "a17592186045554" :community/category "community council"}
+{:db/id "a17592186045554" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045554" :community/type :community.type/website}
+{:db/id "a17592186045555" :community/name "Greenlake Community Wiki"}
+{:db/id "a17592186045555" :community/url "http://greenlake.wetpaint.com/"}
+{:db/id "a17592186045555" :community/neighborhood "a17592186045545"}
+{:db/id "a17592186045555" :community/category "events"}
+{:db/id "a17592186045555" :community/category "for sale"}
+{:db/id "a17592186045555" :community/category "services"}
+{:db/id "a17592186045555" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045555" :community/type :community.type/wiki}
+{:db/id "a17592186045556" :neighborhood/name "Greenwood"}
+{:db/id "a17592186045556" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045557" :community/name "Greenwood Aurora Involved Neighbors"}
+{:db/id "a17592186045557" :community/url "http://www.gainseattle.com/"}
+{:db/id "a17592186045557" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045557" :community/category "neighborhood association"}
+{:db/id "a17592186045557" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045557" :community/type :community.type/website}
+{:db/id "a17592186045558" :community/name "Greenwood Blog"}
+{:db/id "a17592186045558" :community/url "http://www.greenwoodblog.com/"}
+{:db/id "a17592186045558" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045558" :community/category "events"}
+{:db/id "a17592186045558" :community/category "news"}
+{:db/id "a17592186045558" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045558" :community/type :community.type/blog}
+{:db/id "a17592186045559" :community/name "Greenwood Community Council"}
+{:db/id "a17592186045559" :community/url "http://www.greenwoodcommunitycouncil.org/about/"}
+{:db/id "a17592186045559" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045559" :community/category "community council"}
+{:db/id "a17592186045559" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045559" :community/type :community.type/website}
+{:db/id "a17592186045560" :community/name "Greenwood Community Council Announcements"}
+{:db/id "a17592186045560" :community/url "http://groups.yahoo.com/group/Greenwood_News/"}
+{:db/id "a17592186045560" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045560" :community/category "community council"}
+{:db/id "a17592186045560" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045560" :community/type :community.type/email-list}
+{:db/id "a17592186045561" :community/name "Greenwood Community Council Discussion"}
+{:db/id "a17592186045561" :community/url "http://groups.yahoo.com/group/greenwood-discussion/"}
+{:db/id "a17592186045561" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045561" :community/category "community council"}
+{:db/id "a17592186045561" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045561" :community/type :community.type/email-list}
+{:db/id "a17592186045562" :community/name "Greenwood Phinney Chamber of Commerce"}
+{:db/id "a17592186045562" :community/url "http://www.greenwood-phinney.com/"}
+{:db/id "a17592186045562" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045562" :community/category "chamber of commerce"}
+{:db/id "a17592186045562" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045562" :community/type :community.type/website}
+{:db/id "a17592186045563" :district/name "North"}
+{:db/id "a17592186045563" :district/region :region/ne}
+{:db/id "a17592186045564" :neighborhood/name "Haller Lake"}
+{:db/id "a17592186045564" :neighborhood/district "a17592186045563"}
+{:db/id "a17592186045565" :community/name "Haller Lake Community Club"}
+{:db/id "a17592186045565" :community/url "http://www.hallerlake.info/"}
+{:db/id "a17592186045565" :community/neighborhood "a17592186045564"}
+{:db/id "a17592186045565" :community/category "community organization"}
+{:db/id "a17592186045565" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045565" :community/type :community.type/website}
+{:db/id "a17592186045566" :neighborhood/name "Hawthorne Hills"}
+{:db/id "a17592186045566" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045567" :community/name "Hawthorne Hills Community Website"}
+{:db/id "a17592186045567" :community/url "http://www.seattle.gov/hawthornehills/"}
+{:db/id "a17592186045567" :community/neighborhood "a17592186045566"}
+{:db/id "a17592186045567" :community/category "community council"}
+{:db/id "a17592186045567" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045567" :community/type :community.type/website}
+{:db/id "a17592186045568" :neighborhood/name "Highland Park"}
+{:db/id "a17592186045568" :neighborhood/district "a17592186045506"}
+{:db/id "a17592186045569" :community/name "Highland Park Action Committee"}
+{:db/id "a17592186045569" :community/url "http://www.highlandpk.net/"}
+{:db/id "a17592186045569" :community/neighborhood "a17592186045568"}
+{:db/id "a17592186045569" :community/category "community group"}
+{:db/id "a17592186045569" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045569" :community/type :community.type/website}
+{:db/id "a17592186045570" :community/name "Highland Park Improvement Club"}
+{:db/id "a17592186045570" :community/url "http://www.hpic1919.org/"}
+{:db/id "a17592186045570" :community/neighborhood "a17592186045568"}
+{:db/id "a17592186045570" :community/category "neighborhood group"}
+{:db/id "a17592186045570" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045570" :community/type :community.type/blog}
+{:db/id "a17592186045571" :community/name "InBallard"}
+{:db/id "a17592186045571" :community/url "http://inballard.com/"}
+{:db/id "a17592186045571" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045571" :community/category "food"}
+{:db/id "a17592186045571" :community/category "nightlife"}
+{:db/id "a17592186045571" :community/category "services"}
+{:db/id "a17592186045571" :community/category "shopping"}
+{:db/id "a17592186045571" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045571" :community/type :community.type/website}
+{:db/id "a17592186045572" :neighborhood/name "Interbay"}
+{:db/id "a17592186045572" :neighborhood/district "a17592186045540"}
+{:db/id "a17592186045573" :community/name "Interbay District Blog"}
+{:db/id "a17592186045573" :community/url "http://interbayneighborhood.neighborlogs.com/"}
+{:db/id "a17592186045573" :community/neighborhood "a17592186045572"}
+{:db/id "a17592186045573" :community/category "news"}
+{:db/id "a17592186045573" :community/category "sports"}
+{:db/id "a17592186045573" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045573" :community/type :community.type/blog}
+{:db/id "a17592186045574" :community/name "Interbay Neighborhood Association"}
+{:db/id "a17592186045574" :community/url "http://www.our-interbay.org/"}
+{:db/id "a17592186045574" :community/neighborhood "a17592186045572"}
+{:db/id "a17592186045574" :community/category "neighborhood association"}
+{:db/id "a17592186045574" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045574" :community/type :community.type/website}
+{:db/id "a17592186045575" :community/name "Jefferson Park Alliance"}
+{:db/id "a17592186045575" :community/url "http://www.cityofseattle.net/commnty/Beacon/groups/jpa/"}
+{:db/id "a17592186045575" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045575" :community/category "community"}
+{:db/id "a17592186045575" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045575" :community/type :community.type/website}
+{:db/id "a17592186045576" :neighborhood/name "Junction"}
+{:db/id "a17592186045576" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045577" :community/name "Junction Neighborhood Organization"}
+{:db/id "a17592186045577" :community/url "http://www.wsjuno.com/"}
+{:db/id "a17592186045577" :community/neighborhood "a17592186045576"}
+{:db/id "a17592186045577" :community/category "events"}
+{:db/id "a17592186045577" :community/category "meetings"}
+{:db/id "a17592186045577" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045577" :community/type :community.type/blog}
+{:db/id "a17592186045578" :community/name "KOMO Communities - Ballard"}
+{:db/id "a17592186045578" :community/url "http://ballard.komonews.com/"}
+{:db/id "a17592186045578" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045578" :community/category "criminal activity"}
+{:db/id "a17592186045578" :community/category "events"}
+{:db/id "a17592186045578" :community/category "human interest"}
+{:db/id "a17592186045578" :community/category "news"}
+{:db/id "a17592186045578" :community/category "shopping"}
+{:db/id "a17592186045578" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045578" :community/type :community.type/blog}
+{:db/id "a17592186045579" :community/name "KOMO Communities - Beacon Hill"}
+{:db/id "a17592186045579" :community/url "http://beaconhill.komonews.com"}
+{:db/id "a17592186045579" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045579" :community/category "criminal activity"}
+{:db/id "a17592186045579" :community/category "events"}
+{:db/id "a17592186045579" :community/category "human interest"}
+{:db/id "a17592186045579" :community/category "news"}
+{:db/id "a17592186045579" :community/category "shopping"}
+{:db/id "a17592186045579" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045579" :community/type :community.type/blog}
+{:db/id "a17592186045580" :community/name "KOMO Communities - Captol Hill"}
+{:db/id "a17592186045580" :community/url "http://capitolhill.komonews.com"}
+{:db/id "a17592186045580" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045580" :community/category "criminal activity"}
+{:db/id "a17592186045580" :community/category "events"}
+{:db/id "a17592186045580" :community/category "human interest"}
+{:db/id "a17592186045580" :community/category "news"}
+{:db/id "a17592186045580" :community/category "shopping"}
+{:db/id "a17592186045580" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045580" :community/type :community.type/blog}
+{:db/id "a17592186045581" :community/name "KOMO Communities - Central District"}
+{:db/id "a17592186045581" :community/url "http://centraldistrict.komonews.com"}
+{:db/id "a17592186045581" :community/neighborhood "a17592186045491"}
+{:db/id "a17592186045581" :community/category "criminal activity"}
+{:db/id "a17592186045581" :community/category "events"}
+{:db/id "a17592186045581" :community/category "human interest"}
+{:db/id "a17592186045581" :community/category "news"}
+{:db/id "a17592186045581" :community/category "shopping"}
+{:db/id "a17592186045581" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045581" :community/type :community.type/blog}
+{:db/id "a17592186045582" :community/name "KOMO Communities - Columbia City"}
+{:db/id "a17592186045582" :community/url "http://columbiacity.komonews.com"}
+{:db/id "a17592186045582" :community/neighborhood "a17592186045478"}
+{:db/id "a17592186045582" :community/category "criminal activity"}
+{:db/id "a17592186045582" :community/category "events"}
+{:db/id "a17592186045582" :community/category "human interest"}
+{:db/id "a17592186045582" :community/category "news"}
+{:db/id "a17592186045582" :community/category "shopping"}
+{:db/id "a17592186045582" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045582" :community/type :community.type/blog}
+{:db/id "a17592186045583" :community/name "KOMO Communities - Downtown"}
+{:db/id "a17592186045583" :community/url "http://downtown.komonews.com"}
+{:db/id "a17592186045583" :community/neighborhood "a17592186045519"}
+{:db/id "a17592186045583" :community/category "criminal activity"}
+{:db/id "a17592186045583" :community/category "events"}
+{:db/id "a17592186045583" :community/category "human interest"}
+{:db/id "a17592186045583" :community/category "news"}
+{:db/id "a17592186045583" :community/category "shopping"}
+{:db/id "a17592186045583" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045583" :community/type :community.type/blog}
+{:db/id "a17592186045584" :community/name "KOMO Communities - Fremont"}
+{:db/id "a17592186045584" :community/url "http://fremont.komonews.com"}
+{:db/id "a17592186045584" :community/neighborhood "a17592186045533"}
+{:db/id "a17592186045584" :community/category "criminal activity"}
+{:db/id "a17592186045584" :community/category "events"}
+{:db/id "a17592186045584" :community/category "human interest"}
+{:db/id "a17592186045584" :community/category "news"}
+{:db/id "a17592186045584" :community/category "shopping"}
+{:db/id "a17592186045584" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045584" :community/type :community.type/blog}
+{:db/id "a17592186045585" :community/name "KOMO Communities - Georgetown"}
+{:db/id "a17592186045585" :community/url "http://georgetown.komonews.com"}
+{:db/id "a17592186045585" :community/neighborhood "a17592186045480"}
+{:db/id "a17592186045585" :community/category "criminal activity"}
+{:db/id "a17592186045585" :community/category "events"}
+{:db/id "a17592186045585" :community/category "human interest"}
+{:db/id "a17592186045585" :community/category "news"}
+{:db/id "a17592186045585" :community/category "shopping"}
+{:db/id "a17592186045585" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045585" :community/type :community.type/blog}
+{:db/id "a17592186045586" :community/name "KOMO Communities - Green Lake"}
+{:db/id "a17592186045586" :community/url "http://greenlake.komonews.com"}
+{:db/id "a17592186045586" :community/neighborhood "a17592186045545"}
+{:db/id "a17592186045586" :community/category "criminal activity"}
+{:db/id "a17592186045586" :community/category "events"}
+{:db/id "a17592186045586" :community/category "human interest"}
+{:db/id "a17592186045586" :community/category "news"}
+{:db/id "a17592186045586" :community/category "shopping"}
+{:db/id "a17592186045586" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045586" :community/type :community.type/blog}
+{:db/id "a17592186045587" :neighborhood/name "Greenwood-Phinney"}
+{:db/id "a17592186045587" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045588" :community/name "KOMO Communities - Greenwood-Phinney"}
+{:db/id "a17592186045588" :community/url "http://greenwood-phinney.komonews.com"}
+{:db/id "a17592186045588" :community/neighborhood "a17592186045587"}
+{:db/id "a17592186045588" :community/category "criminal activity"}
+{:db/id "a17592186045588" :community/category "events"}
+{:db/id "a17592186045588" :community/category "human interest"}
+{:db/id "a17592186045588" :community/category "news"}
+{:db/id "a17592186045588" :community/category "shopping"}
+{:db/id "a17592186045588" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045588" :community/type :community.type/blog}
+{:db/id "a17592186045589" :neighborhood/name "Lake City"}
+{:db/id "a17592186045589" :neighborhood/district "a17592186045563"}
+{:db/id "a17592186045590" :community/name "KOMO Communities - Lake City"}
+{:db/id "a17592186045590" :community/url "http://lakecity.komonews.com"}
+{:db/id "a17592186045590" :community/neighborhood "a17592186045589"}
+{:db/id "a17592186045590" :community/category "criminal activity"}
+{:db/id "a17592186045590" :community/category "events"}
+{:db/id "a17592186045590" :community/category "human interest"}
+{:db/id "a17592186045590" :community/category "news"}
+{:db/id "a17592186045590" :community/category "shopping"}
+{:db/id "a17592186045590" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045590" :community/type :community.type/blog}
+{:db/id "a17592186045591" :neighborhood/name "Madison Park"}
+{:db/id "a17592186045591" :neighborhood/district "a17592186045438"}
+{:db/id "a17592186045592" :community/name "KOMO Communities - Madison Park"}
+{:db/id "a17592186045592" :community/url "http://madisonpark.komonews.com"}
+{:db/id "a17592186045592" :community/neighborhood "a17592186045591"}
+{:db/id "a17592186045592" :community/category "criminal activity"}
+{:db/id "a17592186045592" :community/category "events"}
+{:db/id "a17592186045592" :community/category "human interest"}
+{:db/id "a17592186045592" :community/category "news"}
+{:db/id "a17592186045592" :community/category "shopping"}
+{:db/id "a17592186045592" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045592" :community/type :community.type/blog}
+{:db/id "a17592186045593" :community/name "KOMO Communities - Magnolia"}
+{:db/id "a17592186045593" :community/url "http://magnolia.komonews.com"}
+{:db/id "a17592186045593" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045593" :community/category "criminal activity"}
+{:db/id "a17592186045593" :community/category "events"}
+{:db/id "a17592186045593" :community/category "human interest"}
+{:db/id "a17592186045593" :community/category "news"}
+{:db/id "a17592186045593" :community/category "shopping"}
+{:db/id "a17592186045593" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045593" :community/type :community.type/blog}
+{:db/id "a17592186045594" :neighborhood/name "North Seattle"}
+{:db/id "a17592186045594" :neighborhood/district "a17592186045563"}
+{:db/id "a17592186045595" :community/name "KOMO Communities - North Seattle"}
+{:db/id "a17592186045595" :community/url "http://northseattle.komonews.com"}
+{:db/id "a17592186045595" :community/neighborhood "a17592186045594"}
+{:db/id "a17592186045595" :community/category "criminal activity"}
+{:db/id "a17592186045595" :community/category "events"}
+{:db/id "a17592186045595" :community/category "human interest"}
+{:db/id "a17592186045595" :community/category "news"}
+{:db/id "a17592186045595" :community/category "shopping"}
+{:db/id "a17592186045595" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045595" :community/type :community.type/blog}
+{:db/id "a17592186045596" :neighborhood/name "Queen Anne"}
+{:db/id "a17592186045596" :neighborhood/district "a17592186045540"}
+{:db/id "a17592186045597" :community/name "KOMO Communities - Queen Anne"}
+{:db/id "a17592186045597" :community/url "http://queenanne.komonews.com"}
+{:db/id "a17592186045597" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045597" :community/category "criminal activity"}
+{:db/id "a17592186045597" :community/category "events"}
+{:db/id "a17592186045597" :community/category "human interest"}
+{:db/id "a17592186045597" :community/category "news"}
+{:db/id "a17592186045597" :community/category "shopping"}
+{:db/id "a17592186045597" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045597" :community/type :community.type/blog}
+{:db/id "a17592186045598" :community/name "KOMO Communities - Rainier Valley"}
+{:db/id "a17592186045598" :community/url "http://rainiervalley.komonews.com"}
+{:db/id "a17592186045598" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045598" :community/category "criminal activity"}
+{:db/id "a17592186045598" :community/category "events"}
+{:db/id "a17592186045598" :community/category "food"}
+{:db/id "a17592186045598" :community/category "human interest"}
+{:db/id "a17592186045598" :community/category "news"}
+{:db/id "a17592186045598" :community/category "shopping"}
+{:db/id "a17592186045598" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045598" :community/type :community.type/blog}
+{:db/id "a17592186045599" :community/name "KOMO Communities - South Lake Union"}
+{:db/id "a17592186045599" :community/url "http://southlakeunion.komonews.com"}
+{:db/id "a17592186045599" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045599" :community/category "criminal activity"}
+{:db/id "a17592186045599" :community/category "events"}
+{:db/id "a17592186045599" :community/category "human interest"}
+{:db/id "a17592186045599" :community/category "news"}
+{:db/id "a17592186045599" :community/category "shopping"}
+{:db/id "a17592186045599" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045599" :community/type :community.type/blog}
+{:db/id "a17592186045600" :neighborhood/name "University District"}
+{:db/id "a17592186045600" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045601" :community/name "KOMO Communities - U-District"}
+{:db/id "a17592186045601" :community/url "http://udistrict.komonews.com"}
+{:db/id "a17592186045601" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045601" :community/category "criminal activity"}
+{:db/id "a17592186045601" :community/category "events"}
+{:db/id "a17592186045601" :community/category "human interest"}
+{:db/id "a17592186045601" :community/category "news"}
+{:db/id "a17592186045601" :community/category "shopping"}
+{:db/id "a17592186045601" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045601" :community/type :community.type/blog}
+{:db/id "a17592186045602" :neighborhood/name "View Ridge"}
+{:db/id "a17592186045602" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045603" :community/name "KOMO Communities - View Ridge"}
+{:db/id "a17592186045603" :community/url "http://viewridge.komonews.com"}
+{:db/id "a17592186045603" :community/neighborhood "a17592186045602"}
+{:db/id "a17592186045603" :community/category "criminal activity"}
+{:db/id "a17592186045603" :community/category "events"}
+{:db/id "a17592186045603" :community/category "human interest"}
+{:db/id "a17592186045603" :community/category "news"}
+{:db/id "a17592186045603" :community/category "shopping"}
+{:db/id "a17592186045603" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045603" :community/type :community.type/blog}
+{:db/id "a17592186045604" :neighborhood/name "Wallingford"}
+{:db/id "a17592186045604" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045605" :community/name "KOMO Communities - Wallingford"}
+{:db/id "a17592186045605" :community/url "http://wallingford.komonews.com"}
+{:db/id "a17592186045605" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045605" :community/category "criminal activity"}
+{:db/id "a17592186045605" :community/category "events"}
+{:db/id "a17592186045605" :community/category "human interest"}
+{:db/id "a17592186045605" :community/category "news"}
+{:db/id "a17592186045605" :community/category "shopping"}
+{:db/id "a17592186045605" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045605" :community/type :community.type/blog}
+{:db/id "a17592186045606" :community/name "KOMO Communities - West Seattle"}
+{:db/id "a17592186045606" :community/url "http://westseattle.komonews.com"}
+{:db/id "a17592186045606" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045606" :community/category "criminal activity"}
+{:db/id "a17592186045606" :community/category "events"}
+{:db/id "a17592186045606" :community/category "human interest"}
+{:db/id "a17592186045606" :community/category "news"}
+{:db/id "a17592186045606" :community/category "shopping"}
+{:db/id "a17592186045606" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045606" :community/type :community.type/blog}
+{:db/id "a17592186045607" :community/name "Lake City Live"}
+{:db/id "a17592186045607" :community/url "http://www.lakecitylive.net/"}
+{:db/id "a17592186045607" :community/neighborhood "a17592186045589"}
+{:db/id "a17592186045607" :community/category "criminal activity"}
+{:db/id "a17592186045607" :community/category "drink"}
+{:db/id "a17592186045607" :community/category "food"}
+{:db/id "a17592186045607" :community/category "news"}
+{:db/id "a17592186045607" :community/category "reviews"}
+{:db/id "a17592186045607" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045607" :community/type :community.type/blog}
+{:db/id "a17592186045608" :neighborhood/name "Laurelhurst"}
+{:db/id "a17592186045608" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045609" :community/name "Laurelhurst Community Club"}
+{:db/id "a17592186045609" :community/url "http://www.laurelhurstcc.com/"}
+{:db/id "a17592186045609" :community/neighborhood "a17592186045608"}
+{:db/id "a17592186045609" :community/category "community club"}
+{:db/id "a17592186045609" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045609" :community/type :community.type/website}
+{:db/id "a17592186045610" :neighborhood/name "Leschi"}
+{:db/id "a17592186045610" :neighborhood/district "a17592186045490"}
+{:db/id "a17592186045611" :community/name "Leschi Community Council"}
+{:db/id "a17592186045611" :community/url "http://groups.google.com/group/LeschiCC?hl=en"}
+{:db/id "a17592186045611" :community/neighborhood "a17592186045610"}
+{:db/id "a17592186045611" :community/category "meeting times"}
+{:db/id "a17592186045611" :community/category "planning"}
+{:db/id "a17592186045611" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045611" :community/type :community.type/email-list}
+{:db/id "a17592186045612" :neighborhood/name "Licton Springs"}
+{:db/id "a17592186045612" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045613" :community/name "Licton Springs Neighborhood "}
+{:db/id "a17592186045613" :community/url "http://www.lictonsprings.org/"}
+{:db/id "a17592186045613" :community/neighborhood "a17592186045612"}
+{:db/id "a17592186045613" :community/category "neighborhood council"}
+{:db/id "a17592186045613" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045613" :community/type :community.type/website}
+{:db/id "a17592186045614" :community/name "Longfellow Creek Community Website"}
+{:db/id "a17592186045614" :community/url "http://www.longfellowcreek.org/"}
+{:db/id "a17592186045614" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045614" :community/category "watershed info"}
+{:db/id "a17592186045614" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045614" :community/type :community.type/website}
+{:db/id "a17592186045615" :community/name "Madison Park Blogger"}
+{:db/id "a17592186045615" :community/url "http://madisonparkblogger.blogspot.com/"}
+{:db/id "a17592186045615" :community/neighborhood "a17592186045591"}
+{:db/id "a17592186045615" :community/category "events"}
+{:db/id "a17592186045615" :community/category "housing prices"}
+{:db/id "a17592186045615" :community/category "news"}
+{:db/id "a17592186045615" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045615" :community/type :community.type/blog}
+{:db/id "a17592186045616" :community/name "Madison Park Business Association"}
+{:db/id "a17592186045616" :community/url "http://www.madisonparkseattle.com/"}
+{:db/id "a17592186045616" :community/neighborhood "a17592186045591"}
+{:db/id "a17592186045616" :community/category "business association"}
+{:db/id "a17592186045616" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045616" :community/type :community.type/website}
+{:db/id "a17592186045617" :neighborhood/name "Madrona"}
+{:db/id "a17592186045617" :neighborhood/district "a17592186045490"}
+{:db/id "a17592186045618" :community/name "Madrona Moms"}
+{:db/id "a17592186045618" :community/url "http://health.groups.yahoo.com/group/MadronaMoms/"}
+{:db/id "a17592186045618" :community/neighborhood "a17592186045617"}
+{:db/id "a17592186045618" :community/category "community group (moms)"}
+{:db/id "a17592186045618" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045618" :community/type :community.type/email-list}
+{:db/id "a17592186045619" :community/name "Madrona Neighborhood"}
+{:db/id "a17592186045619" :community/url "http://madrona.wetpaint.com/"}
+{:db/id "a17592186045619" :community/neighborhood "a17592186045617"}
+{:db/id "a17592186045619" :community/category "etc.  Also community association meeting minutes"}
+{:db/id "a17592186045619" :community/category "favorite places"}
+{:db/id "a17592186045619" :community/category "neighborhood community site: buying/selling"}
+{:db/id "a17592186045619" :community/category "restaurants"}
+{:db/id "a17592186045619" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045619" :community/type :community.type/wiki}
+{:db/id "a17592186045620" :community/name "Magnolia Action Group"}
+{:db/id "a17592186045620" :community/url "http://www.orgsites.com/wa/mag/"}
+{:db/id "a17592186045620" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045620" :community/category "planning issues"}
+{:db/id "a17592186045620" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045620" :community/type :community.type/website}
+{:db/id "a17592186045621" :community/name "Magnolia Chamber of Commerce"}
+{:db/id "a17592186045621" :community/url "http://www.magnoliachamber.org/"}
+{:db/id "a17592186045621" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045621" :community/category "chamber of commerce"}
+{:db/id "a17592186045621" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045621" :community/type :community.type/website}
+{:db/id "a17592186045622" :community/name "Magnolia Historical Society"}
+{:db/id "a17592186045622" :community/url "http://www.magnoliahistoricalsociety.org/"}
+{:db/id "a17592186045622" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045622" :community/category "historical society"}
+{:db/id "a17592186045622" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045622" :community/type :community.type/website}
+{:db/id "a17592186045623" :community/name "Magnolia is Really Part of Seattle"}
+{:db/id "a17592186045623" :community/url "http://sleeplessinmagnolia.ning.com/"}
+{:db/id "a17592186045623" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045623" :community/category "planning issues"}
+{:db/id "a17592186045623" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045623" :community/type :community.type/wiki}
+{:db/id "a17592186045624" :community/name "Magnolia Neighborhood Planning Council"}
+{:db/id "a17592186045624" :community/url "http://magnolianpc.com/"}
+{:db/id "a17592186045624" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045624" :community/category "neighborhood association"}
+{:db/id "a17592186045624" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045624" :community/type :community.type/website}
+{:db/id "a17592186045625" :community/name "Magnolia Voice"}
+{:db/id "a17592186045625" :community/url "http://twitter.com/magnoliavoice"}
+{:db/id "a17592186045625" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045625" :community/category "criminal activity"}
+{:db/id "a17592186045625" :community/category "events"}
+{:db/id "a17592186045625" :community/category "food"}
+{:db/id "a17592186045625" :community/category "news"}
+{:db/id "a17592186045625" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045625" :community/type :community.type/twitter}
+{:db/id "a17592186045626" :community/name "Magnolia Voice"}
+{:db/id "a17592186045626" :community/url "http://www.facebook.com/pages/Magnolia-Voice-Seattle/116057104388"}
+{:db/id "a17592186045626" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045626" :community/category "criminal activity"}
+{:db/id "a17592186045626" :community/category "events"}
+{:db/id "a17592186045626" :community/category "food"}
+{:db/id "a17592186045626" :community/category "news"}
+{:db/id "a17592186045626" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045626" :community/type :community.type/facebook-page}
+{:db/id "a17592186045627" :community/name "Magnolia Voice"}
+{:db/id "a17592186045627" :community/url "http://www.magnoliavoice.com/"}
+{:db/id "a17592186045627" :community/neighborhood "a17592186045541"}
+{:db/id "a17592186045627" :community/category "criminal activity"}
+{:db/id "a17592186045627" :community/category "events"}
+{:db/id "a17592186045627" :community/category "food"}
+{:db/id "a17592186045627" :community/category "news"}
+{:db/id "a17592186045627" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045627" :community/type :community.type/blog}
+{:db/id "a17592186045628" :community/name "Magnuson Community Garden"}
+{:db/id "a17592186045628" :community/url "http://cityofseattle.net/MAGNUSONGARDEN"}
+{:db/id "a17592186045628" :community/neighborhood "a17592186045608"}
+{:db/id "a17592186045628" :community/category "garden"}
+{:db/id "a17592186045628" :community/type :community.type/website}
+{:db/id "a17592186045629" :community/name "Magnuson Environmental Stewardship Alliance"}
+{:db/id "a17592186045629" :community/url "http://mesaseattle.org/"}
+{:db/id "a17592186045629" :community/neighborhood "a17592186045608"}
+{:db/id "a17592186045629" :community/category "park issues"}
+{:db/id "a17592186045629" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045629" :community/type :community.type/website}
+{:db/id "a17592186045630" :neighborhood/name "Maple Leaf"}
+{:db/id "a17592186045630" :neighborhood/district "a17592186045563"}
+{:db/id "a17592186045631" :community/name "Maple Leaf Community Council"}
+{:db/id "a17592186045631" :community/url "http://www.mapleleafcommunity.org/"}
+{:db/id "a17592186045631" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045631" :community/category "community council"}
+{:db/id "a17592186045631" :community/category "email list available"}
+{:db/id "a17592186045631" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045631" :community/type :community.type/website}
+{:db/id "a17592186045632" :community/name "Maple Leaf Life"}
+{:db/id "a17592186045632" :community/url "http://twitter.com/mapleleaflife"}
+{:db/id "a17592186045632" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045632" :community/category "criminal activity"}
+{:db/id "a17592186045632" :community/category "events"}
+{:db/id "a17592186045632" :community/category "human interest"}
+{:db/id "a17592186045632" :community/category "news"}
+{:db/id "a17592186045632" :community/category "shopping"}
+{:db/id "a17592186045632" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045632" :community/type :community.type/twitter}
+{:db/id "a17592186045633" :community/name "Maple Leaf Life"}
+{:db/id "a17592186045633" :community/url "http://www.facebook.com/pages/Seattle-WA/Maple-Leaf-Life/298056021657"}
+{:db/id "a17592186045633" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045633" :community/category "criminal activity"}
+{:db/id "a17592186045633" :community/category "events"}
+{:db/id "a17592186045633" :community/category "human interest"}
+{:db/id "a17592186045633" :community/category "news"}
+{:db/id "a17592186045633" :community/category "shopping"}
+{:db/id "a17592186045633" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045633" :community/type :community.type/facebook-page}
+{:db/id "a17592186045634" :community/name "Maple Leaf Life"}
+{:db/id "a17592186045634" :community/url "http://www.mapleleaflife.com/"}
+{:db/id "a17592186045634" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045634" :community/category "criminal activity"}
+{:db/id "a17592186045634" :community/category "events"}
+{:db/id "a17592186045634" :community/category "human interest"}
+{:db/id "a17592186045634" :community/category "news"}
+{:db/id "a17592186045634" :community/category "shopping"}
+{:db/id "a17592186045634" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045634" :community/type :community.type/blog}
+{:db/id "a17592186045635" :community/name "Market On Wheels"}
+{:db/id "a17592186045635" :community/url "http://marketonwheels.wordpress.com/"}
+{:db/id "a17592186045635" :community/neighborhood "a17592186045451"}
+{:db/id "a17592186045635" :community/category "farmers' market"}
+{:db/id "a17592186045635" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045635" :community/type :community.type/blog}
+{:db/id "a17592186045636" :neighborhood/name "Miller Park"}
+{:db/id "a17592186045636" :neighborhood/district "a17592186045438"}
+{:db/id "a17592186045637" :community/name "Miller Park Neighborhood Association"}
+{:db/id "a17592186045637" :community/url "http://millerparkseattle.blogspot.com/"}
+{:db/id "a17592186045637" :community/neighborhood "a17592186045636"}
+{:db/id "a17592186045637" :community/category "events"}
+{:db/id "a17592186045637" :community/category "neighborhood association; news"}
+{:db/id "a17592186045637" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045637" :community/type :community.type/blog}
+{:db/id "a17592186045638" :community/name "MLK Business Association"}
+{:db/id "a17592186045638" :community/url "http://www.mlkba.org/"}
+{:db/id "a17592186045638" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045638" :community/category "business association"}
+{:db/id "a17592186045638" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045638" :community/type :community.type/website}
+{:db/id "a17592186045639" :neighborhood/name "Morgan Junction"}
+{:db/id "a17592186045639" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045640" :community/name "Morgan Junction Community Association"}
+{:db/id "a17592186045640" :community/url "http://morganjunction.org/"}
+{:db/id "a17592186045640" :community/neighborhood "a17592186045639"}
+{:db/id "a17592186045640" :community/category "community association"}
+{:db/id "a17592186045640" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045640" :community/type :community.type/website}
+{:db/id "a17592186045641" :neighborhood/name "Mount Baker"}
+{:db/id "a17592186045641" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045642" :community/name "Mount Baker Community Club"}
+{:db/id "a17592186045642" :community/url "http://groups.yahoo.com/group/MBCCCommunityNotices/"}
+{:db/id "a17592186045642" :community/neighborhood "a17592186045641"}
+{:db/id "a17592186045642" :community/category "community club"}
+{:db/id "a17592186045642" :community/type :community.type/email-list}
+{:db/id "a17592186045643" :community/name "Mount Baker Neighborhood "}
+{:db/id "a17592186045643" :community/url "http://www.mountbaker.org/index.php"}
+{:db/id "a17592186045643" :community/neighborhood "a17592186045641"}
+{:db/id "a17592186045643" :community/category "community group"}
+{:db/id "a17592186045643" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045643" :community/type :community.type/website}
+{:db/id "a17592186045644" :community/name "My Greenlake Blog"}
+{:db/id "a17592186045644" :community/url "http://www.mygreenlake.com/"}
+{:db/id "a17592186045644" :community/neighborhood "a17592186045545"}
+{:db/id "a17592186045644" :community/category "events"}
+{:db/id "a17592186045644" :community/category "food"}
+{:db/id "a17592186045644" :community/category "news"}
+{:db/id "a17592186045644" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045644" :community/type :community.type/blog}
+{:db/id "a17592186045645" :community/name "MyBallard"}
+{:db/id "a17592186045645" :community/url "http://www.myballard.com/"}
+{:db/id "a17592186045645" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045645" :community/category "criminal activity"}
+{:db/id "a17592186045645" :community/category "events"}
+{:db/id "a17592186045645" :community/category "human interest"}
+{:db/id "a17592186045645" :community/category "news"}
+{:db/id "a17592186045645" :community/category "shopping"}
+{:db/id "a17592186045645" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045645" :community/type :community.type/blog}
+{:db/id "a17592186045646" :community/name "MyWallingford"}
+{:db/id "a17592186045646" :community/url "http://mywallingford.com"}
+{:db/id "a17592186045646" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045646" :community/category "criminal activity"}
+{:db/id "a17592186045646" :community/category "events"}
+{:db/id "a17592186045646" :community/category "human interest"}
+{:db/id "a17592186045646" :community/category "news"}
+{:db/id "a17592186045646" :community/category "shopping"}
+{:db/id "a17592186045646" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045646" :community/type :community.type/blog}
+{:db/id "a17592186045647" :community/name "MyWallingford"}
+{:db/id "a17592186045647" :community/url "http://twitter.com/mywallingford"}
+{:db/id "a17592186045647" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045647" :community/category "criminal activity"}
+{:db/id "a17592186045647" :community/category "events"}
+{:db/id "a17592186045647" :community/category "human interest"}
+{:db/id "a17592186045647" :community/category "news"}
+{:db/id "a17592186045647" :community/category "shopping"}
+{:db/id "a17592186045647" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045647" :community/type :community.type/twitter}
+{:db/id "a17592186045648" :community/name "MyWallingford"}
+{:db/id "a17592186045648" :community/url "http://www.facebook.com/MyWallingford?ref=ts"}
+{:db/id "a17592186045648" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045648" :community/category "criminal activity"}
+{:db/id "a17592186045648" :community/category "events"}
+{:db/id "a17592186045648" :community/category "human interest"}
+{:db/id "a17592186045648" :community/category "news"}
+{:db/id "a17592186045648" :community/category "shopping"}
+{:db/id "a17592186045648" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045648" :community/type :community.type/facebook-page}
+{:db/id "a17592186045649" :community/name "Nature Consortium"}
+{:db/id "a17592186045649" :community/url "http://www.naturec.org"}
+{:db/id "a17592186045649" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045649" :community/category "environmental conservation"}
+{:db/id "a17592186045649" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045649" :community/type :community.type/website}
+{:db/id "a17592186045652" :community/name "nbeaconhillneighbors"}
+{:db/id "a17592186045652" :community/url "http://groups.yahoo.com/group/nbeaconhillneighbors/"}
+{:db/id "a17592186045652" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045652" :community/category "community members"}
+{:db/id "a17592186045652" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045652" :community/type :community.type/email-list}
+{:db/id "a17592186045654" :community/name "New Holly Neighborhood Campus"}
+{:db/id "a17592186045654" :community/url "http://www.newholly.org/"}
+{:db/id "a17592186045654" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045654" :community/category "services portal"}
+{:db/id "a17592186045654" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045654" :community/type :community.type/website}
+{:db/id "a17592186045655" :neighborhood/name "Rainier Beach"}
+{:db/id "a17592186045655" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045656" :community/name "New Rainier Vista"}
+{:db/id "a17592186045656" :community/url "http://newrainiervista.com/public/about/"}
+{:db/id "a17592186045656" :community/neighborhood "a17592186045655"}
+{:db/id "a17592186045656" :community/category "criminal activity"}
+{:db/id "a17592186045656" :community/category "events"}
+{:db/id "a17592186045656" :community/category "human interest"}
+{:db/id "a17592186045656" :community/category "news"}
+{:db/id "a17592186045656" :community/category "shopping"}
+{:db/id "a17592186045656" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045656" :community/type :community.type/blog}
+{:db/id "a17592186045657" :community/name "North Beacon Hill"}
+{:db/id "a17592186045657" :community/url "http://north-beacon-hill.blogspot.com/"}
+{:db/id "a17592186045657" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045657" :community/category "community council"}
+{:db/id "a17592186045657" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045657" :community/type :community.type/blog}
+{:db/id "a17592186045658" :community/name "North Beacon Hill Council"}
+{:db/id "a17592186045658" :community/url "http://www.cityofseattle.net/commnty/Beacon/groups/nbhc/"}
+{:db/id "a17592186045658" :community/neighborhood "a17592186045471"}
+{:db/id "a17592186045658" :community/category "community group"}
+{:db/id "a17592186045658" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045658" :community/type :community.type/website}
+{:db/id "a17592186045660" :community/name "North Capitol Hill Neighborhood Association"}
+{:db/id "a17592186045660" :community/url "http://www.nchna.com/"}
+{:db/id "a17592186045660" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045660" :community/category "meeting notes"}
+{:db/id "a17592186045660" :community/category "relevant news"}
+{:db/id "a17592186045660" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045660" :community/type :community.type/website}
+{:db/id "a17592186045662" :community/name "North Delridge Neighborhood Council"}
+{:db/id "a17592186045662" :community/url "http://ndnc.org/"}
+{:db/id "a17592186045662" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045662" :community/category "events calendar"}
+{:db/id "a17592186045662" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045662" :community/type :community.type/website}
+{:db/id "a17592186045664" :neighborhood/name "Northgate"}
+{:db/id "a17592186045664" :neighborhood/district "a17592186045563"}
+{:db/id "a17592186045665" :community/name "Northgate Chamber of Commerce"}
+{:db/id "a17592186045665" :community/url "http://www.northgatechamber.com/"}
+{:db/id "a17592186045665" :community/neighborhood "a17592186045664"}
+{:db/id "a17592186045665" :community/category "chamber of commerce"}
+{:db/id "a17592186045665" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045665" :community/type :community.type/website}
+{:db/id "a17592186045667" :neighborhood/name "Northwest"}
+{:db/id "a17592186045667" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045668" :community/name "Northwest District Council"}
+{:db/id "a17592186045668" :community/url "http://www.nwdistrictcouncil.org/"}
+{:db/id "a17592186045668" :community/neighborhood "a17592186045667"}
+{:db/id "a17592186045668" :community/category "district council"}
+{:db/id "a17592186045668" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045668" :community/type :community.type/website}
+{:db/id "a17592186045670" :neighborhood/name "High Point"}
+{:db/id "a17592186045670" :neighborhood/district "a17592186045441"}
+{:db/id "a17592186045671" :community/name "Official Website of the High Point Neighborhood"}
+{:db/id "a17592186045671" :community/url "http://www.highpointneighborhood.org/"}
+{:db/id "a17592186045671" :community/neighborhood "a17592186045670"}
+{:db/id "a17592186045671" :community/category "neighborhood association"}
+{:db/id "a17592186045671" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045671" :community/type :community.type/website}
+{:db/id "a17592186045672" :neighborhood/name "Othello"}
+{:db/id "a17592186045672" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045673" :community/name "Othello Neighborhood Association"}
+{:db/id "a17592186045673" :community/url "http://othello.talkspot.com/"}
+{:db/id "a17592186045673" :community/neighborhood "a17592186045672"}
+{:db/id "a17592186045673" :community/category "neighborhood association"}
+{:db/id "a17592186045673" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045673" :community/type :community.type/website}
+{:db/id "a17592186045674" :neighborhood/name "Phinney Ridge"}
+{:db/id "a17592186045674" :neighborhood/district "a17592186045483"}
+{:db/id "a17592186045675" :community/name "Phinney Neighborhood Association"}
+{:db/id "a17592186045675" :community/url "http://phinneycenter.blogspot.com/"}
+{:db/id "a17592186045675" :community/neighborhood "a17592186045674"}
+{:db/id "a17592186045675" :community/category "association news and events"}
+{:db/id "a17592186045675" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045675" :community/type :community.type/blog}
+{:db/id "a17592186045676" :community/name "Phinney Neighborhood Association"}
+{:db/id "a17592186045676" :community/url "http://www.facebook.com/group.php?gid=42314991794"}
+{:db/id "a17592186045676" :community/neighborhood "a17592186045674"}
+{:db/id "a17592186045676" :community/category "neighborhood association"}
+{:db/id "a17592186045676" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045676" :community/type :community.type/facebook-page}
+{:db/id "a17592186045677" :community/name "Phinney Neighborhood Association"}
+{:db/id "a17592186045677" :community/url "http://www.phinneycenter.org/"}
+{:db/id "a17592186045677" :community/neighborhood "a17592186045674"}
+{:db/id "a17592186045677" :community/category "neighborhood association"}
+{:db/id "a17592186045677" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045677" :community/type :community.type/website}
+{:db/id "a17592186045678" :community/name "PhinneyWood"}
+{:db/id "a17592186045678" :community/url "http://www.phinneywood.com/"}
+{:db/id "a17592186045678" :community/neighborhood "a17592186045674"}
+{:db/id "a17592186045678" :community/category "events"}
+{:db/id "a17592186045678" :community/category "food"}
+{:db/id "a17592186045678" :community/category "news"}
+{:db/id "a17592186045678" :community/category "shopping"}
+{:db/id "a17592186045678" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045678" :community/type :community.type/blog}
+{:db/id "a17592186045679" :neighborhood/name "Pinehurst"}
+{:db/id "a17592186045679" :neighborhood/district "a17592186045563"}
+{:db/id "a17592186045680" :community/name "Pinehurst Seattle"}
+{:db/id "a17592186045680" :community/url "http://pinehurstseattle.org"}
+{:db/id "a17592186045680" :community/neighborhood "a17592186045679"}
+{:db/id "a17592186045680" :community/category "events"}
+{:db/id "a17592186045680" :community/category "issues"}
+{:db/id "a17592186045680" :community/category "news"}
+{:db/id "a17592186045680" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045680" :community/type :community.type/blog}
+{:db/id "a17592186045681" :community/name "Pinehurst Seattle"}
+{:db/id "a17592186045681" :community/url "http://twitter.com/pinehurstsea"}
+{:db/id "a17592186045681" :community/neighborhood "a17592186045679"}
+{:db/id "a17592186045681" :community/category "events"}
+{:db/id "a17592186045681" :community/category "issues"}
+{:db/id "a17592186045681" :community/category "news"}
+{:db/id "a17592186045681" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045681" :community/type :community.type/twitter}
+{:db/id "a17592186045682" :community/name "Pinehurst Seattle"}
+{:db/id "a17592186045682" :community/url "http://www.facebook.com/#!/group.php?gid=53590206898&v=wall&ref=search"}
+{:db/id "a17592186045682" :community/neighborhood "a17592186045679"}
+{:db/id "a17592186045682" :community/category "events"}
+{:db/id "a17592186045682" :community/category "issues"}
+{:db/id "a17592186045682" :community/category "news"}
+{:db/id "a17592186045682" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045682" :community/type :community.type/facebook-page}
+{:db/id "a17592186045684" :neighborhood/name "Pioneer Square"}
+{:db/id "a17592186045684" :neighborhood/district "a17592186045447"}
+{:db/id "a17592186045685" :community/name "Pioneer Square Community Association"}
+{:db/id "a17592186045685" :community/url "http://www.pioneersquare.org/"}
+{:db/id "a17592186045685" :community/neighborhood "a17592186045684"}
+{:db/id "a17592186045685" :community/category "community organization"}
+{:db/id "a17592186045685" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045685" :community/type :community.type/website}
+{:db/id "a17592186045687" :community/name "Queen Anne Chamber of Commerce"}
+{:db/id "a17592186045687" :community/url "http://qachamber.org/"}
+{:db/id "a17592186045687" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045687" :community/category "chamber of commerce"}
+{:db/id "a17592186045687" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045687" :community/type :community.type/website}
+{:db/id "a17592186045688" :community/name "Queen Anne Community Council"}
+{:db/id "a17592186045688" :community/url "http://www.qacc.net/"}
+{:db/id "a17592186045688" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045688" :community/category "community council"}
+{:db/id "a17592186045688" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045688" :community/type :community.type/website}
+{:db/id "a17592186045689" :community/name "Queen Anne Examiner"}
+{:db/id "a17592186045689" :community/url "http://www.examiner.com/x-8856-Seattle-Queen-Anne-Hill-Examiner"}
+{:db/id "a17592186045689" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045689" :community/category "local issues"}
+{:db/id "a17592186045689" :community/category "news"}
+{:db/id "a17592186045689" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045689" :community/type :community.type/blog}
+{:db/id "a17592186045690" :community/name "Queen Anne Helpline"}
+{:db/id "a17592186045690" :community/url "http://queenannehelpline.org/index.php"}
+{:db/id "a17592186045690" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045690" :community/category "nonprofit"}
+{:db/id "a17592186045690" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045690" :community/type :community.type/website}
+{:db/id "a17592186045691" :community/name "Queen Anne Historical Society"}
+{:db/id "a17592186045691" :community/url "http://www.qahistory.org/"}
+{:db/id "a17592186045691" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045691" :community/category "historical society"}
+{:db/id "a17592186045691" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045691" :community/type :community.type/website}
+{:db/id "a17592186045692" :community/name "Queen Anne View"}
+{:db/id "a17592186045692" :community/url "http://www.queenanneview.com/"}
+{:db/id "a17592186045692" :community/neighborhood "a17592186045596"}
+{:db/id "a17592186045692" :community/category "events"}
+{:db/id "a17592186045692" :community/category "news"}
+{:db/id "a17592186045692" :community/category "reviews"}
+{:db/id "a17592186045692" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045692" :community/type :community.type/blog}
+{:db/id "a17592186045693" :community/name "Rainier Beach Community Empowerment Coalition"}
+{:db/id "a17592186045693" :community/url "http://twitter.com/rainierbeach"}
+{:db/id "a17592186045693" :community/neighborhood "a17592186045655"}
+{:db/id "a17592186045693" :community/category "events"}
+{:db/id "a17592186045693" :community/category "issues"}
+{:db/id "a17592186045693" :community/category "news"}
+{:db/id "a17592186045693" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045693" :community/type :community.type/twitter}
+{:db/id "a17592186045694" :community/name "Rainier Beach Community Empowerment Coalition"}
+{:db/id "a17592186045694" :community/url "http://www.rbcoalition.org/"}
+{:db/id "a17592186045694" :community/neighborhood "a17592186045655"}
+{:db/id "a17592186045694" :community/category "events"}
+{:db/id "a17592186045694" :community/category "issues"}
+{:db/id "a17592186045694" :community/category "news"}
+{:db/id "a17592186045694" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045694" :community/type :community.type/blog}
+{:db/id "a17592186045695" :community/name "Rainier Valley Historical Society"}
+{:db/id "a17592186045695" :community/url "http://www.rainiervalleyhistory.org/"}
+{:db/id "a17592186045695" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045695" :community/category "historical society"}
+{:db/id "a17592186045695" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045695" :community/type :community.type/website}
+{:db/id "a17592186045696" :community/name "Rainier Valley Post"}
+{:db/id "a17592186045696" :community/url "http://www.rainiervalleypost.com/"}
+{:db/id "a17592186045696" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045696" :community/category "911 blotter"}
+{:db/id "a17592186045696" :community/category "events"}
+{:db/id "a17592186045696" :community/category "food"}
+{:db/id "a17592186045696" :community/category "news"}
+{:db/id "a17592186045696" :community/category "reviews"}
+{:db/id "a17592186045696" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045696" :community/type :community.type/blog}
+{:db/id "a17592186045698" :neighborhood/name "Ravenna"}
+{:db/id "a17592186045698" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045699" :community/name "Ravenna Blog"}
+{:db/id "a17592186045699" :community/url "http://twitter.com/ravennablog"}
+{:db/id "a17592186045699" :community/neighborhood "a17592186045698"}
+{:db/id "a17592186045699" :community/category "criminal activity"}
+{:db/id "a17592186045699" :community/category "events"}
+{:db/id "a17592186045699" :community/category "food"}
+{:db/id "a17592186045699" :community/category "human interest"}
+{:db/id "a17592186045699" :community/category "news"}
+{:db/id "a17592186045699" :community/category "shopping"}
+{:db/id "a17592186045699" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045699" :community/type :community.type/twitter}
+{:db/id "a17592186045700" :community/name "Ravenna Blog"}
+{:db/id "a17592186045700" :community/url "http://www.facebook.com/pages/Ravenna-Blog/116280421718247"}
+{:db/id "a17592186045700" :community/neighborhood "a17592186045698"}
+{:db/id "a17592186045700" :community/category "criminal activity"}
+{:db/id "a17592186045700" :community/category "events"}
+{:db/id "a17592186045700" :community/category "food"}
+{:db/id "a17592186045700" :community/category "human interest"}
+{:db/id "a17592186045700" :community/category "news"}
+{:db/id "a17592186045700" :community/category "shopping"}
+{:db/id "a17592186045700" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045700" :community/type :community.type/facebook-page}
+{:db/id "a17592186045701" :community/name "Ravenna Blog"}
+{:db/id "a17592186045701" :community/url "http://www.ravennablog.com/"}
+{:db/id "a17592186045701" :community/neighborhood "a17592186045698"}
+{:db/id "a17592186045701" :community/category "criminal activity"}
+{:db/id "a17592186045701" :community/category "events"}
+{:db/id "a17592186045701" :community/category "food"}
+{:db/id "a17592186045701" :community/category "human interest"}
+{:db/id "a17592186045701" :community/category "news"}
+{:db/id "a17592186045701" :community/category "shopping"}
+{:db/id "a17592186045701" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045701" :community/type :community.type/blog}
+{:db/id "a17592186045702" :community/name "Ravenna-Bryant Community Association"}
+{:db/id "a17592186045702" :community/url "http://www.facebook.com/pages/Ravenna-Bryant-Community-Association/153638664651035"}
+{:db/id "a17592186045702" :community/neighborhood "a17592186045698"}
+{:db/id "a17592186045702" :community/category "community association"}
+{:db/id "a17592186045702" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045702" :community/type :community.type/facebook-page}
+{:db/id "a17592186045703" :community/name "Ravenna-Bryant Community Association"}
+{:db/id "a17592186045703" :community/url "http://www.ravennabryant.org/"}
+{:db/id "a17592186045703" :community/neighborhood "a17592186045698"}
+{:db/id "a17592186045703" :community/category "community association"}
+{:db/id "a17592186045703" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045703" :community/type :community.type/website}
+{:db/id "a17592186045704" :neighborhood/name "Roosevelt"}
+{:db/id "a17592186045704" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045705" :community/name "Roosevelt Neighborhood Association"}
+{:db/id "a17592186045705" :community/url "http://rooseveltseattle.org/default.aspx"}
+{:db/id "a17592186045705" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045705" :community/category "neighborhood association"}
+{:db/id "a17592186045705" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045705" :community/type :community.type/website}
+{:db/id "a17592186045706" :community/name "Roosevelt Neighborhood Association"}
+{:db/id "a17592186045706" :community/url "http://www.facebook.com/group.php?gid=178766520060"}
+{:db/id "a17592186045706" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045706" :community/category "neighborhood association"}
+{:db/id "a17592186045706" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045706" :community/type :community.type/facebook-page}
+{:db/id "a17592186045707" :community/name "Roosevelt Neighbors' Alliance"}
+{:db/id "a17592186045707" :community/url "http://www.rooseveltneighborsalliance.org/main/Roosevelt_Neighbors_Alliance.html"}
+{:db/id "a17592186045707" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045707" :community/category "neighborhood association"}
+{:db/id "a17592186045707" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045707" :community/type :community.type/website}
+{:db/id "a17592186045708" :community/name "Roosevelt Seattle"}
+{:db/id "a17592186045708" :community/url "http://twitter.com/roosieseattle"}
+{:db/id "a17592186045708" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045708" :community/category "events"}
+{:db/id "a17592186045708" :community/category "news"}
+{:db/id "a17592186045708" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045708" :community/type :community.type/twitter}
+{:db/id "a17592186045709" :community/name "Rosiehood"}
+{:db/id "a17592186045709" :community/url "http://twitter.com/Roosiehood"}
+{:db/id "a17592186045709" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045709" :community/category "criminal activity"}
+{:db/id "a17592186045709" :community/category "events"}
+{:db/id "a17592186045709" :community/category "human interest"}
+{:db/id "a17592186045709" :community/category "news"}
+{:db/id "a17592186045709" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045709" :community/type :community.type/twitter}
+{:db/id "a17592186045710" :community/name "Rosiehood"}
+{:db/id "a17592186045710" :community/url "http://www.facebook.com/pages/Roosevelt-Neighborhood-Blog/133948283288085"}
+{:db/id "a17592186045710" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045710" :community/category "criminal activity"}
+{:db/id "a17592186045710" :community/category "events"}
+{:db/id "a17592186045710" :community/category "human interest"}
+{:db/id "a17592186045710" :community/category "news"}
+{:db/id "a17592186045710" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045710" :community/type :community.type/facebook-page}
+{:db/id "a17592186045711" :community/name "Rosiehood"}
+{:db/id "a17592186045711" :community/url "http://www.roosiehood.com/"}
+{:db/id "a17592186045711" :community/neighborhood "a17592186045704"}
+{:db/id "a17592186045711" :community/category "criminal activity"}
+{:db/id "a17592186045711" :community/category "events"}
+{:db/id "a17592186045711" :community/category "human interest"}
+{:db/id "a17592186045711" :community/category "news"}
+{:db/id "a17592186045711" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045711" :community/type :community.type/blog}
+{:db/id "a17592186045713" :community/name "S Lake Union Friends and Neighbors Community Council"}
+{:db/id "a17592186045713" :community/url "http://www.slufan.org/"}
+{:db/id "a17592186045713" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045713" :community/category "community council"}
+{:db/id "a17592186045713" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045713" :community/type :community.type/website}
+{:db/id "a17592186045714" :community/name "SCIPDA"}
+{:db/id "a17592186045714" :community/url "http://www.scidpda.org/"}
+{:db/id "a17592186045714" :community/neighborhood "a17592186045495"}
+{:db/id "a17592186045714" :community/category "public development authority"}
+{:db/id "a17592186045714" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045714" :community/type :community.type/website}
+{:db/id "a17592186045715" :community/name "Seattle Central Community College"}
+{:db/id "a17592186045715" :community/url "http://seattlecentral.edu/"}
+{:db/id "a17592186045715" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045715" :community/category "college"}
+{:db/id "a17592186045715" :community/type :community.type/website}
+{:db/id "a17592186045716" :community/name "Seattle Chinatown Guide"}
+{:db/id "a17592186045716" :community/url "http://www.chinatownconnection.com/seattle-chinatown-international-district.htm"}
+{:db/id "a17592186045716" :community/neighborhood "a17592186045495"}
+{:db/id "a17592186045716" :community/category "food"}
+{:db/id "a17592186045716" :community/category "shopping"}
+{:db/id "a17592186045716" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045716" :community/type :community.type/website}
+{:db/id "a17592186045717" :neighborhood/name "Industrial District"}
+{:db/id "a17592186045717" :neighborhood/district "a17592186045450"}
+{:db/id "a17592186045718" :community/name "Seattle Industry"}
+{:db/id "a17592186045718" :community/url "http://www.seattleindustry.org/"}
+{:db/id "a17592186045718" :community/neighborhood "a17592186045717"}
+{:db/id "a17592186045718" :community/category "seattle industry"}
+{:db/id "a17592186045718" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045718" :community/type :community.type/website}
+{:db/id "a17592186045719" :community/name "Seattle's Othello Neighborhood"}
+{:db/id "a17592186045719" :community/url "http://othelloneighborhood.org/default.aspx"}
+{:db/id "a17592186045719" :community/neighborhood "a17592186045672"}
+{:db/id "a17592186045719" :community/category "shared community group website"}
+{:db/id "a17592186045719" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045719" :community/type :community.type/website}
+{:db/id "a17592186045720" :community/name "Senior Center West Seattle"}
+{:db/id "a17592186045720" :community/url "http://www.sc-ws.org/"}
+{:db/id "a17592186045720" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045720" :community/category "senior center"}
+{:db/id "a17592186045720" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045720" :community/type :community.type/website}
+{:db/id "a17592186045721" :community/name "Senior Services"}
+{:db/id "a17592186045721" :community/url "http://www.seniorservices.org/"}
+{:db/id "a17592186045721" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045721" :community/category "senior sevices"}
+{:db/id "a17592186045721" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045721" :community/type :community.type/website}
+{:db/id "a17592186045723" :community/name "Shilshole Blog"}
+{:db/id "a17592186045723" :community/url "http://shilsholecommunity.org/"}
+{:db/id "a17592186045723" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045723" :community/category "criminal activity"}
+{:db/id "a17592186045723" :community/category "events"}
+{:db/id "a17592186045723" :community/category "news"}
+{:db/id "a17592186045723" :community/category "weather"}
+{:db/id "a17592186045723" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045723" :community/type :community.type/blog}
+{:db/id "a17592186045724" :neighborhood/name "SoDo"}
+{:db/id "a17592186045724" :neighborhood/district "a17592186045447"}
+{:db/id "a17592186045725" :community/name "SoDo Business Association"}
+{:db/id "a17592186045725" :community/url "http://www.sodobusinessassociation.org/"}
+{:db/id "a17592186045725" :community/neighborhood "a17592186045724"}
+{:db/id "a17592186045725" :community/category "business association"}
+{:db/id "a17592186045725" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045725" :community/type :community.type/website}
+{:db/id "a17592186045726" :community/name "SoDo Business Association"}
+{:db/id "a17592186045726" :community/url "http://www.sodobusinessassociation.org/"}
+{:db/id "a17592186045726" :community/neighborhood "a17592186045717"}
+{:db/id "a17592186045726" :community/category "business association"}
+{:db/id "a17592186045726" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045726" :community/type :community.type/website}
+{:db/id "a17592186045727" :community/name "Solid Ground"}
+{:db/id "a17592186045727" :community/url "http://www.facebook.com/pages/Solid-Ground/20665239656"}
+{:db/id "a17592186045727" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045727" :community/category "nonprofit"}
+{:db/id "a17592186045727" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045727" :community/type :community.type/facebook-page}
+{:db/id "a17592186045728" :community/name "Solid Ground"}
+{:db/id "a17592186045728" :community/url "http://www.solid-ground.org/Pages/Default.aspx"}
+{:db/id "a17592186045728" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045728" :community/category "nonprofit"}
+{:db/id "a17592186045728" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045728" :community/type :community.type/website}
+{:db/id "a17592186045729" :community/name "South Lake Union Chamber of Commerce"}
+{:db/id "a17592186045729" :community/url "http://www.sluchamber.org/"}
+{:db/id "a17592186045729" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045729" :community/category "chamber of commerce"}
+{:db/id "a17592186045729" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045729" :community/type :community.type/website}
+{:db/id "a17592186045730" :community/name "South Park Seattle"}
+{:db/id "a17592186045730" :community/url "http://www.myspace.com/southparkseattle"}
+{:db/id "a17592186045730" :community/neighborhood "a17592186045451"}
+{:db/id "a17592186045730" :community/category "neighborhood info"}
+{:db/id "a17592186045730" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045730" :community/type :community.type/myspace}
+{:db/id "a17592186045731" :community/name "Southeast District Council"}
+{:db/id "a17592186045731" :community/url "http://sedcseattle.wordpress.com/"}
+{:db/id "a17592186045731" :community/neighborhood "a17592186045504"}
+{:db/id "a17592186045731" :community/category "district council"}
+{:db/id "a17592186045731" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045731" :community/type :community.type/blog}
+{:db/id "a17592186045733" :community/name "Squire Park Community Council"}
+{:db/id "a17592186045733" :community/url "http://groups.yahoo.com/group/squirepark/"}
+{:db/id "a17592186045733" :community/neighborhood "a17592186045491"}
+{:db/id "a17592186045733" :community/category "community group"}
+{:db/id "a17592186045733" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045733" :community/type :community.type/email-list}
+{:db/id "a17592186045734" :community/name "Squire Park Community Council"}
+{:db/id "a17592186045734" :community/url "http://www.squireparkseattle.com/"}
+{:db/id "a17592186045734" :community/neighborhood "a17592186045491"}
+{:db/id "a17592186045734" :community/category "community group"}
+{:db/id "a17592186045734" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045734" :community/type :community.type/blog}
+{:db/id "a17592186045735" :community/name "Sustainable Ballard"}
+{:db/id "a17592186045735" :community/url "http://sustainableballard.org/wiki/index.php?title=Welcome_to_Sustainable_Ballard!"}
+{:db/id "a17592186045735" :community/neighborhood "a17592186045456"}
+{:db/id "a17592186045735" :community/category "community group"}
+{:db/id "a17592186045735" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045735" :community/type :community.type/wiki}
+{:db/id "a17592186045736" :community/name "Sustainable Crown Hill"}
+{:db/id "a17592186045736" :community/url "http://sustainablecrownhill.org/wp/"}
+{:db/id "a17592186045736" :community/neighborhood "a17592186045508"}
+{:db/id "a17592186045736" :community/category "community group"}
+{:db/id "a17592186045736" :community/category "has mailing list"}
+{:db/id "a17592186045736" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045736" :community/type :community.type/website}
+{:db/id "a17592186045737" :community/name "Sustainable Greenwood/Phinney"}
+{:db/id "a17592186045737" :community/url "http://web.me.com/annecann1/iWeb/Site/Home.html"}
+{:db/id "a17592186045737" :community/neighborhood "a17592186045674"}
+{:db/id "a17592186045737" :community/category "susainability"}
+{:db/id "a17592186045737" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045737" :community/type :community.type/website}
+{:db/id "a17592186045738" :neighborhood/name "Wedgwood"}
+{:db/id "a17592186045738" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045739" :community/name "Sustainable Northeast Seattle"}
+{:db/id "a17592186045739" :community/url "http://sustainableneseattle.ning.com/"}
+{:db/id "a17592186045739" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045739" :community/category "community group"}
+{:db/id "a17592186045739" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045739" :community/type :community.type/ning}
+{:db/id "a17592186045740" :community/name "The Junction: Downtown West Seattle"}
+{:db/id "a17592186045740" :community/url "http://www.wsjunction.com/"}
+{:db/id "a17592186045740" :community/neighborhood "a17592186045576"}
+{:db/id "a17592186045740" :community/category "neighborhood association"}
+{:db/id "a17592186045740" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045740" :community/type :community.type/website}
+{:db/id "a17592186045741" :community/name "The Laurelhurst Blog"}
+{:db/id "a17592186045741" :community/url "http://thelaurelhurstblog.blogspot.com/"}
+{:db/id "a17592186045741" :community/neighborhood "a17592186045608"}
+{:db/id "a17592186045741" :community/category "events"}
+{:db/id "a17592186045741" :community/category "news"}
+{:db/id "a17592186045741" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045741" :community/type :community.type/blog}
+{:db/id "a17592186045742" :community/name "The Maple Leafer"}
+{:db/id "a17592186045742" :community/url "http://twitter.com/themapleleafer"}
+{:db/id "a17592186045742" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045742" :community/category "criminal activity"}
+{:db/id "a17592186045742" :community/category "events"}
+{:db/id "a17592186045742" :community/category "human interest"}
+{:db/id "a17592186045742" :community/category "news"}
+{:db/id "a17592186045742" :community/category "shopping"}
+{:db/id "a17592186045742" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045742" :community/type :community.type/twitter}
+{:db/id "a17592186045743" :community/name "The Maple Leafer"}
+{:db/id "a17592186045743" :community/url "http://www.facebook.com/pages/The-Maple-Leafer/110782042284727"}
+{:db/id "a17592186045743" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045743" :community/category "criminal activity"}
+{:db/id "a17592186045743" :community/category "events"}
+{:db/id "a17592186045743" :community/category "human interest"}
+{:db/id "a17592186045743" :community/category "news"}
+{:db/id "a17592186045743" :community/category "shopping"}
+{:db/id "a17592186045743" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045743" :community/type :community.type/facebook-page}
+{:db/id "a17592186045744" :community/name "The Maple Leafer"}
+{:db/id "a17592186045744" :community/url "http://www.themapleleafer.com/"}
+{:db/id "a17592186045744" :community/neighborhood "a17592186045630"}
+{:db/id "a17592186045744" :community/category "criminal activity"}
+{:db/id "a17592186045744" :community/category "events"}
+{:db/id "a17592186045744" :community/category "human interest"}
+{:db/id "a17592186045744" :community/category "news"}
+{:db/id "a17592186045744" :community/category "shopping"}
+{:db/id "a17592186045744" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045744" :community/type :community.type/blog}
+{:db/id "a17592186045745" :community/name "The South Lake Union Community Blog"}
+{:db/id "a17592186045745" :community/url "http://www.thesouthlake.com/"}
+{:db/id "a17592186045745" :community/neighborhood "a17592186045515"}
+{:db/id "a17592186045745" :community/category "events"}
+{:db/id "a17592186045745" :community/category "news"}
+{:db/id "a17592186045745" :community/category "personalized profile pages"}
+{:db/id "a17592186045745" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045745" :community/type :community.type/blog}
+{:db/id "a17592186045746" :neighborhood/name "Thornton Creek"}
+{:db/id "a17592186045746" :neighborhood/district "a17592186045458"}
+{:db/id "a17592186045747" :community/name "Thornton Creek Alliance"}
+{:db/id "a17592186045747" :community/url "http://www.scn.org/tca/"}
+{:db/id "a17592186045747" :community/neighborhood "a17592186045746"}
+{:db/id "a17592186045747" :community/category "community group"}
+{:db/id "a17592186045747" :community/type :community.type/website}
+{:db/id "a17592186045748" :community/name "U District Daily"}
+{:db/id "a17592186045748" :community/url "http://www.udistrictdaily.com/"}
+{:db/id "a17592186045748" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045748" :community/category "criminal activity"}
+{:db/id "a17592186045748" :community/category "events"}
+{:db/id "a17592186045748" :community/category "human interest"}
+{:db/id "a17592186045748" :community/category "news"}
+{:db/id "a17592186045748" :community/category "shopping"}
+{:db/id "a17592186045748" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045748" :community/type :community.type/blog}
+{:db/id "a17592186045749" :community/name "University District Business Improvement Area"}
+{:db/id "a17592186045749" :community/url "http://www.udistrictchamber.org/UDBIA/index.html"}
+{:db/id "a17592186045749" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045749" :community/category "business association"}
+{:db/id "a17592186045749" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045749" :community/type :community.type/website}
+{:db/id "a17592186045750" :community/name "University District Food Bank"}
+{:db/id "a17592186045750" :community/url "http://www.facebook.com/pages/Seattle-WA/University-District-Food-Bank/47523824407"}
+{:db/id "a17592186045750" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045750" :community/category "food bank"}
+{:db/id "a17592186045750" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045750" :community/type :community.type/facebook-page}
+{:db/id "a17592186045751" :community/name "University District Food Bank"}
+{:db/id "a17592186045751" :community/url "http://www.udistrictfoodbank.org/"}
+{:db/id "a17592186045751" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045751" :community/category "food bank"}
+{:db/id "a17592186045751" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045751" :community/type :community.type/website}
+{:db/id "a17592186045752" :community/name "University District Seattle"}
+{:db/id "a17592186045752" :community/url "http://www.udistrictchamber.org/GUCC/GUCC.html"}
+{:db/id "a17592186045752" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045752" :community/category "chamber of commerce"}
+{:db/id "a17592186045752" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045752" :community/type :community.type/website}
+{:db/id "a17592186045753" :community/name "University District Service Fund"}
+{:db/id "a17592186045753" :community/url "http://www.udistrictchamber.org/udistrictservicefund/index.html"}
+{:db/id "a17592186045753" :community/neighborhood "a17592186045600"}
+{:db/id "a17592186045753" :community/category "nonprofit"}
+{:db/id "a17592186045753" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045753" :community/type :community.type/website}
+{:db/id "a17592186045754" :community/name "Vision Greenwood Park Seattle"}
+{:db/id "a17592186045754" :community/url "http://www.facebook.com/pages/Vision-Greenwood-Park-Seattle/165995713450762"}
+{:db/id "a17592186045754" :community/neighborhood "a17592186045556"}
+{:db/id "a17592186045754" :community/category "events"}
+{:db/id "a17592186045754" :community/category "neighborhood-issues"}
+{:db/id "a17592186045754" :community/category "neighborhood-planning"}
+{:db/id "a17592186045754" :community/category "park issues"}
+{:db/id "a17592186045754" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045754" :community/type :community.type/facebook-page}
+{:db/id "a17592186045755" :community/name "Walkable Crown Hill"}
+{:db/id "a17592186045755" :community/url "http://walkablecrownhill.org/"}
+{:db/id "a17592186045755" :community/neighborhood "a17592186045508"}
+{:db/id "a17592186045755" :community/category "neighborhood group"}
+{:db/id "a17592186045755" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045755" :community/type :community.type/website}
+{:db/id "a17592186045756" :community/name "Wallingford Chamber of Commerce"}
+{:db/id "a17592186045756" :community/url "http://wallingfordchamber.org/"}
+{:db/id "a17592186045756" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045756" :community/category "chamber of commerce"}
+{:db/id "a17592186045756" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045756" :community/type :community.type/website}
+{:db/id "a17592186045757" :community/name "Wallingford Community Council"}
+{:db/id "a17592186045757" :community/url "http://wallingford.org/get-involved/community-council/"}
+{:db/id "a17592186045757" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045757" :community/category "community council"}
+{:db/id "a17592186045757" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045757" :community/type :community.type/website}
+{:db/id "a17592186045758" :community/name "Wallingford Seattle Blog"}
+{:db/id "a17592186045758" :community/url "http://twitter.com/wallingford"}
+{:db/id "a17592186045758" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045758" :community/category "advice"}
+{:db/id "a17592186045758" :community/category "events"}
+{:db/id "a17592186045758" :community/category "news"}
+{:db/id "a17592186045758" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045758" :community/type :community.type/twitter}
+{:db/id "a17592186045759" :community/name "Wallingford Seattle Blog"}
+{:db/id "a17592186045759" :community/url "http://wallingfordseattle.tumblr.com/"}
+{:db/id "a17592186045759" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045759" :community/category "advice"}
+{:db/id "a17592186045759" :community/category "events"}
+{:db/id "a17592186045759" :community/category "news"}
+{:db/id "a17592186045759" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045759" :community/type :community.type/blog}
+{:db/id "a17592186045760" :community/name "Wallingford.org"}
+{:db/id "a17592186045760" :community/url "http://www.wallingford.org/"}
+{:db/id "a17592186045760" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045760" :community/category "neighborhood group"}
+{:db/id "a17592186045760" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045760" :community/type :community.type/website}
+{:db/id "a17592186045761" :community/name "Wallyhood - Wallingford Seattle Blog"}
+{:db/id "a17592186045761" :community/url "http://twitter.com/wallyhood"}
+{:db/id "a17592186045761" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045761" :community/category "events"}
+{:db/id "a17592186045761" :community/category "news"}
+{:db/id "a17592186045761" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045761" :community/type :community.type/twitter}
+{:db/id "a17592186045762" :community/name "Wallyhood - Wallingford Seattle Blog"}
+{:db/id "a17592186045762" :community/url "http://www.wallyhood.org/"}
+{:db/id "a17592186045762" :community/neighborhood "a17592186045604"}
+{:db/id "a17592186045762" :community/category "events"}
+{:db/id "a17592186045762" :community/category "news"}
+{:db/id "a17592186045762" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045762" :community/type :community.type/blog}
+{:db/id "a17592186045763" :community/name "Wedgwood Block Watch"}
+{:db/id "a17592186045763" :community/url "http://www.wedgwoodcc.org/wwbw/"}
+{:db/id "a17592186045763" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045763" :community/category "block watch"}
+{:db/id "a17592186045763" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045763" :community/type :community.type/website}
+{:db/id "a17592186045764" :community/name "Wedgwood Community Council"}
+{:db/id "a17592186045764" :community/url "http://www.wedgwoodcc.org/"}
+{:db/id "a17592186045764" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045764" :community/category "community council"}
+{:db/id "a17592186045764" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045764" :community/type :community.type/website}
+{:db/id "a17592186045765" :community/name "Wedgwood Community Council"}
+{:db/id "a17592186045765" :community/url "http://www.facebook.com/pages/Wedgwood-Community-Council/146730522040662"}
+{:db/id "a17592186045765" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045765" :community/category "community council"}
+{:db/id "a17592186045765" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045765" :community/type :community.type/facebook-page}
+{:db/id "a17592186045766" :community/name "Wedgwood View"}
+{:db/id "a17592186045766" :community/url "http://twitter.com/wedgwoodview"}
+{:db/id "a17592186045766" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045766" :community/category "criminal activity"}
+{:db/id "a17592186045766" :community/category "events"}
+{:db/id "a17592186045766" :community/category "human interest"}
+{:db/id "a17592186045766" :community/category "news"}
+{:db/id "a17592186045766" :community/category "shopping"}
+{:db/id "a17592186045766" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045766" :community/type :community.type/twitter}
+{:db/id "a17592186045767" :community/name "Wedgwood View"}
+{:db/id "a17592186045767" :community/url "http://www.facebook.com/pages/Wedgwood-View/331236446338"}
+{:db/id "a17592186045767" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045767" :community/category "criminal activity"}
+{:db/id "a17592186045767" :community/category "events"}
+{:db/id "a17592186045767" :community/category "human interest"}
+{:db/id "a17592186045767" :community/category "news"}
+{:db/id "a17592186045767" :community/category "shopping"}
+{:db/id "a17592186045767" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045767" :community/type :community.type/facebook-page}
+{:db/id "a17592186045768" :community/name "Wedgwood View"}
+{:db/id "a17592186045768" :community/url "http://www.wedgwoodview.com/"}
+{:db/id "a17592186045768" :community/neighborhood "a17592186045738"}
+{:db/id "a17592186045768" :community/category "criminal activity"}
+{:db/id "a17592186045768" :community/category "events"}
+{:db/id "a17592186045768" :community/category "human interest"}
+{:db/id "a17592186045768" :community/category "news"}
+{:db/id "a17592186045768" :community/category "shopping"}
+{:db/id "a17592186045768" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045768" :community/type :community.type/blog}
+{:db/id "a17592186045769" :community/name "West Seattle Blog"}
+{:db/id "a17592186045769" :community/url "http://www.facebook.com/westseattleblog"}
+{:db/id "a17592186045769" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045769" :community/category "profile page for West Seattle Blog"}
+{:db/id "a17592186045769" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045769" :community/type :community.type/facebook-page}
+{:db/id "a17592186045770" :community/name "West Seattle Chamber of Commerce"}
+{:db/id "a17592186045770" :community/url "http://www.wschamber.com/"}
+{:db/id "a17592186045770" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045770" :community/category "chamber of commerce"}
+{:db/id "a17592186045770" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045770" :community/type :community.type/website}
+{:db/id "a17592186045771" :community/name "West Seattle Herald"}
+{:db/id "a17592186045771" :community/url "http://twitter.com/westseattleher"}
+{:db/id "a17592186045771" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045771" :community/category "online newspaper"}
+{:db/id "a17592186045771" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045771" :community/type :community.type/twitter}
+{:db/id "a17592186045772" :community/name "West Seattle Herald"}
+{:db/id "a17592186045772" :community/url "http://www.facebook.com/wsherald"}
+{:db/id "a17592186045772" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045772" :community/category "online newspaper"}
+{:db/id "a17592186045772" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045772" :community/type :community.type/facebook-page}
+{:db/id "a17592186045773" :community/name "West Seattle Herald"}
+{:db/id "a17592186045773" :community/url "http://www.westseattleherald.com/"}
+{:db/id "a17592186045773" :community/neighborhood "a17592186045453"}
+{:db/id "a17592186045773" :community/category "online newspaper"}
+{:db/id "a17592186045773" :community/orgtype :community.orgtype/commercial}
+{:db/id "a17592186045773" :community/type :community.type/website}
+{:db/id "a17592186045774" :neighborhood/name "Westwood"}
+{:db/id "a17592186045774" :neighborhood/district "a17592186045506"}
+{:db/id "a17592186045775" :community/name "Westwood Neighborhood Council"}
+{:db/id "a17592186045775" :community/url "http://www.scn.org/neighbors/westwood/"}
+{:db/id "a17592186045775" :community/neighborhood "a17592186045774"}
+{:db/id "a17592186045775" :community/category "neighborhood council"}
+{:db/id "a17592186045775" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045775" :community/type :community.type/website}
+{:db/id "a17592186045776" :neighborhood/name "White Center"}
+{:db/id "a17592186045776" :neighborhood/district "a17592186045506"}
+{:db/id "a17592186045777" :community/name "White Center Community Development Association"}
+{:db/id "a17592186045777" :community/url "http://www.wccda.org/home"}
+{:db/id "a17592186045777" :community/neighborhood "a17592186045776"}
+{:db/id "a17592186045777" :community/category "nonprofit"}
+{:db/id "a17592186045777" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045777" :community/type :community.type/website}
+{:db/id "a17592186045778" :community/name "White Center Community Development Association blog"}
+{:db/id "a17592186045778" :community/url "http://twitter.com/whitecentercda"}
+{:db/id "a17592186045778" :community/neighborhood "a17592186045776"}
+{:db/id "a17592186045778" :community/category "nonprofit"}
+{:db/id "a17592186045778" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045778" :community/type :community.type/website}
+{:db/id "a17592186045779" :community/name "White Center Now"}
+{:db/id "a17592186045779" :community/url "http://whitecenternow.com/"}
+{:db/id "a17592186045779" :community/neighborhood "a17592186045776"}
+{:db/id "a17592186045779" :community/category "events"}
+{:db/id "a17592186045779" :community/category "food"}
+{:db/id "a17592186045779" :community/category "news"}
+{:db/id "a17592186045779" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045779" :community/type :community.type/blog}
+{:db/id "a17592186045780" :community/name "White Center Technology Programs"}
+{:db/id "a17592186045780" :community/url "http://technology.program.googlepages.com/"}
+{:db/id "a17592186045780" :community/neighborhood "a17592186045776"}
+{:db/id "a17592186045780" :community/category "tech resources"}
+{:db/id "a17592186045780" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045780" :community/type :community.type/website}
+{:db/id "a17592186045781" :community/name "Wing Luke Asian Museum"}
+{:db/id "a17592186045781" :community/url "http://www.wingluke.org/"}
+{:db/id "a17592186045781" :community/neighborhood "a17592186045495"}
+{:db/id "a17592186045781" :community/category "museum"}
+{:db/id "a17592186045781" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045781" :community/type :community.type/website}
+{:db/id "a17592186045782" :community/name "Youngstown Cultural Arts Center"}
+{:db/id "a17592186045782" :community/url "http://youngstownarts.org"}
+{:db/id "a17592186045782" :community/neighborhood "a17592186045510"}
+{:db/id "a17592186045782" :community/category "arts"}
+{:db/id "a17592186045782" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045782" :community/type :community.type/website}
+{:db/id "a17592186045783" :community/name "Your Capitol Hill"}
+{:db/id "a17592186045783" :community/url "http://www.yourcapitolhill.com/"}
+{:db/id "a17592186045783" :community/neighborhood "a17592186045439"}
+{:db/id "a17592186045783" :community/category "dining"}
+{:db/id "a17592186045783" :community/category "events"}
+{:db/id "a17592186045783" :community/category "nightlife"}
+{:db/id "a17592186045783" :community/category "shopping"}
+{:db/id "a17592186045783" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045783" :community/type :community.type/website}
+{:db/id "a17592186045784" :community/name "yoursouthpark"}
+{:db/id "a17592186045784" :community/url "http://groups.yahoo.com/group/yoursouthpark/"}
+{:db/id "a17592186045784" :community/neighborhood "a17592186045451"}
+{:db/id "a17592186045784" :community/category "community members"}
+{:db/id "a17592186045784" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045784" :community/type :community.type/email-list}
+{:db/id "a17592186045785" :community/name "Helping Link"}
+{:db/id "a17592186045785" :community/url "http://www.helpinglink.org/"}
+{:db/id "a17592186045785" :community/neighborhood "a17592186045495"}
+{:db/id "a17592186045785" :community/category "ethnic/cultural-interest"}
+{:db/id "a17592186045785" :community/category "seniors"}
+{:db/id "a17592186045785" :community/category "youth"}
+{:db/id "a17592186045785" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045785" :community/type :community.type/website}
+{:db/id "a17592186045786" :community/name "MLK FAME Community Center"}
+{:db/id "a17592186045786" :community/url "http://www.mlkfame.com/"}
+{:db/id "a17592186045786" :community/neighborhood "a17592186045591"}
+{:db/id "a17592186045786" :community/category "community group"}
+{:db/id "a17592186045786" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045786" :community/type :community.type/website}
+{:db/id "a17592186045787" :neighborhood/name "Jackson Place"}
+{:db/id "a17592186045787" :neighborhood/district "a17592186045477"}
+{:db/id "a17592186045788" :community/name "Jackson Place Community Council"}
+{:db/id "a17592186045788" :community/url "http://www.jacksonplace.org"}
+{:db/id "a17592186045788" :community/neighborhood "a17592186045787"}
+{:db/id "a17592186045788" :community/category "neighborhood-issues"}
+{:db/id "a17592186045788" :community/category "neighborhood-planning"}
+{:db/id "a17592186045788" :community/orgtype :community.orgtype/community}
+{:db/id "a17592186045788" :community/type :community.type/website}
+]
