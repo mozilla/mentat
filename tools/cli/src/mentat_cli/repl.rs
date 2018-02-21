@@ -8,7 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::process;
 
@@ -46,6 +46,7 @@ use command_parser::{
     SHORT_QUERY_COMMAND,
     SCHEMA_COMMAND,
     SYNC_COMMAND,
+    LONG_IMPORT_COMMAND,
     LONG_TRANSACT_COMMAND,
     SHORT_TRANSACT_COMMAND,
     LONG_EXIT_COMMAND,
@@ -63,8 +64,8 @@ use input::InputResult::{
 };
 
 lazy_static! {
-    static ref COMMAND_HELP: HashMap<&'static str, &'static str> = {
-        let mut map = HashMap::new();
+    static ref COMMAND_HELP: BTreeMap<&'static str, &'static str> = {
+        let mut map = BTreeMap::new();
         map.insert(LONG_EXIT_COMMAND, "Close the current database and exit the REPL.");
         map.insert(SHORT_EXIT_COMMAND, "Shortcut for `.exit`. Close the current database and exit the REPL.");
         map.insert(HELP_COMMAND, "Show help for commands.");
@@ -76,6 +77,7 @@ lazy_static! {
         map.insert(SYNC_COMMAND, "Synchronize database against a Sync Server URL for a provided user UUID.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
         map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
+        map.insert(LONG_IMPORT_COMMAND, "Transact the contents of a file against the current open database.");
         map.insert(LONG_QUERY_EXPLAIN_COMMAND, "Show the SQL and query plan that would be executed for a given query.");
         map.insert(SHORT_QUERY_EXPLAIN_COMMAND,
             "Shortcut for `.explain_query`. Show the SQL and query plan that would be executed for a given query.");
@@ -210,6 +212,7 @@ impl Repl {
                     Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
+            Command::Import(path) => self.execute_import(path),
             Command::Sync(args) => {
                 match self.store.sync(&args[0], &args[1]) {
                     Ok(_) => println!("Synced!"),
@@ -246,6 +249,17 @@ impl Repl {
             eprint_out("Run time");
             eprint!(": ");
             format_time(start.to(end));
+        }
+    }
+
+    fn execute_import<T>(&mut self, path: T)
+    where T: Into<String> {
+        use ::std::io::Read;
+        let path = path.into();
+        let mut content: String = "".to_string();
+        match ::std::fs::File::open(path.clone()).and_then(|mut f| f.read_to_string(&mut content)) {
+            Ok(_) => self.execute_transact(content),
+            Err(e) => eprintln!("Error reading file {}: {}", path, e)
         }
     }
 

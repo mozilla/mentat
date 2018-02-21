@@ -53,6 +53,7 @@ pub fn run() -> i32 {
     opts.optflag("h", "help", "Print this help message and exit");
     opts.optmulti("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
     opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
+    opts.optmulti("i", "import", "Execute an import on startup. Imports are executed before queries.", "PATH");
     opts.optflag("v", "version", "Print version and exit");
 
     let matches = match opts.parse(&args[1..]) {
@@ -83,6 +84,10 @@ pub fn run() -> i32 {
             Some("-q") => {
                 last_arg = None;
                 Some(command_parser::Command::Query(arg.clone()))
+            },
+            Some("-i") => {
+                last_arg = None;
+                Some(command_parser::Command::Import(arg.clone()))
             },
             Some("-t") => {
                 last_arg = None;
