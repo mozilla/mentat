@@ -1,0 +1,20 @@
+.i fixtures/cities.schema
+.i fixtures/all_seattle.edn
+
+.q [:find ?name ?cat
+    :where
+    [?c :community/name ?name]
+    [?c :community/type :community.type/website]
+    [(fulltext $ :community/category "food") [[?c ?cat]]]]
+
+.q [:find ?c_name ?r_name
+    :where
+    [?c :community/name ?c_name]
+    [?c :community/neighborhood ?n]
+    [?n :neighborhood/district ?d]
+    [?d :district/region ?r]
+    [?r :db/ident ?r_name]]
+
+.q [:find ?n .  :where [(fulltext $ :community/name "Wallingford") [[?e ?n]]]]
+
+.q [:find [?when ...] :where [_ :db/txInstant ?when] :order (asc ?when)]
