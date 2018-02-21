@@ -18,3 +18,11 @@
 .q [:find ?n .  :where [(fulltext $ :community/name "Wallingford") [[?e ?n]]]]
 
 .q [:find [?when ...] :where [_ :db/txInstant ?when] :order (asc ?when)]
+
+.cache :neighborhood/name reverse
+.cache :neighborhood/district forward
+
+.q [:find ?district :where
+    [?neighborhood :neighborhood/name "Beacon Hill"]
+    [?neighborhood :neighborhood/district ?d]
+    [?d :district/name ?district]]
