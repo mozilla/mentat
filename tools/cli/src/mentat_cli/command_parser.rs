@@ -45,6 +45,8 @@ pub static SCHEMA_COMMAND: &'static str = &"schema";
 pub static LONG_TIMER_COMMAND: &'static str = &"timer";
 pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
 pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
+pub static LONG_IMPORT_COMMAND: &'static str = &"import";
+pub static SHORT_IMPORT_COMMAND: &'static str = &"i";
 pub static LONG_EXIT_COMMAND: &'static str = &"exit";
 pub static SHORT_EXIT_COMMAND: &'static str = &"e";
 pub static LONG_QUERY_EXPLAIN_COMMAND: &'static str = &"explain_query";
@@ -64,6 +66,7 @@ pub enum Command {
     Sync(Vec<String>),
     Timer(bool),
     Transact(String),
+    Import(String),
     QueryExplain(String),
 }
 
@@ -85,6 +88,7 @@ impl Command {
             &Command::OpenEmpty(_) |
             &Command::Close |
             &Command::Exit |
+            &Command::Import(_) |
             &Command::Sync(_) |
             &Command::Cache(_, _) |
             &Command::Schema => true
@@ -94,6 +98,7 @@ impl Command {
     pub fn is_timed(&self) -> bool {
         match self {
             &Command::Query(_) |
+            &Command::Import(_) |
             &Command::Transact(_)  => true,
             &Command::QueryExplain(_) |
             &Command::Timer(_) |
@@ -112,6 +117,9 @@ impl Command {
         match self {
             &Command::Query(ref args) => {
                 format!(".{} {}", LONG_QUERY_COMMAND, args)
+            },
+            &Command::Import(ref args) => {
+                format!(".{} {}", LONG_IMPORT_COMMAND, args)
             },
             &Command::Transact(ref args) => {
                 format!(".{} {}", LONG_TRANSACT_COMMAND, args)
@@ -151,6 +159,7 @@ impl Command {
 }
 
 pub fn command(s: &str) -> Result<Command, cli::Error> {
+    let path = || many1::<String, _>(satisfy(|c: char| !c.is_whitespace()));
     let argument = || many1::<String, _>(satisfy(|c: char| !c.is_whitespace()));
     let arguments = || sep_end_by::<Vec<_>, _, _>(many1(satisfy(|c: char| !c.is_whitespace())), many1::<Vec<_>, _>(space())).expected("arguments");
 
@@ -192,7 +201,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         }
                         Ok(Command::Open(args[0].clone()))
                     });
-    
+
     let open_empty_parser = string(OPEN_EMPTY_COMMAND)
                     .with(spaces())
                     .with(arguments())
@@ -264,9 +273,16 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                             Ok(Command::Query(x))
                         });
 
+    let import_parser = try(string(LONG_IMPORT_COMMAND)).or(try(string(SHORT_IMPORT_COMMAND)))
+                    .with(spaces())
+                    .with(path())
+                    .map(|x| {
+                        Ok(Command::Import(x))
+                    });
+
     let transact_parser = try(string(LONG_TRANSACT_COMMAND)).or(try(string(SHORT_TRANSACT_COMMAND)))
                     .with(edn_arg_parser())
-                    .map( |x| {
+                    .map(|x| {
                         Ok(Command::Transact(x))
                     });
 
@@ -278,8 +294,9 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 12], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 13], _>
           ([&mut try(help_parser),
+            &mut try(import_parser),
             &mut try(timer_parser),
             &mut try(cache_parser),
             &mut try(open_parser),
@@ -562,6 +579,16 @@ mod tests {
         let input = ".q :find ?x";
         let err = command(&input).expect_err("Expected an error");
         assert_eq!(err.to_string(), format!("Invalid command {:?}", input));
+    }
+
+    #[test]
+    fn test_import_parser() {
+        let input = ".import /foo/bar/";
+        let cmd = command(&input).expect("Expected import command");
+        match cmd {
+            Command::Import(path) => assert_eq!(path, "/foo/bar/"),
+            _ => panic!("Wrong command!")
+        }
     }
 
     #[test]
