@@ -12,6 +12,9 @@
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::collections::hash_map::{
+    Entry,
+};
 use std::fmt::Display;
 use std::iter::{once, repeat};
 use std::ops::Range;
@@ -863,44 +866,68 @@ impl MentatStoring for rusqlite::Connection {
 
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(max_vars / bindings_per_statement);
 
+        // From string to (searchid, value_type_tag).
+        let mut seen: HashMap<Rc<String>, (i64, i32)> = HashMap::with_capacity(entities.len());
+
         // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
         let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {
-            let mut count = 0;
+            let mut datom_count = 0;
+            let mut string_count = 0;
 
             // We must keep these computed values somewhere to reference them later, so we can't
             // combine this map and the subsequent flat_map.
             // (e0, a0, v0, value_type_tag0, added0, flags0)
             let block: Result<Vec<(i64 /* e */,
                                    i64 /* a */,
-                                   ToSqlOutput<'a> /* value */,
+                                   Option<ToSqlOutput<'a>> /* value */,
                                    i32 /* value_type_tag */,
                                    bool /* added0 */,
                                    u8 /* flags0 */,
                                    i64 /* searchid */)>> = chunk.map(|&(e, a, ref attribute, ref typed_value, added)| {
-                if typed_value.value_type() != ValueType::String {
-                    bail!("Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string");
+                match typed_value {
+                    &TypedValue::String(ref rc) => {
+                        datom_count += 1;
+                        let entry = seen.entry(rc.clone());
+                        match entry {
+                            Entry::Occupied(entry) => {
+                                let &(searchid, value_type_tag) = entry.get();
+                                Ok((e, a, None, value_type_tag, added, attribute.flags(), searchid))
+                            },
+                            Entry::Vacant(entry) => {
+                                outer_searchid += 1;
+                                string_count += 1;
+
+                                // Now we can represent the typed value as an SQL value.
+                                let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
+                                entry.insert((outer_searchid, value_type_tag));
+
+                                Ok((e, a, Some(value), value_type_tag, added, attribute.flags(), outer_searchid))
+                            }
+                        }
+                    },
+                    _ => {
+                        bail!("Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string");
+                    },
                 }
 
-                count += 1;
-                outer_searchid += 1;
 
-                // Now we can represent the typed value as an SQL value.
-                let (value, value_type_tag): (ToSqlOutput, i32) = typed_value.to_sql_value_pair();
-
-                Ok((e, a, value, value_type_tag, added, attribute.flags(), outer_searchid))
             }).collect();
             let block = block?;
 
             // First, insert all fulltext string values.
             // `fts_params` reference computed values in `block`.
-            let fts_params: Vec<&ToSql> = block.iter().flat_map(|&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref searchid)| {
+            let fts_params: Vec<&ToSql> = block.iter()
+                                               .filter(|&&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref _searchid)| {
+                                                   value.is_some()
+                                               })
+             .flat_map(|&(ref _e, ref _a, ref value, ref _value_type_tag, _added, ref _flags, ref searchid)| {
                 // Avoid inner heap allocation.
                 once(value as &ToSql)
                     .chain(once(searchid as &ToSql))
             }).collect();
 
-            // TODO: make this maximally efficient.  It's not terribly inefficient right now.
-            let fts_values: String = repeat_values(2, count);
+            // TODO: make this maximally efficient. It's not terribly inefficient right now.
+            let fts_values: String = repeat_values(2, string_count);
             let fts_s: String = format!("INSERT INTO fulltext_values_view (text, searchid) VALUES {}", fts_values);
 
             // TODO: consider ensuring we inserted the expected number of rows.
@@ -923,10 +950,10 @@ impl MentatStoring for rusqlite::Connection {
             }).collect();
 
             // TODO: cache this for selected values of count.
-            assert!(bindings_per_statement * count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, count, max_vars);
+            assert!(bindings_per_statement * datom_count < max_vars, "Too many values: {} * {} >= {}", bindings_per_statement, datom_count, max_vars);
             let inner = "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, ?, ?)".to_string();
             // Like "(?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, ?, ?), (?, ?, (SELECT rowid FROM fulltext_values WHERE searchid = ?), ?, ?, ?)".
-            let fts_values: String = repeat(inner).take(count).join(", ");
+            let fts_values: String = repeat(inner).take(datom_count).join(", ");
             let s: String = if search_type == SearchType::Exact {
                 format!("INSERT INTO temp.exact_searches (e0, a0, v0, value_type_tag0, added0, flags0) VALUES {}", fts_values)
             } else {
@@ -937,14 +964,14 @@ impl MentatStoring for rusqlite::Connection {
             let mut stmt = self.prepare_cached(s.as_str())?;
             stmt.execute(&params)
                 .map(|_c| ())
-                .chain_err(|| "Could not insert fts statements into temporary search table!")
+                .chain_err(|| "Could not insert FTS statements into temporary search table!")
         }).collect::<Result<Vec<()>>>();
 
         // Finally, clean up temporary searchids.
         let mut stmt = self.prepare_cached("UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL")?;
         stmt.execute(&[])
             .map(|_c| ())
-            .chain_err(|| "Could not drop fts search ids!")?;
+            .chain_err(|| "Could not drop FTS search ids!")?;
 
         results.map(|_| ())
     }
