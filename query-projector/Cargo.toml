@@ -7,7 +7,7 @@ workspace = ".."
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
 [dependencies.rusqlite]
-version = "0.12"
+version = "0.13"
 features = ["limits"]
 
 [dependencies.mentat_core]

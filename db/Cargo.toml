@@ -11,7 +11,7 @@ ordered-float = "0.5"
 time = "0.1"
 
 [dependencies.rusqlite]
-version = "0.12"
+version = "0.13"
 features = ["limits"]
 
 [dependencies.edn]
