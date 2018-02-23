@@ -40,6 +40,7 @@ error_chain! {
         EdnParseError(edn::ParseError);
         Rusqlite(rusqlite::Error);
         UuidParseError(uuid::ParseError);
+        IoError(::std::io::Error);
     }
 
     links {

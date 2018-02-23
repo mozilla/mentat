@@ -10,6 +10,14 @@
 
 #![allow(dead_code)]
 
+use std::fs::{
+    File,
+};
+
+use std::io::{
+    Read,
+};
+
 use std::path::{
     Path,
 };
@@ -383,6 +391,14 @@ impl<'a, 'c> InProgress<'a, 'c> {
         let assertion_vector = edn::parse::value(transaction)?;
         let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
         self.transact_entities(entities)
+    }
+
+    pub fn import<P>(&mut self, path: P) -> Result<TxReport>
+    where P: AsRef<Path> {
+        let mut file = File::open(path)?;
+        let mut text: String = String::new();
+        file.read_to_string(&mut text)?;
+        self.transact(text.as_str())
     }
 
     pub fn rollback(self) -> Result<()> {
