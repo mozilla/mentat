@@ -21,7 +21,8 @@ extern crate lazy_static;
 extern crate serde_derive;
 
 extern crate hyper;
-extern crate hyper_tls;
+// TODO https://github.com/mozilla/mentat/issues/569
+// extern crate hyper_tls;
 extern crate tokio_core;
 extern crate futures;
 extern crate serde;
