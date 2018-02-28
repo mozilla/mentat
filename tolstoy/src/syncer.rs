@@ -13,11 +13,13 @@ use std::collections::HashMap;
 
 use futures::{future, Future, Stream};
 use hyper;
-use hyper_tls;
+// TODO: enable TLS support; hurdle is cross-compiling openssl for Android.
+// See https://github.com/mozilla/mentat/issues/569
+// use hyper_tls;
 use hyper::{Method, Request, StatusCode, Error as HyperError};
 use hyper::header::{ContentType};
 use rusqlite;
-// TODO:
+// TODO: https://github.com/mozilla/mentat/issues/570
 // use serde_cbor;
 use serde_json;
 use tokio_core::reactor::Core;
@@ -44,6 +46,7 @@ use tx_mapper::TxMapper;
 // TODO it would be nice to be able to pass
 // in a logger into Syncer::flow; would allow for a "debug mode"
 // and getting useful logs out of clients.
+// See https://github.com/mozilla/mentat/issues/571
 // Below is some debug Android-friendly logging:
 
 // use std::os::raw::c_char;
@@ -66,6 +69,7 @@ pub struct Syncer {}
 // TODO this is sub-optimal, we don't need to walk the table
 // to query the last thing in it w/ an index on tx!!
 // but it's the hammer at hand!
+// See https://github.com/mozilla/mentat/issues/572
 struct InquiringTxReceiver {
     pub last_tx: Option<Entid>,
     pub is_done: bool,
@@ -135,6 +139,7 @@ impl<'c> TxReceiver for UploadingTxReceiver<'c> {
             tx_chunks.push(datom_uuid);
             d(&format!("putting chunk: {:?}, {:?}", &datom_uuid, &datom));
             // TODO switch over to CBOR once we're past debugging stuff.
+            // See https://github.com/mozilla/mentat/issues/570
             // let cbor_val = serde_cbor::to_value(&datom)?;
             // self.remote_client.put_chunk(&datom_uuid, &serde_cbor::ser::to_vec_sd(&cbor_val)?)?;
             self.remote_client.put_chunk(&datom_uuid, &serde_json::to_string(&datom)?)?;
@@ -305,10 +310,11 @@ impl RemoteClient {
 
     fn get_uuid(&self, uri: String) -> Result<Uuid> {
         let mut core = Core::new()?;
-        let client = hyper::Client::configure()
-            .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
-            .build(&core.handle());
-        // let client = hyper::Client::new(&core.handle());
+        // TODO enable TLS, see https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
 
         d(&format!("client"));
 
@@ -337,10 +343,11 @@ impl RemoteClient {
     fn put<T>(&self, uri: String, payload: T, expected: StatusCode) -> Result<()>
     where hyper::Body: std::convert::From<T>, {
         let mut core = Core::new()?;
-        let client = hyper::Client::configure()
-            .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
-            .build(&core.handle());
-        // let client = hyper::Client::new(&core.handle());
+        // TODO enable TLS, see https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
 
         let uri = uri.parse()?;
 
