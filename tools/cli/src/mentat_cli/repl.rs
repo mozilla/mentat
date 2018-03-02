@@ -248,10 +248,29 @@ impl<'a> Repl<'a> {
                 };
             },
             Command::Close => self.close(),
-            Command::Query(query) => self.execute_query(query),
+            Command::Query(query) => {
+                self.store
+                    .q_once(query.as_str(), None)
+                    .map_err(|e| e.into())
+                    .and_then(|o| {
+                        end = Some(PreciseTime::now());
+                        self.print_results(o)
+                    })
+                    .map_err(|err| {
+                        eprintln!("{:?}.", err);
+                    })
+                    .ok();
+            },
             Command::QueryPrepared(query) => {
-                self.store.q_prepare(query.as_str(), None)
+                self.store
+                    .q_prepare(query.as_str(), None)
                     .and_then(|mut p| {
+                        let prepare_end = PreciseTime::now();
+                        if should_time {
+                            eprint_out("Prepare time");
+                            eprint!(": ");
+                            format_time(start.to(prepare_end));
+                        }
                         // This is a hack.
                         start = PreciseTime::now();
                         let r = p.run(None);
@@ -261,7 +280,8 @@ impl<'a> Repl<'a> {
                     .map(|o| self.print_results(o))
                     .map_err(|err| {
                         eprintln!("{:?}.", err);
-                    }).ok();
+                    })
+                    .ok();
             },
             Command::QueryExplain(query) => self.explain_query(query),
             Command::Schema => {
@@ -356,15 +376,6 @@ impl<'a> Repl<'a> {
                 }
             }
         }
-    }
-
-    pub fn execute_query(&self, query: String) {
-        self.store.q_once(query.as_str(), None)
-            .map_err(|e| e.into())
-            .and_then(|o| self.print_results(o))
-            .map_err(|err| {
-                eprintln!("{:?}.", err);
-            }).ok();
     }
 
     fn print_results(&self, query_output: QueryOutput) -> Result<(), ::errors::Error> {
