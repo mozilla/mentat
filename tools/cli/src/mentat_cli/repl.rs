@@ -101,12 +101,25 @@ fn parse_namespaced_keyword(input: &str) -> Option<NamespacedKeyword> {
 }
 
 fn format_time(duration: Duration) {
+    let m_nanos = duration.num_nanoseconds();
+    if let Some(nanos) = m_nanos {
+        if nanos < 1_000 {
+            eprintln!("{bold}{nanos}{reset}ns",
+                      bold = style::Bold,
+                      nanos = nanos,
+                      reset = style::Reset);
+            return;
+        }
+    }
+
     let m_micros = duration.num_microseconds();
     if let Some(micros) = m_micros {
         if micros < 10_000 {
-            eprintln!("{bold}{micros}{reset}µs",
+            let ns = m_nanos.unwrap_or(0) / 1000;
+            eprintln!("{bold}{micros}.{ns}{reset}µs",
                       bold = style::Bold,
                       micros = micros,
+                      ns = ns,
                       reset = style::Reset);
             return;
         }
