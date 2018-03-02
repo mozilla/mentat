@@ -39,6 +39,7 @@ pub static OPEN_COMMAND: &'static str = &"open";
 pub static OPEN_EMPTY_COMMAND: &'static str = &"empty";
 pub static CACHE_COMMAND: &'static str = &"cache";
 pub static CLOSE_COMMAND: &'static str = &"close";
+pub static LONG_QUERY_PREPARED_COMMAND: &'static str = &"query_prepared";
 pub static LONG_QUERY_COMMAND: &'static str = &"query";
 pub static SHORT_QUERY_COMMAND: &'static str = &"q";
 pub static SCHEMA_COMMAND: &'static str = &"schema";
@@ -62,6 +63,7 @@ pub enum Command {
     OpenEmpty(String),
     Cache(String, CacheDirection),
     Query(String),
+    QueryPrepared(String),
     Schema,
     Sync(Vec<String>),
     Timer(bool),
@@ -77,8 +79,9 @@ impl Command {
     /// TODO: for query and transact commands, they will be considered complete if a parsable EDN has been entered as an argument
     pub fn is_complete(&self) -> bool {
         match self {
-            &Command::Query(ref args) |
             &Command::Transact(ref args) |
+            &Command::Query(ref args) |
+            &Command::QueryPrepared(ref args) |
             &Command::QueryExplain(ref args) => {
                 edn::parse::value(&args).is_ok()
             },
@@ -98,6 +101,7 @@ impl Command {
     pub fn is_timed(&self) -> bool {
         match self {
             &Command::Query(_) |
+            &Command::QueryPrepared(_) |
             &Command::Import(_) |
             &Command::Transact(_)  => true,
             &Command::QueryExplain(_) |
@@ -118,8 +122,11 @@ impl Command {
             &Command::Query(ref args) => {
                 format!(".{} {}", LONG_QUERY_COMMAND, args)
             },
+            &Command::QueryPrepared(ref args) => {
+                format!(".{} {}", LONG_QUERY_PREPARED_COMMAND, args)
+            },
             &Command::Import(ref args) => {
-                format!(".{} {}", LONG_IMPORT_COMMAND, args)
+               format!(".{} {}", LONG_IMPORT_COMMAND, args)
             },
             &Command::Transact(ref args) => {
                 format!(".{} {}", LONG_TRANSACT_COMMAND, args)
@@ -273,6 +280,12 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                             Ok(Command::Query(x))
                         });
 
+    let query_prepared_parser = string(LONG_QUERY_PREPARED_COMMAND)
+                        .with(edn_arg_parser())
+                        .map(|x| {
+                            Ok(Command::QueryPrepared(x))
+                        });
+
     let import_parser = try(string(LONG_IMPORT_COMMAND)).or(try(string(SHORT_IMPORT_COMMAND)))
                     .with(spaces())
                     .with(path())
@@ -294,7 +307,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         });
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 13], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 14], _>
           ([&mut try(help_parser),
             &mut try(import_parser),
             &mut try(timer_parser),
@@ -304,6 +317,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
             &mut try(close_parser),
             &mut try(explain_query_parser),
             &mut try(exit_parser),
+            &mut try(query_prepared_parser),
             &mut try(query_parser),
             &mut try(schema_parser),
             &mut try(sync_parser),

@@ -37,6 +37,10 @@ use mentat::{
     TypedValue,
 };
 
+use mentat::query::{
+    PreparedQuery,
+};
+
 use command_parser::{
     Command,
     HELP_COMMAND,
@@ -44,6 +48,7 @@ use command_parser::{
     CACHE_COMMAND,
     LONG_QUERY_COMMAND,
     SHORT_QUERY_COMMAND,
+    LONG_QUERY_PREPARED_COMMAND,
     SCHEMA_COMMAND,
     SYNC_COMMAND,
     LONG_IMPORT_COMMAND,
@@ -73,6 +78,7 @@ lazy_static! {
         map.insert(CACHE_COMMAND, "Cache an attribute. Usage: `.cache :foo/bar reverse`");
         map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
         map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
+        map.insert(LONG_QUERY_PREPARED_COMMAND, "Prepare a query against the current open database, then run it, timed.");
         map.insert(SCHEMA_COMMAND, "Output the schema for the current open database.");
         map.insert(SYNC_COMMAND, "Synchronize database against a Sync Server URL for a provided user UUID.");
         map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
@@ -141,13 +147,14 @@ fn format_time(duration: Duration) {
 }
 
 /// Executes input and maintains state of persistent items.
-pub struct Repl {
+pub struct Repl<'a> {
     path: String,
     store: Store,
     timer_on: bool,
+    prepared: BTreeMap<String, PreparedQuery<'a>>,
 }
 
-impl Repl {
+impl<'a> Repl<'a> {
     pub fn db_name(&self) -> String {
         if self.path.is_empty() {
             "in-memory db".to_string()
@@ -157,12 +164,13 @@ impl Repl {
     }
 
     /// Constructs a new `Repl`.
-    pub fn new() -> Result<Repl, String> {
+    pub fn new() -> Result<Repl<'a>, String> {
         let store = Store::open("").map_err(|e| e.to_string())?;
         Ok(Repl{
             path: "".to_string(),
             store: store,
             timer_on: false,
+            prepared: Default::default(),
         })
     }
 
@@ -213,7 +221,8 @@ impl Repl {
     fn handle_command(&mut self, cmd: Command) {
         let should_time = self.timer_on && cmd.is_timed();
 
-        let start = PreciseTime::now();
+        let mut start = PreciseTime::now();
+        let mut end: Option<PreciseTime> = None;
 
         match cmd {
             Command::Help(args) => self.help_command(args),
@@ -240,6 +249,20 @@ impl Repl {
             },
             Command::Close => self.close(),
             Command::Query(query) => self.execute_query(query),
+            Command::QueryPrepared(query) => {
+                self.store.q_prepare(query.as_str(), None)
+                    .and_then(|mut p| {
+                        // This is a hack.
+                        start = PreciseTime::now();
+                        let r = p.run(None);
+                        end = Some(PreciseTime::now());
+                        return r;
+                    })
+                    .map(|o| self.print_results(o))
+                    .map_err(|err| {
+                        eprintln!("{:?}.", err);
+                    }).ok();
+            },
             Command::QueryExplain(query) => self.explain_query(query),
             Command::Schema => {
                 let edn = self.store.conn().current_schema().to_edn_value();
@@ -257,7 +280,7 @@ impl Repl {
             }
         }
 
-        let end = PreciseTime::now();
+        let end = end.unwrap_or_else(PreciseTime::now);
         if should_time {
             eprint_out("Run time");
             eprint!(": ");
@@ -295,6 +318,7 @@ impl Repl {
             let next = Store::open_empty(path.as_str())?;
             self.path = path;
             self.store = next;
+            self.prepared = Default::default();
         }
 
         Ok(())
@@ -302,6 +326,7 @@ impl Repl {
 
     // Close the current store by opening a new in-memory store in its place.
     fn close(&mut self) {
+        self.prepared = Default::default();
         let old_db_name = self.db_name();
         match self.open("") {
             Ok(_) => println!("Database {:?} closed.", old_db_name),
