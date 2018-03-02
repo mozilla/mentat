@@ -383,23 +383,31 @@ impl<'a> Repl<'a> {
     }
 
     fn help_command(&self, args: Vec<String>) {
+        let stdout = ::std::io::stdout();
+        let mut output = TabWriter::new(stdout.lock());
         if args.is_empty() {
             for &(cmd, msg) in HELP_COMMANDS.iter() {
-                println!(".{} - {}", cmd, msg);
+                write!(output, ".{}\t", cmd).unwrap();
+                writeln!(output, "{}", msg).unwrap();
             }
         } else {
             for mut arg in args {
                 if arg.chars().nth(0).unwrap() == '.' {
                     arg.remove(0);
                 }
-                let msg = HELP_COMMANDS.iter().filter(|&&(c, _)| c == arg.as_str()).next().map(|x| x.1);
-                if msg.is_some() {
-                    println!(".{} - {}", arg, msg.unwrap());
+                if let Some(&(cmd, msg)) = HELP_COMMANDS.iter()
+                                                       .filter(|&&(c, _)| c == arg.as_str())
+                                                       .next() {
+                    write!(output, ".{}\t", cmd).unwrap();
+                    writeln!(output, "{}", msg).unwrap();
                 } else {
                     eprintln!("Unrecognised command {}", arg);
+                    return;
                 }
             }
         }
+        writeln!(output, "").unwrap();
+        output.flush().unwrap();
     }
 
     fn print_results(&self, query_output: QueryOutput) -> Result<(), ::errors::Error> {
