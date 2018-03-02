@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use combine::{
+    Parser,
     any,
     eof,
     look_ahead,
@@ -16,60 +17,63 @@ use combine::{
     satisfy,
     sep_end_by,
     token,
-    Parser
 };
+
 use combine::char::{
     space,
     spaces,
-    string
+    string,
 };
+
 use combine::combinator::{
     choice,
-    try
+    try,
 };
 
 use errors as cli;
 
 use edn;
 
-use mentat::CacheDirection;
+use mentat::{
+    CacheDirection,
+};
 
-pub static HELP_COMMAND: &'static str = &"help";
-pub static OPEN_COMMAND: &'static str = &"open";
-pub static OPEN_EMPTY_COMMAND: &'static str = &"empty";
-pub static CACHE_COMMAND: &'static str = &"cache";
-pub static CLOSE_COMMAND: &'static str = &"close";
-pub static LONG_QUERY_PREPARED_COMMAND: &'static str = &"query_prepared";
-pub static LONG_QUERY_COMMAND: &'static str = &"query";
-pub static SHORT_QUERY_COMMAND: &'static str = &"q";
-pub static SCHEMA_COMMAND: &'static str = &"schema";
-pub static LONG_TIMER_COMMAND: &'static str = &"timer";
-pub static LONG_TRANSACT_COMMAND: &'static str = &"transact";
-pub static SHORT_TRANSACT_COMMAND: &'static str = &"t";
-pub static LONG_IMPORT_COMMAND: &'static str = &"import";
-pub static SHORT_IMPORT_COMMAND: &'static str = &"i";
-pub static LONG_EXIT_COMMAND: &'static str = &"exit";
-pub static SHORT_EXIT_COMMAND: &'static str = &"e";
-pub static LONG_QUERY_EXPLAIN_COMMAND: &'static str = &"explain_query";
-pub static SHORT_QUERY_EXPLAIN_COMMAND: &'static str = &"eq";
-pub static SYNC_COMMAND: &'static str = &"sync";
+pub static COMMAND_CACHE: &'static str = &"cache";
+pub static COMMAND_CLOSE: &'static str = &"close";
+pub static COMMAND_EXIT_LONG: &'static str = &"exit";
+pub static COMMAND_EXIT_SHORT: &'static str = &"e";
+pub static COMMAND_HELP: &'static str = &"help";
+pub static COMMAND_IMPORT_LONG: &'static str = &"import";
+pub static COMMAND_IMPORT_SHORT: &'static str = &"i";
+pub static COMMAND_OPEN: &'static str = &"open";
+pub static COMMAND_OPEN_EMPTY: &'static str = &"empty";
+pub static COMMAND_QUERY_LONG: &'static str = &"query";
+pub static COMMAND_QUERY_SHORT: &'static str = &"q";
+pub static COMMAND_QUERY_EXPLAIN_LONG: &'static str = &"explain_query";
+pub static COMMAND_QUERY_EXPLAIN_SHORT: &'static str = &"eq";
+pub static COMMAND_QUERY_PREPARED_LONG: &'static str = &"query_prepared";
+pub static COMMAND_SCHEMA: &'static str = &"schema";
+pub static COMMAND_SYNC: &'static str = &"sync";
+pub static COMMAND_TIMER_LONG: &'static str = &"timer";
+pub static COMMAND_TRANSACT_LONG: &'static str = &"transact";
+pub static COMMAND_TRANSACT_SHORT: &'static str = &"t";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Command {
+    Cache(String, CacheDirection),
     Close,
     Exit,
     Help(Vec<String>),
+    Import(String),
     Open(String),
     OpenEmpty(String),
-    Cache(String, CacheDirection),
     Query(String),
+    QueryExplain(String),
     QueryPrepared(String),
     Schema,
     Sync(Vec<String>),
     Timer(bool),
     Transact(String),
-    Import(String),
-    QueryExplain(String),
 }
 
 impl Command {
@@ -79,87 +83,92 @@ impl Command {
     /// TODO: for query and transact commands, they will be considered complete if a parsable EDN has been entered as an argument
     pub fn is_complete(&self) -> bool {
         match self {
-            &Command::Transact(ref args) |
             &Command::Query(ref args) |
+            &Command::QueryExplain(ref args) |
             &Command::QueryPrepared(ref args) |
-            &Command::QueryExplain(ref args) => {
+            &Command::Transact(ref args)
+            => {
                 edn::parse::value(&args).is_ok()
             },
-            &Command::Timer(_) |
-            &Command::Help(_) |
-            &Command::Open(_) |
-            &Command::OpenEmpty(_) |
+            &Command::Cache(_, _) |
             &Command::Close |
             &Command::Exit |
+            &Command::Help(_) |
             &Command::Import(_) |
-            &Command::Sync(_) |
-            &Command::Cache(_, _) |
-            &Command::Schema => true
+            &Command::Open(_) |
+            &Command::OpenEmpty(_) |
+            &Command::Timer(_) |
+            &Command::Schema |
+            &Command::Sync(_)
+            => true,
         }
     }
 
     pub fn is_timed(&self) -> bool {
         match self {
+            &Command::Import(_) |
             &Command::Query(_) |
             &Command::QueryPrepared(_) |
-            &Command::Import(_) |
-            &Command::Transact(_)  => true,
-            &Command::QueryExplain(_) |
-            &Command::Timer(_) |
-            &Command::Help(_) |
-            &Command::Open(_) |
-            &Command::OpenEmpty(_) |
+            &Command::Transact(_)
+            => true,
+
             &Command::Cache(_, _) |
             &Command::Close |
             &Command::Exit |
-            &Command::Sync(_) |
-            &Command::Schema => false
+            &Command::Help(_) |
+            &Command::Open(_) |
+            &Command::OpenEmpty(_) |
+            &Command::QueryExplain(_) |
+            &Command::Timer(_) |
+            &Command::Schema |
+            &Command::Sync(_)
+            => false,
         }
     }
 
     pub fn output(&self) -> String {
         match self {
-            &Command::Query(ref args) => {
-                format!(".{} {}", LONG_QUERY_COMMAND, args)
-            },
-            &Command::QueryPrepared(ref args) => {
-                format!(".{} {}", LONG_QUERY_PREPARED_COMMAND, args)
-            },
-            &Command::Import(ref args) => {
-               format!(".{} {}", LONG_IMPORT_COMMAND, args)
-            },
-            &Command::Transact(ref args) => {
-                format!(".{} {}", LONG_TRANSACT_COMMAND, args)
-            },
             &Command::Cache(ref attr, ref direction) => {
-                format!(".{} {} {:?}", CACHE_COMMAND, attr, direction)
-            },
-            &Command::Timer(on) => {
-                format!(".{} {}", LONG_TIMER_COMMAND, on)
-            },
-            &Command::Help(ref args) => {
-                format!(".{} {:?}", HELP_COMMAND, args)
-            },
-            &Command::Open(ref args) => {
-                format!(".{} {}", OPEN_COMMAND, args)
-            },
-            &Command::OpenEmpty(ref args) => {
-                format!(".{} {}", OPEN_EMPTY_COMMAND, args)
+                format!(".{} {} {:?}", COMMAND_CACHE, attr, direction)
             },
             &Command::Close => {
-                format!(".{}", CLOSE_COMMAND)
+                format!(".{}", COMMAND_CLOSE)
             },
             &Command::Exit => {
-                format!(".{}", LONG_EXIT_COMMAND)
+                format!(".{}", COMMAND_EXIT_LONG)
             },
-            &Command::Schema => {
-                format!(".{}", SCHEMA_COMMAND)
+            &Command::Help(ref args) => {
+                format!(".{} {:?}", COMMAND_HELP, args)
             },
-            &Command::Sync(ref args) => {
-                format!(".{} {:?}", SYNC_COMMAND, args)
+            &Command::Import(ref args) => {
+               format!(".{} {}", COMMAND_IMPORT_LONG, args)
+            },
+            &Command::Open(ref args) => {
+                format!(".{} {}", COMMAND_OPEN, args)
+            },
+            &Command::OpenEmpty(ref args) => {
+                format!(".{} {}", COMMAND_OPEN_EMPTY, args)
+            },
+            &Command::Query(ref args) => {
+                format!(".{} {}", COMMAND_QUERY_LONG, args)
             },
             &Command::QueryExplain(ref args) => {
-                format!(".{} {}", LONG_QUERY_EXPLAIN_COMMAND, args)
+                format!(".{} {}", COMMAND_QUERY_EXPLAIN_LONG, args)
+            },
+            &Command::QueryPrepared(ref args) => {
+                format!(".{} {}", COMMAND_QUERY_PREPARED_LONG, args)
+            },
+            &Command::Schema => {
+                format!(".{}", COMMAND_SCHEMA)
+            },
+            &Command::Sync(ref args) => {
+                format!(".{} {:?}", COMMAND_SYNC, args)
+            },
+            &Command::Timer(on) => {
+                format!(".{} {}", COMMAND_TIMER_LONG, on)
+            },
+            &Command::Transact(ref args) => {
+                format!(".{} {}", COMMAND_TRANSACT_LONG, args)
             },
         }
     }
@@ -170,33 +179,74 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
     let argument = || many1::<String, _>(satisfy(|c: char| !c.is_whitespace()));
     let arguments = || sep_end_by::<Vec<_>, _, _>(many1(satisfy(|c: char| !c.is_whitespace())), many1::<Vec<_>, _>(space())).expected("arguments");
 
-    let help_parser = string(HELP_COMMAND)
-                    .with(spaces())
-                    .with(arguments())
-                    .map(|args| {
-                        Ok(Command::Help(args.clone()))
-                    });
-
-    let timer_parser = string(LONG_TIMER_COMMAND)
-                    .with(spaces())
-                    .with(string("on").map(|_| true).or(string("off").map(|_| false)))
-                    .map(|args| {
-                        Ok(Command::Timer(args))
-                    });
-
+    // Helpers.
     let direction_parser = || string("forward")
                                 .map(|_| CacheDirection::Forward)
                            .or(string("reverse").map(|_| CacheDirection::Reverse))
                            .or(string("both").map(|_| CacheDirection::Both));
 
-    let cache_parser = string(CACHE_COMMAND)
+    let edn_arg_parser = || spaces()
+                            .with(look_ahead(string("[").or(string("{")))
+                                .with(many1::<Vec<_>, _>(try(any())))
+                                .and_then(|args| -> Result<String, cli::Error> {
+                                    Ok(args.iter().collect())
+                                })
+                            );
+
+    let no_arg_parser = || arguments()
+                        .skip(spaces())
+                        .skip(eof());
+
+
+    // Commands.
+    let cache_parser = string(COMMAND_CACHE)
                     .with(spaces())
                     .with(argument().skip(spaces()).and(direction_parser())
                     .map(|(arg, direction)| {
                         Ok(Command::Cache(arg, direction))
                     }));
 
-    let open_parser = string(OPEN_COMMAND)
+
+    let close_parser = string(COMMAND_CLOSE)
+                    .with(no_arg_parser())
+                    .map(|args| {
+                        if !args.is_empty() {
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
+                        }
+                        Ok(Command::Close)
+                    });
+
+    let exit_parser = try(string(COMMAND_EXIT_LONG)).or(try(string(COMMAND_EXIT_SHORT)))
+                    .with(no_arg_parser())
+                    .map(|args| {
+                        if !args.is_empty() {
+                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
+                        }
+                        Ok(Command::Exit)
+                    });
+
+    let explain_query_parser = try(string(COMMAND_QUERY_EXPLAIN_LONG))
+                           .or(try(string(COMMAND_QUERY_EXPLAIN_SHORT)))
+                        .with(edn_arg_parser())
+                        .map(|x| {
+                            Ok(Command::QueryExplain(x))
+                        });
+
+    let help_parser = string(COMMAND_HELP)
+                    .with(spaces())
+                    .with(arguments())
+                    .map(|args| {
+                        Ok(Command::Help(args.clone()))
+                    });
+
+    let import_parser = try(string(COMMAND_IMPORT_LONG)).or(try(string(COMMAND_IMPORT_SHORT)))
+                    .with(spaces())
+                    .with(path())
+                    .map(|x| {
+                        Ok(Command::Import(x))
+                    });
+
+    let open_parser = string(COMMAND_OPEN)
                     .with(spaces())
                     .with(arguments())
                     .map(|args| {
@@ -209,7 +259,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Open(args[0].clone()))
                     });
 
-    let open_empty_parser = string(OPEN_EMPTY_COMMAND)
+    let open_empty_parser = string(COMMAND_OPEN_EMPTY)
                     .with(spaces())
                     .with(arguments())
                     .map(|args| {
@@ -222,20 +272,19 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::OpenEmpty(args[0].clone()))
                     });
 
-    let no_arg_parser = || arguments()
-                        .skip(spaces())
-                        .skip(eof());
+    let query_parser = try(string(COMMAND_QUERY_LONG)).or(try(string(COMMAND_QUERY_SHORT)))
+                        .with(edn_arg_parser())
+                        .map(|x| {
+                            Ok(Command::Query(x))
+                        });
 
-    let close_parser = string(CLOSE_COMMAND)
-                    .with(no_arg_parser())
-                    .map(|args| {
-                        if !args.is_empty() {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
-                        }
-                        Ok(Command::Close)
-                    });
+    let query_prepared_parser = string(COMMAND_QUERY_PREPARED_LONG)
+                        .with(edn_arg_parser())
+                        .map(|x| {
+                            Ok(Command::QueryPrepared(x))
+                        });
 
-    let schema_parser = string(SCHEMA_COMMAND)
+    let schema_parser = string(COMMAND_SCHEMA)
                     .with(no_arg_parser())
                     .map(|args| {
                         if !args.is_empty() {
@@ -244,7 +293,7 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Schema)
                     });
 
-    let sync_parser = string(SYNC_COMMAND)
+    let sync_parser = string(COMMAND_SYNC)
                     .with(spaces())
                     .with(arguments())
                     .map(|args| {
@@ -257,54 +306,19 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Sync(args.clone()))
                     });
 
-    let exit_parser = try(string(LONG_EXIT_COMMAND)).or(try(string(SHORT_EXIT_COMMAND)))
-                    .with(no_arg_parser())
-                    .map(|args| {
-                        if !args.is_empty() {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[0])) );
-                        }
-                        Ok(Command::Exit)
-                    });
-
-    let edn_arg_parser = || spaces()
-                            .with(look_ahead(string("[").or(string("{")))
-                                .with(many1::<Vec<_>, _>(try(any())))
-                                .and_then(|args| -> Result<String, cli::Error> {
-                                    Ok(args.iter().collect())
-                                })
-                            );
-
-    let query_parser = try(string(LONG_QUERY_COMMAND)).or(try(string(SHORT_QUERY_COMMAND)))
-                        .with(edn_arg_parser())
-                        .map(|x| {
-                            Ok(Command::Query(x))
-                        });
-
-    let query_prepared_parser = string(LONG_QUERY_PREPARED_COMMAND)
-                        .with(edn_arg_parser())
-                        .map(|x| {
-                            Ok(Command::QueryPrepared(x))
-                        });
-
-    let import_parser = try(string(LONG_IMPORT_COMMAND)).or(try(string(SHORT_IMPORT_COMMAND)))
+    let timer_parser = string(COMMAND_TIMER_LONG)
                     .with(spaces())
-                    .with(path())
-                    .map(|x| {
-                        Ok(Command::Import(x))
+                    .with(string("on").map(|_| true).or(string("off").map(|_| false)))
+                    .map(|args| {
+                        Ok(Command::Timer(args))
                     });
 
-    let transact_parser = try(string(LONG_TRANSACT_COMMAND)).or(try(string(SHORT_TRANSACT_COMMAND)))
+    let transact_parser = try(string(COMMAND_TRANSACT_LONG)).or(try(string(COMMAND_TRANSACT_SHORT)))
                     .with(edn_arg_parser())
                     .map(|x| {
                         Ok(Command::Transact(x))
                     });
 
-    let explain_query_parser = try(string(LONG_QUERY_EXPLAIN_COMMAND))
-                           .or(try(string(SHORT_QUERY_EXPLAIN_COMMAND)))
-                        .with(edn_arg_parser())
-                        .map(|x| {
-                            Ok(Command::QueryExplain(x))
-                        });
     spaces()
     .skip(token('.'))
     .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 14], _>
