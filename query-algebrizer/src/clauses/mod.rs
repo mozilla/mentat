@@ -742,10 +742,10 @@ impl ConjoiningClauses {
 
                 // TODO: an existing non-string binding can cause this pattern to fail.
                 &EvolvedValuePlace::Variable(_) =>
-                    Ok(DatomsTable::AllDatoms),
+                    Ok(DatomsTable::FulltextDatoms),
 
                 &EvolvedValuePlace::Value(TypedValue::String(_)) =>
-                    Ok(DatomsTable::AllDatoms),
+                    Ok(DatomsTable::FulltextDatoms),
 
                 _ => {
                     // We can't succeed if there's a non-string constant value for a fulltext
