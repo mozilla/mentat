@@ -80,4 +80,6 @@ path = "tx-parser"
 path = "tolstoy"
 
 [profile.release]
+opt-level = 3
 debug = false
+lto = true
