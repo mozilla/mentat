@@ -8,7 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::BTreeMap;
 use std::io::Write;
 use std::process;
 
@@ -35,10 +34,6 @@ use mentat::{
     Syncable,
     TxReport,
     TypedValue,
-};
-
-use mentat::query::{
-    PreparedQuery,
 };
 
 use command_parser::{
@@ -158,14 +153,13 @@ fn format_time(duration: Duration) {
 }
 
 /// Executes input and maintains state of persistent items.
-pub struct Repl<'a> {
+pub struct Repl {
     path: String,
     store: Store,
     timer_on: bool,
-    prepared: BTreeMap<String, PreparedQuery<'a>>,
 }
 
-impl<'a> Repl<'a> {
+impl Repl {
     pub fn db_name(&self) -> String {
         if self.path.is_empty() {
             "in-memory db".to_string()
@@ -175,13 +169,12 @@ impl<'a> Repl<'a> {
     }
 
     /// Constructs a new `Repl`.
-    pub fn new() -> Result<Repl<'a>, String> {
+    pub fn new() -> Result<Repl, String> {
         let store = Store::open("").map_err(|e| e.to_string())?;
-        Ok(Repl{
+        Ok(Repl {
             path: "".to_string(),
             store: store,
             timer_on: false,
-            prepared: Default::default(),
         })
     }
 
@@ -230,7 +223,7 @@ impl<'a> Repl<'a> {
 
     /// Runs a single command input.
     fn handle_command(&mut self, cmd: Command) {
-        let should_time = self.timer_on && cmd.is_timed();
+        let should_print_times = self.timer_on && cmd.is_timed();
 
         let mut start = PreciseTime::now();
         let mut end: Option<PreciseTime> = None;
@@ -286,7 +279,7 @@ impl<'a> Repl<'a> {
                     .q_prepare(query.as_str(), None)
                     .and_then(|mut p| {
                         let prepare_end = PreciseTime::now();
-                        if should_time {
+                        if should_print_times {
                             eprint_out("Prepare time");
                             eprint!(": ");
                             format_time(start.to(prepare_end));
@@ -325,7 +318,7 @@ impl<'a> Repl<'a> {
         }
 
         let end = end.unwrap_or_else(PreciseTime::now);
-        if should_time {
+        if should_print_times {
             eprint_out("Run time");
             eprint!(": ");
             format_time(start.to(end));
@@ -362,7 +355,6 @@ impl<'a> Repl<'a> {
             let next = Store::open_empty(path.as_str())?;
             self.path = path;
             self.store = next;
-            self.prepared = Default::default();
         }
 
         Ok(())
@@ -370,7 +362,6 @@ impl<'a> Repl<'a> {
 
     // Close the current store by opening a new in-memory store in its place.
     fn close(&mut self) {
-        self.prepared = Default::default();
         let old_db_name = self.db_name();
         match self.open("") {
             Ok(_) => println!("Database {:?} closed.", old_db_name),
