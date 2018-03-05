@@ -132,6 +132,9 @@ impl InputReader {
         // Therefore, we add the newly read in line to the existing command args.
         // If there is no in process command, we parse the read in line as a new command.
         let cmd = match &self.in_process_cmd {
+            &Some(Command::QueryPrepared(ref args)) => {
+                Ok(Command::QueryPrepared(args.clone() + " " + &line))
+            },
             &Some(Command::Query(ref args)) => {
                 Ok(Command::Query(args.clone() + " " + &line))
             },
@@ -147,6 +150,7 @@ impl InputReader {
             Ok(cmd) => {
                 match cmd {
                     Command::Query(_) |
+                    Command::QueryPrepared(_) |
                     Command::Transact(_) |
                     Command::QueryExplain(_) if !cmd.is_complete() => {
                         // A query or transact is complete if it contains a valid EDN.

@@ -8,7 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::BTreeMap;
 use std::io::Write;
 use std::process;
 
@@ -39,49 +38,62 @@ use mentat::{
 
 use command_parser::{
     Command,
-    HELP_COMMAND,
-    OPEN_COMMAND,
-    CACHE_COMMAND,
-    LONG_QUERY_COMMAND,
-    SHORT_QUERY_COMMAND,
-    SCHEMA_COMMAND,
-    SYNC_COMMAND,
-    LONG_IMPORT_COMMAND,
-    LONG_TRANSACT_COMMAND,
-    SHORT_TRANSACT_COMMAND,
-    LONG_EXIT_COMMAND,
-    SHORT_EXIT_COMMAND,
-    LONG_QUERY_EXPLAIN_COMMAND,
-    SHORT_QUERY_EXPLAIN_COMMAND,
+};
+
+use command_parser::{
+    COMMAND_CACHE,
+    COMMAND_EXIT_LONG,
+    COMMAND_EXIT_SHORT,
+    COMMAND_HELP,
+    COMMAND_IMPORT_LONG,
+    COMMAND_OPEN,
+    COMMAND_QUERY_LONG,
+    COMMAND_QUERY_SHORT,
+    COMMAND_QUERY_EXPLAIN_LONG,
+    COMMAND_QUERY_EXPLAIN_SHORT,
+    COMMAND_QUERY_PREPARED_LONG,
+    COMMAND_SCHEMA,
+    COMMAND_SYNC,
+    COMMAND_TRANSACT_LONG,
+    COMMAND_TRANSACT_SHORT,
 };
 
 use input::InputReader;
 use input::InputResult::{
-    MetaCommand,
     Empty,
-    More,
     Eof,
+    MetaCommand,
+    More,
 };
 
 lazy_static! {
-    static ref COMMAND_HELP: BTreeMap<&'static str, &'static str> = {
-        let mut map = BTreeMap::new();
-        map.insert(LONG_EXIT_COMMAND, "Close the current database and exit the REPL.");
-        map.insert(SHORT_EXIT_COMMAND, "Shortcut for `.exit`. Close the current database and exit the REPL.");
-        map.insert(HELP_COMMAND, "Show help for commands.");
-        map.insert(OPEN_COMMAND, "Open a database at path.");
-        map.insert(CACHE_COMMAND, "Cache an attribute. Usage: `.cache :foo/bar reverse`");
-        map.insert(LONG_QUERY_COMMAND, "Execute a query against the current open database.");
-        map.insert(SHORT_QUERY_COMMAND, "Shortcut for `.query`. Execute a query against the current open database.");
-        map.insert(SCHEMA_COMMAND, "Output the schema for the current open database.");
-        map.insert(SYNC_COMMAND, "Synchronize database against a Sync Server URL for a provided user UUID.");
-        map.insert(LONG_TRANSACT_COMMAND, "Execute a transact against the current open database.");
-        map.insert(SHORT_TRANSACT_COMMAND, "Shortcut for `.transact`. Execute a transact against the current open database.");
-        map.insert(LONG_IMPORT_COMMAND, "Transact the contents of a file against the current open database.");
-        map.insert(LONG_QUERY_EXPLAIN_COMMAND, "Show the SQL and query plan that would be executed for a given query.");
-        map.insert(SHORT_QUERY_EXPLAIN_COMMAND,
-            "Shortcut for `.explain_query`. Show the SQL and query plan that would be executed for a given query.");
-        map
+    static ref HELP_COMMANDS: Vec<(&'static str, &'static str)> = {
+        vec![
+            (COMMAND_HELP, "Show this message."),
+
+            (COMMAND_EXIT_LONG, "Close the current database and exit the REPL."),
+            (COMMAND_EXIT_SHORT, "Shortcut for `.exit`. Close the current database and exit the REPL."),
+
+            (COMMAND_OPEN, "Open a database at path."),
+
+            (COMMAND_SCHEMA, "Output the schema for the current open database."),
+
+            (COMMAND_IMPORT_LONG, "Transact the contents of a file against the current open database."),
+
+            (COMMAND_QUERY_LONG, "Execute a query against the current open database."),
+            (COMMAND_QUERY_SHORT, "Shortcut for `.query`. Execute a query against the current open database."),
+
+            (COMMAND_QUERY_PREPARED_LONG, "Prepare a query against the current open database, then run it, timed."),
+
+            (COMMAND_TRANSACT_LONG, "Execute a transact against the current open database."),
+            (COMMAND_TRANSACT_SHORT, "Shortcut for `.transact`. Execute a transact against the current open database."),
+
+            (COMMAND_QUERY_EXPLAIN_LONG, "Show the SQL and query plan that would be executed for a given query."),
+            (COMMAND_QUERY_EXPLAIN_SHORT, "Shortcut for `.explain_query`. Show the SQL and query plan that would be executed for a given query."),
+
+            (COMMAND_CACHE, "Cache an attribute. Usage: `.cache :foo/bar reverse`"),
+            (COMMAND_SYNC, "Synchronize the database against a Sync Server URL for a provided user UUID."),
+        ]
     };
 }
 
@@ -101,12 +113,25 @@ fn parse_namespaced_keyword(input: &str) -> Option<NamespacedKeyword> {
 }
 
 fn format_time(duration: Duration) {
+    let m_nanos = duration.num_nanoseconds();
+    if let Some(nanos) = m_nanos {
+        if nanos < 1_000 {
+            eprintln!("{bold}{nanos}{reset}ns",
+                      bold = style::Bold,
+                      nanos = nanos,
+                      reset = style::Reset);
+            return;
+        }
+    }
+
     let m_micros = duration.num_microseconds();
     if let Some(micros) = m_micros {
         if micros < 10_000 {
-            eprintln!("{bold}{micros}{reset}µs",
+            let ns = m_nanos.unwrap_or(0) / 1000;
+            eprintln!("{bold}{micros}.{ns}{reset}µs",
                       bold = style::Bold,
                       micros = micros,
+                      ns = ns,
                       reset = style::Reset);
             return;
         }
@@ -146,7 +171,7 @@ impl Repl {
     /// Constructs a new `Repl`.
     pub fn new() -> Result<Repl, String> {
         let store = Store::open("").map_err(|e| e.to_string())?;
-        Ok(Repl{
+        Ok(Repl {
             path: "".to_string(),
             store: store,
             timer_on: false,
@@ -176,7 +201,7 @@ impl Repl {
                 Ok(More) => (),
                 Ok(Eof) => {
                     if input.is_tty() {
-                        println!("");
+                        println!();
                     }
                     break;
                 },
@@ -198,54 +223,102 @@ impl Repl {
 
     /// Runs a single command input.
     fn handle_command(&mut self, cmd: Command) {
-        let should_time = self.timer_on && cmd.is_timed();
+        let should_print_times = self.timer_on && cmd.is_timed();
 
-        let start = PreciseTime::now();
+        let mut start = PreciseTime::now();
+        let mut end: Option<PreciseTime> = None;
 
         match cmd {
-            Command::Help(args) => self.help_command(args),
-            Command::Timer(on) => self.toggle_timer(on),
-            Command::Cache(attr, direction) => self.cache(attr, direction),
+            Command::Cache(attr, direction) => {
+                self.cache(attr, direction);
+            },
+            Command::Close => {
+                self.close();
+            },
+            Command::Exit => {
+                self.close();
+                eprintln!("Exiting…");
+                process::exit(0);
+            },
+            Command::Help(args) => {
+                self.help_command(args);
+            },
+            Command::Import(path) => {
+                self.execute_import(path);
+            },
             Command::Open(db) => {
                 match self.open(db) {
                     Ok(_) => println!("Database {:?} opened", self.db_name()),
                     Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
-            Command::Import(path) => self.execute_import(path),
-            Command::Sync(args) => {
-                match self.store.sync(&args[0], &args[1]) {
-                    Ok(_) => println!("Synced!"),
-                    Err(e) => eprintln!("{:?}", e)
-                };
-            }
             Command::OpenEmpty(db) => {
                 match self.open_empty(db) {
                     Ok(_) => println!("Empty database {:?} opened", self.db_name()),
                     Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
-            Command::Close => self.close(),
-            Command::Query(query) => self.execute_query(query),
-            Command::QueryExplain(query) => self.explain_query(query),
+            Command::Query(query) => {
+                self.store
+                    .q_once(query.as_str(), None)
+                    .map_err(|e| e.into())
+                    .and_then(|o| {
+                        end = Some(PreciseTime::now());
+                        self.print_results(o)
+                    })
+                    .map_err(|err| {
+                        eprintln!("{:?}.", err);
+                    })
+                    .ok();
+            },
+            Command::QueryExplain(query) => {
+                self.explain_query(query);
+            },
+            Command::QueryPrepared(query) => {
+                self.store
+                    .q_prepare(query.as_str(), None)
+                    .and_then(|mut p| {
+                        let prepare_end = PreciseTime::now();
+                        if should_print_times {
+                            eprint_out("Prepare time");
+                            eprint!(": ");
+                            format_time(start.to(prepare_end));
+                        }
+                        // This is a hack.
+                        start = PreciseTime::now();
+                        let r = p.run(None);
+                        end = Some(PreciseTime::now());
+                        return r;
+                    })
+                    .map(|o| self.print_results(o))
+                    .map_err(|err| {
+                        eprintln!("{:?}.", err);
+                    })
+                    .ok();
+            },
             Command::Schema => {
                 let edn = self.store.conn().current_schema().to_edn_value();
                 match edn.to_pretty(120) {
                     Ok(s) => println!("{}", s),
                     Err(e) => eprintln!("{}", e)
                 };
-
+            },
+            Command::Sync(args) => {
+                match self.store.sync(&args[0], &args[1]) {
+                    Ok(_) => println!("Synced!"),
+                    Err(e) => eprintln!("{:?}", e)
+                };
             }
-            Command::Transact(transaction) => self.execute_transact(transaction),
-            Command::Exit => {
-                self.close();
-                eprintln!("Exiting...");
-                process::exit(0);
-            }
+            Command::Timer(on) => {
+                self.toggle_timer(on);
+            },
+            Command::Transact(transaction) => {
+                self.execute_transact(transaction);
+            },
         }
 
-        let end = PreciseTime::now();
-        if should_time {
+        let end = end.unwrap_or_else(PreciseTime::now);
+        if should_print_times {
             eprint_out("Run time");
             eprint!(": ");
             format_time(start.to(end));
@@ -301,32 +374,31 @@ impl Repl {
     }
 
     fn help_command(&self, args: Vec<String>) {
+        let stdout = ::std::io::stdout();
+        let mut output = TabWriter::new(stdout.lock());
         if args.is_empty() {
-            for (cmd, msg) in COMMAND_HELP.iter() {
-                println!(".{} - {}", cmd, msg);
+            for &(cmd, msg) in HELP_COMMANDS.iter() {
+                write!(output, ".{}\t", cmd).unwrap();
+                writeln!(output, "{}", msg).unwrap();
             }
         } else {
             for mut arg in args {
                 if arg.chars().nth(0).unwrap() == '.' {
                     arg.remove(0);
                 }
-                let msg = COMMAND_HELP.get(arg.as_str());
-                if msg.is_some() {
-                    println!(".{} - {}", arg, msg.unwrap());
+                if let Some(&(cmd, msg)) = HELP_COMMANDS.iter()
+                                                       .filter(|&&(c, _)| c == arg.as_str())
+                                                       .next() {
+                    write!(output, ".{}\t", cmd).unwrap();
+                    writeln!(output, "{}", msg).unwrap();
                 } else {
                     eprintln!("Unrecognised command {}", arg);
+                    return;
                 }
             }
         }
-    }
-
-    pub fn execute_query(&self, query: String) {
-        self.store.q_once(query.as_str(), None)
-            .map_err(|e| e.into())
-            .and_then(|o| self.print_results(o))
-            .map_err(|err| {
-                eprintln!("{:?}.", err);
-            }).ok();
+        writeln!(output, "").unwrap();
+        output.flush().unwrap();
     }
 
     fn print_results(&self, query_output: QueryOutput) -> Result<(), ::errors::Error> {
