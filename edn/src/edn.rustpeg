@@ -34,105 +34,40 @@ use types::{SpannedValue, Span, ValueAndSpan};
 // TODO: Support tagged elements
 // TODO: Support discard
 
-pub nil -> ValueAndSpan =
-    start:#position "nil" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Nil,
-            span: Span::new(start, end)
-        }
-    }
+pub nil -> SpannedValue = "nil" { SpannedValue::Nil }
+pub nan -> SpannedValue = "#f" whitespace+ "NaN" { SpannedValue::Float(OrderedFloat(NAN)) }
 
-pub nan -> ValueAndSpan =
-    start:#position "#f" whitespace+ "NaN" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Float(OrderedFloat(NAN)),
-            span: Span::new(start, end)
-        }
-    }
+pub infinity -> SpannedValue = "#f" whitespace+ s:$(sign) "Infinity"
+    { SpannedValue::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY })) }
 
-pub infinity -> ValueAndSpan =
-    start:#position "#f" whitespace+ s:$(sign) "Infinity" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY })),
-            span: Span::new(start, end)
-        }
-    }
-
-pub boolean -> ValueAndSpan =
-    start:#position "true" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Boolean(true),
-            span: Span::new(start, end)
-        }
-    } /
-    start:#position "false" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Boolean(false),
-            span: Span::new(start, end)
-        }
-    }
+pub boolean -> SpannedValue
+    = "true"  { SpannedValue::Boolean(true) }
+    / "false" { SpannedValue::Boolean(false) }
 
 digit = [0-9]
 alphanumeric = [0-9a-zA-Z]
 octaldigit = [0-7]
 validbase = [3][0-6] / [12][0-9] / [2-9]
 hex = [0-9a-fA-F]
-sign = "-" / "+"
+sign = [+-]
 
-pub bigint -> ValueAndSpan =
-    start:#position b:$( sign? digit+ ) "N" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::BigInteger(b.parse::<BigInt>().unwrap()),
-            span: Span::new(start, end)
-        }
-    }
+pub bigint -> SpannedValue = b:$( sign? digit+ ) "N"
+    { SpannedValue::BigInteger(b.parse::<BigInt>().unwrap()) }
+pub octalinteger -> SpannedValue = "0" i:$( octaldigit+ )
+    { SpannedValue::Integer(i64::from_str_radix(i, 8).unwrap()) }
+pub hexinteger -> SpannedValue = "0x" i:$( hex+ )
+    { SpannedValue::Integer(i64::from_str_radix(i, 16).unwrap()) }
 
-pub octalinteger -> ValueAndSpan =
-    start:#position "0" i:$( octaldigit+ ) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Integer(i64::from_str_radix(i, 8).unwrap()),
-            span: Span::new(start, end)
-        }
-    }
+pub basedinteger -> SpannedValue = b:$( validbase ) "r" i:$( alphanumeric+ )
+    { SpannedValue::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap()) }
 
-pub hexinteger -> ValueAndSpan =
-    start:#position "0x" i:$( hex+ ) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Integer(i64::from_str_radix(i, 16).unwrap()),
-            span: Span::new(start, end)
-        }
-    }
+pub integer -> SpannedValue = i:$( sign? digit+ ) !("." / ([eE]))
+    { SpannedValue::Integer(i.parse::<i64>().unwrap()) }
 
-pub basedinteger -> ValueAndSpan =
-    // Only allow values 2-36
-    start:#position b:$( validbase ) "r" i:$( alphanumeric+ ) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap()),
-            span: Span::new(start, end)
-        }
-    }
+pub float -> SpannedValue = f:$(sign? digit+ ("." digit+)? ([eE] sign? digit+)?)
+    { SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())) }
 
-pub integer -> ValueAndSpan =
-    start:#position i:$( sign? digit+ ) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Integer(i.parse::<i64>().unwrap()),
-            span: Span::new(start, end)
-        }
-    }
-
-frac =     sign? digit+ "." digit+
-exp =      sign? digit+            ("e" / "E") sign? digit+
-frac_exp = sign? digit+ "." digit+ ("e" / "E") sign? digit+
-
-// The order here is important - frac_exp must come before (exp / frac) or the
-// parser assumes exp or frac when the float is really a frac_exp and fails
-pub float -> ValueAndSpan =
-    start:#position f:$( frac_exp / exp / frac ) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())),
-            span: Span::new(start, end)
-        }
-    }
+number -> SpannedValue = ( bigint / basedinteger / hexinteger / octalinteger / integer / float )
 
 // TODO: \newline, \return, \space and \tab
 special_char = quote / tab
@@ -140,19 +75,13 @@ quote = "\\\""
 tab = "\\tab"
 char = [^"] / special_char
 
-pub text -> ValueAndSpan =
-    start:#position "\"" t:$( char* ) "\"" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Text(t.to_string()),
-            span: Span::new(start, end)
-        }
-    }
-
+pub text -> SpannedValue = "\"" t:$( char* ) "\""
+    {  SpannedValue::Text(t.to_string()) }
 
 // RFC 3339 timestamps. #inst "1985-04-12T23:20:50.52Z"
 // We accept an arbitrary depth of decimals.
 // Note that we discard the timezone information -- all times are translated to UTC.
-pub inst_string -> DateTime<Utc> =
+inst_string -> DateTime<Utc> =
     "#inst" whitespace+ "\"" d:$( [0-9]*<4> "-" [0-2][0-9] "-" [0-3][0-9]
               "T"
               [0-2][0-9] ":" [0-5][0-9] ":" [0-6][0-9]
@@ -165,7 +94,7 @@ pub inst_string -> DateTime<Utc> =
             .map_err(|_| "invalid datetime")        // Oh, rustpeg.
     }
 
-pub inst_micros -> DateTime<Utc> =
+inst_micros -> DateTime<Utc> =
     "#instmicros" whitespace+ d:$( digit+ ) {
         let micros = d.parse::<i64>().unwrap();
         let seconds: i64 = micros / 1000000;
@@ -173,7 +102,7 @@ pub inst_micros -> DateTime<Utc> =
         Utc.timestamp(seconds, nanos)
     }
 
-pub inst_millis -> DateTime<Utc> =
+inst_millis -> DateTime<Utc> =
     "#instmillis" whitespace+ d:$( digit+ ) {
         let millis = d.parse::<i64>().unwrap();
         let seconds: i64 = millis / 1000;
@@ -181,26 +110,16 @@ pub inst_millis -> DateTime<Utc> =
         Utc.timestamp(seconds, nanos)
     }
 
-pub inst -> ValueAndSpan =
-    start:#position t:(inst_millis / inst_micros / inst_string) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Instant(t),
-            span: Span::new(start, end)
-        }
-    }
+inst -> SpannedValue = t:(inst_millis / inst_micros / inst_string)
+    { SpannedValue::Instant(t) }
 
-pub uuid_string -> Uuid =
+uuid_string -> Uuid =
     "\"" u:$( [a-f0-9]*<8> "-" [a-f0-9]*<4> "-" [a-f0-9]*<4> "-" [a-f0-9]*<4> "-" [a-f0-9]*<12> ) "\"" {
         Uuid::parse_str(u).expect("this is a valid UUID string")
     }
 
-pub uuid -> ValueAndSpan =
-    start:#position "#uuid" whitespace+ u:(uuid_string) end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Uuid(u),
-            span: Span::new(start, end)
-        }
-    }
+pub uuid -> SpannedValue = "#uuid" whitespace+ u:uuid_string
+    { SpannedValue::Uuid(u) }
 
 namespace_divider = "."
 namespace_separator = "/"
@@ -208,8 +127,8 @@ namespace_separator = "/"
 // TODO: Be more picky here
 // Keywords follow the rules of symbols, except they can (and must) begin with :
 // e.g. :fred or :my/fred. See https://github.com/edn-format/edn#keywords
-symbol_char_initial = [a-z] / [A-Z] / [0-9] / [*!_?$%&=<>]
-symbol_char_subsequent = [a-z] / [A-Z] / [0-9] / [-*!_?$%&=<>]
+symbol_char_initial = [a-zA-Z0-9*!_?$%&=<>]
+symbol_char_subsequent = [a-zA-Z0-9*!_?$%&=<>-]
 
 symbol_namespace = symbol_char_initial symbol_char_subsequent* (namespace_divider symbol_char_subsequent+)*
 symbol_name = ( symbol_char_initial+ symbol_char_subsequent* )
@@ -217,76 +136,47 @@ plain_symbol_name = symbol_name / "..." / "."
 
 keyword_prefix = ":"
 
-pub symbol -> ValueAndSpan =
-    start:#position
+pub symbol -> SpannedValue =
     ns:( sns:$(symbol_namespace) namespace_separator { sns })?
     n:$(plain_symbol_name)
-    end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::from_symbol(ns, n),
-            span: Span::new(start, end)
-        }
-    }
+    { SpannedValue::from_symbol(ns, n) }
 
-pub keyword -> ValueAndSpan =
-    start:#position
+pub keyword -> SpannedValue =
     keyword_prefix
     ns:( sns:$(symbol_namespace) namespace_separator { sns })?
     n:$(symbol_name)
-    end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::from_keyword(ns, n),
-            span: Span::new(start, end)
-        }
-    }
+    { SpannedValue::from_keyword(ns, n) }
 
-pub list -> ValueAndSpan =
-    start:#position "(" __ v:(value)* __ ")" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::List(LinkedList::from_iter(v)),
-            span: Span::new(start, end)
-        }
-    }
+pub list -> SpannedValue = "(" __ v:(value)* __ ")"
+    { SpannedValue::List(LinkedList::from_iter(v)) }
 
-pub vector -> ValueAndSpan =
-    start:#position "[" __ v:(value)* __ "]" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Vector(v),
-            span: Span::new(start, end)
-        }
-    }
+pub vector -> SpannedValue = "[" __ v:(value)* __ "]"
+    { SpannedValue::Vector(v) }
 
-pub set -> ValueAndSpan =
-    start:#position "#{" __ v:(value)* __ "}" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Set(BTreeSet::from_iter(v)),
-            span: Span::new(start, end)
-        }
-    }
+pub set -> SpannedValue = "#{" __ v:(value)* __ "}"
+    { SpannedValue::Set(BTreeSet::from_iter(v)) }
 
 pair -> (ValueAndSpan, ValueAndSpan) =
     k:(value) v:(value) {
         (k, v)
     }
 
-pub map -> ValueAndSpan =
-    start:#position "{" __ v:(pair)* __ "}" end:#position {
-        ValueAndSpan {
-            inner: SpannedValue::Map(BTreeMap::from_iter(v)),
-            span: Span::new(start, end)
-        }
-    }
+pub map -> SpannedValue = "{" __ v:(pair)* __ "}"
+    { SpannedValue::Map(BTreeMap::from_iter(v)) }
 
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
 pub value -> ValueAndSpan =
-    __ v:(nil / nan / infinity / boolean / float / octalinteger / hexinteger / basedinteger / inst / uuid / bigint / integer / text / keyword / symbol / list / vector / map / set) __ {
-        v
+    __ start:#position v:(nil / nan / infinity / boolean / number / inst / uuid / text / keyword / symbol / list / vector / map / set) end:#position __ {
+        ValueAndSpan {
+            inner: v,
+            span: Span::new(start, end)
+        }
     }
 
 // Clojure (and thus EDN) regards commas as whitespace, and thus the two-element vectors [1 2] and
 // [1,,,,2] are equivalent, as are the maps {:a 1, :b 2} and {:a 1 :b 2}.
-whitespace = (" " / "\r" / "\n" / "\t" / ",")
-comment = ";" [^\r\n]* ("\r" / "\n")?
+whitespace = [  \r\n\t,]
+comment = ";" [^\r\n]* [\r\n]?
 
 __ = (whitespace / comment)*
