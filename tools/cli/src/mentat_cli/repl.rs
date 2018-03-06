@@ -126,29 +126,30 @@ fn format_time(duration: Duration) {
 
     let m_micros = duration.num_microseconds();
     if let Some(micros) = m_micros {
-        if micros < 10_000 {
-            let ns = m_nanos.unwrap_or(0) / 1000;
-            eprintln!("{bold}{micros}.{ns}{reset}µs",
+        if micros < 1_000 {
+            eprintln!("{bold}{micros}{reset}µs",
                       bold = style::Bold,
                       micros = micros,
-                      ns = ns,
                       reset = style::Reset);
             return;
         }
+
+        if micros < 1_000_000 {
+            // Print as millis.
+            let millis = (micros as f64) / 1000f64;
+            eprintln!("{bold}{millis}{reset}ms",
+                        bold = style::Bold,
+                        millis = millis,
+                        reset = style::Reset);
+            return;
+        }
     }
+
     let millis = duration.num_milliseconds();
-    if millis < 5_000 {
-        eprintln!("{bold}{millis}.{micros}{reset}ms",
-                    bold = style::Bold,
-                    millis = millis,
-                    micros = m_micros.unwrap_or(0) / 1000,
-                    reset = style::Reset);
-        return;
-    }
-    eprintln!("{bold}{seconds}.{millis}{reset}s",
+    let seconds = (millis as f64) / 1000f64;
+    eprintln!("{bold}{seconds}{reset}s",
               bold = style::Bold,
-              seconds = duration.num_seconds(),
-              millis = millis,
+              seconds = seconds,
               reset = style::Reset);
 }
 
