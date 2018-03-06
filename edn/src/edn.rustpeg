@@ -120,14 +120,8 @@ pub integer -> ValueAndSpan =
         }
     }
 
-frac =     sign? digit+ "." digit+
-exp =      sign? digit+            ("e" / "E") sign? digit+
-frac_exp = sign? digit+ "." digit+ ("e" / "E") sign? digit+
-
-// The order here is important - frac_exp must come before (exp / frac) or the
-// parser assumes exp or frac when the float is really a frac_exp and fails
 pub float -> ValueAndSpan =
-    start:#position f:$( frac_exp / exp / frac ) end:#position {
+    start:#position f:$(sign? digit+ ("." digit+)? (("e" / "E") sign? digit+)?) end:#position {
         ValueAndSpan {
             inner: SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())),
             span: Span::new(start, end)
