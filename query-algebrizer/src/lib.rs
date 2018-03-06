@@ -38,6 +38,7 @@ use mentat_core::{
 use mentat_core::counter::RcCounter;
 
 use mentat_query::{
+    Element,
     FindQuery,
     FindSpec,
     Limit,
@@ -55,6 +56,7 @@ pub use errors::{
 
 pub use clauses::{
     QueryInputs,
+    VariableBindings,
 };
 
 pub use types::{
@@ -139,6 +141,23 @@ impl AlgebraicQuery {
     pub fn is_known_empty(&self) -> bool {
         self.cc.is_known_empty()
     }
+
+    /// Return true if every variable in the find spec is fully bound to a single value.
+    pub fn is_fully_bound(&self) -> bool {
+        self.find_spec
+            .columns()
+            .all(|e| match e {
+                    &Element::Variable(ref var) => self.cc.is_value_bound(var),
+            })
+    }
+
+    /// Return true if every variable in the find spec is fully bound to a single value,
+    /// and evaluating the query doesn't require running SQL.
+    pub fn is_fully_unit_bound(&self) -> bool {
+        self.cc.wheres.is_empty() &&
+        self.is_fully_bound()
+    }
+
 
     /// Return a set of the input variables mentioned in the `:in` clause that have not yet been
     /// bound. We do this by looking at the CC.

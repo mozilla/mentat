@@ -51,6 +51,7 @@ use std::collections::{
     BTreeSet,
     VecDeque,
 };
+
 use std::rc::Rc;
 
 use db;
@@ -113,11 +114,16 @@ use types::{
     TxReport,
     ValueType,
 };
+
+use watcher::{
+    TransactWatcher,
+};
+
 use upsert_resolution::Generation;
 
 /// A transaction on its way to being applied.
 #[derive(Debug)]
-pub struct Tx<'conn, 'a> {
+pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
     /// The storage to apply against.  In the future, this will be a Mentat connection.
     store: &'conn rusqlite::Connection, // TODO: db::MentatStoring,
 
@@ -138,6 +144,8 @@ pub struct Tx<'conn, 'a> {
     /// This schema is not updated, so we just borrow it.
     schema: &'a Schema,
 
+    watcher: W,
+
     /// The transaction ID of the transaction.
     tx_id: Entid,
 
@@ -145,18 +153,20 @@ pub struct Tx<'conn, 'a> {
     tx_instant: Option<DateTime<Utc>>,
 }
 
-impl<'conn, 'a> Tx<'conn, 'a> {
+impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
     pub fn new(
         store: &'conn rusqlite::Connection,
         partition_map: PartitionMap,
         schema_for_mutation: &'a Schema,
         schema: &'a Schema,
-        tx_id: Entid) -> Tx<'conn, 'a> {
+        watcher: W,
+        tx_id: Entid) -> Tx<'conn, 'a, W> {
         Tx {
             store: store,
             partition_map: partition_map,
             schema_for_mutation: Cow::Borrowed(schema_for_mutation),
             schema: schema,
+            watcher: watcher,
             tx_id: tx_id,
             tx_instant: None,
         }
@@ -516,7 +526,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
-    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=Entity> {
+    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport>
+    where I: IntoIterator<Item=Entity>,
+          W: TransactWatcher {
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
@@ -529,7 +541,9 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         self.transact_simple_terms(terms_with_temp_ids, tempid_set)
     }
 
-    pub fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
+    pub fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport>
+    where I: IntoIterator<Item=TermWithTempIds>,
+          W: TransactWatcher {
         // TODO: push these into an internal transaction report?
         let mut tempids: BTreeMap<TempId, KnownEntid> = BTreeMap::default();
 
@@ -654,6 +668,8 @@ impl<'conn, 'a> Tx<'conn, 'a> {
                         }
                     }
 
+                    self.watcher.datom(op, e, a, &v);
+
                     let reduced = (e, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
                         (false, true) => non_fts_many.push(reduced),
@@ -694,6 +710,7 @@ impl<'conn, 'a> Tx<'conn, 'a> {
         }
 
         db::update_partition_map(self.store, &self.partition_map)?;
+        self.watcher.done(self.schema)?;
 
         if tx_might_update_metadata {
             // Extract changes to metadata from the store.
@@ -723,24 +740,27 @@ impl<'conn, 'a> Tx<'conn, 'a> {
 }
 
 /// Initialize a new Tx object with a new tx id and a tx instant. Kick off the SQLite conn, too.
-fn start_tx<'conn, 'a>(conn: &'conn rusqlite::Connection,
+fn start_tx<'conn, 'a, W>(conn: &'conn rusqlite::Connection,
                        mut partition_map: PartitionMap,
                        schema_for_mutation: &'a Schema,
-                       schema: &'a Schema) -> Result<Tx<'conn, 'a>> {
+                       schema: &'a Schema,
+                       watcher: W) -> Result<Tx<'conn, 'a, W>>
+    where W: TransactWatcher {
     let tx_id = partition_map.allocate_entid(":db.part/tx");
 
     conn.begin_tx_application()?;
 
-    Ok(Tx::new(conn, partition_map, schema_for_mutation, schema, tx_id))
+    Ok(Tx::new(conn, partition_map, schema_for_mutation, schema, watcher, tx_id))
 }
 
-fn conclude_tx(tx: Tx, report: TxReport) -> Result<(TxReport, PartitionMap, Option<Schema>)> {
+fn conclude_tx<W>(tx: Tx<W>, report: TxReport) -> Result<(TxReport, PartitionMap, Option<Schema>, W)>
+where W: TransactWatcher {
     // If the schema has moved on, return it.
     let next_schema = match tx.schema_for_mutation {
         Cow::Borrowed(_) => None,
         Cow::Owned(next_schema) => Some(next_schema),
     };
-    Ok((report, tx.partition_map, next_schema))
+    Ok((report, tx.partition_map, next_schema, tx.watcher))
 }
 
 /// Transact the given `entities` against the given SQLite `conn`, using the given metadata.
@@ -749,28 +769,32 @@ fn conclude_tx(tx: Tx, report: TxReport) -> Result<(TxReport, PartitionMap, Opti
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
-pub fn transact<'conn, 'a, I>(conn: &'conn rusqlite::Connection,
-                              partition_map: PartitionMap,
-                              schema_for_mutation: &'a Schema,
-                              schema: &'a Schema,
-                              entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>)>
-    where I: IntoIterator<Item=Entity> {
+pub fn transact<'conn, 'a, I, W>(conn: &'conn rusqlite::Connection,
+                                 partition_map: PartitionMap,
+                                 schema_for_mutation: &'a Schema,
+                                 schema: &'a Schema,
+                                 watcher: W,
+                                 entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>, W)>
+    where I: IntoIterator<Item=Entity>,
+          W: TransactWatcher {
 
-    let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema)?;
+    let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema, watcher)?;
     let report = tx.transact_entities(entities)?;
     conclude_tx(tx, report)
 }
 
 /// Just like `transact`, but accepts lower-level inputs to allow bypassing the parser interface.
-pub fn transact_terms<'conn, 'a, I>(conn: &'conn rusqlite::Connection,
-                                    partition_map: PartitionMap,
-                                    schema_for_mutation: &'a Schema,
-                                    schema: &'a Schema,
-                                    terms: I,
-                                    tempid_set: InternSet<TempId>) -> Result<(TxReport, PartitionMap, Option<Schema>)>
-    where I: IntoIterator<Item=TermWithTempIds> {
+pub fn transact_terms<'conn, 'a, I, W>(conn: &'conn rusqlite::Connection,
+                                       partition_map: PartitionMap,
+                                       schema_for_mutation: &'a Schema,
+                                       schema: &'a Schema,
+                                       watcher: W,
+                                       terms: I,
+                                       tempid_set: InternSet<TempId>) -> Result<(TxReport, PartitionMap, Option<Schema>, W)>
+    where I: IntoIterator<Item=TermWithTempIds>,
+          W: TransactWatcher {
 
-    let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema)?;
+    let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema, watcher)?;
     let report = tx.transact_simple_terms(terms, tempid_set)?;
     conclude_tx(tx, report)
 }

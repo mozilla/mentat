@@ -449,6 +449,12 @@ pub enum Element {
     // Pull(Pull),             // TODO
 }
 
+impl From<Variable> for Element {
+    fn from(x: Variable) -> Element {
+        Element::Variable(x)
+    }
+}
+
 impl std::fmt::Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

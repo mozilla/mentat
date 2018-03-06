@@ -381,7 +381,6 @@ impl ConjoiningClauses {
                                                 return true;
                                             },
                                             Some(item) => {
-                                                println!("{} is known to be {:?}", var, item);
                                                 self.bind_value(var, item.clone());
                                                 return true;
                                             }

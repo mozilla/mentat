@@ -97,7 +97,7 @@ fn test_add_to_cache() {
     {
         let cached_values = attribute_cache.value_pairs(schema, attr).expect("non-None");
         assert!(!cached_values.is_empty());
-        let flattened: BTreeSet<TypedValue> = cached_values.values().cloned().collect();
+        let flattened: BTreeSet<TypedValue> = cached_values.values().cloned().filter_map(|x| x).collect();
         let expected: BTreeSet<TypedValue> = vec![TypedValue::Long(100), TypedValue::Long(200)].into_iter().collect();
         assert_eq!(flattened, expected);
     }

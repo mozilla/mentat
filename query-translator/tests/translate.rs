@@ -12,6 +12,7 @@ extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
+extern crate mentat_query_projector;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 
@@ -20,6 +21,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use mentat_query::{
+    FindSpec,
     NamespacedKeyword,
     Variable,
 };
@@ -39,11 +41,26 @@ use mentat_query_algebrizer::{
     algebrize,
     algebrize_with_inputs,
 };
+
+use mentat_query_projector::{
+    ConstantProjector,
+};
+
 use mentat_query_translator::{
+    ProjectedSelect,
     query_to_select,
 };
 
 use mentat_sql::SQLQuery;
+
+/// Produce the appropriate `Variable` for the provided valid ?-prefixed name.
+/// This lives here because we can't re-export macros:
+/// https://github.com/rust-lang/rust/issues/29638.
+macro_rules! var {
+    ( ? $var:ident ) => {
+        $crate::Variable::from_valid_name(concat!("?", stringify!($var)))
+    };
+}
 
 fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
     schema.entid_map.insert(e, i.clone());
@@ -54,17 +71,55 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
     schema.attribute_map.insert(e, a);
 }
 
-fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
+fn query_to_sql(query: ProjectedSelect) -> SQLQuery {
+    match query {
+        ProjectedSelect::Query { query, projector: _projector } => {
+            query.to_sql_query().expect("to_sql_query to succeed")
+        },
+        ProjectedSelect::Constant(constant) => {
+            panic!("ProjectedSelect wasn't ::Query! Got constant {:#?}", constant.project_without_rows());
+        },
+    }
+}
+
+fn query_to_constant(query: ProjectedSelect) -> ConstantProjector {
+    match query {
+        ProjectedSelect::Constant(constant) => {
+            constant
+        },
+        _ => panic!("ProjectedSelect wasn't ::Constant!"),
+    }
+}
+
+fn assert_query_is_empty(query: ProjectedSelect, expected_spec: FindSpec) {
+    let constant = query_to_constant(query).project_without_rows().expect("constant run");
+    assert_eq!(*constant.spec, expected_spec);
+    assert!(constant.results.is_empty());
+}
+
+fn inner_translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> ProjectedSelect {
     let known = Known::for_schema(schema);
     let parsed = parse_find_string(query).expect("parse to succeed");
     let algebrized = algebrize_with_inputs(known, parsed, 0, inputs).expect("algebrize to succeed");
-    let select = query_to_select(algebrized).expect("translate to succeed");
-    select.query.to_sql_query().unwrap()
+    query_to_select(algebrized).expect("translate to succeed")
+}
+
+fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
+    query_to_sql(inner_translate_with_inputs(schema, query, inputs))
 }
 
 fn translate(schema: &Schema, query: &'static str) -> SQLQuery {
     translate_with_inputs(schema, query, QueryInputs::default())
 }
+
+fn translate_with_inputs_to_constant(schema: &Schema, query: &'static str, inputs: QueryInputs) -> ConstantProjector {
+    query_to_constant(inner_translate_with_inputs(schema, query, inputs))
+}
+
+fn translate_to_constant(schema: &Schema, query: &'static str) -> ConstantProjector {
+    translate_with_inputs_to_constant(schema, query, QueryInputs::default())
+}
+
 
 fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
     let mut schema = Schema::default();
@@ -195,7 +250,7 @@ fn test_bound_variable_limit_affects_types() {
                algebrized.cc.known_type(&Variable::from_valid_name("?limit")));
 
     let select = query_to_select(algebrized).expect("query to translate");
-    let SQLQuery { sql, args } = select.query.to_sql_query().unwrap();
+    let SQLQuery { sql, args } = query_to_sql(select);
 
     // TODO: this query isn't actually correct -- we don't yet algebrize for variables that are
     // specified in `:in` but not provided at algebrizing time. But it shows what we care about
@@ -286,8 +341,7 @@ fn test_unknown_ident() {
 
     // If you insist…
     let select = query_to_select(algebrized).expect("query to translate");
-    let sql = select.query.to_sql_query().unwrap().sql;
-    assert_eq!("SELECT 1 LIMIT 0", sql);
+    assert_query_is_empty(select, FindSpec::FindRel(vec![var!(?x).into()]));
 }
 
 #[test]
@@ -678,16 +732,18 @@ fn test_ground_scalar() {
 
     // Verify that we accept inline constants.
     let query = r#"[:find ?x . :where [(ground "yyy") ?x]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
-    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
+    let constant = translate_to_constant(&schema, query);
+    assert_eq!(constant.project_without_rows().unwrap()
+                       .into_scalar().unwrap(),
+               Some(TypedValue::typed_string("yyy")));
 
     // Verify that we accept bound input constants.
     let query = r#"[:find ?x . :in ?v :where [(ground ?v) ?x]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into())))]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
-    assert_eq!(sql, "SELECT $v0 AS `?x` LIMIT 1");
-    assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
+    let constant = translate_with_inputs_to_constant(&schema, query, inputs);
+    assert_eq!(constant.project_without_rows().unwrap()
+                       .into_scalar().unwrap(),
+               Some(TypedValue::typed_string("aaa")));
 }
 
 #[test]
@@ -696,18 +752,26 @@ fn test_ground_tuple() {
 
     // Verify that we accept inline constants.
     let query = r#"[:find ?x ?y :where [(ground [1 "yyy"]) [?x ?y]]]"#;
-    let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT DISTINCT 1 AS `?x`, $v0 AS `?y`");
-    assert_eq!(args, vec![make_arg("$v0", "yyy")]);
+    let constant = translate_to_constant(&schema, query);
+    assert_eq!(constant.project_without_rows().unwrap()
+                       .into_rel().unwrap(),
+               vec![vec![TypedValue::Long(1), TypedValue::typed_string("yyy")]]);
 
     // Verify that we accept bound input constants.
     let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground [?u ?v]) [?x ?y]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
                                                        (Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into()))),]);
-    let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+
+    let constant = translate_with_inputs_to_constant(&schema, query, inputs);
+    assert_eq!(constant.project_without_rows().unwrap()
+                       .into_tuple().unwrap(),
+               Some(vec![TypedValue::Long(2), TypedValue::typed_string("aaa")]));
+
     // TODO: treat 2 as an input variable that could be bound late, rather than eagerly binding it.
-    assert_eq!(sql, "SELECT 2 AS `?x`, $v0 AS `?y` LIMIT 1");
-    assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
+    // In that case the query wouldn't be constant, and would look more like:
+    // let SQLQuery { sql, args } = translate_with_inputs(&schema, query, inputs);
+    // assert_eq!(sql, "SELECT 2 AS `?x`, $v0 AS `?y` LIMIT 1");
+    // assert_eq!(args, vec![make_arg("$v0", "aaa"),]);
 }
 
 #[test]

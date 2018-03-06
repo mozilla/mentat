@@ -66,6 +66,10 @@ use types::{
 };
 use tx::transact;
 
+use watcher::{
+    NullWatcher,
+};
+
 pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     let conn = match uri.as_ref().to_string_lossy().len() {
         0 => rusqlite::Connection::open_in_memory()?,
@@ -249,7 +253,8 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
     let bootstrap_schema_for_mutation = Schema::default(); // The bootstrap transaction will populate this schema.
 
-    let (_report, next_partition_map, next_schema) = transact(&tx, db.partition_map, &bootstrap_schema_for_mutation, &db.schema, bootstrap::bootstrap_entities())?;
+    let (_report, next_partition_map, next_schema, _watcher) = transact(&tx, db.partition_map, &bootstrap_schema_for_mutation, &db.schema, NullWatcher(), bootstrap::bootstrap_entities())?;
+
     // TODO: validate metadata mutations that aren't schema related, like additional partitions.
     if let Some(next_schema) = next_schema {
         if next_schema != db.schema {
@@ -1218,12 +1223,12 @@ mod tests {
                 // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
                 let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
                 // Applying the transaction can fail, so we don't unwrap.
-                let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, entities)?;
+                let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), entities)?;
                 tx.commit()?;
                 details
             };
 
-            let (report, next_partition_map, next_schema) = details;
+            let (report, next_partition_map, next_schema, _watcher) = details;
             self.partition_map = next_partition_map;
             if let Some(next_schema) = next_schema {
                 self.schema = next_schema;

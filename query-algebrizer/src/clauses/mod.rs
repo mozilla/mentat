@@ -156,7 +156,7 @@ impl<K: Clone + Ord, V: Clone> Intersection<K> for BTreeMap<K, V> {
     }
 }
 
-type VariableBindings = BTreeMap<Variable, TypedValue>;
+pub type VariableBindings = BTreeMap<Variable, TypedValue>;
 
 /// A `ConjoiningClauses` (CC) is a collection of clauses that are combined with `JOIN`.
 /// The topmost form in a query is a `ConjoiningClauses`.
@@ -391,6 +391,10 @@ impl ConjoiningClauses {
 
     pub fn is_value_bound(&self, var: &Variable) -> bool {
         self.value_bindings.contains_key(var)
+    }
+
+    pub fn value_bindings(&self, variables: &BTreeSet<Variable>) -> VariableBindings {
+        self.value_bindings.with_intersected_keys(variables)
     }
 
     /// Return an interator over the variables externally bound to values.

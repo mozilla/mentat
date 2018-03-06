@@ -19,6 +19,10 @@ extern crate mentat_query_algebrizer;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
 
+use std::collections::{
+    BTreeSet,
+};
+
 use std::iter;
 use std::rc::Rc;
 
@@ -32,6 +36,10 @@ use mentat_core::{
     TypedValue,
     ValueType,
     ValueTypeTag,
+};
+
+use mentat_core::util::{
+    Either,
 };
 
 use mentat_db::{
@@ -49,6 +57,7 @@ use mentat_query_algebrizer::{
     AlgebraicQuery,
     ColumnName,
     ConjoiningClauses,
+    VariableBindings,
     VariableColumn,
 };
 
@@ -86,7 +95,7 @@ pub struct QueryOutput {
     pub results: QueryResults,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum QueryResults {
     Scalar(Option<TypedValue>),
     Tuple(Option<Vec<TypedValue>>),
@@ -131,6 +140,32 @@ impl QueryOutput {
         QueryOutput {
             spec: spec.clone(),
             results: results,
+        }
+    }
+
+    pub fn from_constants(spec: &Rc<FindSpec>, bindings: VariableBindings) -> QueryResults {
+        use self::FindSpec::*;
+        match &**spec {
+            &FindScalar(Element::Variable(ref var)) => {
+                let val = bindings.get(var).cloned();
+                QueryResults::Scalar(val)
+            },
+            &FindTuple(ref elements) => {
+                let values = elements.iter().map(|e| match e {
+                    &Element::Variable(ref var) => bindings.get(var).cloned().expect("every var to have a binding"),
+                }).collect();
+                QueryResults::Tuple(Some(values))
+            },
+            &FindColl(Element::Variable(ref var)) => {
+                let val = bindings.get(var).cloned().expect("every var to have a binding");
+                QueryResults::Coll(vec![val])
+            },
+            &FindRel(ref elements) => {
+                let values = elements.iter().map(|e| match e {
+                    &Element::Variable(ref var) => bindings.get(var).cloned().expect("every var to have a binding"),
+                }).collect();
+                QueryResults::Rel(vec![values])
+            },
         }
     }
 
@@ -350,11 +385,12 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
 pub trait Projector {
     fn project<'stmt>(&self, rows: Rows<'stmt>) -> Result<QueryOutput>;
+    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's>;
 }
 
 /// A projector that produces a `QueryResult` containing fixed data.
 /// Takes a boxed function that should return an empty result set of the desired type.
-struct ConstantProjector {
+pub struct ConstantProjector {
     spec: Rc<FindSpec>,
     results_factory: Box<Fn() -> QueryResults>,
 }
@@ -366,16 +402,24 @@ impl ConstantProjector {
             results_factory: results_factory,
         }
     }
-}
 
-impl Projector for ConstantProjector {
-    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryOutput> {
+    pub fn project_without_rows<'stmt>(&self) -> Result<QueryOutput> {
         let results = (self.results_factory)();
         let spec = self.spec.clone();
         Ok(QueryOutput {
             spec: spec,
             results: results,
         })
+    }
+}
+
+impl Projector for ConstantProjector {
+    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryOutput> {
+        self.project_without_rows()
+    }
+
+    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        self.spec.columns()
     }
 }
 
@@ -416,6 +460,10 @@ impl Projector for ScalarProjector {
             spec: self.spec.clone(),
             results: results,
         })
+    }
+
+    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        self.spec.columns()
     }
 }
 
@@ -469,6 +517,10 @@ impl Projector for TupleProjector {
             spec: self.spec.clone(),
             results: results,
         })
+    }
+
+    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        self.spec.columns()
     }
 }
 
@@ -524,6 +576,10 @@ impl Projector for RelProjector {
             results: QueryResults::Rel(out),
         })
     }
+
+    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        self.spec.columns()
+    }
 }
 
 /// A coll projector produces a vector of values.
@@ -564,6 +620,10 @@ impl Projector for CollProjector {
             results: QueryResults::Coll(out),
         })
     }
+
+    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
+        self.spec.columns()
+    }
 }
 
 /// Combines the two things you need to turn a query into SQL and turn its results into
@@ -598,19 +658,24 @@ impl CombinedProjection {
 /// - The bindings established by the topmost CC.
 /// - The types known at algebrizing time.
 /// - The types extracted from the store for unknown attributes.
-pub fn query_projection(query: &AlgebraicQuery) -> Result<CombinedProjection> {
+pub fn query_projection(query: &AlgebraicQuery) -> Result<Either<ConstantProjector, CombinedProjection>> {
     use self::FindSpec::*;
 
     let spec = query.find_spec.clone();
-    if query.is_known_empty() {
+    if query.is_fully_unit_bound() {
+        // Do a few gyrations to produce empty results of the right kind for the query.
+
+        let variables: BTreeSet<Variable> = spec.columns().map(|e| match e { &Element::Variable(ref var) => var.clone() }).collect();
+
+        // TODO: error handling
+        let results = QueryOutput::from_constants(&spec, query.cc.value_bindings(&variables));
+        let f = Box::new(move || {results.clone()});
+
+        Ok(Either::Left(ConstantProjector::new(spec, f)))
+    } else if query.is_known_empty() {
         // Do a few gyrations to produce empty results of the right kind for the query.
         let empty = QueryOutput::empty_factory(&spec);
-        let constant_projector = ConstantProjector::new(spec, empty);
-        Ok(CombinedProjection {
-            sql_projection: Projection::One,
-            datalog_projector: Box::new(constant_projector),
-            distinct: false,
-        })
+        Ok(Either::Left(ConstantProjector::new(spec, empty)))
     } else {
         match *query.find_spec {
             FindColl(ref element) => {
@@ -634,6 +699,6 @@ pub fn query_projection(query: &AlgebraicQuery) -> Result<CombinedProjection> {
                 let (cols, templates) = project_elements(column_count, elements, query)?;
                 TupleProjector::combine(spec, column_count, cols, templates)
             },
-        }
+        }.map(Either::Right)
     }
 }

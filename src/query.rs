@@ -52,6 +52,7 @@ use mentat_query_parser::{
 };
 
 use mentat_query_projector::{
+    ConstantProjector,
     Projector,
 };
 
@@ -60,6 +61,7 @@ use mentat_sql::{
 };
 
 use mentat_query_translator::{
+    ProjectedSelect,
     query_to_select,
 };
 
@@ -84,6 +86,9 @@ pub enum PreparedQuery<'sqlite> {
     Empty {
         find_spec: Rc<FindSpec>,
     },
+    Constant {
+        select: ConstantProjector,
+    },
     Bound {
         statement: rusqlite::Statement<'sqlite>,
         args: Vec<(String, Rc<rusqlite::types::Value>)>,
@@ -96,6 +101,9 @@ impl<'sqlite> PreparedQuery<'sqlite> {
         match self {
             &mut PreparedQuery::Empty { ref find_spec } => {
                 Ok(QueryOutput::empty(find_spec))
+            },
+            &mut PreparedQuery::Constant { ref select } => {
+                select.project_without_rows().map_err(|e| e.into())
             },
             &mut PreparedQuery::Bound { ref mut statement, ref args, ref projector } => {
                 let rows = run_statement(statement, args)?;
@@ -136,6 +144,10 @@ impl IntoResult for QueryExecutionResult {
 pub enum QueryExplanation {
     /// A query known in advance to be empty, and why we believe that.
     KnownEmpty(EmptyBecause),
+
+    /// A query known in advance to return a constant value.
+    KnownConstant,
+
     /// A query that takes actual work to execute.
     ExecutionPlan {
         /// The translated query and any bindings.
@@ -316,14 +328,18 @@ fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebriz
     }
 
     let select = query_to_select(algebrized)?;
-    let SQLQuery { sql, args } = select.query.to_sql_query()?;
+    match select {
+        ProjectedSelect::Constant(constant) => constant.project_without_rows()
+                                                       .map_err(|e| e.into()),
+        ProjectedSelect::Query { query, projector } => {
+            let SQLQuery { sql, args } = query.to_sql_query()?;
 
-    let mut statement = sqlite.prepare(sql.as_str())?;
-    let rows = run_statement(&mut statement, &args)?;
+            let mut statement = sqlite.prepare(sql.as_str())?;
+            let rows = run_statement(&mut statement, &args)?;
 
-    select.projector
-          .project(rows)
-          .map_err(|e| e.into())
+            projector.project(rows).map_err(|e| e.into())
+        },
+    }
 }
 
 /// Take an EDN query string, a reference to an open SQLite connection, a Mentat schema, and an
@@ -382,14 +398,23 @@ pub fn q_prepare<'sqlite, 'query, T>
     }
 
     let select = query_to_select(algebrized)?;
-    let SQLQuery { sql, args } = select.query.to_sql_query()?;
-    let statement = sqlite.prepare(sql.as_str())?;
+    match select {
+        ProjectedSelect::Constant(constant) => {
+            Ok(PreparedQuery::Constant {
+                select: constant,
+            })
+        },
+        ProjectedSelect::Query { query, projector } => {
+            let SQLQuery { sql, args } = query.to_sql_query()?;
+            let statement = sqlite.prepare(sql.as_str())?;
 
-    Ok(PreparedQuery::Bound {
-        statement,
-        args,
-        projector: select.projector
-    })
+            Ok(PreparedQuery::Bound {
+                statement,
+                args,
+                projector: projector
+            })
+        },
+    }
 }
 
 pub fn q_explain<'sqlite, 'query, T>
@@ -403,18 +428,23 @@ pub fn q_explain<'sqlite, 'query, T>
     if algebrized.is_known_empty() {
         return Ok(QueryExplanation::KnownEmpty(algebrized.cc.empty_because.unwrap()));
     }
-    let query = query_to_select(algebrized)?.query.to_sql_query()?;
+    match query_to_select(algebrized)? {
+        ProjectedSelect::Constant(_constant) => Ok(QueryExplanation::KnownConstant),
+        ProjectedSelect::Query { query, projector: _projector } => {
+            let query = query.to_sql_query()?;
 
-    let plan_sql = format!("EXPLAIN QUERY PLAN {}", query.sql);
+            let plan_sql = format!("EXPLAIN QUERY PLAN {}", query.sql);
 
-    let steps = run_sql_query(sqlite, &plan_sql, &query.args, |row| {
-        QueryPlanStep {
-            select_id: row.get(0),
-            order: row.get(1),
-            from: row.get(2),
-            detail: row.get(3)
-        }
-    })?;
+            let steps = run_sql_query(sqlite, &plan_sql, &query.args, |row| {
+                QueryPlanStep {
+                    select_id: row.get(0),
+                    order: row.get(1),
+                    from: row.get(2),
+                    detail: row.get(3)
+                }
+            })?;
 
-    Ok(QueryExplanation::ExecutionPlan { query, steps })
+            Ok(QueryExplanation::ExecutionPlan { query, steps })
+        },
+    }
 }

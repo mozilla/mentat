@@ -17,7 +17,13 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::Limit;
+use mentat_core::util::{
+    Either,
+};
+
+use mentat_query::{
+    Limit,
+};
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
@@ -40,6 +46,7 @@ use mentat_query_algebrizer::{
 
 use mentat_query_projector::{
     CombinedProjection,
+    ConstantProjector,
     Projector,
     projected_column_for_var,
     query_projection,
@@ -237,9 +244,12 @@ impl ToConstraint for ColumnConstraint {
     }
 }
 
-pub struct ProjectedSelect{
-    pub query: SelectQuery,
-    pub projector: Box<Projector>,
+pub enum ProjectedSelect {
+    Constant(ConstantProjector),
+    Query {
+        query: SelectQuery,
+        projector: Box<Projector>,
+    },
 }
 
 // Nasty little hack to let us move out of indexed context.
@@ -325,6 +335,17 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
     }
 }
 
+fn empty_query() -> SelectQuery {
+    SelectQuery {
+        distinct: false,
+        projection: Projection::One,
+        from: FromClause::Nothing,
+        constraints: vec![],
+        order: vec![],
+        limit: Limit::None,
+    }
+}
+
 /// Returns a `SelectQuery` that queries for the provided `cc`. Note that this _always_ returns a
 /// query that runs SQL. The next level up the call stack can check for known-empty queries if
 /// needed.
@@ -380,14 +401,7 @@ fn cc_to_select_query(projection: Projection,
 pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
     if cc.is_known_empty() {
         // In this case we can produce a very simple query that returns no results.
-        SelectQuery {
-            distinct: false,
-            projection: Projection::One,
-            from: FromClause::Nothing,
-            constraints: vec![],
-            order: vec![],
-            limit: Limit::None,
-        }
+        empty_query()
     } else {
         cc_to_select_query(Projection::One, cc, false, None, Limit::None)
     }
@@ -398,9 +412,14 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
 pub fn query_to_select(query: AlgebraicQuery) -> Result<ProjectedSelect> {
     // TODO: we can't pass `query.limit` here if we aggregate during projection.
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
-    let CombinedProjection { sql_projection, datalog_projector, distinct } = query_projection(&query)?;
-    Ok(ProjectedSelect {
-        query: cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit),
-        projector: datalog_projector,
-    })
+    query_projection(&query).map(|e| match e {
+        Either::Left(constant) => ProjectedSelect::Constant(constant),
+        Either::Right(CombinedProjection { sql_projection, datalog_projector, distinct, }) => {
+            let q = cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit);
+            ProjectedSelect::Query {
+                query: q,
+                projector: datalog_projector,
+            }
+        },
+    }).map_err(|e| e.into())
 }

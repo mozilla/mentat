@@ -458,6 +458,8 @@ impl Repl {
         match self.store.q_explain(query.as_str(), None) {
             Result::Err(err) =>
                 println!("{:?}.", err),
+            Result::Ok(QueryExplanation::KnownConstant) =>
+                println!("Query is known constant!"),
             Result::Ok(QueryExplanation::KnownEmpty(empty_because)) =>
                 println!("Query is known empty: {:?}", empty_because),
             Result::Ok(QueryExplanation::ExecutionPlan { query, steps }) => {

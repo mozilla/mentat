@@ -51,7 +51,10 @@ pub use edn::{
     Utc,
 };
 
-pub use cache::CachedAttributes;
+pub use cache::{
+    CachedAttributes,
+    UpdateableCache,
+};
 
 /// Core types defining a Mentat knowledge base.
 

@@ -32,7 +32,6 @@ use mentat_core::{
 };
 
 use mentat::{
-    IntoResult,
     NamespacedKeyword,
     PlainSymbol,
     QueryInputs,
@@ -621,39 +620,4 @@ fn test_type_reqs() {
             panic!("Query returned unexpected type: {:?}", v);
         }
     };
-}
-
-#[test]
-fn test_cache_usage() {
-    let mut c = new_connection("").expect("opened connection");
-    let conn = Conn::connect(&mut c).expect("connected");
-
-    let db_ident = (*conn.current_schema()).get_entid(&kw!(:db/ident)).expect("db_ident");
-    let db_type = (*conn.current_schema()).get_entid(&kw!(:db/valueType)).expect("db_ident");
-    println!("db/ident is {}", db_ident.0);
-    println!("db/type is {}", db_type.0);
-    let query = format!("[:find ?ident . :where [?e {} :db/doc][?e {} ?type][?type {} ?ident]]",
-                        db_ident.0, db_type.0, db_ident.0);
-
-    println!("Query is {}", query);
-
-    let schema = conn.current_schema();
-    (*conn.attribute_cache_mut()).register(&schema, &mut c, db_ident).expect("registered");
-    (*conn.attribute_cache_mut()).register(&schema, &mut c, db_type).expect("registered");
-
-    let ident = conn.q_once(&c, query.as_str(), None).into_scalar_result().expect("query");
-    assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
-
-    let ident = conn.q_uncached(&c, query.as_str(), None).into_scalar_result().expect("query");
-    assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
-
-    let start = time::PreciseTime::now();
-    conn.q_once(&c, query.as_str(), None).into_scalar_result().expect("query");
-    let end = time::PreciseTime::now();
-    println!("Cached took {}µs", start.to(end).num_microseconds().unwrap());
-
-    let start = time::PreciseTime::now();
-    conn.q_uncached(&c, query.as_str(), None).into_scalar_result().expect("query");
-    let end = time::PreciseTime::now();
-    println!("Uncached took {}µs", start.to(end).num_microseconds().unwrap());
 }

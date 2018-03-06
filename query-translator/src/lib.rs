@@ -24,6 +24,7 @@ pub use mentat_query_sql::{
 };
 
 pub use translate::{
+    ProjectedSelect,
     cc_to_exists,
     query_to_select,
 };

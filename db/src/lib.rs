@@ -17,6 +17,8 @@ extern crate itertools;
 
 #[macro_use]
 extern crate lazy_static;
+
+extern crate num;
 extern crate rusqlite;
 extern crate tabwriter;
 extern crate time;
@@ -43,6 +45,7 @@ pub mod errors;
 pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod metadata;
 mod schema;
+mod watcher;
 mod tx;
 pub mod types;
 mod upsert_resolution;
@@ -71,6 +74,10 @@ pub use entids::{
 pub use db::{
     TypedSQLValue,
     new_connection,
+};
+
+pub use watcher::{
+    TransactWatcher,
 };
 
 pub use tx::{
