@@ -54,6 +54,7 @@ use command_parser::{
     COMMAND_QUERY_PREPARED_LONG,
     COMMAND_SCHEMA,
     COMMAND_SYNC,
+    COMMAND_TIMER_LONG,
     COMMAND_TRANSACT_LONG,
     COMMAND_TRANSACT_SHORT,
 };
@@ -90,6 +91,8 @@ lazy_static! {
 
             (COMMAND_QUERY_EXPLAIN_LONG, "Show the SQL and query plan that would be executed for a given query."),
             (COMMAND_QUERY_EXPLAIN_SHORT, "Shortcut for `.explain_query`. Show the SQL and query plan that would be executed for a given query."),
+
+            (COMMAND_TIMER_LONG, "Enable or disable timing of query and transact operations."),
 
             (COMMAND_CACHE, "Cache an attribute. Usage: `.cache :foo/bar reverse`"),
             (COMMAND_SYNC, "Synchronize the database against a Sync Server URL for a provided user UUID."),
