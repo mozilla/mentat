@@ -34,13 +34,13 @@ use types::{SpannedValue, Span, ValueAndSpan};
 // TODO: Support tagged elements
 // TODO: Support discard
 
-nil -> SpannedValue = "nil" { SpannedValue::Nil }
-nan -> SpannedValue = "#f" whitespace+ "NaN" { SpannedValue::Float(OrderedFloat(NAN)) }
+pub nil -> SpannedValue = "nil" { SpannedValue::Nil }
+pub nan -> SpannedValue = "#f" whitespace+ "NaN" { SpannedValue::Float(OrderedFloat(NAN)) }
 
-infinity -> SpannedValue = "#f" whitespace+ s:$(sign) "Infinity"
+pub infinity -> SpannedValue = "#f" whitespace+ s:$(sign) "Infinity"
     { SpannedValue::Float(OrderedFloat(if s == "+" { INFINITY } else { NEG_INFINITY })) }
 
-boolean -> SpannedValue
+pub boolean -> SpannedValue
     = "true"  { SpannedValue::Boolean(true) }
     / "false" { SpannedValue::Boolean(false) }
 
@@ -51,21 +51,23 @@ validbase = [3][0-6] / [12][0-9] / [2-9]
 hex = [0-9a-fA-F]
 sign = [+-]
 
-bigint -> SpannedValue = b:$( sign? digit+ ) "N"
+pub bigint -> SpannedValue = b:$( sign? digit+ ) "N"
     { SpannedValue::BigInteger(b.parse::<BigInt>().unwrap()) }
-octalinteger -> SpannedValue = "0" i:$( octaldigit+ )
+pub octalinteger -> SpannedValue = "0" i:$( octaldigit+ )
     { SpannedValue::Integer(i64::from_str_radix(i, 8).unwrap()) }
-hexinteger -> SpannedValue = "0x" i:$( hex+ )
+pub hexinteger -> SpannedValue = "0x" i:$( hex+ )
     { SpannedValue::Integer(i64::from_str_radix(i, 16).unwrap()) }
 
-basedinteger -> SpannedValue = b:$( validbase ) "r" i:$( alphanumeric+ )
+pub basedinteger -> SpannedValue = b:$( validbase ) "r" i:$( alphanumeric+ )
     { SpannedValue::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap()) }
 
-integer -> SpannedValue = i:$( sign? digit+ )
+pub integer -> SpannedValue = i:$( sign? digit+ ) !("." / ([eE]))
     { SpannedValue::Integer(i.parse::<i64>().unwrap()) }
 
-float -> SpannedValue = f:$(sign? digit+ ("." digit+)? (("e" / "E") sign? digit+)?)
+pub float -> SpannedValue = f:$(sign? digit+ ("." digit+)? ([eE] sign? digit+)?)
     { SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())) }
+
+number -> SpannedValue = ( bigint / basedinteger / hexinteger / octalinteger / integer / float )
 
 // TODO: \newline, \return, \space and \tab
 special_char = quote / tab
@@ -73,7 +75,7 @@ quote = "\\\""
 tab = "\\tab"
 char = [^"] / special_char
 
-text -> SpannedValue = "\"" t:$( char* ) "\""
+pub text -> SpannedValue = "\"" t:$( char* ) "\""
     {  SpannedValue::Text(t.to_string()) }
 
 // RFC 3339 timestamps. #inst "1985-04-12T23:20:50.52Z"
@@ -116,7 +118,7 @@ uuid_string -> Uuid =
         Uuid::parse_str(u).expect("this is a valid UUID string")
     }
 
-uuid -> SpannedValue = "#uuid" whitespace+ u:uuid_string
+pub uuid -> SpannedValue = "#uuid" whitespace+ u:uuid_string
     { SpannedValue::Uuid(u) }
 
 namespace_divider = "."
@@ -134,24 +136,24 @@ plain_symbol_name = symbol_name / "..." / "."
 
 keyword_prefix = ":"
 
-symbol -> SpannedValue =
+pub symbol -> SpannedValue =
     ns:( sns:$(symbol_namespace) namespace_separator { sns })?
     n:$(plain_symbol_name)
     { SpannedValue::from_symbol(ns, n) }
 
-keyword -> SpannedValue =
+pub keyword -> SpannedValue =
     keyword_prefix
     ns:( sns:$(symbol_namespace) namespace_separator { sns })?
     n:$(symbol_name)
     { SpannedValue::from_keyword(ns, n) }
 
-list -> SpannedValue = "(" __ v:(value)* __ ")"
+pub list -> SpannedValue = "(" __ v:(value)* __ ")"
     { SpannedValue::List(LinkedList::from_iter(v)) }
 
-vector -> SpannedValue = "[" __ v:(value)* __ "]"
+pub vector -> SpannedValue = "[" __ v:(value)* __ "]"
     { SpannedValue::Vector(v) }
 
-set -> SpannedValue = "#{" __ v:(value)* __ "}"
+pub set -> SpannedValue = "#{" __ v:(value)* __ "}"
     { SpannedValue::Set(BTreeSet::from_iter(v)) }
 
 pair -> (ValueAndSpan, ValueAndSpan) =
@@ -159,13 +161,13 @@ pair -> (ValueAndSpan, ValueAndSpan) =
         (k, v)
     }
 
-map -> SpannedValue = "{" __ v:(pair)* __ "}"
+pub map -> SpannedValue = "{" __ v:(pair)* __ "}"
     { SpannedValue::Map(BTreeMap::from_iter(v)) }
 
 // It's important that float comes before integer or the parser assumes that
 // floats are integers and fails to parse
 pub value -> ValueAndSpan =
-    __ start:#position v:(nil / nan / infinity / boolean / float / octalinteger / hexinteger / basedinteger / inst / uuid / bigint / integer / text / keyword / symbol / list / vector / map / set) end:#position __ {
+    __ start:#position v:(nil / nan / infinity / boolean / number / inst / uuid / text / keyword / symbol / list / vector / map / set) end:#position __ {
         ValueAndSpan {
             inner: v,
             span: Span::new(start, end)

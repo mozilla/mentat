@@ -163,6 +163,12 @@ impl From<SpannedValue> for Value {
     }
 }
 
+impl From<ValueAndSpan> for Value {
+    fn from(src: ValueAndSpan) -> Value {
+        src.inner.into()
+    }
+}
+
 /// Creates `from_$TYPE` helper functions for Value and SpannedValue,
 /// like `from_float()` or `from_ordered_float()`.
 macro_rules! def_from {
@@ -617,7 +623,10 @@ mod test {
 
     #[test]
     fn test_print_edn() {
+        assert_eq!("1234N", Value::from_bigint("1234").unwrap().to_string());
+
         let string = "[ 1 2 ( 3.14 ) #{ 4N } { foo/bar 42 :baz/boz 43 } [ ] :five :six/seven eight nine/ten true false nil #f NaN #f -Infinity #f +Infinity ]";
+
         let data = Value::Vector(vec![
             Value::Integer(1),
             Value::Integer(2),

@@ -60,7 +60,7 @@ fn s_plain(name: &str) -> Value {
 macro_rules! fn_parse_into_value {
     ($name: ident) => {
         fn $name<'a, T>(src: T) -> Result<Value, ParseError> where T: Into<&'a str> {
-            parse::$name(src.into()).map(|x| x.inner.into())
+            parse::$name(src.into()).map(|x| x.into())
         }
     }
 }
@@ -98,7 +98,7 @@ fn test_nil() {
 
 #[test]
 fn test_span_nil() {
-    assert_eq!(parse::nil("nil").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("nil").unwrap(), ValueAndSpan {
         inner: SpannedValue::Nil,
         span: Span(0, 3)
     });
@@ -120,7 +120,7 @@ fn test_nan() {
 
 #[test]
 fn test_span_nan() {
-    assert_eq!(parse::nan("#f NaN").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("#f NaN").unwrap(), ValueAndSpan {
         inner: SpannedValue::Float(OrderedFloat(f64::NAN)),
         span: Span(0, 6)
     });
@@ -150,11 +150,11 @@ fn test_infinity() {
 
 #[test]
 fn test_span_infinity() {
-    assert_eq!(parse::infinity("#f -Infinity").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("#f -Infinity").unwrap(), ValueAndSpan {
         inner: SpannedValue::Float(OrderedFloat(f64::NEG_INFINITY)),
         span: Span(0, 12)
     });
-    assert_eq!(parse::infinity("#f +Infinity").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("#f +Infinity").unwrap(), ValueAndSpan {
         inner: SpannedValue::Float(OrderedFloat(f64::INFINITY)),
         span: Span(0, 12)
     });
@@ -172,12 +172,12 @@ fn test_boolean() {
 
 #[test]
 fn test_span_boolean() {
-    assert_eq!(parse::boolean("true").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("true").unwrap(), ValueAndSpan {
         inner: SpannedValue::Boolean(true),
         span: Span(0, 4)
     });
 
-    assert_eq!(parse::boolean("false").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("false").unwrap(), ValueAndSpan {
         inner: SpannedValue::Boolean(false),
         span: Span(0, 5)
     });
@@ -235,19 +235,19 @@ fn test_octalinteger() {
 
 #[test]
 fn test_span_integer() {
-    assert_eq!(parse::integer("42").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("42").unwrap(), ValueAndSpan {
         inner: SpannedValue::Integer(42),
         span: Span(0, 2)
     });
-    assert_eq!(parse::hexinteger("0xabc111").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("0xabc111").unwrap(), ValueAndSpan {
         inner: SpannedValue::Integer(11256081),
         span: Span(0, 8)
     });
-    assert_eq!(parse::basedinteger("2r111").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("2r111").unwrap(), ValueAndSpan {
         inner: SpannedValue::Integer(7),
         span: Span(0, 5)
     });
-    assert_eq!(parse::octalinteger("011").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("011").unwrap(), ValueAndSpan {
         inner: SpannedValue::Integer(9),
         span: Span(0, 3)
     });
@@ -266,7 +266,6 @@ fn test_uuid() {
                        .expect("valid UUID");
     let actual = parse::uuid("#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
                        .expect("parse success")
-                       .inner
                        .into();
     assert_eq!(self::Value::Uuid(expected), actual);
 }
@@ -291,7 +290,7 @@ fn test_span_bigint() {
     let max_i64 = i64::max_value().to_bigint().unwrap();
     let bigger = &max_i64 * &max_i64;
 
-    assert_eq!(parse::bigint("85070591730234615847396907784232501249N").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("85070591730234615847396907784232501249N").unwrap(), ValueAndSpan {
         inner: SpannedValue::BigInteger(bigger),
         span: Span(0, 39)
     });
@@ -307,13 +306,13 @@ fn test_float() {
     assert_eq!(float("77.88e99").unwrap(), Float(OrderedFloat(77.88e99f64)));
     assert_eq!(float("-9.9E-9").unwrap(), Float(OrderedFloat(-9.9E-9f64)));
 
-    assert!(float("42").is_err());
+    assert_eq!(float("42").unwrap(), Float(OrderedFloat(42f64)));
     assert!(float("nil").is_err());
 }
 
 #[test]
 fn test_span_float() {
-    assert_eq!(parse::float("42.0").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("42.0").unwrap(), ValueAndSpan {
         inner: SpannedValue::Float(OrderedFloat(42f64)),
         span: Span(0, 4)
     });
@@ -332,7 +331,7 @@ fn test_text() {
 
 #[test]
 fn test_span_text() {
-    assert_eq!(parse::text("\"hello world\"").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("\"hello world\"").unwrap(), ValueAndSpan {
         inner: SpannedValue::Text("hello world".to_string()),
         span: Span(0, 13)
     });
@@ -359,11 +358,11 @@ fn test_symbol() {
 
 #[test]
 fn test_span_symbol() {
-    assert_eq!(parse::symbol("hello").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("hello").unwrap(), ValueAndSpan {
         inner: SpannedValue::from_symbol(None, "hello"),
         span: Span(0, 5)
     });
-    assert_eq!(parse::symbol("hello/world").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value("hello/world").unwrap(), ValueAndSpan {
         inner: SpannedValue::from_symbol("hello", "world"),
         span: Span(0, 11)
     });
@@ -389,11 +388,11 @@ fn test_keyword() {
 
 #[test]
 fn test_span_keyword() {
-    assert_eq!(parse::keyword(":hello").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value(":hello").unwrap(), ValueAndSpan {
         inner: SpannedValue::from_keyword(None, "hello"),
         span: Span(0, 6)
     });
-    assert_eq!(parse::keyword(":hello/world").unwrap(), ValueAndSpan {
+    assert_eq!(parse::value(":hello/world").unwrap(), ValueAndSpan {
         inner: SpannedValue::from_keyword("hello", "world"),
         span: Span(0, 12)
     });
