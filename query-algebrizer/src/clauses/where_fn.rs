@@ -31,7 +31,7 @@ impl ConjoiningClauses {
     /// - In the future, some functions that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only a limited selection of functions.
-    pub fn apply_where_fn(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
+    pub(crate) fn apply_where_fn(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         // Because we'll be growing the set of built-in functions, handling each differently, and
         // ultimately allowing user-specified functions, we match on the function name first.
         match where_fn.operator.0.as_str() {

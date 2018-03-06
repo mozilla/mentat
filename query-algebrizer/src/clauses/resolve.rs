@@ -39,7 +39,7 @@ impl ConjoiningClauses {
     /// Additionally, do two things:
     /// - Mark the pattern as known-empty if any argument is known non-numeric.
     /// - Mark any variables encountered as numeric.
-    pub fn resolve_numeric_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
+    pub(crate) fn resolve_numeric_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
         use self::FnArg::*;
         match arg {
             FnArg::Variable(var) => {
@@ -67,7 +67,7 @@ impl ConjoiningClauses {
     }
 
     /// Just like `resolve_numeric_argument`, but for `ValueType::Instant`.
-    pub fn resolve_instant_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
+    pub(crate) fn resolve_instant_argument(&mut self, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
         use self::FnArg::*;
         match arg {
             FnArg::Variable(var) => {

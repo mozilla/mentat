@@ -44,7 +44,7 @@ use errors::{
 ///
 /// "As with rules, src-vars are not currently supported within the clauses of or, but are supported
 /// on the or clause as a whole at top level."
-pub fn validate_or_join(or_join: &OrJoin) -> Result<()> {
+pub(crate) fn validate_or_join(or_join: &OrJoin) -> Result<()> {
     // Grab our mentioned variables and ensure that the rules are followed.
     match or_join.unify_vars {
         UnifyVars::Implicit => {
@@ -75,7 +75,7 @@ pub fn validate_or_join(or_join: &OrJoin) -> Result<()> {
     }
 }
 
-pub fn validate_not_join(not_join: &NotJoin) -> Result<()> {
+pub(crate) fn validate_not_join(not_join: &NotJoin) -> Result<()> {
     // Grab our mentioned variables and ensure that the rules are followed.
     match not_join.unify_vars {
         UnifyVars::Implicit => {

@@ -115,7 +115,7 @@ impl ConjoiningClauses {
         Ok(())
     }
 
-    pub fn apply_ground(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
+    pub(crate) fn apply_ground(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 1 {
             bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 1));
         }

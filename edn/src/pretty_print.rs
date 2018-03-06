@@ -25,7 +25,7 @@ impl Value {
     }
 
     /// Write a pretty representation of this `Value` to the given writer.
-    pub fn write_pretty<W>(&self, width: usize, out: &mut W) -> Result<(), io::Error> where W: io::Write {
+    fn write_pretty<W>(&self, width: usize, out: &mut W) -> Result<(), io::Error> where W: io::Write {
         self.as_doc(&pretty::BoxAllocator).1.render(width, out)
     }
 
@@ -51,7 +51,7 @@ impl Value {
     /// Recursively traverses this value and creates a pretty.rs document.
     /// This pretty printing implementation is optimized for edn queries
     /// readability and limited whitespace expansion.
-    pub fn as_doc<'a, A>(&'a self, pp: &'a A) -> pretty::DocBuilder<'a, A>
+    fn as_doc<'a, A>(&'a self, pp: &'a A) -> pretty::DocBuilder<'a, A>
         where A: pretty::DocAllocator<'a> {
         match *self {
             Value::Vector(ref vs) => self.bracket(pp, "[", vs, "]"),

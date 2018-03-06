@@ -39,10 +39,6 @@ pub use value_and_span::{
     Stream,
 };
 
-pub use log::{
-    LogParsing,
-};
-
 impl std::fmt::Debug for ValueParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f,

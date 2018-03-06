@@ -16,7 +16,7 @@ use combine::{
 };
 
 #[derive(Clone)]
-pub struct Log<P, T>(P, T)
+pub(crate) struct Log<P, T>(P, T)
     where P: Parser,
           T: ::std::fmt::Debug;
 
@@ -46,7 +46,7 @@ impl<I, P, T> Parser for Log<P, T>
 }
 
 #[inline(always)]
-pub fn log<P, T>(p: P, msg: T) -> Log<P, T>
+pub(crate) fn log<P, T>(p: P, msg: T) -> Log<P, T>
     where P: Parser,
           T: ::std::fmt::Debug,
 {
@@ -54,7 +54,7 @@ pub fn log<P, T>(p: P, msg: T) -> Log<P, T>
 }
 
 /// We need a trait to define `Parser.log` and have it live outside of the `combine` crate.
-pub trait LogParsing: Parser + Sized {
+pub(crate) trait LogParsing: Parser + Sized {
     fn log<T>(self, msg: T) -> Log<Self, T>
         where Self: Sized,
               T: ::std::fmt::Debug;

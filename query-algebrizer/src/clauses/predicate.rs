@@ -45,7 +45,7 @@ impl ConjoiningClauses {
     /// - In the future, some predicates that are implemented via function calls in SQLite.
     ///
     /// At present we have implemented only the five built-in comparison binary operators.
-    pub fn apply_predicate(&mut self, known: Known, predicate: Predicate) -> Result<()> {
+    pub(crate) fn apply_predicate(&mut self, known: Known, predicate: Predicate) -> Result<()> {
         // Because we'll be growing the set of built-in predicates, handling each differently,
         // and ultimately allowing user-specified predicates, we match on the predicate name first.
         if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
@@ -64,7 +64,7 @@ impl ConjoiningClauses {
 
     /// Apply a type annotation, which is a construct like a predicate that constrains the argument
     /// to be a specific ValueType.
-    pub fn apply_type_anno(&mut self, anno: &TypeAnnotation) -> Result<()> {
+    pub(crate) fn apply_type_anno(&mut self, anno: &TypeAnnotation) -> Result<()> {
         self.add_type_requirement(anno.variable.clone(), ValueTypeSet::of_one(anno.value_type));
         Ok(())
     }
@@ -73,7 +73,7 @@ impl ConjoiningClauses {
     /// - Resolves variables and converts types to those more amenable to SQL.
     /// - Ensures that the predicate functions name a known operator.
     /// - Accumulates an `Inequality` constraint into the `wheres` list.
-    pub fn apply_inequality(&mut self, known: Known, comparison: Inequality, predicate: Predicate) -> Result<()> {
+    pub(crate) fn apply_inequality(&mut self, known: Known, comparison: Inequality, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
             bail!(ErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }

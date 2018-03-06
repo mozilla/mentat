@@ -56,7 +56,7 @@ struct UpsertEV(TempIdHandle, Entid, TempIdHandle);
 /// entid allocations.  That's why we separate into special simple and complex upsert types
 /// immediately, and then collect the more general term types for final resolution.
 #[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct Generation {
+pub(crate) struct Generation {
     /// "Simple upserts" that look like [:db/add TEMPID a v], where a is :db.unique/identity.
     upserts_e: Vec<UpsertE>,
 
@@ -79,7 +79,7 @@ pub struct Generation {
 }
 
 #[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct FinalPopulations {
+pub(crate) struct FinalPopulations {
     /// Upserts that upserted.
     pub upserted: Vec<TermWithoutTempIds>,
 
@@ -93,7 +93,7 @@ pub struct FinalPopulations {
 impl Generation {
     /// Split entities into a generation of populations that need to evolve to have their tempids
     /// resolved or allocated, and a population of inert entities that do not reference tempids.
-    pub fn from<I>(terms: I, schema: &Schema) -> errors::Result<(Generation, Population)> where I: IntoIterator<Item=TermWithTempIds> {
+    pub(crate) fn from<I>(terms: I, schema: &Schema) -> errors::Result<(Generation, Population)> where I: IntoIterator<Item=TermWithTempIds> {
         let mut generation = Generation::default();
         let mut inert = vec![];
 
@@ -135,7 +135,7 @@ impl Generation {
     /// There can be complex upserts but no simple upserts to help resolve them.  We accept the
     /// overhead of having the database try to resolve an empty set of simple upserts, to avoid
     /// having to special case complex upserts at entid allocation time.
-    pub fn can_evolve(&self) -> bool {
+    pub(crate) fn can_evolve(&self) -> bool {
         !self.upserts_e.is_empty() || !self.upserts_ev.is_empty()
     }
 
@@ -143,7 +143,7 @@ impl Generation {
     /// given temporary IDs.
     ///
     /// TODO: Considering doing this in place; the function already consumes `self`.
-    pub fn evolve_one_step(self, temp_id_map: &TempIdMap) -> Generation {
+    pub(crate) fn evolve_one_step(self, temp_id_map: &TempIdMap) -> Generation {
         let mut next = Generation::default();
 
         for UpsertE(t, a, v) in self.upserts_e {
@@ -196,7 +196,7 @@ impl Generation {
     }
 
     // Collect id->[a v] pairs that might upsert at this evolutionary step.
-    pub fn temp_id_avs<'a>(&'a self) -> Vec<(TempIdHandle, AVPair)> {
+    pub(crate) fn temp_id_avs<'a>(&'a self) -> Vec<(TempIdHandle, AVPair)> {
         let mut temp_id_avs: Vec<(TempIdHandle, AVPair)> = vec![];
         // TODO: map/collect.
         for &UpsertE(ref t, ref a, ref v) in &self.upserts_e {
@@ -210,7 +210,7 @@ impl Generation {
     /// After evolution is complete, yield the set of tempids that require entid allocation.  These
     /// are the tempids that appeared in [:db/add ...] entities, but that didn't upsert to existing
     /// entids.
-    pub fn temp_ids_in_allocations(&self) -> BTreeSet<TempIdHandle> {
+    pub(crate) fn temp_ids_in_allocations(&self) -> BTreeSet<TempIdHandle> {
         assert!(self.upserts_e.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
         assert!(self.upserts_ev.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
 
@@ -241,7 +241,7 @@ impl Generation {
 
     /// After evolution is complete, use the provided allocated entids to segment `self` into
     /// populations, each with no references to tempids.
-    pub fn into_final_populations(self, temp_id_map: &TempIdMap) -> errors::Result<FinalPopulations> {
+    pub(crate) fn into_final_populations(self, temp_id_map: &TempIdMap) -> errors::Result<FinalPopulations> {
         assert!(self.upserts_e.is_empty());
         assert!(self.upserts_ev.is_empty());
 

@@ -610,13 +610,6 @@ impl<T> PlaceOrEmpty<T> {
             PlaceOrEmpty::Empty(e) => PlaceOrEmpty::Empty(e),
         }
     }
-
-    pub fn then<F: FnOnce(T)>(self, f: F) {
-        match self {
-            PlaceOrEmpty::Place(x) => f(x),
-            PlaceOrEmpty::Empty(_e) => (),
-        }
-    }
 }
 
 pub struct EvolvedPattern {

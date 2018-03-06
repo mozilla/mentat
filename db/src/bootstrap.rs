@@ -39,8 +39,8 @@ pub const USER0: i64 = 0x10000;
 pub const CORE_SCHEMA_VERSION: u32 = 1;
 
 lazy_static! {
-    static ref V1_IDENTS: Vec<(symbols::NamespacedKeyword, i64)> = {
-        vec![(ns_keyword!("db", "ident"),             entids::DB_IDENT),
+    static ref V1_IDENTS: [(symbols::NamespacedKeyword, i64); 40] = {
+            [(ns_keyword!("db", "ident"),             entids::DB_IDENT),
              (ns_keyword!("db.part", "db"),           entids::DB_PART_DB),
              (ns_keyword!("db", "txInstant"),         entids::DB_TX_INSTANT),
              (ns_keyword!("db.install", "partition"), entids::DB_INSTALL_PARTITION),
@@ -83,15 +83,15 @@ lazy_static! {
         ]
     };
 
-    static ref V1_PARTS: Vec<(symbols::NamespacedKeyword, i64, i64)> = {
-        vec![(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
+    static ref V1_PARTS: [(symbols::NamespacedKeyword, i64, i64); 3] = {
+            [(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
              (ns_keyword!("db.part", "user"), USER0, USER0),
              (ns_keyword!("db.part", "tx"), TX0, TX0),
         ]
     };
 
-    static ref V1_CORE_SCHEMA: Vec<(symbols::NamespacedKeyword)> = {
-        vec![(ns_keyword!("db", "ident")),
+    static ref V1_CORE_SCHEMA: [(symbols::NamespacedKeyword); 16] = {
+            [(ns_keyword!("db", "ident")),
              (ns_keyword!("db.install", "partition")),
              (ns_keyword!("db.install", "valueType")),
              (ns_keyword!("db.install", "attribute")),
@@ -273,29 +273,29 @@ fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> 
     Ok(assertions)
 }
 
-pub fn bootstrap_partition_map() -> PartitionMap {
-    V1_PARTS[..].iter()
-        .map(|&(ref part, start, index)| (part.to_string(), Partition::new(start, index)))
-        .collect()
+pub(crate) fn bootstrap_partition_map() -> PartitionMap {
+    V1_PARTS.iter()
+            .map(|&(ref part, start, index)| (part.to_string(), Partition::new(start, index)))
+            .collect()
 }
 
-pub fn bootstrap_ident_map() -> IdentMap {
-    V1_IDENTS[..].iter()
-        .map(|&(ref ident, entid)| (ident.clone(), entid))
-        .collect()
+pub(crate) fn bootstrap_ident_map() -> IdentMap {
+    V1_IDENTS.iter()
+             .map(|&(ref ident, entid)| (ident.clone(), entid))
+             .collect()
 }
 
-pub fn bootstrap_schema() -> Schema {
+pub(crate) fn bootstrap_schema() -> Schema {
     let ident_map = bootstrap_ident_map();
     let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V1_SYMBOLIC_SCHEMA).unwrap();
     Schema::from_ident_map_and_triples(ident_map, bootstrap_triples).unwrap()
 }
 
-pub fn bootstrap_entities() -> Vec<Entity> {
+pub(crate) fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
         symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
         idents_to_assertions(&V1_IDENTS[..]),
-        schema_attrs_to_assertions(CORE_SCHEMA_VERSION, &V1_CORE_SCHEMA),
+        schema_attrs_to_assertions(CORE_SCHEMA_VERSION, V1_CORE_SCHEMA.as_ref()),
     ].concat());
 
     // Failure here is a coding error (since the inputs are fixed), not a runtime error.

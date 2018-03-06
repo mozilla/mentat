@@ -29,7 +29,7 @@ use types::{
 use Known;
 
 impl ConjoiningClauses {
-    pub fn apply_not_join(&mut self, known: Known, not_join: NotJoin) -> Result<()> {
+    pub(crate) fn apply_not_join(&mut self, known: Known, not_join: NotJoin) -> Result<()> {
         let unified = match not_join.unify_vars {
             UnifyVars::Implicit => not_join.collect_mentioned_variables(),
             UnifyVars::Explicit(vs) => vs,

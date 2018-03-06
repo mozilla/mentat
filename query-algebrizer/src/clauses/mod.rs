@@ -290,21 +290,22 @@ impl ConjoiningClauses {
     /// Construct a new `ConjoiningClauses` with the provided alias counter. This allows a caller
     /// to share a counter with an enclosing scope, and to start counting at a particular offset
     /// for testing.
-    pub fn with_alias_counter(counter: RcCounter) -> ConjoiningClauses {
+    pub(crate) fn with_alias_counter(counter: RcCounter) -> ConjoiningClauses {
         ConjoiningClauses {
             alias_counter: counter,
             ..Default::default()
         }
     }
 
+    #[cfg(test)]
     pub fn with_inputs<T>(in_variables: BTreeSet<Variable>, inputs: T) -> ConjoiningClauses
     where T: Into<Option<QueryInputs>> {
         ConjoiningClauses::with_inputs_and_alias_counter(in_variables, inputs, RcCounter::new())
     }
 
-    pub fn with_inputs_and_alias_counter<T>(in_variables: BTreeSet<Variable>,
-                                            inputs: T,
-                                            alias_counter: RcCounter) -> ConjoiningClauses
+    pub(crate) fn with_inputs_and_alias_counter<T>(in_variables: BTreeSet<Variable>,
+                                                   inputs: T,
+                                                   alias_counter: RcCounter) -> ConjoiningClauses
     where T: Into<Option<QueryInputs>> {
         match inputs.into() {
             None => ConjoiningClauses::with_alias_counter(alias_counter),
@@ -389,7 +390,7 @@ impl ConjoiningClauses {
         self.value_bindings.get(var).cloned()
     }
 
-    pub fn is_value_bound(&self, var: &Variable) -> bool {
+    pub(crate) fn is_value_bound(&self, var: &Variable) -> bool {
         self.value_bindings.contains_key(var)
     }
 
@@ -397,13 +398,8 @@ impl ConjoiningClauses {
         self.value_bindings.with_intersected_keys(variables)
     }
 
-    /// Return an interator over the variables externally bound to values.
-    pub fn value_bound_variables(&self) -> ::std::collections::btree_map::Keys<Variable, TypedValue> {
-        self.value_bindings.keys()
-    }
-
     /// Return a set of the variables externally bound to values.
-    pub fn value_bound_variable_set(&self) -> BTreeSet<Variable> {
+    pub(crate) fn value_bound_variable_set(&self) -> BTreeSet<Variable> {
         self.value_bindings.keys().cloned().collect()
     }
 
@@ -418,11 +414,11 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn known_type_set(&self, var: &Variable) -> ValueTypeSet {
+    pub(crate) fn known_type_set(&self, var: &Variable) -> ValueTypeSet {
         self.known_types.get(var).cloned().unwrap_or(ValueTypeSet::any())
     }
 
-    pub fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
+    pub(crate) fn bind_column_to_var<C: Into<Column>>(&mut self, schema: &Schema, table: TableAlias, column: C, var: Variable) {
         let column = column.into();
         // Do we have an external binding for this?
         if let Some(bound_val) = self.bound_value(&var) {
@@ -515,7 +511,7 @@ impl ConjoiningClauses {
         self.column_bindings.entry(var).or_insert(vec![]).push(alias);
     }
 
-    pub fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
+    pub(crate) fn constrain_column_to_constant<C: Into<Column>>(&mut self, table: TableAlias, column: C, constant: TypedValue) {
         match constant {
             // Be a little more explicit.
             TypedValue::Ref(entid) => self.constrain_column_to_entity(table, column, entid),
@@ -526,23 +522,23 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {
+    pub(crate) fn constrain_column_to_entity<C: Into<Column>>(&mut self, table: TableAlias, column: C, entity: Entid) {
         let column = column.into();
         self.wheres.add_intersection(ColumnConstraint::Equals(QualifiedAlias(table, column), QueryValue::Entid(entity)))
     }
 
-    pub fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
+    pub(crate) fn constrain_attribute(&mut self, table: TableAlias, attribute: Entid) {
         self.constrain_column_to_entity(table, DatomsColumn::Attribute, attribute)
     }
 
-    pub fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
+    pub(crate) fn constrain_value_to_numeric(&mut self, table: TableAlias, value: i64) {
         self.wheres.add_intersection(ColumnConstraint::Equals(
             QualifiedAlias(table, Column::Fixed(DatomsColumn::Value)),
             QueryValue::PrimitiveLong(value)))
     }
 
     /// Mark the given value as a long.
-    pub fn constrain_var_to_long(&mut self, variable: Variable) {
+    pub(crate) fn constrain_var_to_long(&mut self, variable: Variable) {
         self.narrow_types_for_var(variable, ValueTypeSet::of_one(ValueType::Long));
     }
 
@@ -551,7 +547,7 @@ impl ConjoiningClauses {
         self.narrow_types_for_var(variable, ValueTypeSet::of_numeric_types());
     }
 
-    pub fn can_constrain_var_to_type(&self, var: &Variable, this_type: ValueType) -> Option<EmptyBecause> {
+    pub(crate) fn can_constrain_var_to_type(&self, var: &Variable, this_type: ValueType) -> Option<EmptyBecause> {
         self.can_constrain_var_to_types(var, ValueTypeSet::of_one(this_type))
     }
 
@@ -591,7 +587,7 @@ impl ConjoiningClauses {
     ///
     /// If the intersection will leave the variable so that it cannot be any
     /// type, we'll call `mark_known_empty`.
-    pub fn add_type_requirement(&mut self, var: Variable, types: ValueTypeSet) {
+    pub(crate) fn add_type_requirement(&mut self, var: Variable, types: ValueTypeSet) {
         if types.is_empty() {
             // This shouldn't happen, but if it does…
             self.mark_known_empty(EmptyBecause::NoValidTypes(var));
@@ -632,7 +628,7 @@ impl ConjoiningClauses {
     /// actually move from a state in which a variable can have no type to one that can
     /// yield results! We never do so at present -- we carefully set-union types before we
     /// set-intersect them -- but this is worth bearing in mind.
-    pub fn broaden_types(&mut self, additional_types: BTreeMap<Variable, ValueTypeSet>) {
+    pub(crate) fn broaden_types(&mut self, additional_types: BTreeMap<Variable, ValueTypeSet>) {
         for (var, new_types) in additional_types {
             match self.known_types.entry(var) {
                 Entry::Vacant(e) => {
@@ -696,7 +692,7 @@ impl ConjoiningClauses {
 
     /// Restrict the sets of types for the provided vars to the provided types.
     /// See `narrow_types_for_var`.
-    pub fn narrow_types(&mut self, additional_types: BTreeMap<Variable, ValueTypeSet>) {
+    pub(crate) fn narrow_types(&mut self, additional_types: BTreeMap<Variable, ValueTypeSet>) {
         if additional_types.is_empty() {
             return;
         }
@@ -831,7 +827,7 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn next_alias_for_table(&mut self, table: DatomsTable) -> TableAlias {
+    pub(crate) fn next_alias_for_table(&mut self, table: DatomsTable) -> TableAlias {
         match table {
             DatomsTable::Computed(u) =>
                 format!("{}{:02}", table.name(), u),
@@ -900,7 +896,7 @@ impl ConjoiningClauses {
     ///    datoms12.e = datoms13.v
     ///    datoms12.e = datoms14.e
     /// ```
-    pub fn expand_column_bindings(&mut self) {
+    pub(crate) fn expand_column_bindings(&mut self) {
         for cols in self.column_bindings.values() {
             if cols.len() > 1 {
                 let ref primary = cols[0];
@@ -916,7 +912,7 @@ impl ConjoiningClauses {
     }
 
     /// Eliminate any type extractions for variables whose types are definitely known.
-    pub fn prune_extracted_types(&mut self) {
+    pub(crate) fn prune_extracted_types(&mut self) {
         if self.extracted_types.is_empty() || self.known_types.is_empty() {
             return;
         }
@@ -927,7 +923,7 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn process_required_types(&mut self) -> Result<()> {
+    pub(crate) fn process_required_types(&mut self) -> Result<()> {
         if self.empty_because.is_some() {
             return Ok(())
         }
@@ -986,6 +982,7 @@ impl ConjoiningClauses {
         }
         Ok(())
     }
+
     /// When a CC has accumulated all patterns, generate value_type_tag entries in `wheres`
     /// to refine value types for which two things are true:
     ///
@@ -1004,7 +1001,8 @@ impl ConjoiningClauses {
     ///
     /// where `?y` must simultaneously be a ref-typed attribute and a boolean-typed attribute. This
     /// function deduces that and calls `self.mark_known_empty`. #293.
-    pub fn expand_type_tags(&mut self) {
+    #[allow(dead_code)]
+    pub(crate) fn expand_type_tags(&mut self) {
         // TODO.
     }
 }
@@ -1023,7 +1021,7 @@ impl ConjoiningClauses {
         Ok(())
     }
 
-    pub fn apply_clauses(&mut self, known: Known, where_clauses: Vec<WhereClause>) -> Result<()> {
+    pub(crate) fn apply_clauses(&mut self, known: Known, where_clauses: Vec<WhereClause>) -> Result<()> {
         // We apply (top level) type predicates first as an optimization.
         for clause in where_clauses.iter() {
             if let &WhereClause::TypeAnnotation(ref anno) = clause {
@@ -1065,7 +1063,7 @@ impl ConjoiningClauses {
 
     // This is here, rather than in `lib.rs`, because it's recursive: `or` can contain `or`,
     // and so on.
-    pub fn apply_clause(&mut self, known: Known, where_clause: WhereClause) -> Result<()> {
+    pub(crate) fn apply_clause(&mut self, known: Known, where_clause: WhereClause) -> Result<()> {
         match where_clause {
             WhereClause::Pattern(p) => {
                 match self.make_evolved_pattern(known, p) {
@@ -1096,7 +1094,7 @@ impl ConjoiningClauses {
     }
 }
 
-pub trait PushComputed {
+pub(crate) trait PushComputed {
     fn push_computed(&mut self, item: ComputedTable) -> DatomsTable;
 }
 
@@ -1121,7 +1119,7 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 }
 
 #[cfg(test)]
-pub fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
+pub(crate) fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
     PatternNonValuePlace::Ident(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
 }
 

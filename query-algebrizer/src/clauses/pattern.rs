@@ -81,7 +81,7 @@ impl ConjoiningClauses {
     ///   existence subquery instead of a join.
     ///
     /// This method is only public for use from `or.rs`.
-    pub fn apply_pattern_clause_for_alias(&mut self, known: Known, pattern: &EvolvedPattern, alias: &SourceAlias) {
+    pub(crate) fn apply_pattern_clause_for_alias(&mut self, known: Known, pattern: &EvolvedPattern, alias: &SourceAlias) {
         if self.is_known_empty() {
             return;
         }
@@ -444,7 +444,7 @@ impl ConjoiningClauses {
         self.make_evolved_non_value(known, DatomsColumn::Tx, tx)
     }
 
-    pub fn make_evolved_attribute(&self, known: &Known, attribute: PatternNonValuePlace) -> PlaceOrEmpty<(EvolvedNonValuePlace, Option<ValueType>)> {
+    pub(crate) fn make_evolved_attribute(&self, known: &Known, attribute: PatternNonValuePlace) -> PlaceOrEmpty<(EvolvedNonValuePlace, Option<ValueType>)> {
         use self::PlaceOrEmpty::*;
         self.make_evolved_non_value(known, DatomsColumn::Attribute, attribute)
             .and_then(|a| {
@@ -461,10 +461,10 @@ impl ConjoiningClauses {
             })
     }
 
-    pub fn make_evolved_value(&self,
-                              known: &Known,
-                              value_type: Option<ValueType>,
-                              value: PatternValuePlace) -> PlaceOrEmpty<EvolvedValuePlace> {
+    pub(crate) fn make_evolved_value(&self,
+                                     known: &Known,
+                                     value_type: Option<ValueType>,
+                                     value: PatternValuePlace) -> PlaceOrEmpty<EvolvedValuePlace> {
         use self::PlaceOrEmpty::*;
         match value {
             PatternValuePlace::Placeholder => Place(EvolvedValuePlace::Placeholder),
@@ -524,7 +524,7 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn make_evolved_pattern(&self, known: Known, pattern: Pattern) -> PlaceOrEmpty<EvolvedPattern> {
+    pub(crate) fn make_evolved_pattern(&self, known: Known, pattern: Pattern) -> PlaceOrEmpty<EvolvedPattern> {
         let (e, a, v, tx, source) = (pattern.entity, pattern.attribute, pattern.value, pattern.tx, pattern.source);
         use self::PlaceOrEmpty::*;
         match self.make_evolved_entity(&known, e) {
@@ -558,7 +558,7 @@ impl ConjoiningClauses {
 
     /// Re-examine the pattern to see if it can be specialized or is now known to fail.
     #[allow(unused_variables)]
-    pub fn evolve_pattern(&mut self, known: Known, mut pattern: EvolvedPattern) -> PlaceOrEmpty<EvolvedPattern> {
+    pub(crate) fn evolve_pattern(&mut self, known: Known, mut pattern: EvolvedPattern) -> PlaceOrEmpty<EvolvedPattern> {
         use self::PlaceOrEmpty::*;
 
         let mut new_entity: Option<EvolvedNonValuePlace> = None;
@@ -606,7 +606,8 @@ impl ConjoiningClauses {
         Place(pattern)
     }
 
-    pub fn apply_parsed_pattern(&mut self, known: Known, pattern: Pattern) {
+    #[cfg(test)]
+    pub(crate) fn apply_parsed_pattern(&mut self, known: Known, pattern: Pattern) {
         use self::PlaceOrEmpty::*;
         match self.make_evolved_pattern(known, pattern) {
             Empty(e) => self.mark_known_empty(e),
@@ -614,7 +615,7 @@ impl ConjoiningClauses {
         };
     }
 
-    pub fn apply_pattern(&mut self, known: Known, pattern: EvolvedPattern) {
+    pub(crate) fn apply_pattern(&mut self, known: Known, pattern: EvolvedPattern) {
         // For now we only support the default source.
         if pattern.source != SrcVar::DefaultSrc {
             unimplemented!();

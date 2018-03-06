@@ -105,7 +105,7 @@ impl ConjoiningClauses {
         }
     }
 
-    pub fn apply_or_join(&mut self, known: Known, mut or_join: OrJoin) -> Result<()> {
+    pub(crate) fn apply_or_join(&mut self, known: Known, mut or_join: OrJoin) -> Result<()> {
         // Simple optimization. Empty `or` clauses disappear. Unit `or` clauses
         // are equivalent to just the inner clause.
 

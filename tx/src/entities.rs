@@ -34,14 +34,6 @@ impl TempId {
             TempId::Internal(_) => None,
         }
     }
-
-    pub fn into_internal(self) -> Option<i64> {
-        match self {
-            TempId::Internal(x) => Some(x),
-            TempId::Tx |
-            TempId::External(_) => None,
-        }
-    }
 }
 
 impl fmt::Display for TempId {
@@ -61,20 +53,6 @@ pub enum Entid {
 }
 
 impl Entid {
-    pub fn is_backward(&self) -> bool {
-        match self {
-            &Entid::Entid(_) => false,
-            &Entid::Ident(ref a) => a.is_backward(),
-        }
-    }
-
-    pub fn to_reversed(&self) -> Option<Entid> {
-        match self {
-            &Entid::Entid(_) => None,
-            &Entid::Ident(ref a) => Some(Entid::Ident(a.to_reversed())),
-        }
-    }
-
     pub fn unreversed(&self) -> Option<Entid> {
         match self {
             &Entid::Entid(_) => None,

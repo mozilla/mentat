@@ -52,7 +52,7 @@ macro_rules! coerce_to_typed_value {
     } }
 }
 
-pub trait ValueTypes {
+pub(crate) trait ValueTypes {
     fn potential_types(&self, schema: &Schema) -> Result<ValueTypeSet>;
 }
 
@@ -99,7 +99,7 @@ impl ValueTypes for FnArg {
     }
 }
 
-pub enum ValueConversion {
+pub(crate) enum ValueConversion {
     Val(TypedValue),
     Impossible(EmptyBecause),
 }
@@ -110,7 +110,7 @@ impl ConjoiningClauses {
     /// The conversion depends on, and can fail because of:
     /// - Existing known types of a variable to which this arg will be bound.
     /// - Existing bindings of a variable `FnArg`.
-    pub fn typed_value_from_arg<'s>(&self, schema: &'s Schema, var: &Variable, arg: FnArg, known_types: ValueTypeSet) -> Result<ValueConversion> {
+    pub(crate) fn typed_value_from_arg<'s>(&self, schema: &'s Schema, var: &Variable, arg: FnArg, known_types: ValueTypeSet) -> Result<ValueConversion> {
         use self::ValueConversion::*;
         if known_types.is_empty() {
             // If this happens, it likely means the pattern has already failed!

@@ -51,7 +51,7 @@ use Known;
 
 impl ConjoiningClauses {
     #[allow(unused_variables)]
-    pub fn apply_fulltext(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
+    pub(crate) fn apply_fulltext(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 3 {
             bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
         }

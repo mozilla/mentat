@@ -66,7 +66,7 @@ impl<'a> Matcher<'a> {
     /// Performs pattern matching between two EDN `Value` instances (`value`
     /// and `pattern`) utilizing a specified pattern matching ruleset `T`.
     /// Returns true if matching succeeds.
-    pub fn match_with_rules<T>(value: &'a Value, pattern: &'a Value) -> bool
+    fn match_with_rules<T>(value: &'a Value, pattern: &'a Value) -> bool
     where T: PatternMatchingRules<'a, Value> {
         let matcher = Matcher::new();
         matcher.match_internal::<T>(value, pattern)

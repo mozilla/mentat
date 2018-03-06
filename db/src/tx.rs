@@ -175,7 +175,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
     /// Given a collection of tempids and the [a v] pairs that they might upsert to, resolve exactly
     /// which [a v] pairs do upsert to entids, and map each tempid that upserts to the upserted
     /// entid.  The keys of the resulting map are exactly those tempids that upserted.
-    pub fn resolve_temp_id_avs<'b>(&self, temp_id_avs: &'b [(TempIdHandle, AVPair)]) -> Result<TempIdMap> {
+    pub(crate) fn resolve_temp_id_avs<'b>(&self, temp_id_avs: &'b [(TempIdHandle, AVPair)]) -> Result<TempIdMap> {
         if temp_id_avs.is_empty() {
             return Ok(TempIdMap::default());
         }

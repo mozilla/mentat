@@ -310,4 +310,3 @@ pub use types::{
     TableAlias,
     VariableColumn,
 };
-
