@@ -12,15 +12,20 @@ extern crate rustc_version;
 
 use std::io::{self, Write};
 use std::process::exit;
-use rustc_version::version_matches;
+use rustc_version::{
+    Version,
+    version,
+};
 
 /// MIN_VERSION should be changed when there's a new minimum version of rustc required
 /// to build the project.
-static MIN_VERSION: &'static str  = ">= 1.17.0";
+static MIN_VERSION: &'static str  = "1.24.0";
 
 fn main() {
-    if !version_matches(MIN_VERSION) {
-        writeln!(&mut io::stderr(), "Mentat requires rustc {}", MIN_VERSION).unwrap();
+    let ver = version().unwrap();
+    let min = Version::parse(MIN_VERSION).unwrap();
+    if ver < min {
+        writeln!(&mut io::stderr(), "Mentat requires rustc {} or higher.", MIN_VERSION).unwrap();
         exit(1);
     }
 }

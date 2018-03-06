@@ -23,7 +23,7 @@ bundled_sqlite3 = ["rusqlite/bundled"]
 members = ["tools/cli"]
 
 [build-dependencies]
-rustc_version = "0.1.7"
+rustc_version = "0.2"
 
 [dependencies]
 chrono = "0.4"
