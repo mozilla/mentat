@@ -57,6 +57,7 @@ use mentat_sql::{
 /// implementation for each storage backend. Passing `TypedValue`s here allows for that.
 pub enum ColumnOrExpression {
     Column(QualifiedAlias),
+    ExistingColumn(Name),
     Entid(Entid),       // Because it's so common.
     Integer(i32),       // We use these for type codes etc.
     Long(i64),
@@ -266,6 +267,9 @@ impl QueryFragment for ColumnOrExpression {
                 out.push_identifier(table.as_str())?;
                 out.push_sql(".");
                 push_column(out, column)
+            },
+            &ExistingColumn(ref alias) => {
+                out.push_identifier(alias.as_str())
             },
             &Entid(entid) => {
                 out.push_sql(entid.to_string().as_str());
