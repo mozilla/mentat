@@ -173,6 +173,13 @@ impl Store {
             sqlite: connection,
         })
     }
+
+    pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
+        let mut ip = self.begin_transaction()?;
+        let report = ip.transact(transaction)?;
+        ip.commit()?;
+        Ok(report)
+    }
 }
 
 pub trait Queryable {
