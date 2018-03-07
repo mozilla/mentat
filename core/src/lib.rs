@@ -293,6 +293,12 @@ impl From<Uuid> for TypedValue {
     }
 }
 
+impl<'a> From<&'a str> for TypedValue {
+    fn from(value: &'a str) -> TypedValue {
+        TypedValue::String(Rc::new(value.to_string()))
+    }
+}
+
 impl From<String> for TypedValue {
     fn from(value: String) -> TypedValue {
         TypedValue::String(Rc::new(value))
