@@ -272,6 +272,26 @@ impl FromValue<FnArg> for FnArg {
     }
 }
 
+// For display in column headings in the repl.
+impl std::fmt::Display for FnArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &FnArg::Variable(ref var) => write!(f, "{}", var),
+            &FnArg::SrcVar(ref var) => {
+                if var == &SrcVar::DefaultSrc {
+                    write!(f, "$")
+                } else {
+                    write!(f, "{:?}", var)
+                }
+            },
+            &FnArg::EntidOrInteger(entid) => write!(f, "{}", entid),
+            &FnArg::IdentOrKeyword(ref kw) => write!(f, "{}", kw),
+            &FnArg::Constant(ref constant) => write!(f, "{:?}", constant),
+            &FnArg::Vector(ref vec) => write!(f, "{:?}", vec),
+        }
+    }
+}
+
 impl FnArg {
     pub fn as_variable(&self) -> Option<&Variable> {
         match self {
@@ -477,7 +497,11 @@ impl std::fmt::Display for Element {
                 write!(f, "{}", var)
             },
             &Element::Aggregate(ref agg) => {
-                write!(f, "{}({:?})", agg.func, agg.args)
+                match agg.args.len() {
+                    0 => write!(f, "({})", agg.func),
+                    1 => write!(f, "({} {})", agg.func, agg.args[0]),
+                    _ => write!(f, "({} {:?})", agg.func, agg.args),
+                }
             },
         }
     }
