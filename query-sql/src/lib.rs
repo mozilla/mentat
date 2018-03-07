@@ -368,10 +368,8 @@ impl QueryFragment for Constraint {
                 Ok(())
             },
             &NotExists { ref subquery } => {
-                out.push_sql("NOT EXISTS (");
-                subquery.push_sql(out)?;
-                out.push_sql(")");
-                Ok(())
+                out.push_sql("NOT EXISTS ");
+                subquery.push_sql(out)
             },
             &TypeCheck { ref value, ref affinity } => {
                 out.push_sql("typeof(");
@@ -440,7 +438,10 @@ impl QueryFragment for TableOrSubquery {
                 out.push_identifier(table_alias.as_str())
             },
             &Subquery(ref subquery) => {
-                subquery.push_sql(out)
+                out.push_sql("(");
+                subquery.push_sql(out)?;
+                out.push_sql(")");
+                Ok(())
             },
             &Values(ref values, ref table_alias) => {
                 // XXX: does this work for Values::Unnamed?
