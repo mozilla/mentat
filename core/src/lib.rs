@@ -455,6 +455,15 @@ impl ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Double, ValueType::Long))
     }
 
+    /// Return a set containing `Double`, `Long`, and `Instant`.
+    pub fn of_numeric_and_instant_types() -> ValueTypeSet {
+        let mut s = EnumSet::new();
+        s.insert(ValueType::Double);
+        s.insert(ValueType::Long);
+        s.insert(ValueType::Instant);
+        ValueTypeSet(s)
+    }
+
     /// Return a set containing `Ref` and `Keyword`.
     pub fn of_keywords() -> ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Keyword))
@@ -519,6 +528,12 @@ impl ValueTypeSet {
 
     pub fn iter(&self) -> ::enum_set::Iter<ValueType> {
         self.0.iter()
+    }
+}
+
+impl From<ValueType> for ValueTypeSet {
+    fn from(t: ValueType) -> Self {
+        ValueTypeSet::of_one(t)
     }
 }
 
