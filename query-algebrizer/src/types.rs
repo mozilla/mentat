@@ -283,6 +283,9 @@ pub enum Inequality {
     GreaterThan,
     GreaterThanOrEquals,
     NotEquals,
+
+    // Ref operators.
+    Differ,
 }
 
 impl Inequality {
@@ -294,6 +297,8 @@ impl Inequality {
             GreaterThan         => ">",
             GreaterThanOrEquals => ">=",
             NotEquals           => "<>",
+
+            Differ              => "<>",
         }
     }
 
@@ -304,15 +309,29 @@ impl Inequality {
             ">"  => Some(Inequality::GreaterThan),
             ">=" => Some(Inequality::GreaterThanOrEquals),
             "!=" => Some(Inequality::NotEquals),
-            _    => None,
+
+            "differ" => Some(Inequality::Differ),
+            _ => None,
         }
     }
 
     // The built-in inequality operators apply to Long, Double, and Instant.
     pub fn supported_types(&self) -> ValueTypeSet {
-        let mut ts = ValueTypeSet::of_numeric_types();
-        ts.insert(ValueType::Instant);
-        ts
+        use self::Inequality::*;
+        match self {
+            &LessThan |
+            &LessThanOrEquals |
+            &GreaterThan |
+            &GreaterThanOrEquals |
+            &NotEquals => {
+                let mut ts = ValueTypeSet::of_numeric_types();
+                ts.insert(ValueType::Instant);
+                ts
+            },
+            &Differ => {
+                ValueTypeSet::of_one(ValueType::Ref)
+            },
+        }
     }
 }
 
@@ -325,6 +344,8 @@ impl Debug for Inequality {
             &GreaterThan => ">",
             &GreaterThanOrEquals => ">=",
             &NotEquals => "!=",                // Datalog uses !=. SQL uses <>.
+
+            &Differ => "<>",
         })
     }
 }
