@@ -12,6 +12,7 @@ extern crate mentat_query;
 
 use mentat_core::{
     ValueType,
+    ValueTypeSet,
 };
 
 use self::mentat_query::{
@@ -49,6 +50,11 @@ error_chain! {
             display("value of type {} provided for var {}, expected {}", provided, var, declared)
         }
 
+        UnrecognizedIdent(ident: String) {
+            description("no entid found for ident")
+            display("no entid found for ident: {}", ident)
+        }
+
         UnknownFunction(name: PlainSymbol) {
             description("no such function")
             display("no function named {}", name)
@@ -80,9 +86,14 @@ error_chain! {
             display("invalid expression in ground constant")
         }
 
-        InvalidArgument(function: PlainSymbol, expected_type: &'static str, position: usize) {
+        InvalidArgument(function: PlainSymbol, expected: &'static str, position: usize) {
             description("invalid argument")
-            display("invalid argument to {}: expected {} in position {}.", function, expected_type, position)
+            display("invalid argument to {}: expected {} in position {}.", function, expected, position)
+        }
+
+        InvalidArgumentType(function: PlainSymbol, expected_types: ValueTypeSet, position: usize) {
+            description("invalid argument")
+            display("invalid argument to {}: expected one of {:?} in position {}.", function, expected_types, position)
         }
 
         InvalidLimit(val: String, kind: ValueType) {

@@ -505,6 +505,7 @@ pub enum EmptyBecause {
     NonAttributeArgument,
     NonInstantArgument,
     NonNumericArgument,
+    NonEntityArgument,
     NonStringFulltextValue,
     NonFulltextAttribute(Entid),
     UnresolvedIdent(NamespacedKeyword),
@@ -545,6 +546,9 @@ impl Debug for EmptyBecause {
             },
             &NonInstantArgument => {
                 write!(f, "Non-instant argument in instant place")
+            },
+            &NonEntityArgument => {
+                write!(f, "Non-entity argument in entity place")
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")
