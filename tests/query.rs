@@ -883,6 +883,58 @@ fn test_basic_aggregates() {
 }
 
 #[test]
+fn test_combinatorial() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        [:db/add "a" :db/ident :foo/name]
+        [:db/add "a" :db/valueType :db.type/string]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+        [:db/add "b" :db/ident :foo/dance]
+        [:db/add "b" :db/valueType :db.type/ref]
+        [:db/add "b" :db/cardinality :db.cardinality/many]
+        [:db/add "b" :db/index true]
+    ]"#).unwrap();
+
+    store.transact(r#"[
+        [:db/add "a" :foo/name "Alice"]
+        [:db/add "b" :foo/name "Beli"]
+        [:db/add "c" :foo/name "Carlos"]
+        [:db/add "d" :foo/name "Diana"]
+
+        ;; Alice danced with Beli.
+        [:db/add "a"  :foo/dance "ab"]
+        [:db/add "b"  :foo/dance "ab"]
+
+        ;; Carlos danced with Diana.
+        [:db/add "c"  :foo/dance "cd"]
+        [:db/add "d"  :foo/dance "cd"]
+
+        ;; Alice danced with Diana.
+        [:db/add "a"  :foo/dance "ad"]
+        [:db/add "d"  :foo/dance "ad"]
+
+   ]"#).unwrap();
+
+    // How many different pairings of dancers were there?
+    // If we just use `!=` (or `differ`), the number is doubled because of symmetry!
+    // Future: SQL addresses this by using `<` instead of `!=` -- by imposing
+    // an order on values, we can ensure that each pair only appears once, not
+    // once per permutation.
+    // It's far from ideal to expose an ordering on entids, because developers
+    // will come to rely on it. Instead we expose a specific operator: `unpermute`.
+    assert_eq!(TypedValue::Long(3),
+               store.q_once(r#"[:find (count ?right) .
+                                :with ?left
+                                :where
+                                [?left :foo/dance ?dance]
+                                [?right :foo/dance ?dance]
+                                [(unpermute ?left ?right)]]"#, None)
+                    .into_scalar_result()
+                    .expect("scalar results").unwrap());
+}
+
+#[test]
 fn test_aggregation_implicit_grouping() {
     let mut store = Store::open("").expect("opened");
 

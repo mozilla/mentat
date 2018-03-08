@@ -285,6 +285,7 @@ pub enum Inequality {
     NotEquals,
 
     // Ref operators.
+    Unpermute,
     Differ,
 }
 
@@ -298,6 +299,7 @@ impl Inequality {
             GreaterThanOrEquals => ">=",
             NotEquals           => "<>",
 
+            Unpermute           => "<",
             Differ              => "<>",
         }
     }
@@ -310,6 +312,7 @@ impl Inequality {
             ">=" => Some(Inequality::GreaterThanOrEquals),
             "!=" => Some(Inequality::NotEquals),
 
+            "unpermute" => Some(Inequality::Unpermute),
             "differ" => Some(Inequality::Differ),
             _ => None,
         }
@@ -328,6 +331,7 @@ impl Inequality {
                 ts.insert(ValueType::Instant);
                 ts
             },
+            &Unpermute |
             &Differ => {
                 ValueTypeSet::of_one(ValueType::Ref)
             },
@@ -345,6 +349,7 @@ impl Debug for Inequality {
             &GreaterThanOrEquals => ">=",
             &NotEquals => "!=",                // Datalog uses !=. SQL uses <>.
 
+            &Unpermute => "<",
             &Differ => "<>",
         })
     }
