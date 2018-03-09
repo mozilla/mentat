@@ -58,6 +58,7 @@ use mentat_db::{
     transact_terms,
     PartitionMap,
     TxObservationService,
+    TxObserver,
     TxReport,
 };
 
@@ -805,6 +806,14 @@ impl Conn {
                 Ok(())
             },
         }
+    }
+
+    pub fn register_observer(&mut self, key: String, observer: Arc<TxObserver>) {
+        self.tx_observer_service.lock().unwrap().register(key, observer);
+    }
+
+    pub fn unregister_observer(&mut self, key: &String) {
+        self.tx_observer_service.lock().unwrap().deregister(key);
     }
 }
 
