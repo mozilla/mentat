@@ -26,11 +26,19 @@ pub use mentat::{
     NamespacedKeyword,
     HasSchema,
     Store,
+    Syncable,
     TxObserver,
 };
 
-pub mod utils;
 pub mod android;
+pub mod types;
+pub mod utils;
+
+pub use types::{
+    ExternResult,
+    ExternTxReport,
+    ExternTxReportList,
+};
 
 pub use utils::strings::{
     c_char_to_string,
@@ -38,21 +46,6 @@ pub use utils::strings::{
 };
 
 use utils::log;
-
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct ExternTxReport {
-    pub txid: i64,
-    pub changes: Box<[i64]>,
-    pub changes_len: usize
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct ExternTxReportList {
-    pub reports: Box<[ExternTxReport]>,
-    pub len: usize
-}
 
 #[no_mangle]
 pub extern "C" fn new_store(uri: *const c_char) -> *mut Store {
@@ -148,4 +141,13 @@ pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut ExternTxReport, ind
     let tx_report = &*tx_report;
     let index = index as usize;
     tx_report.changes[index].clone()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn store_sync(store: *mut Store, user_uuid: *const c_char, server_uri: *const c_char) -> *mut ExternResult {
+    let store = &mut*store;
+    let user_uuid = c_char_to_string(user_uuid);
+    let server_uri = c_char_to_string(server_uri);
+    let res = store.sync(&server_uri, &user_uuid);
+    Box::into_raw(Box::new(res.into()))
 }
