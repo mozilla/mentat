@@ -13,6 +13,7 @@
 
 #[macro_use]
 extern crate error_chain;
+extern crate indexmap;
 extern crate itertools;
 
 #[macro_use]
@@ -45,6 +46,7 @@ pub mod errors;
 pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod metadata;
 mod schema;
+pub mod tx_observer;
 mod watcher;
 mod tx;
 pub mod types;

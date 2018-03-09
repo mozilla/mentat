@@ -11,19 +11,22 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
-use std::collections::BTreeMap;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
 
 extern crate mentat_core;
 
 pub use self::mentat_core::{
-    DateTime,
-    Entid,
-    ValueType,
-    TypedValue,
     Attribute,
     AttributeBitFlags,
+    DateTime,
+    Entid,
     Schema,
+    TypedValue,
     Utc,
+    ValueType,
 };
 
 /// Represents one partition of the entid space.
@@ -82,6 +85,9 @@ pub type AVPair = (Entid, TypedValue);
 /// Used to resolve lookup-refs and upserts.
 pub type AVMap<'a> = HashMap<&'a AVPair, Entid>;
 
+// represents a set of entids that are correspond to attributes
+pub type AttributeSet = BTreeSet<Entid>;
+
 /// A transaction report summarizes an applied transaction.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct TxReport {
@@ -97,4 +103,7 @@ pub struct TxReport {
     /// existing entid, or is allocated a new entid.  (It is possible for multiple distinct string
     /// literal tempids to all unify to a single freshly allocated entid.)
     pub tempids: BTreeMap<String, Entid>,
+
+    // A set of entids for attributes that were affected inside this transaction
+    pub changeset: AttributeSet,
 }
