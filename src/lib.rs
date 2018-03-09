@@ -52,6 +52,7 @@ pub use mentat_query::{
 pub use mentat_db::{
     CORE_SCHEMA_VERSION,
     DB_SCHEMA_CORE,
+    TxObserver,
     TxReport,
     new_connection,
 };

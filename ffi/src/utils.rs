@@ -34,7 +34,7 @@ pub mod log {
     use std::ffi::CString;
 
     #[cfg(all(target_os="android", not(test)))]
-    use android_ffi;
+    use android;
 
     // TODO far from ideal. And, we might actually want to println in tests.
     #[cfg(all(not(target_os="android"), not(target_os="ios")))]
@@ -49,8 +49,8 @@ pub mod log {
     pub fn d(message: &str) {
         let message = CString::new(message).unwrap();
         let message = message.as_ptr();
-        let tag = CString::new("RustyToodle").unwrap();
+        let tag = CString::new("Mentat").unwrap();
         let tag = tag.as_ptr();
-        unsafe { android_ffi::__android_log_write(android_ffi::ANDROID_LOG_DEBUG, tag, message) };
+        unsafe { android::__android_log_write(android::ANDROID_LOG_DEBUG, tag, message) };
     }
 }
