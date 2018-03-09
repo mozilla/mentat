@@ -51,8 +51,9 @@ use std::collections::{
     BTreeSet,
     VecDeque,
 };
-
-use std::rc::Rc;
+use std::rc::{
+    Rc,
+};
 
 use db;
 use db::{
@@ -106,6 +107,7 @@ use schema::{
 };
 use types::{
     Attribute,
+    AttributeSet,
     AVPair,
     AVMap,
     Entid,
@@ -527,8 +529,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
     pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport>
-    where I: IntoIterator<Item=Entity>,
-          W: TransactWatcher {
+    where I: IntoIterator<Item=Entity> {
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
@@ -542,8 +543,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
     }
 
     pub fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport>
-    where I: IntoIterator<Item=TermWithTempIds>,
-          W: TransactWatcher {
+    where I: IntoIterator<Item=TermWithTempIds> {
         // TODO: push these into an internal transaction report?
         let mut tempids: BTreeMap<TempId, KnownEntid> = BTreeMap::default();
 
@@ -614,7 +614,9 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                                     final_populations.allocated,
                                                     inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
 
+
         let tx_instant;
+        let mut affected_attrs = AttributeSet::new();
 
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
@@ -669,6 +671,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     }
 
                     self.watcher.datom(op, e, a, &v);
+                    affected_attrs.insert(a);
 
                     let reduced = (e, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
@@ -735,6 +738,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             tx_id: self.tx_id,
             tx_instant,
             tempids: tempids,
+            changeset: affected_attrs,
         })
     }
 }

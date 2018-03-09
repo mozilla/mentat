@@ -57,6 +57,7 @@ use mentat_db::{
     transact,
     transact_terms,
     PartitionMap,
+    TxObservationService,
     TxReport,
 };
 
@@ -140,6 +141,7 @@ pub struct Conn {
 
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
+    tx_observer_service: Mutex<TxObservationService>,
 }
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -202,10 +204,10 @@ pub struct InProgress<'a, 'c> {
     generation: u64,
     partition_map: PartitionMap,
     schema: Schema,
-
     cache: InProgressSQLiteAttributeCache,
-
     use_caching: bool,
+    tx_reports: Vec<TxReport>,
+    observer_service: Option<&'a Mutex<TxObservationService>>,
 }
 
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
@@ -374,6 +376,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
                            self.cache.transact_watcher(),
                            terms,
                            tempid_set)?;
+        self.tx_reports.push(report.clone());
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -397,6 +400,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
                      &self.schema,
                      self.cache.transact_watcher(),
                      entities)?;
+        self.tx_reports.push(report.clone());
+
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -440,6 +445,12 @@ impl<'a, 'c> InProgress<'a, 'c> {
         metadata.generation += 1;
         metadata.partition_map = self.partition_map;
 
+        // let the transaction observer know that there have been some transactions committed.
+        if let Some(ref observer_service) = self.observer_service {
+            let mut os = observer_service.lock().unwrap();
+            os.transaction_did_commit(self.tx_reports);
+        }
+
         // Update the conn's cache if we made any changes.
         self.cache.commit_to(&mut metadata.attribute_cache);
 
@@ -449,6 +460,12 @@ impl<'a, 'c> InProgress<'a, 'c> {
             // TODO: rebuild vocabularies and notify consumers that they've changed -- it's possible
             // that a change has arrived over the wire and invalidated some local module.
             // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
+        }
+
+        // run any commands that we've created along the way.
+        if let Some(ref observer_service) = self.observer_service {
+            let mut os = observer_service.lock().unwrap();
+            os.run();
         }
 
         Ok(())
@@ -564,6 +581,7 @@ impl Conn {
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
             metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema), Default::default())),
+            tx_observer_service: Mutex::new(TxObservationService::new()),
         }
     }
 
@@ -705,6 +723,8 @@ impl Conn {
             schema: (*current_schema).clone(),
             cache: InProgressSQLiteAttributeCache::from_cache(cache_cow),
             use_caching: true,
+            tx_reports: Vec::new(),
+            observer_service: if self.tx_observer_service.lock().unwrap().has_observers() { Some(&self.tx_observer_service) } else { None },
         })
     }
 
