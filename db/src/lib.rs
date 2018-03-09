@@ -87,7 +87,13 @@ pub use tx::{
     transact_terms,
 };
 
+pub use tx_observer::{
+    TxObservationService,
+    TxObserver,
+};
+
 pub use types::{
+    AttributeSet,
     DB,
     PartitionMap,
     TxReport,
