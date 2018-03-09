@@ -134,3 +134,18 @@ pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *con
     log::d(&format!("store_entid_for_attribute entid {:?}", entid));
     entid.into()
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn tx_report_list_entry_at(tx_report_list: *mut ExternTxReportList, index: c_int) -> *const ExternTxReport {
+    let tx_report_list = &*tx_report_list;
+    let index = index as usize;
+    let report = Box::new(tx_report_list.reports[index].clone());
+    Box::into_raw(report)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut ExternTxReport, index: c_int) -> i64 {
+    let tx_report = &*tx_report;
+    let index = index as usize;
+    tx_report.changes[index].clone()
+}
