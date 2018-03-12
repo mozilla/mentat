@@ -9,6 +9,8 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    HasSchema,
+    Schema,
     TypedValue,
     ValueType,
 };
@@ -92,8 +94,46 @@ impl ConjoiningClauses {
             Constant(NonIntegerConstant::BigInteger(_)) |
             Vector(_) => {
                 self.mark_known_empty(EmptyBecause::NonInstantArgument);
-                bail!(ErrorKind::InvalidArgument(function.clone(), "instant", position));
+                bail!(ErrorKind::InvalidArgumentType(function.clone(), ValueType::Instant.into(), position));
             },
+        }
+    }
+
+    /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
+    /// constraint.
+    pub(crate) fn resolve_ref_argument(&mut self, schema: &Schema, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
+        use self::FnArg::*;
+        match arg {
+            FnArg::Variable(var) => {
+                self.constrain_var_to_type(var.clone(), ValueType::Ref);
+                if let Some(TypedValue::Ref(e)) = self.bound_value(&var) {
+                    // Incorrect types will be handled by the constraint, above.
+                    Ok(QueryValue::Entid(e))
+                } else {
+                    self.column_bindings
+                        .get(&var)
+                        .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                        .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                }
+            },
+            EntidOrInteger(i) => Ok(QueryValue::TypedValue(TypedValue::Ref(i))),
+            IdentOrKeyword(i) => {
+                schema.get_entid(&i)
+                      .map(|known_entid| QueryValue::Entid(known_entid.into()))
+                      .ok_or_else(|| Error::from_kind(ErrorKind::UnrecognizedIdent(i.to_string())))
+            },
+            Constant(NonIntegerConstant::Boolean(_)) |
+            Constant(NonIntegerConstant::Float(_)) |
+            Constant(NonIntegerConstant::Text(_)) |
+            Constant(NonIntegerConstant::Uuid(_)) |
+            Constant(NonIntegerConstant::Instant(_)) |
+            Constant(NonIntegerConstant::BigInteger(_)) |
+            SrcVar(_) |
+            Vector(_) => {
+                self.mark_known_empty(EmptyBecause::NonEntityArgument);
+                bail!(ErrorKind::InvalidArgumentType(function.clone(), ValueType::Ref.into(), position));
+            },
+
         }
     }
 

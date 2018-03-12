@@ -11,6 +11,7 @@
 use mentat_core::{
     SQLTypeAffinity,
     SQLValueType,
+    SQLValueTypeSet,
     TypedValue,
     ValueType,
     ValueTypeTag,
@@ -56,6 +57,7 @@ use mentat_query_sql::{
     ColumnOrExpression,
     Constraint,
     FromClause,
+    GroupBy,
     Op,
     ProjectedColumn,
     Projection,
@@ -287,7 +289,8 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // project it as the variable name.
                         // E.g., SELECT datoms03.v AS `?x`.
                         for var in projection.iter() {
-                            let (projected_column, maybe_type) = projected_column_for_var(var, &cc);
+                            // TODO: chain results out.
+                            let (projected_column, type_set) = projected_column_for_var(var, &cc).expect("every var to be bound");
                             columns.push(projected_column);
 
                             // Similarly, project type tags if they're not known conclusively in the
@@ -295,10 +298,10 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                             // Assumption: we'll never need to project a tag without projecting the value of a variable.
                             if type_extraction.contains(var) {
                                 let expression =
-                                    if let Some(ty) = maybe_type {
+                                    if let Some(tag) = type_set.unique_type_tag() {
                                         // If we know the type for sure, just project the constant.
                                         // SELECT datoms03.v AS `?x`, 10 AS `?x_value_type_tag`
-                                        ColumnOrExpression::Integer(ty.value_type_tag())
+                                        ColumnOrExpression::Integer(tag)
                                     } else {
                                         // Otherwise, we'll have an established type binding! This'll be
                                         // either a datoms table or, recursively, a subquery. Project
@@ -319,7 +322,7 @@ fn table_for_computed(computed: ComputedTable, alias: TableAlias) -> TableOrSubq
                         // Each arm simply turns into a subquery.
                         // The SQL translation will stuff "UNION" between each arm.
                         let projection = Projection::Columns(columns);
-                        cc_to_select_query(projection, cc, false, None, Limit::None)
+                        cc_to_select_query(projection, cc, false, vec![], None, Limit::None)
                   }).collect(),
                 alias)
         },
@@ -340,6 +343,7 @@ fn empty_query() -> SelectQuery {
         distinct: false,
         projection: Projection::One,
         from: FromClause::Nothing,
+        group_by: vec![],
         constraints: vec![],
         order: vec![],
         limit: Limit::None,
@@ -352,6 +356,7 @@ fn empty_query() -> SelectQuery {
 fn cc_to_select_query(projection: Projection,
                       cc: ConjoiningClauses,
                       distinct: bool,
+                      group_by: Vec<GroupBy>,
                       order: Option<Vec<OrderBy>>,
                       limit: Limit) -> SelectQuery {
     let from = if cc.from.is_empty() {
@@ -387,6 +392,7 @@ fn cc_to_select_query(projection: Projection,
         distinct: distinct,
         projection: projection,
         from: from,
+        group_by: group_by,
         constraints: cc.wheres
                        .into_iter()
                        .map(|c| c.to_constraint())
@@ -403,7 +409,31 @@ pub fn cc_to_exists(cc: ConjoiningClauses) -> SelectQuery {
         // In this case we can produce a very simple query that returns no results.
         empty_query()
     } else {
-        cc_to_select_query(Projection::One, cc, false, None, Limit::None)
+        cc_to_select_query(Projection::One, cc, false, vec![], None, Limit::None)
+    }
+}
+
+/// Take a query and wrap it as a subquery of a new query with the provided projection list.
+/// All limits, ordering, and grouping move to the outer query. The inner query is marked as
+/// distinct.
+fn re_project(mut inner: SelectQuery, projection: Projection) -> SelectQuery {
+    let outer_distinct = inner.distinct;
+    inner.distinct = true;
+    let group_by = inner.group_by;
+    inner.group_by = vec![];
+    let order_by = inner.order;
+    inner.order = vec![];
+    let limit = inner.limit;
+    inner.limit = Limit::None;
+
+    SelectQuery {
+        distinct: outer_distinct,
+        projection: projection,
+        from: FromClause::TableList(TableList(vec![TableOrSubquery::Subquery(Box::new(inner))])),
+        constraints: vec![],
+        group_by: group_by,
+        order: order_by,
+        limit: limit,
     }
 }
 
@@ -414,10 +444,30 @@ pub fn query_to_select(query: AlgebraicQuery) -> Result<ProjectedSelect> {
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
     query_projection(&query).map(|e| match e {
         Either::Left(constant) => ProjectedSelect::Constant(constant),
-        Either::Right(CombinedProjection { sql_projection, datalog_projector, distinct, }) => {
-            let q = cc_to_select_query(sql_projection, query.cc, distinct, query.order, query.limit);
+        Either::Right(CombinedProjection {
+            sql_projection,
+            pre_aggregate_projection,
+            datalog_projector,
+            distinct,
+            group_by_cols,
+        }) => {
             ProjectedSelect::Query {
-                query: q,
+                query: match pre_aggregate_projection {
+                    // If we know we need a nested query for aggregation, build that first.
+                    Some(pre_aggregate) => {
+                        let inner = cc_to_select_query(pre_aggregate,
+                                                       query.cc,
+                                                       distinct,
+                                                       group_by_cols,
+                                                       query.order,
+                                                       query.limit);
+                        let outer = re_project(inner, sql_projection);
+                        outer
+                    },
+                    None => {
+                        cc_to_select_query(sql_projection, query.cc, distinct, group_by_cols, query.order, query.limit)
+                    },
+                },
                 projector: datalog_projector,
             }
         },

@@ -92,13 +92,13 @@ impl ConjoiningClauses {
         let mut left_types = self.potential_types(known.schema, &left)?
                                  .intersection(&supported_types);
         if left_types.is_empty() {
-            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
+            bail!(ErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
         }
 
         let mut right_types = self.potential_types(known.schema, &right)?
                                   .intersection(&supported_types);
         if right_types.is_empty() {
-            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 1));
+            bail!(ErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 1));
         }
 
         // We would like to allow longs to compare to doubles.
@@ -134,14 +134,18 @@ impl ConjoiningClauses {
         // We expect the intersection to be Long, Long+Double, Double, or Instant.
         let left_v;
         let right_v;
+
         if shared_types == ValueTypeSet::of_one(ValueType::Instant) {
             left_v = self.resolve_instant_argument(&predicate.operator, 0, left)?;
             right_v = self.resolve_instant_argument(&predicate.operator, 1, right)?;
-        } else if !shared_types.is_empty() && shared_types.is_subset(&ValueTypeSet::of_numeric_types()) {
+        } else if shared_types.is_only_numeric() {
             left_v = self.resolve_numeric_argument(&predicate.operator, 0, left)?;
             right_v = self.resolve_numeric_argument(&predicate.operator, 1, right)?;
+        } else if shared_types == ValueTypeSet::of_one(ValueType::Ref) {
+            left_v = self.resolve_ref_argument(known.schema, &predicate.operator, 0, left)?;
+            right_v = self.resolve_ref_argument(known.schema, &predicate.operator, 1, right)?;
         } else {
-            bail!(ErrorKind::InvalidArgument(predicate.operator.clone(), "numeric or instant", 0));
+            bail!(ErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
         }
 
         // These arguments must be variables or instant/numeric constants.

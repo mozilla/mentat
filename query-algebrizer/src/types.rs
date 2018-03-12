@@ -283,6 +283,10 @@ pub enum Inequality {
     GreaterThan,
     GreaterThanOrEquals,
     NotEquals,
+
+    // Ref operators.
+    Unpermute,
+    Differ,
 }
 
 impl Inequality {
@@ -294,6 +298,9 @@ impl Inequality {
             GreaterThan         => ">",
             GreaterThanOrEquals => ">=",
             NotEquals           => "<>",
+
+            Unpermute           => "<",
+            Differ              => "<>",
         }
     }
 
@@ -304,15 +311,31 @@ impl Inequality {
             ">"  => Some(Inequality::GreaterThan),
             ">=" => Some(Inequality::GreaterThanOrEquals),
             "!=" => Some(Inequality::NotEquals),
-            _    => None,
+
+            "unpermute" => Some(Inequality::Unpermute),
+            "differ" => Some(Inequality::Differ),
+            _ => None,
         }
     }
 
     // The built-in inequality operators apply to Long, Double, and Instant.
     pub fn supported_types(&self) -> ValueTypeSet {
-        let mut ts = ValueTypeSet::of_numeric_types();
-        ts.insert(ValueType::Instant);
-        ts
+        use self::Inequality::*;
+        match self {
+            &LessThan |
+            &LessThanOrEquals |
+            &GreaterThan |
+            &GreaterThanOrEquals |
+            &NotEquals => {
+                let mut ts = ValueTypeSet::of_numeric_types();
+                ts.insert(ValueType::Instant);
+                ts
+            },
+            &Unpermute |
+            &Differ => {
+                ValueTypeSet::of_one(ValueType::Ref)
+            },
+        }
     }
 }
 
@@ -325,6 +348,9 @@ impl Debug for Inequality {
             &GreaterThan => ">",
             &GreaterThanOrEquals => ">=",
             &NotEquals => "!=",                // Datalog uses !=. SQL uses <>.
+
+            &Unpermute => "<",
+            &Differ => "<>",
         })
     }
 }
@@ -505,6 +531,7 @@ pub enum EmptyBecause {
     NonAttributeArgument,
     NonInstantArgument,
     NonNumericArgument,
+    NonEntityArgument,
     NonStringFulltextValue,
     NonFulltextAttribute(Entid),
     UnresolvedIdent(NamespacedKeyword),
@@ -545,6 +572,9 @@ impl Debug for EmptyBecause {
             },
             &NonInstantArgument => {
                 write!(f, "Non-instant argument in instant place")
+            },
+            &NonEntityArgument => {
+                write!(f, "Non-entity argument in entity place")
             },
             &NonNumericArgument => {
                 write!(f, "Non-numeric argument in numeric place")

@@ -293,6 +293,12 @@ impl From<Uuid> for TypedValue {
     }
 }
 
+impl<'a> From<&'a str> for TypedValue {
+    fn from(value: &'a str) -> TypedValue {
+        TypedValue::String(Rc::new(value.to_string()))
+    }
+}
+
 impl From<String> for TypedValue {
     fn from(value: String) -> TypedValue {
         TypedValue::String(Rc::new(value))
@@ -449,6 +455,15 @@ impl ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Double, ValueType::Long))
     }
 
+    /// Return a set containing `Double`, `Long`, and `Instant`.
+    pub fn of_numeric_and_instant_types() -> ValueTypeSet {
+        let mut s = EnumSet::new();
+        s.insert(ValueType::Double);
+        s.insert(ValueType::Long);
+        s.insert(ValueType::Instant);
+        ValueTypeSet(s)
+    }
+
     /// Return a set containing `Ref` and `Keyword`.
     pub fn of_keywords() -> ValueTypeSet {
         ValueTypeSet(EnumSet::of_both(ValueType::Ref, ValueType::Keyword))
@@ -516,6 +531,18 @@ impl ValueTypeSet {
     }
 }
 
+impl From<ValueType> for ValueTypeSet {
+    fn from(t: ValueType) -> Self {
+        ValueTypeSet::of_one(t)
+    }
+}
+
+impl ValueTypeSet {
+    pub fn is_only_numeric(&self) -> bool {
+        self.is_subset(&ValueTypeSet::of_numeric_types())
+    }
+}
+
 impl IntoIterator for ValueTypeSet {
     type Item = ValueType;
     type IntoIter = ::enum_set::Iter<ValueType>;
@@ -541,10 +568,16 @@ impl ::std::iter::Extend<ValueType> for ValueTypeSet {
     }
 }
 
+/// We have an enum of types, `ValueType`. It can be collected into a set, `ValueTypeSet`. Each type
+/// is associated with a type tag, which is how a type is represented in, e.g., SQL storage. Types
+/// can share type tags, because backing SQL storage is able to differentiate between some types
+/// (e.g., longs and doubles), and so distinct tags aren't necessary. That association is defined by
+/// `SQLValueType`. That trait similarly extends to `ValueTypeSet`, which maps a collection of types
+/// into a collection of tags.
 pub trait SQLValueTypeSet {
     fn value_type_tags(&self) -> BTreeSet<ValueTypeTag>;
-    fn has_unique_type_code(&self) -> bool;
-    fn unique_type_code(&self) -> Option<ValueTypeTag>;
+    fn has_unique_type_tag(&self) -> bool;
+    fn unique_type_tag(&self) -> Option<ValueTypeTag>;
 }
 
 impl SQLValueTypeSet for ValueTypeSet {
@@ -557,15 +590,15 @@ impl SQLValueTypeSet for ValueTypeSet {
         out
     }
 
-    fn unique_type_code(&self) -> Option<ValueTypeTag> {
-        if self.is_unit() || self.has_unique_type_code() {
+    fn unique_type_tag(&self) -> Option<ValueTypeTag> {
+        if self.is_unit() || self.has_unique_type_tag() {
             self.exemplar().map(|t| t.value_type_tag())
         } else {
             None
         }
     }
 
-    fn has_unique_type_code(&self) -> bool {
+    fn has_unique_type_tag(&self) -> bool {
         if self.is_unit() {
             return true;
         }

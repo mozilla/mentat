@@ -15,11 +15,11 @@ extern crate mentat_query_algebrizer;
 extern crate mentat_sql;
 
 use std::boxed::Box;
-
 use mentat_core::{
     Entid,
-    TypedValue,
     SQLTypeAffinity,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_query::{
@@ -57,10 +57,16 @@ use mentat_sql::{
 /// implementation for each storage backend. Passing `TypedValue`s here allows for that.
 pub enum ColumnOrExpression {
     Column(QualifiedAlias),
+    ExistingColumn(Name),
     Entid(Entid),       // Because it's so common.
     Integer(i32),       // We use these for type codes etc.
     Long(i64),
     Value(TypedValue),
+    Expression(Box<Expression>, ValueType),      // Track the return type.
+}
+
+pub enum Expression {
+    Unary { sql_op: &'static str, arg: ColumnOrExpression },
 }
 
 /// `QueryValue` and `ColumnOrExpression` are almost identical… merge somehow?
@@ -83,6 +89,26 @@ pub enum Projection {
     Columns(Vec<ProjectedColumn>),
     Star,
     One,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum GroupBy {
+    ProjectedColumn(Name),
+    QueryColumn(QualifiedAlias),
+    // TODO: non-projected expressions, etc.
+}
+
+impl QueryFragment for GroupBy {
+    fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
+        match self {
+            &GroupBy::ProjectedColumn(ref name) => {
+                out.push_identifier(name.as_str())
+            },
+            &GroupBy::QueryColumn(ref qa) => {
+                qualified_alias_push_sql(out, qa)
+            },
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -190,6 +216,7 @@ pub struct SelectQuery {
     pub projection: Projection,
     pub from: FromClause,
     pub constraints: Vec<Constraint>,
+    pub group_by: Vec<GroupBy>,
     pub order: Vec<OrderBy>,
     pub limit: Limit,
 }
@@ -262,10 +289,11 @@ impl QueryFragment for ColumnOrExpression {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
         use self::ColumnOrExpression::*;
         match self {
-            &Column(QualifiedAlias(ref table, ref column)) => {
-                out.push_identifier(table.as_str())?;
-                out.push_sql(".");
-                push_column(out, column)
+            &Column(ref qa) => {
+                qualified_alias_push_sql(out, qa)
+            },
+            &ExistingColumn(ref alias) => {
+                out.push_identifier(alias.as_str())
             },
             &Entid(entid) => {
                 out.push_sql(entid.to_string().as_str());
@@ -281,6 +309,23 @@ impl QueryFragment for ColumnOrExpression {
             },
             &Value(ref v) => {
                 out.push_typed_value(v)
+            },
+            &Expression(ref e, _) => {
+                e.push_sql(out)
+            },
+        }
+    }
+}
+
+impl QueryFragment for Expression {
+    fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {
+        match self {
+            &Expression::Unary { ref sql_op, ref arg } => {
+                out.push_sql(sql_op);              // No need to escape built-ins.
+                out.push_sql("(");
+                arg.push_sql(out)?;
+                out.push_sql(")");
+                Ok(())
             },
         }
     }
@@ -368,10 +413,8 @@ impl QueryFragment for Constraint {
                 Ok(())
             },
             &NotExists { ref subquery } => {
-                out.push_sql("NOT EXISTS (");
-                subquery.push_sql(out)?;
-                out.push_sql(")");
-                Ok(())
+                out.push_sql("NOT EXISTS ");
+                subquery.push_sql(out)
             },
             &TypeCheck { ref value, ref affinity } => {
                 out.push_sql("typeof(");
@@ -395,6 +438,13 @@ impl QueryFragment for JoinOp {
         out.push_sql(" JOIN ");
         Ok(())
     }
+}
+
+// We don't own QualifiedAlias or QueryFragment, so we can't implement the trait.
+fn qualified_alias_push_sql(out: &mut QueryBuilder, qa: &QualifiedAlias) -> BuildQueryResult {
+    out.push_identifier(qa.0.as_str())?;
+    out.push_sql(".");
+    push_column(out, &qa.1)
 }
 
 // We don't own SourceAlias or QueryFragment, so we can't implement the trait.
@@ -440,7 +490,10 @@ impl QueryFragment for TableOrSubquery {
                 out.push_identifier(table_alias.as_str())
             },
             &Subquery(ref subquery) => {
-                subquery.push_sql(out)
+                out.push_sql("(");
+                subquery.push_sql(out)?;
+                out.push_sql(")");
+                Ok(())
             },
             &Values(ref values, ref table_alias) => {
                 // XXX: does this work for Values::Unnamed?
@@ -543,6 +596,16 @@ impl QueryFragment for SelectQuery {
             interpose!(constraint, self.constraints,
                        { constraint.push_sql(out)? },
                        { out.push_sql(" AND ") });
+        }
+
+        match &self.group_by {
+            group_by if !group_by.is_empty() => {
+                out.push_sql(" GROUP BY ");
+                interpose!(group, group_by,
+                           { group.push_sql(out)? },
+                           { out.push_sql(", ") });
+            },
+            _ => {},
         }
 
         if !self.order.is_empty() {
@@ -745,6 +808,7 @@ mod tests {
                     right: ColumnOrExpression::Entid(65536),
                 },
             ],
+            group_by: vec![],
             order: vec![],
             limit: Limit::None,
         };

@@ -153,6 +153,12 @@ impl QueryFunction {
     }
 }
 
+impl std::fmt::Display for QueryFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Direction {
     Ascending,
@@ -262,6 +268,26 @@ impl FromValue<FnArg> for FnArg {
             List(_) |
             Set(_) |
             Map(_) => None,
+        }
+    }
+}
+
+// For display in column headings in the repl.
+impl std::fmt::Display for FnArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &FnArg::Variable(ref var) => write!(f, "{}", var),
+            &FnArg::SrcVar(ref var) => {
+                if var == &SrcVar::DefaultSrc {
+                    write!(f, "$")
+                } else {
+                    write!(f, "{:?}", var)
+                }
+            },
+            &FnArg::EntidOrInteger(entid) => write!(f, "{}", entid),
+            &FnArg::IdentOrKeyword(ref kw) => write!(f, "{}", kw),
+            &FnArg::Constant(ref constant) => write!(f, "{:?}", constant),
+            &FnArg::Vector(ref vec) => write!(f, "{:?}", vec),
         }
     }
 }
@@ -435,18 +461,35 @@ pub struct Pull {
 }
 */
 
-/*
+#[derive(Debug, Eq, PartialEq)]
 pub struct Aggregate {
-    pub fn_name: String,
+    pub func: QueryFunction,
     pub args: Vec<FnArg>,
 }
-*/
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
-    // Aggregate(Aggregate),   // TODO
+    Aggregate(Aggregate),
+
+    /// In a query with a `max` or `min` aggregate, a corresponding variable
+    /// (indicated in the query with `(the ?var)`, is guaranteed to come from
+    /// the row that provided the max or min value. Queries with more than one
+    /// `max` or `min` cannot yield predictable behavior, and will err during
+    /// algebrizing.
+    Corresponding(Variable),
     // Pull(Pull),             // TODO
+}
+
+impl Element {
+    /// Returns true if the element must yield only one value.
+    pub fn is_unit(&self) -> bool {
+        match self {
+            &Element::Variable(_) => false,
+            &Element::Aggregate(_) => true,
+            &Element::Corresponding(_) => true,
+        }
+    }
 }
 
 impl From<Variable> for Element {
@@ -460,6 +503,16 @@ impl std::fmt::Display for Element {
         match self {
             &Element::Variable(ref var) => {
                 write!(f, "{}", var)
+            },
+            &Element::Aggregate(ref agg) => {
+                match agg.args.len() {
+                    0 => write!(f, "({})", agg.func),
+                    1 => write!(f, "({} {})", agg.func, agg.args[0]),
+                    _ => write!(f, "({} {:?})", agg.func, agg.args),
+                }
+            },
+            &Element::Corresponding(ref var) => {
+                write!(f, "(the {})", var)
             },
         }
     }

@@ -69,9 +69,9 @@ fn test_instant_predicates_require_instants() {
                     [?e :foo/date ?t]
                     [(> ?t "2017-06-16T00:56:41.257Z")]]"#;
     match bails(known, query).0 {
-        ErrorKind::InvalidArgument(op, why, idx) => {
+        ErrorKind::InvalidArgumentType(op, why, idx) => {
             assert_eq!(op, PlainSymbol::new(">"));
-            assert_eq!(why, "numeric or instant");
+            assert_eq!(why, ValueTypeSet::of_numeric_and_instant_types());
             assert_eq!(idx, 1);
         },
         _ => panic!("Expected InvalidArgument."),
@@ -82,9 +82,9 @@ fn test_instant_predicates_require_instants() {
                     [?e :foo/date ?t]
                     [(> "2017-06-16T00:56:41.257Z", ?t)]]"#;
     match bails(known, query).0 {
-        ErrorKind::InvalidArgument(op, why, idx) => {
+        ErrorKind::InvalidArgumentType(op, why, idx) => {
             assert_eq!(op, PlainSymbol::new(">"));
-            assert_eq!(why, "numeric or instant");
+            assert_eq!(why, ValueTypeSet::of_numeric_and_instant_types());
             assert_eq!(idx, 0);                      // We get this right.
         },
         _ => panic!("Expected InvalidArgument."),

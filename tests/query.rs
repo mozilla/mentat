@@ -15,7 +15,11 @@ extern crate time;
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
+
+// TODO: when we switch to `failure`, make this more humane.
 extern crate mentat_query_algebrizer;       // For errors.
+extern crate mentat_query_projector;        // For errors.
+extern crate mentat_query_translator;       // For errors.
 
 use std::str::FromStr;
 
@@ -32,10 +36,13 @@ use mentat_core::{
 };
 
 use mentat::{
+    IntoResult,
     NamespacedKeyword,
     PlainSymbol,
     QueryInputs,
+    Queryable,
     QueryResults,
+    Store,
     Variable,
     new_connection,
 };
@@ -381,7 +388,7 @@ fn test_fulltext() {
                  _ => panic!("Unexpected results."),
             }
         },
-        _ => panic!("Expected query to work."),
+        r => panic!("Unexpected results {:?}.", r),
     }
 
     let a = conn.transact(&mut c, r#"[[:db/add "a" :foo/term "talk"]]"#)
@@ -522,7 +529,6 @@ fn test_lookup() {
     let fetched_many = conn.lookup_value_for_attribute(&c, *entid, &foo_many).unwrap().unwrap();
     assert!(two_longs.contains(&fetched_many));
 }
-
 #[test]
 fn test_type_reqs() {
     let mut c = new_connection("").expect("Couldn't open conn.");
@@ -620,4 +626,478 @@ fn test_type_reqs() {
             panic!("Query returned unexpected type: {:?}", v);
         }
     };
+}
+
+#[test]
+fn test_monster_head_aggregates() {
+    let mut store = Store::open("").expect("opened");
+    let mut in_progress = store.begin_transaction().expect("began");
+
+    in_progress.transact(r#"[
+        {:db/ident       :monster/heads
+         :db/valueType   :db.type/long
+         :db/cardinality :db.cardinality/one}
+        {:db/ident       :monster/name
+         :db/valueType   :db.type/string
+         :db/cardinality :db.cardinality/one
+         :db/index       true
+         :db/unique      :db.unique/identity}
+        {:db/ident       :monster/weapon
+         :db/valueType   :db.type/string
+         :db/cardinality :db.cardinality/many}
+    ]"#).expect("transacted");
+
+    in_progress.transact(r#"[
+        {:monster/heads  1
+         :monster/name   "Medusa"
+         :monster/weapon "Stony gaze"}
+        {:monster/heads  1
+         :monster/name   "Cyclops"
+         :monster/weapon ["Large club" "Mighty arms" "Stompy feet"]}
+        {:monster/heads  1
+         :monster/name   "Chimera"
+         :monster/weapon "Goat-like agility"}
+        {:monster/heads  3
+         :monster/name   "Cerberus"
+         :monster/weapon ["8-foot Kong®" "Deadly drool"]}
+    ]"#).expect("transacted");
+
+    // Without :with, uniqueness applies prior to aggregation, so we get 1 + 3 = 4.
+    let res = in_progress.q_once("[:find (sum ?heads) . :where [?monster :monster/heads ?heads]]", None)
+                         .expect("results")
+                         .into();
+    match res {
+        QueryResults::Scalar(Some(TypedValue::Long(count))) => {
+            assert_eq!(count, 4);
+        },
+        r => panic!("Unexpected result {:?}", r),
+    };
+
+    // With :with, uniqueness includes the monster, so we get 1 + 1 + 1 + 3 = 6.
+    let res = in_progress.q_once("[:find (sum ?heads) . :with ?monster :where [?monster :monster/heads ?heads]]", None)
+                         .expect("results")
+                         .into();
+    match res {
+        QueryResults::Scalar(Some(TypedValue::Long(count))) => {
+            assert_eq!(count, 6);
+        },
+        r => panic!("Unexpected result {:?}", r),
+    };
+
+    // Aggregates group.
+    let res = in_progress.q_once(r#"[:find ?name (count ?weapon)
+                                     :with ?monster
+                                     :order (asc ?name)
+                                     :where [?monster :monster/name ?name]
+                                            [?monster :monster/weapon ?weapon]]"#,
+                                 None)
+                         .expect("results")
+                         .into();
+    match res {
+        QueryResults::Rel(vals) => {
+            let expected = vec![
+                vec!["Cerberus".into(), TypedValue::Long(2)],
+                vec!["Chimera".into(),  TypedValue::Long(1)],
+                vec!["Cyclops".into(),  TypedValue::Long(3)],
+                vec!["Medusa".into(),   TypedValue::Long(1)],
+            ];
+            assert_eq!(vals, expected);
+        },
+        r => panic!("Unexpected result {:?}", r),
+    };
+
+    in_progress.rollback().expect("rolled back");
+}
+
+#[test]
+fn test_basic_aggregates() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        {:db/ident :foo/is-vegetarian :db/valueType :db.type/boolean :db/cardinality :db.cardinality/one}
+        {:db/ident :foo/age           :db/valueType :db.type/long    :db/cardinality :db.cardinality/one}
+        {:db/ident :foo/name          :db/valueType :db.type/string  :db/cardinality :db.cardinality/one}
+    ]"#).unwrap();
+
+    let _ids = store.transact(r#"[
+        [:db/add "a" :foo/name "Alice"]
+        [:db/add "b" :foo/name "Beli"]
+        [:db/add "c" :foo/name "Carlos"]
+        [:db/add "d" :foo/name "Diana"]
+        [:db/add "a" :foo/is-vegetarian true]
+        [:db/add "b" :foo/is-vegetarian true]
+        [:db/add "c" :foo/is-vegetarian false]
+        [:db/add "d" :foo/is-vegetarian false]
+        [:db/add "a" :foo/age 14]
+        [:db/add "b" :foo/age 22]
+        [:db/add "c" :foo/age 42]
+        [:db/add "d" :foo/age 28]
+    ]"#).unwrap().tempids;
+
+    // Count the number of distinct bindings of `?veg` that are `true` -- namely, one.
+    // This is not the same as `count-distinct`: note the distinction between
+    // including `:with` and not.
+    // In this case, the `DISTINCT` must occur inside the aggregation, not outside it.
+    /*
+    Rather than:
+
+    SELECT DISTINCT count(1) AS `(count ?veg)`
+    FROM `datoms` AS `datoms00`
+    WHERE `datoms00`.a = 65536
+      AND `datoms00`.v = 1;
+
+    our query should be
+
+    SELECT DISTINCT count(`?veg`) AS `(count ?veg)`
+    FROM (
+        SELECT DISTINCT 1 AS `?veg`
+         FROM `datoms` AS `datoms00`
+        WHERE `datoms00`.a = 65536
+          AND `datoms00`.v = 1
+    );
+    */
+    let r = store.q_once(r#"[:find (count ?veg)
+                             :where
+                             [_ :foo/is-vegetarian ?veg]
+                             [(ground true) ?veg]]"#, None)
+                 .expect("results")
+                 .into();
+    match r {
+        QueryResults::Rel(vals) => {
+            assert_eq!(vals, vec![vec![TypedValue::Long(1)]]);
+        },
+        _ => panic!("Expected rel."),
+    }
+
+    // And this should be
+    /*
+    SELECT DISTINCT count(`?veg`) AS `(count ?veg)`
+    FROM (
+        SELECT DISTINCT 1 AS `?veg`, `datoms00`.e AS `?person`
+         FROM `datoms` AS `datoms00`
+        WHERE `datoms00`.a = 65536
+          AND `datoms00`.v = 1
+    );
+    */
+    let r = store.q_once(r#"[:find (count ?veg) .
+                             :with ?person
+                             :where
+                             [?person :foo/is-vegetarian ?veg]
+                             [(ground true) ?veg]]"#, None)
+                 .expect("results")
+                 .into();
+    match r {
+        QueryResults::Scalar(Some(val)) => {
+            assert_eq!(val, TypedValue::Long(2));
+        },
+        _ => panic!("Expected scalar."),
+    }
+
+    // What are the oldest and youngest ages?
+    let r = store.q_once(r#"[:find [(min ?age) (max ?age)]
+                             :where
+                             [_ :foo/age ?age]]"#, None)
+                 .expect("results")
+                 .into();
+    match r {
+        QueryResults::Tuple(Some(vals)) => {
+            assert_eq!(vals,
+                       vec![TypedValue::Long(14),
+                            TypedValue::Long(42)]);
+        },
+        _ => panic!("Expected tuple."),
+    }
+
+    // Who's youngest, via order?
+    let r = store.q_once(r#"[:find [?name ?age]
+                             :order (asc ?age)
+                             :where
+                             [?x :foo/age ?age]
+                             [?x :foo/name ?name]]"#, None)
+                 .expect("results")
+                 .into();
+    match r {
+        QueryResults::Tuple(Some(vals)) => {
+            assert_eq!(vals,
+                       vec![TypedValue::String("Alice".to_string().into()),
+                            TypedValue::Long(14)]);
+        },
+        r => panic!("Unexpected results {:?}", r),
+    }
+
+    // Who's oldest, via order?
+    let r = store.q_once(r#"[:find [?name ?age]
+                             :order (desc ?age)
+                             :where
+                             [?x :foo/age ?age]
+                             [?x :foo/name ?name]]"#, None)
+                 .expect("results")
+                 .into();
+    match r {
+        QueryResults::Tuple(Some(vals)) => {
+            assert_eq!(vals,
+                       vec![TypedValue::String("Carlos".to_string().into()),
+                            TypedValue::Long(42)]);
+        },
+        _ => panic!("Expected tuple."),
+    }
+
+    // How many of each age do we have?
+    // Add an extra person to make this interesting.
+    store.transact(r#"[{:foo/name "Medusa", :foo/age 28}]"#).expect("transacted");
+
+    // If we omit the 'with', we'll get the wrong answer:
+    let r = store.q_once(r#"[:find ?age (count ?age)
+                             :order (asc ?age)
+                             :where [_ :foo/age ?age]]"#, None)
+                 .expect("results")
+                 .into();
+
+    match r {
+        QueryResults::Rel(vals) => {
+            assert_eq!(vals, vec![
+                vec![TypedValue::Long(14), TypedValue::Long(1)],
+                vec![TypedValue::Long(22), TypedValue::Long(1)],
+                vec![TypedValue::Long(28), TypedValue::Long(1)],
+                vec![TypedValue::Long(42), TypedValue::Long(1)],
+            ]);
+        },
+        _ => panic!("Expected rel."),
+    }
+
+    // If we include it, we'll get the right one:
+    let r = store.q_once(r#"[:find ?age (count ?age)
+                             :with ?person
+                             :order (asc ?age)
+                             :where [?person :foo/age ?age]]"#, None)
+                 .expect("results")
+                 .into();
+
+    match r {
+        QueryResults::Rel(vals) => {
+            assert_eq!(vals, vec![
+                vec![TypedValue::Long(14), TypedValue::Long(1)],
+                vec![TypedValue::Long(22), TypedValue::Long(1)],
+                vec![TypedValue::Long(28), TypedValue::Long(2)],
+                vec![TypedValue::Long(42), TypedValue::Long(1)],
+            ]);
+        },
+        _ => panic!("Expected rel."),
+    }
+}
+
+#[test]
+fn test_combinatorial() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        [:db/add "a" :db/ident :foo/name]
+        [:db/add "a" :db/valueType :db.type/string]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+        [:db/add "b" :db/ident :foo/dance]
+        [:db/add "b" :db/valueType :db.type/ref]
+        [:db/add "b" :db/cardinality :db.cardinality/many]
+        [:db/add "b" :db/index true]
+    ]"#).unwrap();
+
+    store.transact(r#"[
+        [:db/add "a" :foo/name "Alice"]
+        [:db/add "b" :foo/name "Beli"]
+        [:db/add "c" :foo/name "Carlos"]
+        [:db/add "d" :foo/name "Diana"]
+
+        ;; Alice danced with Beli twice.
+        [:db/add "a"  :foo/dance "ab"]
+        [:db/add "b"  :foo/dance "ab"]
+        [:db/add "a"  :foo/dance "ba"]
+        [:db/add "b"  :foo/dance "ba"]
+
+        ;; Carlos danced with Diana.
+        [:db/add "c"  :foo/dance "cd"]
+        [:db/add "d"  :foo/dance "cd"]
+
+        ;; Alice danced with Diana.
+        [:db/add "a"  :foo/dance "ad"]
+        [:db/add "d"  :foo/dance "ad"]
+
+   ]"#).unwrap();
+
+    // How many different pairings of dancers were there?
+    // If we just use `!=` (or `differ`), the number is doubled because of symmetry!
+    assert_eq!(TypedValue::Long(6),
+               store.q_once(r#"[:find (count ?right) .
+                                :with ?left
+                                :where
+                                [?left :foo/dance ?dance]
+                                [?right :foo/dance ?dance]
+                                [(differ ?left ?right)]]"#, None)
+                    .into_scalar_result()
+                    .expect("scalar results").unwrap());
+
+    // SQL addresses this by using `<` instead of `!=` -- by imposing
+    // an order on values, we can ensure that each pair only appears once, not
+    // once per permutation.
+    // It's far from ideal to expose an ordering on entids, because developers
+    // will come to rely on it. Instead we expose a specific operator: `unpermute`.
+    // When used in a query that generates permuted pairs of references, this
+    // ensures that only one permutation is returned for a given pair.
+    assert_eq!(TypedValue::Long(3),
+               store.q_once(r#"[:find (count ?right) .
+                                :with ?left
+                                :where
+                                [?left :foo/dance ?dance]
+                                [?right :foo/dance ?dance]
+                                [(unpermute ?left ?right)]]"#, None)
+                    .into_scalar_result()
+                    .expect("scalar results").unwrap());
+}
+
+#[test]
+fn test_aggregation_implicit_grouping() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        [:db/add "a" :db/ident :foo/score]
+        [:db/add "a" :db/valueType :db.type/long]
+        [:db/add "a" :db/cardinality :db.cardinality/one]
+        [:db/add "b" :db/ident :foo/name]
+        [:db/add "b" :db/valueType :db.type/string]
+        [:db/add "b" :db/cardinality :db.cardinality/one]
+        [:db/add "c" :db/ident :foo/is-vegetarian]
+        [:db/add "c" :db/valueType :db.type/boolean]
+        [:db/add "c" :db/cardinality :db.cardinality/one]
+        [:db/add "d" :db/ident :foo/play]
+        [:db/add "d" :db/valueType :db.type/ref]
+        [:db/add "d" :db/cardinality :db.cardinality/many]
+        [:db/add "d" :db/index true]
+        [:db/add "d" :db/unique :db.unique/value]
+    ]"#).unwrap();
+
+    let ids = store.transact(r#"[
+        [:db/add "a" :foo/name "Alice"]
+        [:db/add "b" :foo/name "Beli"]
+        [:db/add "c" :foo/name "Carlos"]
+        [:db/add "d" :foo/name "Diana"]
+        [:db/add "a" :foo/is-vegetarian true]
+        [:db/add "b" :foo/is-vegetarian true]
+        [:db/add "c" :foo/is-vegetarian false]
+        [:db/add "d" :foo/is-vegetarian false]
+        [:db/add "aa" :foo/score 14]
+        [:db/add "ab" :foo/score 99]
+        [:db/add "ac" :foo/score 14]
+        [:db/add "ba" :foo/score 22]
+        [:db/add "bb" :foo/score 11]
+        [:db/add "ca" :foo/score 42]
+        [:db/add "da" :foo/score 5]
+        [:db/add "db" :foo/score 28]
+        [:db/add "d"  :foo/play "da"]
+        [:db/add "d"  :foo/play "db"]
+        [:db/add "a"  :foo/play "aa"]
+        [:db/add "a"  :foo/play "ab"]
+        [:db/add "a"  :foo/play "ac"]
+        [:db/add "b"  :foo/play "ba"]
+        [:db/add "b"  :foo/play "bb"]
+        [:db/add "c"  :foo/play "ca"]
+    ]"#).unwrap().tempids;
+
+    // How many different scores were there?
+    assert_eq!(TypedValue::Long(7),
+               store.q_once(r#"[:find (count ?score) .
+                                :where
+                                [?game :foo/score ?score]]"#, None)
+                    .into_scalar_result()
+                    .expect("scalar results").unwrap());
+
+    // How many different games resulted in scores?
+    // '14' appears twice.
+    assert_eq!(TypedValue::Long(8),
+               store.q_once(r#"[:find (count ?score) .
+                                :with ?game
+                                :where
+                                [?game :foo/score ?score]]"#, None)
+                    .into_scalar_result()
+                    .expect("scalar results").unwrap());
+
+    // Who's the highest-scoring vegetarian?
+    assert_eq!(vec!["Alice".into(), TypedValue::Long(99)],
+               store.q_once(r#"[:find [(the ?name) (max ?score)]
+                                :where
+                                [?game :foo/score ?score]
+                                [?person :foo/play ?game]
+                                [?person :foo/is-vegetarian true]
+                                [?person :foo/name ?name]]"#, None)
+                    .into_tuple_result()
+                    .expect("tuple results").unwrap());
+
+    // We can't run an ambiguous correspondence.
+    let res = store.q_once(r#"[:find [(the ?name) (min ?score) (max ?score)]
+                                :where
+                                [?game :foo/score ?score]
+                                [?person :foo/play ?game]
+                                [?person :foo/is-vegetarian true]
+                                [?person :foo/name ?name]]"#, None);
+    match res {
+        Result::Err(
+            Error(
+                ErrorKind::TranslatorError(
+                    ::mentat_query_translator::ErrorKind::ProjectorError(
+                        ::mentat_query_projector::ErrorKind::AmbiguousAggregates(mmc, cc)
+                    )
+            ), _)) => {
+            assert_eq!(mmc, 2);
+            assert_eq!(cc, 1);
+        },
+        r => {
+            panic!("Unexpected result {:?}.", r);
+        },
+    }
+
+    // Max scores for vegetarians.
+    assert_eq!(vec![vec!["Alice".into(), TypedValue::Long(99)],
+                    vec!["Beli".into(), TypedValue::Long(22)]],
+               store.q_once(r#"[:find ?name (max ?score)
+                                :where
+                                [?game :foo/score ?score]
+                                [?person :foo/play ?game]
+                                [?person :foo/is-vegetarian true]
+                                [?person :foo/name ?name]]"#, None)
+                    .into_rel_result()
+                    .expect("rel results"));
+
+    // We can combine these aggregates.
+    let r = store.q_once(r#"[:find ?x ?name (max ?score) (count ?score) (avg ?score)
+                             :with ?game           ; So we don't discard duplicate scores!
+                             :where
+                             [?x :foo/name ?name]
+                             [?x :foo/play ?game]
+                             [?game :foo/score ?score]]"#, None)
+                 .expect("results")
+                 .into();
+    match r {
+        QueryResults::Rel(vals) => {
+            assert_eq!(vals,
+                vec![
+                    vec![TypedValue::Ref(ids.get("a").cloned().unwrap()),
+                         TypedValue::String("Alice".to_string().into()),
+                         TypedValue::Long(99),
+                         TypedValue::Long(3),
+                         TypedValue::Double((127f64 / 3f64).into())],
+                    vec![TypedValue::Ref(ids.get("b").cloned().unwrap()),
+                         TypedValue::String("Beli".to_string().into()),
+                         TypedValue::Long(22),
+                         TypedValue::Long(2),
+                         TypedValue::Double((33f64 / 2f64).into())],
+                    vec![TypedValue::Ref(ids.get("c").cloned().unwrap()),
+                         TypedValue::String("Carlos".to_string().into()),
+                         TypedValue::Long(42),
+                         TypedValue::Long(1),
+                         TypedValue::Double(42f64.into())],
+                    vec![TypedValue::Ref(ids.get("d").cloned().unwrap()),
+                         TypedValue::String("Diana".to_string().into()),
+                         TypedValue::Long(28),
+                         TypedValue::Long(2),
+                         TypedValue::Double((33f64 / 2f64).into())]]);
+        },
+        x => panic!("Got unexpected results {:?}", x),
+    }
 }

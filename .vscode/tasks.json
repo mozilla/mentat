@@ -21,7 +21,7 @@
             "label": "Run CLI",
             "command": "cargo",
             "args": [
-                "cli",
+                "debugcli",
             ],
             "problemMatcher": [
                 "$rustc"

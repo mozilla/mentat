@@ -94,7 +94,7 @@ impl ConjoiningClauses {
         // TODO: process source variables.
         match args.next().unwrap() {
             FnArg::SrcVar(SrcVar::DefaultSrc) => {},
-            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable".into(), 0)),
+            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
         }
 
         let schema = known.schema;
@@ -127,8 +127,11 @@ impl ConjoiningClauses {
         // An unknown ident, or an entity that isn't present in the store, or isn't a fulltext
         // attribute, is likely enough to be a coding error that we choose to bail instead of
         // marking the pattern as known-empty.
-        let a = a.ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
-        let attribute = schema.attribute_for_entid(a).cloned().ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute".into(), 1))?;
+        let a = a.ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute", 1))?;
+        let attribute = schema.attribute_for_entid(a)
+                              .cloned()
+                              .ok_or(ErrorKind::InvalidArgument(where_fn.operator.clone(),
+                                                                "attribute", 1))?;
 
         if !attribute.fulltext {
             // We can never get results from a non-fulltext attribute!
@@ -166,12 +169,12 @@ impl ConjoiningClauses {
             FnArg::Variable(in_var) => {
                 match self.bound_value(&in_var) {
                     Some(t @ TypedValue::String(_)) => Either::Left(t),
-                    Some(_) => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
+                    Some(_) => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string", 2)),
                     None => {
                         // Regardless of whether we'll be providing a string later, or the value
                         // comes from a column, it must be a string.
                         if self.known_type(&in_var) != Some(ValueType::String) {
-                            bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2));
+                            bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string", 2));
                         }
 
                         if self.input_variables.contains(&in_var) {
@@ -192,7 +195,7 @@ impl ConjoiningClauses {
                     },
                 }
             },
-            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string".into(), 2)),
+            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "string", 2)),
         };
 
         let qv = match search {
