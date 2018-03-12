@@ -171,6 +171,8 @@ def_parser!(Query, order, Order, {
          .or(Query::variable().map(|v| Order(Direction::Ascending, v)))
 });
 
+def_matches_plain_symbol!(Query, the, "the");
+
 pub struct Where<'a>(std::marker::PhantomData<&'a ()>);
 
 def_parser!(Where, pattern_value_place, PatternValuePlace,  {
@@ -425,9 +427,23 @@ def_matches_plain_symbol!(Find, ellipsis, "...");
 
 def_matches_plain_symbol!(Find, placeholder, "_");
 
-def_parser!(Find, elem, Element, {
+def_parser!(Find, variable_element, Element, {
     Query::variable().map(Element::Variable)
-                     .or(Query::aggregate().map(Element::Aggregate))
+});
+
+def_parser!(Find, corresponding_element, Element, {
+    seq().of_exactly(Query::the().with(Query::variable()))
+         .map(Element::Corresponding)
+});
+
+def_parser!(Find, aggregate_element, Element, {
+    Query::aggregate().map(Element::Aggregate)
+});
+
+def_parser!(Find, elem, Element, {
+    choice([try(Find::variable_element()),
+            try(Find::corresponding_element()),
+            try(Find::aggregate_element())])
 });
 
 def_parser!(Find, find_scalar, FindSpec, {
@@ -962,6 +978,45 @@ mod test {
                                                       VariableOrPlaceholder::Placeholder,
                                                       VariableOrPlaceholder::Variable(variable(vw)),
                               ]));
+    }
+
+    #[test]
+    fn test_the() {
+        assert_edn_parses_to!(Find::corresponding_element,
+                              "(the ?y)",
+                              Element::Corresponding(Variable::from_valid_name("?y")));
+        assert_edn_parses_to!(Find::find_tuple,
+                              "[(the ?x) ?y]",
+                              FindSpec::FindTuple(vec![Element::Corresponding(Variable::from_valid_name("?x")),
+                                                       Element::Variable(Variable::from_valid_name("?y"))]));
+        assert_edn_parses_to!(Find::spec,
+                              "[(the ?x) ?y]",
+                              FindSpec::FindTuple(vec![Element::Corresponding(Variable::from_valid_name("?x")),
+                                                       Element::Variable(Variable::from_valid_name("?y"))]));
+        let expected_query =
+            FindQuery {
+                find_spec: FindSpec::FindTuple(vec![Element::Corresponding(Variable::from_valid_name("?x")),
+                                                    Element::Variable(Variable::from_valid_name("?y"))]),
+                where_clauses: vec![
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                        attribute: PatternNonValuePlace::Placeholder,
+                        value: PatternValuePlace::Variable(Variable::from_valid_name("?y")),
+                        tx: PatternNonValuePlace::Placeholder,
+                    })],
+
+                default_source: SrcVar::DefaultSrc,
+                with: Default::default(),
+                in_vars: Default::default(),
+                in_sources: Default::default(),
+                limit: Limit::None,
+                order: None,
+            };
+        assert_edn_parses_to!(Find::query,
+                              "[:find [(the ?x) ?y]
+                                :where [?x _ ?y]]",
+                              expected_query);
     }
 
     #[test]

@@ -114,6 +114,10 @@ error_chain! {
             description("unexpected query results type")
             display("expected {}, got {}", expected, actual)
         }
+        AmbiguousAggregates(min_max_count: usize, corresponding_count: usize) {
+            description("ambiguous aggregates")
+            display("min/max expressions: {} (max 1), corresponding: {}", min_max_count, corresponding_count)
+        }
     }
 
     foreign_links {
@@ -182,7 +186,8 @@ impl QueryOutput {
     pub fn from_constants(spec: &Rc<FindSpec>, bindings: VariableBindings) -> QueryResults {
         use self::FindSpec::*;
         match &**spec {
-            &FindScalar(Element::Variable(ref var)) => {
+            &FindScalar(Element::Variable(ref var)) |
+            &FindScalar(Element::Corresponding(ref var)) => {
                 let val = bindings.get(var).cloned();
                 QueryResults::Scalar(val)
             },
@@ -193,7 +198,8 @@ impl QueryOutput {
             &FindTuple(ref elements) => {
                 let values = elements.iter()
                                      .map(|e| match e {
-                                         &Element::Variable(ref var) => {
+                                         &Element::Variable(ref var) |
+                                         &Element::Corresponding(ref var) => {
                                              bindings.get(var).cloned().expect("every var to have a binding")
                                          },
                                          &Element::Aggregate(ref _agg) => {
@@ -205,7 +211,8 @@ impl QueryOutput {
                                      .collect();
                 QueryResults::Tuple(Some(values))
             },
-            &FindColl(Element::Variable(ref var)) => {
+            &FindColl(Element::Variable(ref var)) |
+            &FindColl(Element::Corresponding(ref var)) => {
                 let val = bindings.get(var).cloned().expect("every var to have a binding");
                 QueryResults::Coll(vec![val])
             },
@@ -218,7 +225,8 @@ impl QueryOutput {
             },
             &FindRel(ref elements) => {
                 let values = elements.iter().map(|e| match e {
-                    &Element::Variable(ref var) => {
+                    &Element::Variable(ref var) |
+                    &Element::Corresponding(ref var) => {
                         bindings.get(var).cloned().expect("every var to have a binding")
                     },
                     &Element::Aggregate(ref _agg) => {
@@ -605,6 +613,8 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     let mut outer_projection: Vec<Either<Name, ProjectedColumn>> = Vec::with_capacity(count + 2);
 
     let mut i: i32 = 0;
+    let mut min_max_count: usize = 0;
+    let mut corresponding_count: usize = 0;
     let mut templates = vec![];
 
     let mut aggregates = false;
@@ -619,15 +629,21 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     let mut inner_variables = BTreeSet::new();
 
     for e in elements {
+        if let &Element::Corresponding(_) = e {
+            corresponding_count += 1;
+        }
+
         match e {
             // Each time we come across a variable, we push a SQL column
             // into the SQL projection, aliased to the name of the variable,
             // and we push an annotated index into the projector.
-            &Element::Variable(ref var) => {
+            &Element::Variable(ref var) |
+            &Element::Corresponding(ref var) => {
                 if outer_variables.contains(var) {
                     eprintln!("Warning: duplicate variable {} in query.", var);
                 }
 
+                // TODO: it's an error to have `[:find ?x (the ?x) …]`.
                 outer_variables.insert(var.clone());
                 inner_variables.insert(var.clone());
 
@@ -651,6 +667,14 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             &Element::Aggregate(ref a) => {
                 if let Some(simple) = a.to_simple() {
                     aggregates = true;
+
+                    use SimpleAggregationOp::*;
+                    match simple.op {
+                        Max | Min => {
+                            min_max_count += 1;
+                        },
+                        Avg | Count | Sum => (),
+                    }
 
                     // When we encounter a simple aggregate -- one in which the aggregation can be
                     // implemented in SQL, on a single variable -- we just push the SQL aggregation op.
@@ -684,6 +708,19 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                 }
             },
         }
+    }
+
+    match (min_max_count, corresponding_count) {
+        (0, 0) | (_, 0) => {},
+        (0, _) => {
+            eprintln!("Warning: used `(the ?var)` without `min` or `max`.");
+        },
+        (1, _) => {
+            // This is the success case!
+        },
+        (n, c) => {
+            bail!(ErrorKind::AmbiguousAggregates(n, c));
+        },
     }
 
     // Anything used in ORDER BY (which we're given in `named_projection`)
@@ -1157,7 +1194,8 @@ pub fn query_projection(query: &AlgebraicQuery) -> Result<Either<ConstantProject
 
         let variables: BTreeSet<Variable> = spec.columns()
                                                 .map(|e| match e {
-                                                    &Element::Variable(ref var) => var.clone(),
+                                                    &Element::Variable(ref var) |
+                                                    &Element::Corresponding(ref var) => var.clone(),
                                                     &Element::Aggregate(ref _agg) => {
                                                         // TODO: static computation of aggregates, then
                                                         // implement the condition in `is_fully_bound`.

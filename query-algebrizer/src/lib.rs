@@ -161,7 +161,8 @@ impl AlgebraicQuery {
         self.find_spec
             .columns()
             .all(|e| match e {
-                &Element::Variable(ref var) => self.cc.is_value_bound(var),
+                &Element::Variable(ref var) |
+                &Element::Corresponding(ref var) => self.cc.is_value_bound(var),
 
                 // For now, we pretend that aggregate functions are never fully bound:
                 // we don't statically compute them, even if we know the value of the var.

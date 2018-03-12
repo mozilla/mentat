@@ -471,6 +471,13 @@ pub struct Aggregate {
 pub enum Element {
     Variable(Variable),
     Aggregate(Aggregate),
+
+    /// In a query with a `max` or `min` aggregate, a corresponding variable
+    /// (indicated in the query with `(the ?var)`, is guaranteed to come from
+    /// the row that provided the max or min value. Queries with more than one
+    /// `max` or `min` cannot yield predictable behavior, and will err during
+    /// algebrizing.
+    Corresponding(Variable),
     // Pull(Pull),             // TODO
 }
 
@@ -480,6 +487,7 @@ impl Element {
         match self {
             &Element::Variable(_) => false,
             &Element::Aggregate(_) => true,
+            &Element::Corresponding(_) => true,
         }
     }
 }
@@ -502,6 +510,9 @@ impl std::fmt::Display for Element {
                     1 => write!(f, "({} {})", agg.func, agg.args[0]),
                     _ => write!(f, "({} {:?})", agg.func, agg.args),
                 }
+            },
+            &Element::Corresponding(ref var) => {
+                write!(f, "(the {})", var)
             },
         }
     }

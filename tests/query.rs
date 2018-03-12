@@ -15,7 +15,11 @@ extern crate time;
 extern crate mentat;
 extern crate mentat_core;
 extern crate mentat_db;
+
+// TODO: when we switch to `failure`, make this more humane.
 extern crate mentat_query_algebrizer;       // For errors.
+extern crate mentat_query_projector;        // For errors.
+extern crate mentat_query_translator;       // For errors.
 
 use std::str::FromStr;
 
@@ -1016,7 +1020,7 @@ fn test_aggregation_implicit_grouping() {
 
     // Who's the highest-scoring vegetarian?
     assert_eq!(vec!["Alice".into(), TypedValue::Long(99)],
-               store.q_once(r#"[:find [?name (max ?score)]
+               store.q_once(r#"[:find [(the ?name) (max ?score)]
                                 :where
                                 [?game :foo/score ?score]
                                 [?person :foo/play ?game]
@@ -1024,6 +1028,41 @@ fn test_aggregation_implicit_grouping() {
                                 [?person :foo/name ?name]]"#, None)
                     .into_tuple_result()
                     .expect("tuple results").unwrap());
+
+    // We can't run an ambiguous correspondence.
+    let res = store.q_once(r#"[:find [(the ?name) (min ?score) (max ?score)]
+                                :where
+                                [?game :foo/score ?score]
+                                [?person :foo/play ?game]
+                                [?person :foo/is-vegetarian true]
+                                [?person :foo/name ?name]]"#, None);
+    match res {
+        Result::Err(
+            Error(
+                ErrorKind::TranslatorError(
+                    ::mentat_query_translator::ErrorKind::ProjectorError(
+                        ::mentat_query_projector::ErrorKind::AmbiguousAggregates(mmc, cc)
+                    )
+            ), _)) => {
+            assert_eq!(mmc, 2);
+            assert_eq!(cc, 1);
+        },
+        r => {
+            panic!("Unexpected result {:?}.", r);
+        },
+    }
+
+    // Max scores for vegetarians.
+    assert_eq!(vec![vec!["Alice".into(), TypedValue::Long(99)],
+                    vec!["Beli".into(), TypedValue::Long(22)]],
+               store.q_once(r#"[:find ?name (max ?score)
+                                :where
+                                [?game :foo/score ?score]
+                                [?person :foo/play ?game]
+                                [?person :foo/is-vegetarian true]
+                                [?person :foo/name ?name]]"#, None)
+                    .into_rel_result()
+                    .expect("rel results"));
 
     // We can combine these aggregates.
     let r = store.q_once(r#"[:find ?x ?name (max ?score) (count ?score) (avg ?score)
