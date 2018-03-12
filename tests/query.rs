@@ -902,9 +902,11 @@ fn test_combinatorial() {
         [:db/add "c" :foo/name "Carlos"]
         [:db/add "d" :foo/name "Diana"]
 
-        ;; Alice danced with Beli.
+        ;; Alice danced with Beli twice.
         [:db/add "a"  :foo/dance "ab"]
         [:db/add "b"  :foo/dance "ab"]
+        [:db/add "a"  :foo/dance "ba"]
+        [:db/add "b"  :foo/dance "ba"]
 
         ;; Carlos danced with Diana.
         [:db/add "c"  :foo/dance "cd"]
@@ -918,11 +920,23 @@ fn test_combinatorial() {
 
     // How many different pairings of dancers were there?
     // If we just use `!=` (or `differ`), the number is doubled because of symmetry!
-    // Future: SQL addresses this by using `<` instead of `!=` -- by imposing
+    assert_eq!(TypedValue::Long(6),
+               store.q_once(r#"[:find (count ?right) .
+                                :with ?left
+                                :where
+                                [?left :foo/dance ?dance]
+                                [?right :foo/dance ?dance]
+                                [(differ ?left ?right)]]"#, None)
+                    .into_scalar_result()
+                    .expect("scalar results").unwrap());
+
+    // SQL addresses this by using `<` instead of `!=` -- by imposing
     // an order on values, we can ensure that each pair only appears once, not
     // once per permutation.
     // It's far from ideal to expose an ordering on entids, because developers
     // will come to rely on it. Instead we expose a specific operator: `unpermute`.
+    // When used in a query that generates permuted pairs of references, this
+    // ensures that only one permutation is returned for a given pair.
     assert_eq!(TypedValue::Long(3),
                store.q_once(r#"[:find (count ?right) .
                                 :with ?left

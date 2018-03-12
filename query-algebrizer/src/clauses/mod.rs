@@ -410,7 +410,7 @@ impl ConjoiningClauses {
         self.value_bindings.with_intersected_keys(variables)
     }
 
-    /// Return an interator over the variables externally bound to values.
+    /// Return an iterator over the variables externally bound to values.
     pub fn value_bound_variables(&self) -> VariableIterator {
         VariableIterator(self.value_bindings.keys())
     }

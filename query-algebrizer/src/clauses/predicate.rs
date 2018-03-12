@@ -134,9 +134,6 @@ impl ConjoiningClauses {
         // We expect the intersection to be Long, Long+Double, Double, or Instant.
         let left_v;
         let right_v;
-        if shared_types.is_empty() {
-            bail!(ErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
-        }
 
         if shared_types == ValueTypeSet::of_one(ValueType::Instant) {
             left_v = self.resolve_instant_argument(&predicate.operator, 0, left)?;
