@@ -30,15 +30,12 @@ pub use mentat::{
     TxObserver,
 };
 
-pub mod android;
-pub mod types;
-pub mod utils;
-
-pub use types::{
-    ExternResult,
-    ExternTxReport,
-    ExternTxReportList,
+pub use mentat::errors::{
+    Result,
 };
+
+pub mod android;
+pub mod utils;
 
 pub use utils::strings::{
     c_char_to_string,
@@ -46,6 +43,43 @@ pub use utils::strings::{
 };
 
 use utils::log;
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct ExternTxReport {
+    pub txid: i64,
+    pub changes: Box<[i64]>,
+    pub changes_len: usize
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ExternTxReportList {
+    pub reports: Box<[ExternTxReport]>,
+    pub len: usize
+}
+
+#[repr(C)]
+pub struct ExternResult {
+    pub error: *const c_char
+}
+
+impl From<Result<()>> for ExternResult {
+    fn from(result: Result<()>) -> Self {
+        match result {
+            Ok(_) => {
+                ExternResult {
+                    error: std::ptr::null(),
+                }
+            },
+            Err(e) => {
+                ExternResult {
+                    error: string_to_c_char(e.description().into())
+                }
+            }
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn new_store(uri: *const c_char) -> *mut Store {
