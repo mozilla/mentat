@@ -671,6 +671,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     }
 
                     self.watcher.datom(op, e, a, &v);
+                    // TODO: Create something like a watcher to do this for us.
                     affected_attrs.insert(a);
 
                     let reduced = (e, a, attribute, v, added);
