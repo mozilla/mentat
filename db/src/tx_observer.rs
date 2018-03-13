@@ -10,11 +10,22 @@
 
 use std::sync::{
     Arc,
+    Weak,
+};
+use std::sync::mpsc::{
+    channel,
+    Receiver,
+    RecvError,
+    Sender,
 };
 use std::thread;
 
 use indexmap::{
     IndexMap,
+};
+
+use smallvec::{
+    SmallVec,
 };
 
 use types::{
@@ -23,149 +34,146 @@ use types::{
 };
 
 pub struct TxObserver {
-    notify_fn: Arc<Option<Box<Fn(String, Vec<TxReport>) + Send + Sync>>>,
+    notify_fn: Arc<Box<Fn(&str, SmallVec<[&TxReport; 4]>) + Send + Sync>>,
     attributes: AttributeSet,
 }
 
 impl TxObserver {
-    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(String, Vec<TxReport>) + 'static + Send + Sync {
+    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(&str, SmallVec<[&TxReport; 4]>) + 'static + Send + Sync {
         TxObserver {
-            notify_fn: Arc::new(Some(Box::new(notify_fn))),
+            notify_fn: Arc::new(Box::new(notify_fn)),
             attributes,
         }
     }
 
-    pub fn applicable_reports(&self, reports: &Vec<TxReport>) -> Vec<TxReport> {
-        reports.into_iter().filter_map( |report| {
-            if self.attributes.intersection(&report.changeset).next().is_some(){
-                Some(report.clone())
-            } else {
-                None
-            }
+    pub fn applicable_reports<'r>(&self, reports: &'r SmallVec<[TxReport; 4]>) -> SmallVec<[&'r TxReport; 4]> {
+        reports.into_iter().filter_map(|report| {
+            self.attributes.intersection(&report.changeset)
+                           .next()
+                           .and_then(|_| Some(report))
         }).collect()
     }
 
-    fn notify(&self, key: String, reports: Vec<TxReport>) {
-        if let Some(ref notify_fn) = *self.notify_fn {
-            (notify_fn)(key, reports);
-        } else {
-            eprintln!("no notify function specified for TxObserver");
-        }
+    fn notify(&self, key: &str, reports: SmallVec<[&TxReport; 4]>) {
+        (*self.notify_fn)(key, reports);
     }
 }
 
-pub trait CommandClone {
-    fn clone_box(&self) -> Box<Command + Send>;
+pub trait Command {
+    fn execute(&mut self);
 }
 
-impl<T> CommandClone for T where T: 'static + Command + Clone + Send {
-    fn clone_box(&self) -> Box<Command + Send> {
-        Box::new(self.clone())
-    }
+pub struct TxCommand {
+    reports: SmallVec<[TxReport; 4]>,
+    observers: Weak<IndexMap<String, Arc<TxObserver>>>,
 }
 
-pub trait Command: CommandClone {
-    fn execute(&self);
-}
-
-impl Clone for Box<Command + Send> {
-    fn clone(&self) -> Box<Command + Send> {
-        self.clone_box()
-    }
-}
-
-#[derive(Clone)]
-pub struct NotifyTxObserver {
-    key: String,
-    reports: Vec<TxReport>,
-    observer: Arc<TxObserver>,
-}
-
-impl NotifyTxObserver {
-    pub fn new(key: String, reports: Vec<TxReport>, observer: Arc<TxObserver>) -> Self {
-        NotifyTxObserver {
-            key,
+impl TxCommand {
+    fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: SmallVec<[TxReport; 4]>) -> Self {
+        TxCommand {
             reports,
-            observer,
+            observers: Arc::downgrade(observers),
         }
     }
 }
 
-impl Command for NotifyTxObserver {
-    fn execute(&self) {
-        self.observer.notify(self.key.clone(), self.reports.clone());
-    }
-}
-
-#[derive(Clone)]
-pub struct AsyncBatchExecutor {
-    commands: Vec<Box<Command + Send>>,
-}
-
-impl Command for AsyncBatchExecutor {
-    fn execute(&self) {
-        let command_queue = self.commands.clone();
-        thread::spawn (move ||{
-            for command in command_queue.iter() {
-                command.execute();
+impl Command for TxCommand {
+    fn execute(&mut self) {
+        self.observers.upgrade().map(|observers| {
+            for (key, observer) in observers.iter() {
+                let applicable_reports = observer.applicable_reports(&self.reports);
+                if !applicable_reports.is_empty() {
+                    observer.notify(&key, applicable_reports);
+                }
             }
         });
     }
 }
 
-#[derive(Clone)]
 pub struct TxObservationService {
-    observers: IndexMap<String, Arc<TxObserver>>,
-    pub command_queue: Vec<Box<Command + Send>>,
+    observers: Arc<IndexMap<String, Arc<TxObserver>>>,
+    executor: Option<Sender<Box<Command + Send>>>,
+    in_progress_count: i32,
 }
 
 impl TxObservationService {
     pub fn new() -> Self {
         TxObservationService {
-            observers: IndexMap::new(),
-            command_queue: Vec::new(),
+            observers: Arc::new(IndexMap::new()),
+            executor: None,
+            in_progress_count: 0,
         }
     }
+
     // For testing purposes
     pub fn is_registered(&self, key: &String) -> bool {
         self.observers.contains_key(key)
     }
 
     pub fn register(&mut self, key: String, observer: Arc<TxObserver>) {
-        self.observers.insert(key.clone(), observer);
+        Arc::make_mut(&mut self.observers).insert(key, observer);
     }
 
     pub fn deregister(&mut self, key: &String) {
-        self.observers.remove(key);
+        Arc::make_mut(&mut self.observers).remove(key);
     }
 
     pub fn has_observers(&self) -> bool {
         !self.observers.is_empty()
     }
 
-    fn command_from_reports(&self, key: &String, reports: &Vec<TxReport>, observer: &Arc<TxObserver>) -> Option<Box<Command + Send>> {
-        let applicable_reports = observer.applicable_reports(reports);
-        if !applicable_reports.is_empty() {
-            Some(Box::new(NotifyTxObserver::new(key.clone(), applicable_reports, Arc::clone(observer))))
-        } else {
-            None
+    pub fn transaction_did_start(&mut self) {
+        self.in_progress_count += 1;
+    }
+
+    pub fn transaction_did_commit(&mut self, reports: SmallVec<[TxReport; 4]>) {
+        {
+            let executor = self.executor.get_or_insert_with(||{
+                let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
+                let mut worker = CommandExecutor::new(rx);
+
+                thread::spawn(move || {
+                    worker.main();
+                });
+
+                tx
+            });
+
+            let cmd = Box::new(TxCommand::new(&self.observers, reports));
+            executor.send(cmd).unwrap();
+        }
+
+        self.in_progress_count -= 1;
+
+        if self.in_progress_count == 0 {
+            self.executor = None;
+        }
+    }
+}
+
+struct CommandExecutor {
+    reciever: Receiver<Box<Command + Send>>,
+}
+
+impl CommandExecutor {
+    fn new(rx: Receiver<Box<Command + Send>>) -> Self {
+        CommandExecutor {
+            reciever: rx,
         }
     }
 
-    pub fn transaction_did_commit(&mut self, reports: Vec<TxReport>) {
-        // notify all observers about their relevant transactions
-        let commands: Vec<Box<Command + Send>> = self.observers
-                                                .iter()
-                                                .filter_map(|(key, observer)| { self.command_from_reports(&key, &reports, &observer) })
-                                                .collect();
-        self.command_queue.push(Box::new(AsyncBatchExecutor{ commands }));
-    }
+    fn main(&mut self) {
+        loop {
+            match self.reciever.recv() {
+                Err(RecvError) => {
+                    eprintln!("Disconnected, terminating CommandExecutor");
+                    return
+                },
 
-    pub fn run(&mut self) {
-        for command in self.command_queue.iter() {
-            command.execute();
+                Ok(mut cmd) => {
+                    cmd.execute()
+                },
+            }
         }
-
-        self.command_queue.clear();
     }
 }

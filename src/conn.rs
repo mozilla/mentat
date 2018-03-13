@@ -32,6 +32,8 @@ use rusqlite::{
     TransactionBehavior,
 };
 
+use smallvec::SmallVec;
+
 use edn;
 
 use mentat_core::{
@@ -207,7 +209,8 @@ pub struct InProgress<'a, 'c> {
     schema: Schema,
     cache: InProgressSQLiteAttributeCache,
     use_caching: bool,
-    tx_reports: Vec<TxReport>,
+    // TODO: Collect txids/affected datoms in a better way
+    tx_reports: SmallVec<[TxReport; 4]>,
     observer_service: Option<&'a Mutex<TxObservationService>>,
 }
 
@@ -446,12 +449,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
         metadata.generation += 1;
         metadata.partition_map = self.partition_map;
 
-        // let the transaction observer know that there have been some transactions committed.
-        if let Some(ref observer_service) = self.observer_service {
-            let mut os = observer_service.lock().unwrap();
-            os.transaction_did_commit(self.tx_reports);
-        }
-
         // Update the conn's cache if we made any changes.
         self.cache.commit_to(&mut metadata.attribute_cache);
 
@@ -463,10 +460,10 @@ impl<'a, 'c> InProgress<'a, 'c> {
             // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
         }
 
-        // run any commands that we've created along the way.
+        // let the transaction observer know that there have been some transactions committed.
         if let Some(ref observer_service) = self.observer_service {
             let mut os = observer_service.lock().unwrap();
-            os.run();
+            os.transaction_did_commit(self.tx_reports);
         }
 
         Ok(())
@@ -721,6 +718,14 @@ impl Conn {
              current.attribute_cache.clone())
         };
 
+        let mut obs = self.tx_observer_service.lock().unwrap();
+        let observer_service = if obs.has_observers() {
+            obs.transaction_did_start();
+            Some(&self.tx_observer_service)
+        } else {
+            None
+        };
+
         Ok(InProgress {
             mutex: &self.metadata,
             transaction: tx,
@@ -729,8 +734,8 @@ impl Conn {
             schema: (*current_schema).clone(),
             cache: InProgressSQLiteAttributeCache::from_cache(cache_cow),
             use_caching: true,
-            tx_reports: Vec::new(),
-            observer_service: if self.tx_observer_service.lock().unwrap().has_observers() { Some(&self.tx_observer_service) } else { None },
+            tx_reports: SmallVec::new(),
+            observer_service: observer_service,
         })
     }
 
@@ -839,7 +844,6 @@ mod tests {
         Duration,
         Instant
     };
-    use std::thread;
 
     use mentat_core::{
         CachedAttributes,
@@ -1527,16 +1531,21 @@ mod tests {
         let output = Arc::new(Mutex::new(ObserverOutput::default()));
 
         let mut_output = Arc::downgrade(&output);
+        let (tx, rx): (::std::sync::mpsc::Sender<()>, ::std::sync::mpsc::Receiver<()>) = ::std::sync::mpsc::channel();
+        // because the TxObserver is in an Arc and is therefore Sync, we have to wrap the Sender in a Mutex to also
+        // make it Sync.
+        let thread_tx = Mutex::new(tx);
         let tx_observer = Arc::new(TxObserver::new(registered_attrs, move |obs_key, batch| {
             if let Some(out) = mut_output.upgrade() {
                 let mut o = out.lock().unwrap();
-                o.called_key = Some(obs_key.clone());
+                o.called_key = Some(obs_key.to_string());
                 for report in batch.iter() {
                     o.txids.push(report.tx_id.clone());
                     o.changes.push(report.changeset.clone());
                 }
                 o.txids.sort();
             }
+            thread_tx.lock().unwrap().send(()).unwrap();
         }));
 
         conn.register_observer(key.clone(), Arc::clone(&tx_observer));
@@ -1550,7 +1559,7 @@ mod tests {
                 let name = format!("todo{}", i);
                 let uuid = Uuid::new_v4();
                 let mut builder = in_progress.builder().describe_tempid(&name);
-                builder.add_kw( &kw!(:todo/uuid), TypedValue::Uuid(uuid)).expect("Expected added uuid");
+                builder.add_kw(&kw!(:todo/uuid), TypedValue::Uuid(uuid)).expect("Expected added uuid");
                 builder.add_kw(&kw!(:todo/name), TypedValue::typed_string(&name)).expect("Expected added name");
                 if i % 2 == 0 {
                     builder.add_kw(&kw!(:todo/completion_date), TypedValue::current_instant()).expect("Expected added date");
@@ -1568,7 +1577,7 @@ mod tests {
         }
 
         let delay = Duration::from_millis(100);
-        thread::sleep(delay);
+        let _ = rx.recv_timeout(delay);
 
         match Arc::try_unwrap(output) {
             Ok(out) => {
@@ -1601,16 +1610,19 @@ mod tests {
         let output = Arc::new(Mutex::new(ObserverOutput::default()));
 
         let mut_output = Arc::downgrade(&output);
+        let (tx, rx): (::std::sync::mpsc::Sender<()>, ::std::sync::mpsc::Receiver<()>) = ::std::sync::mpsc::channel();
+        let thread_tx = Mutex::new(tx);
         let tx_observer = Arc::new(TxObserver::new(registered_attrs, move |obs_key, batch| {
             if let Some(out) = mut_output.upgrade() {
                 let mut o = out.lock().unwrap();
-                o.called_key = Some(obs_key.clone());
+                o.called_key = Some(obs_key.to_string());
                 for report in batch.iter() {
                     o.txids.push(report.tx_id.clone());
                     o.changes.push(report.changeset.clone());
                 }
                 o.txids.sort();
             }
+            thread_tx.lock().unwrap().send(()).unwrap();
         }));
 
         conn.register_observer(key.clone(), Arc::clone(&tx_observer));
@@ -1631,7 +1643,7 @@ mod tests {
         }
 
         let delay = Duration::from_millis(100);
-        thread::sleep(delay);
+        let _ = rx.recv_timeout(delay);
 
         match Arc::try_unwrap(output) {
             Ok(out) => {

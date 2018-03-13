@@ -18,6 +18,8 @@ extern crate lazy_static;
 
 extern crate rusqlite;
 
+extern crate smallvec;
+
 extern crate uuid;
 
 pub extern crate edn;
