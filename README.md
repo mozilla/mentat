@@ -32,13 +32,13 @@ We've observed that data storage is a particular area of difficulty for software
 
    ```edn
    {:db/id          :person/email
-     :db/valueType   :db.type/string
-     :db/cardinality :db.cardinality/many     ; People can have multiple email addresses.
-     :db/unique      :db.unique/identity      ; For our purposes, each email identifies one person.
-     :db/index       true}                    ; We want fast lookups by email.
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/many     ; People can have multiple email addresses.
+    :db/unique      :db.unique/identity      ; For our purposes, each email identifies one person.
+    :db/index       true}                    ; We want fast lookups by email.
    {:db/id          :person/friend
-     :db/valueType   :db.type/ref
-     :db/cardinality :db.cardinality/many}    ; People can have many friends.
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/many}    ; People can have many friends.
    ```
    ```sql
    CREATE TABLE people (
@@ -81,7 +81,7 @@ Another possible question would be: "What if we could bake some of the concepts 
 
 Some thought has been given to how databases as values — long-term references to a snapshot of the store at an instant in time — could work in this model. It's not impossible; it simply has different performance characteristics.
 
-Just like DataScript, Mentat speaks Datalog for querying and takes additions and retractions as input to a transaction. Unlike DataScript, Mentat's API is asynchronous.
+Just like DataScript, Mentat speaks Datalog for querying and takes additions and retractions as input to a transaction.
 
 Unlike DataScript, Mentat exposes free-text indexing, thanks to SQLite.
 
@@ -92,14 +92,14 @@ Datomic is a server-side, enterprise-grade data storage system. Datomic has a be
 
 Many of these design decisions are inapplicable to deployed desktop software; indeed, the use of multiple JVM processes makes Datomic's use in a small desktop app, or a mobile device, prohibitive.
 
-Mentat is designed for embedding, initially in an Electron app ([Tofino](https://github.com/mozilla/tofino)). It is less concerned with exposing consistent database states outside transaction boundaries, because that's less important here, and dropping some of these requirements allows us to leverage SQLite itself.
+Mentat was designed for embedding, initially in an experimental Electron app ([Tofino](https://github.com/mozilla/tofino)). It is less concerned with exposing consistent database states outside transaction boundaries, because that's less important here, and dropping some of these requirements allows us to leverage SQLite itself.
 
 
 ## Comparison to SQLite
 
 SQLite is a traditional SQL database in most respects: schemas conflate semantic, structural, and datatype concerns, as described above; the main interface with the database is human-first textual queries; sparse and graph-structured data are 'unnatural', if not always inefficient; experimenting with and evolving data models are error-prone and complicated activities; and so on.
 
-Mentat aims to offer many of the advantages of SQLite — single-file use, embeddability, and good performance — while building a more relaxed and expressive data model on top.
+Mentat aims to offer many of the advantages of SQLite — single-file use, embeddability, and good performance — while building a more relaxed, reusable, and expressive data model on top.
 
 ## Contributing
 
