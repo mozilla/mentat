@@ -207,7 +207,7 @@ pub struct InProgress<'a, 'c> {
     schema: Schema,
     cache: InProgressSQLiteAttributeCache,
     use_caching: bool,
-    tx_reports: Vec<TxReport>,
+    tx_reports: Vec<Arc<TxReport>>,
     observer_service: Option<&'a Mutex<TxObservationService>>,
 }
 
@@ -377,7 +377,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
                            self.cache.transact_watcher(),
                            terms,
                            tempid_set)?;
-        self.tx_reports.push(report.clone());
+        self.tx_reports.push(Arc::new(report.clone()));
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -401,7 +401,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
                      &self.schema,
                      self.cache.transact_watcher(),
                      entities)?;
-        self.tx_reports.push(report.clone());
+        self.tx_reports.push(Arc::new(report.clone()));
 
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
