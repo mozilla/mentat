@@ -33,6 +33,11 @@ use mentat_core::{
     Utc,
     Uuid,
     ValueType,
+    ValueTypeSet,
+};
+
+use mentat_query_projector::{
+    SimpleAggregationOp,
 };
 
 use mentat::{
@@ -529,6 +534,133 @@ fn test_lookup() {
     let fetched_many = conn.lookup_value_for_attribute(&c, *entid, &foo_many).unwrap().unwrap();
     assert!(two_longs.contains(&fetched_many));
 }
+
+#[test]
+fn test_aggregates_type_handling() {
+    let mut store = Store::open("").expect("opened");
+    store.transact(r#"[
+        {:db/ident :test/boolean :db/valueType :db.type/boolean :db/cardinality :db.cardinality/one}
+        {:db/ident :test/long    :db/valueType :db.type/long    :db/cardinality :db.cardinality/one}
+        {:db/ident :test/double  :db/valueType :db.type/double  :db/cardinality :db.cardinality/one}
+        {:db/ident :test/string  :db/valueType :db.type/string  :db/cardinality :db.cardinality/one}
+        {:db/ident :test/keyword :db/valueType :db.type/keyword :db/cardinality :db.cardinality/one}
+        {:db/ident :test/uuid    :db/valueType :db.type/uuid    :db/cardinality :db.cardinality/one}
+        {:db/ident :test/instant :db/valueType :db.type/instant :db/cardinality :db.cardinality/one}
+        {:db/ident :test/ref     :db/valueType :db.type/ref     :db/cardinality :db.cardinality/one}
+    ]"#).unwrap();
+
+    store.transact(r#"[
+        {:test/boolean false
+         :test/long    10
+         :test/double  2.4
+         :test/string  "one"
+         :test/keyword :foo/bar
+         :test/uuid    #uuid "55555234-1234-1234-1234-123412341234"
+         :test/instant #inst "2017-01-01T11:00:00.000Z"
+         :test/ref     1}
+        {:test/boolean true
+         :test/long    20
+         :test/double  4.4
+         :test/string  "two"
+         :test/keyword :foo/baz
+         :test/uuid    #uuid "66666234-1234-1234-1234-123412341234"
+         :test/instant #inst "2018-01-01T11:00:00.000Z"
+         :test/ref     2}
+        {:test/boolean true
+         :test/long    30
+         :test/double  6.4
+         :test/string  "three"
+         :test/keyword :foo/noo
+         :test/uuid    #uuid "77777234-1234-1234-1234-123412341234"
+         :test/instant #inst "2019-01-01T11:00:00.000Z"
+         :test/ref     3}
+    ]"#).unwrap();
+
+    // No type limits => can't do it.
+    let r = store.q_once(r#"[:find (sum ?v) . :where [_ _ ?v]]"#, None);
+    let all_types = ValueTypeSet::any();
+    match r {
+        Result::Err(
+            Error(
+                ErrorKind::TranslatorError(
+                    ::mentat_query_translator::ErrorKind::ProjectorError(
+                        ::mentat_query_projector::ErrorKind::CannotApplyAggregateOperationToTypes(
+                            SimpleAggregationOp::Sum,
+                            types
+                        ),
+                    )
+                ),
+                _)) => {
+                    assert_eq!(types, all_types);
+                },
+        r => panic!("Unexpected: {:?}", r),
+    }
+
+    // You can't sum instants.
+    let r = store.q_once(r#"[:find (sum ?v) .
+                             :where [_ _ ?v] [(instant ?v)]]"#,
+                         None);
+    match r {
+        Result::Err(
+            Error(
+                ErrorKind::TranslatorError(
+                    ::mentat_query_translator::ErrorKind::ProjectorError(
+                        ::mentat_query_projector::ErrorKind::CannotApplyAggregateOperationToTypes(
+                            SimpleAggregationOp::Sum,
+                            types
+                        ),
+                    )
+                ),
+                _)) => {
+                    assert_eq!(types, ValueTypeSet::of_one(ValueType::Instant));
+                },
+        r => panic!("Unexpected: {:?}", r),
+    }
+
+    // But you can count them.
+    let r = store.q_once(r#"[:find (count ?v) .
+                             :where [_ _ ?v] [(instant ?v)]]"#,
+                         None)
+                 .into_scalar_result()
+                 .expect("results")
+                 .unwrap();
+
+    // Our two transactions, the bootstrap transaction, plus the three values.
+    assert_eq!(TypedValue::Long(6), r);
+
+    // And you can min them, which returns an instant.
+    let r = store.q_once(r#"[:find (min ?v) .
+                             :where [_ _ ?v] [(instant ?v)]]"#,
+                         None)
+                 .into_scalar_result()
+                 .expect("results")
+                 .unwrap();
+
+    let earliest = DateTime::parse_from_rfc3339("2017-01-01T11:00:00.000Z").unwrap().with_timezone(&Utc);
+    assert_eq!(TypedValue::Instant(earliest), r);
+
+    let r = store.q_once(r#"[:find (sum ?v) .
+                             :where [_ _ ?v] [(long ?v)]]"#,
+                         None)
+                 .into_scalar_result()
+                 .expect("results")
+                 .unwrap();
+
+    // Yes, the current version is in the store as a Long!
+    let total = 30i64 + 20i64 + 10i64 + ::mentat_db::db::CURRENT_VERSION as i64;
+    assert_eq!(TypedValue::Long(total), r);
+
+    let r = store.q_once(r#"[:find (avg ?v) .
+                             :where [_ _ ?v] [(double ?v)]]"#,
+                         None)
+                 .into_scalar_result()
+                 .expect("results")
+                 .unwrap();
+
+    let avg = (6.4f64 / 3f64) + (4.4f64 / 3f64) + (2.4f64 / 3f64);
+    assert_eq!(TypedValue::Double(avg.into()), r);
+}
+
 #[test]
 fn test_type_reqs() {
     let mut c = new_connection("").expect("Couldn't open conn.");
