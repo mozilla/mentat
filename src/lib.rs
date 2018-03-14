@@ -36,12 +36,14 @@ extern crate mentat_tx_parser;
 pub use mentat_core::{
     Attribute,
     Entid,
+    DateTime,
     HasSchema,
     KnownEntid,
     NamespacedKeyword,
     Schema,
     TypedValue,
     Uuid,
+    Utc,
     ValueType,
 };
 
