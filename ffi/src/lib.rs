@@ -23,8 +23,9 @@ use std::sync::{
 };
 
 pub use mentat::{
-    NamespacedKeyword,
+    Entid,
     HasSchema,
+    NamespacedKeyword,
     Store,
     Syncable,
     TxObserver,
@@ -47,21 +48,21 @@ use utils::log;
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ExternTxReport {
-    pub txid: i64,
-    pub changes: Box<[i64]>,
-    pub changes_len: usize
+    pub txid: Entid,
+    pub changes: Box<[Entid]>,
+    pub changes_len: usize,
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct ExternTxReportList {
     pub reports: Box<[ExternTxReport]>,
-    pub len: usize
+    pub len: usize,
 }
 
 #[repr(C)]
 pub struct ExternResult {
-    pub error: *const c_char
+    pub error: *const c_char,
 }
 
 impl From<Result<()>> for ExternResult {
@@ -81,13 +82,19 @@ impl From<Result<()>> for ExternResult {
     }
 }
 
+// A store cannot be opened twice to the same location.
+// Once created, the reference to the store is held by the caller and not Rust,
+// therefore the caller is responsible for calling `store_destroy` to release the memory
+// used by the Store in order to avoid a memory leak.
+// TODO: Start returning `ExternResult`s rather than crashing on error.
 #[no_mangle]
-pub extern "C" fn new_store(uri: *const c_char) -> *mut Store {
+pub extern "C" fn store_open(uri: *const c_char) -> *mut Store {
     let uri = c_char_to_string(uri);
     let store = Store::open(&uri).expect("expected a store");
     Box::into_raw(Box::new(store))
 }
 
+// Reclaim the memory for the provided Store and drop, therefore releasing it.
 #[no_mangle]
 pub unsafe extern "C" fn store_destroy(store: *mut Store) {
     let _ = Box::from_raw(store);
@@ -96,21 +103,18 @@ pub unsafe extern "C" fn store_destroy(store: *mut Store) {
 #[no_mangle]
 pub unsafe extern "C" fn store_register_observer(store: *mut Store,
                                                    key: *const c_char,
-                                                   attributes: *const i64,
-                                                   attributes_len: usize,
-                                                   callback: extern fn(key: *const c_char, reports: &ExternTxReportList)) {
+                                            attributes: *const Entid,
+                                        attributes_len: usize,
+                                              callback: extern fn(key: *const c_char, reports: &ExternTxReportList)) {
     let store = &mut*store;
     let mut attribute_set = BTreeSet::new();
     let slice = slice::from_raw_parts(attributes, attributes_len);
-    for i in 0..attributes_len {
-        let attr = slice[i].into();
-        attribute_set.insert(attr);
-    }
+    attribute_set.extend(slice.iter());
     let key = c_char_to_string(key);
     let tx_observer = Arc::new(TxObserver::new(attribute_set, move |obs_key, batch| {
         log::d(&format!("Calling observer registered for {:?}, batch: {:?}", obs_key, batch));
         let extern_reports: Vec<ExternTxReport> = batch.iter().map(|report| {
-            let changes: Vec<i64> = report.changeset.iter().map(|i|i.clone()).collect();
+            let changes: Vec<Entid> = report.changeset.iter().map(|i|i.clone()).collect();
             let len = changes.len();
             ExternTxReport {
                 txid: report.tx_id.clone(),
@@ -137,7 +141,7 @@ pub unsafe extern "C" fn store_unregister_observer(store: *mut Store, key: *cons
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *const c_char) -> i64 {
+pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *const c_char) -> Entid {
     let store = &mut*store;
     let mut keyword_string = c_char_to_string(attr);
     let attr_name = keyword_string.split_off(1);
@@ -159,7 +163,7 @@ pub unsafe extern "C" fn tx_report_list_entry_at(tx_report_list: *mut ExternTxRe
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut ExternTxReport, index: c_int) -> i64 {
+pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut ExternTxReport, index: c_int) -> Entid {
     let tx_report = &*tx_report;
     let index = index as usize;
     tx_report.changes[index].clone()
