@@ -8,12 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::collections::{
-    VecDeque,
-};
 use std::sync::{
     Arc,
     Weak,
+};
+use std::sync::mpsc::{
+    channel,
+    Receiver,
+    RecvError,
+    Sender,
 };
 use std::thread;
 
@@ -56,46 +59,45 @@ pub trait Command {
     fn execute(&mut self);
 }
 
-pub struct AsyncTxExecutor {
+pub struct TxCommand {
     reports: Vec<TxReport>,
     observers: Weak<IndexMap<String, Arc<TxObserver>>>,
 }
 
-impl AsyncTxExecutor {
+impl TxCommand {
     fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: Vec<TxReport>) -> Self {
-        AsyncTxExecutor {
+        TxCommand {
             reports,
             observers: Arc::downgrade(observers),
         }
     }
 }
 
-impl Command for AsyncTxExecutor {
-
+impl Command for TxCommand {
     fn execute(&mut self) {
-        let reports = ::std::mem::replace(&mut self.reports, Vec::new());
-        let weak_observers = ::std::mem::replace(&mut self.observers, Default::default());
-        thread::spawn (move || {
-            weak_observers.upgrade().map(|observers| {
-                for (key, observer) in observers.iter() {
-                    let applicable_reports = observer.applicable_reports(&reports);
+        self.observers.upgrade().map(|observers| {
+            for (key, observer) in observers.iter() {
+                let applicable_reports = observer.applicable_reports(&self.reports);
+                if !applicable_reports.is_empty() {
                     observer.notify(key.clone(), applicable_reports);
                 }
-            })
+            }
         });
     }
 }
 
 pub struct TxObservationService {
     observers: Arc<IndexMap<String, Arc<TxObserver>>>,
-    pub command_queue: VecDeque<Box<Command + Send>>,
+    executor: Option<Sender<Box<Command + Send>>>,
+    in_progress_count: i32,
 }
 
 impl TxObservationService {
     pub fn new() -> Self {
         TxObservationService {
             observers: Arc::new(IndexMap::new()),
-            command_queue: VecDeque::new(),
+            executor: None,
+            in_progress_count: 0,
         }
     }
 
@@ -116,15 +118,58 @@ impl TxObservationService {
         !self.observers.is_empty()
     }
 
-    pub fn transaction_did_commit(&mut self, reports: Vec<TxReport>) {
-        self.command_queue.push_back(Box::new(AsyncTxExecutor::new(&self.observers, reports)));
+    pub fn transaction_did_start(&mut self) {
+        self.in_progress_count += 1;
     }
 
-    pub fn run(&mut self) {
-        let mut command = self.command_queue.pop_front();
-        while command.is_some() {
-            command.map(|mut c| c.execute());
-            command = self.command_queue.pop_front();
+    pub fn transaction_did_commit(&mut self, reports: Vec<TxReport>) {
+        {
+            let executor = self.executor.get_or_insert_with(||{
+                let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
+                let mut worker = CommandExecutor::new(rx);
+
+                thread::spawn(move || {
+                    worker.main();
+                });
+
+                tx
+            });
+
+            let cmd = Box::new(TxCommand::new(&self.observers, reports));
+            executor.send(cmd).unwrap();
+        }
+
+        self.in_progress_count -= 1;
+
+        if self.in_progress_count == 0 {
+            self.executor = None;
+        }
+    }
+}
+
+struct CommandExecutor {
+    reciever: Receiver<Box<Command + Send>>,
+}
+
+impl CommandExecutor {
+    fn new(rx: Receiver<Box<Command + Send>>) -> Self {
+        CommandExecutor {
+            reciever: rx,
+        }
+    }
+
+    fn main(&mut self) {
+        loop {
+            match self.reciever.recv() {
+                Err(RecvError) => {
+                    eprintln!("Disconnected, terminating CommandExecutor");
+                    return
+                },
+
+                Ok(mut cmd) => {
+                    cmd.execute()
+                },
+            }
         }
     }
 }

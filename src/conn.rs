@@ -446,12 +446,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
         metadata.generation += 1;
         metadata.partition_map = self.partition_map;
 
-        // let the transaction observer know that there have been some transactions committed.
-        if let Some(ref observer_service) = self.observer_service {
-            let mut os = observer_service.lock().unwrap();
-            os.transaction_did_commit(self.tx_reports);
-        }
-
         // Update the conn's cache if we made any changes.
         self.cache.commit_to(&mut metadata.attribute_cache);
 
@@ -463,10 +457,10 @@ impl<'a, 'c> InProgress<'a, 'c> {
             // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
         }
 
-        // run any commands that we've created along the way.
+        // let the transaction observer know that there have been some transactions committed.
         if let Some(ref observer_service) = self.observer_service {
             let mut os = observer_service.lock().unwrap();
-            os.run();
+            os.transaction_did_commit(self.tx_reports);
         }
 
         Ok(())
@@ -721,6 +715,14 @@ impl Conn {
              current.attribute_cache.clone())
         };
 
+        let mut obs = self.tx_observer_service.lock().unwrap();
+        let observer_service = if obs.has_observers() {
+            obs.transaction_did_start();
+            Some(&self.tx_observer_service)
+        } else {
+            None
+        };
+
         Ok(InProgress {
             mutex: &self.metadata,
             transaction: tx,
@@ -730,7 +732,7 @@ impl Conn {
             cache: InProgressSQLiteAttributeCache::from_cache(cache_cow),
             use_caching: true,
             tx_reports: Vec::new(),
-            observer_service: if self.tx_observer_service.lock().unwrap().has_observers() { Some(&self.tx_observer_service) } else { None },
+            observer_service: observer_service,
         })
     }
 
