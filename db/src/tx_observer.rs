@@ -13,13 +13,7 @@ use std::collections::{
 };
 use std::sync::{
     Arc,
-    Mutex,
     Weak,
-};
-use std::sync::mpsc::{
-    channel,
-    Receiver,
-    Sender,
 };
 use std::thread;
 
@@ -33,27 +27,27 @@ use types::{
 };
 
 pub struct TxObserver {
-    notify_fn: Arc<Box<Fn(&String, &Vec<Arc<TxReport>>) + Send + Sync>>,
+    notify_fn: Arc<Box<Fn(String, Vec<&TxReport>) + Send + Sync>>,
     attributes: AttributeSet,
 }
 
 impl TxObserver {
-    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(&String, &Vec<Arc<TxReport>>) + 'static + Send + Sync {
+    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(String, Vec<&TxReport>) + 'static + Send + Sync {
         TxObserver {
             notify_fn: Arc::new(Box::new(notify_fn)),
             attributes,
         }
     }
 
-    pub fn applicable_reports(&self, reports: &Vec<Arc<TxReport>>) -> Vec<Arc<TxReport>> {
+    pub fn applicable_reports<'r>(&self, reports: &'r Vec<TxReport>) -> Vec<&'r TxReport> {
         reports.into_iter().filter_map( |report| {
             self.attributes.intersection(&report.changeset)
                            .next()
-                           .and_then(|_| Some(Arc::clone(report)))
+                           .and_then(|_| Some(report))
         }).collect()
     }
 
-    fn notify(&self, key: &String, reports: &Vec<Arc<TxReport>>) {
+    fn notify(&self, key: String, reports: Vec<&TxReport>) {
         (*self.notify_fn)(key, reports);
     }
 }
@@ -62,58 +56,46 @@ pub trait Command {
     fn execute(&mut self);
 }
 
-pub struct NotifyTxObserver {
-    key: String,
-    reports: Vec<Arc<TxReport>>,
-    observer: Weak<TxObserver>,
+pub struct AsyncTxExecutor {
+    reports: Vec<TxReport>,
+    observers: Weak<IndexMap<String, Arc<TxObserver>>>,
 }
 
-impl NotifyTxObserver {
-    pub fn new(key: String, reports: Vec<Arc<TxReport>>, observer: Weak<TxObserver>) -> Self {
-        NotifyTxObserver {
-            key,
+impl AsyncTxExecutor {
+    fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: Vec<TxReport>) -> Self {
+        AsyncTxExecutor {
             reports,
-            observer,
+            observers: Arc::downgrade(observers),
         }
     }
 }
 
-impl Command for NotifyTxObserver {
-    fn execute(&mut self) {
-        self.observer.upgrade().map(|o| o.notify(&self.key, &self.reports));
-    }
-}
+impl Command for AsyncTxExecutor {
 
-pub struct AsyncBatchExecutor {
-    commands: Vec<Box<Command + Send>>,
-}
-
-impl Command for AsyncBatchExecutor {
     fn execute(&mut self) {
-        // need to clone to move to a new thread.
-        let command_queue = ::std::mem::replace(&mut self.commands, Vec::new());
+        let reports = ::std::mem::replace(&mut self.reports, Vec::new());
+        let weak_observers = ::std::mem::replace(&mut self.observers, Default::default());
         thread::spawn (move || {
-            for mut command in command_queue.into_iter() {
-                command.execute();
-            }
+            weak_observers.upgrade().map(|observers| {
+                for (key, observer) in observers.iter() {
+                    let applicable_reports = observer.applicable_reports(&reports);
+                    observer.notify(key.clone(), applicable_reports);
+                }
+            })
         });
     }
 }
 
 pub struct TxObservationService {
-    observers: IndexMap<String, Arc<TxObserver>>,
+    observers: Arc<IndexMap<String, Arc<TxObserver>>>,
     pub command_queue: VecDeque<Box<Command + Send>>,
 }
 
 impl TxObservationService {
     pub fn new() -> Self {
-        // let (tx, rx) = channel();
-        // let worker = ThreadWorker::new(0, rx);
-        // thread::spawn(move || worker.main());
         TxObservationService {
-            observers: IndexMap::new(),
+            observers: Arc::new(IndexMap::new()),
             command_queue: VecDeque::new(),
-            // sender: tx,
         }
     }
 
@@ -123,33 +105,19 @@ impl TxObservationService {
     }
 
     pub fn register(&mut self, key: String, observer: Arc<TxObserver>) {
-        self.observers.insert(key, observer);
+        Arc::make_mut(&mut self.observers).insert(key, observer);
     }
 
     pub fn deregister(&mut self, key: &String) {
-        self.observers.remove(key);
+        Arc::make_mut(&mut self.observers).remove(key);
     }
 
     pub fn has_observers(&self) -> bool {
         !self.observers.is_empty()
     }
 
-    fn command_from_reports(&self, key: &String, reports: &Vec<Arc<TxReport>>, observer: &Arc<TxObserver>) -> Option<Box<Command + Send>> {
-        let applicable_reports = observer.applicable_reports(reports);
-        if !applicable_reports.is_empty() {
-            Some(Box::new(NotifyTxObserver::new(key.clone(), applicable_reports, Arc::downgrade(observer))))
-        } else {
-            None
-        }
-    }
-
-    pub fn transaction_did_commit(&mut self, reports: Vec<Arc<TxReport>>) {
-        // notify all observers about their relevant transactions
-        let commands: Vec<Box<Command + Send>> = self.observers
-                                                     .iter()
-                                                     .filter_map(|(key, observer)| { self.command_from_reports(&key, &reports, &observer) })
-                                                     .collect();
-        self.command_queue.push_back(Box::new(AsyncBatchExecutor { commands }));
+    pub fn transaction_did_commit(&mut self, reports: Vec<TxReport>) {
+        self.command_queue.push_back(Box::new(AsyncTxExecutor::new(&self.observers, reports)));
     }
 
     pub fn run(&mut self) {
@@ -160,110 +128,3 @@ impl TxObservationService {
         }
     }
 }
-
-// impl CommandQueueObserver for TxObservationService {
-//     fn inserted_item(&self, command: Command) {
-//         command.execute();
-//     }
-// }
-
-// pub trait CommandQueueObserver: Send + 'static {
-//     fn inserted_item(&self, command: Command);
-// }
-
-// struct Inner<Observer: CommandQueueObserver> {
-//     command_queue: VecDeque<Box<Command + Send>>,
-//     observer: Observer,
-// }
-
-// impl<Observer: CommandQueueObserver> Inner<Observer> {
-//     fn new(cq: VecDeque<Box<Command + Send>>, observer: Observer) -> Inner<Observer> {
-//         Inner {
-//             command_queue: cq,
-//             observer: observer,
-//         }
-//     }
-// }
-
-// pub struct CommandQueueHandle(Vec<Sender<()>>);
-
-// impl CommandQueueHandle {
-//     pub fn new<Observer>(num_threads: usize, observer: Observer) -> (CommandQueueHandle, VecDeque<Box<Command + Send>>)
-//         where Observer: CommandQueueObserver
-//     {
-//         let queue = VecDeque::new();
-//         let inner = Arc::new(Mutex::new(Inner::new(queue.clone(), observer)));
-//         let mut worker_channels = Vec::with_capacity(num_threads);
-
-//         for i in 0..num_threads {
-//             let (tx, rx) = mpsc::channel();
-//             worker_channels.push(tx);
-
-//             let worker = ThreadWorker::new(i, inner.clone(), rx);
-//             thread::spawn(move || worker.main());
-//         }
-//         (ViewModelHandle(worker_channels), starting_vm)
-//     }
-// }
-
-// struct ThreadWorker<Observer: CommandQueueObserver> {
-//     inner: Arc<Mutex<Inner<Observer>>>,
-//     thread_id: usize,
-//     shutdown: Receiver<()>,
-// }
-
-// impl<Observer: CommandQueueObserver> ThreadWorker<Observer> {
-//     fn new(thread_id: usize,
-//            inner: Arc<Mutex<Inner<Observer>>>,
-//            shutdown: Receiver<()>)
-//            -> ThreadWorker<Observer> {
-//         ThreadWorker {
-//             inner: inner,
-//             thread_id: thread_id,
-//             shutdown: shutdown,
-//         }
-//     }
-
-//     fn main(&self) {
-//         let mut rng = rand::thread_rng();
-//         let between = Range::new(0i32, 10);
-
-//         loop {
-//             thread::sleep(Duration::from_millis(1000 + rng.gen_range(0, 3000)));
-
-//             if self.should_shutdown() {
-//                 println!("thread {} exiting", self.thread_id);
-//                 return;
-//             }
-
-//             let observer = self.inner.lock().unwrap();
-//             let queue = self.inner.lock().unwrap().command_queue;
-
-//             if queue.is_empty() {
-//                 continue;
-//             }
-
-//             while !queue.is_empty() {
-//                 let cmd = queue.front();
-
-//             }
-
-//             // // 20% of the time, add a new item.
-//             // // 10% of the time, remove an item.
-//             // // 70% of the time, modify an existing item.
-//             // match between.ind_sample(&mut rng) {
-//             //     0 | 1 => self.add_new_item(),
-//             //     2 => self.remove_existing_item(&mut rng),
-//             //     _ => self.modify_existing_item(&mut rng),
-//             // }
-//         }
-//     }
-
-//     fn should_shutdown(&self) -> bool {
-//         match self.shutdown.try_recv() {
-//             Err(mpsc::TryRecvError::Disconnected) => true,
-//             Err(mpsc::TryRecvError::Empty) => false,
-//             Ok(()) => unreachable!("thread worker channels should not be used directly"),
-//         }
-//     }
-// }
