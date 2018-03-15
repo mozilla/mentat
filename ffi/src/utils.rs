@@ -27,6 +27,10 @@ pub mod strings {
     pub fn string_to_c_char(r_string: String) -> *mut c_char {
         CString::new(r_string).unwrap().into_raw()
     }
+
+    pub fn str_to_c_char(r_string: &str) -> *mut c_char {
+        string_to_c_char(r_string.to_string())
+    }
 }
 
 pub mod log {

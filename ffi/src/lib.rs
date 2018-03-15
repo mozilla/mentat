@@ -41,6 +41,7 @@ pub mod utils;
 pub use utils::strings::{
     c_char_to_string,
     string_to_c_char,
+    str_to_c_char,
 };
 
 use utils::log;
@@ -127,7 +128,7 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
             reports: extern_reports.into_boxed_slice(),
             len: len,
         };
-        callback(string_to_c_char(obs_key.clone()), &reports);
+        callback(str_to_c_char(obs_key), &reports);
     }));
     store.register_observer(key, tx_observer);
 }

@@ -533,6 +533,11 @@ impl Store {
     pub fn sqlite_mut(&mut self) -> &mut rusqlite::Connection {
         &mut self.sqlite
     }
+
+    #[cfg(test)]
+    pub fn is_registered_as_observer(&self, key: &String) -> bool {
+        self.conn.tx_observer_service.lock().unwrap().is_registered(key)
+    }
 }
 
 impl Store {
@@ -624,11 +629,6 @@ impl Conn {
             metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema), Default::default())),
             tx_observer_service: Mutex::new(TxObservationService::new()),
         }
-    }
-
-    #[cfg(test)]
-    pub fn is_registered_as_observer(&self, key: &String) -> bool {
-        self.tx_observer_service.lock().unwrap().is_registered(key)
     }
 
     /// Prepare the provided SQLite handle for use as a Mentat store. Creates tables but
@@ -1473,8 +1473,7 @@ mod tests {
     }
 
     fn test_register_observer() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let mut conn = Store::open("").unwrap();
 
         let key = "Test Observer".to_string();
         let tx_observer = TxObserver::new(BTreeSet::new(), move |_obs_key, _batch| {});
@@ -1485,8 +1484,7 @@ mod tests {
 
     #[test]
     fn test_deregister_observer() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
+        let mut conn = Store::open("").unwrap();
 
         let key = "Test Observer".to_string();
 
@@ -1500,9 +1498,9 @@ mod tests {
         assert!(!conn.is_registered_as_observer(&key));
     }
 
-    fn add_schema(conn: &mut Conn, mut sqlite: &mut rusqlite::Connection) {
+    fn add_schema(conn: &mut Store) {
         // transact some schema
-        let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected in progress");
+        let mut in_progress = conn.begin_transaction().expect("expected in progress");
         in_progress.ensure_vocabulary(&Definition {
             name: kw!(:todo/items),
             version: 1,
@@ -1552,12 +1550,11 @@ mod tests {
 
     #[test]
     fn test_observer_notified_on_registered_change() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        add_schema(&mut conn, &mut sqlite);
+        let mut conn = Store::open("").unwrap();
+        add_schema(&mut conn);
 
-        let name_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/name)).expect("entid to exist for name").into();
-        let date_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/completion_date)).expect("entid to exist for completion_date").into();
+        let name_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/name)).expect("entid to exist for name").into();
+        let date_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/completion_date)).expect("entid to exist for completion_date").into();
         let mut registered_attrs = BTreeSet::new();
         registered_attrs.insert(name_entid.clone());
         registered_attrs.insert(date_entid.clone());
@@ -1591,7 +1588,7 @@ mod tests {
         let mut changesets = Vec::new();
         let uuid_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/uuid)).expect("entid to exist for name").into();
         {
-            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected transaction");
+            let mut in_progress = conn.begin_transaction().expect("expected transaction");
             for i in 0..3 {
                 let mut changeset = BTreeSet::new();
                 let name = format!("todo{}", i);
@@ -1629,12 +1626,11 @@ mod tests {
 
     #[test]
     fn test_observer_not_notified_on_unregistered_change() {
-        let mut sqlite = db::new_connection("").unwrap();
-        let mut conn = Conn::connect(&mut sqlite).unwrap();
-        add_schema(&mut conn, &mut sqlite);
+        let mut conn = Store::open("").unwrap();
+        add_schema(&mut conn);
 
-        let name_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/name)).expect("entid to exist for name").into();
-        let date_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/completion_date)).expect("entid to exist for completion_date").into();
+        let name_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/name)).expect("entid to exist for name").into();
+        let date_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/completion_date)).expect("entid to exist for completion_date").into();
         let mut registered_attrs = BTreeSet::new();
         registered_attrs.insert(name_entid.clone());
         registered_attrs.insert(date_entid.clone());
@@ -1665,7 +1661,7 @@ mod tests {
         let tx_ids = Vec::<Entid>::new();
         let changesets = Vec::<BTreeSet<Entid>>::new();
         {
-            let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected transaction");
+            let mut in_progress = conn.begin_transaction().expect("expected transaction");
             for i in 0..3 {
                 let name = format!("label{}", i);
                 let mut builder = in_progress.builder().describe_tempid(&name);
