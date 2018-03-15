@@ -24,33 +24,37 @@ use indexmap::{
     IndexMap,
 };
 
+use smallvec::{
+    SmallVec,
+};
+
 use types::{
     AttributeSet,
     TxReport,
 };
 
 pub struct TxObserver {
-    notify_fn: Arc<Box<Fn(String, Vec<&TxReport>) + Send + Sync>>,
+    notify_fn: Arc<Box<Fn(&str, SmallVec<[&TxReport; 4]>) + Send + Sync>>,
     attributes: AttributeSet,
 }
 
 impl TxObserver {
-    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(String, Vec<&TxReport>) + 'static + Send + Sync {
+    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(&str, SmallVec<[&TxReport; 4]>) + 'static + Send + Sync {
         TxObserver {
             notify_fn: Arc::new(Box::new(notify_fn)),
             attributes,
         }
     }
 
-    pub fn applicable_reports<'r>(&self, reports: &'r Vec<TxReport>) -> Vec<&'r TxReport> {
-        reports.into_iter().filter_map( |report| {
+    pub fn applicable_reports<'r>(&self, reports: &'r SmallVec<[TxReport; 4]>) -> SmallVec<[&'r TxReport; 4]> {
+        reports.into_iter().filter_map(|report| {
             self.attributes.intersection(&report.changeset)
                            .next()
                            .and_then(|_| Some(report))
         }).collect()
     }
 
-    fn notify(&self, key: String, reports: Vec<&TxReport>) {
+    fn notify(&self, key: &str, reports: SmallVec<[&TxReport; 4]>) {
         (*self.notify_fn)(key, reports);
     }
 }
@@ -60,12 +64,12 @@ pub trait Command {
 }
 
 pub struct TxCommand {
-    reports: Vec<TxReport>,
+    reports: SmallVec<[TxReport; 4]>,
     observers: Weak<IndexMap<String, Arc<TxObserver>>>,
 }
 
 impl TxCommand {
-    fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: Vec<TxReport>) -> Self {
+    fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: SmallVec<[TxReport; 4]>) -> Self {
         TxCommand {
             reports,
             observers: Arc::downgrade(observers),
@@ -79,7 +83,7 @@ impl Command for TxCommand {
             for (key, observer) in observers.iter() {
                 let applicable_reports = observer.applicable_reports(&self.reports);
                 if !applicable_reports.is_empty() {
-                    observer.notify(key.clone(), applicable_reports);
+                    observer.notify(&key, applicable_reports);
                 }
             }
         });
@@ -122,7 +126,7 @@ impl TxObservationService {
         self.in_progress_count += 1;
     }
 
-    pub fn transaction_did_commit(&mut self, reports: Vec<TxReport>) {
+    pub fn transaction_did_commit(&mut self, reports: SmallVec<[TxReport; 4]>) {
         {
             let executor = self.executor.get_or_insert_with(||{
                 let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
