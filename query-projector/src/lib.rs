@@ -371,12 +371,15 @@ fn candidate_column(cc: &ConjoiningClauses, var: &Variable) -> Result<(ColumnOrE
         })
 }
 
-fn candidate_type_column(cc: &ConjoiningClauses, var: &Variable) -> (ColumnOrExpression, Name) {
-    let extracted_alias = cc.extracted_types
-                            .get(var)
-                            .expect("Every variable has a known type or an extracted type");
-    let type_name = VariableColumn::VariableTypeTag(var.clone()).column_name();
-    (ColumnOrExpression::Column(extracted_alias.clone()), type_name)
+fn candidate_type_column(cc: &ConjoiningClauses, var: &Variable) -> Result<(ColumnOrExpression, Name)> {
+    cc.extracted_types
+      .get(var)
+      .cloned()
+      .map(|alias| {
+          let type_name = VariableColumn::VariableTypeTag(var.clone()).column_name();
+          (ColumnOrExpression::Column(alias), type_name)
+      })
+      .ok_or_else(|| ErrorKind::UnboundVariable(var.name()).into())
 }
 
 /// Return the projected column -- that is, a value or SQL column and an associated name -- for a
@@ -659,7 +662,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     i += 2;     // We used two SQL columns.
 
                     // Also project the type from the SQL query.
-                    let (type_column, type_name) = candidate_type_column(&query.cc, &var);
+                    let (type_column, type_name) = candidate_type_column(&query.cc, &var)?;
                     inner_projection.push(ProjectedColumn(type_column, type_name.clone()));
                     outer_projection.push(Either::Left(type_name));
                 }
@@ -694,7 +697,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                         inner_projection.push(projected_column);
                         if query.cc.known_type_set(&simple.var).unique_type_tag().is_none() {
                             // Also project the type from the SQL query.
-                            let (type_column, type_name) = candidate_type_column(&query.cc, &simple.var);
+                            let (type_column, type_name) = candidate_type_column(&query.cc, &simple.var)?;
                             inner_projection.push(ProjectedColumn(type_column, type_name.clone()));
                         }
                     }
@@ -755,7 +758,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         // Single type implies single type tag, and is cheaper, so we check that first.
         let types = query.cc.known_type_set(&var);
         if !types.has_unique_type_tag() {
-            let (type_column, type_name) = candidate_type_column(&query.cc, &var);
+            let (type_column, type_name) = candidate_type_column(&query.cc, &var)?;
             if !already_inner {
                 inner_projection.push(ProjectedColumn(type_column, type_name.clone()));
             }
@@ -836,7 +839,7 @@ fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
             if type_set.unique_type_tag().is_none() {
                 // Also project the type from the SQL query.
-                let (type_column, type_name) = candidate_type_column(&query.cc, &var);
+                let (type_column, type_name) = candidate_type_column(&query.cc, &var)?;
                 inner_projection.push(ProjectedColumn(type_column, type_name.clone()));
             }
         }

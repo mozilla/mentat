@@ -988,10 +988,11 @@ impl OrJoin {
             let m = self.collect_mentioned_variables();
             self.mentioned_vars = Some(m);
         }
+
         if let Some(ref mentioned) = self.mentioned_vars {
             mentioned
         } else {
-            panic!()
+            unreachable!()
         }
     }
 }
