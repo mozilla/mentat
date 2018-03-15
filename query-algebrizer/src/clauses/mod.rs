@@ -940,27 +940,39 @@ impl ConjoiningClauses {
         }
     }
 
+    /// When we're done with all patterns, we might have a set of type requirements that will
+    /// be used to add additional constraints to the execution plan.
+    ///
+    /// This function does so.
+    ///
+    /// Furthermore, those type requirements will not yet be present in `known_types`, which
+    /// means they won't be used by the projector or translator.
+    ///
+    /// This step also updates `known_types` to match.
     pub(crate) fn process_required_types(&mut self) -> Result<()> {
         if self.empty_because.is_some() {
             return Ok(())
         }
+
         // We can't call `mark_known_empty` inside the loop since it would be a
-        // mutable borrow on self while we're iterating over `self.required_types`.
-        // Doing it like this avoids needing to copy `self.required_types`.
+        // mutable borrow on self while we're using fields on `self`.
+        // We still need to clone `required_types` 'cos we're mutating in
+        // `narrow_types_for_var`.
         let mut empty_because: Option<EmptyBecause> = None;
-        for (var, types) in self.required_types.iter() {
-            if let Some(already_known) = self.known_types.get(var) {
-                if already_known.is_disjoint(types) {
+        for (var, types) in self.required_types.clone().into_iter() {
+            if let Some(already_known) = self.known_types.get(&var) {
+                if already_known.is_disjoint(&types) {
                     // If we know the constraint can't be one of the types
                     // the variable could take, then we know we're empty.
                     empty_because = Some(EmptyBecause::TypeMismatch {
-                        var: var.clone(),
+                        var: var,
                         existing: *already_known,
-                        desired: *types,
+                        desired: types,
                     });
                     break;
                 }
-                if already_known.is_subset(types) {
+
+                if already_known.is_subset(&types) {
                     // TODO: I'm not convinced that we can do nothing here.
                     //
                     // Consider `[:find ?x ?v :where [_ _ ?v] [(> ?v 10)] [?x :foo/long ?v]]`.
@@ -985,18 +997,23 @@ impl ConjoiningClauses {
                 }
             }
 
+            // Update known types.
+            self.narrow_types_for_var(var.clone(), types);
+
             let qa = self.extracted_types
                          .get(&var)
                          .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))?;
             self.wheres.add_intersection(ColumnConstraint::HasTypes {
                 value: qa.0.clone(),
-                value_types: *types,
+                value_types: types,
                 check_value: true,
             });
         }
+
         if let Some(reason) = empty_because {
             self.mark_known_empty(reason);
         }
+
         Ok(())
     }
 
