@@ -69,14 +69,20 @@ pub float -> SpannedValue = f:$(sign? digit+ ("." digit+)? ([eE] sign? digit+)?)
 
 number -> SpannedValue = ( bigint / basedinteger / hexinteger / octalinteger / integer / float )
 
-// TODO: \newline, \return, \space and \tab
-special_char = quote / tab
-quote = "\\\""
-tab = "\\tab"
-char = [^"] / special_char
+// TODO: standalone characters: \<char>, \newline, \return, \space and \tab.
 
-pub text -> SpannedValue = "\"" t:$( char* ) "\""
-    {  SpannedValue::Text(t.to_string()) }
+string_special_char -> &'input str = "\\" $([\\"ntr])
+string_normal_chars -> &'input str = $([^"\\]+)
+
+// This is what we need to do in order to unescape. We can't just match the entire string slice:
+// we get a Vec<&str> from rust-peg, where some of the parts might be unescaped special characters,
+// and we join it together to form an output string.
+// E.g., input = r#"\"foo\\\\bar\""#
+//      output = [quote, "foo", backslash, "bar", quote]
+//      result = r#""foo\\bar""#
+// For the typical case, string_normal_chars will match multiple, leading to a single-element vec.
+pub text -> SpannedValue = "\"" t:((string_special_char / string_normal_chars)*) "\""
+    {  SpannedValue::Text(t.join(&"").to_string()) }
 
 // RFC 3339 timestamps. #inst "1985-04-12T23:20:50.52Z"
 // We accept an arbitrary depth of decimals.

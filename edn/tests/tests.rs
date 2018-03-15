@@ -327,6 +327,14 @@ fn test_text() {
 
     assert!(text("\"").is_err());
     assert!(text("nil").is_err());
+
+    let raw_edn = r#""This string contains a \" and a \\""#;
+    let raw_string = r#"This string contains a " and a \"#;
+    assert_eq!(parse::value(raw_edn).unwrap(),
+               ValueAndSpan {
+                   inner: SpannedValue::Text(raw_string.to_string()),
+                   span: Span(0, raw_edn.len() as u32)
+               });
 }
 
 #[test]
