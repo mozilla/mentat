@@ -89,6 +89,7 @@ pub use tx::{
 };
 
 pub use tx_observer::{
+    InProgressObserverTransactWatcher,
     TxObservationService,
     TxObserver,
 };

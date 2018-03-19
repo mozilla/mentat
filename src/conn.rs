@@ -32,8 +32,6 @@ use rusqlite::{
     TransactionBehavior,
 };
 
-use smallvec::SmallVec;
-
 use edn;
 
 use mentat_core::{
@@ -50,6 +48,7 @@ use mentat_core::{
 use mentat_core::intern_set::InternSet;
 
 use mentat_db::cache::{
+    InProgressCacheTransactWatcher,
     InProgressSQLiteAttributeCache,
     SQLiteAttributeCache,
 };
@@ -58,17 +57,26 @@ use mentat_db::db;
 use mentat_db::{
     transact,
     transact_terms,
+    InProgressObserverTransactWatcher,
     PartitionMap,
+    TransactWatcher,
     TxObservationService,
     TxObserver,
     TxReport,
+};
+
+use mentat_db::types::{
+    AccumulatedTxids,
 };
 
 use mentat_db::internal_types::TermWithTempIds;
 
 use mentat_tx;
 
-use mentat_tx::entities::TempId;
+use mentat_tx::entities::{
+    TempId,
+    OpType,
+};
 
 use mentat_tx_parser;
 
@@ -209,9 +217,8 @@ pub struct InProgress<'a, 'c> {
     schema: Schema,
     cache: InProgressSQLiteAttributeCache,
     use_caching: bool,
-    // TODO: Collect txids/affected datoms in a better way
-    tx_reports: SmallVec<[TxReport; 4]>,
-    observer_service: Option<&'a Mutex<TxObservationService>>,
+    tx_ids: AccumulatedTxids,
+    tx_observer: &'a Mutex<TxObservationService>,
 }
 
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
@@ -372,15 +379,20 @@ impl<'a, 'c> InProgress<'a, 'c> {
     }
 
     pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
-        let (report, next_partition_map, next_schema, _watcher) =
+        let w = InProgressTransactWatcher::new(
+                InProgressObserverTransactWatcher::new(self.tx_observer),
+                self.cache.transact_watcher());
+        let (report, next_partition_map, next_schema, mut watcher) =
             transact_terms(&self.transaction,
                            self.partition_map.clone(),
                            &self.schema,
                            &self.schema,
-                           self.cache.transact_watcher(),
+                           w,
                            terms,
                            tempid_set)?;
-        self.tx_reports.push(report.clone());
+        if let Some(tx_id) = watcher.tx_id() {
+            self.tx_ids.push(tx_id);
+        }
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -397,14 +409,20 @@ impl<'a, 'c> InProgress<'a, 'c> {
         //    `Metadata` on return. If we used `Cell` or other mechanisms, we'd be using
         //    `Default::default` in those situations to extract the partition map, and so there
         //    would still be some cost.
-        let (report, next_partition_map, next_schema, _watcher) =
+        let w = InProgressTransactWatcher::new(
+                InProgressObserverTransactWatcher::new(self.tx_observer),
+                self.cache.transact_watcher());
+        let (report, next_partition_map, next_schema, mut watcher) =
             transact(&self.transaction,
                      self.partition_map.clone(),
                      &self.schema,
-                     &self.schema,
-                     self.cache.transact_watcher(),
+                     &
+                     self.schema,
+                     w,
                      entities)?;
-        self.tx_reports.push(report.clone());
+        if let Some(tx_id) = watcher.tx_id() {
+            self.tx_ids.push(tx_id);
+        }
 
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
@@ -460,11 +478,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
             // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
         }
 
-        // let the transaction observer know that there have been some transactions committed.
-        if let Some(ref observer_service) = self.observer_service {
-            let mut os = observer_service.lock().unwrap();
-            os.transaction_did_commit(self.tx_reports);
-        }
+        self.tx_observer.lock().unwrap().transaction_did_commit(&self.tx_ids);
 
         Ok(())
     }
@@ -490,6 +504,42 @@ impl<'a, 'c> InProgress<'a, 'c> {
                 Ok(())
             },
         }
+    }
+}
+
+struct InProgressTransactWatcher<'a> {
+    cache_watcher: InProgressCacheTransactWatcher<'a>,
+    observer_watcher: InProgressObserverTransactWatcher<'a>,
+    tx_id: Option<Entid>,
+}
+
+impl<'a> InProgressTransactWatcher<'a> {
+    fn new(observer_watcher: InProgressObserverTransactWatcher<'a>, cache_watcher: InProgressCacheTransactWatcher<'a>) -> Self {
+        InProgressTransactWatcher {
+            cache_watcher: cache_watcher,
+            observer_watcher: observer_watcher,
+            tx_id: None,
+        }
+    }
+}
+
+impl<'a> TransactWatcher for InProgressTransactWatcher<'a> {
+    type Result = ();
+
+    fn tx_id(&mut self) -> Option<Entid> {
+        self.tx_id.take()
+    }
+
+    fn datom(&mut self, op: OpType, e: Entid, a: Entid, v: &TypedValue) {
+        self.cache_watcher.datom(op.clone(), e.clone(), a.clone(), v);
+        self.observer_watcher.datom(op.clone(), e.clone(), a.clone(), v);
+    }
+
+    fn done(&mut self, t: &Entid, schema: &Schema) -> ::mentat_db::errors::Result<Self::Result> {
+        self.cache_watcher.done(t, schema)?;
+        self.observer_watcher.done(t, schema)?;
+        self.tx_id = Some(t.clone());
+        Ok(())
     }
 }
 
@@ -718,14 +768,6 @@ impl Conn {
              current.attribute_cache.clone())
         };
 
-        let mut obs = self.tx_observer_service.lock().unwrap();
-        let observer_service = if obs.has_observers() {
-            obs.transaction_did_start();
-            Some(&self.tx_observer_service)
-        } else {
-            None
-        };
-
         Ok(InProgress {
             mutex: &self.metadata,
             transaction: tx,
@@ -734,8 +776,8 @@ impl Conn {
             schema: (*current_schema).clone(),
             cache: InProgressSQLiteAttributeCache::from_cache(cache_cow),
             use_caching: true,
-            tx_reports: SmallVec::new(),
-            observer_service: observer_service,
+            tx_ids: Default::default(),
+            tx_observer: &self.tx_observer_service,
         })
     }
 
@@ -840,9 +882,10 @@ mod tests {
     use std::path::{
         PathBuf,
     };
+    use std::sync::mpsc;
     use std::time::{
         Duration,
-        Instant
+        Instant,
     };
 
     use mentat_core::{
@@ -872,7 +915,7 @@ mod tests {
     };
 
     use ::vocabulary::attribute::{
-        Unique
+        Unique,
     };
 
     use mentat_db::USER0;
@@ -1507,7 +1550,7 @@ mod tests {
         in_progress.commit().expect("Expected vocabulary committed");
     }
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     struct ObserverOutput {
         txids: Vec<i64>,
         changes: Vec<BTreeSet<i64>>,
@@ -1531,7 +1574,7 @@ mod tests {
         let output = Arc::new(Mutex::new(ObserverOutput::default()));
 
         let mut_output = Arc::downgrade(&output);
-        let (tx, rx): (::std::sync::mpsc::Sender<()>, ::std::sync::mpsc::Receiver<()>) = ::std::sync::mpsc::channel();
+        let (tx, rx): (mpsc::Sender<()>, mpsc::Receiver<()>) = mpsc::channel();
         // because the TxObserver is in an Arc and is therefore Sync, we have to wrap the Sender in a Mutex to also
         // make it Sync.
         let thread_tx = Mutex::new(tx);
@@ -1539,9 +1582,9 @@ mod tests {
             if let Some(out) = mut_output.upgrade() {
                 let mut o = out.lock().unwrap();
                 o.called_key = Some(obs_key.to_string());
-                for report in batch.iter() {
-                    o.txids.push(report.tx_id.clone());
-                    o.changes.push(report.changeset.clone());
+                for (tx_id, changes) in batch.into_iter() {
+                    o.txids.push(*tx_id);
+                    o.changes.push(changes.clone());
                 }
                 o.txids.sort();
             }
@@ -1553,21 +1596,26 @@ mod tests {
 
         let mut tx_ids = Vec::new();
         let mut changesets = Vec::new();
+        let uuid_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/uuid)).expect("entid to exist for name").into();
         {
             let mut in_progress = conn.begin_transaction(&mut sqlite).expect("expected transaction");
             for i in 0..3 {
+                let mut changeset = BTreeSet::new();
                 let name = format!("todo{}", i);
                 let uuid = Uuid::new_v4();
                 let mut builder = in_progress.builder().describe_tempid(&name);
                 builder.add_kw(&kw!(:todo/uuid), TypedValue::Uuid(uuid)).expect("Expected added uuid");
+                changeset.insert(uuid_entid.clone());
                 builder.add_kw(&kw!(:todo/name), TypedValue::typed_string(&name)).expect("Expected added name");
+                changeset.insert(name_entid.clone());
                 if i % 2 == 0 {
                     builder.add_kw(&kw!(:todo/completion_date), TypedValue::current_instant()).expect("Expected added date");
+                    changeset.insert(date_entid.clone());
                 }
                 let (ip, r) = builder.transact();
                 let report = r.expect("expected a report");
                 tx_ids.push(report.tx_id.clone());
-                changesets.push(report.changeset.clone());
+                changesets.push(changeset);
                 in_progress = ip;
             }
             let mut builder = in_progress.builder().describe_tempid("Label");
@@ -1579,18 +1627,11 @@ mod tests {
         let delay = Duration::from_millis(100);
         let _ = rx.recv_timeout(delay);
 
-        match Arc::try_unwrap(output) {
-            Ok(out) => {
-                let o = out.into_inner().expect("Expected an Output");
-                assert_eq!(o.called_key, Some(key.clone()));
-                assert_eq!(o.txids, tx_ids);
-                assert_eq!(o.changes, changesets);
-            },
-            _ => {
-                println!("Unable to unwrap output");
-                assert!(false);
-            }
-        }
+        let out = Arc::try_unwrap(output).expect("unwrapped");
+        let o = out.into_inner().expect("Expected an Output");
+        assert_eq!(o.called_key, Some(key.clone()));
+        assert_eq!(o.txids, tx_ids);
+        assert_eq!(o.changes, changesets);
     }
 
     #[test]
@@ -1610,15 +1651,15 @@ mod tests {
         let output = Arc::new(Mutex::new(ObserverOutput::default()));
 
         let mut_output = Arc::downgrade(&output);
-        let (tx, rx): (::std::sync::mpsc::Sender<()>, ::std::sync::mpsc::Receiver<()>) = ::std::sync::mpsc::channel();
+        let (tx, rx): (mpsc::Sender<()>, mpsc::Receiver<()>) = mpsc::channel();
         let thread_tx = Mutex::new(tx);
         let tx_observer = Arc::new(TxObserver::new(registered_attrs, move |obs_key, batch| {
             if let Some(out) = mut_output.upgrade() {
                 let mut o = out.lock().unwrap();
                 o.called_key = Some(obs_key.to_string());
-                for report in batch.iter() {
-                    o.txids.push(report.tx_id.clone());
-                    o.changes.push(report.changeset.clone());
+                for (tx_id, changes) in batch.into_iter() {
+                    o.txids.push(*tx_id);
+                    o.changes.push(changes.clone());
                 }
                 o.txids.sort();
             }
@@ -1645,17 +1686,10 @@ mod tests {
         let delay = Duration::from_millis(100);
         let _ = rx.recv_timeout(delay);
 
-        match Arc::try_unwrap(output) {
-            Ok(out) => {
-                let o = out.into_inner().expect("Expected an Output");
-                assert_eq!(o.called_key, None);
-                assert_eq!(o.txids, tx_ids);
-                assert_eq!(o.changes, changesets);
-            },
-            _ => {
-                println!("Unable to unwrap output");
-                assert!(false);
-            }
-        }
+        let out = Arc::try_unwrap(output).expect("unwrapped");
+        let o = out.into_inner().expect("Expected an Output");
+        assert_eq!(o.called_key, None);
+        assert_eq!(o.txids, tx_ids);
+        assert_eq!(o.changes, changesets);
     }
 }

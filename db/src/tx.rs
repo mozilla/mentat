@@ -714,7 +714,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         db::update_partition_map(self.store, &self.partition_map)?;
-        self.watcher.done(self.schema)?;
+        self.watcher.done(&self.tx_id, self.schema)?;
 
         if tx_might_update_metadata {
             // Extract changes to metadata from the store.
@@ -739,7 +739,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             tx_id: self.tx_id,
             tx_instant,
             tempids: tempids,
-            changeset: affected_attrs,
         })
     }
 }
@@ -752,7 +751,6 @@ fn start_tx<'conn, 'a, W>(conn: &'conn rusqlite::Connection,
                        watcher: W) -> Result<Tx<'conn, 'a, W>>
     where W: TransactWatcher {
     let tx_id = partition_map.allocate_entid(":db.part/tx");
-
     conn.begin_tx_application()?;
 
     Ok(Tx::new(conn, partition_map, schema_for_mutation, schema, watcher, tx_id))

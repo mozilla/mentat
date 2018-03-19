@@ -16,6 +16,8 @@ use std::collections::{
     BTreeSet,
 };
 
+use smallvec::SmallVec;
+
 extern crate mentat_core;
 
 pub use self::mentat_core::{
@@ -88,6 +90,8 @@ pub type AVMap<'a> = HashMap<&'a AVPair, Entid>;
 // represents a set of entids that are correspond to attributes
 pub type AttributeSet = BTreeSet<Entid>;
 
+pub type AccumulatedTxids = SmallVec<[Entid; 4]>;
+
 /// A transaction report summarizes an applied transaction.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct TxReport {
@@ -103,7 +107,4 @@ pub struct TxReport {
     /// existing entid, or is allocated a new entid.  (It is possible for multiple distinct string
     /// literal tempids to all unify to a single freshly allocated entid.)
     pub tempids: BTreeMap<String, Entid>,
-
-    // A set of entids for attributes that were affected inside this transaction
-    pub changeset: AttributeSet,
 }
