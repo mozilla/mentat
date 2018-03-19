@@ -12,49 +12,60 @@ use std::sync::{
     Arc,
     Weak,
 };
+
 use std::sync::mpsc::{
     channel,
     Receiver,
     RecvError,
     Sender,
 };
+
 use std::thread;
 
 use indexmap::{
     IndexMap,
 };
 
-use smallvec::{
-    SmallVec,
+use mentat_core::{
+    Entid,
+    Schema,
+    TypedValue,
+};
+
+use mentat_tx::entities::{
+    OpType,
+};
+
+use errors::{
+    Result,
 };
 
 use types::{
     AttributeSet,
-    TxReport,
 };
 
+use watcher::TransactWatcher;
+
 pub struct TxObserver {
-    notify_fn: Arc<Box<Fn(&str, SmallVec<[&TxReport; 4]>) + Send + Sync>>,
+    notify_fn: Arc<Box<Fn(&str, IndexMap<&Entid, &AttributeSet>) + Send + Sync>>,
     attributes: AttributeSet,
 }
 
 impl TxObserver {
-    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(&str, SmallVec<[&TxReport; 4]>) + 'static + Send + Sync {
+    pub fn new<F>(attributes: AttributeSet, notify_fn: F) -> TxObserver where F: Fn(&str, IndexMap<&Entid, &AttributeSet>) + 'static + Send + Sync {
         TxObserver {
             notify_fn: Arc::new(Box::new(notify_fn)),
             attributes,
         }
     }
 
-    pub fn applicable_reports<'r>(&self, reports: &'r SmallVec<[TxReport; 4]>) -> SmallVec<[&'r TxReport; 4]> {
-        reports.into_iter().filter_map(|report| {
-            self.attributes.intersection(&report.changeset)
-                           .next()
-                           .and_then(|_| Some(report))
-        }).collect()
+    pub fn applicable_reports<'r>(&self, reports: &'r IndexMap<Entid, AttributeSet>) -> IndexMap<&'r Entid, &'r AttributeSet> {
+        reports.into_iter()
+               .filter(|&(_txid, attrs)| !self.attributes.is_disjoint(attrs))
+               .collect()
     }
 
-    fn notify(&self, key: &str, reports: SmallVec<[&TxReport; 4]>) {
+    fn notify(&self, key: &str, reports: IndexMap<&Entid, &AttributeSet>) {
         (*self.notify_fn)(key, reports);
     }
 }
@@ -64,12 +75,12 @@ pub trait Command {
 }
 
 pub struct TxCommand {
-    reports: SmallVec<[TxReport; 4]>,
+    reports: IndexMap<Entid, AttributeSet>,
     observers: Weak<IndexMap<String, Arc<TxObserver>>>,
 }
 
 impl TxCommand {
-    fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: SmallVec<[TxReport; 4]>) -> Self {
+    fn new(observers: &Arc<IndexMap<String, Arc<TxObserver>>>, reports: IndexMap<Entid, AttributeSet>) -> Self {
         TxCommand {
             reports,
             observers: Arc::downgrade(observers),
@@ -93,7 +104,6 @@ impl Command for TxCommand {
 pub struct TxObservationService {
     observers: Arc<IndexMap<String, Arc<TxObserver>>>,
     executor: Option<Sender<Box<Command + Send>>>,
-    in_progress_count: i32,
 }
 
 impl TxObservationService {
@@ -101,7 +111,6 @@ impl TxObservationService {
         TxObservationService {
             observers: Arc::new(IndexMap::new()),
             executor: None,
-            in_progress_count: 0,
         }
     }
 
@@ -122,49 +131,69 @@ impl TxObservationService {
         !self.observers.is_empty()
     }
 
-    pub fn transaction_did_start(&mut self) {
-        self.in_progress_count += 1;
-    }
+    pub fn in_progress_did_commit(&mut self, txes: IndexMap<Entid, AttributeSet>) {
+        let executor = self.executor.get_or_insert_with(|| {
+            let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
+            let mut worker = CommandExecutor::new(rx);
 
-    pub fn transaction_did_commit(&mut self, reports: SmallVec<[TxReport; 4]>) {
-        {
-            let executor = self.executor.get_or_insert_with(||{
-                let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
-                let mut worker = CommandExecutor::new(rx);
-
-                thread::spawn(move || {
-                    worker.main();
-                });
-
-                tx
+            thread::spawn(move || {
+                worker.main();
             });
 
-            let cmd = Box::new(TxCommand::new(&self.observers, reports));
-            executor.send(cmd).unwrap();
-        }
+            tx
+        });
 
-        self.in_progress_count -= 1;
+        let cmd = Box::new(TxCommand::new(&self.observers, txes));
+        executor.send(cmd).unwrap();
+    }
+}
 
-        if self.in_progress_count == 0 {
-            self.executor = None;
+impl Drop for TxObservationService {
+    fn drop(&mut self) {
+        self.executor = None;
+    }
+}
+
+pub struct InProgressObserverTransactWatcher {
+    collected_attributes: AttributeSet,
+    pub txes: IndexMap<Entid, AttributeSet>,
+}
+
+impl InProgressObserverTransactWatcher {
+    pub fn new() -> InProgressObserverTransactWatcher {
+        InProgressObserverTransactWatcher {
+            collected_attributes: Default::default(),
+            txes: Default::default(),
         }
     }
 }
 
+impl TransactWatcher for InProgressObserverTransactWatcher {
+    fn datom(&mut self, _op: OpType, _e: Entid, a: Entid, _v: &TypedValue) {
+        self.collected_attributes.insert(a);
+    }
+
+    fn done(&mut self, t: &Entid, _schema: &Schema) -> Result<()> {
+        let collected_attributes = ::std::mem::replace(&mut self.collected_attributes, Default::default());
+        self.txes.insert(*t, collected_attributes);
+        Ok(())
+    }
+}
+
 struct CommandExecutor {
-    reciever: Receiver<Box<Command + Send>>,
+    receiver: Receiver<Box<Command + Send>>,
 }
 
 impl CommandExecutor {
     fn new(rx: Receiver<Box<Command + Send>>) -> Self {
         CommandExecutor {
-            reciever: rx,
+            receiver: rx,
         }
     }
 
     fn main(&mut self) {
         loop {
-            match self.reciever.recv() {
+            match self.receiver.recv() {
                 Err(RecvError) => {
                     eprintln!("Disconnected, terminating CommandExecutor");
                     return

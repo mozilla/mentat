@@ -38,7 +38,7 @@ pub trait TransactWatcher {
     /// Called with the schema _prior to_ the transact -- any attributes or
     /// attribute changes transacted during this transact are not reflected in
     /// the schema.
-    fn done(&mut self, schema: &Schema) -> Result<()>;
+    fn done(&mut self, t: &Entid, schema: &Schema) -> Result<()>;
 }
 
 pub struct NullWatcher();
@@ -47,7 +47,7 @@ impl TransactWatcher for NullWatcher {
     fn datom(&mut self, _op: OpType, _e: Entid, _a: Entid, _v: &TypedValue) {
     }
 
-    fn done(&mut self, _schema: &Schema) -> Result<()> {
+    fn done(&mut self, _t: &Entid, _schema: &Schema) -> Result<()> {
         Ok(())
     }
 }

@@ -103,7 +103,4 @@ pub struct TxReport {
     /// existing entid, or is allocated a new entid.  (It is possible for multiple distinct string
     /// literal tempids to all unify to a single freshly allocated entid.)
     pub tempids: BTreeMap<String, Entid>,
-
-    // A set of entids for attributes that were affected inside this transaction
-    pub changeset: AttributeSet,
 }

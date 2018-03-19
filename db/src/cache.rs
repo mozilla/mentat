@@ -1402,7 +1402,7 @@ impl<'a> TransactWatcher for InProgressCacheTransactWatcher<'a> {
         }
     }
 
-    fn done(&mut self, schema: &Schema) -> Result<()> {
+    fn done(&mut self, _t: &Entid, schema: &Schema) -> Result<()> {
         // Oh, I wish we had impl trait. Without it we have a six-line type signature if we
         // try to break this out as a helper function.
         let collected_retractions = mem::replace(&mut self.collected_retractions, Default::default());
