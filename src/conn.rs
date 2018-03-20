@@ -219,6 +219,7 @@ pub struct InProgress<'a, 'c> {
     use_caching: bool,
     tx_ids: AccumulatedTxids,
     tx_observer: &'a Mutex<TxObservationService>,
+    tx_observer_watcher: InProgressObserverTransactWatcher,
 }
 
 /// Represents an in-progress set of reads to the store. Just like `InProgress`,
@@ -380,9 +381,9 @@ impl<'a, 'c> InProgress<'a, 'c> {
 
     pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
         let w = InProgressTransactWatcher::new(
-                InProgressObserverTransactWatcher::new(self.tx_observer),
+                &mut self.tx_observer_watcher,
                 self.cache.transact_watcher());
-        let (report, next_partition_map, next_schema, mut watcher) =
+        let (report, next_partition_map, next_schema, _watcher) =
             transact_terms(&self.transaction,
                            self.partition_map.clone(),
                            &self.schema,
@@ -390,9 +391,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
                            w,
                            terms,
                            tempid_set)?;
-        if let Some(tx_id) = watcher.tx_id() {
-            self.tx_ids.push(tx_id);
-        }
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -410,9 +408,9 @@ impl<'a, 'c> InProgress<'a, 'c> {
         //    `Default::default` in those situations to extract the partition map, and so there
         //    would still be some cost.
         let w = InProgressTransactWatcher::new(
-                InProgressObserverTransactWatcher::new(self.tx_observer),
+                &mut self.tx_observer_watcher,
                 self.cache.transact_watcher());
-        let (report, next_partition_map, next_schema, mut watcher) =
+        let (report, next_partition_map, next_schema, _watcher) =
             transact(&self.transaction,
                      self.partition_map.clone(),
                      &self.schema,
@@ -420,10 +418,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
                      self.schema,
                      w,
                      entities)?;
-        if let Some(tx_id) = watcher.tx_id() {
-            self.tx_ids.push(tx_id);
-        }
-
         self.partition_map = next_partition_map;
         if let Some(schema) = next_schema {
             self.schema = schema;
@@ -478,7 +472,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
             // TODO: consider making vocabulary lookup lazy -- we won't need it much of the time.
         }
 
-        self.tx_observer.lock().unwrap().transaction_did_commit(&self.tx_ids);
+        let txes = self.tx_observer_watcher.txes;
+        self.tx_observer.lock().unwrap().in_progress_did_commit(txes);
 
         Ok(())
     }
@@ -507,14 +502,14 @@ impl<'a, 'c> InProgress<'a, 'c> {
     }
 }
 
-struct InProgressTransactWatcher<'a> {
+struct InProgressTransactWatcher<'a, 'o> {
     cache_watcher: InProgressCacheTransactWatcher<'a>,
-    observer_watcher: InProgressObserverTransactWatcher<'a>,
+    observer_watcher: &'o mut InProgressObserverTransactWatcher,
     tx_id: Option<Entid>,
 }
 
-impl<'a> InProgressTransactWatcher<'a> {
-    fn new(observer_watcher: InProgressObserverTransactWatcher<'a>, cache_watcher: InProgressCacheTransactWatcher<'a>) -> Self {
+impl<'a, 'o> InProgressTransactWatcher<'a, 'o> {
+    fn new(observer_watcher: &'o mut InProgressObserverTransactWatcher, cache_watcher: InProgressCacheTransactWatcher<'a>) -> Self {
         InProgressTransactWatcher {
             cache_watcher: cache_watcher,
             observer_watcher: observer_watcher,
@@ -523,19 +518,13 @@ impl<'a> InProgressTransactWatcher<'a> {
     }
 }
 
-impl<'a> TransactWatcher for InProgressTransactWatcher<'a> {
-    type Result = ();
-
-    fn tx_id(&mut self) -> Option<Entid> {
-        self.tx_id.take()
-    }
-
+impl<'a, 'o> TransactWatcher for InProgressTransactWatcher<'a, 'o> {
     fn datom(&mut self, op: OpType, e: Entid, a: Entid, v: &TypedValue) {
         self.cache_watcher.datom(op.clone(), e.clone(), a.clone(), v);
         self.observer_watcher.datom(op.clone(), e.clone(), a.clone(), v);
     }
 
-    fn done(&mut self, t: &Entid, schema: &Schema) -> ::mentat_db::errors::Result<Self::Result> {
+    fn done(&mut self, t: &Entid, schema: &Schema) -> ::mentat_db::errors::Result<()> {
         self.cache_watcher.done(t, schema)?;
         self.observer_watcher.done(t, schema)?;
         self.tx_id = Some(t.clone());
@@ -778,6 +767,7 @@ impl Conn {
             use_caching: true,
             tx_ids: Default::default(),
             tx_observer: &self.tx_observer_service,
+            tx_observer_watcher: InProgressObserverTransactWatcher::new(),
         })
     }
 
