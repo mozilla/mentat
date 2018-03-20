@@ -114,11 +114,11 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
     let key = c_char_to_string(key);
     let tx_observer = Arc::new(TxObserver::new(attribute_set, move |obs_key, batch| {
         log::d(&format!("Calling observer registered for {:?}, batch: {:?}", obs_key, batch));
-        let extern_reports: Vec<ExternTxReport> = batch.iter().map(|report| {
-            let changes: Vec<Entid> = report.changeset.iter().map(|i|i.clone()).collect();
+        let extern_reports: Vec<ExternTxReport> = batch.into_iter().map(|(tx_id, changes)| {
+            let changes: Vec<Entid> = changes.into_iter().map(|i|*i).collect();
             let len = changes.len();
             ExternTxReport {
-                txid: report.tx_id.clone(),
+                txid: *tx_id,
                 changes: changes.into_boxed_slice(),
                 changes_len: len,
             }

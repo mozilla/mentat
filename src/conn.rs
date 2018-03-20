@@ -1586,7 +1586,7 @@ mod tests {
 
         let mut tx_ids = Vec::new();
         let mut changesets = Vec::new();
-        let uuid_entid: Entid = conn.current_schema().get_entid(&kw!(:todo/uuid)).expect("entid to exist for name").into();
+        let uuid_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/uuid)).expect("entid to exist for name").into();
         {
             let mut in_progress = conn.begin_transaction().expect("expected transaction");
             for i in 0..3 {
