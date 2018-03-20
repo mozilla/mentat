@@ -20,7 +20,7 @@ default = ["bundled_sqlite3"]
 bundled_sqlite3 = ["rusqlite/bundled"]
 
 [workspace]
-members = ["tools/cli"]
+members = ["tools/cli", "ffi"]
 
 [build-dependencies]
 rustc_version = "0.2"
