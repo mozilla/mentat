@@ -155,27 +155,31 @@ impl Drop for TxObservationService {
 }
 
 pub struct InProgressObserverTransactWatcher {
-    collected_attributes: AttributeSet,
     pub txes: IndexMap<Entid, AttributeSet>,
 }
 
 impl InProgressObserverTransactWatcher {
     pub fn new() -> InProgressObserverTransactWatcher {
         InProgressObserverTransactWatcher {
-            collected_attributes: Default::default(),
             txes: Default::default(),
         }
     }
 }
 
 impl TransactWatcher for InProgressObserverTransactWatcher {
-    fn datom(&mut self, _op: OpType, _e: Entid, a: Entid, _v: &TypedValue) {
-        self.collected_attributes.insert(a);
+    fn start(&mut self, t: &Entid) {
+        self.txes.entry(t.clone()).or_insert(Default::default());
     }
 
-    fn done(&mut self, t: &Entid, _schema: &Schema) -> Result<()> {
-        let collected_attributes = ::std::mem::replace(&mut self.collected_attributes, Default::default());
-        self.txes.insert(*t, collected_attributes);
+    fn datom(&mut self, _op: OpType, _e: Entid, a: Entid, _v: &TypedValue) {
+        // as we have a map ordered by insertion order
+        // we can get the last indexed map and add as this is the current tx
+        let last_index = self.txes.len() - 1;
+        self.txes.get_index_mut(last_index)
+                 .map(|(_key, attrs)| attrs.insert(a));
+    }
+
+    fn done(&mut self, _schema: &Schema) -> Result<()> {
         Ok(())
     }
 }

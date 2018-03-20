@@ -32,22 +32,28 @@ use errors::{
 };
 
 pub trait TransactWatcher {
+
+    fn start(&mut self, t: &Entid);
+
     fn datom(&mut self, op: OpType, e: Entid, a: Entid, v: &TypedValue);
 
     /// Only return an error if you want to interrupt the transact!
     /// Called with the schema _prior to_ the transact -- any attributes or
     /// attribute changes transacted during this transact are not reflected in
     /// the schema.
-    fn done(&mut self, t: &Entid, schema: &Schema) -> Result<()>;
+    fn done(&mut self, schema: &Schema) -> Result<()>;
 }
 
 pub struct NullWatcher();
 
 impl TransactWatcher for NullWatcher {
+    fn start(&mut self, _t: &Entid) {
+    }
+
     fn datom(&mut self, _op: OpType, _e: Entid, _a: Entid, _v: &TypedValue) {
     }
 
-    fn done(&mut self, _t: &Entid, _schema: &Schema) -> Result<()> {
+    fn done(&mut self, _schema: &Schema) -> Result<()> {
         Ok(())
     }
 }
