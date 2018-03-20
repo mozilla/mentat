@@ -21,7 +21,6 @@ extern crate lazy_static;
 
 extern crate num;
 extern crate rusqlite;
-extern crate smallvec;
 extern crate tabwriter;
 extern crate time;
 

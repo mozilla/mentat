@@ -65,10 +65,6 @@ use mentat_db::{
     TxReport,
 };
 
-use mentat_db::types::{
-    AccumulatedTxids,
-};
-
 use mentat_db::internal_types::TermWithTempIds;
 
 use mentat_tx;
@@ -217,7 +213,6 @@ pub struct InProgress<'a, 'c> {
     schema: Schema,
     cache: InProgressSQLiteAttributeCache,
     use_caching: bool,
-    tx_ids: AccumulatedTxids,
     tx_observer: &'a Mutex<TxObservationService>,
     tx_observer_watcher: InProgressObserverTransactWatcher,
 }
@@ -414,8 +409,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
             transact(&self.transaction,
                      self.partition_map.clone(),
                      &self.schema,
-                     &
-                     self.schema,
+                     &self.schema,
                      w,
                      entities)?;
         self.partition_map = next_partition_map;
@@ -505,7 +499,6 @@ impl<'a, 'c> InProgress<'a, 'c> {
 struct InProgressTransactWatcher<'a, 'o> {
     cache_watcher: InProgressCacheTransactWatcher<'a>,
     observer_watcher: &'o mut InProgressObserverTransactWatcher,
-    tx_id: Option<Entid>,
 }
 
 impl<'a, 'o> InProgressTransactWatcher<'a, 'o> {
@@ -513,21 +506,24 @@ impl<'a, 'o> InProgressTransactWatcher<'a, 'o> {
         InProgressTransactWatcher {
             cache_watcher: cache_watcher,
             observer_watcher: observer_watcher,
-            tx_id: None,
         }
     }
 }
 
 impl<'a, 'o> TransactWatcher for InProgressTransactWatcher<'a, 'o> {
+    fn start(&mut self, t: &Entid) {
+        self.cache_watcher.start(t);
+        self.observer_watcher.start(t);
+    }
+
     fn datom(&mut self, op: OpType, e: Entid, a: Entid, v: &TypedValue) {
         self.cache_watcher.datom(op.clone(), e.clone(), a.clone(), v);
         self.observer_watcher.datom(op.clone(), e.clone(), a.clone(), v);
     }
 
-    fn done(&mut self, t: &Entid, schema: &Schema) -> ::mentat_db::errors::Result<()> {
-        self.cache_watcher.done(t, schema)?;
-        self.observer_watcher.done(t, schema)?;
-        self.tx_id = Some(t.clone());
+    fn done(&mut self, schema: &Schema) -> ::mentat_db::errors::Result<()> {
+        self.cache_watcher.done(schema)?;
+        self.observer_watcher.done(schema)?;
         Ok(())
     }
 }
@@ -765,7 +761,6 @@ impl Conn {
             schema: (*current_schema).clone(),
             cache: InProgressSQLiteAttributeCache::from_cache(cache_cow),
             use_caching: true,
-            tx_ids: Default::default(),
             tx_observer: &self.tx_observer_service,
             tx_observer_watcher: InProgressObserverTransactWatcher::new(),
         })

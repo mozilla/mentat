@@ -107,7 +107,6 @@ use schema::{
 };
 use types::{
     Attribute,
-    AttributeSet,
     AVPair,
     AVMap,
     Entid,
@@ -616,8 +615,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
 
         let tx_instant;
-        let mut affected_attrs = AttributeSet::new();
-
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
         // Assertions that are :db.cardinality/one and not :db.fulltext.
@@ -671,8 +668,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     }
 
                     self.watcher.datom(op, e, a, &v);
-                    // TODO: Create something like a watcher to do this for us.
-                    affected_attrs.insert(a);
 
                     let reduced = (e, a, attribute, v, added);
                     match (attribute.fulltext, attribute.multival) {
@@ -714,7 +709,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         db::update_partition_map(self.store, &self.partition_map)?;
-        self.watcher.done(&self.tx_id, self.schema)?;
+        self.watcher.done(self.schema)?;
 
         if tx_might_update_metadata {
             // Extract changes to metadata from the store.
@@ -748,11 +743,11 @@ fn start_tx<'conn, 'a, W>(conn: &'conn rusqlite::Connection,
                        mut partition_map: PartitionMap,
                        schema_for_mutation: &'a Schema,
                        schema: &'a Schema,
-                       watcher: W) -> Result<Tx<'conn, 'a, W>>
+                       mut watcher: W) -> Result<Tx<'conn, 'a, W>>
     where W: TransactWatcher {
     let tx_id = partition_map.allocate_entid(":db.part/tx");
     conn.begin_tx_application()?;
-
+    watcher.start(&tx_id);
     Ok(Tx::new(conn, partition_map, schema_for_mutation, schema, watcher, tx_id))
 }
 
