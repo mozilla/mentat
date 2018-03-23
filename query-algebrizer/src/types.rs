@@ -287,6 +287,10 @@ pub enum Inequality {
     // Ref operators.
     Unpermute,
     Differ,
+
+    // Tx operators.
+    TxAfter,
+    TxBefore,
 }
 
 impl Inequality {
@@ -301,6 +305,9 @@ impl Inequality {
 
             Unpermute           => "<",
             Differ              => "<>",
+
+            TxAfter             => ">",
+            TxBefore            => "<",
         }
     }
 
@@ -314,6 +321,9 @@ impl Inequality {
 
             "unpermute" => Some(Inequality::Unpermute),
             "differ" => Some(Inequality::Differ),
+
+            "tx-after" => Some(Inequality::TxAfter),
+            "tx-before" => Some(Inequality::TxBefore),
             _ => None,
         }
     }
@@ -332,7 +342,9 @@ impl Inequality {
                 ts
             },
             &Unpermute |
-            &Differ => {
+            &Differ |
+            &TxAfter |
+            &TxBefore => {
                 ValueTypeSet::of_one(ValueType::Ref)
             },
         }
@@ -351,6 +363,9 @@ impl Debug for Inequality {
 
             &Unpermute => "<",
             &Differ => "<>",
+
+            &TxAfter => ">",
+            &TxBefore => "<",
         })
     }
 }

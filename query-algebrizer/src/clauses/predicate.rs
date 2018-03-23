@@ -33,6 +33,7 @@ use types::{
     ColumnConstraint,
     EmptyBecause,
     Inequality,
+    QueryValue,
 };
 
 use Known;
@@ -150,13 +151,31 @@ impl ConjoiningClauses {
 
         // These arguments must be variables or instant/numeric constants.
         // TODO: static evaluation. #383.
-        let constraint = ColumnConstraint::Inequality {
-            operator: comparison,
-            left: left_v,
-            right: right_v,
-        };
+        let constraint = comparison.to_constraint(left_v, right_v);
         self.wheres.add_intersection(constraint);
         Ok(())
+    }
+}
+
+impl Inequality {
+    fn to_constraint(&self, left: QueryValue, right: QueryValue) -> ColumnConstraint {
+        match *self {
+            Inequality::TxAfter |
+            Inequality::TxBefore => {
+                // TODO: both ends of the range must be inside the tx partition!
+                // If we know the partition map -- and at this point we do, it's just
+                // not passed to this function -- then we can generate two constraints,
+                // or clamp a fixed value.
+            },
+            _ => {
+            },
+        }
+
+        ColumnConstraint::Inequality {
+            operator: *self,
+            left: left,
+            right: right,
+        }
     }
 }
 

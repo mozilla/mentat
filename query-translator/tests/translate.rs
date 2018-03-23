@@ -1115,3 +1115,22 @@ fn test_project_aggregates() {
                       WHERE `datoms00`.a = 99)");
     assert_eq!(args, vec![]);
 }
+
+#[test]
+fn test_tx_before_and_after() {
+    let schema = prepopulated_typed_schema(ValueType::Long);
+    let query = r#"[:find ?x :where [?x _ _ ?tx] [(tx-after ?tx 12345)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT \
+                     `datoms00`.e AS `?x` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.tx > 12345");
+    assert_eq!(args, vec![]);
+    let query = r#"[:find ?x :where [?x _ _ ?tx] [(tx-before ?tx 12345)]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT \
+                     `datoms00`.e AS `?x` \
+                     FROM `datoms` AS `datoms00` \
+                     WHERE `datoms00`.tx < 12345");
+    assert_eq!(args, vec![]);
+}
