@@ -11,10 +11,18 @@
 #![macro_use]
 use mentat_core::{
     Entid,
+    NamespacedKeyword,
+    TypedValue,
 };
 
 use mentat_query::{
     Variable,
+};
+
+use edn::{
+    DateTime,
+    Utc,
+    Uuid,
 };
 
 use errors::{
@@ -24,25 +32,83 @@ use errors::{
 pub enum EntityType {
     Predicate(String),
     Ref(Entid),
-    Var(String),
+    Var(Variable),
+}
+
+impl From<String> for EntityType {
+    fn from(v: String) -> EntityType {
+        EntityType::Predicate(v)
+    }
+}
+
+impl<'a> From<&'a str> for EntityType {
+    fn from(v: &'a str) -> EntityType {
+        EntityType::Predicate(v.to_string())
+    }
+}
+
+impl From<Entid> for EntityType {
+    fn from(v: Entid) -> EntityType {
+        EntityType::Ref(v)
+    }
+}
+
+impl From<Variable> for EntityType {
+    fn from(v: Variable) -> EntityType {
+        EntityType::Var(v)
+    }
 }
 
 pub enum AttributeType {
-    Keyword(String),
+    Keyword(NamespacedKeyword),
     Ref(Entid),
-    Var(String),
+    Var(Variable),
+}
+
+impl From<NamespacedKeyword> for AttributeType {
+    fn from(v: NamespacedKeyword) -> AttributeType {
+        AttributeType::Keyword(v)
+    }
+}
+
+impl From<Entid> for AttributeType {
+    fn from(v: Entid) -> AttributeType {
+        AttributeType::Ref(v)
+    }
+}
+
+impl From<Variable> for AttributeType {
+    fn from(v: Variable) -> AttributeType {
+        AttributeType::Var(v)
+    }
 }
 
 pub enum QueryValueType {
-    Boolean(bool),
-    Double(f64),
-    Instant(i64),
-    Keyword(String),
-    Long(i64),
-    Ref(Entid),
-    String(String),
-    Uuid(String),
-    Var(String),
+    Var(Variable),
+    Value(TypedValue),
+}
+
+impl QueryValueType {
+    pub fn value<T>(value: T) -> Self where T: Into<TypedValue> {
+        let typed_value: TypedValue = value.into();
+        typed_value.into()
+    }
+
+    pub fn variable(value: Variable) -> Self {
+        value.into()
+    }
+}
+
+impl From<Variable> for QueryValueType {
+    fn from(v: Variable) -> QueryValueType {
+        QueryValueType::Var(v)
+    }
+}
+
+impl From<TypedValue> for QueryValueType {
+    fn from(v: TypedValue) -> QueryValueType {
+        QueryValueType::Value(v)
+    }
 }
 
 pub enum FindType {
@@ -174,15 +240,8 @@ impl WhereBuilder {
         self
     }
 
-    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
-    where E: Into<Option<EntityType>>,
-          A: Into<Option<AttributeType>>,
-          V: Into<Option<QueryValueType>> {
-        self.clauses.push(Box::new( WhereClauseBuilder{
-            entity: entity.into(),
-            attribute: attribute.into(),
-            value: value.into(),
-        }));
+    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+        self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
@@ -198,18 +257,18 @@ impl WhereBuilder {
 }
 
 impl WhereClauseBuilder {
-    pub fn add_entity(mut self, entity: EntityType) -> Self {
-        self.entity = Some(entity);
+    pub fn entity<E>(mut self, entity: E) -> Self where E: Into<EntityType> {
+        self.entity = Some(entity.into());
         self
     }
 
-    pub fn add_attribute(mut self, attribute: AttributeType) -> Self {
-        self.attribute = Some(attribute);
+    pub fn attribute<A>(mut self, attribute: A) -> Self where A: Into<AttributeType> {
+        self.attribute = Some(attribute.into());
         self
     }
 
-    pub fn add_value(mut self, value: QueryValueType) -> Self {
-        self.value = Some(value);
+    pub fn value<V>(mut self, value: V) -> Self where V: Into<QueryValueType> {
+        self.value = Some(value.into());
         self
     }
 }
@@ -225,15 +284,8 @@ impl NotClauseBuilder {
         self
     }
 
-    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
-    where E: Into<Option<EntityType>>,
-          A: Into<Option<AttributeType>>,
-          V: Into<Option<QueryValueType>> {
-        self.clauses.push(Box::new( WhereClauseBuilder{
-            entity: entity.into(),
-            attribute: attribute.into(),
-            value: value.into(),
-        }));
+    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+        self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
@@ -264,15 +316,8 @@ impl OrClauseBuilder {
         self
     }
 
-    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
-    where E: Into<Option<EntityType>>,
-          A: Into<Option<AttributeType>>,
-          V: Into<Option<QueryValueType>> {
-        self.clauses.push(Box::new( WhereClauseBuilder{
-            entity: entity.into(),
-            attribute: attribute.into(),
-            value: value.into(),
-        }));
+    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+        self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
@@ -298,15 +343,8 @@ impl AndClauseBuilder {
         self
     }
 
-    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
-    where E: Into<Option<EntityType>>,
-          A: Into<Option<AttributeType>>,
-          V: Into<Option<QueryValueType>> {
-        self.clauses.push(Box::new( WhereClauseBuilder{
-            entity: entity.into(),
-            attribute: attribute.into(),
-            value: value.into(),
-        }));
+    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+        self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
@@ -358,7 +396,9 @@ mod test {
     fn test_find_rel() {
         let _ = query().add_find(|find| find.add("?x"))
                               .add_where(|w| {
-                                    w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::String("yyy".to_string()))
+                                    w.add_clause(|c| c.entity(var!(?x))
+                                                      .attribute(kw!(:foo/bar))
+                                                      .value(QueryValueType::value("yyy")))
                               }).execute();
         panic!("not complete");
     }
@@ -368,7 +408,8 @@ mod test {
     fn test_find_no_attribute() {
         let _ = query().add_find(|find| find.add("?x"))
                               .add_where(|w| {
-                                    w.add_clause(EntityType::Var("?x".to_string()), None, QueryValueType::String("yyy".to_string()))
+                                    w.add_clause(|c| c.entity(var!(?x))
+                                                      .value(QueryValueType::value("yyy")))
                               }).execute();
         panic!("not complete");
     }
@@ -378,7 +419,9 @@ mod test {
     fn test_find_scalar() {
         let _ = query().add_find(|find| find.set_type(FindType::Scalar).add("?x"))
                               .add_where(|w| {
-                                    w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::String("yyy".to_string()))
+                                    w.add_clause(|c| c.entity(var!(?x))
+                                                      .attribute(kw!(:foo/bar))
+                                                      .value(QueryValueType::value("yyy")))
                               }).execute();
         panic!("not complete");
     }
@@ -397,11 +440,19 @@ mod test {
                        .add_where(|w| {
                            w.add_or(|or| {
                                or.join("?page")
-                                   .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/url".to_string()), QueryValueType::String("http://foo.com/".to_string()))
-                                   .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/title".to_string()), QueryValueType::String("Foo".to_string()))
+                                 .add_clause(|c| c.entity(var!(?page))
+                                                  .attribute(kw!(:page/url))
+                                                  .value(QueryValueType::value("http://foo.com/")))
+                                 .add_clause(|c| c.entity(var!(?page))
+                                                  .attribute(kw!(:page/title))
+                                                  .value(QueryValueType::value("Foo")))
                             })
-                            .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/url".to_string()), QueryValueType::Var("?url".to_string()))
-                            .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/description".to_string()), QueryValueType::Var("?description".to_string()))
+                            .add_clause(|c| c.entity(var!(?page))
+                                             .attribute(kw!(:page/url))
+                                             .value(var!(?url)))
+                            .add_clause(|c| c.entity(var!(?page))
+                                             .attribute(kw!(:page/description))
+                                             .value(var!(?description)))
                        })
                        .execute();
         panic!("not complete");
@@ -413,7 +464,9 @@ mod test {
     fn test_find_with_limit() {
         let _ = query().add_find(|find| find.add("?x"))
                        .add_where(|w| {
-                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/baz".to_string()), QueryValueType::Var("?y".to_string()))
+                           w.add_clause(|c| c.entity(var!(?x))
+                                             .attribute(kw!(:foo/baz))
+                                             .value(var!(?y)))
                        })
                        .add_limit(1000)
                        .execute();
@@ -425,7 +478,9 @@ mod test {
     fn test_find_with_default_order() {
         let _ = query().add_find(|find| find.add("?x"))
                        .add_where(|w| {
-                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/baz".to_string()), QueryValueType::Var("?y".to_string()))
+                           w.add_clause(|c| c.entity(var!(?x))
+                                             .attribute(kw!(:foo/baz))
+                                             .value(var!(?y)))
                        })
                        .add_order(|order| order.add("?y"))
                        .execute();
@@ -437,7 +492,9 @@ mod test {
     fn test_find_with_desc_order() {
         let _ = query().add_find(|find| find.add("?x"))
                        .add_where(|w| {
-                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::Var("?y".to_string()))
+                           w.add_clause(|c| c.entity(var!(?x))
+                                             .attribute(kw!(:foo/bar))
+                                             .value(var!(?y)))
                        })
                        .add_order(|order| order.add_descending("?y"))
                        .execute();
@@ -449,7 +506,9 @@ mod test {
     fn test_find_with_multiple_orders() {
         let _ = query().add_find(|find| find.add("?x"))
                        .add_where(|w| {
-                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/baz".to_string()), QueryValueType::Var("?y".to_string()))
+                           w.add_clause(|c| c.entity(var!(?x))
+                                             .attribute(kw!(:foo/baz))
+                                             .value(var!(?y)))
                        })
                        .add_order(|order| order.add_descending("?y").add_ascending("?x"))
                        .execute();
@@ -461,8 +520,12 @@ mod test {
     fn test_find_with_predicate() {
         let _ = query().add_find(|find| find.set_type(FindType::Scalar).add("?x"))
                        .add_where(|w| {
-                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::Var("?y".to_string()))
-                               .add_clause(EntityType::Predicate("!=".to_string()), AttributeType::Var("?y".to_string()), QueryValueType::Long(12))
+                           w.add_clause(|c| c.entity(var!(?x))
+                                             .attribute(kw!(:foo/bar))
+                                             .value(var!(?y)))
+                            .add_clause(|c| c.entity("!=")
+                                             .attribute(var!(?y))
+                                             .value(QueryValueType::value(12)))
                        })
                        .execute();
         panic!("not complete");
