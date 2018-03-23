@@ -19,12 +19,6 @@ use mentat_query::{
     Variable,
 };
 
-use edn::{
-    DateTime,
-    Utc,
-    Uuid,
-};
-
 use errors::{
     Result,
 };
@@ -138,6 +132,22 @@ pub struct WhereBuilder {
 
 pub trait ClauseBuilder {}
 
+pub trait ClauseAggregator {
+    fn add<T>(self, clause: T) -> Self where T: 'static + ClauseBuilder;
+
+    fn clause<F>(self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder;
+
+    fn or<F>(self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder;
+
+    fn not<F>(self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder;
+
+    fn and<F>(self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder;
+}
+
+pub trait JoinClause {
+    fn join(self, var: Variable) -> Self;
+}
+
 #[derive(Default)]
 pub struct WhereClauseBuilder {
     entity: Option<EntityType>,
@@ -181,23 +191,37 @@ pub struct OrderBuilder {
 }
 
 impl QueryBuilder {
-    pub fn add_find<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(FindBuilder) -> FindBuilder {
+    pub fn find<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(FindBuilder) -> FindBuilder {
         self.find_builder = Some(builder_fn(FindBuilder::new()));
-        // self.find_builder = Some(builder);
         self
     }
 
-    pub fn add_where<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(WhereBuilder) -> WhereBuilder {
+    pub fn find_scalar<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(FindBuilder) -> FindBuilder {
+        self.find_builder = Some(builder_fn(FindBuilder::with_type(FindType::Scalar)));
+        self
+    }
+
+    pub fn find_coll<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(FindBuilder) -> FindBuilder {
+        self.find_builder = Some(builder_fn(FindBuilder::with_type(FindType::Coll)));
+        self
+    }
+
+    pub fn find_tuple<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(FindBuilder) -> FindBuilder {
+        self.find_builder = Some(builder_fn(FindBuilder::with_type(FindType::Tuple)));
+        self
+    }
+
+    pub fn wheres<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(WhereBuilder) -> WhereBuilder {
         self.where_builder = Some(builder_fn(WhereBuilder::default()));
         self
     }
 
-    pub fn add_order<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(OrderBuilder) -> OrderBuilder {
+    pub fn order_by<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(OrderBuilder) -> OrderBuilder {
         self.order_builder = Some(builder_fn(OrderBuilder::default()));
         self
     }
 
-    pub fn add_limit(mut self, limit: i32) -> Self {
+    pub fn limit(mut self, limit: i32) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -228,30 +252,35 @@ impl FindBuilder {
         self
     }
 
-    pub fn add<'a, T>(mut self, var: T) -> Self where T: Into<&'a str> {
-        self.vars.push(Variable::from_valid_name(var.into()));
+    pub fn var(mut self, var: Variable) -> Self {
+        self.vars.push(var);
         self
     }
 }
 
-impl WhereBuilder {
-    pub fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
+impl ClauseAggregator for WhereBuilder {
+    fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
         self.clauses.push(Box::new(clause));
         self
     }
 
-    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+    fn clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
         self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
-    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+    fn or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
         self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
         self
     }
 
-    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+    fn not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
         self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
+        self
+    }
+
+    fn and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+        self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
         self
     }
 }
@@ -273,109 +302,113 @@ impl WhereClauseBuilder {
     }
 }
 
-impl NotClauseBuilder {
-    pub fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
+impl JoinClause for NotClauseBuilder {
+    fn join(mut self, var: Variable) -> Self {
+        self.join = Some(var);
+        self
+    }
+}
+
+impl ClauseAggregator for NotClauseBuilder {
+    fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
         self.clauses.push(Box::new(clause));
         self
     }
 
-    pub fn join(mut self, var: &str) -> Self {
-        self.join = Some(Variable::from_valid_name(var));
-        self
-    }
-
-    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+    fn clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
         self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
-    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+    fn or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
         self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
         self
     }
 
-    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+    fn not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
         self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
         self
     }
 
-    pub fn add_and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+    fn and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
         self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
         self
     }
 }
 
-impl OrClauseBuilder {
-    pub fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
+impl JoinClause for OrClauseBuilder {
+    fn join(mut self, var: Variable) -> Self {
+        self.join = Some(var);
+        self
+    }
+}
+
+impl ClauseAggregator for OrClauseBuilder {
+    fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
         self.clauses.push(Box::new(clause));
         self
     }
 
-    pub fn join(mut self, var: &str) -> Self {
-        self.join = Some(Variable::from_valid_name(var));
-        self
-    }
-
-    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+    fn clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
         self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
-    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+    fn or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
         self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
         self
     }
 
-    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+    fn not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
         self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
         self
     }
 
-    pub fn add_and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+    fn and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
         self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
         self
     }
 }
 
-impl AndClauseBuilder {
-    pub fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
+impl ClauseAggregator for AndClauseBuilder {
+    fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
         self.clauses.push(Box::new(clause));
         self
     }
 
-    pub fn add_clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
+    fn clause<F>(mut self, clause_fn: F) -> Self where F: 'static + FnOnce(WhereClauseBuilder) -> WhereClauseBuilder {
         self.clauses.push(Box::new(clause_fn(WhereClauseBuilder::default())));
         self
     }
 
-    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+    fn or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
         self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
         self
     }
 
-    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+    fn not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
         self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
         self
     }
 
-    pub fn add_and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+    fn and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
         self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
         self
     }
 }
 
 impl OrderBuilder {
-    pub fn add<'a, T>(self, var: T) -> Self where T: Into<&'a str> {
-        self.add_ascending(var)
+    pub fn add(self, var: Variable) -> Self {
+        self.ascending(var)
     }
 
-    pub fn add_ascending<'a, T>(mut self, var: T) -> Self where T: Into<&'a str> {
-        self.orders.push((Variable::from_valid_name(var.into()), QueryOrder::Ascending));
+    pub fn ascending(mut self, var: Variable) -> Self {
+        self.orders.push((var, QueryOrder::Ascending));
         self
     }
 
-    pub fn add_descending<'a, T>(mut self, var: T) -> Self where T: Into<&'a str> {
-        self.orders.push((Variable::from_valid_name(var.into()), QueryOrder::Descending));
+    pub fn descending(mut self, var: Variable) -> Self {
+        self.orders.push((var, QueryOrder::Descending));
         self
     }
 }
@@ -394,9 +427,9 @@ mod test {
     #[test]
     // [:find ?x :where [?x :foo/bar "yyy"]]
     fn test_find_rel() {
-        let _ = query().add_find(|find| find.add("?x"))
-                              .add_where(|w| {
-                                    w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.var(var!(?x)))
+                              .wheres(|w| {
+                                    w.clause(|c| c.entity(var!(?x))
                                                       .attribute(kw!(:foo/bar))
                                                       .value(QueryValueType::value("yyy")))
                               }).execute();
@@ -406,9 +439,9 @@ mod test {
     #[test]
     // [:find ?x :where [?x _ "yyy"]]
     fn test_find_no_attribute() {
-        let _ = query().add_find(|find| find.add("?x"))
-                              .add_where(|w| {
-                                    w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.var(var!(?x)))
+                              .wheres(|w| {
+                                    w.clause(|c| c.entity(var!(?x))
                                                       .value(QueryValueType::value("yyy")))
                               }).execute();
         panic!("not complete");
@@ -417,9 +450,9 @@ mod test {
     #[test]
     // [:find ?x . :where [?x :foo/bar "yyy"]]
     fn test_find_scalar() {
-        let _ = query().add_find(|find| find.set_type(FindType::Scalar).add("?x"))
-                              .add_where(|w| {
-                                    w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find_scalar(|find| find.var(var!(?x)))
+                              .wheres(|w| {
+                                    w.clause(|c| c.entity(var!(?x))
                                                       .attribute(kw!(:foo/bar))
                                                       .value(QueryValueType::value("yyy")))
                               }).execute();
@@ -436,21 +469,21 @@ mod test {
     // [?page :page/description ?description]]
     #[test]
     fn test_find_or_join() {
-        let _ = query().add_find(|find| find.add("?url").add("?description"))
-                       .add_where(|w| {
-                           w.add_or(|or| {
-                               or.join("?page")
-                                 .add_clause(|c| c.entity(var!(?page))
+        let _ = query().find(|find| find.var(var!(?url)).var(var!(?description)))
+                       .wheres(|w| {
+                           w.or(|or| {
+                               or.join(var!(?page))
+                                 .clause(|c| c.entity(var!(?page))
                                                   .attribute(kw!(:page/url))
                                                   .value(QueryValueType::value("http://foo.com/")))
-                                 .add_clause(|c| c.entity(var!(?page))
+                                 .clause(|c| c.entity(var!(?page))
                                                   .attribute(kw!(:page/title))
                                                   .value(QueryValueType::value("Foo")))
                             })
-                            .add_clause(|c| c.entity(var!(?page))
+                            .clause(|c| c.entity(var!(?page))
                                              .attribute(kw!(:page/url))
                                              .value(var!(?url)))
-                            .add_clause(|c| c.entity(var!(?page))
+                            .clause(|c| c.entity(var!(?page))
                                              .attribute(kw!(:page/description))
                                              .value(var!(?description)))
                        })
@@ -462,13 +495,13 @@ mod test {
     // [:find ?x :where [?x :foo/baz ?y] :limit 1000]
     #[test]
     fn test_find_with_limit() {
-        let _ = query().add_find(|find| find.add("?x"))
-                       .add_where(|w| {
-                           w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.var(var!(?x)))
+                       .wheres(|w| {
+                           w.clause(|c| c.entity(var!(?x))
                                              .attribute(kw!(:foo/baz))
                                              .value(var!(?y)))
                        })
-                       .add_limit(1000)
+                       .limit(1000)
                        .execute();
         panic!("not complete");
     }
@@ -476,13 +509,13 @@ mod test {
     // [:find ?x :where [?x :foo/baz ?y] :order ?y]
     #[test]
     fn test_find_with_default_order() {
-        let _ = query().add_find(|find| find.add("?x"))
-                       .add_where(|w| {
-                           w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.var(var!(?x)))
+                       .wheres(|w| {
+                           w.clause(|c| c.entity(var!(?x))
                                              .attribute(kw!(:foo/baz))
                                              .value(var!(?y)))
                        })
-                       .add_order(|order| order.add("?y"))
+                       .order_by(|order| order.add(var!(?y)))
                        .execute();
         panic!("not complete");
     }
@@ -490,13 +523,13 @@ mod test {
     // [:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]
     #[test]
     fn test_find_with_desc_order() {
-        let _ = query().add_find(|find| find.add("?x"))
-                       .add_where(|w| {
-                           w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.var(var!(?x)))
+                       .wheres(|w| {
+                           w.clause(|c| c.entity(var!(?x))
                                              .attribute(kw!(:foo/bar))
                                              .value(var!(?y)))
                        })
-                       .add_order(|order| order.add_descending("?y"))
+                       .order_by(|order| order.descending(var!(?y)))
                        .execute();
         panic!("not complete");
     }
@@ -504,13 +537,13 @@ mod test {
     // [:find ?x :where [?x :foo/baz ?y] :order (desc ?y) (asc ?x)]
     #[test]
     fn test_find_with_multiple_orders() {
-        let _ = query().add_find(|find| find.add("?x"))
-                       .add_where(|w| {
-                           w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.var(var!(?x)))
+                       .wheres(|w| {
+                           w.clause(|c| c.entity(var!(?x))
                                              .attribute(kw!(:foo/baz))
                                              .value(var!(?y)))
                        })
-                       .add_order(|order| order.add_descending("?y").add_ascending("?x"))
+                       .order_by(|order| order.descending(var!(?y)).ascending(var!(?x)))
                        .execute();
         panic!("not complete");
     }
@@ -518,12 +551,12 @@ mod test {
     // [:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]
     #[test]
     fn test_find_with_predicate() {
-        let _ = query().add_find(|find| find.set_type(FindType::Scalar).add("?x"))
-                       .add_where(|w| {
-                           w.add_clause(|c| c.entity(var!(?x))
+        let _ = query().find(|find| find.set_type(FindType::Scalar).var(var!(?x)))
+                       .wheres(|w| {
+                           w.clause(|c| c.entity(var!(?x))
                                              .attribute(kw!(:foo/bar))
                                              .value(var!(?y)))
-                            .add_clause(|c| c.entity("!=")
+                            .clause(|c| c.entity("!=")
                                              .attribute(var!(?y))
                                              .value(QueryValueType::value(12)))
                        })
