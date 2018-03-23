@@ -104,7 +104,6 @@ pub struct AndClauseBuilder {
 
 impl ClauseBuilder for AndClauseBuilder {}
 
-
 enum QueryOrder {
     Ascending,
     Descending,
@@ -116,18 +115,19 @@ pub struct OrderBuilder {
 }
 
 impl QueryBuilder {
-    pub fn add_find(mut self, builder: FindBuilder) -> Self {
-        self.find_builder = Some(builder);
+    pub fn add_find<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(FindBuilder) -> FindBuilder {
+        self.find_builder = Some(builder_fn(FindBuilder::new()));
+        // self.find_builder = Some(builder);
         self
     }
 
-    pub fn add_where(mut self, builder: WhereBuilder) -> Self {
-        self.where_builder = Some(builder);
+    pub fn add_where<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(WhereBuilder) -> WhereBuilder {
+        self.where_builder = Some(builder_fn(WhereBuilder::default()));
         self
     }
 
-    pub fn add_order(mut self, builder: OrderBuilder) -> Self {
-        self.order_builder = Some(builder);
+    pub fn add_order<F>(mut self, builder_fn: F) -> Self where F: 'static + FnOnce(OrderBuilder) -> OrderBuilder {
+        self.order_builder = Some(builder_fn(OrderBuilder::default()));
         self
     }
 
@@ -157,7 +157,7 @@ impl FindBuilder {
         }
     }
 
-    pub fn add_type(mut self, find_type: FindType) -> Self {
+    pub fn set_type(mut self, find_type: FindType) -> Self {
         self.find_type = find_type;
         self
     }
@@ -171,6 +171,28 @@ impl FindBuilder {
 impl WhereBuilder {
     pub fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
         self.clauses.push(Box::new(clause));
+        self
+    }
+
+    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
+    where E: Into<Option<EntityType>>,
+          A: Into<Option<AttributeType>>,
+          V: Into<Option<QueryValueType>> {
+        self.clauses.push(Box::new( WhereClauseBuilder{
+            entity: entity.into(),
+            attribute: attribute.into(),
+            value: value.into(),
+        }));
+        self
+    }
+
+    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+        self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+        self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
         self
     }
 }
@@ -202,6 +224,33 @@ impl NotClauseBuilder {
         self.join = Some(Variable::from_valid_name(var));
         self
     }
+
+    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
+    where E: Into<Option<EntityType>>,
+          A: Into<Option<AttributeType>>,
+          V: Into<Option<QueryValueType>> {
+        self.clauses.push(Box::new( WhereClauseBuilder{
+            entity: entity.into(),
+            attribute: attribute.into(),
+            value: value.into(),
+        }));
+        self
+    }
+
+    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+        self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+        self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+        self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
+        self
+    }
 }
 
 impl OrClauseBuilder {
@@ -214,11 +263,65 @@ impl OrClauseBuilder {
         self.join = Some(Variable::from_valid_name(var));
         self
     }
+
+    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
+    where E: Into<Option<EntityType>>,
+          A: Into<Option<AttributeType>>,
+          V: Into<Option<QueryValueType>> {
+        self.clauses.push(Box::new( WhereClauseBuilder{
+            entity: entity.into(),
+            attribute: attribute.into(),
+            value: value.into(),
+        }));
+        self
+    }
+
+    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+        self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+        self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+        self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
+        self
+    }
 }
 
 impl AndClauseBuilder {
     pub fn add<T>(mut self, clause: T) -> Self where T: 'static + ClauseBuilder {
         self.clauses.push(Box::new(clause));
+        self
+    }
+
+    pub fn add_clause<E, A, V>(mut self, entity: E, attribute: A, value: V) -> Self
+    where E: Into<Option<EntityType>>,
+          A: Into<Option<AttributeType>>,
+          V: Into<Option<QueryValueType>> {
+        self.clauses.push(Box::new( WhereClauseBuilder{
+            entity: entity.into(),
+            attribute: attribute.into(),
+            value: value.into(),
+        }));
+        self
+    }
+
+    pub fn add_or<F>(mut self, or_fn: F) -> Self where F: 'static + FnOnce(OrClauseBuilder) -> OrClauseBuilder {
+        self.clauses.push(Box::new(or_fn(OrClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_not<F>(mut self, not_fn: F) -> Self where F: 'static + FnOnce(NotClauseBuilder) -> NotClauseBuilder {
+        self.clauses.push(Box::new(not_fn(NotClauseBuilder::default())));
+        self
+    }
+
+    pub fn add_and<F>(mut self, and_fn: F) -> Self where F: 'static + FnOnce(AndClauseBuilder) -> AndClauseBuilder {
+        self.clauses.push(Box::new(and_fn(AndClauseBuilder::default())));
         self
     }
 }
@@ -250,25 +353,33 @@ mod test {
 
     use query_builder::*;
 
+    #[test]
     // [:find ?x :where [?x :foo/bar "yyy"]]
     fn test_find_rel() {
-        let find = FindBuilder::new().add("?x");
-        let clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/bar".to_string()))
-                                                  .add_value(QueryValueType::String("yyy".to_string()));
-        let where_clause = WhereBuilder::default().add(clause);
-        let response = query().add_find(find).add_where(where_clause).execute();
+        let _ = query().add_find(|find| find.add("?x"))
+                              .add_where(|w| {
+                                    w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::String("yyy".to_string()))
+                              }).execute();
         panic!("not complete");
     }
 
+    #[test]
+    // [:find ?x :where [?x _ "yyy"]]
+    fn test_find_no_attribute() {
+        let _ = query().add_find(|find| find.add("?x"))
+                              .add_where(|w| {
+                                    w.add_clause(EntityType::Var("?x".to_string()), None, QueryValueType::String("yyy".to_string()))
+                              }).execute();
+        panic!("not complete");
+    }
+
+    #[test]
     // [:find ?x . :where [?x :foo/bar "yyy"]]
     fn test_find_scalar() {
-        let find = FindBuilder::with_type(FindType::Scalar).add("?x");
-        let clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/bar".to_string()))
-                                                  .add_value(QueryValueType::String("yyy".to_string()));
-        let where_clause = WhereBuilder::default().add(clause);
-        let response = query().add_find(find).add_where(where_clause).execute();
+        let _ = query().add_find(|find| find.set_type(FindType::Scalar).add("?x"))
+                              .add_where(|w| {
+                                    w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::String("yyy".to_string()))
+                              }).execute();
         panic!("not complete");
     }
 
@@ -280,97 +391,92 @@ mod test {
     //     [?page :page/title "Foo"])
     // [?page :page/url ?url]
     // [?page :page/description ?description]]
+    #[test]
     fn test_find_or_join() {
-        let find = FindBuilder::with_type(FindType::Scalar).add("?url")
-                                                           .add("?description");
-
-        let or_url_clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?page".to_string()))
-                                                         .add_attribute(AttributeType::Keyword(":page/url".to_string()))
-                                                         .add_value(QueryValueType::String("http://foo.com/".to_string()));
-        let or_title_clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?page".to_string()))
-                                                           .add_attribute(AttributeType::Keyword(":page/title".to_string()))
-                                                           .add_value(QueryValueType::String("Foo".to_string()));
-        let or_clause = OrClauseBuilder::default().join("?page")
-                                                  .add(or_url_clause)
-                                                  .add(or_title_clause);
-
-        let url_clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?page".to_string()))
-                                                      .add_attribute(AttributeType::Keyword(":page/url".to_string()))
-                                                      .add_value(QueryValueType::Var("?url".to_string()));
-        let description_clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?page".to_string()))
-                                                              .add_attribute(AttributeType::Keyword(":page/description".to_string()))
-                                                              .add_value(QueryValueType::Var("?description".to_string()));
-
-        let where_clause = WhereBuilder::default().add(or_clause)
-                                                  .add(url_clause)
-                                                  .add(description_clause);
-
-        let response = query().add_find(find)
-                              .add_where(where_clause).execute();
+        let _ = query().add_find(|find| find.add("?url").add("?description"))
+                       .add_where(|w| {
+                           w.add_or(|or| {
+                               or.join("?page")
+                                   .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/url".to_string()), QueryValueType::String("http://foo.com/".to_string()))
+                                   .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/title".to_string()), QueryValueType::String("Foo".to_string()))
+                            })
+                            .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/url".to_string()), QueryValueType::Var("?url".to_string()))
+                            .add_clause(EntityType::Var("?page".to_string()), AttributeType::Keyword(":page/description".to_string()), QueryValueType::Var("?description".to_string()))
+                       })
+                       .execute();
         panic!("not complete");
     }
 
 
-    /// [:find ?x :where [?x :foo/baz ?y] :limit 1000]
+    // [:find ?x :where [?x :foo/baz ?y] :limit 1000]
+    #[test]
     fn test_find_with_limit() {
-        let find = FindBuilder::new().add("?x");
-        let clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/baz".to_string()))
-                                                  .add_value(QueryValueType::Var("?y".to_string()));
-        let where_clause = WhereBuilder::default().add(clause);
-        let response = query().add_find(find).add_where(where_clause).add_limit(1000).execute();
+        let _ = query().add_find(|find| find.add("?x"))
+                       .add_where(|w| {
+                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/baz".to_string()), QueryValueType::Var("?y".to_string()))
+                       })
+                       .add_limit(1000)
+                       .execute();
+        panic!("not complete");
     }
 
-    /// [:find ?x :where [?x :foo/baz ?y] :order ?y]
+    // [:find ?x :where [?x :foo/baz ?y] :order ?y]
+    #[test]
     fn test_find_with_default_order() {
-        let find = FindBuilder::new().add("?x");
-        let clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/baz".to_string()))
-                                                  .add_value(QueryValueType::Var("?y".to_string()));
-        let where_clause = WhereBuilder::default().add(clause);
-        let order_clause = OrderBuilder::default().add("?y");
-        let response = query().add_find(find).add_where(where_clause).add_order(order_clause).execute();
+        let _ = query().add_find(|find| find.add("?x"))
+                       .add_where(|w| {
+                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/baz".to_string()), QueryValueType::Var("?y".to_string()))
+                       })
+                       .add_order(|order| order.add("?y"))
+                       .execute();
+        panic!("not complete");
     }
 
-    /// [:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]
+    // [:find ?x :where [?x :foo/bar ?y] :order (desc ?y)]
+    #[test]
     fn test_find_with_desc_order() {
-        let find = FindBuilder::new().add("?x");
-        let clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/bar".to_string()))
-                                                  .add_value(QueryValueType::Var("?y".to_string()));
-        let where_clause = WhereBuilder::default().add(clause);
-        let order_clause = OrderBuilder::default().add_descending("?y");
-        let response = query().add_find(find).add_where(where_clause).add_order(order_clause).execute();
+        let _ = query().add_find(|find| find.add("?x"))
+                       .add_where(|w| {
+                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::Var("?y".to_string()))
+                       })
+                       .add_order(|order| order.add_descending("?y"))
+                       .execute();
+        panic!("not complete");
     }
 
-    /// [:find ?x :where [?x :foo/baz ?y] :order (desc ?y) (asc ?x)]
+    // [:find ?x :where [?x :foo/baz ?y] :order (desc ?y) (asc ?x)]
+    #[test]
     fn test_find_with_multiple_orders() {
-        let find = FindBuilder::new().add("?x");
-        let clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/baz".to_string()))
-                                                  .add_value(QueryValueType::Var("?y".to_string()));
-        let where_clause = WhereBuilder::default().add(clause);
-        let order_clause = OrderBuilder::default().add_descending("?y")
-                                                  .add_ascending("?x");
-        let response = query().add_find(find).add_where(where_clause).add_order(order_clause).execute();
+        let _ = query().add_find(|find| find.add("?x"))
+                       .add_where(|w| {
+                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/baz".to_string()), QueryValueType::Var("?y".to_string()))
+                       })
+                       .add_order(|order| order.add_descending("?y").add_ascending("?x"))
+                       .execute();
+        panic!("not complete");
     }
 
-    /// [:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]
+    // [:find ?x . :where [?x :foo/bar ?y] [(!= ?y 12)]]
+    #[test]
     fn test_find_with_predicate() {
-        let find = FindBuilder::with_type(FindType::Scalar).add("?x");
-        let eav_clause = WhereClauseBuilder::default().add_entity(EntityType::Var("?x".to_string()))
-                                                  .add_attribute(AttributeType::Keyword(":foo/bar".to_string()))
-                                                  .add_value(QueryValueType::Var("?y".to_string()));
-        let predicate_clause = WhereClauseBuilder::default().add_entity(EntityType::Predicate("!=".to_string()))
-                                                  .add_attribute(AttributeType::Var("?y".to_string()))
-                                                  .add_value(QueryValueType::Long(12));
-        let where_clause = WhereBuilder::default().add(eav_clause)
-                                                  .add(predicate_clause);
-        let response = query().add_find(find).add_where(where_clause).execute();
+        let _ = query().add_find(|find| find.set_type(FindType::Scalar).add("?x"))
+                       .add_where(|w| {
+                           w.add_clause(EntityType::Var("?x".to_string()), AttributeType::Keyword(":foo/bar".to_string()), QueryValueType::Var("?y".to_string()))
+                               .add_clause(EntityType::Predicate("!=".to_string()), AttributeType::Var("?y".to_string()), QueryValueType::Long(12))
+                       })
+                       .execute();
+        panic!("not complete");
     }
 
-    /// figure out ground!
+    // figure out ground!
+    #[test]
     fn test_find_with_ground() {
+        panic!("not complete");
+    }
 
+    // figure out fulltext!
+    #[test]
+    fn test_find_with_fulltext() {
+        panic!("not complete");
     }
 }
