@@ -13,6 +13,8 @@
 #[macro_use]
 extern crate error_chain;
 
+extern crate indexmap;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -97,6 +99,7 @@ pub mod vocabulary;
 pub mod conn;
 pub mod query;
 pub mod entity_builder;
+pub mod query_builder;
 
 pub use query::{
     IntoResult,
