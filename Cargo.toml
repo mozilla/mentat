@@ -28,6 +28,7 @@ rustc_version = "0.2"
 [dependencies]
 chrono = "0.4"
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
+indexmap = "0.4"
 lazy_static = "0.2"
 time = "0.1"
 uuid = "0.5"
