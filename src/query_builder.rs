@@ -60,6 +60,12 @@ impl<'a> QueryBuilder<'a> {
         self
     }
 
+    pub fn bind_ref_from_kw(mut self, var: &str, value: NamespacedKeyword) -> Result<Self> {
+        let entid = self.store.conn().current_schema().get_entid(&value).ok_or(ErrorKind::UnknownAttribute(value.to_string()))?;
+        self.values.insert(Variable::from_valid_name(var), TypedValue::Ref(entid.into()));
+        Ok(self)
+    }
+
     pub fn bind_ref<T>(mut self, var: &str, value: T) -> Self where T: Into<Entid> {
        self.values.insert(Variable::from_valid_name(var), TypedValue::Ref(value.into()));
        self
