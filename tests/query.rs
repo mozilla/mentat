@@ -584,7 +584,7 @@ fn test_aggregates_type_handling() {
             Error(
                 ErrorKind::TranslatorError(
                     ::mentat_query_translator::ErrorKind::ProjectorError(
-                        ::mentat_query_projector::ErrorKind::CannotApplyAggregateOperationToTypes(
+                        ::mentat_query_projector::errors::ErrorKind::CannotApplyAggregateOperationToTypes(
                             SimpleAggregationOp::Sum,
                             types
                         ),
@@ -605,7 +605,7 @@ fn test_aggregates_type_handling() {
             Error(
                 ErrorKind::TranslatorError(
                     ::mentat_query_translator::ErrorKind::ProjectorError(
-                        ::mentat_query_projector::ErrorKind::CannotApplyAggregateOperationToTypes(
+                        ::mentat_query_projector::errors::ErrorKind::CannotApplyAggregateOperationToTypes(
                             SimpleAggregationOp::Sum,
                             types
                         ),
@@ -1173,7 +1173,7 @@ fn test_aggregation_implicit_grouping() {
             Error(
                 ErrorKind::TranslatorError(
                     ::mentat_query_translator::ErrorKind::ProjectorError(
-                        ::mentat_query_projector::ErrorKind::AmbiguousAggregates(mmc, cc)
+                        ::mentat_query_projector::errors::ErrorKind::AmbiguousAggregates(mmc, cc)
                     )
             ), _)) => {
             assert_eq!(mmc, 2);
