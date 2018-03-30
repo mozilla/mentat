@@ -112,7 +112,7 @@ fn test_reader() {
     ]"#).expect("successful transaction").tempids;
     let numba_entity_id = ids.get("s").unwrap();
 
-    let mut bootstrap_tx = None;
+    let bootstrap_tx;
     {
         let db_tx = c.transaction().expect("db tx");
         // Expect to see one more transaction of four parts (one for tx datom itself).
