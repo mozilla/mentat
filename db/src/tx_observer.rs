@@ -200,7 +200,10 @@ impl CommandExecutor {
         loop {
             match self.receiver.recv() {
                 Err(RecvError) => {
-                    eprintln!("Disconnected, terminating CommandExecutor");
+                    // "The recv operation can only fail if the sending half of a channel (or
+                    // sync_channel) is disconnected, implying that no further messages will ever be
+                    // received."
+                    // No need to log here.
                     return
                 },
 
