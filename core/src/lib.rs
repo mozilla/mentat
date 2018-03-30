@@ -700,6 +700,9 @@ pub struct Attribute {
     /// They are used to compose entities from component sub-entities: they are fetched recursively
     /// by pull expressions, and they are automatically recursively deleted where appropriate.
     pub component: bool,
+
+    /// `true` if this attribute doesn't require history to be kept, i.e., it is `:db/noHistory true`.
+    pub no_history: bool,
 }
 
 impl Attribute {
@@ -750,6 +753,10 @@ impl Attribute {
             attribute_map.insert(values::DB_IS_COMPONENT.clone(), edn::Value::Boolean(true));
         }
 
+        if self.no_history {
+            attribute_map.insert(values::DB_NO_HISTORY.clone(), edn::Value::Boolean(true));
+        }
+
         edn::Value::Map(attribute_map)
     }
 }
@@ -764,6 +771,7 @@ impl Default for Attribute {
             multival: false,
             unique: None,
             component: false,
+            no_history: false,
         }
     }
 }
@@ -894,6 +902,7 @@ mod test {
             unique: None,
             multival: false,
             component: false,
+            no_history: false,
         };
 
         assert!(attr1.flags() & AttributeBitFlags::IndexAVET as u8 != 0);
@@ -908,6 +917,7 @@ mod test {
             unique: Some(attribute::Unique::Value),
             multival: false,
             component: false,
+            no_history: false,
         };
 
         assert!(attr2.flags() & AttributeBitFlags::IndexAVET as u8 == 0);
@@ -922,6 +932,7 @@ mod test {
             unique: Some(attribute::Unique::Identity),
             multival: false,
             component: false,
+            no_history: false,
         };
 
         assert!(attr3.flags() & AttributeBitFlags::IndexAVET as u8 == 0);
@@ -954,6 +965,7 @@ mod test {
             unique: None,
             multival: false,
             component: false,
+            no_history: true,
         };
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 97);
         add_attribute(&mut schema, 97, attr1);
@@ -965,6 +977,7 @@ mod test {
             unique: Some(attribute::Unique::Value),
             multival: true,
             component: false,
+            no_history: false,
         };
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bas"), 98);
         add_attribute(&mut schema, 98, attr2);
@@ -976,6 +989,7 @@ mod test {
             unique: Some(attribute::Unique::Identity),
             multival: false,
             component: true,
+            no_history: false,
         };
 
         associate_ident(&mut schema, NamespacedKeyword::new("foo", "bat"), 99);
@@ -986,7 +1000,8 @@ mod test {
         let expected_output = r#"[ {   :db/ident     :foo/bar
     :db/valueType :db.type/ref
     :db/cardinality :db.cardinality/one
-    :db/index true },
+    :db/index true
+    :db/noHistory true },
 {   :db/ident     :foo/bas
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/many
