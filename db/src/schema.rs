@@ -226,12 +226,7 @@ impl SchemaBuilding for Schema {
         let entid_map: EntidMap = ident_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
 
         validate_attribute_map(&entid_map, &attribute_map)?;
-
-        Ok(Schema {
-            ident_map: ident_map,
-            entid_map: entid_map,
-            attribute_map: attribute_map,
-        })
+        Ok(Schema::new(ident_map, entid_map, attribute_map))
     }
 
     /// Turn vec![(NamespacedKeyword(:ident), NamespacedKeyword(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
@@ -243,8 +238,14 @@ impl SchemaBuilding for Schema {
             let attr: i64 = *ident_map.get(&symbolic_attr).ok_or(ErrorKind::UnrecognizedIdent(symbolic_attr.to_string()))?;
             Ok((ident, attr, value))
         }).collect();
+
         let mut schema = Schema::from_ident_map_and_attribute_map(ident_map, AttributeMap::default())?;
-        metadata::update_attribute_map_from_entid_triples(&mut schema.attribute_map, entid_assertions?)?;
+        let metadata_report = metadata::update_attribute_map_from_entid_triples(&mut schema.attribute_map, entid_assertions?)?;
+
+        // Rebuild the component attributes list if necessary.
+        if metadata_report.attributes_did_change() {
+            schema.update_component_attributes();
+        }
         Ok(schema)
     }
 }
@@ -311,6 +312,10 @@ mod test {
 
         schema.entid_map.insert(entid, ident.clone());
         schema.ident_map.insert(ident.clone(), entid);
+
+        if attribute.component {
+            schema.component_attributes.push(entid);
+        }
 
         schema.attribute_map.insert(entid, attribute);
     }

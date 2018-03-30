@@ -801,6 +801,10 @@ pub struct Schema {
     /// Invariant: key-set is the same as the key-set of `entid_map` (equivalently, the value-set of
     /// `ident_map`).
     pub attribute_map: AttributeMap,
+
+    /// Maintain a vec of unique attribute IDs for which the corresponding attribute in `attribute_map`
+    /// has `.component == true`.
+    pub component_attributes: Vec<Entid>,
 }
 
 pub trait HasSchema {
@@ -818,9 +822,17 @@ pub trait HasSchema {
 
     /// Return true if the provided ident identifies an attribute in this schema.
     fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool;
+
+    fn component_attributes(&self) -> &[Entid];
 }
 
 impl Schema {
+    pub fn new(ident_map: IdentMap, entid_map: EntidMap, attribute_map: AttributeMap) -> Schema {
+        let mut s = Schema { ident_map, entid_map, attribute_map, component_attributes: Vec::new() };
+        s.update_component_attributes();
+        s
+    }
+
     /// Returns an symbolic representation of the schema suitable for applying across Mentat stores.
     pub fn to_edn_value(&self) -> edn::Value {
         edn::Value::Vector((&self.attribute_map).iter()
@@ -831,6 +843,16 @@ impl Schema {
 
     fn get_raw_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
         self.ident_map.get(x).map(|x| *x)
+    }
+
+    pub fn update_component_attributes(&mut self) {
+        let mut components: Vec<Entid>;
+        components = self.attribute_map
+                         .iter()
+                         .filter_map(|(k, v)| if v.component { Some(*k) } else { None })
+                         .collect();
+        components.sort_unstable();
+        self.component_attributes = components;
     }
 }
 
@@ -867,6 +889,10 @@ impl HasSchema for Schema {
     /// Return true if the provided ident identifies an attribute in this schema.
     fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.get_raw_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
+    }
+
+    fn component_attributes(&self) -> &[Entid] {
+        &self.component_attributes
     }
 }
 
