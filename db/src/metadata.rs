@@ -91,6 +91,13 @@ pub struct MetadataReport {
     pub idents_altered: BTreeMap<Entid, IdentAlteration>,
 }
 
+impl MetadataReport {
+    pub fn attributes_did_change(&self) -> bool {
+        !(self.attributes_installed.is_empty() &&
+          self.attributes_altered.is_empty())
+    }
+}
+
 /// Update a `AttributeMap` in place from the given `[e a typed_value]` triples.
 ///
 /// This is suitable for producing a `AttributeMap` from the `schema` materialized view, which does not
@@ -282,6 +289,10 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
         schema.entid_map.remove(&entid);
         schema.ident_map.remove(&ident);
         idents_altered.insert(entid, IdentAlteration::Ident(ident.clone()));
+    }
+
+    if report.attributes_did_change() {
+        schema.update_component_attributes();
     }
 
     Ok(MetadataReport {
