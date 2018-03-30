@@ -132,6 +132,11 @@ impl TxObservationService {
     }
 
     pub fn in_progress_did_commit(&mut self, txes: IndexMap<Entid, AttributeSet>) {
+        // Don't spawn a thread only to say nothing.
+        if !self.has_observers() {
+            return;
+        }
+
         let executor = self.executor.get_or_insert_with(|| {
             let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
             let mut worker = CommandExecutor::new(rx);
