@@ -171,6 +171,13 @@ pub fn update_attribute_map_from_entid_triples<U>(attribute_map: &mut AttributeM
                 }
             },
 
+            entids::DB_NO_HISTORY => {
+                match *value {
+                    TypedValue::Boolean(x) => { builder.no_history(x); },
+                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/noHistory true|false] but got [... :db/noHistory {:?}]", value)))
+                }
+            },
+
             _ => {
                 bail!(ErrorKind::BadSchemaAssertion(format!("Do not recognize attribute {} for entid {}", attr, entid)))
             }
