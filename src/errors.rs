@@ -47,7 +47,7 @@ error_chain! {
         DbError(mentat_db::Error, mentat_db::ErrorKind);
         QueryError(mentat_query_algebrizer::Error, mentat_query_algebrizer::ErrorKind);   // Let's not leak the term 'algebrizer'.
         QueryParseError(mentat_query_parser::Error, mentat_query_parser::ErrorKind);
-        ProjectorError(mentat_query_projector::Error, mentat_query_projector::ErrorKind);
+        ProjectorError(mentat_query_projector::errors::Error, mentat_query_projector::errors::ErrorKind);
         TranslatorError(mentat_query_translator::Error, mentat_query_translator::ErrorKind);
         SqlError(mentat_sql::Error, mentat_sql::ErrorKind);
         TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
