@@ -66,6 +66,7 @@ use mentat_query_sql::{
 
 mod aggregates;
 mod project;
+mod pull;
 pub mod errors;
 
 pub use aggregates::{
