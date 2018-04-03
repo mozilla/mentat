@@ -1541,10 +1541,10 @@ mod tests {
     fn add_schema(conn: &mut Store) {
         // transact some schema
         let mut in_progress = conn.begin_transaction().expect("expected in progress");
-        in_progress.ensure_vocabulary(&Definition {
-            name: kw!(:todo/items),
-            version: 1,
-            attributes: vec![
+        in_progress.ensure_vocabulary(&Definition::new(
+            kw!(:todo/items),
+            1,
+            vec![
                 (kw!(:todo/uuid),
                 AttributeBuilder::helpful()
                     .value_type(ValueType::Uuid)
@@ -1577,7 +1577,7 @@ mod tests {
                     .multival(false)
                     .build()),
             ],
-        }).expect("expected vocubulary");
+        )).expect("expected vocubulary");
         in_progress.commit().expect("Expected vocabulary committed");
     }
 
