@@ -499,7 +499,7 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
 fn read_attribute_map(conn: &rusqlite::Connection) -> Result<AttributeMap> {
     let entid_triples = read_materialized_view(conn, "schema")?;
     let mut attribute_map = AttributeMap::default();
-    metadata::update_attribute_map_from_entid_triples(&mut attribute_map, entid_triples)?;
+    metadata::update_attribute_map_from_entid_triples(&mut attribute_map, entid_triples, ::std::iter::empty())?;
     Ok(attribute_map)
 }
 
@@ -1087,8 +1087,8 @@ SELECT EXISTS
                     // error message in this case.
                     if unique_value_stmt.execute(&[to_bool_ref(attribute.unique.is_some()), &entid as &ToSql]).is_err() {
                         match attribute.unique {
-                            Some(attribute::Unique::Value) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
-                            Some(attribute::Unique::Identity) => bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
+                            Some(attribute::Unique::Value) => bail!(ErrorKind::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
+                            Some(attribute::Unique::Identity) => bail!(ErrorKind::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
                             None => unreachable!(), // This shouldn't happen, even after we support removing :db/unique.
                         }
                     }
@@ -1102,7 +1102,7 @@ SELECT EXISTS
                     if !attribute.multival {
                         let mut rows = cardinality_stmt.query(&[&entid as &ToSql])?;
                         if rows.next().is_some() {
-                            bail!(ErrorKind::NotYetImplemented(format!("Cannot alter schema attribute {} to be :db.cardinality/one", entid)));
+                            bail!(ErrorKind::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.cardinality/one", entid)));
                         }
                     }
                 },
@@ -1154,6 +1154,7 @@ mod tests {
     use edn;
     use mentat_core::{
         HasSchema,
+        NamespacedKeyword,
         Schema,
         attribute,
     };
@@ -1637,7 +1638,7 @@ mod tests {
         // Cannot retract a characteristic of an installed attribute.
         assert_transact!(conn,
                          "[[:db/retract 100 :db/cardinality :db.cardinality/many]]",
-                         Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[100 8]]"));
+                         Err("bad schema assertion: Retracting attribute 8 for entity 100 not permitted."));
 
         // Trying to install an attribute without a :db/ident is allowed.
         assert_transact!(conn, "[[:db/add 101 :db/valueType :db.type/long]
@@ -1772,7 +1773,7 @@ mod tests {
         // We can't always go from :db.cardinality/many to :db.cardinality/one.
         assert_transact!(conn, "[[:db/add 100 :db/cardinality :db.cardinality/one]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.cardinality/one"));
+                         Err("schema alteration failed: Cannot alter schema attribute 100 to be :db.cardinality/one"));
     }
 
     #[test]
@@ -1790,12 +1791,12 @@ mod tests {
         // We can't always migrate to be :db.unique/value.
         assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/value]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.unique/value"));
+                         Err("schema alteration failed: Cannot alter schema attribute 100 to be :db.unique/value"));
 
         // Not even indirectly!
         assert_transact!(conn, "[[:db/add :test/ident :db/unique :db.unique/identity]]",
                          // TODO: give more helpful error details.
-                         Err("not yet implemented: Cannot alter schema attribute 100 to be :db.unique/identity"));
+                         Err("schema alteration failed: Cannot alter schema attribute 100 to be :db.unique/identity"));
 
         // But we can if we make sure there's no repeated [a v] pair.
         assert_transact!(conn, "[[:db/add 201 :test/ident 2]]");
@@ -1803,6 +1804,19 @@ mod tests {
         assert_transact!(conn, "[[:db/add :test/ident :db/index true]
                                  [:db/add :test/ident :db/unique :db.unique/value]
                                  [:db/add :db.part/db :db.alter/attribute 100]]");
+
+        // We can also retract the uniqueness constraint altogether.
+        assert_transact!(conn, "[[:db/retract :test/ident :db/unique :db.unique/value]]");
+
+        // Once we've done so, the schema shows it's not unique…
+        {
+            let attr = conn.schema.attribute_for_ident(&NamespacedKeyword::new("test", "ident")).unwrap().0;
+            assert_eq!(None, attr.unique);
+        }
+
+        // … and we can add more assertions with duplicate values.
+        assert_transact!(conn, "[[:db/add 121 :test/ident 1]
+                                 [:db/add 221 :test/ident 2]]");
     }
 
     /// Verify that we can't alter :db/fulltext schema characteristics at all.
@@ -1823,7 +1837,7 @@ mod tests {
 
         assert_transact!(conn,
                          "[[:db/retract 111 :db/fulltext true]]",
-                         Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[111 12]]"));
+                         Err("bad schema assertion: Retracting attribute 12 for entity 111 not permitted."));
 
         assert_transact!(conn,
                          "[[:db/add 222 :db/fulltext true]]",
