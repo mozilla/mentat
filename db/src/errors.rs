@@ -97,5 +97,10 @@ error_chain! {
             description("cannot reverse-cache non-unique attribute")
             display("cannot reverse-cache non-unique attribute: {}", attr)
         }
+
+        SchemaAlterationFailed(t: String) {
+            description("schema alteration failed")
+            display("schema alteration failed: {}", t)
+        }
     }
 }

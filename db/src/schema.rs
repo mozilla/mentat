@@ -73,13 +73,13 @@ fn validate_attribute_map(entid_map: &EntidMap, attribute_map: &AttributeMap) ->
 #[derive(Clone,Debug,Default,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct AttributeBuilder {
     helpful: bool,
-    value_type: Option<ValueType>,
-    multival: Option<bool>,
-    unique: Option<Option<attribute::Unique>>,
-    index: Option<bool>,
-    fulltext: Option<bool>,
-    component: Option<bool>,
-    no_history: Option<bool>,
+    pub value_type: Option<ValueType>,
+    pub multival: Option<bool>,
+    pub unique: Option<Option<attribute::Unique>>,
+    pub index: Option<bool>,
+    pub fulltext: Option<bool>,
+    pub component: Option<bool>,
+    pub no_history: Option<bool>,
 }
 
 impl AttributeBuilder {
@@ -92,6 +92,16 @@ impl AttributeBuilder {
         }
     }
 
+    /// Make a new AttributeBuilder from an existing Attribute. This is important to allow
+    /// retraction. Only attributes that we allow to change are duplicated here.
+    pub fn to_modify_attribute(attribute: &Attribute) -> Self {
+        let mut ab = AttributeBuilder::default();
+        ab.multival   = Some(attribute.multival);
+        ab.unique     = Some(attribute.unique);
+        ab.component  = Some(attribute.component);
+        ab
+    }
+
     pub fn value_type<'a>(&'a mut self, value_type: ValueType) -> &'a mut Self {
         self.value_type = Some(value_type);
         self
@@ -99,6 +109,11 @@ impl AttributeBuilder {
 
     pub fn multival<'a>(&'a mut self, multival: bool) -> &'a mut Self {
         self.multival = Some(multival);
+        self
+    }
+
+    pub fn non_unique<'a>(&'a mut self) -> &'a mut Self {
+        self.unique = Some(None);
         self
     }
 
@@ -185,12 +200,19 @@ impl AttributeBuilder {
                 mutations.push(AttributeAlteration::Cardinality);
             }
         }
+
         if let Some(ref unique) = self.unique {
             if *unique != attribute.unique {
                 attribute.unique = unique.clone();
                 mutations.push(AttributeAlteration::Unique);
             }
+        } else {
+            if attribute.unique != None {
+                attribute.unique = None;
+                mutations.push(AttributeAlteration::Unique);
+            }
         }
+
         if let Some(index) = self.index {
             if index != attribute.index {
                 attribute.index = index;
@@ -255,7 +277,10 @@ impl SchemaBuilding for Schema {
         }).collect();
 
         let mut schema = Schema::from_ident_map_and_attribute_map(ident_map, AttributeMap::default())?;
-        let metadata_report = metadata::update_attribute_map_from_entid_triples(&mut schema.attribute_map, entid_assertions?)?;
+        let metadata_report = metadata::update_attribute_map_from_entid_triples(&mut schema.attribute_map,
+                                                                                entid_assertions?,
+                                                                                // No retractions.
+                                                                                ::std::iter::empty())?;
 
         // Rebuild the component attributes list if necessary.
         if metadata_report.attributes_did_change() {
