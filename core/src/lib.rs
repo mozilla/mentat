@@ -1011,7 +1011,7 @@ mod test {
     :db/valueType :db.type/boolean
     :db/cardinality :db.cardinality/one
     :db/unique :db.unique/identity
-    :db/component true }, ]"#;
+    :db/isComponent true }, ]"#;
         let expected_value = edn::parse::value(&expected_output).expect("to be able to parse").without_spans();
         assert_eq!(expected_value, value);
 
