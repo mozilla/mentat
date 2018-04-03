@@ -499,7 +499,7 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
 fn read_attribute_map(conn: &rusqlite::Connection) -> Result<AttributeMap> {
     let entid_triples = read_materialized_view(conn, "schema")?;
     let mut attribute_map = AttributeMap::default();
-    metadata::update_attribute_map_from_entid_triples(&mut attribute_map, entid_triples)?;
+    metadata::update_attribute_map_from_entid_triples(&mut attribute_map, entid_triples, ::std::iter::empty())?;
     Ok(attribute_map)
 }
 
@@ -1637,7 +1637,7 @@ mod tests {
         // Cannot retract a characteristic of an installed attribute.
         assert_transact!(conn,
                          "[[:db/retract 100 :db/cardinality :db.cardinality/many]]",
-                         Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[100 8]]"));
+                         Err("bad schema assertion: Retracting 8 for 100 not permitted."));
 
         // Trying to install an attribute without a :db/ident is allowed.
         assert_transact!(conn, "[[:db/add 101 :db/valueType :db.type/long]
@@ -1823,7 +1823,7 @@ mod tests {
 
         assert_transact!(conn,
                          "[[:db/retract 111 :db/fulltext true]]",
-                         Err("not yet implemented: Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [[111 12]]"));
+                         Err("bad schema assertion: Retracting 12 for 111 not permitted."));
 
         assert_transact!(conn,
                          "[[:db/add 222 :db/fulltext true]]",
