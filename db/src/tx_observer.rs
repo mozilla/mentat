@@ -132,6 +132,11 @@ impl TxObservationService {
     }
 
     pub fn in_progress_did_commit(&mut self, txes: IndexMap<Entid, AttributeSet>) {
+        // Don't spawn a thread only to say nothing.
+        if !self.has_observers() {
+            return;
+        }
+
         let executor = self.executor.get_or_insert_with(|| {
             let (tx, rx): (Sender<Box<Command + Send>>, Receiver<Box<Command + Send>>) = channel();
             let mut worker = CommandExecutor::new(rx);
@@ -195,7 +200,10 @@ impl CommandExecutor {
         loop {
             match self.receiver.recv() {
                 Err(RecvError) => {
-                    eprintln!("Disconnected, terminating CommandExecutor");
+                    // "The recv operation can only fail if the sending half of a channel (or
+                    // sync_channel) is disconnected, implying that no further messages will ever be
+                    // received."
+                    // No need to log here.
                     return
                 },
 
