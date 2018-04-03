@@ -79,6 +79,7 @@ pub struct AttributeBuilder {
     index: Option<bool>,
     fulltext: Option<bool>,
     component: Option<bool>,
+    no_history: Option<bool>,
 }
 
 impl AttributeBuilder {
@@ -127,6 +128,11 @@ impl AttributeBuilder {
         self
     }
 
+    pub fn no_history<'a>(&'a mut self, no_history: bool) -> &'a mut Self {
+        self.no_history = Some(no_history);
+        self
+    }
+
     pub fn validate_install_attribute(&self) -> Result<()> {
         if self.value_type.is_none() {
             bail!(ErrorKind::BadSchemaAssertion("Schema attribute for new attribute does not set :db/valueType".into()));
@@ -164,6 +170,9 @@ impl AttributeBuilder {
         if let Some(component) = self.component {
             attribute.component = component;
         }
+        if let Some(no_history) = self.no_history {
+            attribute.no_history = no_history;
+        }
 
         attribute
     }
@@ -192,6 +201,12 @@ impl AttributeBuilder {
             if component != attribute.component {
                 attribute.component = component;
                 mutations.push(AttributeAlteration::IsComponent);
+            }
+        }
+        if let Some(no_history) = self.no_history {
+            if no_history != attribute.no_history {
+                attribute.no_history = no_history;
+                mutations.push(AttributeAlteration::NoHistory);
             }
         }
 
@@ -326,6 +341,7 @@ mod test {
             unique: None,
             multival: false,
             component: false,
+            no_history: false,
         });
         // attribute is unique by value and an index
         add_attribute(&mut schema, NamespacedKeyword::new("foo", "baz"), 98, Attribute {
@@ -335,6 +351,7 @@ mod test {
             unique: Some(attribute::Unique::Value),
             multival: false,
             component: false,
+            no_history: false,
         });
         // attribue is unique by identity and an index
         add_attribute(&mut schema, NamespacedKeyword::new("foo", "bat"), 99, Attribute {
@@ -344,6 +361,7 @@ mod test {
             unique: Some(attribute::Unique::Identity),
             multival: false,
             component: false,
+            no_history: false,
         });
         // attribute is a components and a `Ref`
         add_attribute(&mut schema, NamespacedKeyword::new("foo", "bak"), 100, Attribute {
@@ -353,6 +371,7 @@ mod test {
             unique: None,
             multival: false,
             component: true,
+            no_history: false,
         });
         // fulltext attribute is a string and an index
         add_attribute(&mut schema, NamespacedKeyword::new("foo", "bap"), 101, Attribute {
@@ -362,6 +381,7 @@ mod test {
             unique: None,
             multival: false,
             component: false,
+            no_history: false,
         });
 
         assert!(validate_attribute_map(&schema.entid_map, &schema.attribute_map).is_ok());
@@ -379,6 +399,7 @@ mod test {
             unique: Some(attribute::Unique::Value),
             multival: false,
             component: false,
+            no_history: false,
         });
 
         let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
@@ -401,6 +422,7 @@ mod test {
             unique: Some(attribute::Unique::Identity),
             multival: false,
             component: false,
+            no_history: false,
         });
 
         let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
@@ -423,6 +445,7 @@ mod test {
             unique: None,
             multival: false,
             component: true,
+            no_history: false,
         });
 
         let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
@@ -445,6 +468,7 @@ mod test {
             unique: None,
             multival: false,
             component: false,
+            no_history: false,
         });
 
         let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
@@ -466,6 +490,7 @@ mod test {
             unique: None,
             multival: false,
             component: false,
+            no_history: false,
         });
 
         let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
