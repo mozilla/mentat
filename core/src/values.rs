@@ -46,7 +46,7 @@ lazy_static_namespaced_keyword_value!(DB_FULLTEXT, "db", "fulltext");
 lazy_static_namespaced_keyword_value!(DB_IDENT, "db", "ident");
 lazy_static_namespaced_keyword_value!(DB_INDEX, "db", "index");
 lazy_static_namespaced_keyword_value!(DB_INSTALL_ATTRIBUTE, "db.install", "attribute");
-lazy_static_namespaced_keyword_value!(DB_IS_COMPONENT, "db", "component");
+lazy_static_namespaced_keyword_value!(DB_IS_COMPONENT, "db", "isComponent");
 lazy_static_namespaced_keyword_value!(DB_NO_HISTORY, "db", "noHistory");
 lazy_static_namespaced_keyword_value!(DB_PART_DB, "db.part", "db");
 lazy_static_namespaced_keyword_value!(DB_RETRACT, "db", "retract");
