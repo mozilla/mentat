@@ -66,7 +66,7 @@
 //!             version: 1,
 //!             attributes: vec![
 //!                 (kw!(:link/title),
-//!                  vocabulary::AttributeBuilder::new()
+//!                  vocabulary::AttributeBuilder::helpful()
 //!                    .value_type(ValueType::String)
 //!                    .multival(false)
 //!                    .fulltext(true)
@@ -207,10 +207,9 @@ lazy_static! {
         kw!(:db.cardinality/many)
     };
 
-    // Not yet supported.
-    // static ref DB_NO_HISTORY: NamespacedKeyword = {
-    //     NamespacedKeyword::new("db", "noHistory")
-    // };
+    static ref DB_NO_HISTORY: NamespacedKeyword = {
+        NamespacedKeyword::new("db", "noHistory")
+    };
 }
 
 trait HasCoreSchema {
@@ -260,8 +259,7 @@ impl Definition {
         let a_value_type = via.core_attribute(&DB_VALUE_TYPE)?;
         let a_unique = via.core_attribute(&DB_UNIQUE)?;
 
-        // Not yet supported.
-        // let a_no_history = via.core_attribute(&DB_NO_HISTORY)?;
+        let a_no_history = via.core_attribute(&DB_NO_HISTORY)?;
 
         let v_cardinality_many = via.core_entid(&DB_CARDINALITY_MANY)?;
         let v_cardinality_one = via.core_entid(&DB_CARDINALITY_ONE)?;
@@ -309,6 +307,9 @@ impl Definition {
             }
             if attr.component {
                 builder.add(tempid.clone(), a_is_component, TypedValue::Boolean(true))?;
+            }
+            if attr.no_history {
+                builder.add(tempid.clone(), a_no_history, TypedValue::Boolean(true))?;
             }
 
             if let Some(u) = attr.unique {

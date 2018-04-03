@@ -64,13 +64,13 @@ lazy_static! {
             version: 1,
             attributes: vec![
                 (FOO_NAME.clone(),
-                vocabulary::AttributeBuilder::new()
+                vocabulary::AttributeBuilder::helpful()
                     .value_type(ValueType::String)
                     .multival(false)
                     .unique(vocabulary::attribute::Unique::Identity)
                     .build()),
                 (FOO_MOMENT.clone(),
-                vocabulary::AttributeBuilder::new()
+                vocabulary::AttributeBuilder::helpful()
                     .value_type(ValueType::Instant)
                     .multival(false)
                     .index(true)
@@ -131,7 +131,7 @@ fn test_default_attributebuilder_complains() {
                   .validate(|| "Foo".to_string())
                   .is_err());
 
-    assert!(vocabulary::AttributeBuilder::new()
+    assert!(vocabulary::AttributeBuilder::helpful()
                   .value_type(ValueType::String)
                   .multival(true)
                   .fulltext(true)
@@ -142,12 +142,12 @@ fn test_default_attributebuilder_complains() {
 
 #[test]
 fn test_add_vocab() {
-    let bar = vocabulary::AttributeBuilder::new()
+    let bar = vocabulary::AttributeBuilder::helpful()
                   .value_type(ValueType::Instant)
                   .multival(false)
                   .index(true)
                   .build();
-    let baz = vocabulary::AttributeBuilder::new()
+    let baz = vocabulary::AttributeBuilder::helpful()
                   .value_type(ValueType::String)
                   .multival(true)
                   .fulltext(true)
