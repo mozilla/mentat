@@ -1511,25 +1511,25 @@ mod tests {
             version: 1,
             attributes: vec![
                 (kw!(:todo/uuid),
-                AttributeBuilder::new()
+                AttributeBuilder::helpful()
                     .value_type(ValueType::Uuid)
                     .multival(false)
                     .unique(Unique::Value)
                     .index(true)
                     .build()),
                 (kw!(:todo/name),
-                AttributeBuilder::new()
+                AttributeBuilder::helpful()
                     .value_type(ValueType::String)
                     .multival(false)
                     .fulltext(true)
                     .build()),
                 (kw!(:todo/completion_date),
-                AttributeBuilder::new()
+                AttributeBuilder::helpful()
                     .value_type(ValueType::Instant)
                     .multival(false)
                     .build()),
                 (kw!(:label/name),
-                AttributeBuilder::new()
+                AttributeBuilder::helpful()
                     .value_type(ValueType::String)
                     .multival(false)
                     .unique(Unique::Value)
@@ -1537,7 +1537,7 @@ mod tests {
                     .index(true)
                     .build()),
                 (kw!(:label/color),
-                AttributeBuilder::new()
+                AttributeBuilder::helpful()
                     .value_type(ValueType::String)
                     .multival(false)
                     .build()),

@@ -66,7 +66,7 @@
 //!             version: 1,
 //!             attributes: vec![
 //!                 (kw!(:link/title),
-//!                  vocabulary::AttributeBuilder::new()
+//!                  vocabulary::AttributeBuilder::helpful()
 //!                    .value_type(ValueType::String)
 //!                    .multival(false)
 //!                    .fulltext(true)

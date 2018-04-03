@@ -84,7 +84,7 @@ pub struct AttributeBuilder {
 impl AttributeBuilder {
     /// Make a new AttributeBuilder for human consumption: it will help you
     /// by flipping relevant flags.
-    pub fn new() -> Self {
+    pub fn helpful() -> Self {
         AttributeBuilder {
             helpful: true,
             ..Default::default()
