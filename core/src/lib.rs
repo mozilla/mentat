@@ -330,6 +330,13 @@ impl From<f64> for TypedValue {
 }
 
 impl TypedValue {
+    pub fn into_known_entid(self) -> Option<KnownEntid> {
+        match self {
+            TypedValue::Ref(v) => Some(KnownEntid(v)),
+            _ => None,
+        }
+    }
+
     pub fn into_entid(self) -> Option<Entid> {
         match self {
             TypedValue::Ref(v) => Some(v),

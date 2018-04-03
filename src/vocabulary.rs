@@ -9,16 +9,20 @@
 // specific language governing permissions and limitations under the License.
 
 
-//! This module exposes an interface for programmatic management of vocabularies. A vocabulary
-//! is defined as a name, a version number, and a collection of attribute definitions. In the
-//! future, this input will be augmented with specifications of migrations between versions.
+//! This module exposes an interface for programmatic management of vocabularies.
 //!
-//! A Mentat store exposes, via the `HasSchema` trait, operations to read vocabularies by name
-//! or in bulk.
+//! A vocabulary is defined by a name, a version number, and a collection of attribute definitions.
 //!
-//! An in-progress transaction (`InProgress`) further exposes a trait, `VersionedStore`, which
-//! allows for a vocabulary definition to be checked for existence in the store, and transacted
-//! if needed.
+//! Operations on vocabularies can include migrations between versions. These are defined
+//! programmatically as a pair of functions, `pre` and `post`, that are invoked prior to
+//! an upgrade.
+//!
+//! A Mentat store exposes, via the `HasSchema` trait, operations to read
+//! vocabularies by name or in bulk.
+//!
+//! An in-progress transaction (`InProgress`) further exposes a trait,
+//! `VersionedStore`, which allows for a vocabulary definition to be
+//! checked for existence in the store, and transacted if needed.
 //!
 //! Typical use is the following:
 //!
@@ -72,6 +76,8 @@
 //!                    .fulltext(true)
 //!                    .build()),
 //!             ],
+//!             pre: Definition::no_op,
+//!             post: Definition::no_op,
 //!         }).expect("ensured");
 //!
 //!         // Now we can do stuff.
@@ -80,12 +86,22 @@
 //!     }
 //! }
 //! ```
+//!
+//! A similar approach is taken using the
+//! [VocabularyProvider](mentat::vocabulary::VocabularyProvider) trait to handle migrations across
+//! multiple vocabularies.
 
 use std::collections::BTreeMap;
 
 pub use mentat_core::attribute;
-use mentat_core::attribute::Unique;
-use mentat_core::KnownEntid;
+
+use mentat_core::attribute::{
+    Unique,
+};
+
+use mentat_core::{
+    KnownEntid,
+};
 
 use ::{
     CORE_SCHEMA_VERSION,
@@ -114,25 +130,154 @@ use ::entity_builder::{
     Terms,
 };
 
+/// AttributeBuilder is how you build vocabulary definitions to apply to a store.
 pub use mentat_db::AttributeBuilder;
 
 pub type Version = u32;
 pub type Datom = (Entid, Entid, TypedValue);
 
+/// A definition of an attribute that is independent of a particular store.
+///
 /// `Attribute` instances not only aren't named, but don't even have entids.
-/// We need two kinds of structure here: an abstract definition of a vocabulary in terms of names,
+///
+/// We need two kinds of structure: an abstract definition of a vocabulary in terms of names,
 /// and a concrete instance of a vocabulary in a particular store.
+///
+/// `Definition` is the former, and `Vocabulary` is the latter.
+///
 /// Note that, because it's possible to 'flesh out' a vocabulary with attributes without bumping
-/// its version number, we need to know the attributes that the application cares about -- it's
+/// its version number, we need to track the attributes that the application cares about — it's
 /// not enough to know the name and version. Indeed, we even care about the details of each attribute,
 /// because that's how we'll detect errors.
-#[derive(Debug)]
+///
+/// `Definition` includes two additional fields: functions to run if this vocabulary is being
+/// upgraded. `pre` and `post` are run before and after the definition is transacted against the
+/// store. Each is called with the existing `Vocabulary` instance so that they can do version
+/// checks or employ more fine-grained logic.
+#[derive(Clone)]
 pub struct Definition {
     pub name: NamespacedKeyword,
     pub version: Version,
     pub attributes: Vec<(NamespacedKeyword, Attribute)>,
+    pub pre: fn(&mut InProgress, &Vocabulary) -> Result<()>,
+    pub post: fn(&mut InProgress, &Vocabulary) -> Result<()>,
 }
 
+/// ```
+/// #[macro_use(kw)]
+/// extern crate mentat;
+///
+/// use mentat::{
+///     HasSchema,
+///     IntoResult,
+///     Queryable,
+///     Store,
+///     ValueType,
+/// };
+///
+/// use mentat::entity_builder::{
+///     BuildTerms,
+///     TermBuilder,
+/// };
+///
+/// use mentat::vocabulary;
+/// use mentat::vocabulary::{
+///     AttributeBuilder,
+///     Definition,
+///     HasVocabularies,
+///     VersionedStore,
+/// };
+///
+/// fn main() {
+///     let mut store = Store::open("").expect("connected");
+///     let mut in_progress = store.begin_transaction().expect("began transaction");
+///
+///     // Make sure the core vocabulary exists.
+///     in_progress.verify_core_schema().expect("verified");
+///
+///     // Make sure our vocabulary is installed, and install if necessary.
+///     in_progress.ensure_vocabulary(&Definition {
+///         name: kw!(:example/links),
+///         version: 2,
+///         attributes: vec![
+///             (kw!(:link/title),
+///              AttributeBuilder::helpful()
+///                .value_type(ValueType::String)
+///                .multival(false)
+///                .fulltext(true)
+///                .build()),
+///         ],
+///         pre: |ip, from| {
+///             // Version one allowed multiple titles; version two
+///             // doesn't. Retract any duplicates we find.
+///             if from.version < 2 {
+///                 let link_title = ip.get_entid(&kw!(:link/title)).unwrap();
+///
+///                 let results = ip.q_once(r#"
+///                     [:find ?e ?t2
+///                      :where [?e :link/title ?t1]
+///                             [?e :link/title ?t2]
+///                             [(unpermute ?t1 ?t2)]]
+///                 "#, None).into_rel_result()?;
+///
+///                 if !results.is_empty() {
+///                     let mut builder = TermBuilder::new();
+///                     for row in results.into_iter() {
+///                         let mut r = row.into_iter();
+///                         let e = r.next().and_then(|e| e.into_known_entid()).expect("entity");
+///                         let obsolete = r.next().expect("value");
+///                         builder.retract(e, link_title, obsolete)?;
+///                     }
+///                     ip.transact_builder(builder)?;
+///                 }
+///             }
+///             Ok(())
+///         },
+///         post: |_ip, from| {
+///             println!("We migrated :example/links from version {}", from.version);
+///             Ok(())
+///         },
+///     }).expect("ensured");
+///
+///     // Now we can do stuff.
+///     in_progress.transact("[{:link/title \"Title\"}]").expect("transacts");
+///     in_progress.commit().expect("commits");
+/// }
+/// ```
+impl Definition {
+    pub fn no_op(_ip: &mut InProgress, _from: &Vocabulary) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn new<N, A>(name: N, version: Version, attributes: A) -> Definition
+    where N: Into<NamespacedKeyword>,
+          A: Into<Vec<(NamespacedKeyword, Attribute)>> {
+        Definition {
+            name: name.into(),
+            version: version,
+            attributes: attributes.into(),
+            pre: Definition::no_op,
+            post: Definition::no_op,
+        }
+    }
+
+    /// Called with an in-progress transaction and the previous vocabulary version
+    /// if the definition's version is later than that of the vocabulary in the store.
+    fn pre(&self, ip: &mut InProgress, from: &Vocabulary) -> Result<()> {
+        (self.pre)(ip, from)
+    }
+
+    /// Called with an in-progress transaction and the previous vocabulary version
+    /// if the definition's version is later than that of the vocabulary in the store.
+    fn post(&self, ip: &mut InProgress, from: &Vocabulary) -> Result<()> {
+        (self.post)(ip, from)
+    }
+}
+
+/// A definition of a vocabulary as retrieved from a particular store.
+///
+/// A `Vocabulary` is just like `Definition`, but concrete: its name and attributes are identified
+/// by `Entid`, not `NamespacedKeyword`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Vocabulary {
     pub entity: Entid,
@@ -146,6 +291,7 @@ impl Vocabulary {
     }
 }
 
+/// A collection of named `Vocabulary` instances, as retrieved from the store.
 #[derive(Debug, Default, Clone)]
 pub struct Vocabularies(pub BTreeMap<NamespacedKeyword, Vocabulary>);   // N.B., this has a copy of the attributes in Schema!
 
@@ -243,7 +389,7 @@ impl<T> HasCoreSchema for T where T: HasSchema {
 }
 
 impl Definition {
-    fn description_for_attributes<'s, T, R>(&'s self, attributes: &[R], via: &T) -> Result<Terms>
+    fn description_for_attributes<'s, T, R>(&'s self, attributes: &[R], via: &T, diff: Option<BTreeMap<NamespacedKeyword, Attribute>>) -> Result<Terms>
      where T: HasCoreSchema,
            R: ::std::borrow::Borrow<(NamespacedKeyword, Attribute)> {
 
@@ -279,13 +425,10 @@ impl Definition {
         // Describe each of its attributes.
         // This is a lot like Schema::to_edn_value; at some point we should tidy this up.
         for ref r in attributes.iter() {
-            let &(ref name, ref attr) = r.borrow();
+            let &(ref kw, ref attr) = r.borrow();
 
-            // Note that we allow tempid resolution to find an existing entity, if it
-            // exists. We don't yet support upgrades, which will involve producing
-            // alteration statements.
-            let tempid = builder.named_tempid(name.to_string());
-            let name: TypedValue = name.clone().into();
+            let tempid = builder.named_tempid(kw.to_string());
+            let name: TypedValue = kw.clone().into();
             builder.add(tempid.clone(), a_ident, name)?;
             builder.add(schema.clone(), a_attr, tempid.clone())?;
 
@@ -299,18 +442,12 @@ impl Definition {
             };
             builder.add(tempid.clone(), a_cardinality, c)?;
 
-            if attr.index {
-                builder.add(tempid.clone(), a_index, TypedValue::Boolean(true))?;
-            }
-            if attr.fulltext {
-                builder.add(tempid.clone(), a_fulltext, TypedValue::Boolean(true))?;
-            }
-            if attr.component {
-                builder.add(tempid.clone(), a_is_component, TypedValue::Boolean(true))?;
-            }
-            if attr.no_history {
-                builder.add(tempid.clone(), a_no_history, TypedValue::Boolean(true))?;
-            }
+            // These are all unconditional because we use attribute descriptions to _alter_, not
+            // just to _add_, and so absence is distinct from negation!
+            builder.add(tempid.clone(), a_index, TypedValue::Boolean(attr.index))?;
+            builder.add(tempid.clone(), a_fulltext, TypedValue::Boolean(attr.fulltext))?;
+            builder.add(tempid.clone(), a_is_component, TypedValue::Boolean(attr.component))?;
+            builder.add(tempid.clone(), a_no_history, TypedValue::Boolean(attr.no_history))?;
 
             if let Some(u) = attr.unique {
                 let uu = match u {
@@ -318,6 +455,24 @@ impl Definition {
                     Unique::Value => v_unique_value,
                 };
                 builder.add(tempid.clone(), a_unique, uu)?;
+            } else {
+                 let existing_unique =
+                    if let Some(ref diff) = diff {
+                        diff.get(kw).and_then(|a| a.unique)
+                    } else {
+                        None
+                    };
+                 match existing_unique {
+                    None => {
+                        // Nothing to do.
+                    },
+                    Some(Unique::Identity) => {
+                        builder.retract(tempid.clone(), a_unique, v_unique_identity.clone())?;
+                    },
+                    Some(Unique::Value) => {
+                        builder.retract(tempid.clone(), a_unique, v_unique_value.clone())?;
+                    },
+                 }
             }
         }
 
@@ -325,20 +480,49 @@ impl Definition {
     }
 
     /// Return a sequence of terms that describes this vocabulary definition and its attributes.
+    fn description_diff<T>(&self, via: &T, from: &Vocabulary) -> Result<Terms> where T: HasSchema {
+        let relevant = self.attributes.iter()
+                           .filter_map(|&(ref keyword, _)|
+                               // Look up the keyword to see if it's currently in use.
+                               via.get_entid(keyword)
+
+                               // If so, map it to the existing attribute.
+                                  .and_then(|e| from.find(e).cloned())
+
+                               // Collect enough that we can do lookups.
+                                  .map(|e| (keyword.clone(), e)))
+                           .collect();
+        self.description_for_attributes(self.attributes.as_slice(), via, Some(relevant))
+    }
+
+    /// Return a sequence of terms that describes this vocabulary definition and its attributes.
     fn description<T>(&self, via: &T) -> Result<Terms> where T: HasSchema {
-        self.description_for_attributes(self.attributes.as_slice(), via)
+        self.description_for_attributes(self.attributes.as_slice(), via, None)
     }
 }
 
+/// This enum captures the various relationships between a particular vocabulary pair — one
+/// `Definition` and one `Vocabulary`, if present.
 #[derive(Debug, Eq, PartialEq)]
 pub enum VocabularyCheck<'definition> {
+    /// The provided definition is not already present in the store.
     NotPresent,
+
+    /// The provided definition is present in the store, and all of its attributes exist.
     Present,
+
+    /// The provided definition is present in the store with an earlier version number.
     PresentButNeedsUpdate { older_version: Vocabulary },
+
+    /// The provided definition is present in the store with a more recent version number.
     PresentButTooNew { newer_version: Vocabulary },
+
+    /// The provided definition is present in the store, but some of its attributes are not.
     PresentButMissingAttributes { attributes: Vec<&'definition (NamespacedKeyword, Attribute)> },
 }
 
+/// This enum captures the outcome of attempting to ensure that a vocabulary definition is present
+/// and up-to-date in the store.
 #[derive(Debug, Eq, PartialEq)]
 pub enum VocabularyOutcome {
     /// The vocabulary was absent and has been installed.
@@ -356,51 +540,15 @@ pub enum VocabularyOutcome {
     Upgraded,
 }
 
+/// This trait captures the ability to retrieve and describe stored vocabularies.
 pub trait HasVocabularies {
     fn read_vocabularies(&self) -> Result<Vocabularies>;
     fn read_vocabulary_named(&self, name: &NamespacedKeyword) -> Result<Option<Vocabulary>>;
 }
 
-pub trait VersionedStore {
+/// This trait captures the ability of a store to check and install/upgrade vocabularies.
+pub trait VersionedStore: HasVocabularies + HasSchema {
     /// Check whether the vocabulary described by the provided metadata is present in the store.
-    fn check_vocabulary<'definition>(&self, definition: &'definition Definition) -> Result<VocabularyCheck<'definition>>;
-
-    /// Check whether the provided vocabulary is present in the store. If it isn't, make it so.
-    fn ensure_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome>;
-
-    /// Make sure that our expectations of the core vocabulary -- basic types and attributes -- are met.
-    fn verify_core_schema(&self) -> Result<()>;
-}
-
-trait VocabularyMechanics {
-    fn install_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome>;
-    fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (NamespacedKeyword, Attribute)>) -> Result<VocabularyOutcome>;
-    fn upgrade_vocabulary(&mut self, definition: &Definition, from_version: Vocabulary) -> Result<VocabularyOutcome>;
-}
-
-impl Vocabulary {
-    // TODO: don't do linear search!
-    fn find<T>(&self, entid: T) -> Option<&Attribute> where T: Into<Entid> {
-        let to_find = entid.into();
-        self.attributes.iter().find(|&&(e, _)| e == to_find).map(|&(_, ref a)| a)
-    }
-}
-
-impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
-    fn verify_core_schema(&self) -> Result<()> {
-        if let Some(core) = self.read_vocabulary_named(&DB_SCHEMA_CORE)? {
-            if core.version != CORE_SCHEMA_VERSION {
-                bail!(ErrorKind::UnexpectedCoreSchema(Some(core.version)));
-            }
-
-            // TODO: check things other than the version.
-        } else {
-            // This would be seriously messed up.
-            bail!(ErrorKind::UnexpectedCoreSchema(None));
-        }
-        Ok(())
-    }
-
     fn check_vocabulary<'definition>(&self, definition: &'definition Definition) -> Result<VocabularyCheck<'definition>> {
         if let Some(vocabulary) = self.read_vocabulary_named(&definition.name)? {
             // The name is present.
@@ -449,6 +597,83 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
         }
     }
 
+    /// Check whether the provided vocabulary is present in the store. If it isn't, make it so.
+    fn ensure_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome>;
+
+    /// Check whether the provided vocabularies are present in the store at the correct
+    /// version and with all defined attributes. If any are not, invoke the `pre`
+    /// function on the provided `VocabularySource`, install or upgrade the necessary vocabularies,
+    /// then invoke `post`. Returns `Ok` if all of these steps succeed.
+    ///
+    /// Use this function instead of calling `ensure_vocabulary` if you need to have pre/post
+    /// functions invoked when vocabulary changes are necessary.
+    fn ensure_vocabularies(&mut self, vocabularies: &mut VocabularySource) -> Result<BTreeMap<NamespacedKeyword, VocabularyOutcome>>;
+
+    /// Make sure that our expectations of the core vocabulary — basic types and attributes — are met.
+    fn verify_core_schema(&self) -> Result<()> {
+        if let Some(core) = self.read_vocabulary_named(&DB_SCHEMA_CORE)? {
+            if core.version != CORE_SCHEMA_VERSION {
+                bail!(ErrorKind::UnexpectedCoreSchema(Some(core.version)));
+            }
+
+            // TODO: check things other than the version.
+        } else {
+            // This would be seriously messed up.
+            bail!(ErrorKind::UnexpectedCoreSchema(None));
+        }
+        Ok(())
+    }
+}
+
+/// `VocabularyStatus` is passed to `pre` function when attempting to add or upgrade vocabularies
+/// via `ensure_vocabularies`. This is how you can find the status and versions of existing
+/// vocabularies — you can retrieve the requested definition and the resulting `VocabularyCheck`
+/// by name.
+pub trait VocabularyStatus {
+    fn get(&self, name: &NamespacedKeyword) -> Option<(&Definition, &VocabularyCheck)>;
+    fn version(&self, name: &NamespacedKeyword) -> Option<Version>;
+}
+
+#[derive(Default)]
+struct CheckedVocabularies<'a> {
+    items: BTreeMap<NamespacedKeyword, (&'a Definition, VocabularyCheck<'a>)>,
+}
+
+impl<'a> CheckedVocabularies<'a> {
+    fn add(&mut self, definition: &'a Definition, check: VocabularyCheck<'a>) {
+        self.items.insert(definition.name.clone(), (definition, check));
+    }
+
+    fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+}
+
+impl<'a> VocabularyStatus for CheckedVocabularies<'a> {
+    fn get(&self, name: &NamespacedKeyword) -> Option<(&Definition, &VocabularyCheck)> {
+        self.items.get(name).map(|&(ref d, ref c)| (*d, c))
+    }
+
+    fn version(&self, name: &NamespacedKeyword) -> Option<Version> {
+        self.items.get(name).map(|&(d, _)| d.version)
+    }
+}
+
+trait VocabularyMechanics {
+    fn install_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome>;
+    fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (NamespacedKeyword, Attribute)>) -> Result<VocabularyOutcome>;
+    fn upgrade_vocabulary(&mut self, definition: &Definition, from_version: Vocabulary) -> Result<VocabularyOutcome>;
+}
+
+impl Vocabulary {
+    // TODO: don't do linear search!
+    fn find<T>(&self, entid: T) -> Option<&Attribute> where T: Into<Entid> {
+        let to_find = entid.into();
+        self.attributes.iter().find(|&&(e, _)| e == to_find).map(|&(_, ref a)| a)
+    }
+}
+
+impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
     fn ensure_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome> {
         match self.check_vocabulary(definition)? {
             VocabularyCheck::Present => Ok(VocabularyOutcome::Existed),
@@ -457,6 +682,128 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
             VocabularyCheck::PresentButMissingAttributes { attributes } => self.install_attributes_for(definition, attributes),
             VocabularyCheck::PresentButTooNew { newer_version } => Err(ErrorKind::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version).into()),
         }
+    }
+
+    fn ensure_vocabularies(&mut self, vocabularies: &mut VocabularySource) -> Result<BTreeMap<NamespacedKeyword, VocabularyOutcome>> {
+        let definitions = vocabularies.definitions();
+
+        let mut update  = Vec::new();
+        let mut missing = Vec::new();
+        let mut out = BTreeMap::new();
+
+        let mut work = CheckedVocabularies::default();
+
+        for definition in definitions.iter() {
+            match self.check_vocabulary(definition)? {
+                VocabularyCheck::Present => {
+                    out.insert(definition.name.clone(), VocabularyOutcome::Existed);
+                },
+                VocabularyCheck::PresentButTooNew { newer_version } => {
+                    bail!(ErrorKind::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version));
+                },
+
+                c @ VocabularyCheck::NotPresent |
+                c @ VocabularyCheck::PresentButNeedsUpdate { older_version: _ } |
+                c @ VocabularyCheck::PresentButMissingAttributes { attributes: _ } => {
+                    work.add(definition, c);
+                },
+            }
+        }
+
+        if work.is_empty() {
+            return Ok(out);
+        }
+
+        // If any work needs to be done, run pre/post.
+        vocabularies.pre(self, &work)?;
+
+        for (name, (definition, check)) in work.items.into_iter() {
+            match check {
+                VocabularyCheck::NotPresent => {
+                    // Install it directly.
+                    out.insert(name, self.install_vocabulary(definition)?);
+                },
+                VocabularyCheck::PresentButNeedsUpdate { older_version } => {
+                    // Save this: we'll do it later.
+                    update.push((definition, older_version));
+                },
+                VocabularyCheck::PresentButMissingAttributes { attributes } => {
+                    // Save this: we'll do it later.
+                    missing.push((definition, attributes));
+                },
+                VocabularyCheck::Present |
+                VocabularyCheck::PresentButTooNew { newer_version: _ } => {
+                    unreachable!();
+                }
+            }
+        }
+
+        for (d, v) in update {
+            out.insert(d.name.clone(), self.upgrade_vocabulary(d, v)?);
+        }
+        for (d, a) in missing {
+            out.insert(d.name.clone(), self.install_attributes_for(d, a)?);
+        }
+
+        vocabularies.post(self)?;
+        Ok(out)
+    }
+}
+
+/// Implement `VocabularySource` to have full programmatic control over how a set of `Definition`s
+/// are checked against and transacted into a store.
+pub trait VocabularySource {
+    /// Called to obtain the list of `Definition`s to install. This will be called before `pre`.
+    fn definitions(&mut self) -> Vec<Definition>;
+
+    /// Called before the supplied `Definition`s are transacted. Do not commit the `InProgress`.
+    /// If this function returns `Err`, the entire vocabulary operation will fail.
+    fn pre(&mut self, _in_progress: &mut InProgress, _checks: &VocabularyStatus) -> Result<()> {
+        Ok(())
+    }
+
+    /// Called after the supplied `Definition`s are transacted. Do not commit the `InProgress`.
+    /// If this function returns `Err`, the entire vocabulary operation will fail.
+    fn post(&mut self, _in_progress: &mut InProgress) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// A convenience struct to package simple `pre` and `post` functions with a collection of
+/// vocabulary `Definition`s.
+pub struct SimpleVocabularySource {
+    pub definitions: Vec<Definition>,
+    pub pre: Option<fn(&mut InProgress) -> Result<()>>,
+    pub post: Option<fn(&mut InProgress) -> Result<()>>,
+}
+
+impl SimpleVocabularySource {
+    pub fn new(definitions: Vec<Definition>,
+               pre: Option<fn(&mut InProgress) -> Result<()>>,
+               post: Option<fn(&mut InProgress) -> Result<()>>) -> SimpleVocabularySource {
+        SimpleVocabularySource {
+            pre: pre,
+            post: post,
+            definitions: definitions,
+        }
+    }
+
+    pub fn with_definitions(definitions: Vec<Definition>) -> SimpleVocabularySource {
+        Self::new(definitions, None, None)
+    }
+}
+
+impl VocabularySource for SimpleVocabularySource {
+    fn pre(&mut self, in_progress: &mut InProgress, _checks: &VocabularyStatus) -> Result<()> {
+        self.pre.map(|pre| (pre)(in_progress)).unwrap_or(Ok(()))
+    }
+
+    fn post(&mut self, in_progress: &mut InProgress) -> Result<()> {
+        self.post.map(|pre| (pre)(in_progress)).unwrap_or(Ok(()))
+    }
+
+    fn definitions(&mut self) -> Vec<Definition> {
+        self.definitions.clone()
     }
 }
 
@@ -469,17 +816,27 @@ impl<'a, 'c> VocabularyMechanics for InProgress<'a, 'c> {
     }
 
     fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (NamespacedKeyword, Attribute)>) -> Result<VocabularyOutcome> {
-        let (terms, tempids) = definition.description_for_attributes(&attributes, self)?;
+        let (terms, tempids) = definition.description_for_attributes(&attributes, self, None)?;
         self.transact_terms(terms, tempids)?;
         Ok(VocabularyOutcome::InstalledMissingAttributes)
     }
 
     /// Turn the declarative parts of the vocabulary into alterations. Run the 'pre' steps.
     /// Transact the changes. Run the 'post' steps. Return the result and the new `InProgress`!
-    fn upgrade_vocabulary(&mut self, _definition: &Definition, _from_version: Vocabulary) -> Result<VocabularyOutcome> {
-        unimplemented!();
-        // TODO
-        // Ok(VocabularyOutcome::Installed)
+    fn upgrade_vocabulary(&mut self, definition: &Definition, from_version: Vocabulary) -> Result<VocabularyOutcome> {
+        // It's sufficient for us to generate the datom form of each attribute and transact that.
+        // We trust that the vocabulary will implement a 'pre' function that cleans up data for any
+        // failable conversion (e.g., cardinality-many to cardinality-one).
+
+        definition.pre(self, &from_version)?;
+
+        // TODO: don't do work for attributes that are unchanged. Here we rely on the transactor
+        // to elide duplicate datoms.
+        let (terms, tempids) = definition.description_diff(self, &from_version)?;
+        self.transact_terms(terms, tempids)?;
+
+        definition.post(self, &from_version)?;
+        Ok(VocabularyOutcome::Upgraded)
     }
 }
 
