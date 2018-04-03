@@ -38,6 +38,6 @@ error_chain! {
     }
 
     links {
-        ProjectorError(mentat_query_projector::Error, mentat_query_projector::ErrorKind);
+        ProjectorError(mentat_query_projector::errors::Error, mentat_query_projector::errors::ErrorKind);
     }
 }

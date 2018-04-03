@@ -336,6 +336,10 @@ impl<'a, 'c> HasSchema for InProgressRead<'a, 'c> {
     fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.0.identifies_attribute(x)
     }
+
+    fn component_attributes(&self) -> &[Entid] {
+        self.0.component_attributes()
+    }
 }
 
 impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
@@ -367,6 +371,10 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
     /// Return true if the provided ident identifies an attribute in this schema.
     fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
         self.schema.identifies_attribute(x)
+    }
+
+    fn component_attributes(&self) -> &[Entid] {
+        self.schema.component_attributes()
     }
 }
 
