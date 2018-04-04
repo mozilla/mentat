@@ -161,6 +161,10 @@ impl TermBuilder {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.terms.is_empty()
+    }
+
     #[allow(dead_code)]
     pub fn numbered_tempid(&mut self, id: i64) -> TempIdHandle {
         self.tempids.intern(TempId::Internal(id))
@@ -213,15 +217,11 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
     /// step fails, roll back. Return the `TxReport`.
     pub fn commit(self) -> Result<TxReport> {
         let mut in_progress = self.in_progress;
-        self.builder
-            .build()
-            .and_then(|(terms, tempid_set)| {
-                in_progress.transact_terms(terms, tempid_set)
-                           .and_then(|report| {
-                               in_progress.commit()?;
-                               Ok(report)
-                           })
-            })
+        in_progress.transact_builder(self.builder)
+                   .and_then(|report| {
+                        in_progress.commit()?;
+                        Ok(report)
+                   })
     }
 }
 

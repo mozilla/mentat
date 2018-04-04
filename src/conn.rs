@@ -83,6 +83,7 @@ use uuid::Uuid;
 use entity_builder::{
     BuildTerms,
     InProgressBuilder,
+    TermBuilder,
 };
 
 use errors::*;
@@ -388,6 +389,15 @@ impl<'a, 'c> InProgress<'a, 'c> {
     /// Choose whether to use in-memory caches for running queries.
     pub fn use_caching(&mut self, yesno: bool) {
         self.use_caching = yesno;
+    }
+
+    /// If you only have a reference to an `InProgress`, you can't use the easy builder.
+    /// This exists so you can make your own.
+    pub fn transact_builder(&mut self, builder: TermBuilder) -> Result<TxReport> {
+        builder.build()
+               .and_then(|(terms, tempid_set)| {
+                    self.transact_terms(terms, tempid_set)
+               })
     }
 
     pub fn transact_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
