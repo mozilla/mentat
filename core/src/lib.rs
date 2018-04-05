@@ -329,6 +329,78 @@ impl From<f64> for TypedValue {
     }
 }
 
+impl TypedValue {
+    pub fn into_entid(self) -> Option<Entid> {
+        match self {
+            TypedValue::Ref(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+        match self {
+            TypedValue::Keyword(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_boolean(self) -> Option<bool> {
+        match self {
+            TypedValue::Boolean(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_long(self) -> Option<i64> {
+        match self {
+            TypedValue::Long(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_double(self) -> Option<f64> {
+        match self {
+            TypedValue::Double(v) => Some(v.into_inner()),
+            _ => None,
+        }
+    }
+
+    pub fn into_instant(self) -> Option<DateTime<Utc>> {
+        match self {
+            TypedValue::Instant(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_timestamp(self) -> Option<i64> {
+        match self {
+            TypedValue::Instant(v) => Some(v.timestamp()),
+            _ => None,
+        }
+    }
+
+    pub fn into_string(self) -> Option<Rc<String>> {
+        match self {
+            TypedValue::String(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid(self) -> Option<Uuid> {
+        match self {
+            TypedValue::Uuid(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid_string(self) -> Option<String> {
+        match self {
+            TypedValue::Uuid(v) => Some(v.hyphenated().to_string()),
+            _ => None,
+        }
+    }
+}
+
 /// Type safe representation of the possible return values from SQLite's `typeof`
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum SQLTypeAffinity {
