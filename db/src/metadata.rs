@@ -27,8 +27,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
 
-use itertools::Itertools; // For join().
-
 use add_retract_alter_set::{
     AddRetractAlterSet,
 };
@@ -104,14 +102,66 @@ impl MetadataReport {
 /// contain install and alter markers.
 ///
 /// Returns a report summarizing the mutations that were applied.
-pub fn update_attribute_map_from_entid_triples<U>(attribute_map: &mut AttributeMap, assertions: U) -> Result<MetadataReport>
-    where U: IntoIterator<Item=(Entid, Entid, TypedValue)> {
+pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut AttributeMap, assertions: A, retractions: R) -> Result<MetadataReport>
+    where A: IntoIterator<Item=(Entid, Entid, TypedValue)>,
+          R: IntoIterator<Item=(Entid, Entid, TypedValue)> {
+
+    fn attribute_builder_to_modify(attribute_id: Entid, existing: &AttributeMap) -> AttributeBuilder {
+        existing.get(&attribute_id)
+                .map(AttributeBuilder::to_modify_attribute)
+                .unwrap_or_else(AttributeBuilder::default)
+    }
 
     // Group mutations by impacted entid.
     let mut builders: BTreeMap<Entid, AttributeBuilder> = BTreeMap::new();
 
+    // For retractions, we start with an attribute builder that's pre-populated with the existing
+    // attribute values. That allows us to check existing values and unset them.
+    for (entid, attr, ref value) in retractions.into_iter() {
+        let builder = builders.entry(entid).or_insert_with(|| attribute_builder_to_modify(entid, attribute_map));
+        match attr {
+            // You can only retract :db/unique, :db/doc, :db/isComponent; all others
+            // must be altered instead of retracted, or are not allowed to change.
+            entids::DB_DOC => {
+                // Nothing to do here; we don't keep docstrings inside `Attribute`s.
+            },
+            entids::DB_IS_COMPONENT => {
+                match value {
+                    &TypedValue::Boolean(v) if builder.component == Some(v) => {
+                        builder.component(false);
+                    },
+                    v => {
+                        bail!(ErrorKind::BadSchemaAssertion(format!("Attempted to retract :db/isComponent with the wrong value {:?}.", v)));
+                    },
+                }
+            },
+            entids::DB_UNIQUE => {
+                match *value {
+                    TypedValue::Ref(u) => {
+                        match u {
+                            entids::DB_UNIQUE_VALUE if builder.unique == Some(Some(attribute::Unique::Value)) => {
+                                builder.non_unique();
+                            },
+                            entids::DB_UNIQUE_IDENTITY if builder.unique == Some(Some(attribute::Unique::Identity)) => {
+                                builder.non_unique();
+                            },
+                            v => {
+                                bail!(ErrorKind::BadSchemaAssertion(format!("Attempted to retract :db/unique with the wrong value {}.", v)));
+                            },
+                        }
+                    },
+                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [:db/retract _ :db/unique :db.unique/_] but got [:db/retract {} :db/unique {:?}]", entid, value)))
+                }
+            },
+            _ => {
+                bail!(ErrorKind::BadSchemaAssertion(format!("Retracting {} for {} not permitted.", attr, entid)));
+            },
+        }
+    }
+
     for (entid, attr, ref value) in assertions.into_iter() {
-        let builder = builders.entry(entid).or_insert(AttributeBuilder::default());
+        // For assertions, we can start with an empty attribute builder.
+        let builder = builders.entry(entid).or_insert_with(Default::default);
 
         // TODO: improve error messages throughout.
         match attr {
@@ -146,11 +196,6 @@ pub fn update_attribute_map_from_entid_triples<U>(attribute_map: &mut AttributeM
 
             entids::DB_UNIQUE => {
                 match *value {
-                    // TODO: accept nil in some form.
-                    // TypedValue::Nil => {
-                    //     builder.unique_value(false);
-                    //     builder.unique_identity(false);
-                    // },
                     TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(attribute::Unique::Value); },
                     TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(attribute::Unique::Identity); },
                     _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
@@ -257,17 +302,14 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
         attribute_set.witness((e, a), typed_value, added);
     }
 
-    // Datomic does not allow to retract attributes or idents.  For now, Mentat follows suit.
-    if !attribute_set.retracted.is_empty() {
-        bail!(ErrorKind::NotYetImplemented(format!("Retracting metadata attribute assertions not yet implemented: retracted [e a] pairs [{}]",
-                                                   attribute_set.retracted.keys().map(|&(e, a)| format!("[{} {}]", e, a)).join(", "))));
-    }
-
     // Collect triples.
+    let retracted_triples = attribute_set.retracted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
     let asserted_triples = attribute_set.asserted.into_iter().map(|((e, a), typed_value)| (e, a, typed_value));
     let altered_triples = attribute_set.altered.into_iter().map(|((e, a), (_old_value, new_value))| (e, a, new_value));
 
-    let report = update_attribute_map_from_entid_triples(&mut schema.attribute_map, asserted_triples.chain(altered_triples))?;
+    let report = update_attribute_map_from_entid_triples(&mut schema.attribute_map,
+                                                         asserted_triples.chain(altered_triples),
+                                                         retracted_triples)?;
 
     let mut idents_altered: BTreeMap<Entid, IdentAlteration> = BTreeMap::new();
 
