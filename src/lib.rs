@@ -97,6 +97,7 @@ pub mod vocabulary;
 pub mod conn;
 pub mod query;
 pub mod entity_builder;
+pub mod query_builder;
 
 pub use query::{
     IntoResult,
@@ -109,6 +110,10 @@ pub use query::{
     QueryResults,
     Variable,
     q_once,
+};
+
+pub use query_builder::{
+    QueryBuilder,
 };
 
 pub use conn::{
