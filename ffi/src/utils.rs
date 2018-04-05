@@ -9,27 +9,40 @@
 // specific language governing permissions and limitations under the License.
 
 pub mod strings {
-    use std::os::raw::c_char;
+    use std;
     use std::ffi::{
         CString,
         CStr
     };
+    use std::os::raw::c_char;
+    use std::rc::Rc;
+
+    use mentat::{
+        NamespacedKeyword,
+    };
 
     pub fn c_char_to_string(cchar: *const c_char) -> String {
         let c_str = unsafe { CStr::from_ptr(cchar) };
-        let r_str = match c_str.to_str() {
-            Err(_) => "",
-            Ok(string) => string,
-        };
+        let r_str = c_str.to_str().unwrap_or("");
         r_str.to_string()
     }
 
-    pub fn string_to_c_char(r_string: String) -> *mut c_char {
-        CString::new(r_string).unwrap().into_raw()
+    pub fn string_to_c_char<T>(r_string: T) -> *mut c_char where T: Into<String> {
+        CString::new(r_string.into()).unwrap().into_raw()
     }
 
-    pub fn str_to_c_char(r_string: &str) -> *mut c_char {
-        string_to_c_char(r_string.to_string())
+    pub fn kw_from_string(mut keyword_string: String) -> NamespacedKeyword {
+        let attr_name = keyword_string.split_off(1);
+        let parts: Vec<&str> = attr_name.split("/").collect();
+        NamespacedKeyword::new(parts[0], parts[1])
+    }
+
+    pub fn c_char_from_rc(rc_string: Rc<String>) -> *mut c_char {
+        if let Some(str_ptr) = unsafe { Rc::into_raw(rc_string).as_ref() } {
+            string_to_c_char(str_ptr.clone())
+        } else {
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -55,6 +68,6 @@ pub mod log {
         let message = message.as_ptr();
         let tag = CString::new("Mentat").unwrap();
         let tag = tag.as_ptr();
-        unsafe { android::__android_log_write(android::ANDROID_LOG_DEBUG, tag, message) };
+        unsafe { android::__android_log_write(android::LogLevel::Debug as i32, tag, message) };
     }
 }

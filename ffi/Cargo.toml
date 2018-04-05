@@ -3,5 +3,8 @@ name = "mentat_ffi"
 version = "0.1.0"
 authors = ["Emily Toop <etoop@mozilla.com>"]
 
+[dependencies]
+libc = "0.2"
+
 [dependencies.mentat]
 path = ".."
