@@ -580,8 +580,8 @@ impl Store {
         self.conn.unregister_observer(key);
     }
 
-    pub fn add_value_for_attribute<T>(&mut self, entid: T, attribute: NamespacedKeyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
-        self.conn.add_value_for_attribute(&mut self.sqlite, entid, attribute, value)
+    pub fn assert_datom<T>(&mut self, entid: T, attribute: NamespacedKeyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
+        self.conn.assert_datom(&mut self.sqlite, entid, attribute, value)
     }
 }
 
@@ -874,7 +874,7 @@ impl Conn {
     // TODO: expose the entity builder over FFI and remove the need for this function entirely
     // It's really only here in order to keep the FFI layer as thin as possible.
     // Once the entity builder is exposed, we can perform all of these functions over FFI from the client.
-    pub fn add_value_for_attribute<T>(&mut self, sqlite: &mut rusqlite::Connection, entid: T, attribute: NamespacedKeyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
+    pub fn assert_datom<T>(&mut self, sqlite: &mut rusqlite::Connection, entid: T, attribute: NamespacedKeyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
         let in_progress = self.begin_transaction(sqlite)?;
         let mut builder = in_progress.builder().describe(entid.into());
         builder.add_kw(&attribute, value)?;

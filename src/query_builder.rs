@@ -131,8 +131,8 @@ mod test {
         let yes = report.tempids.get("u").expect("found it").clone();
 
         let entid = QueryBuilder::new(&mut store, r#"[:find ?x .
-                                              :in ?v
-                                              :where [?x :foo/boolean ?v]]"#)
+                                                      :in ?v
+                                                      :where [?x :foo/boolean ?v]]"#)
                               .bind_value("?v", true)
                               .execute_scalar().expect("ScalarResult")
                               .map_or(None, |t| t.into_entid());
@@ -169,8 +169,8 @@ mod test {
         let n_yes = report.tempids.get("n").expect("found it").clone();
 
         let entids: Vec<i64> = QueryBuilder::new(&mut store, r#"[:find [?x ...]
-                                              :in ?v
-                                              :where [?x :foo/boolean ?v]]"#)
+                                                                 :in ?v
+                                                                 :where [?x :foo/boolean ?v]]"#)
                               .bind_value("?v", true)
                               .execute_coll().expect("CollResult")
                               .into_iter()
@@ -208,8 +208,8 @@ mod test {
         let n_yes = report.tempids.get("n").expect("found it").clone();
 
         let results = QueryBuilder::new(&mut store, r#"[:find [?x ...]
-                                              :in ?v
-                                              :where [?x :foo/boolean ?v]]"#)
+                                                        :in ?v
+                                                        :where [?x :foo/boolean ?v]]"#)
                               .bind_value("?v", true)
                               .execute_coll().expect("CollResult");
         let entid = results.get(1).map_or(None, |t| t.to_owned().into_entid()).expect("entid");
@@ -245,9 +245,9 @@ mod test {
         let n_yes = report.tempids.get("n").expect("found it").clone();
 
         let results = QueryBuilder::new(&mut store, r#"[:find [?x, ?i]
-                                              :in ?v ?i
-                                              :where [?x :foo/boolean ?v]
-                                                     [?x :foo/long ?i]]"#)
+                                                        :in ?v ?i
+                                                        :where [?x :foo/boolean ?v]
+                                                               [?x :foo/long ?i]]"#)
                               .bind_value("?v", true)
                               .bind_long("?i", 27)
                               .execute_tuple().expect("TupleResult").expect("Vec<TypedValue>");
@@ -286,9 +286,9 @@ mod test {
         let n_yes = report.tempids.get("n").expect("found it").clone();
 
         let results: Vec<TypedValue> = QueryBuilder::new(&mut store, r#"[:find [?x, ?i]
-                                              :in ?v ?i
-                                              :where [?x :foo/boolean ?v]
-                                                     [?x :foo/long ?i]]"#)
+                                                                         :in ?v ?i
+                                                                         :where [?x :foo/boolean ?v]
+                                                                                [?x :foo/long ?i]]"#)
                               .bind_value("?v", true)
                               .bind_long("?i", 27)
                               .execute_tuple().expect("TupleResult").unwrap_or(vec![]);
@@ -331,8 +331,8 @@ mod test {
         };
 
         let mut results: Vec<Res> = QueryBuilder::new(&mut store, r#"[:find ?x ?v ?i
-                                              :where [?x :foo/boolean ?v]
-                                                     [?x :foo/long ?i]]"#)
+                                                                      :where [?x :foo/boolean ?v]
+                                                                             [?x :foo/long ?i]]"#)
                               .execute_rel().expect("RelResult")
                               .into_iter()
                               .map(|row| {
@@ -377,9 +377,9 @@ mod test {
         let l_yes = report.tempids.get("l").expect("found it").clone();
 
         let results = QueryBuilder::new(&mut store, r#"[:find [?v ?i]
-                                              :in ?x
-                                              :where [?x :foo/boolean ?v]
-                                                     [?x :foo/long ?i]]"#)
+                                                        :in ?x
+                                                        :where [?x :foo/boolean ?v]
+                                                               [?x :foo/long ?i]]"#)
                               .bind_ref("?x", l_yes)
                               .execute_tuple().expect("TupleResult")
                               .unwrap_or(vec![]);
