@@ -1,0 +1,573 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		7BDB96942077C299009D0651 /* Mentat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB968A2077C299009D0651 /* Mentat.framework */; };
+		7BDB96992077C299009D0651 /* MentatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96982077C299009D0651 /* MentatTests.swift */; };
+		7BDB969B2077C299009D0651 /* Mentat.h in Headers */ = {isa = PBXBuildFile; fileRef = 7BDB968D2077C299009D0651 /* Mentat.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		7BDB96AF2077C38E009D0651 /* Query.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96A62077C38D009D0651 /* Query.swift */; };
+		7BDB96B02077C38E009D0651 /* Mentat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96A72077C38D009D0651 /* Mentat.swift */; };
+		7BDB96B12077C38E009D0651 /* store.h in Headers */ = {isa = PBXBuildFile; fileRef = 7BDB96A82077C38E009D0651 /* store.h */; };
+		7BDB96B22077C38E009D0651 /* RelResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96A92077C38E009D0651 /* RelResult.swift */; };
+		7BDB96B32077C38E009D0651 /* RustObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AA2077C38E009D0651 /* RustObject.swift */; };
+		7BDB96B42077C38E009D0651 /* OptionalRustObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AB2077C38E009D0651 /* OptionalRustObject.swift */; };
+		7BDB96B52077C38E009D0651 /* TupleResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AC2077C38E009D0651 /* TupleResult.swift */; };
+		7BDB96B62077C38E009D0651 /* TxReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AD2077C38E009D0651 /* TxReport.swift */; };
+		7BDB96B72077C38E009D0651 /* TypedValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AE2077C38E009D0651 /* TypedValue.swift */; };
+		7BDB96C02077CD7A009D0651 /* libmentat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB96BF2077CD7A009D0651 /* libmentat.a */; };
+		7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB96C12077CD98009D0651 /* libresolv.tbd */; };
+		7BDB96C62077D347009D0651 /* Date+Int64.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96C52077D346009D0651 /* Date+Int64.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7BDB96952077C299009D0651 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7BDB96812077C299009D0651 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7BDB96892077C299009D0651;
+			remoteInfo = Mentat;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		7BDB968A2077C299009D0651 /* Mentat.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mentat.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		7BDB968D2077C299009D0651 /* Mentat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mentat.h; sourceTree = "<group>"; };
+		7BDB968E2077C299009D0651 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7BDB96932077C299009D0651 /* MentatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MentatTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7BDB96982077C299009D0651 /* MentatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentatTests.swift; sourceTree = "<group>"; };
+		7BDB969A2077C299009D0651 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7BDB96A62077C38D009D0651 /* Query.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Query.swift; sourceTree = "<group>"; };
+		7BDB96A72077C38D009D0651 /* Mentat.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Mentat.swift; sourceTree = "<group>"; };
+		7BDB96A82077C38E009D0651 /* store.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = store.h; sourceTree = "<group>"; };
+		7BDB96A92077C38E009D0651 /* RelResult.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RelResult.swift; sourceTree = "<group>"; };
+		7BDB96AA2077C38E009D0651 /* RustObject.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RustObject.swift; sourceTree = "<group>"; };
+		7BDB96AB2077C38E009D0651 /* OptionalRustObject.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OptionalRustObject.swift; sourceTree = "<group>"; };
+		7BDB96AC2077C38E009D0651 /* TupleResult.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TupleResult.swift; sourceTree = "<group>"; };
+		7BDB96AD2077C38E009D0651 /* TxReport.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TxReport.swift; sourceTree = "<group>"; };
+		7BDB96AE2077C38E009D0651 /* TypedValue.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TypedValue.swift; sourceTree = "<group>"; };
+		7BDB96BF2077CD7A009D0651 /* libmentat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat.a; path = ../../../target/universal/release/libmentat.a; sourceTree = "<group>"; };
+		7BDB96C12077CD98009D0651 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
+		7BDB96C32077D090009D0651 /* module.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.map; sourceTree = "<group>"; };
+		7BDB96C52077D346009D0651 /* Date+Int64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Date+Int64.swift"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7BDB96862077C299009D0651 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */,
+				7BDB96C02077CD7A009D0651 /* libmentat.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7BDB96902077C299009D0651 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BDB96942077C299009D0651 /* Mentat.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		7BDB96802077C299009D0651 = {
+			isa = PBXGroup;
+			children = (
+				7BDB968C2077C299009D0651 /* Mentat */,
+				7BDB96972077C299009D0651 /* MentatTests */,
+				7BDB968B2077C299009D0651 /* Products */,
+				7BDB96BE2077CD7A009D0651 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		7BDB968B2077C299009D0651 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB968A2077C299009D0651 /* Mentat.framework */,
+				7BDB96932077C299009D0651 /* MentatTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7BDB968C2077C299009D0651 /* Mentat */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96C42077D346009D0651 /* Extensions */,
+				7BDB96BA2077C42B009D0651 /* Core */,
+				7BDB96B92077C403009D0651 /* Rust */,
+				7BDB96A82077C38E009D0651 /* store.h */,
+				7BDB96A72077C38D009D0651 /* Mentat.swift */,
+				7BDB96A42077C301009D0651 /* Query */,
+				7BDB96B82077C3B2009D0651 /* Transact */,
+				7BDB968D2077C299009D0651 /* Mentat.h */,
+				7BDB968E2077C299009D0651 /* Info.plist */,
+				7BDB96C32077D090009D0651 /* module.map */,
+			);
+			path = Mentat;
+			sourceTree = "<group>";
+		};
+		7BDB96972077C299009D0651 /* MentatTests */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96982077C299009D0651 /* MentatTests.swift */,
+				7BDB969A2077C299009D0651 /* Info.plist */,
+			);
+			path = MentatTests;
+			sourceTree = "<group>";
+		};
+		7BDB96A42077C301009D0651 /* Query */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96A62077C38D009D0651 /* Query.swift */,
+				7BDB96A92077C38E009D0651 /* RelResult.swift */,
+				7BDB96AC2077C38E009D0651 /* TupleResult.swift */,
+			);
+			path = Query;
+			sourceTree = "<group>";
+		};
+		7BDB96B82077C3B2009D0651 /* Transact */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96AD2077C38E009D0651 /* TxReport.swift */,
+			);
+			path = Transact;
+			sourceTree = "<group>";
+		};
+		7BDB96B92077C403009D0651 /* Rust */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96AB2077C38E009D0651 /* OptionalRustObject.swift */,
+				7BDB96AA2077C38E009D0651 /* RustObject.swift */,
+			);
+			path = Rust;
+			sourceTree = "<group>";
+		};
+		7BDB96BA2077C42B009D0651 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96AE2077C38E009D0651 /* TypedValue.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		7BDB96BE2077CD7A009D0651 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96C12077CD98009D0651 /* libresolv.tbd */,
+				7BDB96BF2077CD7A009D0651 /* libmentat.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		7BDB96C42077D346009D0651 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96C52077D346009D0651 /* Date+Int64.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		7BDB96872077C299009D0651 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BDB96B12077C38E009D0651 /* store.h in Headers */,
+				7BDB969B2077C299009D0651 /* Mentat.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		7BDB96892077C299009D0651 /* Mentat */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7BDB969E2077C299009D0651 /* Build configuration list for PBXNativeTarget "Mentat" */;
+			buildPhases = (
+				7BDB96852077C299009D0651 /* Sources */,
+				7BDB96862077C299009D0651 /* Frameworks */,
+				7BDB96872077C299009D0651 /* Headers */,
+				7BDB96882077C299009D0651 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Mentat;
+			productName = Mentat;
+			productReference = 7BDB968A2077C299009D0651 /* Mentat.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		7BDB96922077C299009D0651 /* MentatTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7BDB96A12077C299009D0651 /* Build configuration list for PBXNativeTarget "MentatTests" */;
+			buildPhases = (
+				7BDB968F2077C299009D0651 /* Sources */,
+				7BDB96902077C299009D0651 /* Frameworks */,
+				7BDB96912077C299009D0651 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7BDB96962077C299009D0651 /* PBXTargetDependency */,
+			);
+			name = MentatTests;
+			productName = MentatTests;
+			productReference = 7BDB96932077C299009D0651 /* MentatTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7BDB96812077C299009D0651 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 0930;
+				LastUpgradeCheck = 0930;
+				ORGANIZATIONNAME = Mozilla;
+				TargetAttributes = {
+					7BDB96892077C299009D0651 = {
+						CreatedOnToolsVersion = 9.3;
+						LastSwiftMigration = 0930;
+					};
+					7BDB96922077C299009D0651 = {
+						CreatedOnToolsVersion = 9.3;
+					};
+				};
+			};
+			buildConfigurationList = 7BDB96842077C299009D0651 /* Build configuration list for PBXProject "Mentat" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 7BDB96802077C299009D0651;
+			productRefGroup = 7BDB968B2077C299009D0651 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7BDB96892077C299009D0651 /* Mentat */,
+				7BDB96922077C299009D0651 /* MentatTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7BDB96882077C299009D0651 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7BDB96912077C299009D0651 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7BDB96852077C299009D0651 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BDB96B32077C38E009D0651 /* RustObject.swift in Sources */,
+				7BDB96B62077C38E009D0651 /* TxReport.swift in Sources */,
+				7BDB96C62077D347009D0651 /* Date+Int64.swift in Sources */,
+				7BDB96B42077C38E009D0651 /* OptionalRustObject.swift in Sources */,
+				7BDB96B22077C38E009D0651 /* RelResult.swift in Sources */,
+				7BDB96AF2077C38E009D0651 /* Query.swift in Sources */,
+				7BDB96B02077C38E009D0651 /* Mentat.swift in Sources */,
+				7BDB96B72077C38E009D0651 /* TypedValue.swift in Sources */,
+				7BDB96B52077C38E009D0651 /* TupleResult.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7BDB968F2077C299009D0651 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BDB96992077C299009D0651 /* MentatTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7BDB96962077C299009D0651 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7BDB96892077C299009D0651 /* Mentat */;
+			targetProxy = 7BDB96952077C299009D0651 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7BDB969C2077C299009D0651 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.3;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Mentat";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		7BDB969D2077C299009D0651 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Mentat";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		7BDB969F2077C299009D0651 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = 8BHJ767F4Y;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = Mentat/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../target/universal/release";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mozilla.Mentat;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Mentat";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 4.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7BDB96A02077C299009D0651 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = 8BHJ767F4Y;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_TESTABILITY = NO;
+				INFOPLIST_FILE = Mentat/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../target/universal/release";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mozilla.Mentat;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Mentat";
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_VERSION = 4.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7BDB96A22077C299009D0651 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 8BHJ767F4Y;
+				INFOPLIST_FILE = MentatTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mozilla.MentatTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 4.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7BDB96A32077C299009D0651 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 8BHJ767F4Y;
+				INFOPLIST_FILE = MentatTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mozilla.MentatTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 4.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7BDB96842077C299009D0651 /* Build configuration list for PBXProject "Mentat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7BDB969C2077C299009D0651 /* Debug */,
+				7BDB969D2077C299009D0651 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7BDB969E2077C299009D0651 /* Build configuration list for PBXNativeTarget "Mentat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7BDB969F2077C299009D0651 /* Debug */,
+				7BDB96A02077C299009D0651 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7BDB96A12077C299009D0651 /* Build configuration list for PBXNativeTarget "MentatTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7BDB96A22077C299009D0651 /* Debug */,
+				7BDB96A32077C299009D0651 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 7BDB96812077C299009D0651 /* Project object */;
+}

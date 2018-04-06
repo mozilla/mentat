@@ -1,0 +1,4 @@
+module Mentatlib [system][extern_c] {
+    header "store.h"
+    export *
+}
