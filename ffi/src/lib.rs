@@ -57,6 +57,9 @@ pub use utils::strings::{
     string_to_c_char,
 };
 
+pub type TypedValueIterator = vec::IntoIter<TypedValue>;
+pub type TypedValueListIterator = vec::IntoIter<Vec<TypedValue>>;
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ExternTxReport {
@@ -319,80 +322,80 @@ pub unsafe extern "C" fn row_at_index(rows: *mut Vec<Vec<TypedValue>>, index: c_
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rows_iter(rows: *mut Vec<Vec<TypedValue>>) ->  *mut vec::IntoIter<Vec<TypedValue>> {
+pub unsafe extern "C" fn rows_iter(rows: *mut Vec<Vec<TypedValue>>) ->  *mut TypedValueListIterator {
     let result = Box::from_raw(rows);
     Box::into_raw(Box::new(result.into_iter()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rows_iter_next(iter: *mut ::std::vec::IntoIter<Vec<TypedValue>>) ->  *mut Vec<TypedValue> {
+pub unsafe extern "C" fn rows_iter_next(iter: *mut TypedValueListIterator) ->  *mut Vec<TypedValue> {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v)))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn values_iter(values: *mut Vec<TypedValue>) ->  *mut vec::IntoIter<TypedValue> {
+pub unsafe extern "C" fn values_iter(values: *mut Vec<TypedValue>) ->  *mut TypedValueIterator {
     let result = Box::from_raw(values);
     Box::into_raw(Box::new(result.into_iter()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next(iter: *mut vec::IntoIter<TypedValue>) ->  *const TypedValue {
+pub unsafe extern "C" fn values_iter_next(iter: *mut TypedValueIterator) ->  *const TypedValue {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| &v as *const TypedValue)
 }
 
 //as_long
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_long(iter: *mut vec::IntoIter<TypedValue>) ->  *const i64 {
+pub unsafe extern "C" fn values_iter_next_as_long(iter: *mut TypedValueIterator) ->  *const i64 {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| &v.into_long().expect("Typed value cannot be coerced into a Long") as *const i64)
 }
 // as ref
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_entid(iter: *mut vec::IntoIter<TypedValue>) ->  *const Entid {
+pub unsafe extern "C" fn values_iter_next_as_entid(iter: *mut TypedValueIterator) ->  *const Entid {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| &v.into_entid().expect("Typed value cannot be coerced into am Entid") as *const Entid)
 }
 
 // as kw
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_kw(iter: *mut vec::IntoIter<TypedValue>) ->  *const c_char {
+pub unsafe extern "C" fn values_iter_next_as_kw(iter: *mut TypedValueIterator) ->  *const c_char {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| string_to_c_char(v.into_kw().expect("Typed value cannot be coerced into a Namespaced Keyword").to_string()))
 }
 
 //as_boolean
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_boolean(iter: *mut vec::IntoIter<TypedValue>) ->  *const bool {
+pub unsafe extern "C" fn values_iter_next_as_boolean(iter: *mut TypedValueIterator) ->  *const bool {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| &v.into_boolean().expect("Typed value cannot be coerced into a Boolean") as *const bool)
 }
 
 //as_double
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_double(iter: *mut vec::IntoIter<TypedValue>) ->  *const f64 {
+pub unsafe extern "C" fn values_iter_next_as_double(iter: *mut TypedValueIterator) ->  *const f64 {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| &v.into_double().expect("Typed value cannot be coerced into a Double") as *const f64)
 }
 
 //as_timestamp
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_timestamp(iter: *mut vec::IntoIter<TypedValue>) ->  *const i64 {
+pub unsafe extern "C" fn values_iter_next_as_timestamp(iter: *mut TypedValueIterator) ->  *const i64 {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| v.into_timestamp().expect("Typed value cannot be coerced into a Timestamp") as *const i64)
 }
 
 //as_string
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_string(iter: *mut vec::IntoIter<TypedValue>) ->  *const c_char {
+pub unsafe extern "C" fn values_iter_next_as_string(iter: *mut TypedValueIterator) ->  *const c_char {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| c_char_from_rc(v.into_string().expect("Typed value cannot be coerced into a String")))
 }
 
 //as_uuid
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_uuid(iter: *mut vec::IntoIter<TypedValue>) ->  *const c_char {
+pub unsafe extern "C" fn values_iter_next_as_uuid(iter: *mut TypedValueIterator) ->  *const c_char {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| string_to_c_char(v.into_uuid_string().expect("Typed value cannot be coerced into a Uuid")))
 }
@@ -556,11 +559,11 @@ pub unsafe extern "C" fn store_sync(store: *mut Store, user_uuid: *const c_char,
     Box::into_raw(Box::new(res.into()))
 }
 
-fn add_value_for_attribute<E, V>(store: &mut Store, entid: E, attribute: String, value: V) -> *mut ExternResult
+fn assert_datom<E, V>(store: &mut Store, entid: E, attribute: String, value: V) -> *mut ExternResult
 where E: Into<KnownEntid>,
       V: Into<TypedValue> {
     let kw = kw_from_string(attribute);
-    let res = store.add_value_for_attribute(entid.into(), kw, value.into());
+    let res = store.assert_datom(entid.into(), kw, value.into());
     Box::into_raw(Box::new(res.into()))
 }
 
@@ -568,7 +571,7 @@ where E: Into<KnownEntid>,
 pub unsafe extern "C" fn store_set_long_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: i64) -> *mut ExternResult {
     let store = &mut*store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    let res = store.add_value_for_attribute(KnownEntid(entid), kw, TypedValue::Long(value));
+    let res = store.assert_datom(KnownEntid(entid), kw, TypedValue::Long(value));
     Box::into_raw(Box::new(res.into()))
 }
 
@@ -576,7 +579,7 @@ pub unsafe extern "C" fn store_set_long_for_attribute_on_entid(store: *mut Store
 pub unsafe extern "C" fn store_set_entid_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: Entid) -> *mut ExternResult {
     let store = &mut*store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    let res = store.add_value_for_attribute(KnownEntid(entid), kw, TypedValue::Ref(value));
+    let res = store.assert_datom(KnownEntid(entid), kw, TypedValue::Ref(value));
     Box::into_raw(Box::new(res.into()))
 }
 
@@ -590,41 +593,41 @@ pub unsafe extern "C" fn store_set_kw_ref_for_attribute_on_entid(store: *mut Sto
         return Box::into_raw(Box::new(ExternResult { ok: std::ptr::null_mut(), err: string_to_c_char(format!("Unknown attribute {:?}", value)) }));
     }
     let kw_entid = is_valid.unwrap();
-    let res = store.add_value_for_attribute(KnownEntid(entid), kw, TypedValue::Ref(kw_entid.into()));
+    let res = store.assert_datom(KnownEntid(entid), kw, TypedValue::Ref(kw_entid.into()));
     Box::into_raw(Box::new(res.into()))
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn store_set_boolean_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: bool) -> *mut ExternResult {
     let store = &mut*store;
-    add_value_for_attribute(store, KnownEntid(entid), c_char_to_string(attribute), value)
+    assert_datom(store, KnownEntid(entid), c_char_to_string(attribute), value)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn store_set_double_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: f64) -> *mut ExternResult {
     let store = &mut*store;
-    add_value_for_attribute(store, KnownEntid(entid), c_char_to_string(attribute), value)
+    assert_datom(store, KnownEntid(entid), c_char_to_string(attribute), value)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn store_set_timestamp_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: time_t) -> *mut ExternResult {
     let store = &mut*store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    let res = store.add_value_for_attribute(KnownEntid(entid), kw, TypedValue::instant(value as i64));
+    let res = store.assert_datom(KnownEntid(entid), kw, TypedValue::instant(value as i64));
     Box::into_raw(Box::new(res.into()))
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn store_set_string_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: *const c_char) -> *mut ExternResult {
     let store = &mut*store;
-    add_value_for_attribute(store, KnownEntid(entid), c_char_to_string(attribute), c_char_to_string(value))
+    assert_datom(store, KnownEntid(entid), c_char_to_string(attribute), c_char_to_string(value))
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn store_set_uuid_for_attribute_on_entid(store: *mut Store, entid: Entid, attribute: *const c_char, value: *const c_char) -> *mut ExternResult {
     let store = &mut*store;
     let uuid = Uuid::parse_str(&c_char_to_string(value)).expect("valid uuid");
-    add_value_for_attribute(store, KnownEntid(entid), c_char_to_string(attribute), uuid)
+    assert_datom(store, KnownEntid(entid), c_char_to_string(attribute), uuid)
 }
 
 #[no_mangle]
@@ -635,51 +638,24 @@ pub unsafe extern "C" fn destroy(obj: *mut c_void) {
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn query_builder_destroy(obj: *mut QueryBuilder) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+macro_rules! define_destructor (
+    ($name:ident, $t:ty) => (
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(obj: *mut $t) {
+            if !obj.is_null() { let _ = Box::from_raw(obj); }
+        }
+    )
+);
+define_destructor!(query_builder_destroy, QueryBuilder);
 
-#[no_mangle]
-pub unsafe extern "C" fn store_destroy(obj: *mut Store) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+define_destructor!(store_destroy, Store);
 
-#[no_mangle]
-pub unsafe extern "C" fn typed_value_destroy(obj: *mut TypedValue) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+define_destructor!(typed_value_destroy, TypedValue);
 
-#[no_mangle]
-pub unsafe extern "C" fn typed_value_list_destroy(obj: *mut Vec<TypedValue>) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+define_destructor!(typed_value_list_destroy, Vec<TypedValue>);
 
-#[no_mangle]
-pub unsafe extern "C" fn typed_value_list_iter_destroy(obj: *mut vec::IntoIter<TypedValue>) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+define_destructor!(typed_value_list_iter_destroy, TypedValueIterator);
 
-#[no_mangle]
-pub unsafe extern "C" fn typed_value_result_set_destroy(obj: *mut Vec<Vec<TypedValue>>) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+define_destructor!(typed_value_result_set_destroy, Vec<Vec<TypedValue>>);
 
-#[no_mangle]
-pub unsafe extern "C" fn typed_value_result_set_iter_destroy(obj: *mut vec::IntoIter<Vec<TypedValue>>) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
-}
+define_destructor!(typed_value_result_set_iter_destroy, TypedValueListIterator);
