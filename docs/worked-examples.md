@@ -189,7 +189,190 @@ Now we can find everyone who moved office in February:
         [?person :person/name ?name]]
 ```
 
+## Tend towards recording observations, not changing state
+
+These principles are all different aspects of normalization. The introduction of fine-grained entities to represent data pushes us towards immutability: changes are increasingly changing an 'arrow' to point at one immutable entity or another, rather than re-describing a mutable entity. In the previous example we introduced places and addresses, which rarely change, and mostly isolated change to the relationships between entities.
+
+Another example of this is browser history.
+
+Firefox's representation of history is, at its core, relatively simplistic; just two tables:
+
+```sql
+CREATE TABLE history (
+  id INTEGER PRIMARY KEY,
+  guid TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL UNIQUE,
+  title TEXT
+);
+
+CREATE TABLE visits (
+  id INTEGER PRIMARY KEY,
+  history_id INTEGER NOT NULL REFERENCES history(id),
+  type TINYINT,
+  timestamp INTEGER
+);
+```
+
+Each time a URL is visited, an entry is added to the `visits` table and a row is added or updated in `history`. The title of the fetched page is used to update `history.title`.
+
+This works fine until more features are added.
+
+### Forgetting
+
+Browsers often have some capacity for deleting history. Sometimes this appears in the form of an explicit 'forget' operation — "Forget the last five minutes of browsing". Deleting visits in this way is fine: `DELETE FROM visits WHERE timestamp < ?`. But the mutability in the data model — title — trips us up. We're unable to roll back the title of the history entry unless we're using a database like Datomic or Mentat.
+
+### Syncing
+
+But even if you are using Mentat, a mutable title on `history` will cause conflicts when syncing: one side's observed titles will 'lose' and be discarded in order to avoid a conflict. That's not right: those titles _were seen_. Unlike a conflicting counter or flag, these weren't abortive, temporary states; they were _observations of the world_.
+
+### Containers
+
+The true data model comes out when we consider containers. Containers are a Firefox feature to sandbox the cookies, site data, and history of different named sub-profiles. You can have a container just for Facebook, or one for your banking; those Facebook cookies won't follow you around the web in your 'personal' container. You can simultaneously use separate Gmail accounts for work and personal email.
+
+When Firefox added container support, it did so by flagging visits:
+
+```sql
+CREATE TABLE visits (
+  id INTEGER PRIMARY KEY,
+  history_id INTEGER NOT NULL REFERENCES history(id),
+  type TINYINT,
+  timestamp INTEGER,
+  container INTEGER,
+);
+```
+
+This means that each container _competes for the title on `history`_. If you visit `facebook.com` in your usual logged-in container, the browser will run this SQL:
+
+```
+UPDATE TABLE history
+SET title = '(2) Facebook'
+WHERE url = 'https://www.facebook.com';
+```
+
+If you visit it in the wrong container by mistake, you'll get the Facebook login page, and Firefox will run:
+
+```
+UPDATE TABLE history
+SET title = 'Facebook - Log In or Sign Up'
+WHERE url = 'https://www.facebook.com';
+```
+
+Next time you open your history, you'll see the login page title, even if you had a logged-in `facebook.com` session open in another tab. There's no way to differentiate between the containers' views.
+
+The correct data model for history is:
+
+- Users visit a URL on a device in a container.
+- Pages are fetched as a result of a visit (or dynamically after load). Pages can embed media and other resources.
+- Pages, being HTML, have titles.
+- Pages, titles, and visits are all _observations_, and as such cannot conflict.
+- The _last observed_ title to show for a URL is an _aggregation_ of those events.
+
+The entire notion of a history table — a concept centered on the URL — having a title is a subtly incorrect choice that causes problems with more modern browser features.
+
+Modeled in Mentat:
+
+```edn
+[{:db/ident       :visit/visitedOnDevice
+  :db/valueType   :db.type/ref
+  :db/cardinality :db.cardinality/one}
+ {:db/ident       :visit/visitAt
+  :db/valueType   :db.type/instant
+  :db/cardinality :db.cardinality/one}
+ {:db/ident       :site/visit
+  :db/valueType   :db.type/ref
+  :db/isComponent true
+  :db/cardinality :db.cardinality/many}
+ {:db/ident       :site/url
+  :db/valueType   :db.type/string
+  :db/unique      :db.unique/identity
+  :db/cardinality :db.cardinality/one
+  :db/index       true}
+ {:db/ident       :visit/page
+  :db/valueType   :db.type/ref
+  :db/isComponent true                    ; Debatable.
+  :db/cardinality :db.cardinality/one}
+ {:db/ident       :page/title
+  :db/valueType   :db.type/string
+  :db/fulltext    true
+  :db/index       true
+  :db/cardinality :db.cardinality/one}
+ {:db/ident       :visit/container
+  :db/valueType   :db.type/ref
+  :db/cardinality :db.cardinality/one}]
+```
+
+Create some containers:
+
+```edn
+[{:db/ident :container/facebook}
+ {:db/ident :container/personal}]
+```
+
+Add a device:
+
+```edn
+[{:db/ident :device/my-desktop}]
+```
+
+
+Visit Facebook in each container:
+
+```edn
+[{:visit/visitedOnDevice :device/my-desktop
+  :visit/visitAt #inst "2018-04-06T18:46:00Z"
+  :visit/container :container/facebook
+  :db/id "fbvisit"
+  :visit/page "fbpage"}
+ {:db/id "fbpage"
+  :page/title "(2) Facebook"}
+ {:site/url "https://www.facebook.com"
+  :site/visit "fbvisit"}]
+```
+
+```edn
+[{:visit/visitedOnDevice :device/my-desktop
+  :visit/visitAt #inst "2018-04-06T18:46:02Z"
+  :visit/container :container/personal
+  :db/id "personalvisit"
+  :visit/page "personalpage"}
+ {:db/id "personalpage"
+  :page/title "Facebook - Log In or Sign Up"}
+ {:site/url "https://www.facebook.com"
+  :site/visit "personalvisit"}]
+```
+
+Now we can show the title from the latest visit in a given container:
+
+```edn
+.q [:find (max ?visitDate) (the ?title)
+    :where [?site :site/url "https://www.facebook.com"]
+           [?site :site/visit ?visit]
+           [?visit :visit/container :container/facebook]
+           [?visit :visit/visitAt ?visitDate]
+           [?visit :visit/page ?page]
+           [?page :page/title ?title]]
+=>
+| (the ?title)    | (max ?visitDate)         |
+---               ---
+| "(2) Facebook"  | 2018-04-06 18:46:00 UTC  |
+---               ---
+
+.q [:find (the ?title) (max ?visitDate)
+    :where [?site :site/url "https://www.facebook.com"]
+           [?site :site/visit ?visit]
+           [?visit :visit/container :container/personal]
+           [?visit :visit/visitAt ?visitDate]
+           [?visit :visit/page ?page]
+           [?page :page/title ?title]]
+=>
+| (the ?title)                    | (max ?visitDate)         |
+---                               ---
+| "Facebook - Log In or Sign Up"  | 2018-04-06 18:46:02 UTC  |
+---                               ---
+```
+
+
 ## Normalize; you can always denormalize for use.
-## Tend towards recording events, not changing state.
 ## Use unique identities and cardinality-one attributes to make merging happen during a sync.
 ## Reify to handle conflict and atomicity.
+
