@@ -426,7 +426,7 @@ impl TypedSQLValue for TypedValue {
 
 /// Read an arbitrary [e a v value_type_tag] materialized view from the given table in the SQL
 /// store.
-fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -> Result<Vec<(Entid, Entid, TypedValue)>> {
+pub(crate) fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -> Result<Vec<(Entid, Entid, TypedValue)>> {
     let mut stmt: rusqlite::Statement = conn.prepare(format!("SELECT e, a, v, value_type_tag FROM {}", table).as_str())?;
     let m: Result<Vec<(Entid, Entid, TypedValue)>> = stmt.query_and_then(&[], |row| {
         let e: Entid = row.get_checked(0)?;
@@ -449,7 +449,7 @@ fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
 }
 
 /// Read the ident map materialized view from the given SQL store.
-fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
+pub(crate) fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
     let v = read_materialized_view(conn, "idents")?;
     v.into_iter().map(|(e, a, typed_value)| {
         if a != entids::DB_IDENT {
@@ -464,7 +464,7 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
 }
 
 /// Read the schema materialized view from the given SQL store.
-fn read_attribute_map(conn: &rusqlite::Connection) -> Result<AttributeMap> {
+pub(crate) fn read_attribute_map(conn: &rusqlite::Connection) -> Result<AttributeMap> {
     let entid_triples = read_materialized_view(conn, "schema")?;
     let mut attribute_map = AttributeMap::default();
     metadata::update_attribute_map_from_entid_triples(&mut attribute_map, entid_triples, ::std::iter::empty())?;
@@ -473,7 +473,7 @@ fn read_attribute_map(conn: &rusqlite::Connection) -> Result<AttributeMap> {
 
 /// Read the materialized views from the given SQL store and return a Mentat `DB` for querying and
 /// applying transactions.
-pub fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
+pub(crate) fn read_db(conn: &rusqlite::Connection) -> Result<DB> {
     let partition_map = read_partition_map(conn)?;
     let ident_map = read_ident_map(conn)?;
     let attribute_map = read_attribute_map(conn)?;
@@ -1115,201 +1115,28 @@ mod tests {
     extern crate env_logger;
 
     use super::*;
-    use bootstrap;
-    use debug;
-    use errors;
-    use edn;
+    use debug::{TestConn,tempids};
     use edn::{
+        self,
         InternSet,
     };
     use edn::entities::{
         OpType,
-        TempId,
     };
-
     use mentat_core::{
         HasSchema,
         Keyword,
         KnownEntid,
-        TxReport,
         attribute,
     };
     use mentat_core::util::Either::*;
-    use rusqlite;
     use std::collections::{
         BTreeMap,
     };
+    use errors;
     use internal_types::{
         Term,
-        TermWithTempIds,
     };
-    use tx::{
-        transact_terms,
-    };
-
-    // Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
-    // against it.
-    //
-    // This is a macro only to give nice line numbers when tests fail.
-    macro_rules! assert_matches {
-        ( $input: expr, $expected: expr ) => {{
-            // Failure to parse the expected pattern is a coding error, so we unwrap.
-            let pattern_value = edn::parse::value($expected.borrow())
-                .expect(format!("to be able to parse expected {}", $expected).as_str())
-                .without_spans();
-            assert!($input.matches(&pattern_value),
-                    "Expected value:\n{}\nto match pattern:\n{}\n",
-                    $input.to_pretty(120).unwrap(),
-                    pattern_value.to_pretty(120).unwrap());
-        }}
-    }
-
-    // Transact $input against the given $conn, expecting success or a `Result<TxReport, String>`.
-    //
-    // This unwraps safely and makes asserting errors pleasant.
-    macro_rules! assert_transact {
-        ( $conn: expr, $input: expr, $expected: expr ) => {{
-            trace!("assert_transact: {}", $input);
-            let result = $conn.transact($input).map_err(|e| e.to_string());
-            assert_eq!(result, $expected.map_err(|e| e.to_string()));
-        }};
-        ( $conn: expr, $input: expr ) => {{
-            trace!("assert_transact: {}", $input);
-            let result = $conn.transact($input);
-            assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
-            result.unwrap()
-        }};
-    }
-
-    // A connection that doesn't try to be clever about possibly sharing its `Schema`.  Compare to
-    // `mentat::Conn`.
-    struct TestConn {
-        sqlite: rusqlite::Connection,
-        partition_map: PartitionMap,
-        schema: Schema,
-    }
-
-    impl TestConn {
-        fn assert_materialized_views(&self) {
-            let materialized_ident_map = read_ident_map(&self.sqlite).expect("ident map");
-            let materialized_attribute_map = read_attribute_map(&self.sqlite).expect("schema map");
-
-            let materialized_schema = Schema::from_ident_map_and_attribute_map(materialized_ident_map, materialized_attribute_map).expect("schema");
-            assert_eq!(materialized_schema, self.schema);
-        }
-
-        fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
-            // Failure to parse the transaction is a coding error, so we unwrap.
-            let entities = edn::parse::entities(transaction.borrow()).expect(format!("to be able to parse {} into entities", transaction.borrow()).as_str());
-
-            let details = {
-                // The block scopes the borrow of self.sqlite.
-                // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
-                let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
-                // Applying the transaction can fail, so we don't unwrap.
-                let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), entities)?;
-                tx.commit()?;
-                details
-            };
-
-            let (report, next_partition_map, next_schema, _watcher) = details;
-            self.partition_map = next_partition_map;
-            if let Some(next_schema) = next_schema {
-                self.schema = next_schema;
-            }
-
-            // Verify that we've updated the materialized views during transacting.
-            self.assert_materialized_views();
-
-            Ok(report)
-        }
-
-        fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
-            let details = {
-                // The block scopes the borrow of self.sqlite.
-                // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
-                let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
-                // Applying the transaction can fail, so we don't unwrap.
-                let details = transact_terms(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), terms, tempid_set)?;
-                tx.commit()?;
-                details
-            };
-
-            let (report, next_partition_map, next_schema, _watcher) = details;
-            self.partition_map = next_partition_map;
-            if let Some(next_schema) = next_schema {
-                self.schema = next_schema;
-            }
-
-            // Verify that we've updated the materialized views during transacting.
-            self.assert_materialized_views();
-
-            Ok(report)
-        }
-
-        fn last_tx_id(&self) -> Entid {
-            self.partition_map.get(&":db.part/tx".to_string()).unwrap().index - 1
-        }
-
-        fn last_transaction(&self) -> edn::Value {
-            debug::transactions_after(&self.sqlite, &self.schema, self.last_tx_id() - 1).expect("last_transaction").0[0].into_edn()
-        }
-
-        fn datoms(&self) -> edn::Value {
-            debug::datoms_after(&self.sqlite, &self.schema, bootstrap::TX0).expect("datoms").into_edn()
-        }
-
-        fn fulltext_values(&self) -> edn::Value {
-            debug::fulltext_values(&self.sqlite).expect("fulltext_values").into_edn()
-        }
-
-        fn with_sqlite(mut conn: rusqlite::Connection) -> TestConn {
-            let db = ensure_current_version(&mut conn).unwrap();
-
-            // Does not include :db/txInstant.
-            let datoms = debug::datoms_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(datoms.0.len(), 94);
-
-            // Includes :db/txInstant.
-            let transactions = debug::transactions_after(&conn, &db.schema, 0).unwrap();
-            assert_eq!(transactions.0.len(), 1);
-            assert_eq!(transactions.0[0].0.len(), 95);
-
-            let mut parts = db.partition_map;
-
-            // Add a fake partition to allow tests to do things like
-            // [:db/add 111 :foo/bar 222]
-            {
-                let fake_partition = Partition { start: 100, end: 2000, index: 1000, allow_excision: true };
-                parts.insert(":db.part/fake".into(), fake_partition);
-            }
-
-            let test_conn = TestConn {
-                sqlite: conn,
-                partition_map: parts,
-                schema: db.schema,
-            };
-
-            // Verify that we've created the materialized views during bootstrapping.
-            test_conn.assert_materialized_views();
-
-            test_conn
-        }
-    }
-
-    impl Default for TestConn {
-        fn default() -> TestConn {
-            TestConn::with_sqlite(new_connection("").expect("Couldn't open in-memory db"))
-        }
-    }
-
-    fn tempids(report: &TxReport) -> edn::Value {
-        let mut map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
-        for (tempid, &entid) in report.tempids.iter() {
-            map.insert(edn::Value::Text(tempid.clone()), edn::Value::Integer(entid));
-        }
-        edn::Value::Map(map)
-    }
 
     fn run_test_add(mut conn: TestConn) {
         // Test inserting :db.cardinality/one elements.
