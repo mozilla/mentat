@@ -1085,6 +1085,106 @@ fn test_combinatorial() {
 }
 
 #[test]
+fn test_aggregate_the() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        {:db/ident       :visit/visitedOnDevice
+         :db/valueType   :db.type/ref
+         :db/cardinality :db.cardinality/one}
+        {:db/ident       :visit/visitAt
+         :db/valueType   :db.type/instant
+         :db/cardinality :db.cardinality/one}
+        {:db/ident       :site/visit
+         :db/valueType   :db.type/ref
+         :db/isComponent true
+         :db/cardinality :db.cardinality/many}
+        {:db/ident       :site/url
+         :db/valueType   :db.type/string
+         :db/unique      :db.unique/identity
+         :db/cardinality :db.cardinality/one
+         :db/index       true}
+        {:db/ident       :visit/page
+         :db/valueType   :db.type/ref
+         :db/isComponent true                    ; Debatable.
+         :db/cardinality :db.cardinality/one}
+        {:db/ident       :page/title
+         :db/valueType   :db.type/string
+         :db/fulltext    true
+         :db/index       true
+         :db/cardinality :db.cardinality/one}
+        {:db/ident       :visit/container
+         :db/valueType   :db.type/ref
+         :db/cardinality :db.cardinality/one}
+    ]"#).expect("transacted schema");
+
+    store.transact(r#"[
+        {:db/ident :container/facebook}
+        {:db/ident :container/personal}
+
+        {:db/ident :device/my-desktop}
+    ]"#).expect("transacted idents");
+
+    store.transact(r#"[
+        {:visit/visitedOnDevice :device/my-desktop
+         :visit/visitAt #inst "2018-04-06T20:46:00Z"
+         :visit/container :container/facebook
+         :db/id "another"
+         :visit/page "fbpage2"}
+        {:db/id "fbpage2"
+         :page/title "(1) Facebook"}
+        {:visit/visitedOnDevice :device/my-desktop
+         :visit/visitAt #inst "2018-04-06T18:46:00Z"
+         :visit/container :container/facebook
+         :db/id "fbvisit"
+         :visit/page "fbpage"}
+        {:db/id "fbpage"
+         :page/title "(2) Facebook"}
+        {:site/url "https://www.facebook.com"
+         :db/id "aa"
+         :site/visit ["personalvisit" "another" "fbvisit"]}
+        {:visit/visitedOnDevice :device/my-desktop
+         :visit/visitAt #inst "2018-04-06T18:46:00Z"
+         :visit/container :container/personal
+         :db/id "personalvisit"
+         :visit/page "personalpage"}
+        {:db/id "personalpage"
+         :page/title "Facebook - Log In or Sign Up"}
+    ]"#).expect("transacted data");
+
+    let per_title =
+        store.q_once(r#"
+            [:find (max ?visitDate) ?title
+             :where [?site :site/url "https://www.facebook.com"]
+                    [?site :site/visit ?visit]
+                    [?visit :visit/container :container/facebook]
+                    [?visit :visit/visitAt ?visitDate]
+                    [?visit :visit/page ?page]
+                    [?page :page/title ?title]]"#, None)
+             .into_rel_result()
+             .expect("two results");
+
+    let corresponding_title =
+        store.q_once(r#"
+            [:find (max ?visitDate) (the ?title)
+             :where [?site :site/url "https://www.facebook.com"]
+                    [?site :site/visit ?visit]
+                    [?visit :visit/container :container/facebook]
+                    [?visit :visit/visitAt ?visitDate]
+                    [?visit :visit/page ?page]
+                    [?page :page/title ?title]]"#, None)
+             .into_rel_result()
+             .expect("one result");
+
+    assert_eq!(2, per_title.len());
+    assert_eq!(1, corresponding_title.len());
+
+    assert_eq!(corresponding_title,
+               vec![vec![TypedValue::Instant(DateTime::<Utc>::from_str("2018-04-06T20:46:00.000Z").unwrap()),
+                         TypedValue::typed_string("(1) Facebook")]]);
+}
+
+#[test]
 fn test_aggregation_implicit_grouping() {
     let mut store = Store::open("").expect("opened");
 
