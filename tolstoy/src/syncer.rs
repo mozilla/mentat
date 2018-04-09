@@ -413,7 +413,12 @@ impl RemoteClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Borrow;
     use std::str::FromStr;
+
+    use edn;
+
+    use mentat_db::debug::{TestConn};
 
     #[test]
     fn test_remote_client_bound_uri() {
@@ -421,5 +426,73 @@ mod tests {
         let server_uri = String::from("https://example.com/api/0.1");
         let remote_client = RemoteClient::new(server_uri, user_uuid);
         assert_eq!("https://example.com/api/0.1/316ea470-ce35-4adf-9c61-e0de6e289c59", remote_client.bound_base_uri());
+    }
+
+    #[test]
+    fn test_add() {
+        let mut conn = TestConn::default();
+
+        // Test inserting :db.cardinality/one elements.
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 1]
+                                 [:db/add 101 :db.schema/version 2]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/version 1 ?tx true]
+                          [101 :db.schema/version 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                       "[[100 :db.schema/version 1]
+                         [101 :db.schema/version 2]]");
+
+        // Test inserting :db.cardinality/many elements.
+        assert_transact!(conn, "[[:db/add 200 :db.schema/attribute 100]
+                                 [:db/add 200 :db.schema/attribute 101]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/attribute 100 ?tx true]
+                          [200 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 1]
+                          [101 :db.schema/version 2]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+
+        // Test replacing existing :db.cardinality/one elements.
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 11]
+                                 [:db/add 101 :db.schema/version 22]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/version 1 ?tx false]
+                          [100 :db.schema/version 11 ?tx true]
+                          [101 :db.schema/version 2 ?tx false]
+                          [101 :db.schema/version 22 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+
+
+        // Test that asserting existing :db.cardinality/one elements doesn't change the store.
+        assert_transact!(conn, "[[:db/add 100 :db.schema/version 11]
+                                 [:db/add 101 :db.schema/version 22]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+
+
+        // Test that asserting existing :db.cardinality/many elements doesn't change the store.
+        assert_transact!(conn, "[[:db/add 200 :db.schema/attribute 100]
+                                 [:db/add 200 :db.schema/attribute 101]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
     }
 }
