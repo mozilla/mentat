@@ -11,6 +11,40 @@
 #![allow(dead_code)]
 #![allow(unused_macros)]
 
+// Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
+// against it.
+//
+// This is a macro only to give nice line numbers when tests fail.
+macro_rules! assert_matches {
+    ( $input: expr, $expected: expr ) => {{
+        // Failure to parse the expected pattern is a coding error, so we unwrap.
+        let pattern_value = edn::parse::value($expected.borrow())
+            .expect(format!("to be able to parse expected {}", $expected).as_str())
+            .without_spans();
+        assert!($input.matches(&pattern_value),
+                "Expected value:\n{}\nto match pattern:\n{}\n",
+                $input.to_pretty(120).unwrap(),
+                pattern_value.to_pretty(120).unwrap());
+    }}
+}
+
+// Transact $input against the given $conn, expecting success or a `Result<TxReport, String>`.
+//
+// This unwraps safely and makes asserting errors pleasant.
+macro_rules! assert_transact {
+    ( $conn: expr, $input: expr, $expected: expr ) => {{
+        trace!("assert_transact: {}", $input);
+        let result = $conn.transact($input).map_err(|e| e.to_string());
+        assert_eq!(result, $expected.map_err(|e| e.to_string()));
+    }};
+    ( $conn: expr, $input: expr ) => {{
+        trace!("assert_transact: {}", $input);
+        let result = $conn.transact($input);
+        assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
+        result.unwrap()
+    }};
+}
+
 /// Low-level functions for testing.
 
 // Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
@@ -309,47 +343,12 @@ pub fn dump_sql_query(conn: &rusqlite::Connection, sql: &str, params: &[&ToSql])
     Ok(dump)
 }
 
-
-// Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
-// against it.
-//
-// This is a macro only to give nice line numbers when tests fail.
-macro_rules! assert_matches {
-    ( $input: expr, $expected: expr ) => {{
-        // Failure to parse the expected pattern is a coding error, so we unwrap.
-        let pattern_value = edn::parse::value($expected.borrow())
-            .expect(format!("to be able to parse expected {}", $expected).as_str())
-            .without_spans();
-        assert!($input.matches(&pattern_value),
-                "Expected value:\n{}\nto match pattern:\n{}\n",
-                $input.to_pretty(120).unwrap(),
-                pattern_value.to_pretty(120).unwrap());
-    }}
-}
-
-// Transact $input against the given $conn, expecting success or a `Result<TxReport, String>`.
-//
-// This unwraps safely and makes asserting errors pleasant.
-macro_rules! assert_transact {
-    ( $conn: expr, $input: expr, $expected: expr ) => {{
-        trace!("assert_transact: {}", $input);
-        let result = $conn.transact($input).map_err(|e| e.to_string());
-        assert_eq!(result, $expected.map_err(|e| e.to_string()));
-    }};
-    ( $conn: expr, $input: expr ) => {{
-        trace!("assert_transact: {}", $input);
-        let result = $conn.transact($input);
-        assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
-        result.unwrap()
-    }};
-}
-
 // A connection that doesn't try to be clever about possibly sharing its `Schema`.  Compare to
 // `mentat::Conn`.
-pub(crate) struct TestConn {
-    pub(crate) sqlite: rusqlite::Connection,
-    pub(crate) partition_map: PartitionMap,
-    pub(crate) schema: Schema,
+pub struct TestConn {
+    pub sqlite: rusqlite::Connection,
+    pub partition_map: PartitionMap,
+    pub schema: Schema,
 }
 
 impl TestConn {
