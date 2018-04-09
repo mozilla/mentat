@@ -137,6 +137,19 @@ pub extern "C" fn store_open(uri: *const c_char) -> *mut Store {
 
 // TODO: begin_transaction
 
+#[no_mangle]
+pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c_char) -> *mut ExternResult {
+    let store = &mut*store;
+    let transaction = c_char_to_string(transaction);
+    let result = store.begin_transaction().map(|mut in_progress| {
+        in_progress.transact(&transaction).map(|tx_report| {
+            in_progress.commit()
+                       .map(|_| tx_report)
+        })
+    });
+    Box::into_raw(Box::new(result.into()))
+}
+
 // TODO: cache
 
 // TODO: q_once
@@ -468,12 +481,6 @@ pub unsafe extern "C" fn value_at_index_as_uuid(values: *mut Vec<TypedValue>, in
     let value = result.get(index as usize).expect("No value at index");
     string_to_c_char(value.clone().into_uuid_string().expect("Typed value cannot be coerced into a Uuid"))
 }
-
-// TODO: q_prepare
-
-// TODO: q_explain
-
-// TODO: lookup_values_for_attribute
 
 #[no_mangle]
 pub unsafe extern "C" fn store_value_for_attribute(store: *mut Store, entid: i64, attribute: *const c_char) ->  *mut ExternResult {
