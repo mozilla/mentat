@@ -44,6 +44,10 @@ error_chain! {
             description("cannot apply projection operation to types")
             display("cannot apply projection operation {:?} to types {:?}", op, types)
         }
+        InvalidProjection(t: String) {
+            description("invalid projection")
+            display("invalid projection: {}", t)
+        }
         UnboundVariable(var: PlainSymbol) {
             description("cannot project unbound variable")
             display("cannot project unbound variable {:?}", var)
