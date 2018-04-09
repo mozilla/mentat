@@ -5,10 +5,6 @@
 import Foundation
 import Mentatlib
 
-enum QueryResultError: Error {
-    case resultsConsumed
-}
-
 class RelResult: OptionalRustObject {
     private func getRaw() throws -> OpaquePointer {
         guard let r = self.raw else {

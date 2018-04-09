@@ -6,6 +6,8 @@ import XCTest
 @testable import Mentat
 
 class MentatTests: XCTestCase {
+
+    var schema: String?
     
     override func setUp() {
         super.setUp()
@@ -29,4 +31,29 @@ class MentatTests: XCTestCase {
         let storeURI = documentsURL.appendingPathComponent("test.db", isDirectory: false).absoluteString
         XCTAssertNotNil(Mentat(storeURI: storeURI).intoRaw())
     }
+
+    func readSchema() throws -> String {
+        guard let schema = self.schema else {
+            let bundle = Bundle(for: type(of: self))
+            guard let schemaPath = bundle.path(forResource: "cities", ofType: "schema") else { return "" }
+            let schema = try String(contentsOf: URL(fileURLWithPath: schemaPath))
+            self.schema = schema
+            return schema
+        }
+
+        return schema
+    }
+
+    func testTransactVocabulary() {
+        do {
+            let vocab = try readSchema()
+            let mentat = Mentat()
+            let success = try mentat.transact(transaction: vocab)
+            assert( success )
+        } catch {
+            assertionFailure(error.localizedDescription)
+        }
+    }
+
+    // TODO: Add more tests once we are able to add vocabulary and transact entities
 }

@@ -22,6 +22,8 @@
 		7BDB96C02077CD7A009D0651 /* libmentat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB96BF2077CD7A009D0651 /* libmentat.a */; };
 		7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB96C12077CD98009D0651 /* libresolv.tbd */; };
 		7BDB96C62077D347009D0651 /* Date+Int64.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96C52077D346009D0651 /* Date+Int64.swift */; };
+		7BDB96C9207B735A009D0651 /* fixtures in Resources */ = {isa = PBXBuildFile; fileRef = 7BDB96C8207B735A009D0651 /* fixtures */; };
+		7BDB96CC207B7684009D0651 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96CB207B7684009D0651 /* Errors.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +56,8 @@
 		7BDB96C12077CD98009D0651 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
 		7BDB96C32077D090009D0651 /* module.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.map; sourceTree = "<group>"; };
 		7BDB96C52077D346009D0651 /* Date+Int64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Date+Int64.swift"; sourceTree = "<group>"; };
+		7BDB96C8207B735A009D0651 /* fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fixtures; path = ../../../../fixtures; sourceTree = "<group>"; };
+		7BDB96CB207B7684009D0651 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Errors.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +103,7 @@
 		7BDB968C2077C299009D0651 /* Mentat */ = {
 			isa = PBXGroup;
 			children = (
+				7BDB96CA207B7672009D0651 /* Errors */,
 				7BDB96C42077D346009D0651 /* Extensions */,
 				7BDB96BA2077C42B009D0651 /* Core */,
 				7BDB96B92077C403009D0651 /* Rust */,
@@ -116,6 +121,7 @@
 		7BDB96972077C299009D0651 /* MentatTests */ = {
 			isa = PBXGroup;
 			children = (
+				7BDB96C8207B735A009D0651 /* fixtures */,
 				7BDB96982077C299009D0651 /* MentatTests.swift */,
 				7BDB969A2077C299009D0651 /* Info.plist */,
 			);
@@ -172,6 +178,14 @@
 				7BDB96C52077D346009D0651 /* Date+Int64.swift */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		7BDB96CA207B7672009D0651 /* Errors */ = {
+			isa = PBXGroup;
+			children = (
+				7BDB96CB207B7684009D0651 /* Errors.swift */,
+			);
+			path = Errors;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -274,6 +288,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7BDB96C9207B735A009D0651 /* fixtures in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -290,6 +305,7 @@
 				7BDB96B42077C38E009D0651 /* OptionalRustObject.swift in Sources */,
 				7BDB96B22077C38E009D0651 /* RelResult.swift in Sources */,
 				7BDB96AF2077C38E009D0651 /* Query.swift in Sources */,
+				7BDB96CC207B7684009D0651 /* Errors.swift in Sources */,
 				7BDB96B02077C38E009D0651 /* Mentat.swift in Sources */,
 				7BDB96B72077C38E009D0651 /* TypedValue.swift in Sources */,
 				7BDB96B52077C38E009D0651 /* TupleResult.swift in Sources */,

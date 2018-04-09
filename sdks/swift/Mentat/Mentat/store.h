@@ -50,6 +50,9 @@ void typed_value_list_iter_destroy(struct QueryRowIterator* _Nullable obj);
 void typed_value_result_set_destroy(struct QueryResultRows* _Nullable obj);
 void typed_value_result_set_iter_destroy(struct QueryRowsIterator* _Nullable obj);
 
+// transact
+struct Result*_Nonnull store_transact(struct Store*_Nonnull store, const char* _Nonnull transaction);
+
 // Sync
 struct Result*_Nonnull store_sync(struct Store*_Nonnull store, const char* _Nonnull user_uuid, const char* _Nonnull server_uri);
 

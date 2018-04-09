@@ -27,6 +27,17 @@ class Mentat: RustObject {
         self.init(raw: store_open(storeURI))
     }
 
+    func transact(transaction: String) throws -> Bool {
+        let result = store_transact(self.raw, transaction).pointee
+        guard let _ = result.ok else {
+            if let error = result.err {
+                throw MentatError(message: String(cString: error))
+            }
+            throw MentatError(message: "Unspecified Error")
+        }
+        print("Successfull")
+        return true
+    }
 
     func entidForAttribute(attribute: String) -> Int64 {
         return Int64(store_entid_for_attribute(self.raw, attribute))

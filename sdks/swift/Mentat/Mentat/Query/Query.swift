@@ -5,12 +5,6 @@
 import Foundation
 import Mentatlib
 
-enum QueryError: Error {
-    case builderConsumed
-    case invalidKeyword(message: String)
-    case executionFailed(message: String)
-}
-
 enum QueryResult<T> {
     case error(Error)
     case success(T)
