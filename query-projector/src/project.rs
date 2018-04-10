@@ -147,7 +147,6 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
     let mut i: i32 = 0;
     let mut min_max_count: usize = 0;
-    let mut corresponding_count: usize = 0;
     let mut templates = vec![];
 
     let mut aggregates = false;
@@ -170,15 +169,15 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     bail!(ErrorKind::InvalidProjection(format!("Duplicate variable {} in query.", var)));
                 }
                 if corresponded_variables.contains(var) {
-                    bail!(ErrorKind::InvalidProjection(format!("Can't project both {} and (the {}) from a query.", var, var)));
+                    bail!(ErrorKind::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
                 }
             },
             &Element::Corresponding(ref var) => {
                 if outer_variables.contains(var) {
-                    bail!(ErrorKind::InvalidProjection(format!("Can't project both {} and (the {}) from a query.", var, var)));
+                    bail!(ErrorKind::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
                 }
                 if corresponded_variables.contains(var) {
-                    bail!(ErrorKind::InvalidProjection(format!("(the {}) appears twice in query.", var)));
+                    bail!(ErrorKind::InvalidProjection(format!("`(the {})` appears twice in query.", var)));
                 }
             },
             &Element::Aggregate(_) => {
@@ -194,7 +193,6 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             &Element::Corresponding(ref var) => {
                 // We will project these later; don't put them in `outer_variables`
                 // so we know not to group them.
-                corresponding_count += 1;
                 corresponded_variables.insert(var.clone());
             },
             &Element::Aggregate(_) => {
@@ -273,7 +271,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         }
     }
 
-    match (min_max_count, corresponding_count) {
+    match (min_max_count, corresponded_variables.len()) {
         (0, 0) | (_, 0) => {},
         (0, _) => {
             bail!(ErrorKind::InvalidProjection("Warning: used `the` without `min` or `max`.".to_string()));

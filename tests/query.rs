@@ -1176,6 +1176,12 @@ fn test_aggregate_the() {
              .into_rel_result()
              .expect("one result");
 
+    // This test shows the distinction between `?title` and `(the ?title`) — the former returns two
+    // results, while the latter returns one. Without `the` we group by `?title`, getting the
+    // maximum visit date for each title; with it we don't group by value, instead getting the title
+    // that corresponds to the maximum visit date.
+    //
+    // 'Group' in this context translates to GROUP BY in the generated SQL.
     assert_eq!(2, per_title.len());
     assert_eq!(1, corresponding_title.len());
 
