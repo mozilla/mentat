@@ -147,7 +147,6 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
 
     let mut i: i32 = 0;
     let mut min_max_count: usize = 0;
-    let mut corresponding_count: usize = 0;
     let mut templates = vec![];
 
     let mut aggregates = false;
@@ -157,27 +156,56 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     // in the result."
     // We use an ordered set here so that we group in the correct order.
     let mut outer_variables = IndexSet::new();
+    let mut corresponded_variables = IndexSet::new();
 
     // Any variable that we are projecting from the inner query.
     let mut inner_variables = BTreeSet::new();
 
     for e in elements {
-        if let &Element::Corresponding(_) = e {
-            corresponding_count += 1;
-        }
+        // Check for and reject duplicates.
+        match e {
+            &Element::Variable(ref var) => {
+                if outer_variables.contains(var) {
+                    bail!(ErrorKind::InvalidProjection(format!("Duplicate variable {} in query.", var)));
+                }
+                if corresponded_variables.contains(var) {
+                    bail!(ErrorKind::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
+                }
+            },
+            &Element::Corresponding(ref var) => {
+                if outer_variables.contains(var) {
+                    bail!(ErrorKind::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
+                }
+                if corresponded_variables.contains(var) {
+                    bail!(ErrorKind::InvalidProjection(format!("`(the {})` appears twice in query.", var)));
+                }
+            },
+            &Element::Aggregate(_) => {
+            },
+        };
 
+        // Record variables -- (the ?x) and ?x are different in this regard, because we don't want
+        // to group on variables that are corresponding-projected.
+        match e {
+            &Element::Variable(ref var) => {
+                outer_variables.insert(var.clone());
+            },
+            &Element::Corresponding(ref var) => {
+                // We will project these later; don't put them in `outer_variables`
+                // so we know not to group them.
+                corresponded_variables.insert(var.clone());
+            },
+            &Element::Aggregate(_) => {
+            },
+        };
+
+        // Now do the main processing of each element.
         match e {
             // Each time we come across a variable, we push a SQL column
             // into the SQL projection, aliased to the name of the variable,
             // and we push an annotated index into the projector.
             &Element::Variable(ref var) |
             &Element::Corresponding(ref var) => {
-                if outer_variables.contains(var) {
-                    eprintln!("Warning: duplicate variable {} in query.", var);
-                }
-
-                // TODO: it's an error to have `[:find ?x (the ?x) …]`.
-                outer_variables.insert(var.clone());
                 inner_variables.insert(var.clone());
 
                 let (projected_column, type_set) = projected_column_for_var(&var, &query.cc)?;
@@ -243,10 +271,10 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         }
     }
 
-    match (min_max_count, corresponding_count) {
+    match (min_max_count, corresponded_variables.len()) {
         (0, 0) | (_, 0) => {},
         (0, _) => {
-            eprintln!("Warning: used `(the ?var)` without `min` or `max`.");
+            bail!(ErrorKind::InvalidProjection("Warning: used `the` without `min` or `max`.".to_string()));
         },
         (1, _) => {
             // This is the success case!
@@ -324,15 +352,21 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     // We don't allow grouping on anything but a variable bound in the query.
     // We group by tag if necessary.
     let mut group_by = Vec::with_capacity(outer_variables.len() + 2);
-    for var in outer_variables.into_iter() {
+
+    let vars = outer_variables.into_iter().zip(::std::iter::repeat(true));
+    let corresponds = corresponded_variables.into_iter().zip(::std::iter::repeat(false));
+
+    for (var, group) in vars.chain(corresponds) {
         if query.cc.is_value_bound(&var) {
             continue;
         }
 
-        // The GROUP BY goes outside, but it needs every variable and type tag to be
-        // projected from inside. Collect in both directions here.
-        let name = VariableColumn::Variable(var.clone()).column_name();
-        group_by.push(GroupBy::ProjectedColumn(name));
+        if group {
+            // The GROUP BY goes outside, but it needs every variable and type tag to be
+            // projected from inside. Collect in both directions here.
+            let name = VariableColumn::Variable(var.clone()).column_name();
+            group_by.push(GroupBy::ProjectedColumn(name));
+        }
 
         let needs_type_projection = !query.cc.known_type_set(&var).has_unique_type_tag();
 
@@ -352,7 +386,9 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                                     .ok_or_else(|| ErrorKind::NoTypeAvailableForVariable(var.name().clone()))?;
                 inner_projection.push(ProjectedColumn(ColumnOrExpression::Column(type_col), type_name.clone()));
             }
-            group_by.push(GroupBy::ProjectedColumn(type_name));
+            if group {
+                group_by.push(GroupBy::ProjectedColumn(type_name));
+            }
         };
     }
 

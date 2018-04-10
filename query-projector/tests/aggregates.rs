@@ -86,3 +86,30 @@ fn test_aggregate_unsuitable_type() {
     // … when we look at the projection list, we cannot reconcile the types.
     assert!(query_projection(&algebrized).is_err());
 }
+
+#[test]
+fn test_the_without_max_or_min() {
+    let schema = prepopulated_schema();
+
+    let query = r#"[:find (the ?e) ?a
+                    :where
+                    [?e :foo/age ?a]]"#;
+
+    // While the query itself algebrizes and parses…
+    let parsed = parse_find_string(query).expect("query input to have parsed");
+    let algebrized = algebrize(Known::for_schema(&schema), parsed).expect("query algebrizes");
+
+    // … when we look at the projection list, we cannot reconcile the types.
+    let projection = query_projection(&algebrized);
+    assert!(projection.is_err());
+    use ::mentat_query_projector::errors::{
+        ErrorKind,
+        Error,
+    };
+    match projection {
+        Result::Err(Error(ErrorKind::InvalidProjection(s) , _)) => {
+                assert_eq!(s.as_str(), "Warning: used `the` without `min` or `max`.");
+            },
+        _ => panic!(),
+    }
+}
