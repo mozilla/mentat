@@ -4,11 +4,12 @@ version = "0.0.1"
 authors = ["Emily Toop <etoop@mozilla.com>"]
 
 [lib]
-name = "mentat"
-crate-type = ["staticlib", "cdylib"]
+name = "mentat_ffi"
+crate-type = ["lib", "staticlib", "cdylib"]
 
 [dependencies]
-libc = "0.2"
+libc = "0.2.32"
 
 [dependencies.mentat]
-path = ".."
+path = "../"
+

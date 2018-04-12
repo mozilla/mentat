@@ -14,9 +14,11 @@ use std::collections::{
 };
 
 use mentat_core::{
+    DateTime,
     Entid,
     NamespacedKeyword,
     TypedValue,
+    Utc,
     ValueType,
 };
 
@@ -72,6 +74,11 @@ impl<'a> QueryBuilder<'a> {
        self
     }
 
+    pub fn bind_date_time(&mut self, var: &str, value: DateTime<Utc>) -> &mut Self {
+       self.values.insert(Variable::from_valid_name(var), TypedValue::Instant(value));
+       self
+    }
+
     pub fn bind_type(&mut self, var: &str, value_type: ValueType) -> &mut Self {
         self.types.insert(Variable::from_valid_name(var), value_type);
         self
@@ -112,6 +119,11 @@ mod test {
         QueryBuilder,
         TypedValue,
         Store,
+    };
+
+    use mentat_core::{
+        DateTime,
+        Utc,
     };
 
     #[test]
@@ -385,5 +397,46 @@ mod test {
                               .unwrap_or(vec![]);
         assert_eq!(results.get(0).map_or(None, |t| t.to_owned().into_boolean()).expect("boolean"), true);
         assert_eq!(results.get(1).map_or(None, |t| t.to_owned().into_long()).expect("long"), 25);
+    }
+
+    #[test]
+    fn test_bind_date() {
+        let mut store = Store::open("").expect("store connection");
+        store.transact(r#"[
+            [:db/add "s" :db/ident :foo/boolean]
+            [:db/add "s" :db/valueType :db.type/boolean]
+            [:db/add "s" :db/cardinality :db.cardinality/one]
+            [:db/add "t" :db/ident :foo/long]
+            [:db/add "t" :db/valueType :db.type/long]
+            [:db/add "t" :db/cardinality :db.cardinality/one]
+            [:db/add "i" :db/ident :foo/instant]
+            [:db/add "i" :db/valueType :db.type/instant]
+            [:db/add "i" :db/cardinality :db.cardinality/one]
+        ]"#).expect("successful transaction");
+
+        let report = store.transact(r#"[
+            [:db/add "l" :foo/boolean true]
+            [:db/add "l" :foo/long 25]
+            [:db/add "m" :foo/boolean false]
+            [:db/add "m" :foo/long 26]
+            [:db/add "n" :foo/boolean true]
+            [:db/add "n" :foo/long 27]
+            [:db/add "p" :foo/boolean false]
+            [:db/add "p" :foo/long 28]
+            [:db/add "p" :foo/instant #inst "2018-04-11T15:08:00.000Z"]
+        ]"#).expect("successful transaction");
+
+        let p_entid = report.tempids.get("p").expect("found it").clone();
+
+        let time = DateTime::parse_from_rfc3339("2018-04-11T19:17:00.000Z")
+                        .map(|t| t.with_timezone(&Utc))
+                        .expect("expected valid date");
+        let results = QueryBuilder::new(&mut store, r#"[:find [?e ?d] :in ?now :where [?e :foo/instant ?d] [(< ?d ?now)]]"#)
+                              .bind_date_time("?now", time)
+                              .execute_tuple().expect("TupleResult")
+                              .unwrap_or(vec![]);
+        assert_eq!(results.get(0).map_or(None, |t| t.to_owned().into_entid()).expect("entid"), p_entid);
+        let instant = results.get(1).map_or(None, |t| t.to_owned().into_timestamp()).expect("instant");
+        assert_eq!(instant, 1523459280);
     }
 }
