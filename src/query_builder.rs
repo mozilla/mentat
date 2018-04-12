@@ -25,6 +25,7 @@ use ::{
     Queryable,
     QueryInputs,
     QueryOutput,
+    RelResult,
     Store,
     Variable,
 };
@@ -100,7 +101,7 @@ impl<'a> QueryBuilder<'a> {
         results.into_tuple().map_err(|e| e.into())
     }
 
-    pub fn execute_rel(&mut self) -> Result<Vec<Vec<TypedValue>>> {
+    pub fn execute_rel(&mut self) -> Result<RelResult> {
         let results = self.execute()?;
         results.into_rel().map_err(|e| e.into())
     }

@@ -755,7 +755,7 @@ fn test_ground_tuple() {
     let constant = translate_to_constant(&schema, query);
     assert_eq!(constant.project_without_rows().unwrap()
                        .into_rel().unwrap(),
-               vec![vec![TypedValue::Long(1), TypedValue::typed_string("yyy")]]);
+               vec![vec![TypedValue::Long(1), TypedValue::typed_string("yyy")]].into());
 
     // Verify that we accept bound input constants.
     let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground [?u ?v]) [?x ?y]]]"#;

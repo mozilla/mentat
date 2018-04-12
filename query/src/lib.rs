@@ -558,7 +558,7 @@ pub enum Limit {
 ///
 #[derive(Debug, Eq, PartialEq)]
 pub enum FindSpec {
-    /// Returns an array of arrays.
+    /// Returns an array of arrays, represented as a single array with length a multiple of width.
     FindRel(Vec<Element>),
 
     /// Returns an array of scalars, usually homogeneous.

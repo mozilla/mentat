@@ -1358,7 +1358,7 @@ mod tests {
         let end = time::PreciseTime::now();
         println!("Prepared cache execution took {}µs", start.to(end).num_microseconds().unwrap());
         assert_eq!(results.into_rel().expect("result"),
-                   vec![vec![TypedValue::typed_string("Greater Duwamish")]]);
+                   vec![vec![TypedValue::typed_string("Greater Duwamish")]].into());
     }
 
     trait StoreCache {

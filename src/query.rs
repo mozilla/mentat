@@ -72,6 +72,7 @@ pub use mentat_query_algebrizer::{
 pub use mentat_query_projector::{
     QueryOutput,        // Includes the columns/find spec.
     QueryResults,       // The results themselves.
+    RelResult,
 };
 
 use errors::{
@@ -119,7 +120,7 @@ pub trait IntoResult {
     fn into_scalar_result(self) -> Result<Option<TypedValue>>;
     fn into_coll_result(self) -> Result<Vec<TypedValue>>;
     fn into_tuple_result(self) -> Result<Option<Vec<TypedValue>>>;
-    fn into_rel_result(self) -> Result<Vec<Vec<TypedValue>>>;
+    fn into_rel_result(self) -> Result<RelResult>;
 }
 
 impl IntoResult for QueryExecutionResult {
@@ -135,7 +136,7 @@ impl IntoResult for QueryExecutionResult {
         self?.into_tuple().map_err(|e| e.into())
     }
 
-    fn into_rel_result(self) -> Result<Vec<Vec<TypedValue>>> {
+    fn into_rel_result(self) -> Result<RelResult> {
         self?.into_rel().map_err(|e| e.into())
     }
 }
