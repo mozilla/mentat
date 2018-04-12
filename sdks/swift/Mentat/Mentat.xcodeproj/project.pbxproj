@@ -22,8 +22,8 @@
 		7BDB96C62077D347009D0651 /* Date+Int64.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96C52077D346009D0651 /* Date+Int64.swift */; };
 		7BDB96C9207B735A009D0651 /* fixtures in Resources */ = {isa = PBXBuildFile; fileRef = 7BDB96C8207B735A009D0651 /* fixtures */; };
 		7BDB96CC207B7684009D0651 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96CB207B7684009D0651 /* Errors.swift */; };
-		7BEB7D25207BE3BF000369AD /* libtoodle.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BEB7D21207BDDEF000369AD /* libtoodle.a */; };
 		7BEB7D2C207D03DA000369AD /* TxReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEB7D2B207D03DA000369AD /* TxReport.swift */; };
+		7BEB7D2D207F6B73000369AD /* libmentat_ffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,7 +68,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */,
-				7BEB7D25207BE3BF000369AD /* libtoodle.a in Frameworks */,
+				7BEB7D2D207F6B73000369AD /* libmentat_ffi.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
