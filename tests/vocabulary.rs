@@ -605,9 +605,8 @@ fn test_upgrade_with_functions() {
                 let mut row = row.into_iter();
                 match (row.next(), row.next()) {
                     (Some(TypedValue::Ref(person)), Some(TypedValue::Long(height))) => {
-                        let person = KnownEntid(person);
-                        builder.retract(person, person_height, TypedValue::Long(height))?;
-                        builder.add(person, person_height, TypedValue::Long(inches_to_cm(height)))?;
+                        // No need to explicitly retract: cardinality-one.
+                        builder.add(KnownEntid(person), person_height, TypedValue::Long(inches_to_cm(height)))?;
                     },
                     _ => {},
                 }
@@ -663,7 +662,7 @@ fn test_upgrade_with_functions() {
     // Unfortunately, we have "spice" and "Spice"!
     //
 
-    /// This is a straightforward migration -- retract the old string and add the new one.
+    /// This is a straightforward migration -- replace the old name with the new one.
     /// This would be everything we need if we _knew_ there were no collisions (e.g., we were
     /// cleaning up UUIDs).
     fn lowercase_names(ip: &mut InProgress) -> mentat::errors::Result<()> {
@@ -679,10 +678,8 @@ fn test_upgrade_with_functions() {
                         let lowercased = name.to_lowercase();
                         println!("Need to rename {} from '{}' to '{}'", food, name, lowercased);
 
-                        let food = KnownEntid(food);
                         let new_name: TypedValue = lowercased.into();
-                        builder.retract(food, food_name, TypedValue::String(name))?;
-                        builder.add(food, food_name, new_name)?;
+                        builder.add(KnownEntid(food), food_name, new_name)?;
                     }
                 },
                 _ => {},
