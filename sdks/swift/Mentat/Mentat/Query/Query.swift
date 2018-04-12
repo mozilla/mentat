@@ -5,84 +5,81 @@
 import Foundation
 import Mentatlib
 
-enum QueryResult<T> {
-    case error(Error)
-    case success(T)
-}
-
 class Query: OptionalRustObject {
 
-    func bind(varName: String, toInt value: Int32) throws {
-        guard let r = self.raw else {
-            throw QueryError.builderConsumed
-        }
-        query_builder_bind_int(r, varName, value)
-    }
-
-    func bind(varName: String, toLong value: Int64) throws {
+    func bind(varName: String, toLong value: Int64) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_long(r, varName, value)
+        return self
     }
 
-    func bind(varName: String, toReference value: Int64) throws {
+    func bind(varName: String, toReference value: Int64) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_ref(r, varName, value)
+        return self
     }
 
-    func bind(varName: String, toReference value: String) throws {
+    func bind(varName: String, toReference value: String) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_ref_kw(r, varName, value)
+        return self
     }
 
-    func bind(varName: String, toKeyword value: String) throws {
+    func bind(varName: String, toKeyword value: String) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_kw(r, varName, value)
+        return self
     }
 
-    func bind(varName: String, toBoolean value: Bool) throws {
+    func bind(varName: String, toBoolean value: Bool) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_boolean(r, varName, value ? 1 : 0)
+        return self
     }
 
-    func bind(varName: String, toDouble value: Double) throws {
+    func bind(varName: String, toDouble value: Double) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_double(r, varName, value)
+        return self
     }
 
-    func bind(varName: String, toDate value: Date) throws {
+    func bind(varName: String, toDate value: Date) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_timestamp(r, varName, value.toMicroseconds())
+        return self
     }
 
-    func bind(varName: String, toString value: String) throws {
+    func bind(varName: String, toString value: String) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_string(r, varName, value)
+        return self
     }
 
-    func bind(varName: String, toUuid value: UUID) throws {
+    func bind(varName: String, toUuid value: UUID) throws -> Query {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
         query_builder_bind_uuid(r, varName, value.uuidString)
+        return self
     }
 
-    func executeMap(map: @escaping (QueryResult<TupleResult>) -> Void) throws {
+    func executeMap(map: @escaping (TupleResult?, QueryError?) -> Void) throws {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
@@ -93,7 +90,7 @@ class Query: OptionalRustObject {
 
             if let err = result.pointee.err {
                 let message = String(cString: err)
-                map(QueryResult.error(QueryError.executionFailed(message: message)))
+                map(nil, QueryError.executionFailed(message: message))
                 return
             }
             guard let rowsPtr = result.pointee.ok else {
@@ -101,12 +98,12 @@ class Query: OptionalRustObject {
             }
             let rows = RelResult(raw: rowsPtr)
             for row in rows {
-                map(QueryResult.success(row))
+                map(row, nil)
             }
         }
     }
 
-    func execute(callback: @escaping (QueryResult<RelResult?>) -> Void) throws {
+    func execute(callback: @escaping (RelResult?, QueryError?) -> Void) throws {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
@@ -117,18 +114,18 @@ class Query: OptionalRustObject {
 
             if let err = result.pointee.err {
                 let message = String(cString: err)
-                callback(QueryResult.error(QueryError.executionFailed(message: message)))
+                callback(nil, QueryError.executionFailed(message: message))
                 return
             }
             guard let results = result.pointee.ok else {
-                callback(QueryResult.success(nil))
+                callback(nil, nil)
                 return
             }
-            callback(QueryResult.success(RelResult(raw: results)))
+            callback(RelResult(raw: results), nil)
         }
     }
 
-    func executeScalar(callback: @escaping (QueryResult<TypedValue?>) -> Void) throws {
+    func executeScalar(callback: @escaping (TypedValue?, QueryError?) -> Void) throws {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
@@ -139,17 +136,17 @@ class Query: OptionalRustObject {
 
             if let err = result.pointee.err {
                 let message = String(cString: err)
-                callback(QueryResult.error(QueryError.executionFailed(message: message)))
+                callback(nil, QueryError.executionFailed(message: message))
             }
             guard let results = result.pointee.ok else {
-                callback(QueryResult.success(nil))
+                callback(nil, nil)
                 return
             }
-            callback(QueryResult.success(TypedValue(raw: OpaquePointer(results))))
+            callback(TypedValue(raw: OpaquePointer(results)), nil)
         }
     }
 
-    func executeColl(callback: @escaping (QueryResult<ColResult?>) -> Void) throws {
+    func executeColl(callback: @escaping (ColResult?, QueryError?) -> Void) throws {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
@@ -160,17 +157,17 @@ class Query: OptionalRustObject {
 
             if let err = result.pointee.err {
                 let message = String(cString: err)
-                callback(QueryResult.error(QueryError.executionFailed(message: message)))
+                callback(nil, QueryError.executionFailed(message: message))
             }
             guard let results = result.pointee.ok else {
-                callback(QueryResult.success(nil))
+                callback(nil, nil)
                 return
             }
-            callback(QueryResult.success(ColResult(raw: results)))
+            callback(ColResult(raw: results), nil)
         }
     }
 
-    func executeCollMap(map: @escaping (QueryResult<TypedValue>) -> Void) throws {
+    func executeCollMap(map: @escaping (TypedValue?, QueryError?) -> Void) throws {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
@@ -181,7 +178,7 @@ class Query: OptionalRustObject {
 
             if let err = result.pointee.err {
                 let message = String(cString: err)
-                map(QueryResult.error(QueryError.executionFailed(message: message)))
+                map(nil, QueryError.executionFailed(message: message))
                 return
             }
             guard let cols = result.pointee.ok else {
@@ -189,12 +186,12 @@ class Query: OptionalRustObject {
             }
             let rowList = ColResult(raw: cols)
             for row in rowList {
-                map(QueryResult.success(row))
+                map(row, nil)
             }
         }
     }
 
-    func executeTuple(callback: @escaping (QueryResult<TupleResult?>) -> Void) throws {
+    func executeTuple(callback: @escaping (TupleResult?, QueryError?) -> Void) throws {
         guard let r = self.raw else {
             throw QueryError.builderConsumed
         }
@@ -205,13 +202,13 @@ class Query: OptionalRustObject {
 
             if let err = result.pointee.err {
                 let message = String(cString: err)
-                callback(QueryResult.error(QueryError.executionFailed(message: message)))
+                callback(nil, QueryError.executionFailed(message: message))
             }
             guard let results = result.pointee.ok else {
-                callback(QueryResult.success(nil))
+                callback(nil, nil)
                 return
             }
-            callback(QueryResult.success(TupleResult(raw: OpaquePointer(results))))
+            callback(TupleResult(raw: OpaquePointer(results)), nil)
         }
     }
 

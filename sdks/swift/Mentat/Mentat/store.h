@@ -5,12 +5,19 @@
 #ifndef store_h
 #define store_h
 #include <stdint.h>
+#include <Foundation/NSObjCRuntime.h>
 
-struct ExternTxReport {
+struct TransactionChange {
     int64_t txid;
     int64_t*_Nonnull* _Nonnull changes;
     uint64_t len;
 };
+
+struct TxChangeList {
+    struct TransactionChange*_Nonnull* _Nonnull reports;
+    uint64_t len;
+};
+typedef struct TxChangeList TxChangeList;
 
 struct Result {
     void* _Nullable ok;
@@ -23,20 +30,25 @@ struct Option {
 };
 typedef struct Option Option;
 
-struct Store;
-
-struct TxReportList {
-    struct ExternTxReport*_Nonnull* _Nonnull reports;
-    uint64_t len;
+typedef NS_ENUM(NSInteger, ValueType) {
+    ValueTypeRef = 1,
+    ValueTypeBoolean,
+    ValueTypeInstant,
+    ValueTypeLong,
+    ValueTypeDouble,
+    ValueTypeString,
+    ValueTypeKeyword,
+    ValueTypeUuid
 };
-typedef struct TxReportList TxReportList;
 
 struct Query;
-struct TypedValue;
 struct QueryResultRow;
 struct QueryResultRows;
 struct QueryRowsIterator;
 struct QueryRowIterator;
+struct Store;
+struct TxReport;
+struct TypedValue;
 
 // Store
 struct Store*_Nonnull store_open(const char*_Nonnull uri);
@@ -44,6 +56,7 @@ struct Store*_Nonnull store_open(const char*_Nonnull uri);
 void destroy(void* _Nullable obj);
 void query_builder_destroy(struct Query* _Nullable obj);
 void store_destroy(struct Store* _Nonnull obj);
+void tx_report_destroy(struct TxReport* _Nonnull obj);
 void typed_value_destroy(struct TypedValue* _Nullable obj);
 void typed_value_list_destroy(struct QueryResultRow* _Nullable obj);
 void typed_value_list_iter_destroy(struct QueryRowIterator* _Nullable obj);
@@ -52,15 +65,18 @@ void typed_value_result_set_iter_destroy(struct QueryRowsIterator* _Nullable obj
 
 // transact
 struct Result*_Nonnull store_transact(struct Store*_Nonnull store, const char* _Nonnull transaction);
+const int64_t* _Nullable tx_report_entity_for_temp_id(const struct TxReport* _Nonnull report, const char* _Nonnull tempid);
+int64_t tx_report_get_entid(const struct TxReport* _Nonnull report);
+int64_t tx_report_get_tx_instant(const struct TxReport* _Nonnull report);
 
 // Sync
 struct Result*_Nonnull store_sync(struct Store*_Nonnull store, const char* _Nonnull user_uuid, const char* _Nonnull server_uri);
 
 // Observers
-void store_register_observer(struct Store*_Nonnull  store, const char* _Nonnull key, const int64_t* _Nonnull attributes, const int64_t len, void (*_Nonnull callback_fn)(const char* _Nonnull key, const struct TxReportList* _Nonnull reports));
+void store_register_observer(struct Store*_Nonnull  store, const char* _Nonnull key, const int64_t* _Nonnull attributes, const int64_t len, void (*_Nonnull callback_fn)(const char* _Nonnull key, const struct TxChangeList* _Nonnull reports));
 void store_unregister_observer(struct Store*_Nonnull  store, const char* _Nonnull key);
 int64_t store_entid_for_attribute(struct Store*_Nonnull store, const char*_Nonnull attr);
-const struct int64_t changelist_entry_at(const struct ExternTxReport* _Nonnull report, size_t index);
+int64_t changelist_entry_at(const struct TransactionChange* _Nonnull report, size_t index);
 
 // Query
 struct Query*_Nonnull store_query(struct Store*_Nonnull store, const char* _Nonnull query);
@@ -93,6 +109,7 @@ double typed_value_as_double(struct TypedValue*_Nonnull  value);
 int64_t typed_value_as_timestamp(struct TypedValue*_Nonnull  value);
 const char* _Nonnull typed_value_as_string(struct TypedValue*_Nonnull  value);
 const char* _Nonnull typed_value_as_uuid(struct TypedValue*_Nonnull  value);
+enum ValueType typed_value_value_type(struct TypedValue*_Nonnull value);
 
 struct QueryResultRow* _Nullable row_at_index(struct QueryResultRows* _Nonnull rows, const int32_t index);
 struct QueryRowsIterator* _Nonnull rows_iter(struct QueryResultRows* _Nonnull rows);
@@ -128,7 +145,7 @@ struct Result*_Nonnull store_set_timestamp_for_attribute_on_entid(struct Store*_
 struct Result*_Nonnull store_set_string_for_attribute_on_entid(struct Store*_Nonnull store, const int64_t entid, const char* _Nonnull attribute, const char* _Nonnull value);
 struct Result*_Nonnull store_set_uuid_for_attribute_on_entid(struct Store*_Nonnull store, const int64_t entid, const char* _Nonnull attribute, const char* _Nonnull value);
 
-// TxReports
-const struct ExternTxReport* _Nullable tx_report_list_entry_at(const struct TxReportList* _Nonnull list, size_t index);
+// Transaction change lists
+const struct TransactionChange* _Nullable tx_change_list_entry_at(const struct TxChangeList* _Nonnull list, size_t index);
 
 #endif /* store_h */

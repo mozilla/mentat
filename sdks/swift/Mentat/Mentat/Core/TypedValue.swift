@@ -7,6 +7,10 @@ import Mentatlib
 
 class TypedValue: OptionalRustObject {
 
+    var valueType: ValueType {
+        return typed_value_value_type(self.raw!)
+    }
+
     func asLong() -> Int64 {
         defer {
             self.raw = nil
@@ -32,7 +36,8 @@ class TypedValue: OptionalRustObject {
         defer {
             self.raw = nil
         }
-        return typed_value_as_boolean(self.raw!) == 0 ? false : true
+        let v = typed_value_as_boolean(self.raw!)
+        return  v > 0
     }
 
     func asDouble() -> Double {

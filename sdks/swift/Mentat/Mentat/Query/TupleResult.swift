@@ -7,40 +7,40 @@ import Mentatlib
 
 class TupleResult: OptionalRustObject {
 
-    func get(index: Int32) -> TypedValue {
-        return TypedValue(raw: value_at_index(self.raw!, index))
+    func get(index: Int) -> TypedValue {
+        return TypedValue(raw: value_at_index(self.raw!, Int32(index)))
     }
 
-    func asLong(index: Int32) -> Int64 {
-        return value_at_index_as_long(self.raw!, index)
+    func asLong(index: Int) -> Int64 {
+        return value_at_index_as_long(self.raw!, Int32(index))
     }
 
-    func asEntid(index: Int32) -> Int64 {
-        return value_at_index_as_entid(self.raw!, index)
+    func asEntid(index: Int) -> Int64 {
+        return value_at_index_as_entid(self.raw!, Int32(index))
     }
 
-    func asKeyword(index: Int32) -> String {
-        return String(cString: value_at_index_as_kw(self.raw!, index))
+    func asKeyword(index: Int) -> String {
+        return String(cString: value_at_index_as_kw(self.raw!, Int32(index)))
     }
 
-    func asBool(index: Int32) -> Bool {
-        return value_at_index_as_boolean(self.raw!, index) == 0 ? false : true
+    func asBool(index: Int) -> Bool {
+        return value_at_index_as_boolean(self.raw!, Int32(index)) == 0 ? false : true
     }
 
-    func asDouble(index: Int32) -> Double {
-        return value_at_index_as_double(self.raw!, index)
+    func asDouble(index: Int) -> Double {
+        return value_at_index_as_double(self.raw!, Int32(index))
     }
 
-    func asDate(index: Int32) -> Date {
-        return Date(timeIntervalSince1970: TimeInterval(value_at_index_as_timestamp(self.raw!, index)))
+    func asDate(index: Int) -> Date {
+        return Date(timeIntervalSince1970: TimeInterval(value_at_index_as_timestamp(self.raw!, Int32(index))))
     }
 
-    func asString(index: Int32) -> String {
-        return String(cString: value_at_index_as_string(self.raw!, index))
+    func asString(index: Int) -> String {
+        return String(cString: value_at_index_as_string(self.raw!, Int32(index)))
     }
 
-    func asUUID(index: Int32) -> UUID? {
-        return UUID(uuidString: String(cString: value_at_index_as_uuid(self.raw!, index)))
+    func asUUID(index: Int) -> UUID? {
+        return UUID(uuidString: String(cString: value_at_index_as_uuid(self.raw!, Int32(index))))
     }
 
     override func cleanup(pointer: OpaquePointer) {
@@ -73,8 +73,10 @@ class ColResultIterator: OptionalRustObject, IteratorProtocol  {
 
 extension ColResult: Sequence {
     func makeIterator() -> ColResultIterator {
+        defer {
+            self.raw = nil
+        }
         guard let raw = self.raw else {
-            print("list pointer destroyed")
             return ColResultIterator(iter: nil)
         }
         let rowIter = values_iter(raw)

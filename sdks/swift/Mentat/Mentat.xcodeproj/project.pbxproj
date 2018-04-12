@@ -17,13 +17,13 @@
 		7BDB96B32077C38E009D0651 /* RustObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AA2077C38E009D0651 /* RustObject.swift */; };
 		7BDB96B42077C38E009D0651 /* OptionalRustObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AB2077C38E009D0651 /* OptionalRustObject.swift */; };
 		7BDB96B52077C38E009D0651 /* TupleResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AC2077C38E009D0651 /* TupleResult.swift */; };
-		7BDB96B62077C38E009D0651 /* TxReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AD2077C38E009D0651 /* TxReport.swift */; };
 		7BDB96B72077C38E009D0651 /* TypedValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96AE2077C38E009D0651 /* TypedValue.swift */; };
-		7BDB96C02077CD7A009D0651 /* libmentat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB96BF2077CD7A009D0651 /* libmentat.a */; };
 		7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB96C12077CD98009D0651 /* libresolv.tbd */; };
 		7BDB96C62077D347009D0651 /* Date+Int64.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96C52077D346009D0651 /* Date+Int64.swift */; };
 		7BDB96C9207B735A009D0651 /* fixtures in Resources */ = {isa = PBXBuildFile; fileRef = 7BDB96C8207B735A009D0651 /* fixtures */; };
 		7BDB96CC207B7684009D0651 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96CB207B7684009D0651 /* Errors.swift */; };
+		7BEB7D25207BE3BF000369AD /* libtoodle.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BEB7D21207BDDEF000369AD /* libtoodle.a */; };
+		7BEB7D2C207D03DA000369AD /* TxReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEB7D2B207D03DA000369AD /* TxReport.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,7 +50,6 @@
 		7BDB96AA2077C38E009D0651 /* RustObject.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RustObject.swift; sourceTree = "<group>"; };
 		7BDB96AB2077C38E009D0651 /* OptionalRustObject.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OptionalRustObject.swift; sourceTree = "<group>"; };
 		7BDB96AC2077C38E009D0651 /* TupleResult.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TupleResult.swift; sourceTree = "<group>"; };
-		7BDB96AD2077C38E009D0651 /* TxReport.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TxReport.swift; sourceTree = "<group>"; };
 		7BDB96AE2077C38E009D0651 /* TypedValue.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TypedValue.swift; sourceTree = "<group>"; };
 		7BDB96BF2077CD7A009D0651 /* libmentat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat.a; path = ../../../target/universal/release/libmentat.a; sourceTree = "<group>"; };
 		7BDB96C12077CD98009D0651 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
@@ -58,6 +57,9 @@
 		7BDB96C52077D346009D0651 /* Date+Int64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Date+Int64.swift"; sourceTree = "<group>"; };
 		7BDB96C8207B735A009D0651 /* fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fixtures; path = ../../../../fixtures; sourceTree = "<group>"; };
 		7BDB96CB207B7684009D0651 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Errors.swift; sourceTree = "<group>"; };
+		7BEB7D21207BDDEF000369AD /* libtoodle.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtoodle.a; path = ../../../target/universal/release/libtoodle.a; sourceTree = "<group>"; };
+		7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat_ffi.a; path = ../../../target/universal/release/libmentat_ffi.a; sourceTree = "<group>"; };
+		7BEB7D2B207D03DA000369AD /* TxReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TxReport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,7 +68,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */,
-				7BDB96C02077CD7A009D0651 /* libmentat.a in Frameworks */,
+				7BEB7D25207BE3BF000369AD /* libtoodle.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -106,11 +108,11 @@
 				7BDB96CA207B7672009D0651 /* Errors */,
 				7BDB96C42077D346009D0651 /* Extensions */,
 				7BDB96BA2077C42B009D0651 /* Core */,
+				7BDB96A42077C301009D0651 /* Query */,
 				7BDB96B92077C403009D0651 /* Rust */,
 				7BDB96A82077C38E009D0651 /* store.h */,
 				7BDB96A72077C38D009D0651 /* Mentat.swift */,
-				7BDB96A42077C301009D0651 /* Query */,
-				7BDB96B82077C3B2009D0651 /* Transact */,
+				7BEB7D26207BE5BB000369AD /* Transact */,
 				7BDB968D2077C299009D0651 /* Mentat.h */,
 				7BDB968E2077C299009D0651 /* Info.plist */,
 				7BDB96C32077D090009D0651 /* module.map */,
@@ -138,14 +140,6 @@
 			path = Query;
 			sourceTree = "<group>";
 		};
-		7BDB96B82077C3B2009D0651 /* Transact */ = {
-			isa = PBXGroup;
-			children = (
-				7BDB96AD2077C38E009D0651 /* TxReport.swift */,
-			);
-			path = Transact;
-			sourceTree = "<group>";
-		};
 		7BDB96B92077C403009D0651 /* Rust */ = {
 			isa = PBXGroup;
 			children = (
@@ -166,6 +160,8 @@
 		7BDB96BE2077CD7A009D0651 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */,
+				7BEB7D21207BDDEF000369AD /* libtoodle.a */,
 				7BDB96C12077CD98009D0651 /* libresolv.tbd */,
 				7BDB96BF2077CD7A009D0651 /* libmentat.a */,
 			);
@@ -186,6 +182,14 @@
 				7BDB96CB207B7684009D0651 /* Errors.swift */,
 			);
 			path = Errors;
+			sourceTree = "<group>";
+		};
+		7BEB7D26207BE5BB000369AD /* Transact */ = {
+			isa = PBXGroup;
+			children = (
+				7BEB7D2B207D03DA000369AD /* TxReport.swift */,
+			);
+			path = Transact;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -300,8 +304,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				7BDB96B32077C38E009D0651 /* RustObject.swift in Sources */,
-				7BDB96B62077C38E009D0651 /* TxReport.swift in Sources */,
 				7BDB96C62077D347009D0651 /* Date+Int64.swift in Sources */,
+				7BEB7D2C207D03DA000369AD /* TxReport.swift in Sources */,
 				7BDB96B42077C38E009D0651 /* OptionalRustObject.swift in Sources */,
 				7BDB96B22077C38E009D0651 /* RelResult.swift in Sources */,
 				7BDB96AF2077C38E009D0651 /* Query.swift in Sources */,

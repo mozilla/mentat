@@ -9,7 +9,7 @@ protocol Destroyable {
     func cleanup(pointer: OpaquePointer)
 }
 
-class RustObject: Destroyable {
+public class RustObject: Destroyable {
     var raw: OpaquePointer
 
     lazy var uniqueId: ObjectIdentifier = {
