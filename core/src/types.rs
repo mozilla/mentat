@@ -243,6 +243,13 @@ impl ValueType {
             ValueType::Uuid => values::DB_TYPE_UUID.clone(),
         }
     }
+
+    pub fn is_numeric(&self) -> bool {
+        match self {
+            &ValueType::Long | &ValueType::Double => true,
+            _ => false
+        }
+    }
 }
 
 impl fmt::Display for ValueType {
