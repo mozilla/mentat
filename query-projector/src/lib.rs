@@ -485,15 +485,20 @@ impl RelProjector {
         }
     }
 
-    fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
+    fn collect_bindings_into<'a, 'stmt, 'out>(&self, row: Row<'a, 'stmt>, out: &mut Vec<TypedValue>) -> Result<()> {
         // There will be at least as many SQL columns as Datalog columns.
         // gte 'cos we might be querying extra columns for ordering.
         // The templates will take care of ignoring columns.
         assert!(row.column_count() >= self.len as i32);
-        self.templates
-            .iter()
-            .map(|ti| ti.lookup(&row))
-            .collect::<Result<Vec<TypedValue>>>()
+        let mut count = 0;
+        for binding in self.templates
+                           .iter()
+                           .map(|ti| ti.lookup(&row)) {
+            out.push(binding?);
+            count += 1;
+        }
+        assert_eq!(self.len, count);
+        Ok(())
     }
 
     fn combine(spec: Rc<FindSpec>, column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
@@ -517,18 +522,19 @@ impl RelProjector {
 
 impl Projector for RelProjector {
     fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        let mut out: Vec<TypedValue> = Vec::new();      // We don't know how many rows to preallocate for.
+        // Allocate space for five rows to start.
+        // This is better than starting off by doubling the buffer a couple of times, and will
+        // rapidly grow to support larger query results.
+        let width = self.len;
+        let mut values: Vec<_> = Vec::with_capacity(5 * width);
 
-        // TODO: don't collect into temporary `bindings`.
         while let Some(r) = rows.next() {
             let row = r?;
-            let bindings = self.collect_bindings(row)?;
-            assert_eq!(bindings.len(), self.len);
-            out.extend(bindings);
+            self.collect_bindings_into(row, &mut values)?;
         }
         Ok(QueryOutput {
             spec: self.spec.clone(),
-            results: QueryResults::Rel(RelResult { width: self.len, values: out }),
+            results: QueryResults::Rel(RelResult { width, values }),
         })
     }
 
