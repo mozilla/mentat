@@ -243,6 +243,10 @@ fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
             Ok(())
         },
         &Column::Variable(ref vc) => push_variable_column(qb, vc),
+        &Column::Transactions(ref d) => {
+            qb.push_sql(d.as_str());
+            Ok(())
+        },
     }
 }
 

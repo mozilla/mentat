@@ -27,6 +27,7 @@ use chrono::FixedOffset;
 
 use mentat_core::{
     DateTime,
+    Entid,
     HasSchema,
     KnownEntid,
     TypedValue,
@@ -48,6 +49,7 @@ use mentat::{
     Queryable,
     QueryResults,
     Store,
+    TxReport,
     Variable,
     new_connection,
 };
@@ -1338,4 +1340,116 @@ fn test_aggregation_implicit_grouping() {
         },
         x => panic!("Got unexpected results {:?}", x),
     }
+}
+
+#[test]
+fn test_tx_ids() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        [:db/add "a" :db/ident :foo/term]
+        [:db/add "a" :db/valueType :db.type/string]
+        [:db/add "a" :db/fulltext false]
+        [:db/add "a" :db/cardinality :db.cardinality/many]
+    ]"#).unwrap();
+
+    let tx1 = store.transact(r#"[
+        [:db/add "v" :foo/term "1"]
+    ]"#).expect("tx1 to apply").tx_id;
+
+    let tx2 = store.transact(r#"[
+        [:db/add "v" :foo/term "2"]
+    ]"#).expect("tx2 to apply").tx_id;
+
+    let tx3 = store.transact(r#"[
+        [:db/add "v" :foo/term "3"]
+    ]"#).expect("tx3 to apply").tx_id;
+
+    fn assert_tx_id_range(store: &Store, after: Entid, before: Entid, expected: Vec<TypedValue>) {
+        // TODO: after https://github.com/mozilla/mentat/issues/641, use q_prepare with inputs bound
+        // at execution time.
+        let r = store.q_once(r#"[:find [?tx ...]
+                                 :in ?after ?before
+                                 :where
+                                 [(tx-ids $ ?after ?before) [?tx ...]]
+                                ]"#,
+                             QueryInputs::with_value_sequence(vec![
+                                 (Variable::from_valid_name("?after"),  TypedValue::Ref(after)),
+                                 (Variable::from_valid_name("?before"), TypedValue::Ref(before)),
+                             ]))
+            .expect("results")
+            .into();
+        match r {
+            QueryResults::Coll(txs) => {
+                assert_eq!(txs, expected);
+            },
+            x => panic!("Got unexpected results {:?}", x),
+        }
+    }
+
+    assert_tx_id_range(&store, tx1, tx2, vec![TypedValue::Ref(tx1)]);
+    assert_tx_id_range(&store, tx1, tx3, vec![TypedValue::Ref(tx1), TypedValue::Ref(tx2)]);
+    assert_tx_id_range(&store, tx2, tx3, vec![TypedValue::Ref(tx2)]);
+    assert_tx_id_range(&store, tx2, tx3 + 1, vec![TypedValue::Ref(tx2), TypedValue::Ref(tx3)]);
+}
+
+#[test]
+fn test_tx_data() {
+    let mut store = Store::open("").expect("opened");
+
+    store.transact(r#"[
+        [:db/add "a" :db/ident :foo/term]
+        [:db/add "a" :db/valueType :db.type/string]
+        [:db/add "a" :db/fulltext false]
+        [:db/add "a" :db/cardinality :db.cardinality/many]
+    ]"#).unwrap();
+
+    let tx1 = store.transact(r#"[
+        [:db/add "e" :foo/term "1"]
+    ]"#).expect("tx1 to apply");
+
+    let tx2 = store.transact(r#"[
+        [:db/add "e" :foo/term "2"]
+    ]"#).expect("tx2 to apply");
+
+    fn assert_tx_data(store: &Store, tx: &TxReport, value: TypedValue) {
+        // TODO: after https://github.com/mozilla/mentat/issues/641, use q_prepare with inputs bound
+        // at execution time.
+        let r = store.q_once(r#"[:find ?e ?a-name ?v ?tx ?added
+                                 :in ?tx-in
+                                 :where
+                                 [(tx-data $ ?tx-in) [[?e ?a ?v ?tx ?added]]]
+                                 [?a :db/ident ?a-name]
+                                 :order ?e
+                                ]"#,
+                             QueryInputs::with_value_sequence(vec![
+                                 (Variable::from_valid_name("?tx-in"),  TypedValue::Ref(tx.tx_id)),
+                             ]))
+            .expect("results")
+            .into();
+
+        let e = tx.tempids.get("e").cloned().expect("tempid");
+
+        match r {
+            QueryResults::Rel(vals) => {
+                assert_eq!(vals,
+                           vec![
+                               vec![TypedValue::Ref(e),
+                                    TypedValue::typed_ns_keyword("foo", "term"),
+                                    value,
+                                    TypedValue::Ref(tx.tx_id),
+                                    TypedValue::Boolean(true)],
+                               vec![TypedValue::Ref(tx.tx_id),
+                                    TypedValue::typed_ns_keyword("db", "txInstant"),
+                                    TypedValue::Instant(tx.tx_instant),
+                                    TypedValue::Ref(tx.tx_id),
+                                    TypedValue::Boolean(true)],
+                           ]);
+            },
+            x => panic!("Got unexpected results {:?}", x),
+        }
+    };
+
+    assert_tx_data(&store, &tx1, TypedValue::String("1".to_string().into()));
+    assert_tx_data(&store, &tx2, TypedValue::String("2".to_string().into()));
 }

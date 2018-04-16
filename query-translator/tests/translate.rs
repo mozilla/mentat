@@ -1134,3 +1134,103 @@ fn test_tx_before_and_after() {
                      WHERE `datoms00`.tx < 12345");
     assert_eq!(args, vec![]);
 }
+
+
+#[test]
+fn test_tx_ids() {
+    let mut schema = prepopulated_typed_schema(ValueType::Double);
+    associate_ident(&mut schema, NamespacedKeyword::new("db", "txInstant"), 101);
+    add_attribute(&mut schema, 101, Attribute {
+        value_type: ValueType::Instant,
+        multival: false,
+        index: true,
+        ..Default::default()
+    });
+
+    let query = r#"[:find ?tx :where [(tx-ids $ 1000 2000) [[?tx]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `transactions00`.tx AS `?tx` \
+                     FROM `transactions` AS `transactions00` \
+                     WHERE 1000 <= `transactions00`.tx \
+                     AND `transactions00`.tx < 2000");
+    assert_eq!(args, vec![]);
+
+    // This is rather artificial but verifies that binding the arguments to (tx-ids) works.
+    let query = r#"[:find ?tx :where [?first :db/txInstant #inst "2016-01-01T11:00:00.000Z"] [?last :db/txInstant #inst "2017-01-01T11:00:00.000Z"] [(tx-ids $ ?first ?last) [?tx ...]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `transactions02`.tx AS `?tx` \
+                     FROM `datoms` AS `datoms00`, \
+                     `datoms` AS `datoms01`, \
+                     `transactions` AS `transactions02` \
+                     WHERE `datoms00`.a = 101 \
+                     AND `datoms00`.v = 1451646000000000 \
+                     AND `datoms01`.a = 101 \
+                     AND `datoms01`.v = 1483268400000000 \
+                     AND `datoms00`.e <= `transactions02`.tx \
+                     AND `transactions02`.tx < `datoms01`.e");
+    assert_eq!(args, vec![]);
+
+    // In practice the following query would be inefficient because of the filter on all_datoms.tx,
+    // but that is what (tx-data) is for.
+    let query = r#"[:find ?e ?a ?v ?tx :where [(tx-ids $ 1000 2000) [[?tx]]] [?e ?a ?v ?tx]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `all_datoms01`.e AS `?e`, \
+	                   `all_datoms01`.a AS `?a`, \
+                     `all_datoms01`.v AS `?v`, \
+                     `all_datoms01`.value_type_tag AS `?v_value_type_tag`, \
+                     `transactions00`.tx AS `?tx` \
+                     FROM `transactions` AS `transactions00`, \
+                     `all_datoms` AS `all_datoms01` \
+                     WHERE 1000 <= `transactions00`.tx \
+                     AND `transactions00`.tx < 2000 \
+                     AND `transactions00`.tx = `all_datoms01`.tx");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_tx_data() {
+    let schema = prepopulated_typed_schema(ValueType::Double);
+
+    let query = r#"[:find ?e ?a ?v ?tx ?added :where [(tx-data $ 1000) [[?e ?a ?v ?tx ?added]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `transactions00`.e AS `?e`, \
+                     `transactions00`.a AS `?a`, \
+                     `transactions00`.v AS `?v`, \
+                     `transactions00`.value_type_tag AS `?v_value_type_tag`, \
+                     `transactions00`.tx AS `?tx`, \
+                     `transactions00`.added AS `?added` \
+                     FROM `transactions` AS `transactions00` \
+                     WHERE `transactions00`.tx = 1000");
+    assert_eq!(args, vec![]);
+
+    // Ensure that we don't project columns that we don't need, even if they are bound to named
+    // variables or to placeholders.
+    let query = r#"[:find [?a ?v ?added] :where [(tx-data $ 1000) [[?e ?a ?v _ ?added]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT `transactions00`.a AS `?a`, \
+                     `transactions00`.v AS `?v`, \
+                     `transactions00`.value_type_tag AS `?v_value_type_tag`, \
+                     `transactions00`.added AS `?added` \
+                     FROM `transactions` AS `transactions00` \
+                     WHERE `transactions00`.tx = 1000 \
+                     LIMIT 1");
+    assert_eq!(args, vec![]);
+
+    // This is awkward since the transactions table is queried twice, once to list transaction IDs
+    // and a second time to extract data.  https://github.com/mozilla/mentat/issues/644 tracks
+    // improving this, perhaps by optimizing certain combinations of functions and bindings.
+    let query = r#"[:find ?e ?a ?v ?tx ?added :where [(tx-ids $ 1000 2000) [[?tx]]] [(tx-data $ ?tx) [[?e ?a ?v _ ?added]]]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT DISTINCT `transactions01`.e AS `?e`, \
+                     `transactions01`.a AS `?a`, \
+                     `transactions01`.v AS `?v`, \
+                     `transactions01`.value_type_tag AS `?v_value_type_tag`, \
+                     `transactions00`.tx AS `?tx`, \
+                     `transactions01`.added AS `?added` \
+                     FROM `transactions` AS `transactions00`, \
+                     `transactions` AS `transactions01` \
+                     WHERE 1000 <= `transactions00`.tx \
+                     AND `transactions00`.tx < 2000 \
+                     AND `transactions01`.tx = `transactions00`.tx");
+    assert_eq!(args, vec![]);
+}

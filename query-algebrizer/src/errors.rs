@@ -29,6 +29,11 @@ pub enum BindingError {
     /// than Datomic: we won't try to make sense of non-obvious (and potentially erroneous) bindings.
     ExpectedBindRel,
 
+    /// Expected `[[?x ?y]]` or `[?x ...]` but got some other type of binding.  Mentat is
+    /// deliberately more strict than Datomic: we won't try to make sense of non-obvious (and
+    /// potentially erroneous) bindings.
+    ExpectedBindRelOrBindColl,
+
     /// Expected `[?x1 … ?xN]` or `[[?x1 … ?xN]]` but got some other number of bindings.  Mentat is
     /// deliberately more strict than Datomic: we prefer placeholders to omission.
     InvalidNumberOfBindings { number: usize, expected: usize },
