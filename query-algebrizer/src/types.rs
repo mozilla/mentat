@@ -41,6 +41,7 @@ pub enum DatomsTable {
     FulltextDatoms,     // The fulltext-datoms view.
     AllDatoms,          // Fulltext and non-fulltext datoms.
     Computed(usize),    // A computed table, tracked elsewhere in the query.
+    Transactions,       // The transactions table, which makes the tx-data log API efficient.
 }
 
 /// A source of rows that isn't a named table -- typically a subquery or union.
@@ -66,6 +67,7 @@ impl DatomsTable {
             DatomsTable::FulltextDatoms => "fulltext_datoms",
             DatomsTable::AllDatoms => "all_datoms",
             DatomsTable::Computed(_) => "c",
+            DatomsTable::Transactions => "transactions",
         }
     }
 }
@@ -91,6 +93,17 @@ pub enum FulltextColumn {
     Text,
 }
 
+/// One of the named columns of our transactions table.
+#[derive(PartialEq, Eq, Clone)]
+pub enum TransactionsColumn {
+    Entity,
+    Attribute,
+    Value,
+    Tx,
+    Added,
+    ValueTypeTag,
+}
+
 #[derive(PartialEq, Eq, Clone)]
 pub enum VariableColumn {
     Variable(Variable),
@@ -102,6 +115,7 @@ pub enum Column {
     Fixed(DatomsColumn),
     Fulltext(FulltextColumn),
     Variable(VariableColumn),
+    Transactions(TransactionsColumn),
 }
 
 impl From<DatomsColumn> for Column {
@@ -113,6 +127,12 @@ impl From<DatomsColumn> for Column {
 impl From<VariableColumn> for Column {
     fn from(from: VariableColumn) -> Column {
         Column::Variable(from)
+    }
+}
+
+impl From<TransactionsColumn> for Column {
+    fn from(from: TransactionsColumn) -> Column {
+        Column::Transactions(from)
     }
 }
 
@@ -176,6 +196,7 @@ impl Debug for Column {
             &Column::Fixed(ref c) => c.fmt(f),
             &Column::Fulltext(ref c) => c.fmt(f),
             &Column::Variable(ref v) => v.fmt(f),
+            &Column::Transactions(ref t) => t.fmt(f),
         }
     }
 }
@@ -197,6 +218,40 @@ impl ColumnName for FulltextColumn {
 }
 
 impl Debug for FulltextColumn {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl TransactionsColumn {
+    pub fn as_str(&self) -> &'static str {
+        use self::TransactionsColumn::*;
+        match *self {
+            Entity => "e",
+            Attribute => "a",
+            Value => "v",
+            Tx => "tx",
+            Added => "added",
+            ValueTypeTag => "value_type_tag",
+        }
+    }
+
+    pub fn associated_type_tag_column(&self) -> Option<TransactionsColumn> {
+        use self::TransactionsColumn::*;
+        match *self {
+            Value => Some(ValueTypeTag),
+            _ => None,
+        }
+    }
+}
+
+impl ColumnName for TransactionsColumn {
+    fn column_name(&self) -> String {
+        self.as_str().to_string()
+    }
+}
+
+impl Debug for TransactionsColumn {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "{}", self.as_str())
     }
@@ -235,6 +290,7 @@ impl QualifiedAlias {
             Column::Fixed(ref c) => c.associated_type_tag_column().map(Column::Fixed),
             Column::Fulltext(_) => None,
             Column::Variable(_) => None,
+            Column::Transactions(ref c) => c.associated_type_tag_column().map(Column::Transactions),
         }.map(|d| QualifiedAlias(self.0.clone(), d))
     }
 }

@@ -137,6 +137,14 @@ impl ConjoiningClauses {
         }
     }
 
+    /// Take a transaction ID function argument and turn it into a `QueryValue` suitable for use in
+    /// a concrete constraint.
+    pub(crate) fn resolve_tx_argument(&mut self, schema: &Schema, function: &PlainSymbol, position: usize, arg: FnArg) -> Result<QueryValue> {
+        // Under the hood there's nothing special about a transaction ID -- it's just another ref.
+        // In the future, we might handle instants specially.
+        self.resolve_ref_argument(schema, function, position, arg)
+    }
+
     /// Take a function argument and turn it into a `QueryValue` suitable for use in a concrete
     /// constraint.
     #[allow(dead_code)]

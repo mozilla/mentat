@@ -84,6 +84,7 @@ mod resolve;
 
 mod ground;
 mod fulltext;
+mod tx_log_api;
 mod where_fn;
 
 use validate::{
@@ -446,6 +447,10 @@ impl ConjoiningClauses {
                 Column::Variable(_) => {
                     // We don't need to handle expansion of attributes here. The subquery that
                     // produces the variable projection will do so.
+                    self.constrain_column_to_constant(table, column, bound_val);
+                },
+
+                Column::Transactions(_) => {
                     self.constrain_column_to_constant(table, column, bound_val);
                 },
 
