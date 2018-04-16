@@ -34,6 +34,7 @@ use rusqlite::{
 };
 
 use mentat_core::{
+    Binding,
     TypedValue,
     ValueType,
     ValueTypeTag,
@@ -84,6 +85,7 @@ pub use project::{
 
 pub use relresult::{
     RelResult,
+    StructuredRelResult,
 };
 
 use errors::{
@@ -99,10 +101,10 @@ pub struct QueryOutput {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum QueryResults {
-    Scalar(Option<TypedValue>),
-    Tuple(Option<Vec<TypedValue>>),
-    Coll(Vec<TypedValue>),
-    Rel(RelResult),
+    Scalar(Option<Binding>),
+    Tuple(Option<Vec<Binding>>),
+    Coll(Vec<Binding>),
+    Rel(RelResult<Binding>),
 }
 
 impl From<QueryOutput> for QueryResults {
@@ -153,7 +155,9 @@ impl QueryOutput {
         match &**spec {
             &FindScalar(Element::Variable(ref var)) |
             &FindScalar(Element::Corresponding(ref var)) => {
-                let val = bindings.get(var).cloned();
+                let val = bindings.get(var)
+                                  .cloned()
+                                  .map(|v| v.into());
                 QueryResults::Scalar(val)
             },
             &FindScalar(Element::Aggregate(ref _agg)) => {
@@ -165,7 +169,10 @@ impl QueryOutput {
                                      .map(|e| match e {
                                          &Element::Variable(ref var) |
                                          &Element::Corresponding(ref var) => {
-                                             bindings.get(var).cloned().expect("every var to have a binding")
+                                             bindings.get(var)
+                                                     .cloned()
+                                                     .expect("every var to have a binding")
+                                                     .into()
                                          },
                                          &Element::Aggregate(ref _agg) => {
                                             // TODO: static computation of aggregates, then
@@ -178,7 +185,10 @@ impl QueryOutput {
             },
             &FindColl(Element::Variable(ref var)) |
             &FindColl(Element::Corresponding(ref var)) => {
-                let val = bindings.get(var).cloned().expect("every var to have a binding");
+                let val = bindings.get(var)
+                                  .cloned()
+                                  .expect("every var to have a binding")
+                                  .into();
                 QueryResults::Coll(vec![val])
             },
             &FindColl(Element::Aggregate(ref _agg)) => {
@@ -193,7 +203,10 @@ impl QueryOutput {
                 let values = elements.iter().map(|e| match e {
                     &Element::Variable(ref var) |
                     &Element::Corresponding(ref var) => {
-                        bindings.get(var).cloned().expect("every var to have a binding")
+                        bindings.get(var)
+                                .cloned()
+                                .expect("every var to have a binding")
+                                .into()
                     },
                     &Element::Aggregate(ref _agg) => {
                         // TODO: static computation of aggregates, then
@@ -206,19 +219,19 @@ impl QueryOutput {
         }
     }
 
-    pub fn into_scalar(self) -> Result<Option<TypedValue>> {
+    pub fn into_scalar(self) -> Result<Option<Binding>> {
         self.results.into_scalar()
     }
 
-    pub fn into_coll(self) -> Result<Vec<TypedValue>> {
+    pub fn into_coll(self) -> Result<Vec<Binding>> {
         self.results.into_coll()
     }
 
-    pub fn into_tuple(self) -> Result<Option<Vec<TypedValue>>> {
+    pub fn into_tuple(self) -> Result<Option<Vec<Binding>>> {
         self.results.into_tuple()
     }
 
-    pub fn into_rel(self) -> Result<RelResult> {
+    pub fn into_rel(self) -> Result<RelResult<Binding>> {
         self.results.into_rel()
     }
 }
@@ -244,7 +257,7 @@ impl QueryResults {
         }
     }
 
-    pub fn into_scalar(self) -> Result<Option<TypedValue>> {
+    pub fn into_scalar(self) -> Result<Option<Binding>> {
         match self {
             QueryResults::Scalar(o) => Ok(o),
             QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "scalar")),
@@ -253,7 +266,7 @@ impl QueryResults {
         }
     }
 
-    pub fn into_coll(self) -> Result<Vec<TypedValue>> {
+    pub fn into_coll(self) -> Result<Vec<Binding>> {
         match self {
             QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "coll")),
             QueryResults::Coll(c) => Ok(c),
@@ -262,7 +275,7 @@ impl QueryResults {
         }
     }
 
-    pub fn into_tuple(self) -> Result<Option<Vec<TypedValue>>> {
+    pub fn into_tuple(self) -> Result<Option<Vec<Binding>>> {
         match self {
             QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "tuple")),
             QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "tuple")),
@@ -271,7 +284,7 @@ impl QueryResults {
         }
     }
 
-    pub fn into_rel(self) -> Result<RelResult> {
+    pub fn into_rel(self) -> Result<RelResult<Binding>> {
         match self {
             QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "rel")),
             QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "rel")),
@@ -302,18 +315,22 @@ impl TypedIndex {
     ///
     /// This function will return a runtime error if the type tag is unknown, or the value is
     /// otherwise not convertible by the DB layer.
-    fn lookup<'a, 'stmt>(&self, row: &Row<'a, 'stmt>) -> Result<TypedValue> {
+    fn lookup<'a, 'stmt>(&self, row: &Row<'a, 'stmt>) -> Result<Binding> {
         use TypedIndex::*;
 
         match self {
             &Known(value_index, value_type) => {
                 let v: rusqlite::types::Value = row.get(value_index);
-                TypedValue::from_sql_value_pair(v, value_type).map_err(|e| e.into())
+                TypedValue::from_sql_value_pair(v, value_type)
+                    .map(|v| v.into())
+                    .map_err(|e| e.into())
             },
             &Unknown(value_index, type_index) => {
                 let v: rusqlite::types::Value = row.get(value_index);
                 let value_type_tag: i32 = row.get(type_index);
-                TypedValue::from_sql_value_pair(v, value_type_tag).map_err(|e| e.into())
+                TypedValue::from_sql_value_pair(v, value_type_tag)
+                    .map(|v| v.into())
+                    .map_err(|e| e.into())
             },
         }
     }
@@ -422,7 +439,7 @@ impl TupleProjector {
     }
 
     // This is exactly the same as for rel.
-    fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
+    fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<Binding>> {
         // There will be at least as many SQL columns as Datalog columns.
         // gte 'cos we might be querying extra columns for ordering.
         // The templates will take care of ignoring columns.
@@ -430,7 +447,7 @@ impl TupleProjector {
         self.templates
             .iter()
             .map(|ti| ti.lookup(&row))
-            .collect::<Result<Vec<TypedValue>>>()
+            .collect::<Result<Vec<Binding>>>()
     }
 
     fn combine(spec: Rc<FindSpec>, column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
@@ -485,7 +502,7 @@ impl RelProjector {
         }
     }
 
-    fn collect_bindings_into<'a, 'stmt, 'out>(&self, row: Row<'a, 'stmt>, out: &mut Vec<TypedValue>) -> Result<()> {
+    fn collect_bindings_into<'a, 'stmt, 'out>(&self, row: Row<'a, 'stmt>, out: &mut Vec<Binding>) -> Result<()> {
         // There will be at least as many SQL columns as Datalog columns.
         // gte 'cos we might be querying extra columns for ordering.
         // The templates will take care of ignoring columns.
@@ -580,7 +597,7 @@ impl CollProjector {
 
 impl Projector for CollProjector {
     fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        let mut out: Vec<TypedValue> = vec![];
+        let mut out: Vec<_> = vec![];
         while let Some(r) = rows.next() {
             let row = r?;
             let binding = self.template.lookup(&row)?;
@@ -664,7 +681,7 @@ pub fn query_projection(query: &AlgebraicQuery) -> Result<Either<ConstantProject
 
         // TODO: error handling
         let results = QueryOutput::from_constants(&spec, query.cc.value_bindings(&variables));
-        let f = Box::new(move || {results.clone()});
+        let f = Box::new(move || { results.clone() });
 
         Ok(Either::Left(ConstantProjector::new(spec, f)))
     } else if query.is_known_empty() {

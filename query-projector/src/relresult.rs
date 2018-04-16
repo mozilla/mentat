@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    Binding,
     TypedValue,
 };
 
@@ -31,13 +32,15 @@ use mentat_core::{
 /// - By consuming the results using `into_iter`. This allocates short-lived vectors,
 ///   but gives you ownership of the enclosed `TypedValue`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RelResult {
+pub struct RelResult<T> {
     pub width: usize,
-    pub values: Vec<TypedValue>,
+    pub values: Vec<T>,
 }
 
-impl RelResult {
-    pub fn empty(width: usize) -> RelResult {
+pub type StructuredRelResult = RelResult<Binding>;
+
+impl<T> RelResult<T> {
+    pub fn empty(width: usize) -> RelResult<T> {
         RelResult {
             width: width,
             values: Vec::new(),
@@ -52,12 +55,12 @@ impl RelResult {
         self.values.len() / self.width
     }
 
-    pub fn rows(&self) -> ::std::slice::Chunks<TypedValue> {
+    pub fn rows(&self) -> ::std::slice::Chunks<T> {
         // TODO: Nightly-only API `exact_chunks`. #47115.
         self.values.chunks(self.width)
     }
 
-    pub fn row(&self, index: usize) -> Option<&[TypedValue]> {
+    pub fn row(&self, index: usize) -> Option<&[T]> {
         let end = self.width * (index + 1);
         if end > self.values.len() {
             None
@@ -70,15 +73,15 @@ impl RelResult {
 
 #[test]
 fn test_rel_result() {
-    let empty = RelResult::empty(3);
-    let unit = RelResult {
+    let empty = StructuredRelResult::empty(3);
+    let unit = StructuredRelResult {
         width: 1,
-        values: vec![TypedValue::Long(5)],
+        values: vec![TypedValue::Long(5).into()],
     };
-    let two_by_two = RelResult {
+    let two_by_two = StructuredRelResult {
         width: 2,
-        values: vec![TypedValue::Long(5), TypedValue::Boolean(true),
-                     TypedValue::Long(-2), TypedValue::Boolean(false)],
+        values: vec![TypedValue::Long(5).into(), TypedValue::Boolean(true).into(),
+                     TypedValue::Long(-2).into(), TypedValue::Boolean(false).into()],
     };
 
     assert!(empty.is_empty());
@@ -93,18 +96,18 @@ fn test_rel_result() {
     assert_eq!(unit.row(1), None);
     assert_eq!(two_by_two.row(2), None);
 
-    assert_eq!(unit.row(0), Some(vec![TypedValue::Long(5)].as_slice()));
-    assert_eq!(two_by_two.row(0), Some(vec![TypedValue::Long(5), TypedValue::Boolean(true)].as_slice()));
-    assert_eq!(two_by_two.row(1), Some(vec![TypedValue::Long(-2), TypedValue::Boolean(false)].as_slice()));
+    assert_eq!(unit.row(0), Some(vec![TypedValue::Long(5).into()].as_slice()));
+    assert_eq!(two_by_two.row(0), Some(vec![TypedValue::Long(5).into(), TypedValue::Boolean(true).into()].as_slice()));
+    assert_eq!(two_by_two.row(1), Some(vec![TypedValue::Long(-2).into(), TypedValue::Boolean(false).into()].as_slice()));
 
     let mut rr = two_by_two.rows();
-    assert_eq!(rr.next(), Some(vec![TypedValue::Long(5), TypedValue::Boolean(true)].as_slice()));
-    assert_eq!(rr.next(), Some(vec![TypedValue::Long(-2), TypedValue::Boolean(false)].as_slice()));
+    assert_eq!(rr.next(), Some(vec![TypedValue::Long(5).into(), TypedValue::Boolean(true).into()].as_slice()));
+    assert_eq!(rr.next(), Some(vec![TypedValue::Long(-2).into(), TypedValue::Boolean(false).into()].as_slice()));
     assert_eq!(rr.next(), None);
 }
 
 // Primarily for testing.
-impl From<Vec<Vec<TypedValue>>> for RelResult {
+impl From<Vec<Vec<TypedValue>>> for RelResult<Binding> {
     fn from(src: Vec<Vec<TypedValue>>) -> Self {
         if src.is_empty() {
             RelResult::empty(0)
@@ -112,23 +115,23 @@ impl From<Vec<Vec<TypedValue>>> for RelResult {
             let width = src.get(0).map(|r| r.len()).unwrap_or(0);
             RelResult {
                 width: width,
-                values: src.into_iter().flat_map(|r| r.into_iter()).collect(),
+                values: src.into_iter().flat_map(|r| r.into_iter().map(|v| v.into())).collect(),
             }
         }
     }
 }
 
-pub struct SubvecIntoIterator {
+pub struct SubvecIntoIterator<T> {
     width: usize,
-    values: ::std::vec::IntoIter<TypedValue>,
+    values: ::std::vec::IntoIter<T>,
 }
 
-impl Iterator for SubvecIntoIterator {
+impl<T> Iterator for SubvecIntoIterator<T> {
     // TODO: this is a good opportunity to use `SmallVec` instead: most queries
     // return a handful of columns.
-    type Item = Vec<TypedValue>;
-    fn next(&mut self) -> Option<Vec<TypedValue>> {
-        let result: Vec<TypedValue> = (&mut self.values).take(self.width).collect();
+    type Item = Vec<T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let result: Vec<_> = (&mut self.values).take(self.width).collect();
         if result.is_empty() {
             None
         } else {
@@ -137,9 +140,9 @@ impl Iterator for SubvecIntoIterator {
     }
 }
 
-impl IntoIterator for RelResult {
-    type Item = Vec<TypedValue>;
-    type IntoIter = SubvecIntoIterator;
+impl<T> IntoIterator for RelResult<T> {
+    type Item = Vec<T>;
+    type IntoIter = SubvecIntoIterator<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         SubvecIntoIterator {

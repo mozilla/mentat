@@ -31,6 +31,7 @@ use mentat::{
     QueryOutput,
     QueryResults,
     Store,
+    Binding,
     Syncable,
     TxReport,
     TypedValue,
@@ -422,14 +423,14 @@ impl Repl {
         match query_output.results {
             QueryResults::Scalar(v) => {
                 if let Some(val) = v {
-                    writeln!(output, "| {}\t |", &self.typed_value_as_string(val))?;
+                    writeln!(output, "| {}\t |", &self.binding_as_string(val))?;
                 }
             },
 
             QueryResults::Tuple(vv) => {
                 if let Some(vals) = vv {
                     for val in vals {
-                        write!(output, "| {}\t", self.typed_value_as_string(val))?;
+                        write!(output, "| {}\t", self.binding_as_string(val))?;
                     }
                     writeln!(output, "|")?;
                 }
@@ -437,14 +438,14 @@ impl Repl {
 
             QueryResults::Coll(vv) => {
                 for val in vv {
-                    writeln!(output, "| {}\t|", self.typed_value_as_string(val))?;
+                    writeln!(output, "| {}\t|", self.binding_as_string(val))?;
                 }
             },
 
             QueryResults::Rel(vvv) => {
                 for vv in vvv {
                     for v in vv {
-                        write!(output, "| {}\t", self.typed_value_as_string(v))?;
+                        write!(output, "| {}\t", self.binding_as_string(v))?;
                     }
                     writeln!(output, "|")?;
                 }
@@ -511,16 +512,26 @@ impl Repl {
         Ok(report)
     }
 
-    fn typed_value_as_string(&self, value: TypedValue) -> String {
+    fn binding_as_string(&self, value: Binding) -> String {
+        use self::Binding::*;
         match value {
-            TypedValue::Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
-            TypedValue::Double(d) => format!("{}", d),
-            TypedValue::Instant(i) => format!("{}", i),
-            TypedValue::Keyword(k) => format!("{}", k),
-            TypedValue::Long(l) => format!("{}", l),
-            TypedValue::Ref(r) => format!("{}", r),
-            TypedValue::String(s) => format!("{:?}", s.to_string()),
-            TypedValue::Uuid(u) => format!("{}", u),
+            Scalar(v) => self.value_as_string(v),
+            Map(_) => format!("TODO"),
+            Vec(_) => format!("TODO"),
+        }
+    }
+
+    fn value_as_string(&self, value: TypedValue) -> String {
+        use self::TypedValue::*;
+        match value {
+            Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
+            Double(d) => format!("{}", d),
+            Instant(i) => format!("{}", i),
+            Keyword(k) => format!("{}", k),
+            Long(l) => format!("{}", l),
+            Ref(r) => format!("{}", r),
+            String(s) => format!("{:?}", s.to_string()),
+            Uuid(u) => format!("{}", u),
         }
     }
 }

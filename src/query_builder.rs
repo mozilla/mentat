@@ -16,6 +16,7 @@ use std::collections::{
 use mentat_core::{
     Entid,
     NamespacedKeyword,
+    Binding,
     TypedValue,
     ValueType,
 };
@@ -86,22 +87,22 @@ impl<'a> QueryBuilder<'a> {
         read.q_once(&self.sql, query_inputs)
     }
 
-    pub fn execute_scalar(&mut self) -> Result<Option<TypedValue>> {
+    pub fn execute_scalar(&mut self) -> Result<Option<Binding>> {
         let results = self.execute()?;
         results.into_scalar().map_err(|e| e.into())
     }
 
-    pub fn execute_coll(&mut self) -> Result<Vec<TypedValue>> {
+    pub fn execute_coll(&mut self) -> Result<Vec<Binding>> {
         let results = self.execute()?;
         results.into_coll().map_err(|e| e.into())
     }
 
-    pub fn execute_tuple(&mut self) -> Result<Option<Vec<TypedValue>>> {
+    pub fn execute_tuple(&mut self) -> Result<Option<Vec<Binding>>> {
         let results = self.execute()?;
         results.into_tuple().map_err(|e| e.into())
     }
 
-    pub fn execute_rel(&mut self) -> Result<RelResult> {
+    pub fn execute_rel(&mut self) -> Result<RelResult<Binding>> {
         let results = self.execute()?;
         results.into_rel().map_err(|e| e.into())
     }
@@ -286,15 +287,15 @@ mod test {
 
         let n_yes = report.tempids.get("n").expect("found it").clone();
 
-        let results: Vec<TypedValue> = QueryBuilder::new(&mut store, r#"[:find [?x, ?i]
-                                                                         :in ?v ?i
-                                                                         :where [?x :foo/boolean ?v]
-                                                                                [?x :foo/long ?i]]"#)
+        let results: Vec<_> = QueryBuilder::new(&mut store, r#"[:find [?x, ?i]
+                                                                :in ?v ?i
+                                                                :where [?x :foo/boolean ?v]
+                                                                       [?x :foo/long ?i]]"#)
                               .bind_value("?v", true)
                               .bind_long("?i", 27)
                               .execute_tuple().expect("TupleResult").unwrap_or(vec![]);
-        let entid = TypedValue::Ref(n_yes.clone());
-        let long_val = TypedValue::Long(27);
+        let entid = TypedValue::Ref(n_yes.clone()).into();
+        let long_val = TypedValue::Long(27).into();
 
         assert_eq!(results, vec![entid, long_val]);
     }

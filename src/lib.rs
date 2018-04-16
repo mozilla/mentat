@@ -41,6 +41,7 @@ pub use mentat_core::{
     KnownEntid,
     NamespacedKeyword,
     Schema,
+    Binding,
     TypedValue,
     Uuid,
     Utc,

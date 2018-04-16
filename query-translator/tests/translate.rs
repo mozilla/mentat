@@ -735,7 +735,7 @@ fn test_ground_scalar() {
     let constant = translate_to_constant(&schema, query);
     assert_eq!(constant.project_without_rows().unwrap()
                        .into_scalar().unwrap(),
-               Some(TypedValue::typed_string("yyy")));
+               Some(TypedValue::typed_string("yyy").into()));
 
     // Verify that we accept bound input constants.
     let query = r#"[:find ?x . :in ?v :where [(ground ?v) ?x]]"#;
@@ -743,7 +743,7 @@ fn test_ground_scalar() {
     let constant = translate_with_inputs_to_constant(&schema, query, inputs);
     assert_eq!(constant.project_without_rows().unwrap()
                        .into_scalar().unwrap(),
-               Some(TypedValue::typed_string("aaa")));
+               Some(TypedValue::typed_string("aaa").into()));
 }
 
 #[test]
@@ -765,7 +765,7 @@ fn test_ground_tuple() {
     let constant = translate_with_inputs_to_constant(&schema, query, inputs);
     assert_eq!(constant.project_without_rows().unwrap()
                        .into_tuple().unwrap(),
-               Some(vec![TypedValue::Long(2), TypedValue::typed_string("aaa")]));
+               Some(vec![TypedValue::Long(2).into(), TypedValue::typed_string("aaa").into()]));
 
     // TODO: treat 2 as an input variable that could be bound late, rather than eagerly binding it.
     // In that case the query wouldn't be constant, and would look more like:

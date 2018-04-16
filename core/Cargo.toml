@@ -6,6 +6,7 @@ workspace = ".."
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 enum-set = { git = "https://github.com/rnewman/enum-set" }
+indexmap = "1"
 lazy_static = "0.2"
 num = "0.1"
 ordered-float = { version = "0.5", features = ["serde"] }

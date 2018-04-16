@@ -110,6 +110,7 @@ use ::{
     HasSchema,
     IntoResult,
     NamespacedKeyword,
+    Binding,
     TypedValue,
     ValueType,
 };
@@ -172,6 +173,7 @@ pub struct Definition {
 ///     IntoResult,
 ///     Queryable,
 ///     Store,
+///     TypedValue,
 ///     ValueType,
 /// };
 ///
@@ -225,7 +227,7 @@ pub struct Definition {
 ///                     for row in results.into_iter() {
 ///                         let mut r = row.into_iter();
 ///                         let e = r.next().and_then(|e| e.into_known_entid()).expect("entity");
-///                         let obsolete = r.next().expect("value");
+///                         let obsolete = r.next().expect("value").val().expect("typed value");
 ///                         builder.retract(e, link_title, obsolete)?;
 ///                     }
 ///                     ip.transact_builder(builder)?;
@@ -882,7 +884,8 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
                 .into_iter()
                 .filter_map(|v|
                     match (&v[0], &v[1]) {
-                        (&TypedValue::Ref(vocab), &TypedValue::Long(version))
+                        (&Binding::Scalar(TypedValue::Ref(vocab)),
+                         &Binding::Scalar(TypedValue::Long(version)))
                         if version > 0 && (version < u32::max_value() as i64) => Some((vocab, version as u32)),
                         (_, _) => None,
                     })
@@ -895,7 +898,8 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
                 .into_iter()
                 .filter_map(|v| {
                     match (&v[0], &v[1]) {
-                        (&TypedValue::Ref(vocab), &TypedValue::Ref(attr)) => Some((vocab, attr)),
+                        (&Binding::Scalar(TypedValue::Ref(vocab)),
+                         &Binding::Scalar(TypedValue::Ref(attr))) => Some((vocab, attr)),
                         (_, _) => None,
                     }
                     });
