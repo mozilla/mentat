@@ -12,7 +12,7 @@ The following discussion and set of worked examples aim to help. During discussi
 
 Given a set of mockups, or an MVP list of requirements, it's easy to leap into defining a data model that supports exactly those things. In doing so we will likely end up with a data model that can't support future capabilities, or that has crucial mismatches with the real world.
 
-For example, one might design a contact manager UI like Apple's — a list of string fields for a person:
+For example, one might design a contact manager UI like macOS's — a list of string fields for a person:
 
 * First name
 * Last name
@@ -72,7 +72,7 @@ A _physical place_, for our purposes, has an address. (It might have more than o
 
 Each place might play a number of _roles_ to a number of people: the same house is the home of everyone who lives there, and the same business address is one of the work addresses for each employee. If I work from home, my work and business addresses are the same. It's not quite true to say that an address is a "home": an address _identifies_ a _place_, and that place _is a home to a person_.
 
-But a typical contact application gets this wrong: the same _strings_ are duplicated (flattened and denormalized) into the independent contact records of each person. If a business moves location (or its building is renamed) we must change the addresses of multiple contacts.
+But a typical contact application gets this wrong: the same _strings_ are duplicated (flattened and denormalized) into the independent contact records of each person. If a business moves location, or its building is renamed, we must change the addresses of multiple contacts.
 
 A more correct model for this is _relational_:
 
@@ -128,7 +128,7 @@ If the building is now renamed to "The Office Factory", we can update its addres
  [:db/add 1236 :address/mailing_address "The Office Factory, South St, Anywhere, WA 12345, USA"]]
 ```
 
-You can see here how changes are minimal and correspond to real changes in the domain, which helps with syncing. There is no duplication of strings.
+You can see here how changes are minimal and correspond to real changes in the domain — two properties that help with syncing. There is no duplication of strings.
 
 We can find everyone who works at The Office Factory in a simple query without comparing strings across 'records':
 
@@ -142,9 +142,9 @@ We can find everyone who works at The Office Factory in a simple query without c
 
 Let's say we later want to model move-in and move-out dates — useful for employment records and immigration paperwork!
 
-Trying to add this to the JSON model is an exercise in frustration: there's no stable way to identify people or places! (Go ahead, try it.)
+Trying to add this to the JSON model is an exercise in frustration, because there is no stable way to identify people or places! (Go ahead, try it.)
 
-But to do it in Mentat simply requires defining a small bit of vocabulary:
+To do it in Mentat simply requires defining a small bit of vocabulary:
 
 ```edn
 [:place.change/person :db.type/ref :db.cardinality/many]
@@ -191,11 +191,15 @@ Now we can find everyone who moved office in February:
 
 ## Tend towards recording observations, not changing state
 
-These principles are all different aspects of normalization. The introduction of fine-grained entities to represent data pushes us towards immutability: changes are increasingly changing an 'arrow' to point at one immutable entity or another, rather than re-describing a mutable entity. In the previous example we introduced places and addresses, which rarely change, and mostly isolated change to the relationships between entities.
+These principles are all different aspects of normalization.
 
-Another example of this is browser history.
+The introduction of fine-grained entities to represent data pushes us towards immutability: changes are increasingly changing an 'arrow' to point at one immutable entity or another, rather than re-describing a mutable entity.
 
-Firefox's representation of history is, at its core, relatively simplistic; just two tables:
+In the previous example we introduced _places_ and _addresses_. Places and addresses themselves rarely change, allowing us to mostly isolate the churn in our data to the meaningful relationships between entities.
+
+Another example of this approach is shown in modeling browser history.
+
+Firefox's representation of history is, at its core, relatively simplistic; just two tables a little like this:
 
 ```sql
 CREATE TABLE history (
@@ -213,23 +217,23 @@ CREATE TABLE visits (
 );
 ```
 
-Each time a URL is visited, an entry is added to the `visits` table and a row is added or updated in `history`. The title of the fetched page is used to update `history.title`.
+Each time a URL is visited, an entry is added to the `visits` table and a row is added or updated in `history`. The title of the fetched page is used to update `history.title`, so that `history.title` always represents the most recently encountered title.
 
 This works fine until more features are added.
 
 ### Forgetting
 
-Browsers often have some capacity for deleting history. Sometimes this appears in the form of an explicit 'forget' operation — "Forget the last five minutes of browsing". Deleting visits in this way is fine: `DELETE FROM visits WHERE timestamp < ?`. But the mutability in the data model — title — trips us up. We're unable to roll back the title of the history entry unless we're using a database like Datomic or Mentat.
+Browsers often have some capacity for deleting history. Sometimes this appears in the form of an explicit 'forget' operation — "Forget the last five minutes of browsing". Deleting visits in this way is fine: `DELETE FROM visits WHERE timestamp < ?`. But the mutability in the data model — title — trips us up. We're unable to roll back the title of the history entry.
 
 ### Syncing
 
-But even if you are using Mentat, a mutable title on `history` will cause conflicts when syncing: one side's observed titles will 'lose' and be discarded in order to avoid a conflict. That's not right: those titles _were seen_. Unlike a conflicting counter or flag, these weren't abortive, temporary states; they were _observations of the world_.
+But even if you are using Mentat or Datomic, and can turn to the log to reconstruct the old state, a mutable title on `history` will cause conflicts when syncing: one side's observed titles will 'lose' and be discarded in order to avoid a conflict. That's not right: those titles _were seen_. Unlike a conflicting counter or flag, these weren't abortive, temporary states; they were _observations of the world_, so there shouldn't be a winner and a loser.
 
 ### Containers
 
-The true data model comes out when we consider containers. Containers are a Firefox feature to sandbox the cookies, site data, and history of different named sub-profiles. You can have a container just for Facebook, or one for your banking; those Facebook cookies won't follow you around the web in your 'personal' container. You can simultaneously use separate Gmail accounts for work and personal email.
+The true data model becomes apparent when we consider containers. Containers are a Firefox feature to sandbox the cookies, site data, and history of different named sub-profiles. You can have a container just for Facebook, or one for your banking; those Facebook cookies won't follow you around the web in your 'personal' container. You can simultaneously use separate Gmail accounts for work and personal email.
 
-When Firefox added container support, it did so by flagging visits:
+When Firefox added container support, it did so by annotating visits with a `container`:
 
 ```sql
 CREATE TABLE visits (
@@ -237,11 +241,11 @@ CREATE TABLE visits (
   history_id INTEGER NOT NULL REFERENCES history(id),
   type TINYINT,
   timestamp INTEGER,
-  container INTEGER,
+  container INTEGER
 );
 ```
 
-This means that each container _competes for the title on `history`_. If you visit `facebook.com` in your usual logged-in container, the browser will run this SQL:
+This means that each container _competes for the title on `history`_. If you visit `facebook.com` in your usual logged-in container, the browser will run something like this SQL:
 
 ```
 UPDATE TABLE history
@@ -257,7 +261,7 @@ SET title = 'Facebook - Log In or Sign Up'
 WHERE url = 'https://www.facebook.com';
 ```
 
-Next time you open your history, you'll see the login page title, even if you had a logged-in `facebook.com` session open in another tab. There's no way to differentiate between the containers' views.
+Next time you open your history, _you'll see the login page title, even if you had a logged-in `facebook.com` session open in another tab_. There's no way to differentiate between the containers' views.
 
 The correct data model for history is:
 
@@ -373,6 +377,13 @@ Now we can show the title from the latest visit in a given container:
 
 
 ## Normalize; you can always denormalize for use.
+
+To come.
+
 ## Use unique identities and cardinality-one attributes to make merging happen during a sync.
+
+To come.
+
 ## Reify to handle conflict and atomicity.
 
+To come.
