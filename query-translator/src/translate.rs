@@ -170,7 +170,7 @@ impl ToConstraint for ColumnConstraint {
                 Constraint::equal(left.to_column(), right.to_column()),
 
             Equals(qa, QueryValue::PrimitiveLong(value)) => {
-                let tag_column = qa.for_type_tag().to_column();
+                let tag_column = qa.for_associated_type_tag().expect("an associated type tag alias").to_column();
                 let value_column = qa.to_column();
 
                 // A bare long in a query might match a ref, an instant, a long (obviously), or a

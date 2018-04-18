@@ -512,9 +512,6 @@ impl ConjoiningClauses {
         // to get its type, record that we can get it from this table.
         let needs_type_extraction =
             !late_binding &&                                // Never need to extract for bound vars.
-            // Never need to extract types for refs, and var columns are handled elsewhere:
-            // a subquery will be projecting a type tag.
-            column == Column::Fixed(DatomsColumn::Value) &&
             self.known_type(&var).is_none() &&              // Don't need to extract if we know a single type.
             !self.extracted_types.contains_key(&var);       // We're already extracting the type.
 
@@ -523,8 +520,11 @@ impl ConjoiningClauses {
         // If we subsequently find out its type, we'll remove this later -- see
         // the removal in `constrain_var_to_type`.
         if needs_type_extraction {
-            self.extracted_types.insert(var.clone(), alias.for_type_tag());
+            if let Some(tag_alias) = alias.for_associated_type_tag() {
+                self.extracted_types.insert(var.clone(), tag_alias);
+            }
         }
+
         self.column_bindings.entry(var).or_insert(vec![]).push(alias);
     }
 

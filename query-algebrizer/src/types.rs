@@ -127,6 +127,16 @@ impl DatomsColumn {
             ValueTypeTag => "value_type_tag",
         }
     }
+
+    /// The type of the `v` column is determined by the `value_type_tag` column.  Return the
+    /// associated column determining the type of this column, if there is one.
+    pub fn associated_type_tag_column(&self) -> Option<DatomsColumn> {
+        use self::DatomsColumn::*;
+        match *self {
+            Value => Some(ValueTypeTag),
+            _ => None,
+        }
+    }
 }
 
 impl ColumnName for DatomsColumn {
@@ -220,9 +230,12 @@ impl QualifiedAlias {
         QualifiedAlias(table, column.into())
     }
 
-    pub fn for_type_tag(&self) -> QualifiedAlias {
-        // TODO: this only makes sense for `DatomsColumn` tables.
-        QualifiedAlias(self.0.clone(), Column::Fixed(DatomsColumn::ValueTypeTag))
+    pub fn for_associated_type_tag(&self) -> Option<QualifiedAlias> {
+        match self.1 {
+            Column::Fixed(ref c) => c.associated_type_tag_column().map(Column::Fixed),
+            Column::Fulltext(_) => None,
+            Column::Variable(_) => None,
+        }.map(|d| QualifiedAlias(self.0.clone(), d))
     }
 }
 
