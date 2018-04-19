@@ -45,11 +45,18 @@ impl ConjoiningClauses {
         use self::FnArg::*;
         match arg {
             FnArg::Variable(var) => {
-                self.constrain_var_to_numeric(var.clone());
-                self.column_bindings
-                    .get(&var)
-                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                match self.bound_value(&var) {
+                    // The type is already known if it's a bound variable….
+                    Some(TypedValue::Long(v)) => Ok(QueryValue::TypedValue(TypedValue::Long(v))),
+                    Some(TypedValue::Double(v)) => Ok(QueryValue::TypedValue(TypedValue::Double(v))),
+                    _ => {
+                        self.constrain_var_to_numeric(var.clone());
+                        self.column_bindings
+                            .get(&var)
+                            .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                            .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                    },
+                }
             },
             // Can't be an entid.
             EntidOrInteger(i) => Ok(QueryValue::TypedValue(TypedValue::Long(i))),
@@ -73,11 +80,17 @@ impl ConjoiningClauses {
         use self::FnArg::*;
         match arg {
             FnArg::Variable(var) => {
-                self.constrain_var_to_type(var.clone(), ValueType::Instant);
-                self.column_bindings
-                    .get(&var)
-                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                match self.bound_value(&var) {
+                    // The type is already known if it's a bound variable….
+                    Some(TypedValue::Instant(v)) => Ok(QueryValue::TypedValue(TypedValue::Instant(v))),
+                    _ => {
+                        self.constrain_var_to_type(var.clone(), ValueType::Instant);
+                        self.column_bindings
+                            .get(&var)
+                            .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                            .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                    },
+                }
             },
             Constant(NonIntegerConstant::Instant(v)) => {
                 Ok(QueryValue::TypedValue(TypedValue::Instant(v)))
@@ -152,10 +165,16 @@ impl ConjoiningClauses {
         use self::FnArg::*;
         match arg {
             FnArg::Variable(var) => {
-                self.column_bindings
-                    .get(&var)
-                    .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
-                    .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                match self.bound_value(&var) {
+                    // The type is already known if it's a bound variable….
+                    Some(v) => Ok(QueryValue::TypedValue(v)),
+                    None => {
+                        self.column_bindings
+                            .get(&var)
+                            .and_then(|cols| cols.first().map(|col| QueryValue::Column(col.clone())))
+                            .ok_or_else(|| Error::from_kind(ErrorKind::UnboundVariable(var.name())))
+                    },
+                }
             },
             EntidOrInteger(i) => Ok(QueryValue::PrimitiveLong(i)),
             IdentOrKeyword(_) => unimplemented!(),     // TODO
