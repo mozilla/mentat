@@ -211,7 +211,7 @@ fn fetch_values<'sqlite>
 
 fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<KnownEntid> {
     schema.get_entid(attribute)
-          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.name.clone()).into())
+          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.name().into()).into())
 }
 
 /// Return a single value for the provided entity and attribute.
