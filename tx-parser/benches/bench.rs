@@ -14,7 +14,7 @@ use mentat_tx_parser::Tx;
 fn bench_parse1(b: &mut Bencher) {
     let input = r#"[[:db/add 1 :test/val "a"]]"#;
     let parsed_edn = edn::parse::value(input).expect("to parse test input");
-    b.iter(|| Tx::parse(parsed_edn.clone()));
+    b.iter(|| Tx::parse(&parsed_edn));
 }
 
 #[bench]
@@ -47,5 +47,19 @@ fn bench_parse2(b: &mut Bencher) {
          [:db/add 25 :test/val "y"]
          [:db/add 26 :test/val "z"]]"#;
     let parsed_edn = edn::parse::value(input).expect("to parse test input");
-    b.iter(|| Tx::parse(parsed_edn.clone()));
+    b.iter(|| Tx::parse(&parsed_edn));
+}
+
+#[bench]
+fn bench_parse3(b: &mut Bencher) {
+    let input = include_str!("../../fixtures/cities.schema");
+    let parsed_edn = edn::parse::value(input).expect("to parse test input");
+    b.iter(|| Tx::parse(&parsed_edn));
+}
+
+#[bench]
+fn bench_parse4(b: &mut Bencher) {
+    let input = include_str!("../../fixtures/all_seattle.edn");
+    let parsed_edn = edn::parse::value(input).expect("to parse test input");
+    b.iter(|| Tx::parse(&parsed_edn));
 }
