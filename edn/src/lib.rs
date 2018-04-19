@@ -23,6 +23,8 @@ extern crate serde;
 extern crate serde_derive;
 
 pub mod entities;
+// Intentionally not pub.
+mod namespaced_name;
 pub mod symbols;
 pub mod types;
 pub mod pretty_print;

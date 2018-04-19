@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use std::fmt::{Display, Formatter};
+use namespaced_name::NamespacedName;
 
 #[macro_export]
 macro_rules! ns_keyword {
@@ -22,12 +23,7 @@ macro_rules! ns_keyword {
 pub struct PlainSymbol(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct NamespacedSymbol {
-    // We derive PartialOrd, which implements a lexicographic based
-    // on the order of members, so put namespace first.
-    _namespace: String,
-    _name: String,
-}
+pub struct NamespacedSymbol(NamespacedName);
 
 /// A keyword is a symbol, optionally with a namespace, that prints with a leading colon.
 /// This concept is imported from Clojure, as it features in EDN and the query
@@ -71,12 +67,7 @@ pub struct Keyword(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
-pub struct NamespacedKeyword {
-    // We derive PartialOrd, which implements a lexicographic order based
-    // on the order of members, so put namespace first.
-    _namespace: String,
-    _name: String,
-}
+pub struct NamespacedKeyword(NamespacedName);
 
 impl PlainSymbol {
     pub fn new<T>(name: T) -> Self where T: Into<String> {
@@ -114,29 +105,23 @@ impl PlainSymbol {
 }
 
 impl NamespacedSymbol {
-    pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
-        let n = name.into();
-        let ns = namespace.into();
-
-        assert!(!n.is_empty(), "Symbols cannot be unnamed.");
-        assert!(!ns.is_empty(), "Symbols cannot have an empty non-null namespace.");
-
-        NamespacedSymbol { _name: n, _namespace: ns }
+    pub fn new<T>(namespace: T, name: T) -> Self where T: AsRef<str> {
+        NamespacedSymbol(NamespacedName::new(namespace, name))
     }
 
     #[inline]
     pub fn name(&self) -> &str {
-        &self._name
+        self.0.name()
     }
 
     #[inline]
     pub fn namespace(&self) -> &str {
-        &self._namespace
+        self.0.namespace()
     }
 
     #[inline]
     pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
-        (&self._namespace, &self._name)
+        self.0.components()
     }
 }
 
@@ -161,32 +146,23 @@ impl NamespacedKeyword {
     /// ```
     ///
     /// See also the `kw!` macro in the main `mentat` crate.
-    pub fn new<T>(namespace: T, name: T) -> Self where T: Into<String> {
-        let n = name.into();
-        let ns = namespace.into();
-        assert!(!n.is_empty(), "Keywords cannot be unnamed.");
-        assert!(!ns.is_empty(), "Keywords cannot have an empty non-null namespace.");
-
-        // TODO: debug asserts to ensure that neither field matches [ :/].
-        NamespacedKeyword {
-            _name: n,
-            _namespace: ns,
-        }
+    pub fn new<T>(namespace: T, name: T) -> Self where T: AsRef<str> {
+        NamespacedKeyword(NamespacedName::new(namespace, name))
     }
 
     #[inline]
     pub fn name(&self) -> &str {
-        &self._name
+        self.0.name()
     }
 
     #[inline]
     pub fn namespace(&self) -> &str {
-        &self._namespace
+        self.0.namespace()
     }
 
     #[inline]
     pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
-        (&self._namespace, &self._name)
+        self.0.components()
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in reverse order. For example,
@@ -210,7 +186,7 @@ impl NamespacedKeyword {
 
     #[inline]
     pub fn is_backward(&self) -> bool {
-        self._name.starts_with('_')
+        self.name().starts_with('_')
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in forward order.
@@ -245,15 +221,12 @@ impl NamespacedKeyword {
     /// ```
     pub fn to_reversed(&self) -> NamespacedKeyword {
         let name = if self.is_backward() {
-            self._name[1..].to_string()
+            self.name()[1..].to_string()
         } else {
-            format!("{}{}", "_", self._name)
+            format!("{}{}", "_", self.name())
         };
 
-        NamespacedKeyword {
-            _name: name,
-            _namespace: self._namespace.clone(),
-        }
+        NamespacedKeyword::new(self.namespace(), &name)
     }
 
     /// If this `NamespacedKeyword` is 'backward' (see `symbols::NamespacedKeyword::is_backward`),
@@ -271,10 +244,7 @@ impl NamespacedKeyword {
     /// ```
     pub fn unreversed(&self) -> Option<NamespacedKeyword> {
         if self.is_backward() {
-            Some(NamespacedKeyword {
-                _name: self._name[1..].to_string(),
-                _namespace: self._namespace.clone(),
-            })
+            Some(NamespacedKeyword::new(self.namespace(), &self.name()[1..]))
         } else {
             None
         }
@@ -309,7 +279,7 @@ impl Display for NamespacedSymbol {
     /// assert_eq!("bar/baz", NamespacedSymbol::new("bar", "baz").to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, "{}/{}", self._namespace, self._name)
+        write!(f, "{}/{}", self.namespace(), self.name())
     }
 }
 
@@ -339,7 +309,7 @@ impl Display for NamespacedKeyword {
     /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reversed().to_reversed().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, ":{}/{}", self._namespace, self._name)
+        write!(f, ":{}/{}", self.namespace(), self.name())
     }
 }
 
