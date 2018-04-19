@@ -75,7 +75,6 @@ macro_rules! var {
 #[macro_export]
 macro_rules! kw {
     ( : $ns:ident / $n:ident ) => {
-        // We don't need to go through `new` -- `ident` is strict enough.
         $crate::NamespacedKeyword::new(
             stringify!($ns),
             stringify!($n)
@@ -83,7 +82,6 @@ macro_rules! kw {
     };
 
     ( : $ns:ident$(. $nss:ident)+ / $n:ident ) => {
-        // We don't need to go through `new` -- `ident` is strict enough.
         $crate::NamespacedKeyword::new(
             concat!(stringify!($ns) $(, ".", stringify!($nss))+),
             stringify!($n)

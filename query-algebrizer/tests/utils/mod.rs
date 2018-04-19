@@ -74,7 +74,7 @@ impl SchemaBuilder {
                                  keyword_name: T,
                                  value_type: ValueType,
                                  multival: bool) -> Self
-        where T: Into<String>
+        where T: AsRef<str>
     {
         self.define_attr(NamespacedKeyword::new(keyword_ns, keyword_name), Attribute {
             value_type,
