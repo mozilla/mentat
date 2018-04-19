@@ -517,7 +517,7 @@ macro_rules! def_matches_namespaced_keyword {
         def_parser!($parser, $name, &'a edn::ValueAndSpan, {
             satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
-                    edn::SpannedValue::NamespacedKeyword(ref s) => s.namespace.as_str() == $input_namespace && s.name.as_str() == $input_name,
+                    edn::SpannedValue::NamespacedKeyword(ref s) => s.namespace() == $input_namespace && s.name() == $input_name,
                     _ => false,
                 }
             })

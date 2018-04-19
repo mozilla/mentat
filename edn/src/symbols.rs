@@ -25,8 +25,8 @@ pub struct PlainSymbol(pub String);
 pub struct NamespacedSymbol {
     // We derive PartialOrd, which implements a lexicographic based
     // on the order of members, so put namespace first.
-    pub namespace: String,
-    pub name: String,
+    _namespace: String,
+    _name: String,
 }
 
 /// A keyword is a symbol, optionally with a namespace, that prints with a leading colon.
@@ -54,8 +54,8 @@ pub struct NamespacedSymbol {
 /// let bar     = Keyword::new("bar");                         // :bar
 /// let foo_bar = NamespacedKeyword::new("foo", "bar");        // :foo/bar
 /// assert_eq!("bar", bar.0);
-/// assert_eq!("bar", foo_bar.name);
-/// assert_eq!("foo", foo_bar.namespace);
+/// assert_eq!("bar", foo_bar.name());
+/// assert_eq!("foo", foo_bar.namespace());
 /// ```
 ///
 /// If you're not sure whether your input is well-formed, you should use a
@@ -74,8 +74,8 @@ pub struct Keyword(pub String);
 pub struct NamespacedKeyword {
     // We derive PartialOrd, which implements a lexicographic order based
     // on the order of members, so put namespace first.
-    pub namespace: String,
-    pub name: String,
+    _namespace: String,
+    _name: String,
 }
 
 impl PlainSymbol {
@@ -121,7 +121,22 @@ impl NamespacedSymbol {
         assert!(!n.is_empty(), "Symbols cannot be unnamed.");
         assert!(!ns.is_empty(), "Symbols cannot have an empty non-null namespace.");
 
-        NamespacedSymbol { name: n, namespace: ns }
+        NamespacedSymbol { _name: n, _namespace: ns }
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self._name
+    }
+
+    #[inline]
+    pub fn namespace(&self) -> &str {
+        &self._namespace
+    }
+
+    #[inline]
+    pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
+        (&self._namespace, &self._name)
     }
 }
 
@@ -154,9 +169,24 @@ impl NamespacedKeyword {
 
         // TODO: debug asserts to ensure that neither field matches [ :/].
         NamespacedKeyword {
-            name: n,
-            namespace: ns,
+            _name: n,
+            _namespace: ns,
         }
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self._name
+    }
+
+    #[inline]
+    pub fn namespace(&self) -> &str {
+        &self._namespace
+    }
+
+    #[inline]
+    pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
+        (&self._namespace, &self._name)
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in reverse order. For example,
@@ -177,9 +207,10 @@ impl NamespacedKeyword {
     /// assert!(!NamespacedKeyword::new("foo", "bar").is_backward());
     /// assert!(NamespacedKeyword::new("foo", "_bar").is_backward());
     /// ```
+
     #[inline]
     pub fn is_backward(&self) -> bool {
-        self.name.starts_with('_')
+        self._name.starts_with('_')
     }
 
     /// Whether this `NamespacedKeyword` should be interpreted in forward order.
@@ -214,14 +245,14 @@ impl NamespacedKeyword {
     /// ```
     pub fn to_reversed(&self) -> NamespacedKeyword {
         let name = if self.is_backward() {
-            self.name[1..].to_string()
+            self._name[1..].to_string()
         } else {
-            format!("{}{}", "_", self.name)
+            format!("{}{}", "_", self._name)
         };
 
         NamespacedKeyword {
-            name: name,
-            namespace: self.namespace.clone(),
+            _name: name,
+            _namespace: self._namespace.clone(),
         }
     }
 
@@ -241,8 +272,8 @@ impl NamespacedKeyword {
     pub fn unreversed(&self) -> Option<NamespacedKeyword> {
         if self.is_backward() {
             Some(NamespacedKeyword {
-                name: self.name[1..].to_string(),
-                namespace: self.namespace.clone(),
+                _name: self._name[1..].to_string(),
+                _namespace: self._namespace.clone(),
             })
         } else {
             None
@@ -278,7 +309,7 @@ impl Display for NamespacedSymbol {
     /// assert_eq!("bar/baz", NamespacedSymbol::new("bar", "baz").to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, "{}/{}", self.namespace, self.name)
+        write!(f, "{}/{}", self._namespace, self._name)
     }
 }
 
@@ -308,7 +339,7 @@ impl Display for NamespacedKeyword {
     /// assert_eq!(":bar/baz", NamespacedKeyword::new("bar", "baz").to_reversed().to_reversed().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, ":{}/{}", self.namespace, self.name)
+        write!(f, ":{}/{}", self._namespace, self._name)
     }
 }
 

@@ -68,9 +68,9 @@ impl Value {
                     .append(pp.text("}"))
                     .group()
             }
-            Value::NamespacedSymbol(ref v) => pp.text(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
+            Value::NamespacedSymbol(ref v) => pp.text(v.namespace()).append("/").append(v.name()),
             Value::PlainSymbol(ref v) => pp.text(v.0.as_ref()),
-            Value::NamespacedKeyword(ref v) => pp.text(":").append(v.namespace.as_ref()).append("/").append(v.name.as_ref()),
+            Value::NamespacedKeyword(ref v) => pp.text(":").append(v.namespace()).append("/").append(v.name()),
             Value::Keyword(ref v) => pp.text(":").append(v.0.as_ref()),
             Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
             Value::Uuid(ref u) => pp.text("#uuid \"").append(u.hyphenated().to_string()).append("\""),
