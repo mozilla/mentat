@@ -37,6 +37,8 @@ impl ConjoiningClauses {
         match where_fn.operator.0.as_str() {
             "fulltext" => self.apply_fulltext(known, where_fn),
             "ground" => self.apply_ground(known, where_fn),
+            "tx-data" => self.apply_tx_data(known, where_fn),
+            "tx-ids" => self.apply_tx_ids(known, where_fn),
             _ => bail!(ErrorKind::UnknownFunction(where_fn.operator.clone())),
         }
     }

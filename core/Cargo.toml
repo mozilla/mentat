@@ -9,7 +9,7 @@ enum-set = { git = "https://github.com/rnewman/enum-set" }
 lazy_static = "0.2"
 num = "0.1"
 ordered-float = { version = "0.5", features = ["serde"] }
-uuid = "0.5"
+uuid = { version = "0.5", features = ["v4", "serde"] }
 serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0"
 
