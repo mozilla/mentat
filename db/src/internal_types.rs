@@ -35,6 +35,7 @@ use mentat_tx::entities::{
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Term<E, V> {
     AddOrRetract(OpType, E, Entid, V),
+    RetractEntity(E),
 }
 
 use self::Either::*;
@@ -68,7 +69,9 @@ impl TermWithTempIds {
     pub(crate) fn unwrap(self) -> TermWithoutTempIds {
         match self {
             Term::AddOrRetract(op, Left(n), a, Left(v)) => Term::AddOrRetract(op, n, a, v),
-            _ => unreachable!(),
+            Term::AddOrRetract(_, _, _, _) => unreachable!(),
+            Term::RetractEntity(Left(e)) => Term::RetractEntity(e),
+            Term::RetractEntity(_) => unreachable!(),
         }
     }
 }

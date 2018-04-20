@@ -381,6 +381,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     }
                 },
 
+                Entity::RetractEntity(e) => {
+                    let e = in_process.entity_e_into_term_e(e.into())?;
+                    terms.push(Term::RetractEntity(e));
+                },
+
                 Entity::AddOrRetract { op, e, a, v } => {
                     if let Some(reversed_a) = a.unreversed() {
                         let reversed_e = in_process.entity_v_into_term_e(v, &a)?;
@@ -519,6 +524,10 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     let v = replace_lookup_ref(&lookup_ref_map, v, |x| TypedValue::Ref(x))?;
                     Ok(Term::AddOrRetract(op, e, a, v))
                 },
+                Term::RetractEntity(e) => {
+                    let e = replace_lookup_ref(&lookup_ref_map, e, |x| KnownEntid(x))?;
+                    Ok(Term::RetractEntity(e))
+                },
             }
         }).collect::<Result<Vec<_>>>()
     }
@@ -629,6 +638,9 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         // Assertions that are :db.cardinality/many and :db.fulltext.
         let mut fts_many: Vec<db::ReducedEntity> = vec![];
 
+        // :db/retractEntity entities.
+        let mut retract_entities: Vec<Entid> = vec![];
+
         // We need to ensure that callers can't blindly transact entities that haven't been
         // allocated by this store.
 
@@ -677,6 +689,12 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         (true, true) => fts_many.push(reduced),
                     }
                 },
+
+                Term::RetractEntity(KnownEntid(e)) => {
+                    // TODO: Might update metadata?
+                    // TODO: Watching/counting datoms?
+                    retract_entities.push(e);
+                },
             }
         }
 
@@ -704,6 +722,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         if !fts_many.is_empty() {
             self.store.insert_fts_searches(&fts_many[..], db::SearchType::Exact)?;
         }
+
+        self.store.insert_retract_entities(&retract_entities[..])?;
 
         self.store.commit_transaction(self.tx_id)?;
         }
