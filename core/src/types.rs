@@ -755,6 +755,27 @@ impl Binding {
             _ => None,
         }
     }
+
+    pub fn into_c_string(self) -> Option<*mut c_char> {
+        match self {
+            Binding::Scalar(v) => v.into_c_string(),
+            _ => None,
+        }
+    }
+
+    pub fn into_kw_c_string(self) -> Option<*mut c_char> {
+        match self {
+            Binding::Scalar(v) => v.into_kw_c_string(),
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid_c_string(self) -> Option<*mut c_char> {
+        match self {
+            Binding::Scalar(v) => v.into_uuid_c_string(),
+            _ => None,
+        }
+    }
 }
 
 #[test]
