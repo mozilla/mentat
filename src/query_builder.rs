@@ -14,10 +14,12 @@ use std::collections::{
 };
 
 use mentat_core::{
+    DateTime,
     Entid,
     Keyword,
     Binding,
     TypedValue,
+    Utc,
     ValueType,
 };
 
@@ -71,6 +73,12 @@ impl<'a> QueryBuilder<'a> {
 
     pub fn bind_instant(&mut self, var: &str, value: i64) -> &mut Self {
        self.values.insert(Variable::from_valid_name(var), TypedValue::instant(value));
+
+       self
+    }
+
+    pub fn bind_date_time(&mut self, var: &str, value: DateTime<Utc>) -> &mut Self {
+       self.values.insert(Variable::from_valid_name(var), TypedValue::Instant(value));
        self
     }
 
@@ -114,6 +122,11 @@ mod test {
         QueryBuilder,
         TypedValue,
         Store,
+    };
+
+    use mentat_core::{
+        DateTime,
+        Utc,
     };
 
     #[test]

@@ -1,10 +1,14 @@
 [package]
 name = "mentat_ffi"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Emily Toop <etoop@mozilla.com>"]
+
+[lib]
+name = "mentat_ffi"
+crate-type = ["lib", "staticlib", "cdylib"]
 
 [dependencies]
 libc = "0.2"
 
 [dependencies.mentat]
-path = ".."
+path = "../"
