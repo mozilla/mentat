@@ -17,6 +17,7 @@ use std::f64;
 
 use chrono::{
     DateTime,
+    SecondsFormat,
     TimeZone,           // For Utc::timestamp. The compiler incorrectly complains that this is unused.
     Utc,
 };
@@ -461,7 +462,7 @@ macro_rules! def_common_value_display {
             $t::Nil => write!($f, "nil"),
             $t::Boolean(v) => write!($f, "{}", v),
             $t::Integer(v) => write!($f, "{}", v),
-            $t::Instant(v) => write!($f, "{}", v),
+            $t::Instant(v) => write!($f, "#inst \"{}\"", v.to_rfc3339_opts(SecondsFormat::AutoSi, true)),
             $t::BigInteger(ref v) => write!($f, "{}N", v),
             // TODO: make sure float syntax is correct.
             $t::Float(ref v) => {
