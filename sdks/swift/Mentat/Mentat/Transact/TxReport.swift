@@ -42,7 +42,7 @@ class TxReport: RustObject {
     }
 
     /**
-     Access an `Entid` for a temporary identifier that was provided in the transaction can be done through `entid(String:)`.
+     Access an `Entid` for a temporary identifier that was provided in the transaction.
 
      - Parameter tempId: A `String` representing the temporary identifier to fetch the `Entid` for.
 
