@@ -39,15 +39,15 @@ use errors::{
 };
 
 pub struct QueryBuilder<'a> {
-    sql: String,
+    query: String,
     values: BTreeMap<Variable, TypedValue>,
     types: BTreeMap<Variable, ValueType>,
     store: &'a mut Store,
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn new<T>(store: &'a mut Store, sql: T) -> QueryBuilder where T: Into<String> {
-        QueryBuilder { sql: sql.into(), values: BTreeMap::new(), types: BTreeMap::new(), store }
+    pub fn new<T>(store: &'a mut Store, query: T) -> QueryBuilder where T: Into<String> {
+        QueryBuilder { query: query.into(), values: BTreeMap::new(), types: BTreeMap::new(), store }
     }
 
     pub fn bind_value<T>(&mut self, var: &str, value: T) -> &mut Self where T: Into<TypedValue> {
@@ -92,7 +92,7 @@ impl<'a> QueryBuilder<'a> {
         let types = ::std::mem::replace(&mut self.types, Default::default());
         let query_inputs = QueryInputs::new(types, values)?;
         let read = self.store.begin_read()?;
-        read.q_once(&self.sql, query_inputs)
+        read.q_once(&self.query, query_inputs)
     }
 
     pub fn execute_scalar(&mut self) -> Result<Option<Binding>> {

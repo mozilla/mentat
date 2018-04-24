@@ -17,24 +17,23 @@
 //! Rust's name mangling is turned off, so that it is easier to link to.
 //!
 //! Mentat's FFI contains unsafe code. As it is an interface between foreign code
-//! and native Rust code, Rust cannot guarentee that the types and data that it is
-//! handling that have been passed to it from another language are present and in
-//! the format it is expecting.
+//! and native Rust code, Rust cannot guarantee that the types and data that have been passed
+//! to it from another language are present and in the format it is expecting.
 //! This interface is designed to ensure that nothing unsafe ever leaves this module
 //! and enters Mentat proper.
 //!
 //! Structs defined with `#[repr(C)]` are guaranteed to have a layout that is compatible
 //! with the platform's representation in C.
 //!
-//! This API passes pointers in two ways, depending on the lifetime of the object and
-//! what object owns it.
-//! Pointers to values that can guarenteed to live beyond the lifetime of the function,
+//! This API passes pointers in two ways, depending on the lifetime of the value and
+//! what value owns it.
+//! Pointers to values that can be guaranteed to live beyond the lifetime of the function,
 //! are passed over the FFI as a raw pointer.
 //! ```
 //! value as *const TypedValue
 //! ```
-//! Pointers to values that cannot be guarenteed to live beyond the lifetime of the function
-//! are first Boxed so that they live on the heap, and the raw pointer passed this way.
+//! Pointers to values that cannot be guaranteed to live beyond the lifetime of the function
+//! are first `Box`ed so that they live on the heap, and the raw pointer passed this way.
 //! ```
 //! Box::into_raw(Box::new(value))
 //! ```
@@ -42,28 +41,29 @@
 //! The memory for values that are moved onto the heap before being passed over the FFI
 //! are no longer managed by Rust, but Rust still owns the value. Therefore the pointer
 //! must be returned to Rust in order to be released. To this effect a number of `destructor`
-//! function are provided for each Rust value type that is passed, and a catch all destructor
-//! to destroy memory for `#[repr(C)]` values. The destructors reclaim the memory via `Box`
-//! and then drop the reference, causing the memory to be released.
+//! functions are provided for each Rust value type that is passed, and a catch all destructor
+//! is provided to release memory for `#[repr(C)]` values.
+//! The destructors reclaim the memory via `Box` and then drop the reference, causing the
+//! memory to be released.
 //!
 //! A macro has been provided to make defining destructors easier.
 //! ```
 //! define_destructor!(query_builder_destroy, QueryBuilder);
 //! ```
 //!
-//! Passing a pointer to released memory will cause Mentat to crash, so callers have to be
-//! careful to ensure they manage their pointers properly. Failure to call a destructor for a
-//! value on the heap will cause a memory leak.
+//! Passing a pointer to memory that has already been released will cause Mentat to crash,
+//! so callers have to be careful to ensure they manage their pointers properly.
+//! Failure to call a destructor for a value on the heap will cause a memory leak.
 //!
 //! Most of the functions exposed in this FFI have a direct mapping to existing Mentat APIs.
 //! Application logic has been kept to a minumum in order to provide the greatest flexibility
 //! for callers using the interface, however there are a one exception where several steps
 //! have been wrapped into a single call in order to make the interface easier to use.
-//! `store_register_observer` takes a single native callback function is wrapped inside a
-//! Rust closure and added to a `TxObserver` struct that this then used to register the
+//! `store_register_observer` takes a single native callback function which is wrapped inside a
+//! Rust closure and added to a `TxObserver` struct. This is then used to register the
 //! observer with the store.
 //!
-//! Result and Option Rust types have `repr(C)` structs that mirror them. This is to provide a more
+//! `Result` and `Option` Rust types have `repr(C)` structs that mirror them. This is to provide a more
 //! native access pattern to callers and to enable easier passing of optional types and error
 //! propogation. These types have implemented `From` such that conversion from the Rust type
 //! to the C type is as painless as possible.
