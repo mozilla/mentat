@@ -19,7 +19,7 @@ use rustc_version::{
 
 /// MIN_VERSION should be changed when there's a new minimum version of rustc required
 /// to build the project.
-static MIN_VERSION: &'static str  = "1.24.0";
+static MIN_VERSION: &'static str  = "1.25.0";
 
 fn main() {
     let ver = version().unwrap();
