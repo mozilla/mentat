@@ -15,7 +15,7 @@ import MentatStore
 typealias Entid = Int64
 
 /**
- Protocol to be implemenented by any object that wishes to register for transaction observation
+ Protocol to be implemented by any object that wishes to register for transaction observation
  */
 protocol Observing {
     func transactionDidOccur(key: String, reports: [TxChange])

@@ -13,7 +13,7 @@ import MentatStore
 
 
 /**
- This class allows you to contruct a query, bind values to variables and run those queries against a mentat DB.
+ This class allows you to construct a query, bind values to variables and run those queries against a mentat DB.
 
  This class cannot be created directly, but must be created through `Mentat.query(String:)`.
 
