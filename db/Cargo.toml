@@ -23,6 +23,9 @@ path = "../edn"
 [dependencies.mentat_core]
 path = "../core"
 
+[dependencies.mentat_sql]
+path = "../sql"
+
 [dependencies.mentat_tx]
 path = "../tx"
 
