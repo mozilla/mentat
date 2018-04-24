@@ -66,6 +66,7 @@ use mentat_query_sql::{
 
 mod aggregates;
 mod project;
+mod relresult;
 pub mod errors;
 
 pub use aggregates::{
@@ -79,6 +80,10 @@ use project::{
 
 pub use project::{
     projected_column_for_var,
+};
+
+pub use relresult::{
+    RelResult,
 };
 
 use errors::{
@@ -97,7 +102,7 @@ pub enum QueryResults {
     Scalar(Option<TypedValue>),
     Tuple(Option<Vec<TypedValue>>),
     Coll(Vec<TypedValue>),
-    Rel(Vec<Vec<TypedValue>>),
+    Rel(RelResult),
 }
 
 impl From<QueryOutput> for QueryResults {
@@ -110,10 +115,13 @@ impl QueryOutput {
     pub fn empty_factory(spec: &FindSpec) -> Box<Fn() -> QueryResults> {
         use self::FindSpec::*;
         match spec {
-            &FindScalar(_) => Box::new(|| QueryResults::Scalar(None)),
-            &FindTuple(_)  => Box::new(|| QueryResults::Tuple(None)),
-            &FindColl(_)   => Box::new(|| QueryResults::Coll(vec![])),
-            &FindRel(_)    => Box::new(|| QueryResults::Rel(vec![])),
+            &FindScalar(_)   => Box::new(|| QueryResults::Scalar(None)),
+            &FindTuple(_)    => Box::new(|| QueryResults::Tuple(None)),
+            &FindColl(_)     => Box::new(|| QueryResults::Coll(vec![])),
+            &FindRel(ref es) => {
+                let width = es.len();
+                Box::new(move || QueryResults::Rel(RelResult::empty(width)))
+            },
         }
     }
 
@@ -129,10 +137,10 @@ impl QueryOutput {
         use self::FindSpec::*;
         let results =
             match &**spec {
-                &FindScalar(_) => QueryResults::Scalar(None),
-                &FindTuple(_)  => QueryResults::Tuple(None),
-                &FindColl(_)   => QueryResults::Coll(vec![]),
-                &FindRel(_)    => QueryResults::Rel(vec![]),
+                &FindScalar(_)   => QueryResults::Scalar(None),
+                &FindTuple(_)    => QueryResults::Tuple(None),
+                &FindColl(_)     => QueryResults::Coll(vec![]),
+                &FindRel(ref es) => QueryResults::Rel(RelResult::empty(es.len())),
             };
         QueryOutput {
             spec: spec.clone(),
@@ -181,6 +189,7 @@ impl QueryOutput {
                 unimplemented!();
             },
             &FindRel(ref elements) => {
+                let width = elements.len();
                 let values = elements.iter().map(|e| match e {
                     &Element::Variable(ref var) |
                     &Element::Corresponding(ref var) => {
@@ -192,7 +201,7 @@ impl QueryOutput {
                         unreachable!();
                     },
                 }).collect();
-                QueryResults::Rel(vec![values])
+                QueryResults::Rel(RelResult { width, values })
             },
         }
     }
@@ -209,7 +218,7 @@ impl QueryOutput {
         self.results.into_tuple()
     }
 
-    pub fn into_rel(self) -> Result<Vec<Vec<TypedValue>>> {
+    pub fn into_rel(self) -> Result<RelResult> {
         self.results.into_rel()
     }
 }
@@ -221,7 +230,7 @@ impl QueryResults {
             &Scalar(ref o) => if o.is_some() { 1 } else { 0 },
             &Tuple(ref o)  => if o.is_some() { 1 } else { 0 },
             &Coll(ref v)   => v.len(),
-            &Rel(ref v)    => v.len(),
+            &Rel(ref r)    => r.row_count(),
         }
     }
 
@@ -231,7 +240,7 @@ impl QueryResults {
             &Scalar(ref o) => o.is_none(),
             &Tuple(ref o)  => o.is_none(),
             &Coll(ref v)   => v.is_empty(),
-            &Rel(ref v)    => v.is_empty(),
+            &Rel(ref r)    => r.is_empty(),
         }
     }
 
@@ -262,7 +271,7 @@ impl QueryResults {
         }
     }
 
-    pub fn into_rel(self) -> Result<Vec<Vec<TypedValue>>> {
+    pub fn into_rel(self) -> Result<RelResult> {
         match self {
             QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "rel")),
             QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "rel")),
@@ -457,10 +466,9 @@ impl Projector for TupleProjector {
     }
 }
 
-/// A rel projector produces a vector of vectors.
-/// Each inner vector is the same size, and sourced from the same columns.
-/// One inner vector is produced per `Row`.
-/// Each column in the inner vector is the result of taking one or two columns from
+/// A rel projector produces a RelResult, which is a striding abstraction over a vector.
+/// Each stride across the vector is the same size, and sourced from the same columns.
+/// Each column in each stride is the result of taking one or two columns from
 /// the `Row`: one for the value and optionally one for the type tag.
 struct RelProjector {
     spec: Rc<FindSpec>,
@@ -477,15 +485,20 @@ impl RelProjector {
         }
     }
 
-    fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<TypedValue>> {
+    fn collect_bindings_into<'a, 'stmt, 'out>(&self, row: Row<'a, 'stmt>, out: &mut Vec<TypedValue>) -> Result<()> {
         // There will be at least as many SQL columns as Datalog columns.
         // gte 'cos we might be querying extra columns for ordering.
         // The templates will take care of ignoring columns.
         assert!(row.column_count() >= self.len as i32);
-        self.templates
-            .iter()
-            .map(|ti| ti.lookup(&row))
-            .collect::<Result<Vec<TypedValue>>>()
+        let mut count = 0;
+        for binding in self.templates
+                           .iter()
+                           .map(|ti| ti.lookup(&row)) {
+            out.push(binding?);
+            count += 1;
+        }
+        assert_eq!(self.len, count);
+        Ok(())
     }
 
     fn combine(spec: Rc<FindSpec>, column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
@@ -509,15 +522,19 @@ impl RelProjector {
 
 impl Projector for RelProjector {
     fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        let mut out: Vec<Vec<TypedValue>> = vec![];
+        // Allocate space for five rows to start.
+        // This is better than starting off by doubling the buffer a couple of times, and will
+        // rapidly grow to support larger query results.
+        let width = self.len;
+        let mut values: Vec<_> = Vec::with_capacity(5 * width);
+
         while let Some(r) = rows.next() {
             let row = r?;
-            let bindings = self.collect_bindings(row)?;
-            out.push(bindings);
+            self.collect_bindings_into(row, &mut values)?;
         }
         Ok(QueryOutput {
             spec: self.spec.clone(),
-            results: QueryResults::Rel(out),
+            results: QueryResults::Rel(RelResult { width, values }),
         })
     }
 

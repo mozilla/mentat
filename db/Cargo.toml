@@ -5,7 +5,7 @@ workspace = ".."
 
 [dependencies]
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
-indexmap = "0.4"
+indexmap = "1"
 itertools = "0.7"
 lazy_static = "0.2"
 num = "0.1"

@@ -5,7 +5,7 @@ workspace = ".."
 
 [dependencies]
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
-indexmap = "0.4"
+indexmap = "1"
 
 [dependencies.rusqlite]
 version = "0.13"

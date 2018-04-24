@@ -183,8 +183,9 @@ impl fmt::Display for ValueType {
 }
 
 /// Represents a Mentat value in a particular value set.
-// TODO: expand to include :db.type/{instant,url,uuid}.
-// TODO: BigInt?
+// TODO: expand to include :db.type/uri. https://github.com/mozilla/mentat/issues/201
+// TODO: JSON data type? https://github.com/mozilla/mentat/issues/31
+// TODO: BigInt? Bytes?
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq,Serialize,Deserialize)]
 pub enum TypedValue {
     Ref(Entid),
@@ -983,6 +984,10 @@ impl HasSchema for Schema {
     }
 }
 
+pub mod intern_set;
+pub mod counter;
+pub mod util;
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1125,7 +1130,3 @@ mod test {
         assert_eq!(expected_value, value2);
     }
 }
-
-pub mod intern_set;
-pub mod counter;
-pub mod util;

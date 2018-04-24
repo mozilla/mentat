@@ -48,6 +48,7 @@ use mentat::{
     QueryInputs,
     Queryable,
     QueryResults,
+    RelResult,
     Store,
     TxReport,
     Variable,
@@ -80,8 +81,8 @@ fn test_rel() {
     assert_eq!(40, results.len());
 
     // Every row is a pair of a Ref and a Keyword.
-    if let QueryResults::Rel(ref rel) = results {
-        for r in rel {
+    if let QueryResults::Rel(rel) = results {
+        for r in rel.into_iter() {
             assert_eq!(r.len(), 2);
             assert!(r[0].matches_type(ValueType::Ref));
             assert!(r[1].matches_type(ValueType::Keyword));
@@ -90,7 +91,6 @@ fn test_rel() {
         panic!("Expected rel.");
     }
 
-    println!("{:?}", results);
     println!("Rel took {}µs", start.to(end).num_microseconds().unwrap());
 }
 
@@ -309,7 +309,7 @@ fn test_tx() {
         QueryResults::Rel(ref v) => {
             assert_eq!(*v, vec![
                 vec![TypedValue::Ref(t.tx_id),]
-            ]);
+            ].into());
         },
         _ => panic!("Expected query to work."),
     }
@@ -346,7 +346,7 @@ fn test_tx_as_input() {
         QueryResults::Rel(ref v) => {
             assert_eq!(*v, vec![
                 vec![TypedValue::Uuid(Uuid::from_str("cf62d552-6569-4d1b-b667-04703041dfc4").expect("Valid UUID")),]
-            ]);
+            ].into());
         },
         _ => panic!("Expected query to work."),
     }
@@ -451,7 +451,7 @@ fn test_fulltext() {
                 vec![TypedValue::Ref(v),
                      TypedValue::String("I've come to talk with you again".to_string().into()),
                 ]
-            ]);
+            ].into());
         },
         _ => panic!("Expected query to work."),
     }
@@ -693,21 +693,20 @@ fn test_type_reqs() {
     let eid_query = r#"[:find ?eid :where [?eid :test/string "foo"]]"#;
 
     let res = conn.q_once(&mut c, eid_query, None)
-                  .expect("results")
-                  .into();
+                  .into_rel_result()
+                  .expect("results");
 
-    let entid = match res {
-        QueryResults::Rel(ref vs) if vs.len() == 1 && vs[0].len() == 1 && vs[0][0].matches_type(ValueType::Ref) =>
-            if let TypedValue::Ref(eid) = vs[0][0] {
+    assert_eq!(res.row_count(), 1);
+    assert_eq!(res.width, 1);
+    let entid =
+        match res.into_iter().next().unwrap().into_iter().next().unwrap() {
+            TypedValue::Ref(eid) => {
                 eid
-            } else {
-                // Already checked this.
-                unreachable!();
+            },
+            unexpected => {
+                panic!("Query to get the entity id returned unexpected result {:?}", unexpected);
             }
-        unexpected => {
-            panic!("Query to get the entity id returned unexpected result {:?}", unexpected);
-        }
-    };
+        };
 
     let type_names = &[
         "boolean",
@@ -835,7 +834,7 @@ fn test_monster_head_aggregates() {
                 vec!["Cyclops".into(),  TypedValue::Long(3)],
                 vec!["Medusa".into(),   TypedValue::Long(1)],
             ];
-            assert_eq!(vals, expected);
+            assert_eq!(vals, expected.into());
         },
         r => panic!("Unexpected result {:?}", r),
     };
@@ -898,7 +897,7 @@ fn test_basic_aggregates() {
                  .into();
     match r {
         QueryResults::Rel(vals) => {
-            assert_eq!(vals, vec![vec![TypedValue::Long(1)]]);
+            assert_eq!(vals, vec![vec![TypedValue::Long(1)]].into());
         },
         _ => panic!("Expected rel."),
     }
@@ -994,7 +993,7 @@ fn test_basic_aggregates() {
                 vec![TypedValue::Long(22), TypedValue::Long(1)],
                 vec![TypedValue::Long(28), TypedValue::Long(1)],
                 vec![TypedValue::Long(42), TypedValue::Long(1)],
-            ]);
+            ].into());
         },
         _ => panic!("Expected rel."),
     }
@@ -1014,7 +1013,7 @@ fn test_basic_aggregates() {
                 vec![TypedValue::Long(22), TypedValue::Long(1)],
                 vec![TypedValue::Long(28), TypedValue::Long(2)],
                 vec![TypedValue::Long(42), TypedValue::Long(1)],
-            ]);
+            ].into());
         },
         _ => panic!("Expected rel."),
     }
@@ -1184,12 +1183,12 @@ fn test_aggregate_the() {
     // that corresponds to the maximum visit date.
     //
     // 'Group' in this context translates to GROUP BY in the generated SQL.
-    assert_eq!(2, per_title.len());
-    assert_eq!(1, corresponding_title.len());
+    assert_eq!(2, per_title.row_count());
+    assert_eq!(1, corresponding_title.row_count());
 
     assert_eq!(corresponding_title,
                vec![vec![TypedValue::Instant(DateTime::<Utc>::from_str("2018-04-06T20:46:00.000Z").unwrap()),
-                         TypedValue::typed_string("(1) Facebook")]]);
+                         TypedValue::typed_string("(1) Facebook")]].into());
 }
 
 #[test]
@@ -1293,8 +1292,10 @@ fn test_aggregation_implicit_grouping() {
     }
 
     // Max scores for vegetarians.
-    assert_eq!(vec![vec!["Alice".into(), TypedValue::Long(99)],
-                    vec!["Beli".into(), TypedValue::Long(22)]],
+    let expected: RelResult =
+        vec![vec!["Alice".into(), TypedValue::Long(99)],
+             vec!["Beli".into(), TypedValue::Long(22)]].into();
+    assert_eq!(expected,
                store.q_once(r#"[:find ?name (max ?score)
                                 :where
                                 [?game :foo/score ?score]
@@ -1336,7 +1337,7 @@ fn test_aggregation_implicit_grouping() {
                          TypedValue::String("Diana".to_string().into()),
                          TypedValue::Long(28),
                          TypedValue::Long(2),
-                         TypedValue::Double((33f64 / 2f64).into())]]);
+                         TypedValue::Double((33f64 / 2f64).into())]].into());
         },
         x => panic!("Got unexpected results {:?}", x),
     }
@@ -1444,7 +1445,7 @@ fn test_tx_data() {
                                     TypedValue::Instant(tx.tx_instant),
                                     TypedValue::Ref(tx.tx_id),
                                     TypedValue::Boolean(true)],
-                           ]);
+                           ].into());
             },
             x => panic!("Got unexpected results {:?}", x),
         }

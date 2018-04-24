@@ -108,6 +108,7 @@ pub use query::{
     QueryOutput,
     QueryPlanStep,
     QueryResults,
+    RelResult,
     Variable,
     q_once,
 };
