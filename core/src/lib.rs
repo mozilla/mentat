@@ -10,6 +10,7 @@
 
 extern crate chrono;
 extern crate enum_set;
+extern crate indexmap;
 extern crate ordered_float;
 extern crate uuid;
 extern crate serde;
@@ -57,6 +58,7 @@ pub use types::{
     Entid,
     KnownEntid,
     TypedValue,
+    Binding,
     ValueType,
     ValueTypeTag,
     now,

@@ -22,6 +22,10 @@ use ::chrono::{
     Timelike,       // For truncation.
 };
 
+use ::indexmap::{
+    IndexMap,
+};
+
 use ::edn::{
     self,
     FromMicros,
@@ -46,6 +50,12 @@ pub struct KnownEntid(pub Entid);
 impl From<KnownEntid> for Entid {
     fn from(k: KnownEntid) -> Entid {
         k.0
+    }
+}
+
+impl From<KnownEntid> for Binding {
+    fn from(k: KnownEntid) -> Binding {
+        Binding::Scalar(TypedValue::Ref(k.0))
     }
 }
 
@@ -171,6 +181,90 @@ pub enum TypedValue {
     Keyword(Rc<NamespacedKeyword>),
     Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
+
+/// The values bound in a query specification can be:
+///
+/// * Vecs of structured values, for multi-valued component attributes or nested expressions.
+/// * Single structured values, for single-valued component attributes or nested expressions.
+/// * Single typed values, for simple attributes.
+///
+/// The `Binding` enum defines these three options.
+///
+/// Datomic also supports structured inputs; at present Mentat does not, but this type
+/// would also serve that purpose.
+///
+/// Note that maps are not ordered, and so `Binding` is neither `Ord` nor `PartialOrd`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Binding {
+    Scalar(TypedValue),
+    Vec(Rc<Vec<Binding>>),
+    Map(Rc<StructuredMap>),
+}
+
+impl From<TypedValue> for Binding {
+    fn from(src: TypedValue) -> Self {
+        Binding::Scalar(src)
+    }
+}
+
+
+impl<'a> From<&'a str> for Binding {
+    fn from(value: &'a str) -> Binding {
+        Binding::Scalar(TypedValue::String(Rc::new(value.to_string())))
+    }
+}
+
+impl From<String> for Binding {
+    fn from(value: String) -> Binding {
+        Binding::Scalar(TypedValue::String(Rc::new(value)))
+    }
+}
+
+impl Binding {
+    pub fn val(self) -> Option<TypedValue> {
+        match self {
+            Binding::Scalar(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+/// A pull expression expands a binding into a structure. The returned structure
+/// associates attributes named in the input or retrieved from the store with values.
+/// This association is a `StructuredMap`.
+///
+/// Note that 'attributes' in Datomic's case can mean:
+/// - Reversed attribute keywords (:artist/_country).
+/// - An alias using `:as` (:artist/name :as "Band name").
+///
+/// We entirely support the former, and partially support the latter -- you can alias
+/// using a different keyword only.
+#[derive(Debug, Eq, PartialEq)]
+pub struct StructuredMap(IndexMap<Rc<NamespacedKeyword>, Binding>);
+
+impl Binding {
+    /// Returns true if the provided type is `Some` and matches this value's type, or if the
+    /// provided type is `None`.
+    #[inline]
+    pub fn is_congruent_with<T: Into<Option<ValueType>>>(&self, t: T) -> bool {
+        t.into().map_or(true, |x| self.matches_type(x))
+    }
+
+    #[inline]
+    pub fn matches_type(&self, t: ValueType) -> bool {
+        self.value_type() == Some(t)
+    }
+
+    pub fn value_type(&self) -> Option<ValueType> {
+        match self {
+            &Binding::Scalar(ref v) => Some(v.value_type()),
+
+            &Binding::Map(_) => None,
+            &Binding::Vec(_) => None,
+        }
+    }
+}
+
 
 impl TypedValue {
     /// Returns true if the provided type is `Some` and matches this value's type, or if the
@@ -377,6 +471,85 @@ impl TypedValue {
     pub fn into_uuid_string(self) -> Option<String> {
         match self {
             TypedValue::Uuid(v) => Some(v.hyphenated().to_string()),
+            _ => None,
+        }
+    }
+}
+
+impl Binding {
+    pub fn into_known_entid(self) -> Option<KnownEntid> {
+        match self {
+            Binding::Scalar(TypedValue::Ref(v)) => Some(KnownEntid(v)),
+            _ => None,
+        }
+    }
+
+    pub fn into_entid(self) -> Option<Entid> {
+        match self {
+            Binding::Scalar(TypedValue::Ref(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+        match self {
+            Binding::Scalar(TypedValue::Keyword(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_boolean(self) -> Option<bool> {
+        match self {
+            Binding::Scalar(TypedValue::Boolean(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_long(self) -> Option<i64> {
+        match self {
+            Binding::Scalar(TypedValue::Long(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_double(self) -> Option<f64> {
+        match self {
+            Binding::Scalar(TypedValue::Double(v)) => Some(v.into_inner()),
+            _ => None,
+        }
+    }
+
+    pub fn into_instant(self) -> Option<DateTime<Utc>> {
+        match self {
+            Binding::Scalar(TypedValue::Instant(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_timestamp(self) -> Option<i64> {
+        match self {
+            Binding::Scalar(TypedValue::Instant(v)) => Some(v.timestamp()),
+            _ => None,
+        }
+    }
+
+    pub fn into_string(self) -> Option<Rc<String>> {
+        match self {
+            Binding::Scalar(TypedValue::String(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid(self) -> Option<Uuid> {
+        match self {
+            Binding::Scalar(TypedValue::Uuid(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid_string(self) -> Option<String> {
+        match self {
+            Binding::Scalar(TypedValue::Uuid(v)) => Some(v.hyphenated().to_string()),
             _ => None,
         }
     }

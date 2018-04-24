@@ -27,6 +27,7 @@ use mentat::{
     Queryable,
     Schema,
     Store,
+    Binding,
     TypedValue,
 };
 
@@ -187,7 +188,7 @@ fn test_fetch_attribute_value_for_entid() {
 
     let entities = store.q_once(r#"[:find ?e . :where [?e :foo/bar 100]]"#, None).expect("Expected query to work").into_scalar().expect("expected scalar results");
     let entid = match entities {
-        Some(TypedValue::Ref(entid)) => entid,
+        Some(Binding::Scalar(TypedValue::Ref(entid))) => entid,
         x => panic!("expected Some(Ref), got {:?}", x),
     };
 
@@ -208,7 +209,7 @@ fn test_fetch_attribute_values_for_entid() {
 
     let entities = store.q_once(r#"[:find ?e . :where [?e :foo/bar 100]]"#, None).expect("Expected query to work").into_scalar().expect("expected scalar results");
     let entid = match entities {
-        Some(TypedValue::Ref(entid)) => entid,
+        Some(Binding::Scalar(TypedValue::Ref(entid))) => entid,
         x => panic!("expected Some(Ref), got {:?}", x),
     };
 

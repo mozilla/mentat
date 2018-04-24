@@ -923,6 +923,7 @@ mod tests {
 
     use mentat_core::{
         CachedAttributes,
+        Binding,
         TypedValue,
     };
 
@@ -1038,7 +1039,7 @@ mod tests {
 
             let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                                     .expect("query succeeded");
-            assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one))));
+            assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one).into())));
 
             let report = in_progress.transact(t2).expect("t2 succeeded");
             in_progress.commit().expect("commit succeeded");
@@ -1083,10 +1084,10 @@ mod tests {
                                           values).expect("prepare succeeded");
 
         let yeses = prepared.run(None).expect("result");
-        assert_eq!(yeses.results, QueryResults::Coll(vec![TypedValue::Ref(yes)]));
+        assert_eq!(yeses.results, QueryResults::Coll(vec![TypedValue::Ref(yes).into()]));
 
         let yeses_again = prepared.run(None).expect("result");
-        assert_eq!(yeses_again.results, QueryResults::Coll(vec![TypedValue::Ref(yes)]));
+        assert_eq!(yeses_again.results, QueryResults::Coll(vec![TypedValue::Ref(yes).into()]));
     }
 
     #[test]
@@ -1119,7 +1120,7 @@ mod tests {
             let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                                     .expect("query succeeded");
 
-            assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one))));
+            assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one).into())));
 
             // And we can do direct lookup, too.
             let kw = in_progress.lookup_value_for_attribute(one, &edn::NamespacedKeyword::new("db", "ident"))
@@ -1233,7 +1234,7 @@ mod tests {
         let entities = conn.q_once(&sqlite, r#"[:find ?e . :where [?e :foo/bar 400]]"#, None).expect("Expected query to work").into_scalar().expect("expected rel results");
         let first = entities.expect("expected a result");
         let entid = match first {
-            TypedValue::Ref(entid) => entid,
+            Binding::Scalar(TypedValue::Ref(entid)) => entid,
             x => panic!("expected Some(Ref), got {:?}", x),
         };
 
@@ -1279,7 +1280,7 @@ mod tests {
             let mut ip = conn.begin_transaction(&mut sqlite).expect("began");
 
             let ident = ip.q_once(query.as_str(), None).into_scalar_result().expect("query");
-            assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
+            assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string").into()));
 
             let start = time::PreciseTime::now();
             ip.q_once(query.as_str(), None).into_scalar_result().expect("query");
@@ -1292,7 +1293,7 @@ mod tests {
             assert!(ip.cache.is_attribute_cached_forward(db_ident));
 
             let ident = ip.q_once(query.as_str(), None).into_scalar_result().expect("query");
-            assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
+            assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string").into()));
 
             let start = time::PreciseTime::now();
             ip.q_once(query.as_str(), None).into_scalar_result().expect("query");
@@ -1309,7 +1310,7 @@ mod tests {
             let mut ip = conn.begin_transaction(&mut sqlite).expect("began");
 
             let ident = ip.q_once(query.as_str(), None).into_scalar_result().expect("query");
-            assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string")));
+            assert_eq!(ident, Some(TypedValue::typed_ns_keyword("db.type", "string").into()));
             ip.cache(&kw!(:db/ident), CacheDirection::Forward, CacheAction::Register).expect("registered");
             ip.cache(&kw!(:db/valueType), CacheDirection::Forward, CacheAction::Register).expect("registered");
 
@@ -1344,7 +1345,7 @@ mod tests {
                         [?neighborhood :neighborhood/district ?d]
                         [?d :district/name ?district]]"#;
         let hood = "Beacon Hill";
-        let inputs = QueryInputs::with_value_sequence(vec![(var!(?hood), TypedValue::typed_string(hood))]);
+        let inputs = QueryInputs::with_value_sequence(vec![(var!(?hood), TypedValue::typed_string(hood).into())]);
         let mut prepared = in_progress.q_prepare(query, inputs)
                                       .expect("prepared");
         match &prepared {

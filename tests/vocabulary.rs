@@ -49,6 +49,7 @@ use mentat::{
     Queryable,
     RelResult,
     Store,
+    Binding,
     TypedValue,
     ValueType,
 };
@@ -212,8 +213,8 @@ fn test_add_vocab() {
                        .into_tuple_result()
                        .expect("query returns")
                        .expect("a result");
-        assert_eq!(ver_attr[0], TypedValue::Long(1));
-        assert_eq!(ver_attr[1], TypedValue::typed_ns_keyword("foo", "bar"));
+        assert_eq!(ver_attr[0], TypedValue::Long(1).into());
+        assert_eq!(ver_attr[1], TypedValue::typed_ns_keyword("foo", "bar").into());
 
         // If we commit, it'll stick around.
         in_progress.commit().expect("commit succeeded");
@@ -227,8 +228,8 @@ fn test_add_vocab() {
             .into_tuple_result()
             .expect("query returns")
             .expect("a result");
-    assert_eq!(ver_attr[0], TypedValue::Long(1));
-    assert_eq!(ver_attr[1], TypedValue::typed_ns_keyword("foo", "bar"));
+    assert_eq!(ver_attr[0], TypedValue::Long(1).into());
+    assert_eq!(ver_attr[1], TypedValue::typed_ns_keyword("foo", "bar").into());
 
     // Scoped borrow of `conn`.
     {
@@ -264,8 +265,8 @@ fn test_add_vocab() {
             .expect("query returns");
     assert_eq!(actual_attributes,
                vec![
-                   TypedValue::typed_ns_keyword("foo", "bar"),
-                   TypedValue::typed_ns_keyword("foo", "baz"),
+                   TypedValue::typed_ns_keyword("foo", "bar").into(),
+                   TypedValue::typed_ns_keyword("foo", "baz").into(),
                ]);
 
     // Now let's modify our vocabulary without bumping the version. This is invalid and will result
@@ -336,10 +337,10 @@ fn test_add_vocab() {
 }
 
 /// A helper to turn rows from `[:find ?e ?a :where [?e ?a ?v]]` into a tuple.
-fn ea(row: Vec<TypedValue>) -> (KnownEntid, KnownEntid) {
+fn ea(row: Vec<Binding>) -> (KnownEntid, KnownEntid) {
     let mut row = row.into_iter();
     match (row.next(), row.next()) {
-        (Some(TypedValue::Ref(e)), Some(TypedValue::Ref(a))) => {
+        (Some(Binding::Scalar(TypedValue::Ref(e))), Some(Binding::Scalar(TypedValue::Ref(a)))) => {
             (KnownEntid(e), KnownEntid(a))
         },
         _ => panic!("Incorrect query shape for 'ea' helper."),
@@ -347,18 +348,20 @@ fn ea(row: Vec<TypedValue>) -> (KnownEntid, KnownEntid) {
 }
 
 /// A helper to turn rows from `[:find ?a ?v :where [?e ?a ?v]]` into a tuple.
-fn av(row: Vec<TypedValue>) -> (KnownEntid, TypedValue) {
+/// Panics if any of the values are maps or vecs.
+fn av(row: Vec<Binding>) -> (KnownEntid, TypedValue) {
     let mut row = row.into_iter();
     match (row.next(), row.next()) {
-        (Some(TypedValue::Ref(a)), Some(v)) => {
-            (KnownEntid(a), v)
+        (Some(Binding::Scalar(TypedValue::Ref(a))), Some(v)) => {
+            (KnownEntid(a), v.val().unwrap())
         },
         _ => panic!("Incorrect query shape for 'av' helper."),
     }
 }
 
 /// A helper to turn rows from `[:find ?e ?v :where [?e ?a ?v]]` into a tuple.
-fn ev(row: Vec<TypedValue>) -> (KnownEntid, TypedValue) {
+/// Panics if any of the values are maps or vecs.
+fn ev(row: Vec<Binding>) -> (KnownEntid, TypedValue) {
     // This happens to be the same as `av`.
     av(row)
 }
@@ -382,7 +385,7 @@ fn height_of_person(in_progress: &InProgress, name: &str) -> Option<i64> {
                         .into_scalar_result()
                         .expect("result");
     match h {
-        Some(TypedValue::Long(v)) => Some(v),
+        Some(Binding::Scalar(TypedValue::Long(v))) => Some(v),
         _ => None,
     }
 }
@@ -585,7 +588,7 @@ fn test_upgrade_with_functions() {
                                    :order (asc ?year)]"#, None)
                        .into_coll_result()
                        .expect("coll");
-        assert_eq!(years, vec![TypedValue::Long(1984), TypedValue::Long(2019)]);
+        assert_eq!(years, vec![Binding::Scalar(TypedValue::Long(1984)), Binding::Scalar(TypedValue::Long(2019))]);
         in_progress.commit().expect("commit succeeded");
     }
 
@@ -605,7 +608,7 @@ fn test_upgrade_with_functions() {
                          .into_iter() {
                 let mut row = row.into_iter();
                 match (row.next(), row.next()) {
-                    (Some(TypedValue::Ref(person)), Some(TypedValue::Long(height))) => {
+                    (Some(Binding::Scalar(TypedValue::Ref(person))), Some(Binding::Scalar(TypedValue::Long(height)))) => {
                         // No need to explicitly retract: cardinality-one.
                         builder.add(KnownEntid(person), person_height, TypedValue::Long(inches_to_cm(height)))?;
                     },
@@ -674,7 +677,7 @@ fn test_upgrade_with_functions() {
                      .into_iter() {
             let mut row = row.into_iter();
             match (row.next(), row.next()) {
-                (Some(TypedValue::Ref(food)), Some(TypedValue::String(name))) => {
+                (Some(Binding::Scalar(TypedValue::Ref(food))), Some(Binding::Scalar(TypedValue::String(name)))) => {
                     if name.chars().any(|c| !c.is_lowercase()) {
                         let lowercased = name.to_lowercase();
                         println!("Need to rename {} from '{}' to '{}'", food, name, lowercased);
@@ -707,7 +710,7 @@ fn test_upgrade_with_functions() {
                      .into_iter() {
             let mut row = row.into_iter();
             match (row.next(), row.next()) {
-                (Some(TypedValue::Ref(left)), Some(TypedValue::Ref(right))) => {
+                (Some(Binding::Scalar(TypedValue::Ref(left))), Some(Binding::Scalar(TypedValue::Ref(right)))) => {
                     let keep = KnownEntid(left);
                     let replace = KnownEntid(right);
 
@@ -831,7 +834,7 @@ fn test_upgrade_with_functions() {
                                        [?f :food/name ?food]]"#, None)
                     .into_coll_result()
                     .expect("success"),
-               vec![TypedValue::typed_string("spice")]);
+               vec![TypedValue::typed_string("spice").into()]);
 
     //
     // Migration 4: multi-definition migration.
@@ -1032,7 +1035,7 @@ fn test_upgrade_with_functions() {
                        [?p :person/height ?height]
                        [?p :person/name ?name]]"#;
     let r = store.q_once(q, None).into_rel_result().unwrap();
-    let expected: RelResult =
+    let expected: RelResult<Binding> =
         vec![vec![TypedValue::typed_string("Sam"), TypedValue::Long(162)],
              vec![TypedValue::typed_string("Beth"), TypedValue::Long(172)]].into();
     assert_eq!(expected, r);
@@ -1045,6 +1048,8 @@ fn test_upgrade_with_functions() {
                        [?p :food/likes ?f]
                        [?f :food/name ?food]]"#;
     let r = store.q_once(q, None).into_coll_result().unwrap();
-    assert_eq!(vec![TypedValue::typed_string("spice"), TypedValue::typed_string("weird blue worms")],
-               r);
+    let expected: Vec<Binding> =
+        vec![TypedValue::typed_string("spice").into(),
+             TypedValue::typed_string("weird blue worms").into()];
+    assert_eq!(expected, r);
 }
