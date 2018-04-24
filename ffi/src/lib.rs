@@ -53,6 +53,7 @@ pub mod utils;
 pub use utils::strings::{
     c_char_to_string,
     c_char_from_rc,
+    c_char_from_arc,
     kw_from_string,
     string_to_c_char,
 };
@@ -305,7 +306,7 @@ pub unsafe extern "C" fn typed_value_as_timestamp(typed_value: *mut TypedValue) 
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_string(typed_value: *mut TypedValue) ->  *const c_char {
     let typed_value = Box::from_raw(typed_value);
-    c_char_from_rc(typed_value.into_string().expect("Typed value cannot be coerced into a String"))
+    c_char_from_arc(typed_value.into_string().expect("Typed value cannot be coerced into a String"))
 }
 
 //as_uuid
@@ -390,7 +391,7 @@ pub unsafe extern "C" fn values_iter_next_as_timestamp(iter: *mut TypedValueIter
 #[no_mangle]
 pub unsafe extern "C" fn values_iter_next_as_string(iter: *mut TypedValueIterator) ->  *const c_char {
     let iter = &mut *iter;
-    iter.next().map_or(std::ptr::null_mut(), |v| c_char_from_rc(v.into_string().expect("Typed value cannot be coerced into a String")))
+    iter.next().map_or(std::ptr::null_mut(), |v| c_char_from_arc(v.into_string().expect("Typed value cannot be coerced into a String")))
 }
 
 //as_uuid
@@ -458,7 +459,7 @@ pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<TypedValue
 pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<TypedValue>, index: c_int) ->  *mut c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    c_char_from_rc(value.clone().into_string().expect("Typed value cannot be coerced into a String"))
+    c_char_from_arc(value.clone().into_string().expect("Typed value cannot be coerced into a String"))
 }
 
 //as_uuid

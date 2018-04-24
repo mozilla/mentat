@@ -44,6 +44,14 @@ pub mod strings {
             std::ptr::null_mut()
         }
     }
+
+    pub fn c_char_from_arc(rc_string: ::std::sync::Arc<String>) -> *mut c_char {
+        if let Some(str_ptr) = unsafe { ::std::sync::Arc::into_raw(rc_string).as_ref() } {
+            string_to_c_char(str_ptr.clone())
+        } else {
+            std::ptr::null_mut()
+        }
+    }
 }
 
 pub mod log {

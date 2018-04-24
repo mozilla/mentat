@@ -646,7 +646,7 @@ mod testing {
 
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use mentat_core::attribute::Unique;
     use mentat_core::{
@@ -827,7 +827,7 @@ mod testing {
         let v = Variable::from_valid_name("?v");
 
         cc.input_variables.insert(a.clone());
-        cc.value_bindings.insert(a.clone(), TypedValue::Keyword(Rc::new(NamespacedKeyword::new("foo", "bar"))));
+        cc.value_bindings.insert(a.clone(), TypedValue::Keyword(Arc::new(NamespacedKeyword::new("foo", "bar"))));
         let known = Known::for_schema(&schema);
         cc.apply_parsed_pattern(known, Pattern {
             source: None,
@@ -931,7 +931,7 @@ mod testing {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: PatternNonValuePlace::Placeholder,
-            value: PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new("hello".to_string()))),
+            value: PatternValuePlace::Constant(NonIntegerConstant::Text(Arc::new("hello".to_string()))),
             tx: PatternNonValuePlace::Placeholder,
         });
 
@@ -954,7 +954,7 @@ mod testing {
         // - datoms0.value_type_tag = string
         // TODO: implement expand_type_tags.
         assert_eq!(cc.wheres, vec![
-                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String(Rc::new("hello".to_string())))),
+                   ColumnConstraint::Equals(d0_v, QueryValue::TypedValue(TypedValue::String(Arc::new("hello".to_string())))),
                    ColumnConstraint::has_unit_type("all_datoms00".to_string(), ValueType::String),
         ].into());
     }
@@ -982,7 +982,7 @@ mod testing {
             source: None,
             entity: PatternNonValuePlace::Variable(x.clone()),
             attribute: ident("foo", "roz"),
-            value: PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new("idgoeshere".to_string()))),
+            value: PatternValuePlace::Constant(NonIntegerConstant::Text(Arc::new("idgoeshere".to_string()))),
             tx: PatternNonValuePlace::Placeholder,
         });
         cc.apply_parsed_pattern(known, Pattern {

@@ -1170,7 +1170,7 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 
 #[cfg(test)]
 pub(crate) fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-    PatternNonValuePlace::Ident(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
+    PatternNonValuePlace::Ident(::std::sync::Arc::new(NamespacedKeyword::new(ns, name)))
 }
 
 #[cfg(test)]
