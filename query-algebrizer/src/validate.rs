@@ -120,7 +120,7 @@ mod tests {
     };
 
     fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
-        PatternValuePlace::IdentOrKeyword(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
+        PatternValuePlace::IdentOrKeyword(::std::sync::Arc::new(NamespacedKeyword::new(ns, name)))
     }
 
     /// Tests that the top-level form is a valid `or`, returning the clauses.

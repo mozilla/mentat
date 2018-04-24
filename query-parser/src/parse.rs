@@ -603,6 +603,7 @@ mod test {
     extern crate mentat_query;
 
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use self::combine::Parser;
     use self::edn::OrderedFloat;
@@ -626,7 +627,7 @@ mod test {
     }
 
     fn ident_kw(kw: edn::NamespacedKeyword) -> PatternNonValuePlace {
-        PatternNonValuePlace::Ident(Rc::new(kw))
+        PatternNonValuePlace::Ident(Arc::new(kw))
     }
 
     fn ident(ns: &str, name: &str) -> PatternNonValuePlace {

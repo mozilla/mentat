@@ -16,6 +16,7 @@ extern crate rusqlite;
 extern crate mentat_core;
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 use std::collections::HashMap;
 
@@ -103,7 +104,7 @@ pub struct SQLiteQueryBuilder {
     // Instead we track byte and String arguments separately, mapping them to their argument name,
     // in order to dedupe. We'll add these to the regular argument vector later.
     byte_args: HashMap<Vec<u8>, String>,             // From value to argument name.
-    string_args: HashMap<Rc<String>, String>,        // From value to argument name.
+    string_args: HashMap<Arc<String>, String>,        // From value to argument name.
     args: Vec<(String, Rc<rusqlite::types::Value>)>, // (arg, value).
 }
 

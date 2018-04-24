@@ -653,6 +653,7 @@ impl SelectQuery {
 mod tests {
     use super::*;
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use mentat_query_algebrizer::{
         Column,
@@ -761,7 +762,7 @@ mod tests {
         let c = Constraint::Infix {
             op: Op("MATCHES"),
             left: ColumnOrExpression::Column(QualifiedAlias("fulltext01".to_string(), Column::Fulltext(FulltextColumn::Text))),
-            right: ColumnOrExpression::Value(TypedValue::String(Rc::new("needle".to_string()))),
+            right: ColumnOrExpression::Value(TypedValue::String(Arc::new("needle".to_string()))),
         };
         let q = build_query(&c);
         assert_eq!("`fulltext01`.text MATCHES $v0", q.sql);

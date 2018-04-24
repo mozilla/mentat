@@ -68,8 +68,6 @@ use std::iter::{
 
 use std::mem;
 
-use std::rc::Rc;
-
 use std::sync::Arc;
 
 use std::iter::Peekable;
@@ -190,7 +188,7 @@ pub type Aev = (Entid, Entid, TypedValue);
 
 pub struct AevFactory {
     // Our own simple string-interning system.
-    strings: HashSet<Rc<String>>,
+    strings: HashSet<Arc<String>>,
 }
 
 impl AevFactory {
