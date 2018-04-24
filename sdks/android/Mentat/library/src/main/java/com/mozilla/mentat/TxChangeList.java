@@ -10,8 +10,6 @@
 
 package com.mozilla.mentat;
 
-import android.util.Log;
-
 import com.sun.jna.Structure;
 
 import java.io.Closeable;
@@ -50,7 +48,6 @@ public class TxChangeList extends Structure implements Closeable {
 
     @Override
     public void close() {
-        Log.i("TxChangeList", "close");
         final TxChange[] nativeReports = (TxChange[]) reports.toArray(numberOfItems);
         for (TxChange nativeReport : nativeReports) {
             nativeReport.close();

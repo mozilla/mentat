@@ -10,8 +10,6 @@
 
 package com.mozilla.mentat;
 
-import android.util.Log;
-
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
@@ -46,7 +44,7 @@ public class TxChange extends Structure implements Closeable {
         final long[] array = (long[]) changes.getLongArray(0, numberOfItems);
         Long[] longArray = new Long[numberOfItems];
         int idx = 0;
-        for(long change: array) {
+        for (long change: array) {
             longArray[idx++] = change;
         }
         return Arrays.asList(longArray);
@@ -59,7 +57,6 @@ public class TxChange extends Structure implements Closeable {
 
     @Override
     public void close() {
-        Log.i("TxChange", "close");
         if (this.getPointer() != null) {
             JNA.INSTANCE.destroy(this.getPointer());
         }

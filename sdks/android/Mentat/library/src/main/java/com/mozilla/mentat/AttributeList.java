@@ -7,9 +7,8 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License. */
-package com.mozilla.mentat;
 
-import android.util.Log;
+package com.mozilla.mentat;
 
 import com.sun.jna.Structure;
 import com.sun.jna.ptr.IntByReference;
@@ -42,8 +41,6 @@ public class AttributeList extends Structure implements Closeable {
 
     @Override
     public void close() {
-        Log.i("AttributeList", "close");
-
         if (this.getPointer() != null) {
             JNA.INSTANCE.destroy(this.getPointer());
         }
