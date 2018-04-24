@@ -322,8 +322,6 @@ public class Query extends RustObject {
 
     @Override
     public void close() {
-        Log.i("Query", "close");
-
         if (this.rawPointer == null) {
             return;
         }

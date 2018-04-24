@@ -57,7 +57,7 @@ public class Mentat extends RustObject {
     public TxReport transact(String transaction) {
         RustResult result = JNA.INSTANCE.store_transact(this.rawPointer, transaction);
         if (result.isFailure()) {
-            Log.i("Mentat", result.err);
+            Log.e("Mentat", result.err);
             return null;
         }
 
@@ -101,7 +101,7 @@ public class Mentat extends RustObject {
         }
 
         if (result.isFailure()) {
-            Log.i("Mentat", result.err);
+            Log.e("Mentat", result.err);
         }
 
         return null;
@@ -122,10 +122,6 @@ public class Mentat extends RustObject {
         for(int i = 0; i < attributes.length; i++) {
             attrEntids[i] = JNA.INSTANCE.store_entid_for_attribute(this.rawPointer, attributes[i]);
         }
-        Log.i("Mentat", "Registering observer {" + key + "} for attributes:");
-        for (int i = 0; i < attrEntids.length; i++) {
-            Log.i("Mentat", "entid: " + attrEntids[i]);
-        }
         final Pointer entidsNativeArray = new Memory(8 * attrEntids.length);
         entidsNativeArray.write(0, attrEntids, 0, attrEntids.length);
         JNA.INSTANCE.store_register_observer(rawPointer, key, entidsNativeArray, attrEntids.length, callback);
@@ -144,7 +140,6 @@ public class Mentat extends RustObject {
 
     @Override
     public void close() {
-        Log.i("Mentat", "close");
         if (this.rawPointer != null) {
             JNA.INSTANCE.store_destroy(this.rawPointer);
         }

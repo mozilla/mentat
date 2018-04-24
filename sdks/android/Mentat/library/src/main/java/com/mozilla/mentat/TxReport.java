@@ -10,8 +10,6 @@
 
 package com.mozilla.mentat;
 
-import android.util.Log;
-
 import com.sun.jna.Pointer;
 
 import java.util.Date;
@@ -84,7 +82,6 @@ public class TxReport extends RustObject {
 
     @Override
     public void close() {
-        Log.i("TxReport", "close");
         if (this.rawPointer != null) {
             JNA.INSTANCE.tx_report_destroy(this.rawPointer);
         }

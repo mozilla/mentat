@@ -307,229 +307,180 @@ pub unsafe extern "C" fn query_builder_execute(query_builder: *mut QueryBuilder)
     Box::into_raw(Box::new(results.into()))
 }
 
+fn unwrap_conversion<T>(value: Option<T>, expected_type: ValueType) -> T {
+    match value {
+        Some(v) => v,
+        None => panic!("Typed value cannot be coerced into a {}", expected_type)
+    }
+}
+
 // as_long
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_long(typed_value: *mut Binding) ->  c_longlong {
+pub unsafe extern "C" fn typed_value_as_long(typed_value: *mut Binding) -> c_longlong {
     let typed_value = Box::from_raw(typed_value);
-    typed_value.into_long().expect("Typed value cannot be coerced into a Long")
+    unwrap_conversion(typed_value.into_long(), ValueType::Long)
 }
 
 // as_entid
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_entid(typed_value: *mut Binding) ->  Entid {
+pub unsafe extern "C" fn typed_value_as_entid(typed_value: *mut Binding) -> Entid {
     let typed_value = Box::from_raw(typed_value);
-    typed_value.into_entid().expect("Typed value cannot be coerced into an Entid")
+    unwrap_conversion(typed_value.into_entid(), ValueType::Ref)
 }
 
 // kw
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_kw(typed_value: *mut Binding) ->  *const c_char {
+pub unsafe extern "C" fn typed_value_as_kw(typed_value: *mut Binding) -> *const c_char {
     let typed_value = Box::from_raw(typed_value);
-    typed_value.into_kw_c_string().expect("Typed value cannot be coerced into a Namespaced Keyword")
+    unwrap_conversion(typed_value.into_kw_c_string(), ValueType::Keyword) as *const c_char
 }
 
 //as_boolean
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_boolean(typed_value: *mut Binding) -> i32 {
     let typed_value = Box::from_raw(typed_value);
-    if typed_value.into_boolean().expect("Typed value cannot be coerced into a Boolean") { 1 } else { 0 }
+    if unwrap_conversion(typed_value.into_boolean(), ValueType::Boolean) { 1 } else { 0 }
 }
 
 //as_double
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_double(typed_value: *mut Binding) ->  f64 {
+pub unsafe extern "C" fn typed_value_as_double(typed_value: *mut Binding) -> f64 {
     let typed_value = Box::from_raw(typed_value);
-    typed_value.into_double().expect("Typed value cannot be coerced into a Double")
+    unwrap_conversion(typed_value.into_double(), ValueType::Double)
 }
 
 //as_timestamp
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_timestamp(typed_value: *mut Binding) ->  c_longlong {
+pub unsafe extern "C" fn typed_value_as_timestamp(typed_value: *mut Binding) -> c_longlong {
     let typed_value = Box::from_raw(typed_value);
-    let t = typed_value.value_type();
-    typed_value.into_timestamp().expect(&format!("Typed value of type {:?} cannot be coerced into a Timestamp", t))
+    unwrap_conversion(typed_value.into_timestamp(), ValueType::Instant)
 }
 
 //as_string
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_string(typed_value: *mut Binding) ->  *const c_char {
+pub unsafe extern "C" fn typed_value_as_string(typed_value: *mut Binding) -> *const c_char {
     let typed_value = Box::from_raw(typed_value);
-    typed_value.into_c_string().expect("Typed value cannot be coerced into a String")
+    unwrap_conversion(typed_value.into_c_string(), ValueType::String) as *const c_char
 }
 
 //as_uuid
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_uuid(typed_value: *mut Binding) ->  *mut [u8; 16] {
+pub unsafe extern "C" fn typed_value_as_uuid(typed_value: *mut Binding) -> *mut [u8; 16] {
     let typed_value = Box::from_raw(typed_value);
-    let value = typed_value.into_uuid().expect("Typed value cannot be coerced into a Uuid");
+    let value = unwrap_conversion(typed_value.into_uuid(), ValueType::Uuid);
     Box::into_raw(Box::new(*value.as_bytes()))
 }
 
 //value_type
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut Binding) ->  ValueType {
+pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut Binding) -> ValueType {
     let typed_value = &*typed_value;
     typed_value.value_type().unwrap_or_else(|| panic!("Binding is not Scalar and has no ValueType"))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn row_at_index(rows: *mut Vec<Vec<Binding>>, index: c_int) ->  *mut Vec<Binding> {
+pub unsafe extern "C" fn row_at_index(rows: *mut RelResult<Binding>, index: c_int) -> *mut Vec<Binding> {
     let result = &*rows;
-    result.get(index as usize).map_or_else(std::ptr::null_mut, |v| Box::into_raw(Box::new(v.clone())))
+    result.row(index as usize).map_or_else(std::ptr::null_mut, |v| Box::into_raw(Box::new(v.to_vec())))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rows_iter(rows: *mut RelResult<Binding>) ->  *mut BindingListIterator {
+pub unsafe extern "C" fn rows_iter(rows: *mut RelResult<Binding>) -> *mut BindingListIterator {
     let result = &*rows;
     let rows = result.rows();
     Box::into_raw(Box::new(rows))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rows_iter_next(iter: *mut BindingListIterator) ->  *mut Vec<Binding> {
+pub unsafe extern "C" fn rows_iter_next(iter: *mut BindingListIterator) -> *mut Vec<Binding> {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v.to_vec())))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn values_iter(values: *mut Vec<Binding>) ->  *mut BindingIterator {
+pub unsafe extern "C" fn values_iter(values: *mut Vec<Binding>) -> *mut BindingIterator {
     let result = Box::from_raw(values);
     Box::into_raw(Box::new(result.into_iter()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next(iter: *mut BindingIterator) ->  *mut Binding {
+pub unsafe extern "C" fn values_iter_next(iter: *mut BindingIterator) -> *mut Binding {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v)))
 }
 
-//as_long
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_long(iter: *mut BindingIterator) ->  *const c_longlong {
-    let iter = &mut *iter;
-    iter.next().map_or(std::ptr::null_mut(), |v| &v.into_long().expect("Typed value cannot be coerced into a Long") as *const c_longlong)
-}
-// as ref
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_entid(iter: *mut BindingIterator) ->  *const Entid {
-    let iter = &mut *iter;
-    iter.next().map_or_else(std::ptr::null, |v| &v.into_entid().expect("Typed value cannot be coerced into am Entid") as *const Entid)
-}
-
-// as kw
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_kw(iter: *mut BindingIterator) ->  *const c_char {
-    let iter = &mut *iter;
-    iter.next().map_or_else(std::ptr::null, |v| v.into_kw_c_string().expect("Typed value cannot be coerced into a Namespaced Keyword"))
-}
-
-//as_boolean
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_boolean(iter: *mut BindingIterator) ->  *const i32 {
-    let iter = &mut *iter;
-    iter.next().map_or(std::ptr::null_mut(), |v| if v.into_boolean().expect("Typed value cannot be coerced into a Boolean") { 1 } else { 0 } as *const i32)
-}
-
-//as_double
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_double(iter: *mut BindingIterator) ->  *const f64 {
-    let iter = &mut *iter;
-    iter.next().map_or_else(std::ptr::null, |v| &v.into_double().expect("Typed value cannot be coerced into a Double") as *const f64)
-}
-
-//as_timestamp
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_timestamp(iter: *mut BindingIterator) ->  *const i64 {
-    let iter = &mut *iter;
-    iter.next().map_or_else(std::ptr::null, |v| v.into_timestamp().expect("Typed value cannot be coerced into a Timestamp") as *const i64)
-}
-
-//as_string
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_string(iter: *mut BindingIterator) ->  *const c_char {
-    let iter = &mut *iter;
-    iter.next().map_or_else(std::ptr::null, |v| v.into_c_string().expect("Typed value cannot be coerced into a String"))
-}
-
-//as_uuid
-#[no_mangle]
-pub unsafe extern "C" fn values_iter_next_as_uuid(iter: *mut BindingIterator) ->  *const c_char {
-    let iter = &mut *iter;
-    iter.next().map_or_else(std::ptr::null, |v| v.into_uuid_c_string().expect("Typed value cannot be coerced into a Uuid"))
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn value_at_index(values: *mut Vec<Binding>, index: c_int) ->  *const Binding {
+pub unsafe extern "C" fn value_at_index(values: *mut Vec<Binding>, index: c_int) -> *const Binding {
     let result = &*values;
     result.get(index as usize).expect("No value at index") as *const Binding
 }
 
 //as_long
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_long(values: *mut Vec<Binding>, index: c_int) ->  c_longlong {
+pub unsafe extern "C" fn value_at_index_as_long(values: *mut Vec<Binding>, index: c_int) -> c_longlong {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    value.clone().into_long().expect("Typed value cannot be coerced into a Long")
+    unwrap_conversion(value.clone().into_long(), ValueType::Long)
 }
 // as ref
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_entid(values: *mut Vec<Binding>, index: c_int) ->  Entid {
+pub unsafe extern "C" fn value_at_index_as_entid(values: *mut Vec<Binding>, index: c_int) -> Entid {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    value.clone().into_entid().expect("Typed value cannot be coerced into an Entid")
+    unwrap_conversion(value.clone().into_entid(), ValueType::Ref)
 }
 
 // as kw
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_kw(values: *mut Vec<Binding>, index: c_int) ->  *const c_char {
+pub unsafe extern "C" fn value_at_index_as_kw(values: *mut Vec<Binding>, index: c_int) -> *const c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    value.clone().into_kw_c_string().expect("Typed value cannot be coerced into a Namespaced Keyword")
+    unwrap_conversion(value.clone().into_kw_c_string(), ValueType::Keyword) as *const c_char
 }
 
 //as_boolean
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_boolean(values: *mut Vec<Binding>, index: c_int) ->  i32 {
+pub unsafe extern "C" fn value_at_index_as_boolean(values: *mut Vec<Binding>, index: c_int) -> i32 {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    if value.clone().into_boolean().expect("Typed value cannot be coerced into a Boolean") { 1 } else { 0 }
+    if unwrap_conversion(value.clone().into_boolean(), ValueType::Boolean) { 1 } else { 0 }
 }
 
 //as_double
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_double(values: *mut Vec<Binding>, index: c_int) ->  f64 {
+pub unsafe extern "C" fn value_at_index_as_double(values: *mut Vec<Binding>, index: c_int) -> f64 {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    value.clone().into_double().expect("Typed value cannot be coerced into a Double")
+    unwrap_conversion(value.clone().into_double(), ValueType::Double)
 }
 
 //as_timestamp
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<Binding>, index: c_int) ->  c_longlong {
+pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<Binding>, index: c_int) -> c_longlong {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    value.clone().into_timestamp().expect("Typed value cannot be coerced into a timestamp")
+    unwrap_conversion(value.clone().into_timestamp(), ValueType::Instant)
 }
 
 //as_string
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<Binding>, index: c_int) ->  *mut c_char {
+pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<Binding>, index: c_int) -> *const c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    value.clone().into_c_string().expect("Typed value cannot be coerced into a String")
+    unwrap_conversion(value.clone().into_c_string(), ValueType::String) as *const c_char
 }
 
 //as_uuid
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_uuid(values: *mut Vec<Binding>, index: c_int) ->  *mut [u8; 16] {
+pub unsafe extern "C" fn value_at_index_as_uuid(values: *mut Vec<Binding>, index: c_int) -> *mut [u8; 16] {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    let uuid = value.clone().into_uuid().expect("Typed value cannot be coerced into a Uuid");
+    let uuid = unwrap_conversion(value.clone().into_uuid(), ValueType::Uuid);
     Box::into_raw(Box::new(*uuid.as_bytes()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn store_value_for_attribute(store: *mut Store, entid: c_longlong, attribute: *const c_char) ->  *mut ExternResult {
+pub unsafe extern "C" fn store_value_for_attribute(store: *mut Store, entid: c_longlong, attribute: *const c_char) -> *mut ExternResult {
     let store = &*store;
     let kw = kw_from_string(c_char_to_string(attribute));
     let value = match store.lookup_value_for_attribute(entid, &kw) {

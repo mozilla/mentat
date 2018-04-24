@@ -10,10 +10,8 @@
 
 package com.mozilla.mentat;
 
-import android.util.Log;
 import com.sun.jna.Pointer;
 
-import java.io.BufferedReader;
 import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.UUID;
@@ -152,8 +150,6 @@ public class TypedValue extends RustObject {
 
     @Override
     public void close() {
-        Log.i("TypedValue", "close");
-
         if (this.rawPointer != null) {
             JNA.INSTANCE.typed_value_destroy(this.rawPointer);
         }

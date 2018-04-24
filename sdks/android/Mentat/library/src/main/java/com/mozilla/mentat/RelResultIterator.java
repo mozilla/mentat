@@ -10,8 +10,6 @@
 
 package com.mozilla.mentat;
 
-import android.util.Log;
-
 import com.sun.jna.Pointer;
 
 import java.util.Iterator;
@@ -49,7 +47,6 @@ public class RelResultIterator extends RustObject implements Iterator {
 
     @Override
     public void close() {
-        Log.i("TupleResult", "close");
         if (this.rawPointer != null) {
             JNA.INSTANCE.typed_value_result_set_iter_destroy(this.rawPointer);
         }

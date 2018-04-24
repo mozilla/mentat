@@ -7,9 +7,8 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License. */
-package com.mozilla.mentat;
 
-import android.util.Log;
+package com.mozilla.mentat;
 
 import com.sun.jna.Pointer;
 
@@ -44,8 +43,6 @@ public class CollResult extends TupleResult implements Iterable<TypedValue> {
 
     @Override
     public void close() {
-        Log.i("CollResult", "close");
-
         if (this.rawPointer != null) {
             JNA.INSTANCE.destroy(this.rawPointer);
         }
