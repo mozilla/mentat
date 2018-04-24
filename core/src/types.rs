@@ -53,12 +53,6 @@ impl From<KnownEntid> for Entid {
     }
 }
 
-impl From<KnownEntid> for Binding {
-    fn from(k: KnownEntid) -> Binding {
-        Binding::Scalar(TypedValue::Ref(k.0))
-    }
-}
-
 impl From<KnownEntid> for TypedValue {
     fn from(k: KnownEntid) -> TypedValue {
         TypedValue::Ref(k.0)
@@ -201,22 +195,9 @@ pub enum Binding {
     Map(Rc<StructuredMap>),
 }
 
-impl From<TypedValue> for Binding {
-    fn from(src: TypedValue) -> Self {
-        Binding::Scalar(src)
-    }
-}
-
-
-impl<'a> From<&'a str> for Binding {
-    fn from(value: &'a str) -> Binding {
-        Binding::Scalar(TypedValue::String(Rc::new(value.to_string())))
-    }
-}
-
-impl From<String> for Binding {
-    fn from(value: String) -> Binding {
-        Binding::Scalar(TypedValue::String(Rc::new(value)))
+impl<T> From<T> for Binding where T: Into<TypedValue> {
+    fn from(value: T) -> Binding {
+        Binding::Scalar(value.into())
     }
 }
 
@@ -296,14 +277,14 @@ impl TypedValue {
     /// values and wrapping them in a new `Rc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        TypedValue::Keyword(Rc::new(NamespacedKeyword::new(ns, name)))
+        NamespacedKeyword::new(ns, name).into()
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
     /// value and wrapping it in a new `Rc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
-        TypedValue::String(Rc::new(s.to_string()))
+        s.into()
     }
 
     pub fn current_instant() -> TypedValue {
@@ -367,9 +348,21 @@ impl<'a> From<&'a str> for TypedValue {
     }
 }
 
+impl From<Rc<String>> for TypedValue {
+    fn from(value: Rc<String>) -> TypedValue {
+        TypedValue::String(value.clone())
+    }
+}
+
 impl From<String> for TypedValue {
     fn from(value: String) -> TypedValue {
         TypedValue::String(Rc::new(value))
+    }
+}
+
+impl From<Rc<NamespacedKeyword>> for TypedValue {
+    fn from(value: Rc<NamespacedKeyword>) -> TypedValue {
+        TypedValue::Keyword(value.clone())
     }
 }
 

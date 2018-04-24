@@ -216,10 +216,22 @@ impl NonIntegerConstant {
             NonIntegerConstant::BigInteger(_) => unimplemented!(),     // TODO: #280.
             NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
             NonIntegerConstant::Float(v) => TypedValue::Double(v),
-            NonIntegerConstant::Text(v) => TypedValue::String(v),
+            NonIntegerConstant::Text(v) => v.into(),
             NonIntegerConstant::Instant(v) => TypedValue::Instant(v),
             NonIntegerConstant::Uuid(v) => TypedValue::Uuid(v),
         }
+    }
+}
+
+impl<'a> From<&'a str> for NonIntegerConstant {
+    fn from(val: &'a str) -> NonIntegerConstant {
+        NonIntegerConstant::Text(Rc::new(val.to_string()))
+    }
+}
+
+impl From<String> for NonIntegerConstant {
+    fn from(val: String) -> NonIntegerConstant {
+        NonIntegerConstant::Text(Rc::new(val))
     }
 }
 
@@ -260,7 +272,7 @@ impl FromValue<FnArg> for FnArg {
                 Some(FnArg::Constant(NonIntegerConstant::BigInteger(x.clone()))),
             Text(ref x) =>
                 // TODO: intern strings. #398.
-                Some(FnArg::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+                Some(FnArg::Constant(x.clone().into())),
             Nil |
             NamespacedSymbol(_) |
             Keyword(_) |
@@ -315,6 +327,18 @@ pub enum PatternNonValuePlace {
     Ident(Rc<NamespacedKeyword>),
 }
 
+impl From<Rc<NamespacedKeyword>> for PatternNonValuePlace {
+    fn from(value: Rc<NamespacedKeyword>) -> Self {
+        PatternNonValuePlace::Ident(value.clone())
+    }
+}
+
+impl From<NamespacedKeyword> for PatternNonValuePlace {
+    fn from(value: NamespacedKeyword) -> Self {
+        PatternNonValuePlace::Ident(Rc::new(value))
+    }
+}
+
 impl PatternNonValuePlace {
     // I think we'll want move variants, so let's leave these here for now.
     #[allow(dead_code)]
@@ -355,7 +379,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
                 }
             },
             edn::SpannedValue::NamespacedKeyword(ref x) =>
-                Some(PatternNonValuePlace::Ident(Rc::new(x.clone()))),
+                Some(x.clone().into()),
             _ => None,
         }
     }
@@ -379,6 +403,18 @@ pub enum PatternValuePlace {
     Constant(NonIntegerConstant),
 }
 
+impl From<Rc<NamespacedKeyword>> for PatternValuePlace {
+    fn from(value: Rc<NamespacedKeyword>) -> Self {
+        PatternValuePlace::IdentOrKeyword(value.clone())
+    }
+}
+
+impl From<NamespacedKeyword> for PatternValuePlace {
+    fn from(value: NamespacedKeyword) -> Self {
+        PatternValuePlace::IdentOrKeyword(Rc::new(value))
+    }
+}
+
 impl FromValue<PatternValuePlace> for PatternValuePlace {
     fn from_value(v: &edn::ValueAndSpan) -> Option<PatternValuePlace> {
         match v.inner {
@@ -389,7 +425,7 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
             edn::SpannedValue::PlainSymbol(ref x) =>
                 Variable::from_symbol(x).map(PatternValuePlace::Variable),
             edn::SpannedValue::NamespacedKeyword(ref x) =>
-                Some(PatternValuePlace::IdentOrKeyword(Rc::new(x.clone()))),
+                Some(x.clone().into()),
             edn::SpannedValue::Boolean(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
             edn::SpannedValue::Float(x) =>
@@ -400,7 +436,7 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Instant(x))),
             edn::SpannedValue::Text(ref x) =>
                 // TODO: intern strings. #398.
-                Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+                Some(PatternValuePlace::Constant(x.clone().into())),
             edn::SpannedValue::Uuid(ref u) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Uuid(u.clone()))),
 
@@ -754,7 +790,7 @@ impl Pattern {
                     return Some(Pattern {
                         source: src,
                         entity: v_e,
-                        attribute: PatternNonValuePlace::Ident(Rc::new(k.to_reversed())),
+                        attribute: k.to_reversed().into(),
                         value: e_v,
                         tx: tx,
                     });

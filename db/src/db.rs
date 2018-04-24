@@ -389,7 +389,7 @@ impl TypedSQLValue for TypedValue {
             // share a tag.
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
             (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
-            (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(Rc::new(x))),
+            (10, rusqlite::types::Value::Text(x)) => Ok(x.into()),
             (11, rusqlite::types::Value::Blob(x)) => {
                 let u = Uuid::from_bytes(x.as_slice());
                 if u.is_err() {
@@ -400,7 +400,7 @@ impl TypedSQLValue for TypedValue {
                 Ok(TypedValue::Uuid(u.unwrap()))
             },
             (13, rusqlite::types::Value::Text(x)) => {
-                to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(Rc::new(k)))
+                to_namespaced_keyword(&x).map(|k| k.into())
             },
             (_, value) => bail!(ErrorKind::BadSQLValuePair(value, value_type_tag)),
         }
@@ -420,8 +420,8 @@ impl TypedSQLValue for TypedValue {
             &Value::Integer(x) => Some(TypedValue::Long(x)),
             &Value::Uuid(x) => Some(TypedValue::Uuid(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
-            &Value::Text(ref x) => Some(TypedValue::String(Rc::new(x.clone()))),
-            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(Rc::new(x.clone()))),
+            &Value::Text(ref x) => Some(x.clone().into()),
+            &Value::NamespacedKeyword(ref x) => Some(x.clone().into()),
             _ => None
         }
     }

@@ -761,7 +761,7 @@ mod tests {
         let c = Constraint::Infix {
             op: Op("MATCHES"),
             left: ColumnOrExpression::Column(QualifiedAlias("fulltext01".to_string(), Column::Fulltext(FulltextColumn::Text))),
-            right: ColumnOrExpression::Value(TypedValue::String(Rc::new("needle".to_string()))),
+            right: ColumnOrExpression::Value("needle".into()),
         };
         let q = build_query(&c);
         assert_eq!("`fulltext01`.text MATCHES $v0", q.sql);

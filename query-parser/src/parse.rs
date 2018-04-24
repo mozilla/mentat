@@ -626,7 +626,7 @@ mod test {
     }
 
     fn ident_kw(kw: edn::NamespacedKeyword) -> PatternNonValuePlace {
-        PatternNonValuePlace::Ident(Rc::new(kw))
+        PatternNonValuePlace::Ident(kw.into())
     }
 
     fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
