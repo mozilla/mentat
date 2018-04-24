@@ -13,35 +13,56 @@
 #include <stdint.h>
 #include <Foundation/NSObjCRuntime.h>
 
+/*
+ * This file contains headers for all of the structs and functions that map directly to the functions
+ * defined in mentat/ffi/src/lib.rs.
+ *
+ * The C in this file is specifically formatted to be used with Objective C and Swift and contains
+ * macros and flags that will not be recognised by other C based languages.
+ */
+
+/*
+ A mapping of the TxChange repr(C) Rust object.
+ The memory for this is managed by Swift.
+ */
 struct TxChange {
     int64_t txid;
     int64_t*_Nonnull* _Nonnull changes;
     uint64_t len;
 };
 
+/*
+ A mapping of the TxChangeList repr(C) Rust object.
+ The memory for this is managed by Swift.
+ */
 struct TxChangeList {
     struct TxChange*_Nonnull* _Nonnull reports;
     uint64_t len;
 };
 typedef struct TxChangeList TxChangeList;
 
+/*
+ A mapping of the ExternResult repr(C) Rust object.
+ The memory for this is managed by Swift.
+ */
 struct Result {
     void* _Nullable ok;
     char* _Nullable err;
 };
 typedef struct Result Result;
 
+/*
+ A mapping of the ExternOption repr(C) Rust object.
+ The memory for this is managed by Swift.
+ */
 struct Option {
     void* _Nullable value;
 };
 typedef struct Option Option;
 
-struct InProgressTransactResult {
-    struct InProgress*_Nonnull inProgress;
-    struct Result*_Nonnull result;
-};
-typedef struct InProgressTransactResult InProgressTransactResult;
-
+/*
+ A Mapping for the ValueType Rust object.
+ */
 typedef NS_ENUM(NSInteger, ValueType) {
     ValueTypeRef = 1,
     ValueTypeBoolean,
@@ -53,6 +74,7 @@ typedef NS_ENUM(NSInteger, ValueType) {
     ValueTypeUuid
 };
 
+// Opaque Structs mapping to Rust types that are passed over the FFI boundary
 struct EntityBuilder;
 struct InProgress;
 struct InProgressBuilder;
@@ -68,6 +90,7 @@ struct TypedValue;
 // Store
 struct Store*_Nonnull store_open(const char*_Nonnull uri);
 
+// Destructors.
 void destroy(void* _Nullable obj);
 void query_builder_destroy(struct Query* _Nullable obj);
 void store_destroy(struct Store* _Nonnull obj);
