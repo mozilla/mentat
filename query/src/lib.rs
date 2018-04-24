@@ -40,6 +40,7 @@ use std::collections::{
 
 use std::fmt;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use edn::{
     BigInt,
@@ -205,7 +206,7 @@ pub enum NonIntegerConstant {
     Boolean(bool),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
-    Text(Rc<String>),
+    Text(Arc<String>),
     Instant(DateTime<Utc>),
     Uuid(Uuid),
 }
@@ -260,7 +261,7 @@ impl FromValue<FnArg> for FnArg {
                 Some(FnArg::Constant(NonIntegerConstant::BigInteger(x.clone()))),
             Text(ref x) =>
                 // TODO: intern strings. #398.
-                Some(FnArg::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+                Some(FnArg::Constant(NonIntegerConstant::Text(Arc::new(x.clone())))),
             Nil |
             NamespacedSymbol(_) |
             Keyword(_) |
@@ -312,7 +313,7 @@ pub enum PatternNonValuePlace {
     Placeholder,
     Variable(Variable),
     Entid(i64),                       // Will always be +ve. See #190.
-    Ident(Rc<NamespacedKeyword>),
+    Ident(Arc<NamespacedKeyword>),
 }
 
 impl PatternNonValuePlace {
@@ -355,7 +356,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
                 }
             },
             edn::SpannedValue::NamespacedKeyword(ref x) =>
-                Some(PatternNonValuePlace::Ident(Rc::new(x.clone()))),
+                Some(PatternNonValuePlace::Ident(Arc::new(x.clone()))),
             _ => None,
         }
     }
@@ -363,7 +364,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IdentOrEntid {
-    Ident(Rc<NamespacedKeyword>),
+    Ident(Arc<NamespacedKeyword>),
     Entid(i64),
 }
 
@@ -375,7 +376,7 @@ pub enum PatternValuePlace {
     Placeholder,
     Variable(Variable),
     EntidOrInteger(i64),
-    IdentOrKeyword(Rc<NamespacedKeyword>),
+    IdentOrKeyword(Arc<NamespacedKeyword>),
     Constant(NonIntegerConstant),
 }
 
@@ -389,7 +390,7 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
             edn::SpannedValue::PlainSymbol(ref x) =>
                 Variable::from_symbol(x).map(PatternValuePlace::Variable),
             edn::SpannedValue::NamespacedKeyword(ref x) =>
-                Some(PatternValuePlace::IdentOrKeyword(Rc::new(x.clone()))),
+                Some(PatternValuePlace::IdentOrKeyword(Arc::new(x.clone()))),
             edn::SpannedValue::Boolean(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
             edn::SpannedValue::Float(x) =>
@@ -400,7 +401,7 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Instant(x))),
             edn::SpannedValue::Text(ref x) =>
                 // TODO: intern strings. #398.
-                Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Rc::new(x.clone())))),
+                Some(PatternValuePlace::Constant(NonIntegerConstant::Text(Arc::new(x.clone())))),
             edn::SpannedValue::Uuid(ref u) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Uuid(u.clone()))),
 
@@ -754,7 +755,7 @@ impl Pattern {
                     return Some(Pattern {
                         source: src,
                         entity: v_e,
-                        attribute: PatternNonValuePlace::Ident(Rc::new(k.to_reversed())),
+                        attribute: PatternNonValuePlace::Ident(Arc::new(k.to_reversed())),
                         value: e_v,
                         tx: tx,
                     });

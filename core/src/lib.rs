@@ -31,7 +31,7 @@ use std::collections::{
 };
 
 use std::fmt;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use enum_set::EnumSet;
 
@@ -193,8 +193,8 @@ pub enum TypedValue {
     Double(OrderedFloat<f64>),
     Instant(DateTime<Utc>),               // Use `into()` to ensure truncation.
     // TODO: &str throughout?
-    String(Rc<String>),
-    Keyword(Rc<NamespacedKeyword>),
+    String(Arc<String>),
+    Keyword(Arc<NamespacedKeyword>),
     Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
 
@@ -225,17 +225,17 @@ impl TypedValue {
     }
 
     /// Construct a new `TypedValue::Keyword` instance by cloning the provided
-    /// values and wrapping them in a new `Rc`. This is expensive, so this might
+    /// values and wrapping them in a new `Arc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        TypedValue::Keyword(Rc::new(NamespacedKeyword::new(ns, name)))
+        TypedValue::Keyword(Arc::new(NamespacedKeyword::new(ns, name)))
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
-    /// value and wrapping it in a new `Rc`. This is expensive, so this might
+    /// value and wrapping it in a new `Arc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
-        TypedValue::String(Rc::new(s.to_string()))
+        TypedValue::String(Arc::new(s.to_string()))
     }
 
     pub fn current_instant() -> TypedValue {
@@ -295,19 +295,19 @@ impl From<Uuid> for TypedValue {
 
 impl<'a> From<&'a str> for TypedValue {
     fn from(value: &'a str) -> TypedValue {
-        TypedValue::String(Rc::new(value.to_string()))
+        TypedValue::String(Arc::new(value.to_string()))
     }
 }
 
 impl From<String> for TypedValue {
     fn from(value: String) -> TypedValue {
-        TypedValue::String(Rc::new(value))
+        TypedValue::String(Arc::new(value))
     }
 }
 
 impl From<NamespacedKeyword> for TypedValue {
     fn from(value: NamespacedKeyword) -> TypedValue {
-        TypedValue::Keyword(Rc::new(value))
+        TypedValue::Keyword(Arc::new(value))
     }
 }
 
@@ -344,7 +344,7 @@ impl TypedValue {
         }
     }
 
-    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<Arc<NamespacedKeyword>> {
         match self {
             TypedValue::Keyword(v) => Some(v),
             _ => None,
@@ -386,7 +386,7 @@ impl TypedValue {
         }
     }
 
-    pub fn into_string(self) -> Option<Rc<String>> {
+    pub fn into_string(self) -> Option<Arc<String>> {
         match self {
             TypedValue::String(v) => Some(v),
             _ => None,

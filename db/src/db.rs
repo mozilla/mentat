@@ -19,7 +19,7 @@ use std::fmt::Display;
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use itertools;
 use itertools::Itertools;
@@ -389,7 +389,7 @@ impl TypedSQLValue for TypedValue {
             // share a tag.
             (5, rusqlite::types::Value::Integer(x)) => Ok(TypedValue::Long(x)),
             (5, rusqlite::types::Value::Real(x)) => Ok(TypedValue::Double(x.into())),
-            (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(Rc::new(x))),
+            (10, rusqlite::types::Value::Text(x)) => Ok(TypedValue::String(Arc::new(x))),
             (11, rusqlite::types::Value::Blob(x)) => {
                 let u = Uuid::from_bytes(x.as_slice());
                 if u.is_err() {
@@ -400,7 +400,7 @@ impl TypedSQLValue for TypedValue {
                 Ok(TypedValue::Uuid(u.unwrap()))
             },
             (13, rusqlite::types::Value::Text(x)) => {
-                to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(Rc::new(k)))
+                to_namespaced_keyword(&x).map(|k| TypedValue::Keyword(Arc::new(k)))
             },
             (_, value) => bail!(ErrorKind::BadSQLValuePair(value, value_type_tag)),
         }
@@ -420,8 +420,8 @@ impl TypedSQLValue for TypedValue {
             &Value::Integer(x) => Some(TypedValue::Long(x)),
             &Value::Uuid(x) => Some(TypedValue::Uuid(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
-            &Value::Text(ref x) => Some(TypedValue::String(Rc::new(x.clone()))),
-            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(Rc::new(x.clone()))),
+            &Value::Text(ref x) => Some(TypedValue::String(Arc::new(x.clone()))),
+            &Value::NamespacedKeyword(ref x) => Some(TypedValue::Keyword(Arc::new(x.clone()))),
             _ => None
         }
     }
@@ -872,7 +872,7 @@ impl MentatStoring for rusqlite::Connection {
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(max_vars / bindings_per_statement);
 
         // From string to (searchid, value_type_tag).
-        let mut seen: HashMap<Rc<String>, (i64, i32)> = HashMap::with_capacity(entities.len());
+        let mut seen: HashMap<Arc<String>, (i64, i32)> = HashMap::with_capacity(entities.len());
 
         // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
         let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {

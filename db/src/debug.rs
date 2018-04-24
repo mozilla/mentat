@@ -14,7 +14,7 @@
 
 use std::borrow::Borrow;
 use std::io::{Write};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use itertools::Itertools;
 use rusqlite;
@@ -112,7 +112,7 @@ trait ToIdent {
 impl ToIdent for TypedValue {
     fn map_ident(self, schema: &Schema) -> Self {
         if let TypedValue::Ref(e) = self {
-            schema.get_ident(e).cloned().map(|i| TypedValue::Keyword(Rc::new(i))).unwrap_or(TypedValue::Ref(e))
+            schema.get_ident(e).cloned().map(|i| TypedValue::Keyword(Arc::new(i))).unwrap_or(TypedValue::Ref(e))
         } else {
             self
         }

@@ -15,7 +15,7 @@ use std::fmt::{
     Result,
 };
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use mentat_core::{
     Entid,
@@ -709,7 +709,7 @@ pub enum EvolvedValuePlace {
     Entid(Entid),
     Value(TypedValue),
     EntidOrInteger(i64),
-    IdentOrKeyword(Rc<NamespacedKeyword>),
+    IdentOrKeyword(Arc<NamespacedKeyword>),
 }
 
 pub enum PlaceOrEmpty<T> {

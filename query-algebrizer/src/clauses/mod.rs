@@ -107,6 +107,17 @@ impl<T: Clone> RcCloned<T> for ::std::rc::Rc<T> {
     }
 }
 
+// We do this a lot for errors.
+trait ArcCloned<T> {
+    fn cloned(&self) -> T;
+}
+
+impl<T: Clone> ArcCloned<T> for ::std::sync::Arc<T> {
+    fn cloned(&self) -> T {
+        self.as_ref().clone()
+    }
+}
+
 trait Contains<K, T> {
     fn when_contains<F: FnOnce() -> T>(&self, k: &K, f: F) -> Option<T>;
 }
