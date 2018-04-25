@@ -15,11 +15,10 @@ use std::fmt::{
     Result,
 };
 
-use std::rc::Rc;
-
 use mentat_core::{
     Entid,
     TypedValue,
+    ValueRc,
     ValueType,
     ValueTypeSet,
 };
@@ -709,7 +708,7 @@ pub enum EvolvedValuePlace {
     Entid(Entid),
     Value(TypedValue),
     EntidOrInteger(i64),
-    IdentOrKeyword(Rc<NamespacedKeyword>),
+    IdentOrKeyword(ValueRc<NamespacedKeyword>),
 }
 
 pub enum PlaceOrEmpty<T> {

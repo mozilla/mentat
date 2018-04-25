@@ -8,9 +8,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::fmt;
-use std::rc::Rc;
+use ::std::ffi::{
+    CString,
+};
+use ::std::os::raw::c_char;
 
+use ::std::rc::{
+    Rc,
+};
+
+use ::std::sync::{
+    Arc,
+};
+
+use std::fmt;
 use ::enum_set::EnumSet;
 
 use ::ordered_float::OrderedFloat;
@@ -35,6 +46,83 @@ use ::edn::{
 
 use values;
 
+pub trait FromRc<T> {
+    fn from_rc(val: Rc<T>) -> Self;
+    fn from_arc(val: Arc<T>) -> Self;
+}
+
+impl<T> FromRc<T> for Rc<T> where T: Sized + Clone {
+    fn from_rc(val: Rc<T>) -> Self {
+        val.clone()
+    }
+
+    fn from_arc(val: Arc<T>) -> Self {
+        match ::std::sync::Arc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new(r.cloned()),
+        }
+    }
+}
+
+impl<T> FromRc<T> for Arc<T> where T: Sized + Clone {
+    fn from_rc(val: Rc<T>) -> Self {
+        match ::std::rc::Rc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new(r.cloned()),
+        }
+    }
+
+    fn from_arc(val: Arc<T>) -> Self {
+        val.clone()
+    }
+}
+
+impl<T> FromRc<T> for Box<T> where T: Sized + Clone {
+    fn from_rc(val: Rc<T>) -> Self {
+        match ::std::rc::Rc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new(r.cloned()),
+        }
+    }
+
+    fn from_arc(val: Arc<T>) -> Self {
+        match ::std::sync::Arc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new(r.cloned()),
+        }
+    }
+}
+
+// We do this a lot for errors.
+pub trait Cloned<T> {
+    fn cloned(&self) -> T;
+}
+
+impl<T: Clone> Cloned<T> for Rc<T> where T: Sized + Clone {
+    fn cloned(&self) -> T {
+        (*self.as_ref()).clone()
+    }
+}
+
+impl<T: Clone> Cloned<T> for Arc<T> where T: Sized + Clone {
+    fn cloned(&self) -> T {
+        (*self.as_ref()).clone()
+    }
+}
+
+impl<T: Clone> Cloned<T> for Box<T> where T: Sized + Clone {
+    fn cloned(&self) -> T {
+        self.as_ref().clone()
+    }
+}
+
+///
+/// This type alias exists to allow us to use different boxing mechanisms for values.
+/// This type must implement `FromRc` and `Cloned`, and a `From` implementation must exist for
+/// `TypedValue`.
+///
+pub type ValueRc<T> = Rc<T>;
+
 /// Represents one entid in the entid space.
 ///
 /// Per https://www.sqlite.org/datatype3.html (see also http://stackoverflow.com/a/8499544), SQLite
@@ -50,12 +138,6 @@ pub struct KnownEntid(pub Entid);
 impl From<KnownEntid> for Entid {
     fn from(k: KnownEntid) -> Entid {
         k.0
-    }
-}
-
-impl From<KnownEntid> for Binding {
-    fn from(k: KnownEntid) -> Binding {
-        Binding::Scalar(TypedValue::Ref(k.0))
     }
 }
 
@@ -177,8 +259,8 @@ pub enum TypedValue {
     Double(OrderedFloat<f64>),
     Instant(DateTime<Utc>),               // Use `into()` to ensure truncation.
     // TODO: &str throughout?
-    String(Rc<String>),
-    Keyword(Rc<NamespacedKeyword>),
+    String(ValueRc<String>),
+    Keyword(ValueRc<NamespacedKeyword>),
     Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
 
@@ -197,26 +279,13 @@ pub enum TypedValue {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Binding {
     Scalar(TypedValue),
-    Vec(Rc<Vec<Binding>>),
-    Map(Rc<StructuredMap>),
+    Vec(ValueRc<Vec<Binding>>),
+    Map(ValueRc<StructuredMap>),
 }
 
-impl From<TypedValue> for Binding {
-    fn from(src: TypedValue) -> Self {
-        Binding::Scalar(src)
-    }
-}
-
-
-impl<'a> From<&'a str> for Binding {
-    fn from(value: &'a str) -> Binding {
-        Binding::Scalar(TypedValue::String(Rc::new(value.to_string())))
-    }
-}
-
-impl From<String> for Binding {
-    fn from(value: String) -> Binding {
-        Binding::Scalar(TypedValue::String(Rc::new(value)))
+impl<T> From<T> for Binding where T: Into<TypedValue> {
+    fn from(value: T) -> Binding {
+        Binding::Scalar(value.into())
     }
 }
 
@@ -239,8 +308,8 @@ impl Binding {
 ///
 /// We entirely support the former, and partially support the latter -- you can alias
 /// using a different keyword only.
-#[derive(Debug, Eq, PartialEq)]
-pub struct StructuredMap(IndexMap<Rc<NamespacedKeyword>, Binding>);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuredMap(IndexMap<ValueRc<NamespacedKeyword>, Binding>);
 
 impl Binding {
     /// Returns true if the provided type is `Some` and matches this value's type, or if the
@@ -293,17 +362,17 @@ impl TypedValue {
     }
 
     /// Construct a new `TypedValue::Keyword` instance by cloning the provided
-    /// values and wrapping them in a new `Rc`. This is expensive, so this might
+    /// values and wrapping them in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        TypedValue::Keyword(Rc::new(NamespacedKeyword::new(ns, name)))
+        NamespacedKeyword::new(ns, name).into()
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
-    /// value and wrapping it in a new `Rc`. This is expensive, so this might
+    /// value and wrapping it in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
-        TypedValue::String(Rc::new(s.to_string()))
+        s.into()
     }
 
     pub fn current_instant() -> TypedValue {
@@ -363,19 +432,49 @@ impl From<Uuid> for TypedValue {
 
 impl<'a> From<&'a str> for TypedValue {
     fn from(value: &'a str) -> TypedValue {
-        TypedValue::String(Rc::new(value.to_string()))
+        TypedValue::String(ValueRc::new(value.to_string()))
+    }
+}
+
+impl From<Arc<String>> for TypedValue {
+    fn from(value: Arc<String>) -> TypedValue {
+        TypedValue::String(ValueRc::from_arc(value))
+    }
+}
+
+impl From<Rc<String>> for TypedValue {
+    fn from(value: Rc<String>) -> TypedValue {
+        TypedValue::String(ValueRc::from_rc(value))
+    }
+}
+
+impl From<Box<String>> for TypedValue {
+    fn from(value: Box<String>) -> TypedValue {
+        TypedValue::String(ValueRc::new(*value))
     }
 }
 
 impl From<String> for TypedValue {
     fn from(value: String) -> TypedValue {
-        TypedValue::String(Rc::new(value))
+        TypedValue::String(ValueRc::new(value))
+    }
+}
+
+impl From<Arc<NamespacedKeyword>> for TypedValue {
+    fn from(value: Arc<NamespacedKeyword>) -> TypedValue {
+        TypedValue::Keyword(ValueRc::from_arc(value))
+    }
+}
+
+impl From<Rc<NamespacedKeyword>> for TypedValue {
+    fn from(value: Rc<NamespacedKeyword>) -> TypedValue {
+        TypedValue::Keyword(ValueRc::from_rc(value))
     }
 }
 
 impl From<NamespacedKeyword> for TypedValue {
     fn from(value: NamespacedKeyword) -> TypedValue {
-        TypedValue::Keyword(Rc::new(value))
+        TypedValue::Keyword(ValueRc::new(value))
     }
 }
 
@@ -412,7 +511,7 @@ impl TypedValue {
         }
     }
 
-    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<ValueRc<NamespacedKeyword>> {
         match self {
             TypedValue::Keyword(v) => Some(v),
             _ => None,
@@ -454,9 +553,57 @@ impl TypedValue {
         }
     }
 
-    pub fn into_string(self) -> Option<Rc<String>> {
+    pub fn into_string(self) -> Option<ValueRc<String>> {
         match self {
             TypedValue::String(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_c_string(self) -> Option<*mut c_char> {
+        match self {
+            TypedValue::String(v) => {
+                // Get an independent copy of the string.
+                let s: String = v.cloned();
+
+                // Make a CString out of the new bytes.
+                let c: CString = CString::new(s).expect("String conversion failed!");
+
+                // Return a C-owned pointer.
+                Some(c.into_raw())
+            },
+            _ => None,
+        }
+    }
+
+    pub fn into_kw_c_string(self) -> Option<*mut c_char> {
+        match self {
+            TypedValue::Keyword(v) => {
+                // Get an independent copy of the string.
+                let s: String = v.to_string();
+
+                // Make a CString out of the new bytes.
+                let c: CString = CString::new(s).expect("String conversion failed!");
+
+                // Return a C-owned pointer.
+                Some(c.into_raw())
+            },
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid_c_string(self) -> Option<*mut c_char> {
+        match self {
+            TypedValue::Uuid(v) => {
+                // Get an independent copy of the string.
+                let s: String = v.hyphenated().to_string();
+
+                // Make a CString out of the new bytes.
+                let c: CString = CString::new(s).expect("String conversion failed!");
+
+                // Return a C-owned pointer.
+                Some(c.into_raw())
+            },
             _ => None,
         }
     }
@@ -491,7 +638,7 @@ impl Binding {
         }
     }
 
-    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<ValueRc<NamespacedKeyword>> {
         match self {
             Binding::Scalar(TypedValue::Keyword(v)) => Some(v),
             _ => None,
@@ -533,7 +680,7 @@ impl Binding {
         }
     }
 
-    pub fn into_string(self) -> Option<Rc<String>> {
+    pub fn into_string(self) -> Option<ValueRc<String>> {
         match self {
             Binding::Scalar(TypedValue::String(v)) => Some(v),
             _ => None,

@@ -1321,22 +1321,22 @@ fn test_aggregation_implicit_grouping() {
             assert_eq!(vals,
                 vec![
                     vec![TypedValue::Ref(ids.get("a").cloned().unwrap()),
-                         TypedValue::String("Alice".to_string().into()),
+                         "Alice".into(),
                          TypedValue::Long(99),
                          TypedValue::Long(3),
                          TypedValue::Double((127f64 / 3f64).into())],
                     vec![TypedValue::Ref(ids.get("b").cloned().unwrap()),
-                         TypedValue::String("Beli".to_string().into()),
+                         "Beli".into(),
                          TypedValue::Long(22),
                          TypedValue::Long(2),
                          TypedValue::Double((33f64 / 2f64).into())],
                     vec![TypedValue::Ref(ids.get("c").cloned().unwrap()),
-                         TypedValue::String("Carlos".to_string().into()),
+                         "Carlos".into(),
                          TypedValue::Long(42),
                          TypedValue::Long(1),
                          TypedValue::Double(42f64.into())],
                     vec![TypedValue::Ref(ids.get("d").cloned().unwrap()),
-                         TypedValue::String("Diana".to_string().into()),
+                         "Diana".into(),
                          TypedValue::Long(28),
                          TypedValue::Long(2),
                          TypedValue::Double((33f64 / 2f64).into())]].into());
@@ -1454,6 +1454,6 @@ fn test_tx_data() {
         }
     };
 
-    assert_tx_data(&store, &tx1, TypedValue::String("1".to_string().into()));
-    assert_tx_data(&store, &tx2, TypedValue::String("2".to_string().into()));
+    assert_tx_data(&store, &tx1, "1".into());
+    assert_tx_data(&store, &tx2, "2".into());
 }

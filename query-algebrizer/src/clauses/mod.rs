@@ -27,6 +27,7 @@ use std::fmt::{
 
 use mentat_core::{
     Attribute,
+    Cloned,
     Entid,
     HasSchema,
     KnownEntid,
@@ -95,17 +96,6 @@ use validate::{
 pub use self::inputs::QueryInputs;
 
 use Known;
-
-// We do this a lot for errors.
-trait RcCloned<T> {
-    fn cloned(&self) -> T;
-}
-
-impl<T: Clone> RcCloned<T> for ::std::rc::Rc<T> {
-    fn cloned(&self) -> T {
-        self.as_ref().clone()
-    }
-}
 
 trait Contains<K, T> {
     fn when_contains<F: FnOnce() -> T>(&self, k: &K, f: F) -> Option<T>;
@@ -1159,7 +1149,7 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 
 #[cfg(test)]
 pub(crate) fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-    PatternNonValuePlace::Ident(::std::rc::Rc::new(NamespacedKeyword::new(ns, name)))
+    NamespacedKeyword::new(ns, name).into()
 }
 
 #[cfg(test)]

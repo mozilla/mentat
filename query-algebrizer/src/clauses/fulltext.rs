@@ -260,8 +260,6 @@ impl ConjoiningClauses {
 mod testing {
     use super::*;
 
-    use std::rc::Rc;
-
     use mentat_core::{
         Attribute,
         Schema,
@@ -309,7 +307,7 @@ mod testing {
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
                 FnArg::IdentOrKeyword(NamespacedKeyword::new("foo", "fts")),
-                FnArg::Constant(NonIntegerConstant::Text(Rc::new("needle".into()))),
+                FnArg::Constant("needle".into()),
             ],
             binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),
                                            VariableOrPlaceholder::Variable(Variable::from_valid_name("?value")),
@@ -331,7 +329,7 @@ mod testing {
         assert_eq!(clauses.0[1], ColumnConstraint::Equals(QualifiedAlias("datoms01".to_string(), Column::Fixed(DatomsColumn::Value)),
                                                           QueryValue::Column(QualifiedAlias("fulltext_values00".to_string(), Column::Fulltext(FulltextColumn::Rowid)))).into());
         assert_eq!(clauses.0[2], ColumnConstraint::Matches(QualifiedAlias("fulltext_values00".to_string(), Column::Fulltext(FulltextColumn::Text)),
-                                                           QueryValue::TypedValue(TypedValue::String(Rc::new("needle".into())))).into());
+                                                           QueryValue::TypedValue("needle".into())).into());
 
         let bindings = cc.column_bindings;
         assert_eq!(bindings.len(), 3);
@@ -367,7 +365,7 @@ mod testing {
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
                 FnArg::IdentOrKeyword(NamespacedKeyword::new("foo", "bar")),
-                FnArg::Constant(NonIntegerConstant::Text(Rc::new("needle".into()))),
+                FnArg::Constant("needle".into()),
             ],
             binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),
                                            VariableOrPlaceholder::Variable(Variable::from_valid_name("?value")),

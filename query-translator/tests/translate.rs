@@ -739,7 +739,7 @@ fn test_ground_scalar() {
 
     // Verify that we accept bound input constants.
     let query = r#"[:find ?x . :in ?v :where [(ground ?v) ?x]]"#;
-    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into())))]);
+    let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?v"), "aaa".into())]);
     let constant = translate_with_inputs_to_constant(&schema, query, inputs);
     assert_eq!(constant.project_without_rows().unwrap()
                        .into_scalar().unwrap(),
@@ -760,7 +760,7 @@ fn test_ground_tuple() {
     // Verify that we accept bound input constants.
     let query = r#"[:find [?x ?y] :in ?u ?v :where [(ground [?u ?v]) [?x ?y]]]"#;
     let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?u"), TypedValue::Long(2)),
-                                                       (Variable::from_valid_name("?v"), TypedValue::String(Rc::new("aaa".into()))),]);
+                                                       (Variable::from_valid_name("?v"), "aaa".into()),]);
 
     let constant = translate_with_inputs_to_constant(&schema, query, inputs);
     assert_eq!(constant.project_without_rows().unwrap()

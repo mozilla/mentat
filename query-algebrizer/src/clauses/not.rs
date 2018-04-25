@@ -88,7 +88,6 @@ impl ConjoiningClauses {
 mod testing {
     extern crate mentat_query_parser;
 
-    use std::rc::Rc;
     use std::collections::BTreeSet;
 
     use super::*;
@@ -469,7 +468,9 @@ mod testing {
              :where [?x :foo/knows "Bill"]
                     (not [?x :foo/knows ?y])]"#;
 
-        let inputs = QueryInputs::with_value_sequence(vec![(Variable::from_valid_name("?y"),TypedValue::String(Rc::new("John".to_string())))]);
+        let inputs = QueryInputs::with_value_sequence(vec![
+            (Variable::from_valid_name("?y"), "John".into())
+        ]);
         let cc = alg_with_inputs(&schema, query, inputs);
 
         let vx = Variable::from_valid_name("?x");

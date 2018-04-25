@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::rc::Rc;
-
 use mentat_core::{
     HasSchema,
     Schema,
@@ -166,7 +164,7 @@ impl ConjoiningClauses {
                     (true, true) => {
                         // Ambiguous: this could be a keyword or an ident.
                         // Default to keyword.
-                        Ok(Val(TypedValue::Keyword(Rc::new(x))))
+                        Ok(Val(x.into()))
                     },
                     (true, false) => {
                         // This can only be an ident. Look it up!
@@ -176,7 +174,7 @@ impl ConjoiningClauses {
                         }
                     },
                     (false, true) => {
-                        Ok(Val(TypedValue::Keyword(Rc::new(x))))
+                        Ok(Val(TypedValue::Keyword(x.into())))
                     },
                     (false, false) => {
                         Ok(Impossible(EmptyBecause::TypeMismatch {
