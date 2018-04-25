@@ -8,6 +8,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use ::std::ffi::{
+    CString,
+};
+use ::std::os::raw::c_char;
+
 use ::std::rc::{
     Rc,
 };
@@ -521,6 +526,54 @@ impl TypedValue {
     pub fn into_string(self) -> Option<ValueRc<String>> {
         match self {
             TypedValue::String(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_c_string(self) -> Option<*mut c_char> {
+        match self {
+            TypedValue::String(v) => {
+                // Get an independent copy of the string.
+                let s: String = v.cloned();
+
+                // Make a CString out of the new bytes.
+                let c: CString = CString::new(s).expect("String conversion failed!");
+
+                // Return a C-owned pointer.
+                Some(c.into_raw())
+            },
+            _ => None,
+        }
+    }
+
+    pub fn into_kw_c_string(self) -> Option<*mut c_char> {
+        match self {
+            TypedValue::Keyword(v) => {
+                // Get an independent copy of the string.
+                let s: String = v.to_string();
+
+                // Make a CString out of the new bytes.
+                let c: CString = CString::new(s).expect("String conversion failed!");
+
+                // Return a C-owned pointer.
+                Some(c.into_raw())
+            },
+            _ => None,
+        }
+    }
+
+    pub fn into_uuid_c_string(self) -> Option<*mut c_char> {
+        match self {
+            TypedValue::Uuid(v) => {
+                // Get an independent copy of the string.
+                let s: String = v.hyphenated().to_string();
+
+                // Make a CString out of the new bytes.
+                let c: CString = CString::new(s).expect("String conversion failed!");
+
+                // Return a C-owned pointer.
+                Some(c.into_raw())
+            },
             _ => None,
         }
     }
