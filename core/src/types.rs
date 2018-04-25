@@ -8,9 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::fmt;
-use std::rc::Rc;
+use ::std::rc::{
+    Rc,
+};
 
+use ::std::sync::{
+    Arc,
+};
+
+use std::fmt;
 use ::enum_set::EnumSet;
 
 use ::ordered_float::OrderedFloat;
@@ -34,6 +40,37 @@ use ::edn::{
 };
 
 use values;
+
+pub trait FromRc<T> {
+    fn from_rc(val: Rc<T>) -> Self;
+    fn from_arc(val: Arc<T>) -> Self;
+}
+
+impl<T> FromRc<T> for Rc<T> where T: Sized + Clone {
+    fn from_rc(val: Rc<T>) -> Self {
+        val.clone()
+    }
+
+    fn from_arc(val: Arc<T>) -> Self {
+        match ::std::sync::Arc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new((*r.as_ref()).clone()),
+        }
+    }
+}
+
+impl<T> FromRc<T> for Arc<T> where T: Sized + Clone {
+    fn from_rc(val: Rc<T>) -> Self {
+        match ::std::rc::Rc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new((*r.as_ref()).clone()),
+        }
+    }
+
+    fn from_arc(val: Arc<T>) -> Self {
+        val.clone()
+    }
+}
 
 /// Represents one entid in the entid space.
 ///
