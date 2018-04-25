@@ -25,12 +25,9 @@ use std::fmt::{
     Formatter,
 };
 
-use std::ops::{
-    Deref,
-};
-
 use mentat_core::{
     Attribute,
+    Cloned,
     Entid,
     HasSchema,
     KnownEntid,
@@ -99,17 +96,6 @@ use validate::{
 pub use self::inputs::QueryInputs;
 
 use Known;
-
-// We do this a lot for errors.
-trait Cloned<T> {
-    fn cloned(&self) -> T;
-}
-
-impl<T: Clone> Cloned<T> for ::mentat_core::ValueRc<T> {
-    fn cloned(&self) -> T {
-        self.deref().clone()
-    }
-}
 
 trait Contains<K, T> {
     fn when_contains<F: FnOnce() -> T>(&self, k: &K, f: F) -> Option<T>;

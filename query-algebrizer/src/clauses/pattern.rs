@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    Cloned,
     Entid,
     HasSchema,
     TypedValue,
@@ -23,8 +24,6 @@ use mentat_query::{
     SrcVar,
     Variable,
 };
-
-use super::Cloned;
 
 use clauses::{
     ConjoiningClauses,
