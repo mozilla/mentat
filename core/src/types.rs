@@ -59,7 +59,7 @@ impl<T> FromRc<T> for Rc<T> where T: Sized + Clone {
     fn from_arc(val: Arc<T>) -> Self {
         match ::std::sync::Arc::<T>::try_unwrap(val) {
             Ok(v) => Self::new(v),
-            Err(r) => Self::new((*r.as_ref()).clone()),
+            Err(r) => Self::new(r.cloned()),
         }
     }
 }
@@ -68,12 +68,28 @@ impl<T> FromRc<T> for Arc<T> where T: Sized + Clone {
     fn from_rc(val: Rc<T>) -> Self {
         match ::std::rc::Rc::<T>::try_unwrap(val) {
             Ok(v) => Self::new(v),
-            Err(r) => Self::new((*r.as_ref()).clone()),
+            Err(r) => Self::new(r.cloned()),
         }
     }
 
     fn from_arc(val: Arc<T>) -> Self {
         val.clone()
+    }
+}
+
+impl<T> FromRc<T> for Box<T> where T: Sized + Clone {
+    fn from_rc(val: Rc<T>) -> Self {
+        match ::std::rc::Rc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new(r.cloned()),
+        }
+    }
+
+    fn from_arc(val: Arc<T>) -> Self {
+        match ::std::sync::Arc::<T>::try_unwrap(val) {
+            Ok(v) => Self::new(v),
+            Err(r) => Self::new(r.cloned()),
+        }
     }
 }
 
@@ -94,9 +110,17 @@ impl<T: Clone> Cloned<T> for Arc<T> where T: Sized + Clone {
     }
 }
 
-//
-// Use Rc for values.
-//
+impl<T: Clone> Cloned<T> for Box<T> where T: Sized + Clone {
+    fn cloned(&self) -> T {
+        self.as_ref().clone()
+    }
+}
+
+///
+/// This type alias exists to allow us to use different boxing mechanisms for values.
+/// This type must implement `FromRc` and `Cloned`, and a `From` implementation must exist for
+/// `TypedValue`.
+///
 pub type ValueRc<T> = Rc<T>;
 
 /// Represents one entid in the entid space.
@@ -284,7 +308,7 @@ impl Binding {
 ///
 /// We entirely support the former, and partially support the latter -- you can alias
 /// using a different keyword only.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructuredMap(IndexMap<ValueRc<NamespacedKeyword>, Binding>);
 
 impl Binding {
@@ -421,6 +445,12 @@ impl From<Arc<String>> for TypedValue {
 impl From<Rc<String>> for TypedValue {
     fn from(value: Rc<String>) -> TypedValue {
         TypedValue::String(ValueRc::from_rc(value))
+    }
+}
+
+impl From<Box<String>> for TypedValue {
+    fn from(value: Box<String>) -> TypedValue {
+        TypedValue::String(ValueRc::new(*value))
     }
 }
 
