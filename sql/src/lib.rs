@@ -24,6 +24,7 @@ use ordered_float::OrderedFloat;
 use mentat_core::{
     ToMicros,
     TypedValue,
+    ValueRc,
 };
 
 pub use rusqlite::types::Value;
@@ -103,7 +104,7 @@ pub struct SQLiteQueryBuilder {
     // Instead we track byte and String arguments separately, mapping them to their argument name,
     // in order to dedupe. We'll add these to the regular argument vector later.
     byte_args: HashMap<Vec<u8>, String>,             // From value to argument name.
-    string_args: HashMap<Rc<String>, String>,        // From value to argument name.
+    string_args: HashMap<ValueRc<String>, String>,   // From value to argument name.
     args: Vec<(String, Rc<rusqlite::types::Value>)>, // (arg, value).
 }
 

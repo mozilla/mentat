@@ -56,11 +56,13 @@ mod sql_types;
 
 pub use types::{
     Entid,
+    FromRc,
     KnownEntid,
     TypedValue,
     Binding,
     ValueType,
     ValueTypeTag,
+    ValueRc,
     now,
 };
 

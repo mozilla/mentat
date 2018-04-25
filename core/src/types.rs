@@ -72,6 +72,11 @@ impl<T> FromRc<T> for Arc<T> where T: Sized + Clone {
     }
 }
 
+//
+// Use Rc for values.
+//
+pub type ValueRc<T> = Rc<T>;
+
 /// Represents one entid in the entid space.
 ///
 /// Per https://www.sqlite.org/datatype3.html (see also http://stackoverflow.com/a/8499544), SQLite
@@ -208,8 +213,8 @@ pub enum TypedValue {
     Double(OrderedFloat<f64>),
     Instant(DateTime<Utc>),               // Use `into()` to ensure truncation.
     // TODO: &str throughout?
-    String(Rc<String>),
-    Keyword(Rc<NamespacedKeyword>),
+    String(ValueRc<String>),
+    Keyword(ValueRc<NamespacedKeyword>),
     Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
 
@@ -228,8 +233,8 @@ pub enum TypedValue {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Binding {
     Scalar(TypedValue),
-    Vec(Rc<Vec<Binding>>),
-    Map(Rc<StructuredMap>),
+    Vec(ValueRc<Vec<Binding>>),
+    Map(ValueRc<StructuredMap>),
 }
 
 impl<T> From<T> for Binding where T: Into<TypedValue> {
@@ -258,7 +263,7 @@ impl Binding {
 /// We entirely support the former, and partially support the latter -- you can alias
 /// using a different keyword only.
 #[derive(Debug, Eq, PartialEq)]
-pub struct StructuredMap(IndexMap<Rc<NamespacedKeyword>, Binding>);
+pub struct StructuredMap(IndexMap<ValueRc<NamespacedKeyword>, Binding>);
 
 impl Binding {
     /// Returns true if the provided type is `Some` and matches this value's type, or if the
@@ -311,14 +316,14 @@ impl TypedValue {
     }
 
     /// Construct a new `TypedValue::Keyword` instance by cloning the provided
-    /// values and wrapping them in a new `Rc`. This is expensive, so this might
+    /// values and wrapping them in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
         NamespacedKeyword::new(ns, name).into()
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
-    /// value and wrapping it in a new `Rc`. This is expensive, so this might
+    /// value and wrapping it in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_string(s: &str) -> TypedValue {
         s.into()
@@ -381,31 +386,43 @@ impl From<Uuid> for TypedValue {
 
 impl<'a> From<&'a str> for TypedValue {
     fn from(value: &'a str) -> TypedValue {
-        TypedValue::String(Rc::new(value.to_string()))
+        TypedValue::String(ValueRc::new(value.to_string()))
+    }
+}
+
+impl From<Arc<String>> for TypedValue {
+    fn from(value: Arc<String>) -> TypedValue {
+        TypedValue::String(ValueRc::from_arc(value))
     }
 }
 
 impl From<Rc<String>> for TypedValue {
     fn from(value: Rc<String>) -> TypedValue {
-        TypedValue::String(value.clone())
+        TypedValue::String(ValueRc::from_rc(value))
     }
 }
 
 impl From<String> for TypedValue {
     fn from(value: String) -> TypedValue {
-        TypedValue::String(Rc::new(value))
+        TypedValue::String(ValueRc::new(value))
+    }
+}
+
+impl From<Arc<NamespacedKeyword>> for TypedValue {
+    fn from(value: Arc<NamespacedKeyword>) -> TypedValue {
+        TypedValue::Keyword(ValueRc::from_arc(value))
     }
 }
 
 impl From<Rc<NamespacedKeyword>> for TypedValue {
     fn from(value: Rc<NamespacedKeyword>) -> TypedValue {
-        TypedValue::Keyword(value.clone())
+        TypedValue::Keyword(ValueRc::from_rc(value))
     }
 }
 
 impl From<NamespacedKeyword> for TypedValue {
     fn from(value: NamespacedKeyword) -> TypedValue {
-        TypedValue::Keyword(Rc::new(value))
+        TypedValue::Keyword(ValueRc::new(value))
     }
 }
 
@@ -442,7 +459,7 @@ impl TypedValue {
         }
     }
 
-    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<ValueRc<NamespacedKeyword>> {
         match self {
             TypedValue::Keyword(v) => Some(v),
             _ => None,
@@ -484,7 +501,7 @@ impl TypedValue {
         }
     }
 
-    pub fn into_string(self) -> Option<Rc<String>> {
+    pub fn into_string(self) -> Option<ValueRc<String>> {
         match self {
             TypedValue::String(v) => Some(v),
             _ => None,
@@ -521,7 +538,7 @@ impl Binding {
         }
     }
 
-    pub fn into_kw(self) -> Option<Rc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<ValueRc<NamespacedKeyword>> {
         match self {
             Binding::Scalar(TypedValue::Keyword(v)) => Some(v),
             _ => None,
@@ -563,7 +580,7 @@ impl Binding {
         }
     }
 
-    pub fn into_string(self) -> Option<Rc<String>> {
+    pub fn into_string(self) -> Option<ValueRc<String>> {
         match self {
             Binding::Scalar(TypedValue::String(v)) => Some(v),
             _ => None,

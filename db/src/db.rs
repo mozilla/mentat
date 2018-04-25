@@ -19,7 +19,6 @@ use std::fmt::Display;
 use std::iter::{once, repeat};
 use std::ops::Range;
 use std::path::Path;
-use std::rc::Rc;
 
 use itertools;
 use itertools::Itertools;
@@ -51,7 +50,9 @@ use mentat_core::{
     TypedValue,
     ToMicros,
     ValueType,
+    ValueRc,
 };
+
 use errors::{ErrorKind, Result, ResultExt};
 use metadata;
 use schema::{
@@ -872,7 +873,7 @@ impl MentatStoring for rusqlite::Connection {
         let chunks: itertools::IntoChunks<_> = entities.into_iter().chunks(max_vars / bindings_per_statement);
 
         // From string to (searchid, value_type_tag).
-        let mut seen: HashMap<Rc<String>, (i64, i32)> = HashMap::with_capacity(entities.len());
+        let mut seen: HashMap<ValueRc<String>, (i64, i32)> = HashMap::with_capacity(entities.len());
 
         // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
         let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {

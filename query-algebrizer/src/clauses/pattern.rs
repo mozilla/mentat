@@ -24,7 +24,7 @@ use mentat_query::{
     Variable,
 };
 
-use super::RcCloned;
+use super::Cloned;
 
 use clauses::{
     ConjoiningClauses,

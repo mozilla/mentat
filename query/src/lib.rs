@@ -55,7 +55,9 @@ pub use edn::{
 };
 
 use mentat_core::{
+    FromRc,
     TypedValue,
+    ValueRc,
     ValueType,
 };
 
@@ -205,7 +207,7 @@ pub enum NonIntegerConstant {
     Boolean(bool),
     BigInteger(BigInt),
     Float(OrderedFloat<f64>),
-    Text(Rc<String>),
+    Text(ValueRc<String>),
     Instant(DateTime<Utc>),
     Uuid(Uuid),
 }
@@ -225,13 +227,13 @@ impl NonIntegerConstant {
 
 impl<'a> From<&'a str> for NonIntegerConstant {
     fn from(val: &'a str) -> NonIntegerConstant {
-        NonIntegerConstant::Text(Rc::new(val.to_string()))
+        NonIntegerConstant::Text(ValueRc::new(val.to_string()))
     }
 }
 
 impl From<String> for NonIntegerConstant {
     fn from(val: String) -> NonIntegerConstant {
-        NonIntegerConstant::Text(Rc::new(val))
+        NonIntegerConstant::Text(ValueRc::new(val))
     }
 }
 
@@ -324,18 +326,18 @@ pub enum PatternNonValuePlace {
     Placeholder,
     Variable(Variable),
     Entid(i64),                       // Will always be +ve. See #190.
-    Ident(Rc<NamespacedKeyword>),
+    Ident(ValueRc<NamespacedKeyword>),
 }
 
 impl From<Rc<NamespacedKeyword>> for PatternNonValuePlace {
     fn from(value: Rc<NamespacedKeyword>) -> Self {
-        PatternNonValuePlace::Ident(value.clone())
+        PatternNonValuePlace::Ident(ValueRc::from_rc(value))
     }
 }
 
 impl From<NamespacedKeyword> for PatternNonValuePlace {
     fn from(value: NamespacedKeyword) -> Self {
-        PatternNonValuePlace::Ident(Rc::new(value))
+        PatternNonValuePlace::Ident(ValueRc::new(value))
     }
 }
 
@@ -387,7 +389,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IdentOrEntid {
-    Ident(Rc<NamespacedKeyword>),
+    Ident(NamespacedKeyword),
     Entid(i64),
 }
 
@@ -399,19 +401,19 @@ pub enum PatternValuePlace {
     Placeholder,
     Variable(Variable),
     EntidOrInteger(i64),
-    IdentOrKeyword(Rc<NamespacedKeyword>),
+    IdentOrKeyword(ValueRc<NamespacedKeyword>),
     Constant(NonIntegerConstant),
 }
 
 impl From<Rc<NamespacedKeyword>> for PatternValuePlace {
     fn from(value: Rc<NamespacedKeyword>) -> Self {
-        PatternValuePlace::IdentOrKeyword(value.clone())
+        PatternValuePlace::IdentOrKeyword(ValueRc::from_rc(value))
     }
 }
 
 impl From<NamespacedKeyword> for PatternValuePlace {
     fn from(value: NamespacedKeyword) -> Self {
-        PatternValuePlace::IdentOrKeyword(Rc::new(value))
+        PatternValuePlace::IdentOrKeyword(ValueRc::new(value))
     }
 }
 

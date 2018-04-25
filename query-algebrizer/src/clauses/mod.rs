@@ -25,6 +25,10 @@ use std::fmt::{
     Formatter,
 };
 
+use std::ops::{
+    Deref,
+};
+
 use mentat_core::{
     Attribute,
     Entid,
@@ -97,13 +101,13 @@ pub use self::inputs::QueryInputs;
 use Known;
 
 // We do this a lot for errors.
-trait RcCloned<T> {
+trait Cloned<T> {
     fn cloned(&self) -> T;
 }
 
-impl<T: Clone> RcCloned<T> for ::std::rc::Rc<T> {
+impl<T: Clone> Cloned<T> for ::mentat_core::ValueRc<T> {
     fn cloned(&self) -> T {
-        self.as_ref().clone()
+        self.deref().clone()
     }
 }
 
