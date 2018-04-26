@@ -90,8 +90,8 @@ pub use mentat::{
     Entid,
     FindSpec,
     HasSchema,
+    InProgress,
     KnownEntid,
-    Keyword,
     Queryable,
     QueryBuilder,
     QueryInputs,
@@ -126,6 +126,7 @@ pub use utils::strings::{
 
 pub use utils::log;
 
+// type aliases for iterator types.
 pub type BindingIterator = vec::IntoIter<Binding>;
 pub type BindingListIterator = std::slice::Chunks<'static, mentat::Binding>;
 
@@ -221,6 +222,13 @@ impl<T, E> From<Result<T, E>> for ExternResult where E: std::error::Error {
     }
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct InProgressTransactResult<'a, 'c> {
+    pub in_progress: *mut InProgress<'a, 'c>,
+    pub result: *mut ExternResult,
+}
+
 /// A store cannot be opened twice to the same location.
 /// Once created, the reference to the store is held by the caller and not Rust,
 /// therefore the caller is responsible for calling `destroy` to release the memory
@@ -247,17 +255,737 @@ pub extern "C" fn store_open(uri: *const c_char) -> *mut Store {
 
 // TODO: begin_read
 
-// TODO: begin_transaction
+/// Starts a new transaction to allow multiple transacts to be
+/// performed together. This is more efficient than performing
+/// a large set of individual commits.
+///
+/// Returns as [Result<TxReport>](mentat::TxReport) as an [ExternResult](ExternResult).
+///
+/// # Safety
+///
+/// Callers must ensure that the pointer to the [Store](mentat::Store) is not dangling.
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `tx_report_destroy` is provided for releasing the memory for this
+/// pointer type.
+///
+/// TODO: Document the errors that can result from begin_transaction
+#[no_mangle]
+pub unsafe extern "C" fn store_begin_transaction(store: *mut Store) -> *mut ExternResult {
+    let store = &mut*store;
+    Box::into_raw(Box::new(store.begin_transaction().into()))
+}
 
-/// Performs a single transaction against the store.
+/// Perform a single transact operation using the current in progress
+/// transaction. Takes edn as a string to transact.
+///
+/// Returns as [Result<TxReport>](mentat::TxReport) as an [ExternResult](ExternResult).
 ///
 /// # Safety
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
+/// A destructor `tx_report_destroy` is provided for releasing the memory for this
 /// pointer type.
 ///
-// TODO: Document the errors that can result from transact
+/// TODO: Document the errors that can result from transact
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_transact<'m>(in_progress: *mut InProgress<'m, 'm>, transaction: *const c_char) -> *mut ExternResult {
+    let in_progress = &mut*in_progress;
+    let transaction = c_char_to_string(transaction);
+    Box::into_raw(Box::new(in_progress.transact(transaction).into()))
+}
+
+/// Commit all the transacts that have been performed using this
+/// in progress transaction.
+///
+/// Returns as [Result<()>](std::result::Result) as an [ExternResult](ExternResult).
+///
+/// TODO: Document the errors that can result from transact
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_commit<'m>(in_progress: *mut InProgress<'m, 'm>) -> *mut ExternResult {
+    let in_progress = Box::from_raw(in_progress);
+    Box::into_raw(Box::new(in_progress.commit().into()))
+}
+
+/// Rolls back all the transacts that have been performed using this
+/// in progress transaction.
+///
+/// Returns as [Result<()>](std::result::Result) as an [ExternResult](ExternResult).
+///
+/// TODO: Document the errors that can result from rollback
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_rollback<'m>(in_progress: *mut InProgress<'m, 'm>) -> *mut ExternResult {
+    let in_progress = Box::from_raw(in_progress);
+    Box::into_raw(Box::new(in_progress.rollback().into()))
+}
+
+/// Creates a builder using the in progress transaction to allow for programmatic
+/// assertion of values.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `in_progress_builder_destroy` is provided for releasing the memory for this
+/// pointer type.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder<'m>(in_progress: *mut InProgress<'m, 'm>) -> *mut InProgressBuilder {
+    let in_progress = Box::from_raw(in_progress);
+    Box::into_raw(Box::new(in_progress.builder()))
+}
+
+/// Creates a builder for an entity with `tempid` using the in progress transaction to
+/// allow for programmatic assertion of values for that entity.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `entity_builder_destroy` is provided for releasing the memory for this
+/// pointer type.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_entity_builder_from_temp_id<'m>(in_progress: *mut InProgress<'m, 'm>, temp_id: *const c_char) -> *mut EntityBuilder<InProgressBuilder> {
+    let in_progress = Box::from_raw(in_progress);
+    let temp_id = c_char_to_string(temp_id);
+    Box::into_raw(Box::new(in_progress.builder().describe_tempid(&temp_id)))
+}
+
+/// Creates a builder for an entity with `entid` using the in progress transaction to
+/// allow for programmatic assertion of values for that entity.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `entity_builder_destroy` is provided for releasing the memory for this
+/// pointer type.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_entity_builder_from_entid<'m>(in_progress: *mut InProgress<'m, 'm>, entid: c_longlong) -> *mut EntityBuilder<InProgressBuilder> {
+    let in_progress = Box::from_raw(in_progress);
+    Box::into_raw(Box::new(in_progress.builder().describe(&KnownEntid(entid))))
+}
+
+/// Starts a new transaction and creates a builder using the that transaction
+/// to allow for programmatic assertion of values.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `in_progress_builder_destroy` is provided for releasing the memory for this
+/// pointer type.
+#[no_mangle]
+pub unsafe extern "C" fn store_in_progress_builder(store: *mut Store) -> *mut ExternResult {
+    let store = &mut*store;
+    let result = store.begin_transaction().and_then(|in_progress| {
+        Ok(in_progress.builder())
+    });
+    Box::into_raw(Box::new(result.into()))
+}
+
+/// Starts a new transaction and creates a builder for an entity with `tempid`
+/// using the that transaction to allow for programmatic assertion of values for that entity.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `entity_builder_destroy` is provided for releasing the memory for this
+/// pointer type.
+#[no_mangle]
+pub unsafe extern "C" fn store_entity_builder_from_temp_id(store: *mut Store, temp_id: *const c_char) -> *mut ExternResult {
+    let store = &mut*store;
+    let temp_id = c_char_to_string(temp_id);
+    let result = store.begin_transaction().and_then(|in_progress| {
+        Ok(in_progress.builder().describe_tempid(&temp_id))
+    });
+    Box::into_raw(Box::new(result.into()))
+}
+
+/// Starts a new transaction and creates a builder for an entity with `entid`
+/// using the that transaction to allow for programmatic assertion of values for that entity.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// A destructor `entity_builder_destroy` is provided for releasing the memory for this
+/// pointer type.
+#[no_mangle]
+pub unsafe extern "C" fn store_entity_builder_from_entid(store: *mut Store, entid: c_longlong) -> *mut ExternResult {
+    let store = &mut*store;
+    let result = store.begin_transaction().and_then(|in_progress| {
+        Ok(in_progress.builder().describe(&KnownEntid(entid)))
+    });
+    Box::into_raw(Box::new(result.into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/string`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_string<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = c_char_to_string(value).into();
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/long`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_long<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Long(value);
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If `value` is not present as an Entid in the store.
+/// If the type of `kw` is not `:db.type/ref`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_ref<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Ref(value);
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If `value` is not present as an attribute in the store.
+/// If the type of `kw` is not `:db.type/keyword`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_keyword<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/boolean`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_boolean<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: bool) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/double`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_double<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: f64) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/instant`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_timestamp<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::instant(value);
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/uuid`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_add_uuid<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *mut [u8; 16]) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value = &*value;
+    let value = Uuid::from_bytes(value).expect("valid uuid");
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.add_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/string`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_string<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = c_char_to_string(value).into();
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/long`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_long<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Long(value);
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/ref`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_ref<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Ref(value);
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/keyword`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_keyword<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/boolean`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_boolean<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: bool) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/double`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_double<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: f64) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/instant`.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_timestamp<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::instant(value);
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/uuid`.
+///
+/// TODO don't panic if the UUID is not valid - return result instead.
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_retract_uuid<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *mut [u8; 16]) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value = &*value;
+    let value = Uuid::from_bytes(value).expect("valid uuid");
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.retract_kw(KnownEntid(entid), &kw, value).into()))
+}
+
+/// Transacts and commits all the assertions and retractions that have been performed
+/// using this builder.
+///
+/// This consumes the builder and the enclosed [InProgress](mentat::InProgress) transaction.
+///
+/// Returns as [Result<()>(std::result::Result) as an [ExternResult](ExternResult).
+///
+/// TODO: Document the errors that can result from transact
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_commit<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>) -> *mut ExternResult {
+    let builder = Box::from_raw(builder);
+    Box::into_raw(Box::new(builder.commit().into()))
+}
+
+/// Transacts all the assertions and retractions that have been performed
+/// using this builder.
+///
+/// This consumes the builder and returns the enclosed [InProgress](mentat::InProgress) transaction
+/// inside the [InProgressTransactResult](mentat::InProgressTransactResult) alongside the [TxReport](mentat::TxReport) generated
+/// by the transact.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// The destructors `in_progress_destroy` and `tx_report_destroy` arew provided for
+/// releasing the memory for these pointer types.
+///
+/// TODO: Document the errors that can result from transact
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_transact<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>) -> *mut InProgressTransactResult<'a, 'c> {
+    let builder = Box::from_raw(builder);
+    let (in_progress, tx_report) = builder.transact();
+    let result = InProgressTransactResult { in_progress: Box::into_raw(Box::new(in_progress)), result: Box::into_raw(Box::new(tx_report.into())) };
+    Box::into_raw(Box::new(result))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/string`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_string<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = c_char_to_string(value).into();
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/long`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_long<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Long(value);
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/ref`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_ref<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Ref(value);
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/keyword`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_keyword<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/boolean`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_boolean<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: bool) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/double`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_double<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: f64) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/instant`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_timestamp<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::instant(value);
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to assert `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/uuid`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_add_uuid<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *mut [u8; 16]) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value = &*value;
+    let value = Uuid::from_bytes(value).expect("valid uuid");
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.add_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/string`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_string<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = c_char_to_string(value).into();
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/long`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_long<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Long(value);
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/ref`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_ref<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::Ref(value);
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/keyword`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_keyword<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/boolean`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_boolean<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: bool) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/double`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_double<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: f64) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/instant`.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_timestamp<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value: TypedValue = TypedValue::instant(value);
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Uses `builder` to retract `value` for `kw` on entity `entid`.
+///
+/// # Errors
+///
+/// If `entid` is not present in the store.
+/// If `kw` is not a valid attribute in the store.
+/// If the type of `kw` is not `:db.type/uuid`.
+///
+/// TODO don't panic if the UUID is not valid - return result instead.
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_retract_uuid<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *mut [u8; 16]) -> *mut ExternResult {
+    let builder = &mut*builder;
+    let kw = kw_from_string(c_char_to_string(kw));
+    let value = &*value;
+    let value = Uuid::from_bytes(value).expect("valid uuid");
+    let value: TypedValue = value.into();
+    Box::into_raw(Box::new(builder.retract_kw(&kw, value).into()))
+}
+
+/// Transacts all the assertions and retractions that have been performed
+/// using this builder.
+///
+/// This consumes the builder and returns the enclosed [InProgress](mentat::InProgress) transaction
+/// inside the [InProgressTransactResult][::InProgressTransactResult] alongside the [TxReport](mentat::TxReport) generated
+/// by the transact.
+///
+/// # Safety
+///
+/// Callers are responsible for managing the memory for the return value.
+/// The destructors `in_progress_destroy` and `tx_report_destroy` are provided for
+/// releasing the memory for these pointer types.
+///
+/// TODO: Document the errors that can result from transact
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_transact<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>) -> *mut InProgressTransactResult<'a, 'c> {
+    let builder = Box::from_raw(builder);
+    let (in_progress, tx_report) = builder.transact();
+    let result = InProgressTransactResult { in_progress: Box::into_raw(Box::new(in_progress)), result: Box::into_raw(Box::new(tx_report.into())) };
+    Box::into_raw(Box::new(result))
+}
+
+/// Transacts and commits all the assertions and retractions that have been performed
+/// using this builder.
+///
+/// This consumes the builder and the enclosed [InProgress](mentat::InProgress) transaction.
+///
+/// Returns as [Result](std::result::Result) as an [ExternResult](::ExternResult).
+///
+/// TODO: Document the errors that can result from transact
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_commit<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>) -> *mut ExternResult {
+    let builder = Box::from_raw(builder);
+    Box::into_raw(Box::new(builder.commit().into()))
+}
+
+/// Performs a single transaction against the store.
+///
+/// Returns as [TxReport](mentat::TxReport) as an [ExternResult](::ExternResult).
+/// TODO: Document the errors that can result from transact
 #[no_mangle]
 pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c_char) -> *mut ExternResult {
     let store = &mut*store;
@@ -271,7 +999,7 @@ pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c
     Box::into_raw(Box::new(result.into()))
 }
 
-/// Fetches the `tx_id` for the given [TxReport](mentat::TxReport).
+/// Fetches the `tx_id` for the given [TxReport](mentat::TxReport)`.
 #[no_mangle]
 pub unsafe extern "C" fn tx_report_get_entid(tx_report: *mut TxReport) -> c_longlong {
     let tx_report = &*tx_report;
@@ -501,7 +1229,7 @@ fn unwrap_conversion<T>(value: Option<T>, expected_type: ValueType) -> T {
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Long).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_into_long(typed_value: *mut Binding) -> c_longlong {
+pub unsafe extern "C" fn typed_value_into_long(typed_value: *mut Binding) ->  c_longlong {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_long(), ValueType::Long)
 }
@@ -510,10 +1238,11 @@ pub unsafe extern "C" fn typed_value_into_long(typed_value: *mut Binding) -> c_l
 ///
 /// # Panics
 ///
-/// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Ref).
+/// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Ref](mentat::ValueType::Ref).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) -> Entid {
+pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) ->  Entid {
     let typed_value = Box::from_raw(typed_value);
+    println!("typed value as entid {:?}", typed_value);
     unwrap_conversion(typed_value.into_entid(), ValueType::Ref)
 }
 
@@ -521,9 +1250,9 @@ pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) -> En
 ///
 /// # Panics
 ///
-/// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Ref).
+/// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Ref](mentat::ValueType::Ref).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_into_kw(typed_value: *mut Binding) -> *const c_char {
+pub unsafe extern "C" fn typed_value_into_kw(typed_value: *mut Binding) ->  *const c_char {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_kw_c_string(), ValueType::Keyword) as *const c_char
 }
@@ -588,7 +1317,7 @@ pub unsafe extern "C" fn typed_value_into_uuid(typed_value: *mut Binding) ->  *m
 
 /// Returns the [ValueType](mentat::ValueType) of this [Binding](mentat::Binding).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut Binding) -> ValueType {
+pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut Binding) ->  ValueType {
     let typed_value = &*typed_value;
     typed_value.value_type().unwrap_or_else(|| panic!("Binding is not Scalar and has no ValueType"))
 }
@@ -602,12 +1331,12 @@ pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut Binding) -> Va
 /// A destructor `typed_value_result_set_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn row_at_index(rows: *mut RelResult<Binding>, index: c_int) -> *mut Vec<Binding> {
+pub unsafe extern "C" fn row_at_index(rows: *mut RelResult<Binding>, index: c_int) ->  *mut Vec<Binding> {
     let result = &*rows;
     result.row(index as usize).map_or_else(std::ptr::null_mut, |v| Box::into_raw(Box::new(v.to_vec())))
 }
 
-/// Consumes the `Vec<Vec<Binding>>` and returns an iterator over the values.
+/// Consumes the `RelResult<Binding>` and returns an iterator over the values.
 ///
 /// # Safety
 ///
@@ -615,7 +1344,7 @@ pub unsafe extern "C" fn row_at_index(rows: *mut RelResult<Binding>, index: c_in
 /// A destructor `typed_value_result_set_iter_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_result_set_into_iter(rows: *mut RelResult<Binding>) -> *mut BindingListIterator {
+pub unsafe extern "C" fn typed_value_result_set_into_iter(rows: *mut RelResult<Binding>) ->  *mut BindingListIterator {
     let result = &*rows;
     let rows = result.rows();
     Box::into_raw(Box::new(rows))
@@ -630,7 +1359,7 @@ pub unsafe extern "C" fn typed_value_result_set_into_iter(rows: *mut RelResult<B
 /// A destructor `typed_value_list_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_result_set_iter_next(iter: *mut BindingListIterator) -> *mut Vec<Binding> {
+pub unsafe extern "C" fn typed_value_result_set_iter_next(iter: *mut BindingListIterator) ->  *mut Vec<Binding> {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v.to_vec())))
 }
@@ -643,7 +1372,7 @@ pub unsafe extern "C" fn typed_value_result_set_iter_next(iter: *mut BindingList
 /// A destructor `typed_value_list_iter_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_list_into_iter(values: *mut Vec<Binding>) -> *mut BindingIterator {
+pub unsafe extern "C" fn typed_value_list_into_iter(values: *mut Vec<Binding>) ->  *mut BindingIterator {
     let result = Box::from_raw(values);
     Box::into_raw(Box::new(result.into_iter()))
 }
@@ -657,7 +1386,7 @@ pub unsafe extern "C" fn typed_value_list_into_iter(values: *mut Vec<Binding>) -
 /// A destructor `typed_value_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_list_iter_next(iter: *mut BindingIterator) -> *mut Binding {
+pub unsafe extern "C" fn typed_value_list_iter_next(iter: *mut BindingIterator) ->  *mut Binding {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v)))
 }
@@ -905,6 +1634,18 @@ pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut TransactionChange, 
     tx_report.changes[index].clone()
 }
 
+/// Destructor for releasing the memory of [InProgressBuilder](mentat::InProgressBuilder).
+#[no_mangle]
+pub unsafe extern "C" fn in_progress_builder_destroy<'a, 'c>(obj: *mut InProgressBuilder<'a, 'c>) {
+    let _ = Box::from_raw(obj);
+}
+
+/// Destructor for releasing the memory of [EntityBuilder](mentat::EntityBuilder).
+#[no_mangle]
+pub unsafe extern "C" fn entity_builder_destroy<'a, 'c>(obj: *mut EntityBuilder<InProgressBuilder<'a, 'c>>) {
+    let _ = Box::from_raw(obj);
+}
+
 /// destroy function for releasing the memory for `repr(C)` structs.
 #[no_mangle]
 pub unsafe extern "C" fn destroy(obj: *mut c_void) {
@@ -933,12 +1674,17 @@ define_destructor!(tx_report_destroy, TxReport);
 /// Destructor for releasing the memory of [Binding](mentat::Binding).
 define_destructor!(typed_value_destroy, Binding);
 
+/// Destructor for releasing the memory of [Vec<Binding>][mentat::Binding].
 define_destructor!(typed_value_list_destroy, Vec<Binding>);
 
 /// Destructor for releasing the memory of [BindingIterator](BindingIterator) .
 define_destructor!(typed_value_list_iter_destroy, BindingIterator);
 
+/// Destructor for releasing the memory of [RelResult<Binding>](mentat::RelResult).
 define_destructor!(typed_value_result_set_destroy, RelResult<Binding>);
 
-/// Destructor for releasing the memory of [BindingListIterator](BindingListIterator) .
+/// Destructor for releasing the memory of [BindingListIterator](::BindingListIterator).
 define_destructor!(typed_value_result_set_iter_destroy, BindingListIterator);
+
+/// Destructor for releasing the memory of [InProgress](mentat::InProgress).
+define_destructor!(in_progress_destroy, InProgress);
