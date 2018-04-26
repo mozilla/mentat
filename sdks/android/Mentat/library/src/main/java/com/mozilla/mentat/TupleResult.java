@@ -126,7 +126,7 @@ public class TupleResult extends RustObject {
      */
     public Date asDate(Integer index) {
         this.validate();
-        return new Date(JNA.INSTANCE.value_at_index_into_timestamp(this.rawPointer, index));
+        return new Date(JNA.INSTANCE.value_at_index_into_timestamp(this.rawPointer, index) * 1_000);
     }
 
     /**
@@ -150,13 +150,7 @@ public class TupleResult extends RustObject {
      */
     public UUID asUUID(Integer index) {
         this.validate();
-        Pointer uuidPtr = JNA.INSTANCE.value_at_index_into_uuid(this.rawPointer, index);
-        byte[] bytes = uuidPtr.getByteArray(0, 16);
-        ByteBuffer bb = ByteBuffer.wrap(bytes);
-        long high = bb.getLong();
-        long low = bb.getLong();
-
-        return new UUID(high, low);
+        return getUUIDFromPointer(JNA.INSTANCE.value_at_index_into_uuid(this.rawPointer, index));
     }
 
     @Override

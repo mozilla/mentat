@@ -76,7 +76,7 @@ import java.util.UUID;
  * <pre>{@code
  * String query = "[: find ?a .\n" +
  *          "        : where ... ]";
- * mentat.query(query).runScalar(new ScalarResultHandler() {
+ * mentat.query(query).run(new ScalarResultHandler() {
  *      @Override
  *      public void handleValue(TypedValue value) {
  *          ...
@@ -88,7 +88,7 @@ import java.util.UUID;
  * <pre>{@code
  * String query = "[: find [?a ...]\n" +
  *          "        : where ... ]";
- * mentat.query(query).runColl(new ScalarResultHandler() {
+ * mentat.query(query).run(new ScalarResultHandler() {
  *      @Override
  *      public void handleList(CollResult list) {
  *          ...
@@ -100,7 +100,7 @@ import java.util.UUID;
  * <pre>{@code
  * String query = "[: find [?a ?b ?c]\n" +
  *          "        : where ... ]";
- * mentat.query(query).runTuple(new TupleResultHandler() {
+ * mentat.query(query).run(new TupleResultHandler() {
  *      @Override
  *      public void handleRow(TupleResult row) {
  *          ...
@@ -121,7 +121,7 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindLong(String varName, long value) {
+    Query bind(String varName, long value) {
         this.validate();
         JNA.INSTANCE.query_builder_bind_long(this.rawPointer, varName, value);
         return this;
@@ -173,7 +173,7 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindBoolean(String varName, boolean value) {
+    Query bind(String varName, boolean value) {
         this.validate();
         JNA.INSTANCE.query_builder_bind_boolean(this.rawPointer, varName, value ? 1 : 0);
         return this;
@@ -186,7 +186,7 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindDouble(String varName, double value) {
+    Query bind(String varName, double value) {
         this.validate();
         JNA.INSTANCE.query_builder_bind_double(this.rawPointer, varName, value);
         return this;
@@ -199,7 +199,7 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindDate(String varName, Date value) {
+    Query bind(String varName, Date value) {
         this.validate();
         long timestamp = value.getTime() * 1000;
         JNA.INSTANCE.query_builder_bind_timestamp(this.rawPointer, varName, timestamp);
@@ -213,7 +213,7 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindString(String varName, String value) {
+    Query bind(String varName, String value) {
         this.validate();
         JNA.INSTANCE.query_builder_bind_string(this.rawPointer, varName, value);
         return this;
@@ -226,15 +226,9 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindUUID(String varName, UUID value) {
+    Query bind(String varName, UUID value) {
         this.validate();
-        ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
-        bb.putLong(value.getMostSignificantBits());
-        bb.putLong(value.getLeastSignificantBits());
-        byte[] bytes = bb.array();
-        final Pointer bytesNativeArray = new Memory(bytes.length);
-        bytesNativeArray.write(0, bytes, 0, bytes.length);
-        JNA.INSTANCE.query_builder_bind_uuid(this.rawPointer, varName, bytesNativeArray);
+        JNA.INSTANCE.query_builder_bind_uuid(this.rawPointer, varName, getPointerForUUID(value));
         return this;
     }
 
@@ -262,7 +256,7 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void runScalar(final ScalarResultHandler handler) {
+    void run(final ScalarResultHandler handler) {
         this.validate();
         RustResult result = JNA.INSTANCE.query_builder_execute_scalar(rawPointer);
         rawPointer = null;
@@ -285,7 +279,7 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void runColl(final CollResultHandler handler) {
+    void run(final CollResultHandler handler) {
         this.validate();
         RustResult result = JNA.INSTANCE.query_builder_execute_coll(rawPointer);
         rawPointer = null;
@@ -303,7 +297,7 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void runTuple(final TupleResultHandler handler) {
+    void run(final TupleResultHandler handler) {
         this.validate();
         RustResult result = JNA.INSTANCE.query_builder_execute_tuple(rawPointer);
         rawPointer = null;

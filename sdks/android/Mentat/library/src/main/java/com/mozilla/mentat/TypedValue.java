@@ -137,12 +137,7 @@ public class TypedValue extends RustObject {
      */
     public UUID asUUID() {
         if (!this.isConsumed()) {
-            Pointer uuidPtr = JNA.INSTANCE.typed_value_into_uuid(this.rawPointer);
-            byte[] bytes = uuidPtr.getByteArray(0, 16);
-            ByteBuffer bb = ByteBuffer.wrap(bytes);
-            long high = bb.getLong();
-            long low = bb.getLong();
-            this.value = new UUID(high, low);
+            this.value = getUUIDFromPointer(JNA.INSTANCE.typed_value_into_uuid(this.rawPointer));
             this.rawPointer = null;
         }
         return (UUID)this.value;
