@@ -55,12 +55,13 @@ mod value_type_set;
 mod sql_types;
 
 pub use types::{
+    Binding,
     Cloned,
     Entid,
     FromRc,
     KnownEntid,
+    StructuredMap,
     TypedValue,
-    Binding,
     ValueType,
     ValueTypeTag,
     ValueRc,
