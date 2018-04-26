@@ -96,11 +96,16 @@ impl<T> FromRc<T> for Box<T> where T: Sized + Clone {
 // We do this a lot for errors.
 pub trait Cloned<T> {
     fn cloned(&self) -> T;
+    fn to_value_rc(&self) -> ValueRc<T>;
 }
 
 impl<T: Clone> Cloned<T> for Rc<T> where T: Sized + Clone {
     fn cloned(&self) -> T {
         (*self.as_ref()).clone()
+    }
+
+    fn to_value_rc(&self) -> ValueRc<T> {
+        ValueRc::from_rc(self.clone())
     }
 }
 
@@ -108,11 +113,19 @@ impl<T: Clone> Cloned<T> for Arc<T> where T: Sized + Clone {
     fn cloned(&self) -> T {
         (*self.as_ref()).clone()
     }
+
+    fn to_value_rc(&self) -> ValueRc<T> {
+        ValueRc::from_arc(self.clone())
+    }
 }
 
 impl<T: Clone> Cloned<T> for Box<T> where T: Sized + Clone {
     fn cloned(&self) -> T {
         self.as_ref().clone()
+    }
+
+    fn to_value_rc(&self) -> ValueRc<T> {
+        ValueRc::new(self.cloned())
     }
 }
 
