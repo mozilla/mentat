@@ -17,12 +17,12 @@ class MentatTests: XCTestCase {
     var citiesSchema: String?
     var seattleData: String?
     var store: Mentat?
-    
+
     override func setUp() {
         super.setUp()
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
-    
+
     override func tearDown() {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
         super.tearDown()
@@ -120,7 +120,8 @@ class MentatTests: XCTestCase {
                 [:db/add "u" :db/cardinality :db.cardinality/one]
             ]
             """
-            let report = try mentat.transact(transaction: schema)
+            let transaction = try mentat.beginTransaction();
+            let report = try transaction.transact(transaction: schema)
             let stringEntid = report.entid(forTempId: "s")!
 
             let data = """
@@ -142,7 +143,8 @@ class MentatTests: XCTestCase {
                 [:db/add "b" :foo/uuid #uuid "4cb3f828-752d-497a-90c9-b1fd516d5644"]
             ]
             """
-            let dataReport = try mentat.transact(transaction: data)
+            let dataReport = try transaction.transact(transaction: data)
+            try transaction.commit();
             return (report, dataReport)
         } catch {
             assertionFailure(error.localizedDescription)
@@ -317,7 +319,7 @@ class MentatTests: XCTestCase {
             guard let rows = relResult else {
                 return assertionFailure("No results received")
             }
-            
+
             var i = 0
             rows.forEach({ (row) in
                 let (name, category) = expectedResults[i]
@@ -760,6 +762,418 @@ class MentatTests: XCTestCase {
         }
     }
 
+    func test3InProgressTransact() {
+        let mentat = Mentat()
+        let (_, report) = self.populateWithTypesSchema(mentat: mentat)
+        XCTAssertNotNil(report)
+    }
+
+    func testInProgressRollback() {
+        let mentat = Mentat()
+        let (_, report) = self.populateWithTypesSchema(mentat: mentat)
+        XCTAssertNotNil(report)
+        let aEntid = report!.entid(forTempId: "a")!
+
+        let preLongValue = try! mentat.value(forAttribute: ":foo/long", ofEntity: aEntid)
+        XCTAssertEqual(25, preLongValue?.asLong())
+
+        let inProgress = try! mentat.beginTransaction()
+        XCTAssertNoThrow(try inProgress.transact(transaction: "[[:db/add \(aEntid) :foo/long 22]]"))
+        XCTAssertNoThrow(try inProgress.rollback())
+
+        let postLongValue = try! mentat.value(forAttribute: ":foo/long", ofEntity: aEntid)
+        XCTAssertEqual(25, postLongValue?.asLong())
+
+    }
+
+    func testInProgressEntityBuilder() {
+        let mentat = Mentat()
+        let (schemaReport, dataReport) = self.populateWithTypesSchema(mentat: mentat)
+        let bEntid = dataReport!.entid(forTempId: "b")!
+        let longEntid = schemaReport!.entid(forTempId: "l")!
+        let stringEntid = schemaReport!.entid(forTempId: "s")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(false, result?.asBool(index: 0))
+
+            let previousDate = formatter.date(from: "2018-01-01T11:00:00+00:00")
+            XCTAssertEqual(previousDate, result?.asDate(index: 1))
+
+            let previousUuid = UUID(uuidString: "4cb3f828-752d-497a-90c9-b1fd516d5644")!
+            XCTAssertEqual(previousUuid, result?.asUUID(index: 2))
+
+            XCTAssertEqual(50, result?.asLong(index: 3))
+            XCTAssertEqual(22.46, result?.asDouble(index: 4))
+            XCTAssertEqual("Silence is worse; all truths that are kept silent become poisonous.", result?.asString(index: 5))
+            XCTAssertEqual(":foo/string", result?.asKeyword(index: 6))
+            XCTAssertEqual(stringEntid, result?.asEntid(index: 7))
+        })
+
+        let builder = try! mentat.entityBuilder()
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/boolean", boolean: true))
+        let newDate = Date()
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/instant", date: newDate))
+        let newUUID = UUID()
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/uuid", uuid: newUUID))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/long", long: 75))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/double", double: 81.3))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/string", string: "Become who you are!"))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/keyword", keyword: ":foo/long"))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/ref", reference: longEntid))
+        XCTAssertNoThrow(try builder.commit())
+
+        // test that the values have changed
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(true, result?.asBool(index: 0))
+            XCTAssertEqual(formatter.string(from: newDate), formatter.string(from: result!.asDate(index: 1)))
+            XCTAssertEqual(newUUID, result?.asUUID(index: 2))
+            XCTAssertEqual(75, result?.asLong(index: 3))
+            XCTAssertEqual(81.3, result?.asDouble(index: 4))
+            XCTAssertEqual("Become who you are!", result?.asString(index: 5))
+            XCTAssertEqual(":foo/long", result?.asKeyword(index: 6))
+            XCTAssertEqual(longEntid, result?.asEntid(index: 7))
+       })
+    }
+
+    func testEntityBuilderForEntid() {
+        let mentat = Mentat()
+        let (schemaReport, dataReport) = self.populateWithTypesSchema(mentat: mentat)
+        let bEntid = dataReport!.entid(forTempId: "b")!
+        let longEntid = schemaReport!.entid(forTempId: "l")!
+        let stringEntid = schemaReport!.entid(forTempId: "s")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(false, result?.asBool(index: 0))
+
+            let previousDate = formatter.date(from: "2018-01-01T11:00:00+00:00")
+            XCTAssertEqual(previousDate, result?.asDate(index: 1))
+
+            let previousUuid = UUID(uuidString: "4cb3f828-752d-497a-90c9-b1fd516d5644")!
+            XCTAssertEqual(previousUuid, result?.asUUID(index: 2))
+
+            XCTAssertEqual(50, result?.asLong(index: 3))
+            XCTAssertEqual(22.46, result?.asDouble(index: 4))
+            XCTAssertEqual("Silence is worse; all truths that are kept silent become poisonous.", result?.asString(index: 5))
+            XCTAssertEqual(":foo/string", result?.asKeyword(index: 6))
+            XCTAssertEqual(stringEntid, result?.asEntid(index: 7))
+        })
+
+        let builder = try! mentat.entityBuilder(forEntid: bEntid)
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/boolean", boolean: true))
+        let newDate = Date()
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/instant", date: newDate))
+        let newUUID = UUID()
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/uuid", uuid: newUUID))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/long", long: 75))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/double", double: 81.3))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/string", string: "Become who you are!"))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/keyword", keyword: ":foo/long"))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/ref", reference: longEntid))
+        XCTAssertNoThrow(try builder.commit())
+
+        // test that the values have changed
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(true, result?.asBool(index: 0))
+            XCTAssertEqual(formatter.string(from: newDate), formatter.string(from: result!.asDate(index: 1)))
+            XCTAssertEqual(newUUID, result?.asUUID(index: 2))
+            XCTAssertEqual(75, result?.asLong(index: 3))
+            XCTAssertEqual(81.3, result?.asDouble(index: 4))
+            XCTAssertEqual("Become who you are!", result?.asString(index: 5))
+            XCTAssertEqual(":foo/long", result?.asKeyword(index: 6))
+            XCTAssertEqual(longEntid, result?.asEntid(index: 7))
+        })
+    }
+
+    func testEntityBuilderForTempid() {
+        let mentat = Mentat()
+        let (schemaReport, _) = self.populateWithTypesSchema(mentat: mentat)
+        let longEntid = schemaReport!.entid(forTempId: "l")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+
+        let builder = try! mentat.entityBuilder(forTempId: "c")
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/boolean", boolean: true))
+        let newDate = Date()
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/instant", date: newDate))
+        let newUUID = UUID()
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/uuid", uuid: newUUID))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/long", long: 75))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/double", double: 81.3))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/string", string: "Become who you are!"))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/keyword", keyword: ":foo/long"))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/ref", reference: longEntid))
+        let report = try! builder.commit()
+        let cEntid = report.entid(forTempId: "c")!
+        // test that the values have changed
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: cEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(true, result?.asBool(index: 0))
+            XCTAssertEqual(formatter.string(from: newDate), formatter.string(from: result!.asDate(index: 1)))
+            XCTAssertEqual(newUUID, result?.asUUID(index: 2))
+            XCTAssertEqual(75, result?.asLong(index: 3))
+            XCTAssertEqual(81.3, result?.asDouble(index: 4))
+            XCTAssertEqual("Become who you are!", result?.asString(index: 5))
+            XCTAssertEqual(":foo/long", result?.asKeyword(index: 6))
+            XCTAssertEqual(longEntid, result?.asEntid(index: 7))
+        })
+    }
+
+    func testInProgressBuilderTransact() {
+        let mentat = Mentat()
+        let (schemaReport, dataReport) = self.populateWithTypesSchema(mentat: mentat)
+        let aEntid = dataReport!.entid(forTempId: "a")!
+        let bEntid = dataReport!.entid(forTempId: "b")!
+        let longEntid = schemaReport!.entid(forTempId: "l")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+
+        let builder = try! mentat.entityBuilder()
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/boolean", boolean: true))
+        let newDate = Date()
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/instant", date: newDate))
+        let newUUID = UUID()
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/uuid", uuid: newUUID))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/long", long: 75))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/double", double: 81.3))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/string", string: "Become who you are!"))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/keyword", keyword: ":foo/long"))
+        XCTAssertNoThrow(try builder.add(entid: bEntid, keyword: ":foo/ref", reference: longEntid))
+        let (inProgress, report) = try! builder.transact()
+        XCTAssertNotNil(inProgress)
+        XCTAssertNotNil(report)
+        XCTAssertNoThrow(try inProgress.transact(transaction: "[[:db/add \(aEntid) :foo/long 22]]"))
+        XCTAssertNoThrow(try inProgress.commit())
+
+        // test that the values have changed
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(true, result?.asBool(index: 0))
+            XCTAssertEqual(formatter.string(from: newDate), formatter.string(from: result!.asDate(index: 1)))
+            XCTAssertEqual(newUUID, result?.asUUID(index: 2))
+            XCTAssertEqual(75, result?.asLong(index: 3))
+            XCTAssertEqual(81.3, result?.asDouble(index: 4))
+            XCTAssertEqual("Become who you are!", result?.asString(index: 5))
+            XCTAssertEqual(":foo/long", result?.asKeyword(index: 6))
+            XCTAssertEqual(longEntid, result?.asEntid(index: 7))
+        })
+
+        let longValue = try! mentat.value(forAttribute: ":foo/long", ofEntity: aEntid)
+        XCTAssertEqual(22, longValue?.asLong())
+    }
+
+    func testEntityBuilderTransact() {
+        let mentat = Mentat()
+        let (schemaReport, dataReport) = self.populateWithTypesSchema(mentat: mentat)
+        let aEntid = dataReport!.entid(forTempId: "a")!
+        let bEntid = dataReport!.entid(forTempId: "b")!
+        let longEntid = schemaReport!.entid(forTempId: "l")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+
+        let builder = try! mentat.entityBuilder(forEntid: bEntid)
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/boolean", boolean: true))
+        let newDate = Date()
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/instant", date: newDate))
+        let newUUID = UUID()
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/uuid", uuid: newUUID))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/long", long: 75))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/double", double: 81.3))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/string", string: "Become who you are!"))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/keyword", keyword: ":foo/long"))
+        XCTAssertNoThrow(try builder.add(keyword: ":foo/ref", reference: longEntid))
+        let (inProgress, report) = try! builder.transact()
+        XCTAssertNotNil(inProgress)
+        XCTAssertNotNil(report)
+        XCTAssertNoThrow(try inProgress.transact(transaction: "[[:db/add \(aEntid) :foo/long 22]]"))
+        XCTAssertNoThrow(try inProgress.commit())
+
+        // test that the values have changed
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(true, result?.asBool(index: 0))
+            XCTAssertEqual(formatter.string(from: newDate), formatter.string(from: result!.asDate(index: 1)))
+            XCTAssertEqual(newUUID, result?.asUUID(index: 2))
+            XCTAssertEqual(75, result?.asLong(index: 3))
+            XCTAssertEqual(81.3, result?.asDouble(index: 4))
+            XCTAssertEqual("Become who you are!", result?.asString(index: 5))
+            XCTAssertEqual(":foo/long", result?.asKeyword(index: 6))
+            XCTAssertEqual(longEntid, result?.asEntid(index: 7))
+        })
+
+        let longValue = try! mentat.value(forAttribute: ":foo/long", ofEntity: aEntid)
+        XCTAssertEqual(22, longValue?.asLong())
+    }
+
+    func testEntityBuilderRetract() {
+        let mentat = Mentat()
+        let (schemaReport, dataReport) = self.populateWithTypesSchema(mentat: mentat)
+        let bEntid = dataReport!.entid(forTempId: "b")!
+        let stringEntid = schemaReport!.entid(forTempId: "s")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+        let previousDate = formatter.date(from: "2018-01-01T11:00:00+00:00")!
+        let previousUuid = UUID(uuidString: "4cb3f828-752d-497a-90c9-b1fd516d5644")!
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(false, result?.asBool(index: 0))
+            XCTAssertEqual(previousDate, result?.asDate(index: 1))
+            XCTAssertEqual(previousUuid, result?.asUUID(index: 2))
+            XCTAssertEqual(50, result?.asLong(index: 3))
+            XCTAssertEqual(22.46, result?.asDouble(index: 4))
+            XCTAssertEqual("Silence is worse; all truths that are kept silent become poisonous.", result?.asString(index: 5))
+            XCTAssertEqual(":foo/string", result?.asKeyword(index: 6))
+            XCTAssertEqual(stringEntid, result?.asEntid(index: 7))
+        })
+
+        let builder = try! mentat.entityBuilder(forEntid: bEntid)
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/boolean", boolean: false))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/instant", date: previousDate))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/uuid", uuid: previousUuid))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/long", long: 50))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/double", double: 22.46))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/string", string: "Silence is worse; all truths that are kept silent become poisonous."))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/keyword", keyword: ":foo/string"))
+        XCTAssertNoThrow(try builder.retract(keyword: ":foo/ref", reference: stringEntid))
+        XCTAssertNoThrow(try builder.commit())
+
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNil(result)
+        })
+    }
+
+    func testInProgressEntityBuilderRetract() {
+        let mentat = Mentat()
+        let (schemaReport, dataReport) = self.populateWithTypesSchema(mentat: mentat)
+        let bEntid = dataReport!.entid(forTempId: "b")!
+        let stringEntid = schemaReport!.entid(forTempId: "s")!
+        // test that the values are as expected
+        let query = """
+                    [:find [?b ?i ?u ?l ?d ?s ?k ?r]
+                     :in ?e
+                     :where [?e :foo/boolean ?b]
+                            [?e :foo/instant ?i]
+                            [?e :foo/uuid ?u]
+                            [?e :foo/long ?l]
+                            [?e :foo/double ?d]
+                            [?e :foo/string ?s]
+                            [?e :foo/keyword ?k]
+                            [?e :foo/ref ?r]]
+                    """
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+        let previousDate = formatter.date(from: "2018-01-01T11:00:00+00:00")!
+        let previousUuid = UUID(uuidString: "4cb3f828-752d-497a-90c9-b1fd516d5644")!
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNotNil(result)
+            XCTAssertEqual(false, result?.asBool(index: 0))
+            XCTAssertEqual(previousDate, result?.asDate(index: 1))
+            XCTAssertEqual(previousUuid, result?.asUUID(index: 2))
+            XCTAssertEqual(50, result?.asLong(index: 3))
+            XCTAssertEqual(22.46, result?.asDouble(index: 4))
+            XCTAssertEqual("Silence is worse; all truths that are kept silent become poisonous.", result?.asString(index: 5))
+            XCTAssertEqual(":foo/string", result?.asKeyword(index: 6))
+            XCTAssertEqual(stringEntid, result?.asEntid(index: 7))
+        })
+
+        let builder = try! mentat.entityBuilder()
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/boolean", boolean: false))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/instant", date: previousDate))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/uuid", uuid: previousUuid))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/long", long: 50))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/double", double: 22.46))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/string", string: "Silence is worse; all truths that are kept silent become poisonous."))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/keyword", keyword: ":foo/string"))
+        XCTAssertNoThrow(try builder.retract(entid: bEntid, keyword: ":foo/ref", reference: stringEntid))
+        XCTAssertNoThrow(try builder.commit())
+
+        XCTAssertNoThrow(try mentat.query(query: query).bind(varName: "?e", toReference: bEntid).runTuple { (result) in
+            XCTAssertNil(result)
+        })
+    }
 
     // TODO: Add tests for transaction observation
 }

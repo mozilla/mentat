@@ -70,7 +70,62 @@ class Mentat: RustObject {
     }
 
     /**
+     Start a new transaction.
+
+     - Throws: `ResultError.error` if the creation of the transaction fails.
+     - Throws: `ResultError.empty` if no `InProgress` is created.
+
+     - Returns: The `InProgress` used to manage the transaction
+     */
+    func beginTransaction() throws -> InProgress {
+        let result = store_begin_transaction(self.raw).pointee;
+        return InProgress(raw: try result.unwrap())
+    }
+
+    /**
+     Creates a new transaction (`InProgress`) and returns an `InProgressBuilder` for that transaction.
+
+     - Throws: `ResultError.error` if the creation of the transaction fails.
+     - Throws: `ResultError.empty` if no `InProgressBuilder` is created.
+
+     - Returns: an `InProgressBuilder` for this `InProgress`
+     */
+    func entityBuilder() throws -> InProgressBuilder {
+        let result = store_in_progress_builder(self.raw).pointee
+        return InProgressBuilder(raw: try result.unwrap())
+    }
+
+    /**
+     Creates a new transaction (`InProgress`) and returns an `EntityBuilder` for the entity with `entid`
+    for that transaction.
+
+     - Throws: `ResultError.error` if the creation of the transaction fails.
+     - Throws: `ResultError.empty` if no `EntityBuilder` is created.
+
+     - Returns: an `EntityBuilder` for this `InProgress`
+     */
+    func entityBuilder(forEntid entid: Entid) throws -> EntityBuilder {
+        let result = store_entity_builder_from_entid(self.raw, entid).pointee
+        return EntityBuilder(raw: try result.unwrap())
+    }
+
+    /**
+     Creates a new transaction (`InProgress`) and returns an `EntityBuilder` for a new entity with `tempId`
+    for that transaction.
+
+     - Throws: `ResultError.error` if the creation of the transaction fails.
+     - Throws: `ResultError.empty` if no `EntityBuilder` is created.
+
+     - Returns: an `EntityBuilder` for this `InProgress`
+     */
+    func entityBuilder(forTempId tempId: String) throws -> EntityBuilder {
+        let result = store_entity_builder_from_temp_id(self.raw, tempId).pointee
+        return EntityBuilder(raw: try result.unwrap())
+    }
+
+    /**
      Get the the `Entid` of the attribute.
+
      - Parameter attribute: The string represeting the attribute whose `Entid` we are after.
      The string is represented as `:namespace/name`.
 

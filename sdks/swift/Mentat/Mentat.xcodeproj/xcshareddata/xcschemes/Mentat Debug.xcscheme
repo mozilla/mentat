@@ -37,14 +37,6 @@
                BlueprintName = "MentatTests"
                ReferencedContainer = "container:Mentat.xcodeproj">
             </BuildableReference>
-            <SkippedTests>
-               <Test
-                  Identifier = "MentatTests/testBindBoolean()">
-               </Test>
-               <Test
-                  Identifier = "MentatTests/testBindDate()">
-               </Test>
-            </SkippedTests>
          </TestableReference>
       </Testables>
       <MacroExpansion>

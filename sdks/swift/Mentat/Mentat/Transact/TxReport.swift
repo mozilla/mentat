@@ -13,7 +13,7 @@ import Foundation
 import MentatStore
 
 /**
- This class wraps a raw pointer than points to a Rust `TxReport` object.
+ This class wraps a raw pointer that points to a Rust `TxReport` object.
 
  The `TxReport` contains information about a successful Mentat transaction.
 
