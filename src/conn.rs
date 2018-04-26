@@ -161,6 +161,17 @@ pub struct Store {
 }
 
 impl Store {
+    /// Open a store at the supplied path, ensuring that it includes the bootstrap schema.
+    pub fn open(path: &str) -> Result<Store> {
+        let mut connection = ::new_connection(path)?;
+        let conn = Conn::connect(&mut connection)?;
+        Ok(Store {
+            conn: conn,
+            sqlite: connection,
+        })
+    }
+
+    /// Returns a totally blank store with no bootstrap schema. Use `open` instead.
     pub fn open_empty(path: &str) -> Result<Store> {
         if !path.is_empty() {
             if Path::new(path).exists() {
@@ -170,15 +181,6 @@ impl Store {
 
         let mut connection = ::new_connection(path)?;
         let conn = Conn::empty(&mut connection)?;
-        Ok(Store {
-            conn: conn,
-            sqlite: connection,
-        })
-    }
-
-    pub fn open(path: &str) -> Result<Store> {
-        let mut connection = ::new_connection(path)?;
-        let conn = Conn::connect(&mut connection)?;
         Ok(Store {
             conn: conn,
             sqlite: connection,
