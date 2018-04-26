@@ -172,7 +172,7 @@ pub(crate) fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schem
 /// Return the sequence of transactions in the store with transaction ID strictly greater than the
 /// given `tx`, ordered by (tx, e, a, v).
 ///
-/// Each transaction returned includes the [:db/tx :db/txInstant ...] datom.
+/// Each transaction returned includes the [(transaction-tx) :db/txInstant ...] datom.
 pub(crate) fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Transactions> {
     let borrowed_schema = schema.borrow();
 

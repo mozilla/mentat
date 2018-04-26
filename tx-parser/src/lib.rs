@@ -40,6 +40,7 @@ use mentat_tx::entities::{
     MapNotation,
     OpType,
     TempId,
+    TxFunction,
 };
 use mentat_parser_utils::{ResultParser};
 use mentat_parser_utils::value_and_span::{
@@ -89,16 +90,18 @@ def_parser!(Tx, lookup_ref, LookupRef, {
 });
 
 def_parser!(Tx, entid_or_lookup_ref_or_temp_id, EntidOrLookupRefOrTempId, {
-    Tx::db_tx().map(EntidOrLookupRefOrTempId::TempId)
+    Tx::temp_id().map(EntidOrLookupRefOrTempId::TempId)
         .or(Tx::entid().map(EntidOrLookupRefOrTempId::Entid))
-        .or(Tx::lookup_ref().map(EntidOrLookupRefOrTempId::LookupRef))
-        .or(Tx::temp_id().map(EntidOrLookupRefOrTempId::TempId))
+        .or(try(Tx::lookup_ref().map(EntidOrLookupRefOrTempId::LookupRef)))
+        .or(try(Tx::tx_function().map(EntidOrLookupRefOrTempId::TxFunction)))
 });
 
-def_matches_namespaced_keyword!(Tx, literal_db_tx, "db", "tx");
+def_matches_plain_symbol!(Tx, literal_transaction_tx, "transaction-tx");
 
-def_parser!(Tx, db_tx, TempId, {
-    Tx::literal_db_tx().map(|_| TempId::Tx)
+def_parser!(Tx, tx_function, TxFunction, {
+    list().of_exactly(
+        Tx::literal_transaction_tx().map(|_| edn::PlainSymbol::new("transaction-tx"))
+            .map(|op| TxFunction { op: op }))
 });
 
 def_parser!(Tx, temp_id, TempId, {
@@ -114,8 +117,9 @@ def_parser!(Tx, nested_vector, Vec<AtomOrLookupRefOrVectorOrMapNotation>, {
 });
 
 def_parser!(Tx, atom_or_lookup_ref_or_vector, AtomOrLookupRefOrVectorOrMapNotation, {
-    choice::<[&mut Parser<Input = _, Output = AtomOrLookupRefOrVectorOrMapNotation>; 4], _>
+    choice::<[&mut Parser<Input = _, Output = AtomOrLookupRefOrVectorOrMapNotation>; 5], _>
         ([&mut try(Tx::lookup_ref().map(AtomOrLookupRefOrVectorOrMapNotation::LookupRef)),
+          &mut try(Tx::tx_function().map(AtomOrLookupRefOrVectorOrMapNotation::TxFunction)),
           &mut Tx::nested_vector().map(AtomOrLookupRefOrVectorOrMapNotation::Vector),
           &mut Tx::map_notation().map(AtomOrLookupRefOrVectorOrMapNotation::MapNotation),
           &mut Tx::atom().map(|x| x.clone()).map(AtomOrLookupRefOrVectorOrMapNotation::Atom)
@@ -198,6 +202,7 @@ pub fn remove_db_id(map: &mut MapNotation) -> std::result::Result<Option<EntidOr
                 Some(db_id)
             },
             AtomOrLookupRefOrVectorOrMapNotation::LookupRef(_) |
+            AtomOrLookupRefOrVectorOrMapNotation::TxFunction(_) |
             AtomOrLookupRefOrVectorOrMapNotation::Vector(_) |
             AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) => {
                 bail!(ErrorKind::DbIdError)

@@ -23,14 +23,12 @@ use self::edn::symbols::NamespacedKeyword;
 pub enum TempId {
     External(String),
     Internal(i64),
-    Tx, // Special identifier used to refer to the current transaction.
 }
 
 impl TempId {
     pub fn into_external(self) -> Option<String> {
         match self {
             TempId::External(s) => Some(s),
-            TempId::Tx |
             TempId::Internal(_) => None,
         }
     }
@@ -41,7 +39,6 @@ impl fmt::Display for TempId {
         match self {
             &TempId::External(ref s) => write!(f, "{}", s),
             &TempId::Internal(x) => write!(f, "<tempid {}>", x),
-            &TempId::Tx => write!(f, "<Tx>"),
         }
     }
 }
@@ -69,12 +66,30 @@ pub struct LookupRef {
     pub v: edn::Value, // An atom.
 }
 
+/// A "transaction function" that exposes some value determined by the current transaction.  The
+/// prototypical example is the current transaction ID, `(transaction-tx)`.
+///
+/// A natural next step might be to expose the current transaction instant `(transaction-instant)`,
+/// but that's more difficult: the transaction itself can set the transaction instant (with some
+/// restrictions), so the transaction function must be late-binding.  Right now, that's difficult to
+/// arrange in the transactor.
+///
+/// In the future, we might accept arguments; for example, perhaps we might expose `(ancestor
+/// (transaction-tx) n)` to find the n-th ancestor of the current transaction.  If we do accept
+/// arguments, then the special case of `(lookup-ref a v)` should be handled as part of the
+/// generalization.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub struct TxFunction {
+    pub op: edn::PlainSymbol,
+}
+
 pub type MapNotation = BTreeMap<Entid, AtomOrLookupRefOrVectorOrMapNotation>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum AtomOrLookupRefOrVectorOrMapNotation {
     Atom(edn::ValueAndSpan),
     LookupRef(LookupRef),
+    TxFunction(TxFunction),
     Vector(Vec<AtomOrLookupRefOrVectorOrMapNotation>),
     MapNotation(MapNotation),
 }
@@ -83,6 +98,7 @@ pub enum AtomOrLookupRefOrVectorOrMapNotation {
 pub enum EntidOrLookupRefOrTempId {
     Entid(Entid),
     LookupRef(LookupRef),
+    TxFunction(TxFunction),
     TempId(TempId),
 }
 
