@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7B64E44D209094520063909F /* InProgressBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B64E44A209094510063909F /* InProgressBuilder.swift */; };
+		7B64E44E209094520063909F /* EntityBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B64E44B209094510063909F /* EntityBuilder.swift */; };
+		7B64E44F209094520063909F /* InProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B64E44C209094520063909F /* InProgress.swift */; };
 		7B74483D208DF667006CFFB0 /* Result+Unwrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B74483C208DF667006CFFB0 /* Result+Unwrap.swift */; };
 		7BAE75A22089020E00895D37 /* libmentat_ffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */; };
 		7BAE75A42089022B00895D37 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BAE75A32089022B00895D37 /* libsqlite3.tbd */; };
@@ -39,6 +42,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7B64E44A209094510063909F /* InProgressBuilder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InProgressBuilder.swift; sourceTree = "<group>"; };
+		7B64E44B209094510063909F /* EntityBuilder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EntityBuilder.swift; sourceTree = "<group>"; };
+		7B64E44C209094520063909F /* InProgress.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InProgress.swift; sourceTree = "<group>"; };
 		7B74483C208DF667006CFFB0 /* Result+Unwrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Result+Unwrap.swift"; path = "Mentat/Extensions/Result+Unwrap.swift"; sourceTree = SOURCE_ROOT; };
 		7B911E1A2085081D000998CB /* libtoodle.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtoodle.a; path = "../../../../sync-storage-prototype/rust/target/universal/release/libtoodle.a"; sourceTree = "<group>"; };
 		7BAE75A32089022B00895D37 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
@@ -196,6 +202,9 @@
 		7BEB7D26207BE5BB000369AD /* Transact */ = {
 			isa = PBXGroup;
 			children = (
+				7B64E44B209094510063909F /* EntityBuilder.swift */,
+				7B64E44C209094520063909F /* InProgress.swift */,
+				7B64E44A209094510063909F /* InProgressBuilder.swift */,
 				7BEB7D2B207D03DA000369AD /* TxReport.swift */,
 			);
 			path = Transact;
@@ -321,8 +330,11 @@
 				7BDB96CC207B7684009D0651 /* Errors.swift in Sources */,
 				7BDB96B02077C38E009D0651 /* Mentat.swift in Sources */,
 				7BDB96B72077C38E009D0651 /* TypedValue.swift in Sources */,
+				7B64E44E209094520063909F /* EntityBuilder.swift in Sources */,
+				7B64E44D209094520063909F /* InProgressBuilder.swift in Sources */,
 				7BDB96B52077C38E009D0651 /* TupleResult.swift in Sources */,
 				7B74483D208DF667006CFFB0 /* Result+Unwrap.swift in Sources */,
+				7B64E44F209094520063909F /* InProgress.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

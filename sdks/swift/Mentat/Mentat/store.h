@@ -61,6 +61,16 @@ struct Option {
 typedef struct Option Option;
 
 /*
+ A mapping of the InProgressTransactResult repr(C) Rust object.
+ The memory for this is managed by Swift.
+ */
+struct InProgressTransactResult {
+    struct InProgress*_Nonnull inProgress;
+    struct Result*_Nonnull result;
+};
+typedef struct InProgressTransactResult InProgressTransactResult;
+
+/*
  A Mapping for the ValueType Rust object.
  */
 typedef NS_ENUM(NSInteger, ValueType) {
@@ -100,13 +110,67 @@ void typed_value_list_destroy(struct QueryResultRow* _Nullable obj);
 void typed_value_list_iter_destroy(struct QueryRowIterator* _Nullable obj);
 void typed_value_result_set_destroy(struct QueryResultRows* _Nullable obj);
 void typed_value_result_set_iter_destroy(struct QueryRowsIterator* _Nullable obj);
+void in_progress_destroy(struct InProgress* _Nullable obj);
+void in_progress_builder_destroy(struct InProgressBuilder* _Nullable obj);
+void entity_builder_destroy(struct EntityBuilder* _Nullable obj);
 
 // transact
 struct Result*_Nonnull store_transact(struct Store*_Nonnull store, const char* _Nonnull transaction);
 const int64_t* _Nullable tx_report_entity_for_temp_id(const struct TxReport* _Nonnull report, const char* _Nonnull tempid);
 int64_t tx_report_get_entid(const struct TxReport* _Nonnull report);
 int64_t tx_report_get_tx_instant(const struct TxReport* _Nonnull report);
+struct Result*_Nonnull store_begin_transaction(struct Store*_Nonnull store);
 
+// in progress
+struct Result*_Nonnull in_progress_transact(struct InProgress*_Nonnull in_progress, const char* _Nonnull transaction);
+struct Result*_Nonnull in_progress_commit(struct InProgress*_Nonnull in_progress);
+struct Result*_Nonnull in_progress_rollback(struct InProgress*_Nonnull in_progress);
+
+// in_progress entity building
+struct Result*_Nonnull store_in_progress_builder(struct Store*_Nonnull store);
+struct InProgressBuilder*_Nonnull in_progress_builder(struct InProgress*_Nonnull in_progress);
+struct EntityBuilder*_Nonnull in_progress_entity_builder_from_temp_id(struct InProgress*_Nonnull in_progress, const char*_Nonnull temp_id);
+struct EntityBuilder*_Nonnull in_progress_entity_builder_from_entid(struct InProgress*_Nonnull in_progress, const int64_t entid);
+struct Result*_Nonnull in_progress_builder_add_string(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull in_progress_builder_add_long(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull in_progress_builder_add_ref(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull in_progress_builder_add_keyword(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull in_progress_builder_add_timestamp(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull in_progress_builder_add_boolean(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int32_t value);
+struct Result*_Nonnull in_progress_builder_add_double(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const double value);
+struct Result*_Nonnull in_progress_builder_add_uuid(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const uuid_t* _Nonnull value);
+struct Result*_Nonnull in_progress_builder_retract_string(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull in_progress_builder_retract_long(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull in_progress_builder_retract_ref(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull in_progress_builder_retract_keyword(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull in_progress_builder_retract_timestamp(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull in_progress_builder_retract_boolean(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const int32_t value);
+struct Result*_Nonnull in_progress_builder_retract_double(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const double value);
+struct Result*_Nonnull in_progress_builder_retract_uuid(struct InProgressBuilder*_Nonnull builder, const int64_t entid, const char*_Nonnull kw, const uuid_t* _Nonnull value);
+struct InProgressTransactResult*_Nonnull in_progress_builder_transact(struct InProgressBuilder*_Nonnull builder);
+struct Result*_Nonnull in_progress_builder_commit(struct InProgressBuilder*_Nonnull builder);
+
+// entity building
+struct Result*_Nonnull store_entity_builder_from_temp_id(struct Store*_Nonnull store, const char*_Nonnull temp_id);
+struct Result*_Nonnull store_entity_builder_from_entid(struct Store*_Nonnull store, const int64_t entid);
+struct Result*_Nonnull entity_builder_add_string(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull entity_builder_add_long(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull entity_builder_add_ref(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull entity_builder_add_keyword(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull entity_builder_add_boolean(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int32_t value);
+struct Result*_Nonnull entity_builder_add_double(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const double value);
+struct Result*_Nonnull entity_builder_add_timestamp(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull entity_builder_add_uuid(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const uuid_t* _Nonnull value);
+struct Result*_Nonnull entity_builder_retract_string(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull entity_builder_retract_long(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull entity_builder_retract_ref(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull entity_builder_retract_keyword(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const char*_Nonnull value);
+struct Result*_Nonnull entity_builder_retract_boolean(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int32_t value);
+struct Result*_Nonnull entity_builder_retract_double(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const double value);
+struct Result*_Nonnull entity_builder_retract_timestamp(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value);
+struct Result*_Nonnull entity_builder_retract_uuid(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const uuid_t* _Nonnull value);
+struct InProgressTransactResult*_Nonnull entity_builder_transact(struct InProgressBuilder*_Nonnull builder);
+struct Result*_Nonnull entity_builder_commit(struct EntityBuilder*_Nonnull builder);
 
 // Sync
 struct Result*_Nonnull store_sync(struct Store*_Nonnull store, const char* _Nonnull user_uuid, const char* _Nonnull server_uri);
