@@ -10,9 +10,12 @@
 
 package com.mozilla.mentat;
 
+import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 
 import java.io.Closeable;
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 /**
  * Base class that wraps an non-optional {@link Pointer} representing a pointer to a Rust object.
@@ -30,5 +33,23 @@ abstract class RustObject implements Closeable {
         if (this.rawPointer == null) {
             throw new NullPointerException(this.getClass() + " consumed");
         }
+    }
+
+    public Pointer getPointerForUUID(UUID uuid) {
+        ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+        bb.putLong(uuid.getMostSignificantBits());
+        bb.putLong(uuid.getLeastSignificantBits());
+        byte[] bytes = bb.array();
+        final Pointer bytesNativeArray = new Memory(bytes.length);
+        bytesNativeArray.write(0, bytes, 0, bytes.length);
+        return bytesNativeArray;
+    }
+
+    public UUID getUUIDFromPointer(Pointer uuidPtr) {
+        byte[] bytes = uuidPtr.getByteArray(0, 16);
+        ByteBuffer bb = ByteBuffer.wrap(bytes);
+        long high = bb.getLong();
+        long low = bb.getLong();
+        return new UUID(high, low);
     }
 }

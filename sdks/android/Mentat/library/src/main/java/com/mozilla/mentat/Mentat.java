@@ -138,6 +138,59 @@ public class Mentat extends RustObject {
         JNA.INSTANCE.store_unregister_observer(rawPointer, key);
     }
 
+
+    public InProgress beginTransaction() {
+        RustResult result = JNA.INSTANCE.store_begin_transaction(this.rawPointer);
+        if (result.isSuccess()) {
+            return new InProgress(result.ok);
+        }
+
+        if (result.isFailure()) {
+            Log.i("Mentat", result.err);
+        }
+
+        return null;
+    }
+
+    public InProgressBuilder entityBuilder() {
+        RustResult result = JNA.INSTANCE.store_in_progress_builder(this.rawPointer);
+        if (result.isSuccess()) {
+            return new InProgressBuilder(result.ok);
+        }
+
+        if (result.isFailure()) {
+            Log.i("Mentat", result.err);
+        }
+
+        return null;
+    }
+
+    public EntityBuilder entityBuilder(long entid) {
+        RustResult result = JNA.INSTANCE.store_entity_builder_from_entid(this.rawPointer, entid);
+        if (result.isSuccess()) {
+            return new EntityBuilder(result.ok);
+        }
+
+        if (result.isFailure()) {
+            Log.i("Mentat", result.err);
+        }
+
+        return null;
+    }
+
+    public EntityBuilder entityBuilder(String tempId) {
+        RustResult result = JNA.INSTANCE.store_entity_builder_from_temp_id(this.rawPointer, tempId);
+        if (result.isSuccess()) {
+            return new EntityBuilder(result.ok);
+        }
+
+        if (result.isFailure()) {
+            Log.i("Mentat", result.err);
+        }
+
+        return null;
+    }
+
     @Override
     public void close() {
         if (this.rawPointer != null) {
