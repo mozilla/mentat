@@ -1030,11 +1030,6 @@ pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, 
 /// Adds an attribute to the cache.
 /// `store_cache_attribute_forward` caches values for an attribute keyed by entity
 /// (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling and that
-/// the C string provided to `attribute` is valid.
 #[no_mangle]
 pub extern "C" fn store_cache_attribute_forward(store: *mut Store, attribute: *const c_char) -> *mut ExternResult {
     let store = unsafe { &mut *store };
@@ -1045,11 +1040,6 @@ pub extern "C" fn store_cache_attribute_forward(store: *mut Store, attribute: *c
 /// Adds an attribute to the cache.
 /// `store_cache_attribute_reverse` caches entities for an attribute keyed by value.
 /// (i.e. find entities that have a particular value for an attribute).
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling and that
-/// the C string provided to `attribute` is valid.
 #[no_mangle]
 pub extern "C" fn store_cache_attribute_reverse(store: *mut Store, attribute: *const c_char) -> *mut ExternResult {
     let store = unsafe { &mut *store };
@@ -1065,11 +1055,6 @@ pub extern "C" fn store_cache_attribute_reverse(store: *mut Store, attribute: *c
 ///
 /// `Reverse` caches entities for an attribute keyed by value.
 /// (i.e. find entities that have a particular value for an attribute).
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling and that
-/// the C string provided to `attribute` is valid.
 #[no_mangle]
 pub extern "C" fn store_cache_attribute_bi_directional(store: *mut Store, attribute: *const c_char) -> *mut ExternResult {
     let store = unsafe { &mut *store };

@@ -41,6 +41,11 @@ public interface JNA extends Library {
     void in_progress_builder_destroy(Pointer obj);
     void entity_builder_destroy(Pointer obj);
 
+    // caching
+    RustResult store_cache_attribute_forward(Pointer store, String attribute);
+    RustResult store_cache_attribute_reverse(Pointer store, String attribute);
+    RustResult store_cache_attribute_bi_directional(Pointer store, String attribute);
+
     // transact
     RustResult store_transact(Pointer store, String transaction);
     Pointer tx_report_entity_for_temp_id(Pointer report, String tempid);
