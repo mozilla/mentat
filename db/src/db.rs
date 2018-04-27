@@ -2084,12 +2084,12 @@ mod tests {
         // We cannot resolve lookup refs that aren't :db/unique.
         assert_transact!(conn,
                          "[[:db/add (lookup-ref :test/not_unique :test/keyword) :test/not_unique :test/keyword]]",
-                         Err("not yet implemented: Cannot resolve (lookup-ref 333 :test/keyword) with attribute that is not :db/unique"));
+                         Err("not yet implemented: Cannot resolve (lookup-ref 333 Keyword(Keyword(NamespaceableName { namespace: Some(\"test\"), name: \"keyword\" }))) with attribute that is not :db/unique"));
 
         // We type check the lookup ref's value against the lookup ref's attribute.
         assert_transact!(conn,
                          "[[:db/add (lookup-ref :test/unique_value :test/not_a_string) :test/not_unique :test/keyword]]",
-                         Err("EDN value \':test/not_a_string\' is not the expected Mentat value type String"));
+                         Err("value \':test/not_a_string\' is not the expected Mentat value type String"));
 
         // Each lookup ref in the entity column must resolve
         assert_transact!(conn,
@@ -2434,7 +2434,7 @@ mod tests {
         // And here, a float.
         assert_transact!(conn,
                          "[{:test/_dangling 1.23}]",
-                         Err("EDN value \'1.23\' is not the expected Mentat value type Ref"));
+                         Err("value \'1.23\' is not the expected Mentat value type Ref"));
     }
 
     #[test]

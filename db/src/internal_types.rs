@@ -43,6 +43,7 @@ use types::{
     AVPair,
     Entid,
     Schema,
+    TransactableValue,
     TypedValue,
     ValueType,
 };
@@ -54,27 +55,12 @@ use mentat_tx::entities::{
     TxFunction,
 };
 
-/// The transactor is tied to `edn::ValueAndSpan` right now, but in the future we'd like to support
-/// `TypedValue` directly for programmatic use.  `TransactableValue` encapsulates the interface
-/// value types (i.e., values in the value place) need to support to be transacted.
-pub trait TransactableValue {
-    /// Coerce this value place into the given type.  This is where we perform schema-aware
-    /// coercion, for example coercing an integral value into a ref where appropriate.
-    fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue>;
-
-    /// Make an entity place out of this value place.  This is where we limit values in nested maps
-    /// to valid entity places.
-    fn into_entity_place(self) -> Result<EntityPlace>;
-
-    fn as_tempid(&self) -> Option<TempId>;
-}
-
 impl TransactableValue for ValueAndSpan {
     fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue> {
-        schema.to_typed_value(&self.without_spans(), value_type)
+        schema.to_typed_value(&self, value_type)
     }
 
-    fn into_entity_place(self) -> Result<EntityPlace> {
+    fn into_entity_place(self) -> Result<EntityPlace<Self>> {
         use self::SpannedValue::*;
         match self.inner {
             Integer(v) => Ok(EntityPlace::Entid(entities::Entid::Entid(v))),
@@ -97,7 +83,7 @@ impl TransactableValue for ValueAndSpan {
                     // Like "(lookup-ref)".
                     (Some(&PlainSymbol(edn::PlainSymbol(ref s))), Some(a), Some(v), None) if s == "lookup-ref" => {
                         match a.clone().into_entity_place()? {
-                            EntityPlace::Entid(a) => Ok(EntityPlace::LookupRef(entities::LookupRef { a: entities::AttributePlace::Entid(a), v: v.clone().without_spans() })),
+                            EntityPlace::Entid(a) => Ok(EntityPlace::LookupRef(entities::LookupRef { a: entities::AttributePlace::Entid(a), v: v.clone() })),
                             EntityPlace::TempId(_) |
                             EntityPlace::TxFunction(_) |
                             EntityPlace::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
@@ -122,6 +108,35 @@ impl TransactableValue for ValueAndSpan {
 
     fn as_tempid(&self) -> Option<TempId> {
         self.inner.as_text().cloned().map(TempId::External)
+    }
+}
+
+impl TransactableValue for TypedValue {
+    fn into_typed_value(self, _schema: &Schema, value_type: ValueType) -> Result<TypedValue> {
+        if self.value_type() != value_type {
+            bail!(ErrorKind::BadValuePair(format!("{:?}", self), value_type));
+        }
+        Ok(self)
+    }
+
+    fn into_entity_place(self) -> Result<EntityPlace<Self>> {
+        match self {
+            TypedValue::Ref(x) => Ok(EntityPlace::Entid(entities::Entid::Entid(x))),
+            TypedValue::Keyword(x) => Ok(EntityPlace::Entid(entities::Entid::Ident((*x).clone()))),
+            TypedValue::String(x) => Ok(EntityPlace::TempId(TempId::External((*x).clone()))),
+            TypedValue::Boolean(_) |
+            TypedValue::Long(_) |
+            TypedValue::Double(_) |
+            TypedValue::Instant(_) |
+            TypedValue::Uuid(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+        }
+    }
+
+    fn as_tempid(&self) -> Option<TempId> {
+        match self {
+            &TypedValue::String(ref s) => Some(TempId::External((**s).clone())),
+            _ => None,
+        }
     }
 }
 
