@@ -87,6 +87,7 @@ use std::vec;
 
 pub use mentat::{
     Binding,
+    CacheDirection,
     Entid,
     FindSpec,
     HasSchema,
@@ -1026,9 +1027,55 @@ pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, 
     }
 }
 
-// TODO: cache
+/// Adds an attribute to the cache.
+/// `store_cache_attribute_forward` caches values for an attribute keyed by entity
+/// (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
+///
+/// # Safety
+///
+/// Callers must ensure that the pointer to the `Store` is not dangling and that
+/// the C string provided to `attribute` is valid.
+#[no_mangle]
+pub extern "C" fn store_cache_attribute_forward(store: *mut Store, attribute: *const c_char) -> *mut ExternResult {
+    let store = unsafe { &mut *store };
+    let kw = kw_from_string(c_char_to_string(attribute));
+    Box::into_raw(Box::new(store.cache(&kw, CacheDirection::Forward).into()))
+}
 
-// TODO: q_once
+/// Adds an attribute to the cache.
+/// `store_cache_attribute_reverse` caches entities for an attribute keyed by value.
+/// (i.e. find entities that have a particular value for an attribute).
+///
+/// # Safety
+///
+/// Callers must ensure that the pointer to the `Store` is not dangling and that
+/// the C string provided to `attribute` is valid.
+#[no_mangle]
+pub extern "C" fn store_cache_attribute_reverse(store: *mut Store, attribute: *const c_char) -> *mut ExternResult {
+    let store = unsafe { &mut *store };
+    let kw = kw_from_string(c_char_to_string(attribute));
+    Box::into_raw(Box::new(store.cache(&kw, CacheDirection::Reverse).into()))
+}
+
+/// Adds an attribute to the cache.
+/// `store_cache_attribute_bi_directional` caches entity in both available directions, forward and reverse.
+///
+/// `Forward` caches values for an attribute keyed by entity
+/// (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
+///
+/// `Reverse` caches entities for an attribute keyed by value.
+/// (i.e. find entities that have a particular value for an attribute).
+///
+/// # Safety
+///
+/// Callers must ensure that the pointer to the `Store` is not dangling and that
+/// the C string provided to `attribute` is valid.
+#[no_mangle]
+pub extern "C" fn store_cache_attribute_bi_directional(store: *mut Store, attribute: *const c_char) -> *mut ExternResult {
+    let store = unsafe { &mut *store };
+    let kw = kw_from_string(c_char_to_string(attribute));
+    Box::into_raw(Box::new(store.cache(&kw, CacheDirection::Both).into()))
+}
 
 /// Creates a [QueryBuilder](mentat::QueryBuilder) from the given store to execute the provided query.
 ///
