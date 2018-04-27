@@ -49,6 +49,35 @@ public class Mentat extends RustObject {
     public Mentat(Pointer rawPointer) { this.rawPointer = rawPointer; }
 
     /**
+     * Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
+     * looked up.
+     *
+     * TODO: Throw an exception if cache action fails
+     *
+     * @param attribute The attribute to cache
+     * @param direction The direction the attribute should be keyed.
+     * FORWARD caches values for an attribute keyed by entity
+     * (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
+     * REVERSE caches entities for an attribute keyed by value.
+     * (i.e. find entities that have a particular value for an attribute).
+     * BOTH adds an attribute such that it is cached in both directions.
+     */
+    public void cache(String attribute, CacheDirection direction) {
+        RustResult result = null;
+        switch (direction) {
+            case FORWARD:
+                result = JNA.INSTANCE.store_cache_attribute_forward(this.rawPointer, attribute);
+            case REVERSE:
+                result = JNA.INSTANCE.store_cache_attribute_reverse(this.rawPointer, attribute);
+            case BOTH:
+                result = JNA.INSTANCE.store_cache_attribute_bi_directional(this.rawPointer, attribute);
+        }
+        if (result.isFailure()) {
+            Log.e("Mentat", result.err);
+        }
+    }
+
+    /**
      * Simple transact of an EDN string.
      * TODO: Throw an exception if the transact fails
      * @param transaction   The string, as EDN, to be transacted.
@@ -88,7 +117,7 @@ public class Mentat extends RustObject {
 
     /**
      * Retrieve a single value of an attribute for an Entity
-     * TODO: Throw an exception if there is no the result contains an error.
+     * TODO: Throw an exception if the result contains an error.
      * @param attribute The string the attribute whose value is to be returned. The string is represented as `:namespace/name`.
      * @param entid The `Entid` of the entity we want the value from.
      * @return  The {@link TypedValue} containing the value of the attribute for the entity.
@@ -139,6 +168,13 @@ public class Mentat extends RustObject {
     }
 
 
+    /**
+     * Start a new transaction
+     *
+     * TODO: Throw an exception if the result contains an error.
+     *
+     * @return The {@link InProgress} used to manage the transaction
+     */
     public InProgress beginTransaction() {
         RustResult result = JNA.INSTANCE.store_begin_transaction(this.rawPointer);
         if (result.isSuccess()) {
@@ -152,6 +188,14 @@ public class Mentat extends RustObject {
         return null;
     }
 
+    /**
+     * Creates a new transaction ({@link InProgress}) and returns an {@link InProgressBuilder} for
+     * that transaction.
+     *
+     * TODO: Throw an exception if the result contains an error.
+     *
+     * @return  an {@link InProgressBuilder} for a new transaction.
+     */
     public InProgressBuilder entityBuilder() {
         RustResult result = JNA.INSTANCE.store_in_progress_builder(this.rawPointer);
         if (result.isSuccess()) {
@@ -165,6 +209,15 @@ public class Mentat extends RustObject {
         return null;
     }
 
+    /**
+     * Creates a new transaction ({@link InProgress}) and returns an {@link EntityBuilder} for the
+     * entity with `entid` for that transaction.
+     *
+     * TODO: Throw an exception if the result contains an error.
+     *
+     * @param entid The `Entid` for this entity.
+     * @return  an {@link EntityBuilder} for a new transaction.
+     */
     public EntityBuilder entityBuilder(long entid) {
         RustResult result = JNA.INSTANCE.store_entity_builder_from_entid(this.rawPointer, entid);
         if (result.isSuccess()) {
@@ -178,6 +231,15 @@ public class Mentat extends RustObject {
         return null;
     }
 
+    /**
+     * Creates a new transaction ({@link InProgress}) and returns an {@link EntityBuilder} for a new
+     * entity with `tempId` for that transaction.
+     *
+     * TODO: Throw an exception if the result contains an error.
+     *
+     * @param tempId    The temporary identifier for this entity.
+     * @return  an {@link EntityBuilder} for a new transaction.
+     */
     public EntityBuilder entityBuilder(String tempId) {
         RustResult result = JNA.INSTANCE.store_entity_builder_from_temp_id(this.rawPointer, tempId);
         if (result.isSuccess()) {
