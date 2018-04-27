@@ -295,17 +295,17 @@ pub trait SchemaTypeChecking {
     ///
     /// Either assert that the given value is in the value type's value set, or (in limited cases)
     /// coerce the given value into the value type's value set.
-    fn to_typed_value(&self, value: &edn::Value, value_type: ValueType) -> Result<TypedValue>;
+    fn to_typed_value(&self, value: &edn::ValueAndSpan, value_type: ValueType) -> Result<TypedValue>;
 }
 
 impl SchemaTypeChecking for Schema {
-    fn to_typed_value(&self, value: &edn::Value, value_type: ValueType) -> Result<TypedValue> {
+    fn to_typed_value(&self, value: &edn::ValueAndSpan, value_type: ValueType) -> Result<TypedValue> {
         // TODO: encapsulate entid-ident-attribute for better error messages, perhaps by including
         // the attribute (rather than just the attribute's value type) into this function or a
         // wrapper function.
-        match TypedValue::from_edn_value(value) {
+        match TypedValue::from_edn_value(&value.clone().without_spans()) {
             // We don't recognize this EDN at all.  Get out!
-            None => bail!(ErrorKind::BadEDNValuePair(value.clone(), value_type)),
+            None => bail!(ErrorKind::BadValuePair(format!("{}", value), value_type)),
             Some(typed_value) => match (value_type, typed_value) {
                 // Most types don't coerce at all.
                 (ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
@@ -331,7 +331,7 @@ impl SchemaTypeChecking for Schema {
                 (vt @ ValueType::Instant, _) |
                 (vt @ ValueType::Keyword, _) |
                 (vt @ ValueType::Ref, _)
-                => bail!(ErrorKind::BadEDNValuePair(value.clone(), vt)),
+                => bail!(ErrorKind::BadValuePair(format!("{}", value), vt)),
             }
         }
     }

@@ -69,6 +69,7 @@ use mentat_db::{
     transact_terms,
     InProgressObserverTransactWatcher,
     PartitionMap,
+    TransactableValue,
     TransactWatcher,
     TxObservationService,
     TxObserver,
@@ -82,9 +83,7 @@ use mentat_query_pull::{
     pull_attributes_for_entity,
 };
 
-use mentat_tx;
-
-use mentat_tx::entities::{
+use edn::entities::{
     TempId,
     OpType,
 };
@@ -470,7 +469,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
         Ok(report)
     }
 
-    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+    pub fn transact_entities<I, V: TransactableValue>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=edn::entities::Entity<V>> {
         // We clone the partition map here, rather than trying to use a Cell or using a mutable
         // reference, for two reasons:
         // 1. `transact` allocates new IDs in partitions before and while doing work that might

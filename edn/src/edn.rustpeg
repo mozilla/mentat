@@ -223,35 +223,35 @@ forward_entid -> Entid
 backward_entid -> Entid
     = v:raw_backward_keyword { Entid::Ident(v.to_reversed()) }
 
-lookup_ref -> LookupRef
-    = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a: AttributePlace::Entid(a), v: v.without_spans() } }
+lookup_ref -> LookupRef<ValueAndSpan>
+    = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a: AttributePlace::Entid(a), v } }
 
 tx_function -> TxFunction
     = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::plain(n) } }
 
-entity_place -> EntityPlace
+entity_place -> EntityPlace<ValueAndSpan>
     = v:raw_text { EntityPlace::TempId(TempId::External(v)) }
     / v:entid { EntityPlace::Entid(v) }
     / v:lookup_ref { EntityPlace::LookupRef(v) }
     / v:tx_function { EntityPlace::TxFunction(v) }
 
-value_place_pair -> (Entid, ValuePlace)
+value_place_pair -> (Entid, ValuePlace<ValueAndSpan>)
     = k:(entid) __ v:(value_place) { (k, v) }
 
-map_notation -> MapNotation
+map_notation -> MapNotation<ValueAndSpan>
     = "{" __ kvs:(value_place_pair*) __ "}" { kvs.into_iter().collect() }
 
-value_place -> ValuePlace
+value_place -> ValuePlace<ValueAndSpan>
     = __ v:lookup_ref __ { ValuePlace::LookupRef(v) }
     / __ v:tx_function __ { ValuePlace::TxFunction(v) }
     / __ "[" __ vs:(value_place*) __ "]" __ { ValuePlace::Vector(vs) }
     / __ v:map_notation __ { ValuePlace::MapNotation(v) }
     / __ v:atom __ { ValuePlace::Atom(v) }
 
-pub entity -> Entity
+pub entity -> Entity<ValueAndSpan>
     = __ "[" __ op:(op) __ e:(entity_place) __ a:(forward_entid)  __ v:(value_place) __  "]" __ { Entity::AddOrRetract { op, e: e, a: AttributePlace::Entid(a), v: v } }
     / __ "[" __ op:(op) __ e:(value_place)  __ a:(backward_entid) __ v:(entity_place) __ "]" __ { Entity::AddOrRetract { op, e: v, a: AttributePlace::Entid(a), v: e } }
     / __ map:map_notation __ { Entity::MapNotation(map) }
 
-pub entities -> Vec<Entity>
+pub entities -> Vec<Entity<ValueAndSpan>>
     = __ "[" __ es:(entity*) __ "]" __ { es }

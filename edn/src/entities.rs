@@ -17,10 +17,6 @@ use symbols::{
     Keyword,
     PlainSymbol,
 };
-use types::{
-    Value,
-    ValueAndSpan,
-};
 
 /// A tempid, either an external tempid given in a transaction (usually as an `Value::Text`),
 /// or an internal tempid allocated by Mentat itself.
@@ -64,11 +60,11 @@ impl Entid {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub struct LookupRef {
+pub struct LookupRef<V> {
     pub a: AttributePlace,
     // In theory we could allow nested lookup-refs.  In practice this would require us to process
     // lookup-refs in multiple phases, like how we resolve tempids, which isn't worth the effort.
-    pub v: Value, // An atom.
+    pub v: V, // An atom.
 }
 
 /// A "transaction function" that exposes some value determined by the current transaction.  The
@@ -88,21 +84,21 @@ pub struct TxFunction {
     pub op: PlainSymbol,
 }
 
-pub type MapNotation = BTreeMap<Entid, ValuePlace>;
+pub type MapNotation<V> = BTreeMap<Entid, ValuePlace<V>>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum ValuePlace {
-    Atom(ValueAndSpan),
-    LookupRef(LookupRef),
+pub enum ValuePlace<V> {
+    Atom(V),
+    LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
-    Vector(Vec<ValuePlace>),
-    MapNotation(MapNotation),
+    Vector(Vec<ValuePlace<V>>),
+    MapNotation(MapNotation<V>),
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum EntityPlace {
+pub enum EntityPlace<V> {
     Entid(Entid),
-    LookupRef(LookupRef),
+    LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
     TempId(TempId),
 }
@@ -119,14 +115,14 @@ pub enum OpType {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum Entity {
+pub enum Entity<V> {
     // Like [:db/add|:db/retract e a v].
     AddOrRetract {
         op: OpType,
-        e: EntityPlace,
+        e: EntityPlace<V>,
         a: AttributePlace,
-        v: ValuePlace,
+        v: ValuePlace<V>,
     },
     // Like {:db/id "tempid" a1 v1 a2 v2}.
-    MapNotation(MapNotation),
+    MapNotation(MapNotation<V>),
 }

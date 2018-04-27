@@ -86,7 +86,6 @@ use internal_types::{
     TermWithTempIds,
     TermWithTempIdsAndLookupRefs,
     TermWithoutTempIds,
-    TransactableValue,
     TypedValueOr,
     replace_lookup_ref,
 };
@@ -115,17 +114,17 @@ use metadata;
 use rusqlite;
 use schema::{
     SchemaBuilding,
-    SchemaTypeChecking,
 };
 use tx_checking;
 use types::{
-    Attribute,
-    AVPair,
     AVMap,
+    AVPair,
+    Attribute,
     Entid,
     PartitionMap,
-    TypedValue,
+    TransactableValue,
     TxReport,
+    TypedValue,
     ValueType,
 };
 use upsert_resolution::{
@@ -167,11 +166,11 @@ pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
 
 /// Remove any :db/id value from the given map notation, converting the returned value into
 /// something suitable for the entity position rather than something suitable for a value position.
-pub fn remove_db_id(map: &mut entmod::MapNotation) -> Result<Option<entmod::EntityPlace>> {
+pub fn remove_db_id<V: TransactableValue>(map: &mut entmod::MapNotation<V>) -> Result<Option<entmod::EntityPlace<V>>> {
     // TODO: extract lazy defined constant.
     let db_id_key = entmod::Entid::Ident(Keyword::namespaced("db", "id"));
 
-    let db_id: Option<entmod::EntityPlace> = if let Some(id) = map.remove(&db_id_key) {
+    let db_id: Option<entmod::EntityPlace<V>> = if let Some(id) = map.remove(&db_id_key) {
         match id {
             entmod::ValuePlace::Atom(v) => Some(v.into_entity_place()?),
             entmod::ValuePlace::LookupRef(_) |
@@ -254,7 +253,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
     ///
     /// The `Term` instances produce share interned TempId and LookupRef handles, and we return the
     /// interned handle sets so that consumers can ensure all handles are used appropriately.
-    fn entities_into_terms_with_temp_ids_and_lookup_refs<I>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, InternSet<TempId>, InternSet<AVPair>)> where I: IntoIterator<Item=Entity> {
+    fn entities_into_terms_with_temp_ids_and_lookup_refs<I, V: TransactableValue>(&self, entities: I) -> Result<(Vec<TermWithTempIdsAndLookupRefs>, InternSet<TempId>, InternSet<AVPair>)> where I: IntoIterator<Item=Entity<V>> {
         struct InProcess<'a> {
             partition_map: &'a PartitionMap,
             schema: &'a Schema,
@@ -288,18 +287,18 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 self.schema.require_entid(e)
             }
 
-            fn intern_lookup_ref(&mut self, lookup_ref: &entmod::LookupRef) -> Result<LookupRef> {
+            fn intern_lookup_ref<W: TransactableValue>(&mut self, lookup_ref: &entmod::LookupRef<W>) -> Result<LookupRef> {
                 let lr_a: i64 = match lookup_ref.a {
                     AttributePlace::Entid(entmod::Entid::Entid(ref a)) => *a,
                     AttributePlace::Entid(entmod::Entid::Ident(ref a)) => self.schema.require_entid(&a)?.into(),
                 };
                 let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
 
+                let lr_typed_value: TypedValue = lookup_ref.v.clone().into_typed_value(&self.schema, lr_attribute.value_type)?;
                 if lr_attribute.unique.is_none() {
-                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {}) with attribute that is not :db/unique", lr_a, lookup_ref.v)))
+                    bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {:?}) with attribute that is not :db/unique", lr_a, lr_typed_value)))
                 }
 
-                let lr_typed_value: TypedValue = self.schema.to_typed_value(&lookup_ref.v, lr_attribute.value_type)?;
                 Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
             }
 
@@ -309,12 +308,12 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
             /// Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
             /// unique within one transaction; they should never escape a transaction.
-            fn allocate_mentat_id(&mut self) -> entmod::EntityPlace {
+            fn allocate_mentat_id<W: TransactableValue>(&mut self) -> entmod::EntityPlace<W> {
                 self.mentat_id_count += 1;
                 entmod::EntityPlace::TempId(TempId::Internal(self.mentat_id_count))
             }
 
-            fn entity_e_into_term_e(&mut self, x: entmod::EntityPlace) -> Result<KnownEntidOr<LookupRefOrTempId>> {
+            fn entity_e_into_term_e<W: TransactableValue>(&mut self, x: entmod::EntityPlace<W>) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match x {
                     entmod::EntityPlace::Entid(e) => {
                         let e = match e {
@@ -349,11 +348,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Ok(a)
             }
 
-            fn entity_e_into_term_v(&mut self, x: entmod::EntityPlace) -> Result<TypedValueOr<LookupRefOrTempId>> {
+            fn entity_e_into_term_v<W: TransactableValue>(&mut self, x: entmod::EntityPlace<W>) -> Result<TypedValueOr<LookupRefOrTempId>> {
                 self.entity_e_into_term_e(x).map(|r| r.map_left(|ke| TypedValue::Ref(ke.0)))
             }
 
-            fn entity_v_into_term_e(&mut self, x: entmod::ValuePlace, backward_a: &entmod::Entid) -> Result<KnownEntidOr<LookupRefOrTempId>> {
+            fn entity_v_into_term_e<W: TransactableValue>(&mut self, x: entmod::ValuePlace<W>, backward_a: &entmod::Entid) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match backward_a.unreversed() {
                     None => {
                         bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
@@ -409,7 +408,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         // We want to handle entities in the order they're given to us, while also "exploding" some
         // entities into many.  We therefore push the initial entities onto the back of the deque,
         // take from the front of the deque, and explode onto the front as well.
-        let mut deque: VecDeque<Entity> = VecDeque::default();
+        let mut deque: VecDeque<Entity<V>> = VecDeque::default();
         deque.extend(entities);
 
         let mut terms: Vec<TermWithTempIdsAndLookupRefs> = Vec::with_capacity(deque.len());
@@ -419,7 +418,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Entity::MapNotation(mut map_notation) => {
                     // :db/id is optional; if it's not given, we generate a special internal tempid
                     // to use for upserting.  This tempid will not be reported in the TxReport.
-                    let db_id: entmod::EntityPlace = remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
+                    let db_id: entmod::EntityPlace<V> = remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                     // We're not nested, so :db/isComponent is not relevant.  We just explode the
                     // map notation.
@@ -519,9 +518,9 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                                 // :db/id is optional; if it's not given, we generate a special internal tempid
                                 // to use for upserting.  This tempid will not be reported in the TxReport.
-                                let db_id: Option<entmod::EntityPlace> = remove_db_id(&mut map_notation)?;
+                                let db_id: Option<entmod::EntityPlace<V>> = remove_db_id(&mut map_notation)?;
                                 let mut dangling = db_id.is_none();
-                                let db_id: entmod::EntityPlace = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
+                                let db_id: entmod::EntityPlace<V> = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                                 // We're nested, so we want to ensure we're not creating "dangling"
                                 // entities that can't be reached.  If we're :db/isComponent, then this
@@ -603,8 +602,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
     ///
     /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
     // TODO: move this to the transactor layer.
-    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport>
-    where I: IntoIterator<Item=Entity> {
+    pub fn transact_entities<I, V: TransactableValue>(&mut self, entities: I) -> Result<TxReport>
+    where I: IntoIterator<Item=Entity<V>> {
         // Pipeline stage 1: entities -> terms with tempids and lookup refs.
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
@@ -844,13 +843,14 @@ where W: TransactWatcher {
 ///
 /// This approach is explained in https://github.com/mozilla/mentat/wiki/Transacting.
 // TODO: move this to the transactor layer.
-pub fn transact<'conn, 'a, I, W>(conn: &'conn rusqlite::Connection,
+pub fn transact<'conn, 'a, I, V, W>(conn: &'conn rusqlite::Connection,
                                  partition_map: PartitionMap,
                                  schema_for_mutation: &'a Schema,
                                  schema: &'a Schema,
                                  watcher: W,
                                  entities: I) -> Result<(TxReport, PartitionMap, Option<Schema>, W)>
-    where I: IntoIterator<Item=Entity>,
+    where I: IntoIterator<Item=Entity<V>>,
+          V: TransactableValue,
           W: TransactWatcher {
 
     let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema, watcher)?;

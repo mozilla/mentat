@@ -29,6 +29,13 @@ pub use self::mentat_core::{
     ValueType,
 };
 
+use mentat_tx::entities::{
+    EntityPlace,
+    TempId,
+};
+
+use errors;
+
 /// Represents one partition of the entid space.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct Partition {
@@ -103,4 +110,19 @@ pub struct TxReport {
     /// existing entid, or is allocated a new entid.  (It is possible for multiple distinct string
     /// literal tempids to all unify to a single freshly allocated entid.)
     pub tempids: BTreeMap<String, Entid>,
+}
+
+/// The transactor is tied to `edn::ValueAndSpan` right now, but in the future we'd like to support
+/// `TypedValue` directly for programmatic use.  `TransactableValue` encapsulates the interface
+/// value types (i.e., values in the value place) need to support to be transacted.
+pub trait TransactableValue: Clone {
+    /// Coerce this value place into the given type.  This is where we perform schema-aware
+    /// coercion, for example coercing an integral value into a ref where appropriate.
+    fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> errors::Result<TypedValue>;
+
+    /// Make an entity place out of this value place.  This is where we limit values in nested maps
+    /// to valid entity places.
+    fn into_entity_place(self) -> errors::Result<EntityPlace<Self>>;
+
+    fn as_tempid(&self) -> Option<TempId>;
 }

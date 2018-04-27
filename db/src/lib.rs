@@ -97,6 +97,7 @@ pub use types::{
     AttributeSet,
     DB,
     PartitionMap,
+    TransactableValue,
     TxReport,
 };
 
