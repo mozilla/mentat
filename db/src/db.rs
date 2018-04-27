@@ -1376,7 +1376,7 @@ mod tests {
         let mut conn = TestConn::default();
 
         // Test that txInstant can be asserted.
-        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:56:41.257Z\"]
+        assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:56:41.257Z\"]
                                  [:db/add 100 :db/ident :name/Ivan]
                                  [:db/add 101 :db/ident :name/Petr]]");
         assert_matches!(conn.last_transaction(),
@@ -1385,14 +1385,14 @@ mod tests {
                           [?tx :db/txInstant #inst \"2017-06-16T00:56:41.257Z\" ?tx true]]");
 
         // Test multiple txInstant with different values should fail.
-        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
-                                 [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
+        assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+                                 [:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
                                  [:db/add 102 :db/ident :name/Vlad]]",
                          Err("conflicting datoms in tx"));
 
         // Test multiple txInstants with the same value.
-        assert_transact!(conn, "[[:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
-                                 [:db/add :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+        assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
+                                 [:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
                                  [:db/add 103 :db/ident :name/Dimitri]
                                  [:db/add 104 :db/ident :name/Anton]]");
         assert_matches!(conn.last_transaction(),
@@ -1400,11 +1400,34 @@ mod tests {
                           [104 :db/ident :name/Anton ?tx true]
                           [?tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\" ?tx true]]");
 
-        // Test txInstant retraction
-        // Test disabled: retracting a datom that doesn't exist should fail.
-        // assert_transact!(conn, "[[:db/retract :db/tx :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
-        //                          [:db/add 105 :db/ident :name/Vadim]]",
-        //                  Err("Should fail!"));
+        // We need a few attributes to work with.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/str]
+                                 [:db/add 111 :db/valueType :db.type/string]
+                                 [:db/add 222 :db/ident :test/ref]
+                                 [:db/add 222 :db/valueType :db.type/ref]]");
+
+        // Test that we can assert metadata about the current transaction.
+        assert_transact!(conn, "[[:db/add (transaction-tx) :test/str \"We want metadata!\"]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]
+                          [?tx :test/str \"We want metadata!\" ?tx true]]");
+
+        // Test that we can use (transaction-tx) as a value.
+        assert_transact!(conn, "[[:db/add 333 :test/ref (transaction-tx)]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[333 :test/ref ?tx ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Test that we type-check properly.  In the value position, (transaction-tx) yields a ref;
+        // :db/ident expects a keyword.
+        assert_transact!(conn, "[[:db/add 444 :db/ident (transaction-tx)]]",
+                         Err("not yet implemented: Transaction function transaction-tx produced value of type :db.type/ref but expected type :db.type/keyword"));
+
+        // Test that we can assert metadata about the current transaction.
+        assert_transact!(conn, "[[:db/add (transaction-tx) :test/ref (transaction-tx)]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]
+                          [?tx :test/ref ?tx ?tx true]]");
     }
 
     #[test]

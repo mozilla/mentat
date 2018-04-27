@@ -282,17 +282,19 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         Ok(Either::Left(e))
                     },
 
-                    // Special case: current tx ID.
-                    entmod::EntidOrLookupRefOrTempId::TempId(TempId::Tx) => {
-                        Ok(Either::Left(self.tx_id))
-                    },
-
                     entmod::EntidOrLookupRefOrTempId::TempId(e) => {
                         Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(e))))
                     },
 
                     entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
                         Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?)))
+                    },
+
+                    entmod::EntidOrLookupRefOrTempId::TxFunction(ref tx_function) => {
+                        match tx_function.op.0.as_str() {
+                            "transaction-tx" => Ok(Either::Left(self.tx_id)),
+                            unknown @ _ => bail!(ErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
+                        }
                     },
                 }
             }
@@ -340,6 +342,13 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                             entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) =>
                                 Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(ref tx_function) => {
+                                match tx_function.op.0.as_str() {
+                                    "transaction-tx" => Ok(Either::Left(KnownEntid(self.tx_id.0))),
+                                    unknown @ _ => bail!(ErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
+                                }
+                            },
 
                             entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) =>
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", forward_a))),
@@ -410,6 +419,26 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 }
 
                                 Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
+                            },
+
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(ref tx_function) => {
+                                let typed_value = match tx_function.op.0.as_str() {
+                                    "transaction-tx" => TypedValue::Ref(self.tx_id),
+                                    unknown @ _ => bail!(ErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
+                                };
+
+                                // Here we do schema-aware typechecking: we assert that the computed
+                                // value is in the attribute's value set.  If and when we have
+                                // transaction functions that produce numeric values, we'll have to
+                                // be more careful here, because a function that produces an integer
+                                // value can be used where a double is expected.  See also
+                                // `SchemaTypeChecking.to_typed_value(...)`.
+                                if attribute.value_type != typed_value.value_type() {
+                                    bail!(ErrorKind::NotYetImplemented(format!("Transaction function {} produced value of type {} but expected type {}",
+                                                                               tx_function.op.0.as_str(), typed_value.value_type(), attribute.value_type)));
+                                }
+
+                                Either::Left(typed_value)
                             },
 
                             entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) => {
@@ -682,7 +711,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
         tx_instant = self.tx_instant.unwrap_or_else(now);
 
-        // Transact [:db/add :db/txInstant tx_instant :db/tx].
+        // Transact [:db/add :db/txInstant tx_instant (transaction-tx)].
         non_fts_one.push((self.tx_id,
                           entids::DB_TX_INSTANT,
                           self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
