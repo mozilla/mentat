@@ -14,6 +14,7 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.util.Log;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -1149,6 +1150,7 @@ public class FFIIntegrationTest {
         synchronized (expectation1) {
             expectation1.wait(1000);
         }
+        assertTrue(expectation1.isFulfilled);
 
         EntityBuilder builder = mentat.entityBuilder(bEntid);
         builder.retract(":foo/boolean", false);
@@ -1173,6 +1175,7 @@ public class FFIIntegrationTest {
         synchronized (expectation2) {
             expectation2.wait(1000);
         }
+        assertTrue(expectation2.isFulfilled);
     }
 
     @Test
@@ -1217,6 +1220,7 @@ public class FFIIntegrationTest {
         synchronized (expectation1) {
             expectation1.wait(1000);
         }
+        assertTrue(expectation1.isFulfilled);
 
         InProgressBuilder builder = mentat.entityBuilder();
         builder.retract(bEntid, ":foo/boolean", false);
@@ -1241,5 +1245,77 @@ public class FFIIntegrationTest {
         synchronized (expectation2) {
             expectation2.wait(1000);
         }
+        assertTrue(expectation2.isFulfilled);
+    }
+
+    @Test
+    public void testCaching() throws InterruptedException {
+        String query = "[:find ?district :where\n" +
+                "    [?neighborhood :neighborhood/name \"Beacon Hill\"]\n" +
+                "    [?neighborhood :neighborhood/district ?d]\n" +
+                "    [?d :district/name ?district]]";
+
+        Mentat mentat = openAndInitializeCitiesStore();
+
+        final Expectation expectation1 = new Expectation();
+        final QueryTimer uncachedTimer = new QueryTimer();
+        uncachedTimer.start();
+        mentat.query(query).run(new RelResultHandler() {
+            @Override
+            public void handleRows(RelResult rows) {
+                uncachedTimer.end();
+                assertNotNull(rows);
+                expectation1.fulfill();
+            }
+        });
+
+        synchronized (expectation1) {
+            expectation1.wait(1000);
+        }
+        assertTrue(expectation1.isFulfilled);
+
+        mentat.cache(":neighborhood/name", CacheDirection.REVERSE);
+        mentat.cache(":neighborhood/district", CacheDirection.FORWARD);
+
+        final Expectation expectation2 = new Expectation();
+        final QueryTimer cachedTimer = new QueryTimer();
+        cachedTimer.start();
+        mentat.query(query).run(new RelResultHandler() {
+            @Override
+            public void handleRows(RelResult rows) {
+                cachedTimer.end();
+                assertNotNull(rows);
+                expectation2.fulfill();
+            }
+        });
+
+        synchronized (expectation2) {
+            expectation2.wait(1000);
+        }
+        assertTrue(expectation2.isFulfilled);
+
+        long timingDifference = uncachedTimer.duration() - cachedTimer.duration();
+        Log.d("testCaching", "Cached query is "+ timingDifference +" nanoseconds faster than the uncached query");
+
+        assert cachedTimer.duration() < uncachedTimer.duration();
+
+    }
+
+}
+
+class QueryTimer {
+    private long startTime = 0;
+    private long endTime = 0;
+
+    public void start() {
+        this.startTime = System.nanoTime();
+    }
+
+    public void end() {
+        this.endTime = System.nanoTime();
+    }
+
+    public long duration() {
+        return this.endTime - this.startTime;
     }
 }
