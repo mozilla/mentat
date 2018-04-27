@@ -98,7 +98,7 @@ class InProgress: OptionalRustObject {
     /**
      Creates an `EntityBuilder` using this `InProgress` for the entity with `entid`.
 
-     - Parameter tempId: The `Entid` for this entity.
+     - Parameter entid: The `Entid` for this entity.
 
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the `InProgress`
      has already been committed, or converted into a Builder.
