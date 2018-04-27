@@ -114,6 +114,11 @@ void in_progress_destroy(struct InProgress* _Nullable obj);
 void in_progress_builder_destroy(struct InProgressBuilder* _Nullable obj);
 void entity_builder_destroy(struct EntityBuilder* _Nullable obj);
 
+// caching
+struct Result*_Nonnull  store_cache_attribute_forward(struct Store*_Nonnull store, const char* _Nonnull attribute);
+struct Result*_Nonnull  store_cache_attribute_reverse(struct Store*_Nonnull store, const char* _Nonnull attribute);
+struct Result*_Nonnull  store_cache_attribute_bi_directional(struct Store*_Nonnull store, const char* _Nonnull attribute);
+
 // transact
 struct Result*_Nonnull store_transact(struct Store*_Nonnull store, const char* _Nonnull transaction);
 const int64_t* _Nullable tx_report_entity_for_temp_id(const struct TxReport* _Nonnull report, const char* _Nonnull tempid);

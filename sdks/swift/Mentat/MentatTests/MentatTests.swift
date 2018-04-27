@@ -1175,5 +1175,70 @@ class MentatTests: XCTestCase {
         })
     }
 
+    func testCaching() {
+        let query = """
+                [:find ?district :where
+                [?neighborhood :neighborhood/name \"Beacon Hill\"]
+                [?neighborhood :neighborhood/district ?d]
+                [?d :district/name ?district]]
+                """
+
+        let mentat = openAndInitializeCitiesStore()
+
+        struct QueryTimer {
+            private var _start: UInt64
+            private var _end: UInt64
+
+            init() {
+                self._start = 0
+                self._end = 0
+            }
+
+            private func currentTimeNanos() -> UInt64 {
+                var info = mach_timebase_info()
+                guard mach_timebase_info(&info) == KERN_SUCCESS else { return 0 }
+                let currentTime = mach_absolute_time()
+                return currentTime * UInt64(info.numer) / UInt64(info.denom)
+            }
+
+
+            mutating func start() {
+                self._start = self.currentTimeNanos()
+            }
+
+            mutating func end() {
+                self._end = self.currentTimeNanos()
+            }
+
+            func duration() -> UInt64 {
+                return self._end - self._start
+            }
+        }
+
+        var uncachedTimer = QueryTimer()
+        uncachedTimer.start()
+
+        XCTAssertNoThrow(try mentat.query(query: query).run { (result) in
+            uncachedTimer.end()
+            XCTAssertNotNil(result)
+        })
+
+        XCTAssertNoThrow(try mentat.cache(attribute: ":neighborhood/name", direction: CacheDirection.reverse))
+        XCTAssertNoThrow(try mentat.cache(attribute: ":neighborhood/district", direction: CacheDirection.forward))
+
+        var cachedTimer = QueryTimer()
+        cachedTimer.start()
+
+        XCTAssertNoThrow(try mentat.query(query: query).run { (result) in
+            cachedTimer.end()
+            XCTAssertNotNil(result)
+        })
+
+        let timingDifference = uncachedTimer.duration() - cachedTimer.duration()
+        print("Cached query is \(timingDifference) nanoseconds faster than the uncached query")
+
+        XCTAssertLessThan(cachedTimer.duration(), uncachedTimer.duration())
+    }
+
     // TODO: Add tests for transaction observation
 }

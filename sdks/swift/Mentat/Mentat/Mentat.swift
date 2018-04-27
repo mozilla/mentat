@@ -29,6 +29,12 @@ protocol Observable {
     func unregister(key: String)
 }
 
+enum CacheDirection {
+    case forward;
+    case reverse;
+    case both;
+}
+
 /**
  The primary class for accessing Mentat's API.
  This class provides all of the basic API that can be found in Mentat's Store struct.
@@ -57,10 +63,35 @@ class Mentat: RustObject {
     }
 
     /**
+     Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
+     looked up.
+
+     - Parameter attribute: The attribute to cache
+     - Parameter direction: The direction the attribute should be keyed.
+        `FORWARD` caches values for an attribute keyed by entity
+        (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
+        `REVERSE` caches entities for an attribute keyed by value.
+        (i.e. find entities that have a particular value for an attribute).
+        `BOTH` adds an attribute such that it is cached in both directions.
+
+     - Throws: `ResultError.error` if an error occured while trying to cache the attribute.
+     */
+    func cache(attribute: String, direction: CacheDirection) throws {
+        switch direction {
+        case .forward:
+            try store_cache_attribute_forward(self.raw, attribute).pointee.tryUnwrap()
+        case .reverse:
+            try store_cache_attribute_reverse(self.raw, attribute).pointee.tryUnwrap()
+        case .both:
+            try store_cache_attribute_bi_directional(self.raw, attribute).pointee.tryUnwrap()
+        }
+    }
+
+    /**
     Simple transact of an EDN string.
      - Parameter transaction: The string, as EDN, to be transacted
 
-     - Throws: `MentatError` if the an error occured during the transaction, or the TxReport is nil.
+     - Throws: `ResultError.error` if the an error occured during the transaction, or the TxReport is nil.
 
      - Returns: The `TxReport` of the completed transaction
     */
@@ -99,6 +130,8 @@ class Mentat: RustObject {
      Creates a new transaction (`InProgress`) and returns an `EntityBuilder` for the entity with `entid`
     for that transaction.
 
+     - Parameter entid: The `Entid` for this entity.
+
      - Throws: `ResultError.error` if the creation of the transaction fails.
      - Throws: `ResultError.empty` if no `EntityBuilder` is created.
 
@@ -112,6 +145,8 @@ class Mentat: RustObject {
     /**
      Creates a new transaction (`InProgress`) and returns an `EntityBuilder` for a new entity with `tempId`
     for that transaction.
+
+     - Parameter tempId: The temporary identifier for this entity.
 
      - Throws: `ResultError.error` if the creation of the transaction fails.
      - Throws: `ResultError.empty` if no `EntityBuilder` is created.
