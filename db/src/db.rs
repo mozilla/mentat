@@ -1073,7 +1073,6 @@ mod tests {
     use mentat_core::{
         HasSchema,
         NamespacedKeyword,
-        Schema,
         attribute,
     };
     use mentat_tx_parser;

@@ -112,6 +112,7 @@ use schema::{
     SchemaBuilding,
     SchemaTypeChecking,
 };
+use tx_checking;
 use types::{
     Attribute,
     AVPair,
@@ -695,6 +696,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         // We need to ensure that callers can't blindly transact entities that haven't been
         // allocated by this store.
 
+        let errors = tx_checking::type_disagreements(&final_terms);
+        if !errors.is_empty() {
+            bail!(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms: errors }));
+        }
+
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
         // TODO: use something like Clojure's group_by to do this.
@@ -708,25 +714,13 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                     let added = op == OpType::Add;
 
-                    // We take the last encountered :db/txInstant value.
-                    // If more than one is provided, the transactor will fail.
-                    if added &&
-                       e == self.tx_id &&
-                       a == entids::DB_TX_INSTANT {
+                    // :db/txInstant is :db/cardinality :db.cardinality/one, so we'll only ever see
+                    // at most one value, and it'll definitely be an instant.
+                    if added && e == self.tx_id && a == entids::DB_TX_INSTANT {
                         if let TypedValue::Instant(instant) = v {
-                            if let Some(ts) = self.tx_instant {
-                                if ts == instant {
-                                    // Dupes are fine.
-                                } else {
-                                    bail!(ErrorKind::ConflictingDatoms);
-                                }
-                            } else {
-                                self.tx_instant = Some(instant);
-                            }
-                            continue;
+                            self.tx_instant = Some(instant);
                         } else {
-                            // The type error has been caught earlier.
-                            unreachable!()
+                            unreachable!();
                         }
                     }
 
