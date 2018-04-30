@@ -12,7 +12,11 @@
 
 //! Types used only within the transactor.  These should not be exposed outside of this crate.
 
-use std::collections::HashMap;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+    HashMap,
+};
 use std::rc::Rc;
 
 use mentat_core::KnownEntid;
@@ -34,6 +38,7 @@ use schema::{
     SchemaTypeChecking,
 };
 use types::{
+    Attribute,
     AVMap,
     AVPair,
     Entid,
@@ -184,3 +189,13 @@ pub fn replace_lookup_ref<T, U>(lookup_map: &AVMap, desired_or: Either<T, Lookup
         }
     }
 }
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct AddAndRetract {
+    pub(crate) add: BTreeSet<TypedValue>,
+    pub(crate) retract: BTreeSet<TypedValue>,
+}
+
+// A trie-like structure mapping a -> e -> v that prefix compresses and makes uniqueness constraint
+// checking more efficient.  BTree* for deterministic errors.
+pub(crate) type AEVTrie<'schema> = BTreeMap<(Entid, &'schema Attribute), BTreeMap<Entid, AddAndRetract>>;
