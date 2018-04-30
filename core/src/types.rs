@@ -328,14 +328,7 @@ impl Binding {
 /// We entirely support the former, and partially support the latter -- you can alias
 /// using a different keyword only.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct StructuredMap(IndexMap<ValueRc<NamespacedKeyword>, Binding>);
-
-impl StructuredMap {
-    /// TODO: replace this with a map-like interface.
-    pub fn get_mut_expedient(&mut self) -> &mut IndexMap<ValueRc<NamespacedKeyword>, Binding> {
-        &mut self.0
-    }
-}
+pub struct StructuredMap(pub IndexMap<ValueRc<NamespacedKeyword>, Binding>);
 
 impl StructuredMap {
     pub fn insert<N, B>(&mut self, name: N, value: B) where N: Into<ValueRc<NamespacedKeyword>>, B: Into<Binding> {
@@ -346,6 +339,17 @@ impl StructuredMap {
 impl From<IndexMap<ValueRc<NamespacedKeyword>, Binding>> for StructuredMap {
     fn from(src: IndexMap<ValueRc<NamespacedKeyword>, Binding>) -> Self {
         StructuredMap(src)
+    }
+}
+
+// Mostly for testing.
+impl<T> From<Vec<(NamespacedKeyword, T)>> for StructuredMap where T: Into<Binding> {
+    fn from(value: Vec<(NamespacedKeyword, T)>) -> Self {
+        let mut sm = StructuredMap::default();
+        for (k, v) in value.into_iter() {
+            sm.insert(k, v);
+        }
+        sm
     }
 }
 
