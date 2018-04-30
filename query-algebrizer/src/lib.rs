@@ -279,6 +279,9 @@ pub fn algebrize_with_inputs(known: Known,
     let alias_counter = RcCounter::with_initial(counter);
     let mut cc = ConjoiningClauses::with_inputs_and_alias_counter(parsed.in_vars, inputs, alias_counter);
 
+    // This is so the rest of the query knows that `?x` is a ref if `(pull ?x …)` appears in `:find`.
+    cc.derive_types_from_find_spec(&parsed.find_spec);
+
     // Do we have a variable limit? If so, tell the CC that the var must be numeric.
     if let &Limit::Variable(ref var) = &parsed.limit {
         cc.constrain_var_to_long(var.clone());
