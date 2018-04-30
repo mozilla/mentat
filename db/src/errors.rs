@@ -32,6 +32,19 @@ use types::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CardinalityConflict {
+    /// A cardinality one attribute has multiple assertions `[e a v1], [e a v2], ...`.
+    CardinalityOneAddConflict {
+        added: Vec<(Entid, Entid, TypedValue)>,
+    },
+
+    /// A datom has been both asserted and retracted, like `[:db/add e a v]` and `[:db/retract e a v]`.
+    AddRetractConflict {
+        datoms: Vec<(Entid, Entid, TypedValue)>,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SchemaConstraintViolation {
     /// A transaction tried to assert datoms where one tempid upserts to two (or more) distinct
     /// entids.
@@ -50,6 +63,11 @@ pub enum SchemaConstraintViolation {
         /// The key (`[e a v]`) has an invalid value `v`: it is not of the expected value type.
         conflicting_datoms: BTreeMap<(Entid, Entid, TypedValue), ValueType>
     },
+
+    /// A transaction tried to assert a datoms that don't observe the schema's cardinality constraints.
+    CardinalityConflicts {
+        conflicts: Vec<CardinalityConflict>,
+    },
 }
 
 impl ::std::fmt::Display for SchemaConstraintViolation {
@@ -67,6 +85,13 @@ impl ::std::fmt::Display for SchemaConstraintViolation {
                 write!(f, "type disagreements:\n")?;
                 for (ref datom, expected_type) in conflicting_datoms {
                     write!(f, "  expected value of type {} but got datom [{} {} {:?}]\n", expected_type, datom.0, datom.1, datom.2)?;
+                }
+                Ok(())
+            },
+            &CardinalityConflicts { ref conflicts } => {
+                writeln!(f, "cardinality conflicts:")?;
+                for ref conflict in conflicts {
+                    writeln!(f, "  {:?}", conflict)?;
                 }
                 Ok(())
             },

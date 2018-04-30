@@ -146,7 +146,16 @@ lazy_static! {
         r#"CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"#,
 
         r#"CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"#,
-        r#"CREATE INDEX idx_transactions_tx ON transactions (tx, added)"#,
+
+        // This index serves two purposes:
+        //
+        // - First, it allows to query specific transactions efficiently, and then to filter by
+        //   attribute in a transaction efficiently.
+        //
+        // - Second, it provides a layer of assurance that the transactor is correct by asserting
+        //   that a single dato `[e a v]` is added or retracted at most once in a single
+        //   transaction.
+        r#"CREATE UNIQUE INDEX idx_transactions_unique_tx_a_e_v ON transactions (tx, a, e, v)"#,
 
         // Fulltext indexing.
         // A fulltext indexed value v is an integer rowid referencing fulltext_values.
@@ -513,8 +522,16 @@ fn search(conn: &rusqlite::Connection) -> Result<()> {
 ///
 /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
 fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    // Mentat follows Datomic and treats its input as a set.  That means it is okay to transact the
+    // same [e a v] twice in one transaction.  However, we don't want to represent the transacted
+    // datom twice, so we exploit the idx_transactions_unique_tx_a_e_v on transactions to IGNORE
+    // duplicated datoms coming from our search results.  This is a choice: we could also ensure
+    // that the search results satisfied the uniqueness constraints, or we could SELECT DISTINCT
+    // from the search results.  We're doing this since we need an index no transactions anyway, so
+    // we might as well make it a UNIQUE index and exploit it for this purpose too.
+
     let s = r#"
-      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+      INSERT OR IGNORE INTO transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v0, ?, 1, value_type_tag0
       FROM temp.search_results
       WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
@@ -525,7 +542,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         .chain_err(|| "Could not insert transaction: failed to add datoms not already present")?;
 
     let s = r#"
-      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+      INSERT OR IGNORE INTO transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v, ?, 0, value_type_tag0
       FROM temp.search_results
       WHERE rid IS NOT NULL AND
@@ -561,10 +578,14 @@ fn update_datoms(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         .map(|_c| ())
         .chain_err(|| "Could not update datoms: failed to retract datoms already present")?;
 
-    // Insert datoms that were added and not already present. We also must
-    // expand our bitfield into flags.
+    // Insert datoms that were added and not already present. We also must expand our bitfield into
+    // flags.  Since Mentat follows Datomic and treats its input as a set, it is okay to transact
+    // the same [e a v] twice in one transaction, but we don't want to represent the transacted
+    // datom twice in datoms.  Hence we IGNORE repeated datoms here.  This is a choice: we could
+    // also push the uniqueness constraints into the search results themselves, or SELECT DISTINCT
+    // from the search results.  This exploits the existing UNIQUE indices on the `datoms` table.
     let s = format!(r#"
-      INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
+      INSERT OR IGNORE INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
       SELECT e0, a0, v0, ?, value_type_tag0,
              flags0 & {} IS NOT 0,
              flags0 & {} IS NOT 0,
@@ -679,9 +700,6 @@ impl MentatStoring for rusqlite::Connection {
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
 
-            // We create this unique index so that it's impossible to violate a cardinality constraint
-            // within a transaction.
-            r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.inexact_searches_unique ON inexact_searches (e0, a0) WHERE added0 = 1"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
             // TODO: don't encode search_type as a STRING.  This is explicit and much easier to read
             // than another flag, so we'll do it to start, and optimize later.
@@ -695,12 +713,6 @@ impl MentatStoring for rusqlite::Connection {
                search_type STRING NOT NULL,
                rid INTEGER,
                v BLOB)"#,
-            // It is an error to transact the same [e a v] twice in one transaction.  This index will
-            // cause insertion to fail if a transaction tries to do that.  (Sadly, the failure is
-            // opaque.)
-            //
-            // N.b.: temp goes on index name, not table name.  See http://stackoverflow.com/a/22308016.
-            r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.search_results_unique ON search_results (e0, a0, v0, value_type_tag0)"#,
         ];
 
         for statement in &statements {
@@ -1304,7 +1316,7 @@ mod tests {
         assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
                                  [:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
                                  [:db/add 102 :db/ident :name/Vlad]]",
-                         Err("conflicting datoms in tx"));
+                         Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(268435458, 3, Instant(2017-06-16T00:59:11.257Z)), (268435458, 3, Instant(2017-06-16T00:59:11.752Z))] }\n"));
 
         // Test multiple txInstants with the same value.
         assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
@@ -2363,14 +2375,16 @@ mod tests {
             [:db/add "bar" :test/unique "x"]
             [:db/add "bar" :test/one 124]
         ]"#,
-        Err("Could not insert non-fts one statements into temporary search table!"));
+        // This is implementation specific (due to the allocated entid), but it should be deterministic.
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(65536, 111, Long(123)), (65536, 111, Long(124))] }\n"));
 
         // It also fails for map notation.
         assert_transact!(conn, r#"[
             {:test/unique "x", :test/one 123}
             {:test/unique "x", :test/one 124}
         ]"#,
-        Err("Could not insert non-fts one statements into temporary search table!"));
+        // This is implementation specific (due to the allocated entid), but it should be deterministic.
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(65536, 111, Long(123)), (65536, 111, Long(124))] }\n"));
     }
 
     #[test]
@@ -2422,6 +2436,55 @@ mod tests {
             [:db/add "x" :page/ref 333]
             [:db/add "x" :page/ref 444]
         ]"#,
-        Err("Could not insert non-fts one statements into temporary search table!"));
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(65539, 65537, Ref(333)), (65539, 65537, Ref(444))] }\n"));
+    }
+
+    #[test]
+    fn test_upsert_issue_532() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/ident :page/id :db/valueType :db.type/string :db/index true :db/unique :db.unique/identity}
+            {:db/ident :page/ref :db/valueType :db.type/ref :db/index true :db/unique :db.unique/identity}
+            {:db/ident :page/title :db/valueType :db.type/string :db/cardinality :db.cardinality/many}
+        ]"#);
+
+        // Observe that "foo" and "zot" upsert to the same entid, and that doesn't cause a
+        // cardinality constraint, because we treat the input with set semantics and accept
+        // duplicate datoms.
+        let report = assert_transact!(conn, r#"[
+            [:db/add "bar" :page/id "z"]
+            [:db/add "foo" :page/ref "bar"]
+            [:db/add "foo" :page/title "x"]
+            [:db/add "zot" :page/ref "bar"]
+            [:db/add "zot" :db/ident :other/ident]
+        ]"#);
+        assert_matches!(tempids(&report),
+                        "{\"bar\" ?b
+                          \"foo\" ?f
+                          \"zot\" ?f}");
+        assert_matches!(conn.last_transaction(),
+                        "[[?b :page/id \"z\" ?tx true]
+                          [?f :db/ident :other/ident ?tx true]
+                          [?f :page/ref ?b ?tx true]
+                          [?f :page/title \"x\" ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        let report = assert_transact!(conn, r#"[
+            [:db/add "foo" :page/id "x"]
+            [:db/add "foo" :page/title "x"]
+            [:db/add "bar" :page/id "x"]
+            [:db/add "bar" :page/title "y"]
+        ]"#);
+        assert_matches!(tempids(&report),
+                        "{\"foo\" ?e
+                          \"bar\" ?e}");
+
+        // One entity, two page titles.
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :page/id \"x\" ?tx true]
+                          [?e :page/title \"x\" ?tx true]
+                          [?e :page/title \"y\" ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
     }
 }

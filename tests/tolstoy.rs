@@ -147,9 +147,8 @@ fn test_reader() {
         // Inspect the transaction part.
         let tx_id = receiver.txes.keys().nth(1).expect("tx");
         let datoms = receiver.txes.get(tx_id).expect("datoms");
-        let part = &datoms[0];
+        let part = datoms.iter().find(|&part| &part.e == asserted_e).expect("to find asserted datom");
 
-        assert_eq!(asserted_e, &part.e);
         assert_eq!(numba_entity_id, &part.a);
         assert!(part.v.matches_type(ValueType::Long));
         assert_eq!(TypedValue::Long(123), part.v);
