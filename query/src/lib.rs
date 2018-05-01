@@ -573,10 +573,7 @@ pub enum Limit {
 /// Examples:
 ///
 /// ```rust
-/// # extern crate edn;
 /// # extern crate mentat_query;
-/// # use std::rc::Rc;
-/// # use edn::PlainSymbol;
 /// # use mentat_query::{Element, FindSpec, Variable};
 ///
 /// # fn main() {
