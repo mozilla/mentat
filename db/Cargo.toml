@@ -12,6 +12,7 @@ log = "0.4"
 num = "0.1"
 ordered-float = "0.5"
 time = "0.1"
+petgraph = "0.4.12"
 
 [dependencies.rusqlite]
 version = "0.13"

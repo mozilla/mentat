@@ -18,6 +18,7 @@ extern crate itertools;
 #[macro_use] extern crate log;
 
 extern crate num;
+extern crate petgraph;
 extern crate rusqlite;
 extern crate tabwriter;
 extern crate time;

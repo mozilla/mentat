@@ -13,7 +13,13 @@
 //! This module implements the upsert resolution algorithm described at
 //! https://github.com/mozilla/mentat/wiki/Transacting:-upsert-resolution-algorithm.
 
-use std::collections::BTreeSet;
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
+
+use indexmap;
+use petgraph::unionfind;
 
 use errors;
 use errors::ErrorKind;
@@ -27,6 +33,7 @@ use internal_types::{
     Term,
     TermWithoutTempIds,
     TermWithTempIds,
+    TypedValueOr,
 };
 
 use mentat_core::util::Either::*;
@@ -64,8 +71,8 @@ pub(crate) struct Generation {
     upserts_ev: Vec<UpsertEV>,
 
     /// Entities that look like:
-    /// - [:db/add TEMPID b OTHERID], where b is not :db.unique/identity;
-    /// - [:db/add TEMPID b v], where b is not :db.unique/identity.
+    /// - [:db/add TEMPID b OTHERID]. where b is not :db.unique/identity;
+    /// - [:db/add TEMPID b v].  b may be :db.unique/identity.
     /// - [:db/add e b OTHERID].
     allocations: Vec<TermWithTempIds>,
 
@@ -212,23 +219,34 @@ impl Generation {
         temp_id_avs
     }
 
-    /// After evolution is complete, yield the set of tempids that require entid allocation.  These
-    /// are the tempids that appeared in [:db/add ...] entities, but that didn't upsert to existing
-    /// entids.
-    pub(crate) fn temp_ids_in_allocations(&self) -> BTreeSet<TempIdHandle> {
+    /// After evolution is complete, yield the set of tempids that require entid allocation are the
+    /// tempids that appeared in [:db/add ...] entities, but that didn't upsert to existing entids.
+    ///
+    /// Some of the tempids may be identified, so we also provide a map from tempid to a dense set
+    /// of contiguous integer labels.
+    pub(crate) fn temp_ids_in_allocations(&self, schema: &Schema) -> errors::Result<BTreeMap<TempIdHandle, usize>> {
         assert!(self.upserts_e.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
         assert!(self.upserts_ev.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
 
         let mut temp_ids: BTreeSet<TempIdHandle> = BTreeSet::default();
+        let mut tempid_avs: BTreeMap<(Entid, TypedValueOr<TempIdHandle>), Vec<TempIdHandle>> = BTreeMap::default();
 
         for term in self.allocations.iter() {
             match term {
-                &Term::AddOrRetract(OpType::Add, Right(ref t1), _, Right(ref t2)) => {
+                &Term::AddOrRetract(OpType::Add, Right(ref t1), a, Right(ref t2)) => {
                     temp_ids.insert(t1.clone());
                     temp_ids.insert(t2.clone());
+                    let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
+                    if attribute.unique == Some(attribute::Unique::Identity) {
+                        tempid_avs.entry((a, Right(t2.clone()))).or_insert(vec![]).push(t1.clone());
+                    }
                 },
-                &Term::AddOrRetract(OpType::Add, Right(ref t), _, Left(_)) => {
+                &Term::AddOrRetract(OpType::Add, Right(ref t), a, ref x @ Left(_)) => {
                     temp_ids.insert(t.clone());
+                    let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
+                    if attribute.unique == Some(attribute::Unique::Identity) {
+                        tempid_avs.entry((a, x.clone())).or_insert(vec![]).push(t.clone());
+                    }
                 },
                 &Term::AddOrRetract(OpType::Add, Left(_), _, Right(ref t)) => {
                     temp_ids.insert(t.clone());
@@ -241,7 +259,44 @@ impl Generation {
             }
         }
 
-        temp_ids
+        // Now we union-find all the known tempids.  Two tempids are unioned if they both appears as
+        // the entity of an `[a v]` upsert, including when the value column `v` is itself a tempid.
+        let mut uf = unionfind::UnionFind::new(temp_ids.len());
+
+        // The union-find implementation from petgraph operates on contiguous indices, so we need to
+        // maintain the map from our tempids to indices ourselves.
+        let temp_ids: BTreeMap<TempIdHandle, usize> = temp_ids.into_iter().enumerate().map(|(i, tempid)| (tempid, i)).collect();
+
+        debug!("need to label tempids aggregated using tempid_avs {:?}", tempid_avs);
+
+        for vs in tempid_avs.values() {
+            vs.first().and_then(|first| temp_ids.get(first)).map(|&first_index| {
+                for tempid in vs {
+                    temp_ids.get(tempid).map(|&i| uf.union(first_index, i));
+                }
+            });
+        }
+
+        debug!("union-find aggregation {:?}", uf.clone().into_labeling());
+
+        // Now that we have aggregated tempids, we need to label them using the smallest number of
+        // contiguous labels possible.
+        let mut tempid_map: BTreeMap<TempIdHandle, usize> = BTreeMap::default();
+
+        let mut dense_labels: indexmap::IndexSet<usize> = indexmap::IndexSet::default();
+
+        // We want to produce results that are as deterministic as possible, so we allocate labels
+        // for tempids in sorted order.  This has the effect of making "a" allocate before "b",
+        // which is pleasant for testing.
+        for (tempid, tempid_index) in temp_ids {
+            let rep = uf.find_mut(tempid_index);
+            dense_labels.insert(rep);
+            dense_labels.get_full(&rep).map(|(dense_index, _)| tempid_map.insert(tempid.clone(), dense_index));
+        }
+
+        debug!("labeled tempids using {} labels: {:?}", dense_labels.len(), tempid_map);
+
+        Ok(tempid_map)
     }
 
     /// After evolution is complete, use the provided allocated entids to segment `self` into

@@ -45,7 +45,9 @@
 //! names -- `TermWithTempIdsAndLookupRefs`, anyone? -- and strongly typed stage functions will help
 //! keep everything straight.
 
-use std::borrow::Cow;
+use std::borrow::{
+    Cow,
+};
 use std::collections::{
     BTreeMap,
     BTreeSet,
@@ -123,12 +125,13 @@ use types::{
     TxReport,
     ValueType,
 };
-
+use upsert_resolution::{
+    FinalPopulations,
+    Generation,
+};
 use watcher::{
     TransactWatcher,
 };
-
-use upsert_resolution::Generation;
 
 /// A transaction on its way to being applied.
 #[derive(Debug)]
@@ -633,17 +636,18 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
         debug!("final generation {:?}", generation);
 
-        // Allocate entids for tempids that didn't upsert.  BTreeSet rather than HashSet so this is deterministic.
-        let unresolved_temp_ids: BTreeSet<TempIdHandle> = generation.temp_ids_in_allocations();
+        // Allocate entids for tempids that didn't upsert.  BTreeMap so this is deterministic.
+        let unresolved_temp_ids: BTreeMap<TempIdHandle, usize> = generation.temp_ids_in_allocations(&self.schema)?;
 
         debug!("unresolved tempids {:?}", unresolved_temp_ids);
 
         // TODO: track partitions for temporary IDs.
         let entids = self.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
 
-        let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter()
-                                                                .zip(entids.map(|e| KnownEntid(e)))
-                                                                .collect();
+        let temp_id_allocations = unresolved_temp_ids
+            .into_iter()
+            .map(|(tempid, index)| (tempid, KnownEntid(entids.start + (index as i64))))
+            .collect();
 
         debug!("tempid allocations {:?}", temp_id_allocations);
 
