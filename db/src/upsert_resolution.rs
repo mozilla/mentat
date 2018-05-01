@@ -155,7 +155,12 @@ impl Generation {
 
         for UpsertEV(t1, a, t2) in self.upserts_ev {
             match (temp_id_map.get(&*t1), temp_id_map.get(&*t2)) {
-                (Some(&n1), Some(&n2)) => next.resolved.push(Term::AddOrRetract(OpType::Add, n1, a, TypedValue::Ref(n2.0))),
+                (Some(_), Some(&n2)) => {
+                    // Even though we can resolve entirely, it's possible that the remaining upsert
+                    // could conflict.  Moving straight to resolved doesn't give us a chance to
+                    // search the store for the conflict.
+                    next.upserts_e.push(UpsertE(t1, a, TypedValue::Ref(n2.0)))
+                },
                 (None, Some(&n2)) => next.upserts_e.push(UpsertE(t1, a, TypedValue::Ref(n2.0))),
                 (Some(&n1), None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Left(n1), a, Right(t2))),
                 (None, None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Right(t1), a, Right(t2))),

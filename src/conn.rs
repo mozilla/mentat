@@ -1175,8 +1175,8 @@ mod tests {
         let report = conn.transact(&mut sqlite, "[[:db/add \"u\" :db/ident :a/keyword]
                                                   [:db/add \"u\" :db/ident :b/keyword]]");
         match report.unwrap_err() {
-            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::NotYetImplemented(_)), _) => { },
-            x => panic!("expected EDN parse error, got {:?}", x),
+            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::SchemaConstraintViolation(_)), _) => { },
+            x => panic!("expected schema constraint violation, got {:?}", x),
         }
     }
 

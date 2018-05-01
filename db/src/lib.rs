@@ -11,21 +11,18 @@
 // Oh, error_chain.
 #![recursion_limit="128"]
 
-#[macro_use]
-extern crate error_chain;
+#[macro_use] extern crate error_chain;
 extern crate indexmap;
 extern crate itertools;
-
-#[macro_use]
-extern crate lazy_static;
+#[macro_use] extern crate lazy_static;
+#[macro_use] extern crate log;
 
 extern crate num;
 extern crate rusqlite;
 extern crate tabwriter;
 extern crate time;
 
-#[macro_use]
-extern crate edn;
+#[macro_use] extern crate edn;
 extern crate mentat_core;
 extern crate mentat_tx;
 extern crate mentat_tx_parser;

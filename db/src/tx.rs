@@ -51,6 +51,9 @@ use std::collections::{
     BTreeSet,
     VecDeque,
 };
+use std::iter::{
+    once,
+};
 use std::rc::{
     Rc,
 };
@@ -64,7 +67,11 @@ use edn::{
     NamespacedKeyword,
 };
 use entids;
-use errors::{ErrorKind, Result};
+use errors;
+use errors::{
+    ErrorKind,
+    Result,
+};
 use internal_types::{
     KnownEntidOr,
     LookupRef,
@@ -190,21 +197,30 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         // Lookup in the store.
         let av_map: AVMap = self.store.resolve_avs(&av_pairs[..])?;
 
+        debug!("looked up avs {:?}", av_map);
+
         // Map id->entid.
-        let mut temp_id_map: TempIdMap = TempIdMap::default();
-        for &(ref temp_id, ref av_pair) in temp_id_avs {
-            if let Some(n) = av_map.get(&av_pair) {
-                if let Some(&KnownEntid(previous_n)) = temp_id_map.get(&*temp_id) {
-                    if *n != previous_n {
-                        // Conflicting upsert!  TODO: collect conflicts and give more details on what failed this transaction.
-                        bail!(ErrorKind::NotYetImplemented(format!("Conflicting upsert: tempid '{}' resolves to more than one entid: {:?}, {:?}", temp_id, previous_n, n))) // XXX
+        let mut tempids: TempIdMap = TempIdMap::default();
+
+        // Errors.  BTree* since we want deterministic results.
+        let mut conflicting_upserts: BTreeMap<TempId, BTreeSet<KnownEntid>> = BTreeMap::default();
+
+        for &(ref tempid, ref av_pair) in temp_id_avs {
+            trace!("tempid {:?} av_pair {:?} -> {:?}", tempid, av_pair, av_map.get(&av_pair));
+            if let Some(entid) = av_map.get(&av_pair).cloned().map(KnownEntid) {
+                tempids.insert(tempid.clone(), entid).map(|previous| {
+                    if entid != previous {
+                        conflicting_upserts.entry((**tempid).clone()).or_insert_with(|| once(previous).collect::<BTreeSet<_>>()).insert(entid);
                     }
-                }
-                temp_id_map.insert(temp_id.clone(), KnownEntid(*n));
+                });
             }
         }
 
-        Ok(temp_id_map)
+        if !conflicting_upserts.is_empty() {
+            bail!(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::ConflictingUpserts { conflicting_upserts }));
+        }
+
+        Ok(tempids)
     }
 
     /// Pipeline stage 1: convert `Entity` instances into `Term` instances, ready for term
@@ -581,29 +597,45 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
         // And evolve them forward.
         while generation.can_evolve() {
+            debug!("generation {:?}", generation);
+
+            let tempid_avs = generation.temp_id_avs();
+            debug!("trying to resolve avs {:?}", tempid_avs);
+
             // Evolve further.
-            let temp_id_map: TempIdMap = self.resolve_temp_id_avs(&generation.temp_id_avs()[..])?;
+            let temp_id_map: TempIdMap = self.resolve_temp_id_avs(&tempid_avs[..])?;
+
+            debug!("resolved avs for tempids {:?}", temp_id_map);
+
             generation = generation.evolve_one_step(&temp_id_map);
+
+            // Errors.  BTree* since we want deterministic results.
+            let mut conflicting_upserts: BTreeMap<TempId, BTreeSet<KnownEntid>> = BTreeMap::default();
 
             // Report each tempid that resolves via upsert.
             for (tempid, entid) in temp_id_map {
-                // Every tempid should be resolved at most once.  Prima facie, we might expect a
-                // tempid to be resolved in two different generations.  However, that is not so: the
-                // keys of temp_id_map are unique between generations.Suppose that id->e and id->e*
-                // are two such mappings, resolved on subsequent evolutionary steps, and that `id`
-                // is a key in the intersection of the two key sets. This can't happen: if `id` maps
-                // to `e` via id->e, all instances of `id` have been evolved forward (replaced with
-                // `e`) before we try to resolve the next set of `UpsertsE`.  That is, we'll never
-                // successfully upsert the same tempid in more than one generation step.  (We might
-                // upsert the same tempid to multiple entids via distinct `[a v]` pairs in a single
-                // generation step; in this case, the transaction will fail.)
-                let previous = tempids.insert((*tempid).clone(), entid);
-                assert!(previous.is_none());
+                // Since `UpsertEV` instances always transition to `UpsertE` instances, it might be
+                // that a tempid resolves in two generations, and those resolutions might conflict.
+                tempids.insert((*tempid).clone(), entid).map(|previous| {
+                    if entid != previous {
+                        conflicting_upserts.entry((*tempid).clone()).or_insert_with(|| once(previous).collect::<BTreeSet<_>>()).insert(entid);
+                    }
+                });
             }
+
+            if !conflicting_upserts.is_empty() {
+                bail!(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::ConflictingUpserts { conflicting_upserts }));
+            }
+
+            debug!("tempids {:?}", tempids);
         }
+
+        debug!("final generation {:?}", generation);
 
         // Allocate entids for tempids that didn't upsert.  BTreeSet rather than HashSet so this is deterministic.
         let unresolved_temp_ids: BTreeSet<TempIdHandle> = generation.temp_ids_in_allocations();
+
+        debug!("unresolved tempids {:?}", unresolved_temp_ids);
 
         // TODO: track partitions for temporary IDs.
         let entids = self.partition_map.allocate_entids(":db.part/user", unresolved_temp_ids.len());
@@ -611,6 +643,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         let temp_id_allocations: TempIdMap = unresolved_temp_ids.into_iter()
                                                                 .zip(entids.map(|e| KnownEntid(e)))
                                                                 .collect();
+
+        debug!("tempid allocations {:?}", temp_id_allocations);
 
         let final_populations = generation.into_final_populations(&temp_id_allocations)?;
 
