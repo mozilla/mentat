@@ -44,7 +44,7 @@ pub mod repl;
 pub mod errors;
 
 pub fn run() -> i32 {
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let args = std::env::args().collect::<Vec<_>>();
     let mut opts = Options::new();
