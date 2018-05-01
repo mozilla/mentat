@@ -1567,8 +1567,16 @@ mod tests {
 
         // Conflicting upserts fail.
         assert_transact!(conn, "[[:db/add \"t1\" :db/ident :name/Ivan]
-                                [:db/add \"t1\" :db/ident :name/Petr]]",
-                         Err("not yet implemented: Conflicting upsert: tempid \'t1\' resolves to more than one entid: 100, 101"));
+                                 [:db/add \"t1\" :db/ident :name/Petr]]",
+                         Err("schema constraint violation: conflicting upserts:\n  tempid External(\"t1\") upserts to {KnownEntid(100), KnownEntid(101)}\n"));
+
+        // The error messages of conflicting upserts gives information about all failing upserts (in a particular generation).
+        assert_transact!(conn, "[[:db/add \"t2\" :db/ident :name/Grigory]
+                                 [:db/add \"t2\" :db/ident :name/Petr]
+                                 [:db/add \"t2\" :db/ident :name/Ivan]
+                                 [:db/add \"t1\" :db/ident :name/Ivan]
+                                 [:db/add \"t1\" :db/ident :name/Petr]]",
+                         Err("schema constraint violation: conflicting upserts:\n  tempid External(\"t1\") upserts to {KnownEntid(100), KnownEntid(101)}\n  tempid External(\"t2\") upserts to {KnownEntid(100), KnownEntid(101)}\n"));
 
         // tempids in :db/retract that don't upsert fail.
         assert_transact!(conn, "[[:db/retract \"t1\" :db/ident :name/Anonymous]]",
@@ -2445,6 +2453,58 @@ mod tests {
         assert_transact!(conn, r#"[
             {:test/unique "x", :test/one 123}
             {:test/unique "x", :test/one 124}
+        ]"#,
+        Err("Could not insert non-fts one statements into temporary search table!"));
+    }
+
+    #[test]
+    fn test_conflicting_upserts() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/ident :page/id :db/valueType :db.type/string :db/index true :db/unique :db.unique/identity}
+            {:db/ident :page/ref :db/valueType :db.type/ref :db/index true :db/unique :db.unique/identity}
+            {:db/ident :page/title :db/valueType :db.type/string :db/cardinality :db.cardinality/many}
+        ]"#);
+
+        // Let's test some conflicting upserts.  First, valid data to work with -- note self references.
+        assert_transact!(conn, r#"[
+            [:db/add 111 :page/id "1"]
+            [:db/add 111 :page/ref 111]
+            [:db/add 222 :page/id "2"]
+            [:db/add 222 :page/ref 222]
+        ]"#);
+
+        // Now valid upserts.  Note the references are valid.
+        let report = assert_transact!(conn, r#"[
+            [:db/add "a" :page/id "1"]
+            [:db/add "a" :page/ref "a"]
+            [:db/add "b" :page/id "2"]
+            [:db/add "b" :page/ref "b"]
+        ]"#);
+        assert_matches!(tempids(&report),
+                        "{\"a\" 111
+                          \"b\" 222}");
+
+        // Now conflicting upserts.  Note the references are reversed.  This example is interesting
+        // because the first round `UpsertE` instances upsert, and this resolves all of the tempids
+        // in the `UpsertEV` instances.  However, those `UpsertEV` instances lead to conflicting
+        // upserts!  This tests that we don't resolve too far, giving a chance for those upserts to
+        // fail.  This error message is crossing generations, although it's not reflected in the
+        // error data structure.
+        assert_transact!(conn, r#"[
+            [:db/add "a" :page/id "1"]
+            [:db/add "a" :page/ref "b"]
+            [:db/add "b" :page/id "2"]
+            [:db/add "b" :page/ref "a"]
+        ]"#,
+        Err("schema constraint violation: conflicting upserts:\n  tempid External(\"a\") upserts to {KnownEntid(111), KnownEntid(222)}\n  tempid External(\"b\") upserts to {KnownEntid(111), KnownEntid(222)}\n"));
+
+        // Here's a case where the upsert is not resolved, just allocated, but leads to conflicting
+        // cardinality one datoms.
+        assert_transact!(conn, r#"[
+            [:db/add "x" :page/ref 333]
+            [:db/add "x" :page/ref 444]
         ]"#,
         Err("Could not insert non-fts one statements into temporary search table!"));
     }

@@ -10,11 +10,55 @@
 
 #![allow(dead_code)]
 
+use std::collections::{
+    BTreeMap,
+    BTreeSet,
+};
+
 use edn;
 use rusqlite;
 
+use mentat_tx::entities::{
+    TempId,
+};
 use mentat_tx_parser;
-use types::{Entid, ValueType};
+use mentat_core::{
+    KnownEntid,
+};
+use types::{
+    Entid,
+    ValueType,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SchemaConstraintViolation {
+    /// A transaction tried to assert datoms where one tempid upserts to two (or more) distinct
+    /// entids.
+    ConflictingUpserts {
+        /// A map from tempid to the entids it would upsert to.
+        ///
+        /// In the future, we might even be able to attribute the upserts to particular (reduced)
+        /// datoms, i.e., to particular `[e a v]` triples that caused the constraint violation.
+        /// Attributing constraint violations to input data is more difficult to the multiple
+        /// rewriting passes the input undergoes.
+        conflicting_upserts: BTreeMap<TempId, BTreeSet<KnownEntid>>,
+    },
+}
+
+impl ::std::fmt::Display for SchemaConstraintViolation {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        use self::SchemaConstraintViolation::*;
+        match self {
+            &ConflictingUpserts { ref conflicting_upserts } => {
+                write!(f, "conflicting upserts:\n")?;
+                for (tempid, entids) in conflicting_upserts {
+                    write!(f, "  tempid {:?} upserts to {:?}\n", tempid, entids)?;
+                }
+                Ok(())
+            },
+        }
+    }
+}
 
 error_chain! {
     types {
@@ -101,6 +145,12 @@ error_chain! {
         SchemaAlterationFailed(t: String) {
             description("schema alteration failed")
             display("schema alteration failed: {}", t)
+        }
+
+        /// A transaction tried to violate a constraint of the schema of the Mentat store.
+        SchemaConstraintViolation(violation: SchemaConstraintViolation) {
+            description("schema constraint violation")
+            display("schema constraint violation: {}", violation)
         }
     }
 }
