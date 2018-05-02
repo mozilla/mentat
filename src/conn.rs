@@ -387,6 +387,11 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
     }
 }
 
+impl<'a, 'c> InProgressRead<'a, 'c> {
+    pub fn last_tx_id(&self) -> Entid {
+        self.0.last_tx_id()
+    }
+}
 
 impl<'a, 'c> InProgress<'a, 'c> {
     pub fn builder(self) -> InProgressBuilder<'a, 'c> {
@@ -526,6 +531,10 @@ impl<'a, 'c> InProgress<'a, 'c> {
             },
         }
     }
+
+    pub fn last_tx_id(&self) -> Entid {
+        self.partition_map[":db.part/tx"].index - 1
+    }
 }
 
 struct InProgressTransactWatcher<'a, 'o> {
@@ -615,6 +624,13 @@ impl Conn {
 
     pub fn current_cache(&self) -> SQLiteAttributeCache {
         self.metadata.lock().unwrap().attribute_cache.clone()
+    }
+
+    pub fn last_tx_id(&self) -> Entid {
+        // The mutex is taken during this entire method.
+        let metadata = self.metadata.lock().unwrap();
+
+        metadata.partition_map[":db.part/tx"].index - 1
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.

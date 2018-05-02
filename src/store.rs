@@ -191,6 +191,10 @@ impl Store {
     pub fn unregister_observer(&mut self, key: &String) {
         self.conn.unregister_observer(key);
     }
+
+    pub fn last_tx_id(&self) -> Entid {
+        self.conn.last_tx_id()
+    }
 }
 
 impl Queryable for Store {
