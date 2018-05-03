@@ -27,6 +27,7 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_parser;
 extern crate mentat_query_projector;
+extern crate mentat_query_pull;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 extern crate mentat_tolstoy;
@@ -124,6 +125,7 @@ pub use conn::{
     Conn,
     InProgress,
     Metadata,
+    Pullable,
     Queryable,
     Syncable,
     Store,

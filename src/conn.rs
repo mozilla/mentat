@@ -10,6 +10,10 @@
 
 #![allow(dead_code)]
 
+use std::collections::{
+    BTreeMap,
+};
+
 use std::fs::{
     File,
 };
@@ -41,7 +45,9 @@ use mentat_core::{
     KnownEntid,
     NamespacedKeyword,
     Schema,
+    StructuredMap,
     TypedValue,
+    ValueRc,
     ValueType,
 };
 
@@ -66,6 +72,11 @@ use mentat_db::{
 };
 
 use mentat_db::internal_types::TermWithTempIds;
+
+use mentat_query_pull::{
+    pull_attributes_for_entities,
+    pull_attributes_for_entity,
+};
 
 use mentat_tx;
 
@@ -208,6 +219,14 @@ pub trait Queryable {
         where E: Into<Entid>;
 }
 
+pub trait Pullable {
+    fn pull_attributes_for_entities<E, A>(&self, entities: E, attributes: A) -> Result<BTreeMap<Entid, ValueRc<StructuredMap>>>
+    where E: IntoIterator<Item=Entid>,
+          A: IntoIterator<Item=Entid>;
+    fn pull_attributes_for_entity<A>(&self, entity: Entid, attributes: A) -> Result<StructuredMap>
+    where A: IntoIterator<Item=Entid>;
+}
+
 pub trait Syncable {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
 }
@@ -259,6 +278,19 @@ impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
     }
 }
 
+impl<'a, 'c> Pullable for InProgressRead<'a, 'c> {
+    fn pull_attributes_for_entities<E, A>(&self, entities: E, attributes: A) -> Result<BTreeMap<Entid, ValueRc<StructuredMap>>>
+    where E: IntoIterator<Item=Entid>,
+          A: IntoIterator<Item=Entid> {
+        self.0.pull_attributes_for_entities(entities, attributes)
+    }
+
+    fn pull_attributes_for_entity<A>(&self, entity: Entid, attributes: A) -> Result<StructuredMap>
+    where A: IntoIterator<Item=Entid> {
+        self.0.pull_attributes_for_entity(entity, attributes)
+    }
+}
+
 impl<'a, 'c> Queryable for InProgress<'a, 'c> {
     fn q_once<T>(&self, query: &str, inputs: T) -> Result<QueryOutput>
         where T: Into<Option<QueryInputs>> {
@@ -307,6 +339,21 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
         where E: Into<Entid> {
         let known = Known::new(&self.schema, Some(&self.cache));
         lookup_value_for_attribute(&*(self.transaction), known, entity, attribute)
+    }
+}
+
+impl<'a, 'c> Pullable for InProgress<'a, 'c> {
+    fn pull_attributes_for_entities<E, A>(&self, entities: E, attributes: A) -> Result<BTreeMap<Entid, ValueRc<StructuredMap>>>
+    where E: IntoIterator<Item=Entid>,
+          A: IntoIterator<Item=Entid> {
+        pull_attributes_for_entities(&self.schema, &*(self.transaction), entities, attributes)
+            .map_err(|e| e.into())
+    }
+
+    fn pull_attributes_for_entity<A>(&self, entity: Entid, attributes: A) -> Result<StructuredMap>
+    where A: IntoIterator<Item=Entid> {
+        pull_attributes_for_entity(&self.schema, &*(self.transaction), entity, attributes)
+            .map_err(|e| e.into())
     }
 }
 
@@ -632,6 +679,19 @@ impl Queryable for Store {
     }
 }
 
+impl Pullable for Store {
+    fn pull_attributes_for_entities<E, A>(&self, entities: E, attributes: A) -> Result<BTreeMap<Entid, ValueRc<StructuredMap>>>
+    where E: IntoIterator<Item=Entid>,
+          A: IntoIterator<Item=Entid> {
+        self.conn.pull_attributes_for_entities(&self.sqlite, entities, attributes)
+    }
+
+    fn pull_attributes_for_entity<A>(&self, entity: Entid, attributes: A) -> Result<StructuredMap>
+    where A: IntoIterator<Item=Entid> {
+        self.conn.pull_attributes_for_entity(&self.sqlite, entity, attributes)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CacheDirection {
     Forward,
@@ -756,6 +816,29 @@ impl Conn {
                   known,
                   query,
                   inputs)
+    }
+
+    pub fn pull_attributes_for_entities<E, A>(&self,
+                                              sqlite: &rusqlite::Connection,
+                                              entities: E,
+                                              attributes: A) -> Result<BTreeMap<Entid, ValueRc<StructuredMap>>>
+        where E: IntoIterator<Item=Entid>,
+              A: IntoIterator<Item=Entid> {
+        let metadata = self.metadata.lock().unwrap();
+        let schema = &*metadata.schema;
+        pull_attributes_for_entities(schema, sqlite, entities, attributes)
+            .map_err(|e| e.into())
+    }
+
+    pub fn pull_attributes_for_entity<A>(&self,
+                                         sqlite: &rusqlite::Connection,
+                                         entity: Entid,
+                                         attributes: A) -> Result<StructuredMap>
+        where A: IntoIterator<Item=Entid> {
+        let metadata = self.metadata.lock().unwrap();
+        let schema = &*metadata.schema;
+        pull_attributes_for_entity(schema, sqlite, entity, attributes)
+            .map_err(|e| e.into())
     }
 
     pub fn lookup_values_for_attribute(&self,

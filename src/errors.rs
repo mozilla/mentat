@@ -26,6 +26,7 @@ use mentat_query;
 use mentat_query_algebrizer;
 use mentat_query_parser;
 use mentat_query_projector;
+use mentat_query_pull;
 use mentat_query_translator;
 use mentat_sql;
 use mentat_tolstoy;
@@ -48,6 +49,7 @@ error_chain! {
         QueryError(mentat_query_algebrizer::Error, mentat_query_algebrizer::ErrorKind);   // Let's not leak the term 'algebrizer'.
         QueryParseError(mentat_query_parser::Error, mentat_query_parser::ErrorKind);
         ProjectorError(mentat_query_projector::errors::Error, mentat_query_projector::errors::ErrorKind);
+        PullError(mentat_query_pull::errors::Error, mentat_query_pull::errors::ErrorKind);
         TranslatorError(mentat_query_translator::Error, mentat_query_translator::ErrorKind);
         SqlError(mentat_sql::Error, mentat_sql::ErrorKind);
         TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
