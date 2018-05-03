@@ -161,6 +161,10 @@ impl AlgebraicQuery {
         self.find_spec
             .columns()
             .all(|e| match e {
+                // Pull expressions are never fully bound.
+                // TODO: but the 'inside' of a pull expression certainly can be.
+                &Element::Pull(_) => false,
+
                 &Element::Variable(ref var) |
                 &Element::Corresponding(ref var) => self.cc.is_value_bound(var),
 
