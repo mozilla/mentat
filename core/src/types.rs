@@ -121,7 +121,7 @@ impl<T: Clone> Cloned<T> for Box<T> where T: Sized + Clone {
 /// This type must implement `FromRc` and `Cloned`, and a `From` implementation must exist for
 /// `TypedValue`.
 ///
-pub type ValueRc<T> = Rc<T>;
+pub type ValueRc<T> = Arc<T>;
 
 /// Represents one entid in the entid space.
 ///
