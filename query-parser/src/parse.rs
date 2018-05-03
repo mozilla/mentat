@@ -33,6 +33,7 @@ use self::mentat_parser_utils::value_and_span::Stream as ValueStream;
 use self::mentat_parser_utils::value_and_span::{
     Item,
     OfExactlyParsing,
+    forward_keyword,
     keyword_map,
     list,
     map,
@@ -58,6 +59,9 @@ use self::mentat_query::{
     PatternNonValuePlace,
     PatternValuePlace,
     Predicate,
+    Pull,
+    PullAttributeSpec,
+    PullConcreteAttribute,
     QueryFunction,
     SrcVar,
     TypeAnnotation,
@@ -172,6 +176,8 @@ def_parser!(Query, order, Order, {
 });
 
 def_matches_plain_symbol!(Query, the, "the");
+def_matches_plain_symbol!(Query, pull, "pull");
+def_matches_plain_symbol!(Query, wildcard, "*");
 
 pub struct Where<'a>(std::marker::PhantomData<&'a ()>);
 
@@ -282,6 +288,71 @@ def_parser!(Query, aggregate, Aggregate, {
          .map(|(func, args)| Aggregate {
              func, args,
          })
+});
+
+def_parser!(Query, pull_concrete_attribute, PullAttributeSpec, {
+    forward_keyword().map(|k|
+        PullAttributeSpec::Attribute(
+            PullConcreteAttribute::Ident(
+                ::std::rc::Rc::new(k.clone()))))
+});
+
+def_parser!(Query, pull_wildcard_attribute, PullAttributeSpec, {
+    Query::wildcard().map(|_| PullAttributeSpec::Wildcard)
+});
+
+def_parser!(Query, pull_attribute, PullAttributeSpec, {
+    choice([
+        try(Query::pull_concrete_attribute()),
+        try(Query::pull_wildcard_attribute()),
+        // TODO: reversed keywords, entids (with aliases, presumably…).
+    ])
+});
+
+// A wildcard can appear only once.
+// If a wildcard appears, only map expressions can be present.
+fn validate_attributes<T, E>(attrs: Vec<PullAttributeSpec>) -> std::result::Result<Vec<PullAttributeSpec>, combine::primitives::Error<T, E>> {
+    match attrs.len() {
+        0 => unreachable!(),     // We use `many1` to parse.
+        1 => Ok(attrs),
+        _ => {
+            let mut wildcard_seen = false;
+            let mut non_map_or_wildcard_seen = false;
+            for attr in attrs.iter() {
+                match attr {
+                    &PullAttributeSpec::Wildcard => {
+                        if wildcard_seen {
+                            return Err(
+                                combine::primitives::Error::Unexpected("duplicate wildcard pull attribute".into())
+                            );
+                        }
+                        wildcard_seen = true;
+                        if non_map_or_wildcard_seen {
+                            return Err(
+                                combine::primitives::Error::Unexpected("wildcard with specified attributes".into())
+                            );
+                        }
+                    },
+                    // &PullAttributeSpec::LimitedAttribute(_, _) => {
+                    &PullAttributeSpec::Attribute(_) => {
+                        non_map_or_wildcard_seen = true;
+                        if wildcard_seen {
+                            return Err(
+                                combine::primitives::Error::Unexpected("wildcard with specified attributes".into())
+                            );
+                        }
+                    },
+                    // TODO: map form.
+                }
+            }
+            Ok(attrs)
+        },
+    }
+
+}
+
+def_parser!(Query, pull_attributes, Vec<PullAttributeSpec>, {
+    vector().of_exactly(many1(Query::pull_attribute())).and_then(validate_attributes)
 });
 
 /// A vector containing just a parenthesized filter expression.
@@ -440,10 +511,23 @@ def_parser!(Find, aggregate_element, Element, {
     Query::aggregate().map(Element::Aggregate)
 });
 
+def_parser!(Find, pull_element, Element, {
+    seq().of_exactly(Query::pull().with(Query::variable().and(Query::pull_attributes())))
+         .map(|(var, attrs)| Element::Pull(Pull { var: var, patterns: attrs }))
+});
+
 def_parser!(Find, elem, Element, {
-    choice([try(Find::variable_element()),
-            try(Find::corresponding_element()),
-            try(Find::aggregate_element())])
+    choice([
+        try(Find::variable_element()),
+
+        // This comes first because otherwise (the ?x) will match as an aggregate.
+        try(Find::corresponding_element()),
+
+        // Similarly, we have to parse pull before general functions.
+        try(Find::pull_element()),
+
+        try(Find::aggregate_element()),
+    ])
 });
 
 def_parser!(Find, find_scalar, FindSpec, {
@@ -1072,5 +1156,80 @@ mod test {
                                   variable: Variable::from_valid_name("?foo"),
                               }));
 
+    }
+
+    #[test]
+    fn test_pull() {
+        assert_edn_parses_to!(Query::pull_attribute,
+                              "*",
+                              PullAttributeSpec::Wildcard);
+        assert_edn_parses_to!(Query::pull_attributes,
+                              "[*]",
+                              vec![PullAttributeSpec::Wildcard]);
+        assert_edn_parses_to!(Find::elem,
+                              "(pull ?v [*])",
+                              Element::Pull(Pull {
+                                  var: Variable::from_valid_name("?v"),
+                                  patterns: vec![PullAttributeSpec::Wildcard],
+                              }));
+
+        let foo_bar = ::std::rc::Rc::new(edn::NamespacedKeyword::new("foo", "bar"));
+        let foo_baz = ::std::rc::Rc::new(edn::NamespacedKeyword::new("foo", "baz"));
+        assert_edn_parses_to!(Query::pull_concrete_attribute,
+                              ":foo/bar",
+                              PullAttributeSpec::Attribute(
+                                  PullConcreteAttribute::Ident(foo_bar.clone())));
+        assert_edn_parses_to!(Query::pull_attribute,
+                              ":foo/bar",
+                              PullAttributeSpec::Attribute(
+                                  PullConcreteAttribute::Ident(foo_bar.clone())));
+        assert_edn_parses_to!(Find::elem,
+                              "(pull ?v [:foo/bar :foo/baz])",
+                              Element::Pull(Pull {
+                                  var: Variable::from_valid_name("?v"),
+                                  patterns: vec![
+                                      PullAttributeSpec::Attribute(
+                                          PullConcreteAttribute::Ident(foo_bar.clone())),
+                                      PullAttributeSpec::Attribute(
+                                          PullConcreteAttribute::Ident(foo_baz.clone())),
+                                  ],
+                              }));
+    }
+
+    #[test]
+    fn test_query_with_pull() {
+        let q = "[:find ?x (pull ?x [:foo/bar]) :where [?x _ _]]";
+        let expected_query =
+            FindQuery {
+                find_spec: FindSpec::FindRel(vec![
+                    Element::Variable(Variable::from_valid_name("?x")),
+                    Element::Pull(Pull {
+                        var: Variable::from_valid_name("?x"),
+                        patterns: vec![
+                            PullAttributeSpec::Attribute(
+                                PullConcreteAttribute::Ident(
+                                    ::std::rc::Rc::new(edn::NamespacedKeyword::new("foo", "bar"))
+                                )
+                            ),
+                        ] })]),
+                where_clauses: vec![
+                    WhereClause::Pattern(Pattern {
+                        source: None,
+                        entity: PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                        attribute: PatternNonValuePlace::Placeholder,
+                        value: PatternValuePlace::Placeholder,
+                        tx: PatternNonValuePlace::Placeholder,
+                    })],
+
+                default_source: SrcVar::DefaultSrc,
+                with: Default::default(),
+                in_vars: Default::default(),
+                in_sources: Default::default(),
+                limit: Limit::None,
+                order: None,
+            };
+        assert_edn_parses_to!(Find::query,
+                              q,
+                              expected_query);
     }
 }
