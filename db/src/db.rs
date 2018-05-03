@@ -1543,6 +1543,50 @@ mod tests {
     }
 
     #[test]
+    fn test_resolved_upserts() {
+        let mut conn = TestConn::default();
+        assert_transact!(conn, "[
+            {:db/ident :test/id
+             :db/valueType :db.type/string
+             :db/unique :db.unique/identity
+             :db/index true
+             :db/cardinality :db.cardinality/one}
+            {:db/ident :test/ref
+             :db/valueType :db.type/ref
+             :db/unique :db.unique/identity
+             :db/index true
+             :db/cardinality :db.cardinality/one}
+        ]");
+
+        // Partial data for :test/id, links via :test/ref.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/id "0"]
+            [:db/add 101 :test/ref 100]
+            [:db/add 102 :test/ref 101]
+            [:db/add 103 :test/ref 102]
+        ]"#);
+
+        // Fill in the rest of the data for :test/id, using the links of :test/ref.
+        let report = assert_transact!(conn, r#"[
+            {:db/id "a" :test/id "0"}
+            {:db/id "b" :test/id "1" :test/ref "a"}
+            {:db/id "c" :test/id "2" :test/ref "b"}
+            {:db/id "d" :test/id "3" :test/ref "c"}
+        ]"#);
+
+        assert_matches!(tempids(&report),
+                        r#"{"a" 100
+                            "b" 101
+                            "c" 102
+                            "d" 103}"#);
+
+        assert_matches!(conn.last_transaction(),
+                        r#"[[101 :test/id "1"]
+                            [102 :test/id "2"]
+                            [103 :test/id "3"]]"#);
+    }
+
+    #[test]
     fn test_sqlite_limit() {
         let conn = new_connection("").expect("Couldn't open in-memory db");
         let initial = conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER);

@@ -153,6 +153,10 @@ impl Generation {
     pub(crate) fn evolve_one_step(self, temp_id_map: &TempIdMap) -> Generation {
         let mut next = Generation::default();
 
+        // We'll iterate our own allocations to resolve more things, but terms that have already
+        // resolved stay resolved.
+        next.resolved = self.resolved;
+
         for UpsertE(t, a, v) in self.upserts_e {
             match temp_id_map.get(&*t) {
                 Some(&n) => next.upserted.push(Term::AddOrRetract(OpType::Add, n, a, v)),
