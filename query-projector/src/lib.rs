@@ -17,6 +17,7 @@ extern crate mentat_core;
 extern crate mentat_db;                 // For value conversion.
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
+extern crate mentat_query_pull;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
 
@@ -69,6 +70,7 @@ use mentat_query_sql::{
 mod aggregates;
 mod project;
 mod projectors;
+mod pull;
 mod relresult;
 pub mod errors;
 
@@ -92,9 +94,13 @@ pub use projectors::{
 
 use projectors::{
     CollProjector,
+    CollTwoStagePullProjector,
     RelProjector,
+    RelTwoStagePullProjector,
     ScalarProjector,
+    ScalarTwoStagePullProjector,
     TupleProjector,
+    TupleTwoStagePullProjector,
 };
 
 pub use relresult::{
@@ -175,7 +181,7 @@ impl QueryOutput {
                 QueryResults::Scalar(val)
             },
             &FindScalar(Element::Aggregate(ref _agg)) => {
-                // TODO: static pull.
+                // TODO: static aggregates.
                 unimplemented!();
             },
             &FindScalar(Element::Pull(ref _pull)) => {
@@ -213,6 +219,10 @@ impl QueryOutput {
                                   .into();
                 QueryResults::Coll(vec![val])
             },
+            &FindColl(Element::Pull(ref _pull)) => {
+                // TODO: static pull.
+                unimplemented!();
+            },
             &FindColl(Element::Aggregate(ref _agg)) => {
                 // Does it even make sense to write
                 // [:find [(max ?x) ...] :where [_ :foo/bar ?x]]
@@ -229,6 +239,10 @@ impl QueryOutput {
                                 .cloned()
                                 .expect("every var to have a binding")
                                 .into()
+                    },
+                    &Element::Pull(ref _pull) => {
+                        // TODO: static pull.
+                        unreachable!();
                     },
                     &Element::Aggregate(ref _agg) => {
                         // TODO: static computation of aggregates, then
@@ -397,6 +411,19 @@ impl CombinedProjection {
     }
 }
 
+trait IsPull {
+    fn is_pull(&self) -> bool;
+}
+
+impl IsPull for Element {
+    fn is_pull(&self) -> bool {
+        match self {
+            &Element::Pull(_) => true,
+            _ => false,
+        }
+    }
+}
+
 /// Compute a suitable SQL projection for an algebrized query.
 /// This takes into account a number of things:
 /// - The variable list in the find spec.
@@ -416,6 +443,13 @@ pub fn query_projection(schema: &Schema, query: &AlgebraicQuery) -> Result<Eithe
                                                 .map(|e| match e {
                                                     &Element::Variable(ref var) |
                                                     &Element::Corresponding(ref var) => var.clone(),
+
+                                                    // Pull expressions can never be fully bound.
+                                                    // TODO: but the interior can be, in which case we
+                                                    // can handle this and simply project.
+                                                    &Element::Pull(_) => {
+                                                        unreachable!();
+                                                    },
                                                     &Element::Aggregate(ref _agg) => {
                                                         // TODO: static computation of aggregates, then
                                                         // implement the condition in `is_fully_bound`.
@@ -437,24 +471,42 @@ pub fn query_projection(schema: &Schema, query: &AlgebraicQuery) -> Result<Eithe
         match *query.find_spec {
             FindColl(ref element) => {
                 let elements = project_elements(1, iter::once(element), query)?;
-                CollProjector::combine(spec, elements).map(|p| p.flip_distinct_for_limit(&query.limit))
+                if element.is_pull() {
+                    CollTwoStagePullProjector::combine(spec, elements)
+                } else {
+                    CollProjector::combine(spec, elements)
+                }.map(|p| p.flip_distinct_for_limit(&query.limit))
             },
 
             FindScalar(ref element) => {
                 let elements = project_elements(1, iter::once(element), query)?;
-                ScalarProjector::combine(spec, elements)
+                if element.is_pull() {
+                    ScalarTwoStagePullProjector::combine(schema, spec, elements)
+                } else {
+                    ScalarProjector::combine(spec, elements)
+                }
             },
 
             FindRel(ref elements) => {
+                let is_pull = elements.iter().any(|e| e.is_pull());
                 let column_count = query.find_spec.expected_column_count();
                 let elements = project_elements(column_count, elements, query)?;
-                RelProjector::combine(spec, column_count, elements).map(|p| p.flip_distinct_for_limit(&query.limit))
+                if is_pull {
+                    RelTwoStagePullProjector::combine(spec, column_count, elements)
+                } else {
+                    RelProjector::combine(spec, column_count, elements)
+                }.map(|p| p.flip_distinct_for_limit(&query.limit))
             },
 
             FindTuple(ref elements) => {
+                let is_pull = elements.iter().any(|e| e.is_pull());
                 let column_count = query.find_spec.expected_column_count();
                 let elements = project_elements(column_count, elements, query)?;
-                TupleProjector::combine(spec, column_count, elements)
+                if is_pull {
+                    TupleTwoStagePullProjector::combine(spec, column_count, elements)
+                } else {
+                    TupleProjector::combine(spec, column_count, elements)
+                }
             },
         }.map(Either::Right)
     }
