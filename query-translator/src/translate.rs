@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use mentat_core::{
+    Schema,
     SQLTypeAffinity,
     SQLValueType,
     SQLValueTypeSet,
@@ -439,10 +440,10 @@ fn re_project(mut inner: SelectQuery, projection: Projection) -> SelectQuery {
 
 /// Consume a provided `AlgebraicQuery` to yield a new
 /// `ProjectedSelect`.
-pub fn query_to_select(query: AlgebraicQuery) -> Result<ProjectedSelect> {
+pub fn query_to_select(schema: &Schema, query: AlgebraicQuery) -> Result<ProjectedSelect> {
     // TODO: we can't pass `query.limit` here if we aggregate during projection.
     // SQL-based aggregation -- `SELECT SUM(datoms00.e)` -- is fine.
-    query_projection(&query).map(|e| match e {
+    query_projection(schema, &query).map(|e| match e {
         Either::Left(constant) => ProjectedSelect::Constant(constant),
         Either::Right(CombinedProjection {
             sql_projection,

@@ -35,6 +35,7 @@ use rusqlite::{
 
 use mentat_core::{
     Binding,
+    Schema,
     TypedValue,
     ValueType,
     ValueTypeTag,
@@ -67,6 +68,7 @@ use mentat_query_sql::{
 
 mod aggregates;
 mod project;
+mod projectors;
 mod relresult;
 pub mod errors;
 
@@ -81,6 +83,18 @@ use project::{
 
 pub use project::{
     projected_column_for_var,
+};
+
+pub use projectors::{
+    ConstantProjector,
+    Projector,
+};
+
+use projectors::{
+    CollProjector,
+    RelProjector,
+    ScalarProjector,
+    TupleProjector,
 };
 
 pub use relresult::{
@@ -161,7 +175,11 @@ impl QueryOutput {
                 QueryResults::Scalar(val)
             },
             &FindScalar(Element::Aggregate(ref _agg)) => {
-                // TODO
+                // TODO: static pull.
+                unimplemented!();
+            },
+            &FindScalar(Element::Pull(ref _pull)) => {
+                // TODO: static pull.
                 unimplemented!();
             },
             &FindTuple(ref elements) => {
@@ -173,6 +191,10 @@ impl QueryOutput {
                                                      .cloned()
                                                      .expect("every var to have a binding")
                                                      .into()
+                                         },
+                                         &Element::Pull(ref _pull) => {
+                                            // TODO: static pull.
+                                            unreachable!();
                                          },
                                          &Element::Aggregate(ref _agg) => {
                                             // TODO: static computation of aggregates, then
@@ -336,283 +358,6 @@ impl TypedIndex {
     }
 }
 
-pub trait Projector {
-    fn project<'stmt>(&self, rows: Rows<'stmt>) -> Result<QueryOutput>;
-    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's>;
-}
-
-/// A projector that produces a `QueryResult` containing fixed data.
-/// Takes a boxed function that should return an empty result set of the desired type.
-pub struct ConstantProjector {
-    spec: Rc<FindSpec>,
-    results_factory: Box<Fn() -> QueryResults>,
-}
-
-impl ConstantProjector {
-    fn new(spec: Rc<FindSpec>, results_factory: Box<Fn() -> QueryResults>) -> ConstantProjector {
-        ConstantProjector {
-            spec: spec,
-            results_factory: results_factory,
-        }
-    }
-
-    pub fn project_without_rows<'stmt>(&self) -> Result<QueryOutput> {
-        let results = (self.results_factory)();
-        let spec = self.spec.clone();
-        Ok(QueryOutput {
-            spec: spec,
-            results: results,
-        })
-    }
-}
-
-impl Projector for ConstantProjector {
-    fn project<'stmt>(&self, _: Rows<'stmt>) -> Result<QueryOutput> {
-        self.project_without_rows()
-    }
-
-    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
-        self.spec.columns()
-    }
-}
-
-struct ScalarProjector {
-    spec: Rc<FindSpec>,
-    template: TypedIndex,
-}
-
-impl ScalarProjector {
-    fn with_template(spec: Rc<FindSpec>, template: TypedIndex) -> ScalarProjector {
-        ScalarProjector {
-            spec: spec,
-            template: template,
-        }
-    }
-
-    fn combine(spec: Rc<FindSpec>, mut elements: ProjectedElements) -> Result<CombinedProjection> {
-        let template = elements.templates.pop().expect("Expected a single template");
-        Ok(CombinedProjection {
-            sql_projection: elements.sql_projection,
-            pre_aggregate_projection: elements.pre_aggregate_projection,
-            datalog_projector: Box::new(ScalarProjector::with_template(spec, template)),
-            distinct: false,
-            group_by_cols: elements.group_by,
-        })
-    }
-}
-
-impl Projector for ScalarProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        let results =
-            if let Some(r) = rows.next() {
-                let row = r?;
-                let binding = self.template.lookup(&row)?;
-                QueryResults::Scalar(Some(binding))
-            } else {
-                QueryResults::Scalar(None)
-            };
-        Ok(QueryOutput {
-            spec: self.spec.clone(),
-            results: results,
-        })
-    }
-
-    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
-        self.spec.columns()
-    }
-}
-
-/// A tuple projector produces a single vector. It's the single-result version of rel.
-struct TupleProjector {
-    spec: Rc<FindSpec>,
-    len: usize,
-    templates: Vec<TypedIndex>,
-}
-
-impl TupleProjector {
-    fn with_templates(spec: Rc<FindSpec>, len: usize, templates: Vec<TypedIndex>) -> TupleProjector {
-        TupleProjector {
-            spec: spec,
-            len: len,
-            templates: templates,
-        }
-    }
-
-    // This is exactly the same as for rel.
-    fn collect_bindings<'a, 'stmt>(&self, row: Row<'a, 'stmt>) -> Result<Vec<Binding>> {
-        // There will be at least as many SQL columns as Datalog columns.
-        // gte 'cos we might be querying extra columns for ordering.
-        // The templates will take care of ignoring columns.
-        assert!(row.column_count() >= self.len as i32);
-        self.templates
-            .iter()
-            .map(|ti| ti.lookup(&row))
-            .collect::<Result<Vec<Binding>>>()
-    }
-
-    fn combine(spec: Rc<FindSpec>, column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
-        let p = TupleProjector::with_templates(spec, column_count, elements.templates);
-        Ok(CombinedProjection {
-            sql_projection: elements.sql_projection,
-            pre_aggregate_projection: elements.pre_aggregate_projection,
-            datalog_projector: Box::new(p),
-            distinct: false,
-            group_by_cols: elements.group_by,
-        })
-    }
-}
-
-impl Projector for TupleProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        let results =
-            if let Some(r) = rows.next() {
-                let row = r?;
-                let bindings = self.collect_bindings(row)?;
-                QueryResults::Tuple(Some(bindings))
-            } else {
-                QueryResults::Tuple(None)
-            };
-        Ok(QueryOutput {
-            spec: self.spec.clone(),
-            results: results,
-        })
-    }
-
-    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
-        self.spec.columns()
-    }
-}
-
-/// A rel projector produces a RelResult, which is a striding abstraction over a vector.
-/// Each stride across the vector is the same size, and sourced from the same columns.
-/// Each column in each stride is the result of taking one or two columns from
-/// the `Row`: one for the value and optionally one for the type tag.
-struct RelProjector {
-    spec: Rc<FindSpec>,
-    len: usize,
-    templates: Vec<TypedIndex>,
-}
-
-impl RelProjector {
-    fn with_templates(spec: Rc<FindSpec>, len: usize, templates: Vec<TypedIndex>) -> RelProjector {
-        RelProjector {
-            spec: spec,
-            len: len,
-            templates: templates,
-        }
-    }
-
-    fn collect_bindings_into<'a, 'stmt, 'out>(&self, row: Row<'a, 'stmt>, out: &mut Vec<Binding>) -> Result<()> {
-        // There will be at least as many SQL columns as Datalog columns.
-        // gte 'cos we might be querying extra columns for ordering.
-        // The templates will take care of ignoring columns.
-        assert!(row.column_count() >= self.len as i32);
-        let mut count = 0;
-        for binding in self.templates
-                           .iter()
-                           .map(|ti| ti.lookup(&row)) {
-            out.push(binding?);
-            count += 1;
-        }
-        assert_eq!(self.len, count);
-        Ok(())
-    }
-
-    fn combine(spec: Rc<FindSpec>, column_count: usize, elements: ProjectedElements) -> Result<CombinedProjection> {
-        let p = RelProjector::with_templates(spec, column_count, elements.templates);
-
-        // If every column yields only one value, or if this is an aggregate query
-        // (because by definition every column in an aggregate query is either
-        // aggregated or is a variable _upon which we group_), then don't bother
-        // with DISTINCT.
-        let already_distinct = elements.pre_aggregate_projection.is_some() ||
-                               p.columns().all(|e| e.is_unit());
-        Ok(CombinedProjection {
-            sql_projection: elements.sql_projection,
-            pre_aggregate_projection: elements.pre_aggregate_projection,
-            datalog_projector: Box::new(p),
-            distinct: !already_distinct,
-            group_by_cols: elements.group_by,
-        })
-    }
-}
-
-impl Projector for RelProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        // Allocate space for five rows to start.
-        // This is better than starting off by doubling the buffer a couple of times, and will
-        // rapidly grow to support larger query results.
-        let width = self.len;
-        let mut values: Vec<_> = Vec::with_capacity(5 * width);
-
-        while let Some(r) = rows.next() {
-            let row = r?;
-            self.collect_bindings_into(row, &mut values)?;
-        }
-        Ok(QueryOutput {
-            spec: self.spec.clone(),
-            results: QueryResults::Rel(RelResult { width, values }),
-        })
-    }
-
-    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
-        self.spec.columns()
-    }
-}
-
-/// A coll projector produces a vector of values.
-/// Each value is sourced from the same column.
-struct CollProjector {
-    spec: Rc<FindSpec>,
-    template: TypedIndex,
-}
-
-impl CollProjector {
-    fn with_template(spec: Rc<FindSpec>, template: TypedIndex) -> CollProjector {
-        CollProjector {
-            spec: spec,
-            template: template,
-        }
-    }
-
-    fn combine(spec: Rc<FindSpec>, mut elements: ProjectedElements) -> Result<CombinedProjection> {
-        let template = elements.templates.pop().expect("Expected a single template");
-        let p = CollProjector::with_template(spec, template);
-
-        // If every column yields only one value, or if this is an aggregate query
-        // (because by definition every column in an aggregate query is either
-        // aggregated or is a variable _upon which we group_), then don't bother
-        // with DISTINCT.
-        let already_distinct = elements.pre_aggregate_projection.is_some() ||
-                               p.columns().all(|e| e.is_unit());
-        Ok(CombinedProjection {
-            sql_projection: elements.sql_projection,
-            pre_aggregate_projection: elements.pre_aggregate_projection,
-            datalog_projector: Box::new(p),
-            distinct: !already_distinct,
-            group_by_cols: elements.group_by,
-        })
-    }
-}
-
-impl Projector for CollProjector {
-    fn project<'stmt>(&self, mut rows: Rows<'stmt>) -> Result<QueryOutput> {
-        let mut out: Vec<_> = vec![];
-        while let Some(r) = rows.next() {
-            let row = r?;
-            let binding = self.template.lookup(&row)?;
-            out.push(binding);
-        }
-        Ok(QueryOutput {
-            spec: self.spec.clone(),
-            results: QueryResults::Coll(out),
-        })
-    }
-
-    fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
-        self.spec.columns()
-    }
-}
 
 /// Combines the things you need to turn a query into SQL and turn its results into
 /// `QueryResults`: SQL-related projection information (`DISTINCT`, columns, etc.) and
@@ -660,7 +405,7 @@ impl CombinedProjection {
 /// - The bindings established by the topmost CC.
 /// - The types known at algebrizing time.
 /// - The types extracted from the store for unknown attributes.
-pub fn query_projection(query: &AlgebraicQuery) -> Result<Either<ConstantProjector, CombinedProjection>> {
+pub fn query_projection(schema: &Schema, query: &AlgebraicQuery) -> Result<Either<ConstantProjector, CombinedProjection>> {
     use self::FindSpec::*;
 
     let spec = query.find_spec.clone();

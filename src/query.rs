@@ -93,6 +93,8 @@ pub enum PreparedQuery<'sqlite> {
     },
     Bound {
         statement: rusqlite::Statement<'sqlite>,
+        schema: Schema,
+        connection: &'sqlite rusqlite::Connection,
         args: Vec<(String, Rc<rusqlite::types::Value>)>,
         projector: Box<Projector>,
     },
@@ -107,11 +109,10 @@ impl<'sqlite> PreparedQuery<'sqlite> {
             &mut PreparedQuery::Constant { ref select } => {
                 select.project_without_rows().map_err(|e| e.into())
             },
-            &mut PreparedQuery::Bound { ref mut statement, ref args, ref projector } => {
+            &mut PreparedQuery::Bound { ref mut statement, ref schema, ref connection, ref args, ref projector } => {
                 let rows = run_statement(statement, args)?;
-                projector
-                      .project(rows)
-                      .map_err(|e| e.into())
+                projector.project(schema, connection, rows)
+                         .map_err(|e| e.into())
             }
         }
     }
@@ -208,7 +209,7 @@ fn fetch_values<'sqlite>
 
     let algebrized = algebrize_query(known, query, None)?;
 
-    run_algebrized_query(sqlite, algebrized)
+    run_algebrized_query(known, sqlite, algebrized)
 }
 
 fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<KnownEntid> {
@@ -327,7 +328,10 @@ fn algebrize_query_str<'query, T>
     algebrize_query(known, parsed, inputs)
 }
 
-fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebrized: AlgebraicQuery) -> QueryExecutionResult {
+fn run_algebrized_query<'sqlite>
+(known: Known,
+ sqlite: &'sqlite rusqlite::Connection,
+ algebrized: AlgebraicQuery) -> QueryExecutionResult {
     assert!(algebrized.unbound_variables().is_empty(),
             "Unbound variables should be checked by now");
     if algebrized.is_known_empty() {
@@ -335,17 +339,19 @@ fn run_algebrized_query<'sqlite>(sqlite: &'sqlite rusqlite::Connection, algebriz
         return Ok(QueryOutput::empty(&algebrized.find_spec));
     }
 
-    let select = query_to_select(algebrized)?;
+    let select = query_to_select(known.schema, algebrized)?;
     match select {
-        ProjectedSelect::Constant(constant) => constant.project_without_rows()
-                                                       .map_err(|e| e.into()),
+        ProjectedSelect::Constant(constant) => {
+            constant.project_without_rows()
+                    .map_err(|e| e.into())
+        },
         ProjectedSelect::Query { query, projector } => {
             let SQLQuery { sql, args } = query.to_sql_query()?;
 
             let mut statement = sqlite.prepare(sql.as_str())?;
             let rows = run_statement(&mut statement, &args)?;
 
-            projector.project(rows).map_err(|e| e.into())
+            projector.project(known.schema, sqlite, rows).map_err(|e| e.into())
         },
     }
 }
@@ -365,7 +371,7 @@ pub fn q_once<'sqlite, 'query, T>
         where T: Into<Option<QueryInputs>>
 {
     let algebrized = algebrize_query_str(known, query, inputs)?;
-    run_algebrized_query(sqlite, algebrized)
+    run_algebrized_query(known, sqlite, algebrized)
 }
 
 /// Just like `q_once`, but doesn't use any cached values.
@@ -379,12 +385,12 @@ pub fn q_uncached<'sqlite, 'schema, 'query, T>
     let known = Known::for_schema(schema);
     let algebrized = algebrize_query_str(known, query, inputs)?;
 
-    run_algebrized_query(sqlite, algebrized)
+    run_algebrized_query(known, sqlite, algebrized)
 }
 
-pub fn q_prepare<'sqlite, 'query, T>
+pub fn q_prepare<'sqlite, 'schema, 'query, T>
 (sqlite: &'sqlite rusqlite::Connection,
- known: Known,
+ known: Known<'schema, '_>,
  query: &'query str,
  inputs: T) -> PreparedResult<'sqlite>
         where T: Into<Option<QueryInputs>>
@@ -405,7 +411,7 @@ pub fn q_prepare<'sqlite, 'query, T>
         });
     }
 
-    let select = query_to_select(algebrized)?;
+    let select = query_to_select(known.schema, algebrized)?;
     match select {
         ProjectedSelect::Constant(constant) => {
             Ok(PreparedQuery::Constant {
@@ -418,6 +424,8 @@ pub fn q_prepare<'sqlite, 'query, T>
 
             Ok(PreparedQuery::Bound {
                 statement,
+                schema: known.schema.clone(),
+                connection: sqlite,
                 args,
                 projector: projector
             })
@@ -436,7 +444,7 @@ pub fn q_explain<'sqlite, 'query, T>
     if algebrized.is_known_empty() {
         return Ok(QueryExplanation::KnownEmpty(algebrized.cc.empty_because.unwrap()));
     }
-    match query_to_select(algebrized)? {
+    match query_to_select(known.schema, algebrized)? {
         ProjectedSelect::Constant(_constant) => Ok(QueryExplanation::KnownConstant),
         ProjectedSelect::Query { query, projector: _projector } => {
             let query = query.to_sql_query()?;

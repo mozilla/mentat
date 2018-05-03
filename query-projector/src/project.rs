@@ -58,7 +58,12 @@ use errors::{
     Result,
 };
 
+use projectors::{
+    Projector,
+};
+
 use super::{
+    CombinedProjection,
     TypedIndex,
 };
 
@@ -74,6 +79,26 @@ pub(crate) struct ProjectedElements {
     pub pre_aggregate_projection: Option<Projection>,
     pub templates: Vec<TypedIndex>,
     pub group_by: Vec<GroupBy>,
+}
+
+impl ProjectedElements {
+    pub(crate) fn combine(self, projector: Box<Projector>, distinct: bool) -> Result<CombinedProjection> {
+        Ok(CombinedProjection {
+            sql_projection: self.sql_projection,
+            pre_aggregate_projection: self.pre_aggregate_projection,
+            datalog_projector: projector,
+            distinct: distinct,
+            group_by_cols: self.group_by,
+        })
+    }
+
+    // We need the templates to make a projector that we can then hand to `combine`. This is the easy
+    // way to get it.
+    pub(crate) fn take_templates(&mut self) -> Vec<TypedIndex> {
+        let mut out = vec![];
+        ::std::mem::swap(&mut out, &mut self.templates);
+        out
+    }
 }
 
 fn candidate_type_column(cc: &ConjoiningClauses, var: &Variable) -> Result<(ColumnOrExpression, Name)> {
@@ -120,6 +145,7 @@ pub fn projected_column_for_var(var: &Variable, cc: &ConjoiningClauses) -> Resul
         Ok((ProjectedColumn(column, name), cc.known_type_set(var)))
     }
 }
+
 /// Walk an iterator of `Element`s, collecting projector templates and columns.
 ///
 /// Returns a `ProjectedElements`, which combines SQL projections
@@ -184,7 +210,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             },
         };
 
-        // Record variables -- (the ?x) and ?x are different in this regard, because we don't want
+        // Record variables -- `(the ?x)` and `?x` are different in this regard, because we don't want
         // to group on variables that are corresponding-projected.
         match e {
             &Element::Variable(ref var) => {
