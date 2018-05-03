@@ -519,9 +519,9 @@ impl Repl {
     fn binding_as_string(&self, value: &Binding) -> String {
         use self::Binding::*;
         match value {
-            Scalar(ref v) => self.value_as_string(v),
-            Map(ref v) => self.map_as_string(v),
-            Vec(ref v) => self.vec_as_string(v),
+            &Scalar(ref v) => self.value_as_string(v),
+            &Map(ref v) => self.map_as_string(v),
+            &Vec(ref v) => self.vec_as_string(v),
         }
     }
 
@@ -551,14 +551,14 @@ impl Repl {
     fn value_as_string(&self, value: &TypedValue) -> String {
         use self::TypedValue::*;
         match value {
-            Boolean(b) => if *b { "true".to_string() } else { "false".to_string() },
-            Double(d) => format!("{}", d),
-            Instant(i) => format!("{}", i),
-            Keyword(k) => format!("{}", k),
-            Long(l) => format!("{}", l),
-            Ref(r) => format!("{}", r),
-            String(s) => format!("{:?}", s.to_string()),
-            Uuid(u) => format!("{}", u),
+            &Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
+            &Double(d) => format!("{}", d),
+            &Instant(ref i) => format!("{}", i),
+            &Keyword(ref k) => format!("{}", k),
+            &Long(l) => format!("{}", l),
+            &Ref(r) => format!("{}", r),
+            &String(ref s) => format!("{:?}", s.to_string()),
+            &Uuid(ref u) => format!("{}", u),
         }
     }
 }

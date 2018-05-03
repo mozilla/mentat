@@ -167,7 +167,7 @@ impl Puller {
         let mut attrs: BTreeSet<Entid> = Default::default();
         for attr in attributes.iter() {
             match attr {
-                PullAttributeSpec::Wildcard => {
+                &PullAttributeSpec::Wildcard => {
                     let attribute_ids = schema.attribute_map.keys();
                     for id in attribute_ids {
                         names.insert(*id, lookup_name(id));
@@ -175,15 +175,15 @@ impl Puller {
                     }
                     break;
                 },
-                PullAttributeSpec::Attribute(PullConcreteAttribute::Ident(ref i)) => {
+                &PullAttributeSpec::Attribute(PullConcreteAttribute::Ident(ref i)) => {
                     if let Some(entid) = schema.get_entid(i) {
                         names.insert(entid.into(), i.clone());
                         attrs.insert(entid.into());
                     }
                 },
-                PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(id)) => {
-                    names.insert(*id, lookup_name(id));
-                    attrs.insert(*id);
+                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(ref entid)) => {
+                    names.insert(*entid, lookup_name(entid));
+                    attrs.insert(*entid);
                 },
             }
         }

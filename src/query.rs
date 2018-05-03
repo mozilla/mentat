@@ -388,9 +388,9 @@ pub fn q_uncached<'sqlite, 'schema, 'query, T>
     run_algebrized_query(known, sqlite, algebrized)
 }
 
-pub fn q_prepare<'sqlite, 'schema, 'query, T>
+pub fn q_prepare<'sqlite, 'schema, 'cache, 'query, T>
 (sqlite: &'sqlite rusqlite::Connection,
- known: Known<'schema, '_>,
+ known: Known<'schema, 'cache>,
  query: &'query str,
  inputs: T) -> PreparedResult<'sqlite>
         where T: Into<Option<QueryInputs>>
