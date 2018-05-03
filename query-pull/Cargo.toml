@@ -1,0 +1,33 @@
+[package]
+name = "mentat_query_pull"
+version = "0.0.1"
+workspace = ".."
+
+[dependencies]
+error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
+
+[dependencies.rusqlite]
+version = "0.13"
+features = ["limits"]
+
+[dependencies.mentat_core]
+path = "../core"
+
+[dependencies.mentat_db]
+path = "../db"
+
+[dependencies.mentat_query]
+path = "../query"
+
+[dependencies.mentat_query_algebrizer]
+path = "../query-algebrizer"
+
+[dependencies.mentat_query_sql]
+path = "../query-sql"
+
+[dependencies.mentat_sql]
+path = "../sql"
+
+# Only for tests.
+[dev-dependencies.mentat_query_parser]
+path = "../query-parser"
