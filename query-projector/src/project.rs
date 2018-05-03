@@ -28,6 +28,7 @@ use mentat_core::util::{
 
 use mentat_query::{
     Element,
+    Pull,
     Variable,
 };
 
@@ -62,6 +63,12 @@ use projectors::{
     Projector,
 };
 
+use pull::{
+    PullIndices,
+    PullOperation,
+    PullTemplate,
+};
+
 use super::{
     CombinedProjection,
     TypedIndex,
@@ -78,6 +85,11 @@ pub(crate) struct ProjectedElements {
     pub sql_projection: Projection,
     pub pre_aggregate_projection: Option<Projection>,
     pub templates: Vec<TypedIndex>,
+
+    // TODO: when we have an expression like
+    // [:find (pull ?x [:foo/name :foo/age]) (pull ?x [:foo/friend]) …]
+    // it would be more efficient to combine them.
+    pub pulls: Vec<PullTemplate>,
     pub group_by: Vec<GroupBy>,
 }
 
@@ -97,6 +109,12 @@ impl ProjectedElements {
     pub(crate) fn take_templates(&mut self) -> Vec<TypedIndex> {
         let mut out = vec![];
         ::std::mem::swap(&mut out, &mut self.templates);
+        out
+    }
+
+    pub(crate) fn take_pulls(&mut self) -> Vec<PullTemplate> {
+        let mut out = vec![];
+        ::std::mem::swap(&mut out, &mut self.pulls);
         out
     }
 }
@@ -174,6 +192,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     let mut i: i32 = 0;
     let mut min_max_count: usize = 0;
     let mut templates = vec![];
+    let mut pulls: Vec<PullTemplate> = vec![];
 
     let mut aggregates = false;
 
@@ -208,6 +227,8 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
             },
             &Element::Aggregate(_) => {
             },
+            &Element::Pull(_) => {
+            },
         };
 
         // Record variables -- `(the ?x)` and `?x` are different in this regard, because we don't want
@@ -220,6 +241,11 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                 // We will project these later; don't put them in `outer_variables`
                 // so we know not to group them.
                 corresponded_variables.insert(var.clone());
+            },
+            &Element::Pull(Pull { ref var, patterns: _ }) => {
+                // We treat `pull` as an ordinary variable extraction,
+                // and we expand it later.
+                outer_variables.insert(var.clone());
             },
             &Element::Aggregate(_) => {
             },
@@ -249,6 +275,35 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     let (type_column, type_name) = candidate_type_column(&query.cc, &var)?;
                     inner_projection.push(ProjectedColumn(type_column, type_name.clone()));
                     outer_projection.push(Either::Left(type_name));
+                }
+            },
+            &Element::Pull(Pull { ref var, ref patterns }) => {
+                inner_variables.insert(var.clone());
+
+                let (projected_column, type_set) = projected_column_for_var(&var, &query.cc)?;
+                outer_projection.push(Either::Left(projected_column.1.clone()));
+                inner_projection.push(projected_column);
+
+                if let Some(tag) = type_set.unique_type_tag() {
+                    // We will have at least as many SQL columns as Datalog output columns.
+                    // `i` tracks the former. The length of `templates` is the current latter.
+                    // Projecting pull requires grabbing values, which we can do from the raw
+                    // rows, and then populating the output, so we keep both column indices.
+                    let output_index = templates.len();
+                    assert!(output_index <= i as usize);
+
+                    templates.push(TypedIndex::Known(i, tag));
+                    pulls.push(PullTemplate {
+                        indices: PullIndices {
+                            sql_index: i,
+                            output_index,
+                        },
+                        op: PullOperation((*patterns).clone()),
+                    });
+                    i += 1;     // We used one SQL column.
+                } else {
+                    // This should be impossible: (pull ?x) implies that ?x is a ref.
+                    unreachable!();
                 }
             },
             &Element::Aggregate(ref a) => {
@@ -357,6 +412,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                       sql_projection: Projection::Columns(inner_projection),
                       pre_aggregate_projection: None,
                       templates,
+                      pulls,
                       group_by: vec![],
                   });
     }
@@ -460,6 +516,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         sql_projection: Projection::Columns(outer_projection),
         pre_aggregate_projection: Some(Projection::Columns(inner_projection)),
         templates,
+        pulls,
         group_by,
     })
 }

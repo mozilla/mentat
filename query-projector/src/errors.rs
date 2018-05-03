@@ -20,6 +20,8 @@ use mentat_query::{
     PlainSymbol,
 };
 
+use mentat_query_pull;
+
 use aggregates::{
     SimpleAggregationOp,
 };
@@ -72,5 +74,6 @@ error_chain! {
 
     links {
         DbError(mentat_db::Error, mentat_db::ErrorKind);
+        PullError(mentat_query_pull::errors::Error, mentat_query_pull::errors::ErrorKind);
     }
 }

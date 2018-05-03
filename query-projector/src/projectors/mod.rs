@@ -27,6 +27,7 @@ pub trait Projector {
 
 mod constant;
 mod simple;
+mod pull_two_stage;
 
 pub use self::constant::ConstantProjector;
 
@@ -35,4 +36,11 @@ pub(crate) use self::simple::{
     RelProjector,
     ScalarProjector,
     TupleProjector,
+};
+
+pub(crate) use self::pull_two_stage::{
+    CollTwoStagePullProjector,
+    RelTwoStagePullProjector,
+    ScalarTwoStagePullProjector,
+    TupleTwoStagePullProjector,
 };
