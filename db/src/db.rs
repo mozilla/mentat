@@ -1574,16 +1574,19 @@ mod tests {
             {:db/id "d" :test/id "3" :test/ref "c"}
         ]"#);
 
-        assert_matches!(tempids(&report),
-                        r#"{"a" 100
-                            "b" 101
-                            "c" 102
-                            "d" 103}"#);
+        assert_matches!(tempids(&report), r#"{
+            "a" 100
+            "b" 101
+            "c" 102
+            "d" 103
+        }"#);
 
-        assert_matches!(conn.last_transaction(),
-                        r#"[[101 :test/id "1"]
-                            [102 :test/id "2"]
-                            [103 :test/id "3"]]"#);
+        assert_matches!(conn.last_transaction(), r#"[
+            [101 :test/id "1" ?tx true]
+            [102 :test/id "2" ?tx true]
+            [103 :test/id "3" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]
+        ]"#);
     }
 
     #[test]

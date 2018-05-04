@@ -634,6 +634,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             debug!("tempids {:?}", tempids);
         }
 
+        generation.allocate_unresolved_upserts()?;
+
         debug!("final generation {:?}", generation);
 
         // Allocate entids for tempids that didn't upsert.  BTreeMap so this is deterministic.

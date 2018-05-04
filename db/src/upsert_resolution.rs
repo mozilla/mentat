@@ -139,11 +139,10 @@ impl Generation {
 
     /// Return true if it's possible to evolve this generation further.
     ///
-    /// There can be complex upserts but no simple upserts to help resolve them.  We accept the
-    /// overhead of having the database try to resolve an empty set of simple upserts, to avoid
-    /// having to special case complex upserts at entid allocation time.
+    /// Note that there can be complex upserts but no simple upserts to help resolve them, and in
+    /// this case, we cannot evolve further.
     pub(crate) fn can_evolve(&self) -> bool {
-        !self.upserts_e.is_empty() || !self.upserts_ev.is_empty()
+        !self.upserts_e.is_empty()
     }
 
     /// Evolve this generation one step further by rewriting the existing :db/add entities using the
@@ -174,7 +173,7 @@ impl Generation {
                 },
                 (None, Some(&n2)) => next.upserts_e.push(UpsertE(t1, a, TypedValue::Ref(n2.0))),
                 (Some(&n1), None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Left(n1), a, Right(t2))),
-                (None, None) => next.allocations.push(Term::AddOrRetract(OpType::Add, Right(t1), a, Right(t2))),
+                (None, None) => next.upserts_ev.push(UpsertEV(t1, a, t2))
             }
         }
 
@@ -221,6 +220,16 @@ impl Generation {
             temp_id_avs.push((t.clone(), (*a, v.clone())));
         }
         temp_id_avs
+    }
+
+    /// Evolve potential upserts that haven't resolved into allocations.
+    pub(crate) fn allocate_unresolved_upserts(&mut self) -> errors::Result<()> {
+        let mut upserts_ev = vec![];
+        ::std::mem::swap(&mut self.upserts_ev, &mut upserts_ev);
+
+        self.allocations.extend(upserts_ev.into_iter().map(|UpsertEV(t1, a, t2)| Term::AddOrRetract(OpType::Add, Right(t1), a, Right(t2))));
+
+        Ok(())
     }
 
     /// After evolution is complete, yield the set of tempids that require entid allocation are the
