@@ -101,7 +101,7 @@ fn inner_translate_with_inputs(schema: &Schema, query: &'static str, inputs: Que
     let known = Known::for_schema(schema);
     let parsed = parse_find_string(query).expect("parse to succeed");
     let algebrized = algebrize_with_inputs(known, parsed, 0, inputs).expect("algebrize to succeed");
-    query_to_select(algebrized).expect("translate to succeed")
+    query_to_select(schema, algebrized).expect("translate to succeed")
 }
 
 fn translate_with_inputs(schema: &Schema, query: &'static str, inputs: QueryInputs) -> SQLQuery {
@@ -249,7 +249,7 @@ fn test_bound_variable_limit_affects_types() {
     assert_eq!(Some(ValueType::Long),
                algebrized.cc.known_type(&Variable::from_valid_name("?limit")));
 
-    let select = query_to_select(algebrized).expect("query to translate");
+    let select = query_to_select(&schema, algebrized).expect("query to translate");
     let SQLQuery { sql, args } = query_to_sql(select);
 
     // TODO: this query isn't actually correct -- we don't yet algebrize for variables that are
@@ -340,7 +340,7 @@ fn test_unknown_ident() {
     assert!(algebrized.is_known_empty());
 
     // If you insist…
-    let select = query_to_select(algebrized).expect("query to translate");
+    let select = query_to_select(&schema, algebrized).expect("query to translate");
     assert_query_is_empty(select, FindSpec::FindRel(vec![var!(?x).into()]));
 }
 

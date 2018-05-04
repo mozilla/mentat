@@ -96,11 +96,16 @@ impl<T> FromRc<T> for Box<T> where T: Sized + Clone {
 // We do this a lot for errors.
 pub trait Cloned<T> {
     fn cloned(&self) -> T;
+    fn to_value_rc(&self) -> ValueRc<T>;
 }
 
 impl<T: Clone> Cloned<T> for Rc<T> where T: Sized + Clone {
     fn cloned(&self) -> T {
         (*self.as_ref()).clone()
+    }
+
+    fn to_value_rc(&self) -> ValueRc<T> {
+        ValueRc::from_rc(self.clone())
     }
 }
 
@@ -108,11 +113,19 @@ impl<T: Clone> Cloned<T> for Arc<T> where T: Sized + Clone {
     fn cloned(&self) -> T {
         (*self.as_ref()).clone()
     }
+
+    fn to_value_rc(&self) -> ValueRc<T> {
+        ValueRc::from_arc(self.clone())
+    }
 }
 
 impl<T: Clone> Cloned<T> for Box<T> where T: Sized + Clone {
     fn cloned(&self) -> T {
         self.as_ref().clone()
+    }
+
+    fn to_value_rc(&self) -> ValueRc<T> {
+        ValueRc::new(self.cloned())
     }
 }
 
@@ -284,8 +297,14 @@ pub enum Binding {
 }
 
 impl<T> From<T> for Binding where T: Into<TypedValue> {
-    fn from(value: T) -> Binding {
+    fn from(value: T) -> Self {
         Binding::Scalar(value.into())
+    }
+}
+
+impl From<StructuredMap> for Binding {
+    fn from(value: StructuredMap) -> Self {
+        Binding::Map(ValueRc::new(value))
     }
 }
 
@@ -308,8 +327,31 @@ impl Binding {
 ///
 /// We entirely support the former, and partially support the latter -- you can alias
 /// using a different keyword only.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StructuredMap(IndexMap<ValueRc<NamespacedKeyword>, Binding>);
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StructuredMap(pub IndexMap<ValueRc<NamespacedKeyword>, Binding>);
+
+impl StructuredMap {
+    pub fn insert<N, B>(&mut self, name: N, value: B) where N: Into<ValueRc<NamespacedKeyword>>, B: Into<Binding> {
+        self.0.insert(name.into(), value.into());
+    }
+}
+
+impl From<IndexMap<ValueRc<NamespacedKeyword>, Binding>> for StructuredMap {
+    fn from(src: IndexMap<ValueRc<NamespacedKeyword>, Binding>) -> Self {
+        StructuredMap(src)
+    }
+}
+
+// Mostly for testing.
+impl<T> From<Vec<(NamespacedKeyword, T)>> for StructuredMap where T: Into<Binding> {
+    fn from(value: Vec<(NamespacedKeyword, T)>) -> Self {
+        let mut sm = StructuredMap::default();
+        for (k, v) in value.into_iter() {
+            sm.insert(k, v);
+        }
+        sm
+    }
+}
 
 impl Binding {
     /// Returns true if the provided type is `Some` and matches this value's type, or if the

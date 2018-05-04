@@ -77,6 +77,7 @@ use num;
 use rusqlite;
 
 use mentat_core::{
+    Binding,
     CachedAttributes,
     Entid,
     HasSchema,
@@ -88,6 +89,12 @@ use mentat_core::{
 
 use mentat_core::util::{
     Either,
+};
+
+use mentat_sql::{
+    QueryBuilder,
+    SQLiteQueryBuilder,
+    SQLQuery,
 };
 
 use mentat_tx::entities::{
@@ -241,6 +248,11 @@ impl<'conn, F> Iterator for AevRows<'conn, F> where F: FnMut(&rusqlite::Row) -> 
 // - cardinality/one doesn't need a vec
 // - unique/* should ideally have a bijective mapping (reverse lookup)
 
+pub trait AttributeCache {
+    fn has_e(&self, e: Entid) -> bool;
+    fn binding_for_e(&self, e: Entid) -> Option<Binding>;
+}
+
 trait RemoveFromCache {
     fn remove(&mut self, e: Entid, v: &TypedValue);
 }
@@ -270,6 +282,16 @@ impl Absorb for SingleValAttributeCache {
     fn absorb(&mut self, other: Self) {
         assert_eq!(self.attr, other.attr);
         self.e_v.absorb(other.e_v);
+    }
+}
+
+impl AttributeCache for SingleValAttributeCache {
+    fn binding_for_e(&self, e: Entid) -> Option<Binding> {
+        self.get(e).map(|v| v.clone().into())
+    }
+
+    fn has_e(&self, e: Entid) -> bool {
+        self.e_v.contains_key(&e)
     }
 }
 
@@ -329,6 +351,19 @@ impl Absorb for MultiValAttributeCache {
                 self.e_vs.insert(e, vs);
             }
         }
+    }
+}
+
+impl AttributeCache for MultiValAttributeCache {
+    fn binding_for_e(&self, e: Entid) -> Option<Binding> {
+        self.e_vs.get(&e).map(|vs| {
+            let bindings = vs.iter().cloned().map(|v| v.into()).collect();
+            Binding::Vec(ValueRc::new(bindings))
+        })
+    }
+
+    fn has_e(&self, e: Entid) -> bool {
+        self.e_vs.contains_key(&e)
     }
 }
 
@@ -861,15 +896,218 @@ impl AttributeCaches {
         let sql = format!("SELECT a, e, v, value_type_tag FROM {} WHERE a = ? ORDER BY a ASC, e ASC", table);
         let args: Vec<&rusqlite::types::ToSql> = vec![&attribute];
         let mut stmt = sqlite.prepare(&sql)?;
+        let replacing = true;
+        self.repopulate_from_aevt(schema, &mut stmt, args, replacing)
+    }
+
+    fn repopulate_from_aevt<'a, 's, 'c, 'v>(&'a mut self,
+                                            schema: &'s Schema,
+                                            statement: &'c mut rusqlite::Statement,
+                                            args: Vec<&'v rusqlite::types::ToSql>,
+                                            replacing: bool) -> Result<()> {
         let mut aev_factory = AevFactory::new();
-        let rows = stmt.query_map(&args, |row| aev_factory.row_to_aev(row))?;
+        let rows = statement.query_map(&args, |row| aev_factory.row_to_aev(row))?;
         let aevs = AevRows {
             rows: rows,
         };
-        self.accumulate_into_cache(None, schema, aevs.peekable(), AccumulationBehavior::Add { replacing: true })?;
+        self.accumulate_into_cache(None, schema, aevs.peekable(), AccumulationBehavior::Add { replacing })?;
         Ok(())
     }
 }
+
+#[derive(Clone)]
+pub enum AttributeSpec {
+    All,
+    Specified {
+        // These are assumed to not include duplicates.
+        fts: Vec<Entid>,
+        non_fts: Vec<Entid>,
+    },
+}
+
+impl AttributeSpec {
+    pub fn all() -> AttributeSpec {
+        AttributeSpec::All
+    }
+
+    pub fn specified(attrs: &BTreeSet<Entid>, schema: &Schema) -> AttributeSpec {
+        let mut fts = Vec::with_capacity(attrs.len());
+        let mut non_fts = Vec::with_capacity(attrs.len());
+        for attr in attrs.iter() {
+            if let Some(a) = schema.attribute_for_entid(*attr) {
+                if a.fulltext {
+                    fts.push(*attr);
+                } else {
+                    non_fts.push(*attr);
+                }
+            }
+        }
+
+        AttributeSpec::Specified { fts, non_fts }
+    }
+}
+
+impl AttributeCaches {
+    /// Fetch the requested entities and attributes from the store and put them in the cache.
+    ///
+    /// The caller is responsible for ensuring that `entities` is unique, and for avoiding any
+    /// redundant work.
+    ///
+    /// Each provided attribute will be marked as forward-cached; the caller is responsible for
+    /// ensuring that this cache is complete or that it is not expected to be complete.
+    fn populate_cache_for_entities_and_attributes<'s, 'c>(&mut self,
+                                                          schema: &'s Schema,
+                                                          sqlite: &'c rusqlite::Connection,
+                                                          attrs: AttributeSpec,
+                                                          entities: &Vec<Entid>) -> Result<()> {
+
+        // Mark the attributes as cached as we go. We do this because we're going in through the
+        // back door here, and the usual caching API won't have taken care of this for us.
+        let mut qb = SQLiteQueryBuilder::new();
+        qb.push_sql("SELECT a, e, v, value_type_tag FROM ");
+        match attrs {
+            AttributeSpec::All => {
+                qb.push_sql("all_datoms WHERE e IN (");
+                interpose!(item, entities,
+                           { qb.push_sql(&item.to_string()) },
+                           { qb.push_sql(", ") });
+                qb.push_sql(") ORDER BY a ASC, e ASC");
+
+                self.forward_cached_attributes.extend(schema.attribute_map.keys());
+            },
+            AttributeSpec::Specified { fts, non_fts } => {
+                let has_fts = !fts.is_empty();
+                let has_non_fts = !non_fts.is_empty();
+
+                if !has_fts && !has_non_fts {
+                    // Nothing to do.
+                    return Ok(());
+                }
+
+                if has_non_fts {
+                    qb.push_sql("datoms WHERE e IN (");
+                    interpose!(item, entities,
+                               { qb.push_sql(&item.to_string()) },
+                               { qb.push_sql(", ") });
+                    qb.push_sql(") AND a IN (");
+                    interpose!(item, non_fts,
+                               { qb.push_sql(&item.to_string()) },
+                               { qb.push_sql(", ") });
+                    qb.push_sql(")");
+
+                    self.forward_cached_attributes.extend(non_fts.iter());
+                }
+
+                if has_fts && has_non_fts {
+                    // Both.
+                    qb.push_sql(" UNION ALL SELECT a, e, v, value_type_tag FROM ");
+                }
+
+                if has_fts {
+                    qb.push_sql("fulltext_datoms WHERE e IN (");
+                    interpose!(item, entities,
+                               { qb.push_sql(&item.to_string()) },
+                               { qb.push_sql(", ") });
+                    qb.push_sql(") AND a IN (");
+                    interpose!(item, fts,
+                               { qb.push_sql(&item.to_string()) },
+                               { qb.push_sql(", ") });
+                    qb.push_sql(")");
+
+                    self.forward_cached_attributes.extend(fts.iter());
+                }
+                qb.push_sql(" ORDER BY a ASC, e ASC");
+            },
+        };
+
+        let SQLQuery { sql, args } = qb.finish();
+        assert!(args.is_empty());                       // TODO: we know there are never args, but we'd like to run this query 'properly'.
+        let mut stmt = sqlite.prepare(sql.as_str())?;
+        let replacing = false;
+        self.repopulate_from_aevt(schema, &mut stmt, vec![], replacing)
+    }
+
+    /// Return a reference to the cache for the provided `a`, if `a` names an attribute that is
+    /// cached in the forward direction. If `a` doesn't name an attribute, or it's not cached at
+    /// all, or it's only cached in reverse (`v` to `e`, not `e` to `v`), `None` is returned.
+    pub fn forward_attribute_cache_for_attribute<'a, 's>(&'a self, schema: &'s Schema, a: Entid) -> Option<&'a AttributeCache> {
+        if !self.forward_cached_attributes.contains(&a) {
+            return None;
+        }
+        schema.attribute_for_entid(a)
+              .and_then(|attr|
+                if attr.multival {
+                    self.multi_vals.get(&a).map(|v| v as &AttributeCache)
+                } else {
+                    self.single_vals.get(&a).map(|v| v as &AttributeCache)
+                })
+    }
+
+    /// Fetch the requested entities and attributes from the store and put them in the cache.
+    /// The caller is responsible for ensuring that `entities` is unique.
+    /// Attributes for which every entity is already cached will not be processed again.
+    pub fn extend_cache_for_entities_and_attributes<'s, 'c>(&mut self,
+                                                            schema: &'s Schema,
+                                                            sqlite: &'c rusqlite::Connection,
+                                                            mut attrs: AttributeSpec,
+                                                            entities: &Vec<Entid>) -> Result<()> {
+        // TODO: Exclude any entities for which every attribute is known.
+        // TODO: initialize from an existing (complete) AttributeCache.
+
+        // Exclude any attributes for which every entity's value is already known.
+        match &mut attrs {
+            &mut AttributeSpec::All => {
+                // If we're caching all attributes, there's nothing we can exclude.
+            },
+            &mut AttributeSpec::Specified { ref mut non_fts, ref mut fts } => {
+                // Remove any attributes for which all entities are present in the cache (even
+                // as a 'miss').
+                let exclude_missing = |vec: &mut Vec<Entid>| {
+                    vec.retain(|a| {
+                        if let Some(attr) = schema.attribute_for_entid(*a) {
+                            if !self.forward_cached_attributes.contains(a) {
+                                // The attribute isn't cached at all. Do the work for all entities.
+                                return true;
+                            }
+
+                            // Return true if there are any entities missing for this attribute.
+                            if attr.multival {
+                                self.multi_vals
+                                    .get(&a)
+                                    .map(|cache| entities.iter().any(|e| !cache.has_e(*e)))
+                                    .unwrap_or(true)
+                            } else {
+                                self.single_vals
+                                    .get(&a)
+                                    .map(|cache| entities.iter().any(|e| !cache.has_e(*e)))
+                                    .unwrap_or(true)
+                            }
+                        } else {
+                            // Unknown attribute.
+                            false
+                        }
+                    });
+                };
+                exclude_missing(non_fts);
+                exclude_missing(fts);
+            },
+        }
+
+        self.populate_cache_for_entities_and_attributes(schema, sqlite, attrs, entities)
+    }
+
+    /// Fetch the requested entities and attributes and put them in a new cache.
+    /// The caller is responsible for ensuring that `entities` is unique.
+    pub fn make_cache_for_entities_and_attributes<'s, 'c>(schema: &'s Schema,
+                                                          sqlite: &'c rusqlite::Connection,
+                                                          attrs: AttributeSpec,
+                                                          entities: &Vec<Entid>) -> Result<AttributeCaches> {
+        let mut cache = AttributeCaches::default();
+        cache.populate_cache_for_entities_and_attributes(schema, sqlite, attrs, entities)?;
+        Ok(cache)
+    }
+}
+
 
 impl CachedAttributes for AttributeCaches {
     fn get_values_for_entid(&self, schema: &Schema, attribute: Entid, entid: Entid) -> Option<&Vec<TypedValue>> {

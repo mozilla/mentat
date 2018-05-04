@@ -84,7 +84,7 @@ fn test_aggregate_unsuitable_type() {
     let algebrized = algebrize(Known::for_schema(&schema), parsed).expect("query algebrizes");
 
     // … when we look at the projection list, we cannot reconcile the types.
-    assert!(query_projection(&algebrized).is_err());
+    assert!(query_projection(&schema, &algebrized).is_err());
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn test_the_without_max_or_min() {
     let algebrized = algebrize(Known::for_schema(&schema), parsed).expect("query algebrizes");
 
     // … when we look at the projection list, we cannot reconcile the types.
-    let projection = query_projection(&algebrized);
+    let projection = query_projection(&schema, &algebrized);
     assert!(projection.is_err());
     use ::mentat_query_projector::errors::{
         ErrorKind,

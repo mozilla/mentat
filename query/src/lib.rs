@@ -486,18 +486,61 @@ impl PatternValuePlace {
     }
 }
 
-/*
-pub enum PullPattern {
-    Constant(Constant),
-    Variable(Variable),
+// Not yet used.
+// pub enum PullDefaultValue {
+//     EntidOrInteger(i64),
+//     IdentOrKeyword(Rc<NamespacedKeyword>),
+//     Constant(NonIntegerConstant),
+// }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PullConcreteAttribute {
+    Ident(Rc<NamespacedKeyword>),
+    Entid(i64),
 }
 
-pub struct Pull {
-    pub src: SrcVar,
-    pub var: Variable,
-    pub pattern: PullPattern,      // Constant, variable, or plain variable.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PullAttributeSpec {
+    Wildcard,
+    Attribute(PullConcreteAttribute),
+    // PullMapSpec(Vec<…>),
+    // AttributeWithOpts(PullConcreteAttribute, …),
+    // LimitedAttribute(PullConcreteAttribute, u64),  // Limit nil => Attribute instead.
+    // DefaultedAttribute(PullConcreteAttribute, PullDefaultValue),
 }
-*/
+
+impl std::fmt::Display for PullConcreteAttribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &PullConcreteAttribute::Ident(ref k) => {
+                write!(f, "{}", k)
+            },
+            &PullConcreteAttribute::Entid(i) => {
+                write!(f, "{}", i)
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for PullAttributeSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &PullAttributeSpec::Wildcard => {
+                write!(f, "*")
+            },
+            &PullAttributeSpec::Attribute(ref a) => {
+                write!(f, "{}", a)
+            },
+        }
+    }
+}
+
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Pull {
+    pub var: Variable,
+    pub patterns: Vec<PullAttributeSpec>,
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Aggregate {
@@ -516,7 +559,7 @@ pub enum Element {
     /// `max` or `min` cannot yield predictable behavior, and will err during
     /// algebrizing.
     Corresponding(Variable),
-    // Pull(Pull),             // TODO
+    Pull(Pull),
 }
 
 impl Element {
@@ -524,6 +567,7 @@ impl Element {
     pub fn is_unit(&self) -> bool {
         match self {
             &Element::Variable(_) => false,
+            &Element::Pull(_) => false,
             &Element::Aggregate(_) => true,
             &Element::Corresponding(_) => true,
         }
@@ -541,6 +585,13 @@ impl std::fmt::Display for Element {
         match self {
             &Element::Variable(ref var) => {
                 write!(f, "{}", var)
+            },
+            &Element::Pull(Pull { ref var, ref patterns }) => {
+                write!(f, "(pull {} [ ", var)?;
+                for p in patterns.iter() {
+                    write!(f, "{} ", p)?;
+                }
+                write!(f, "])")
             },
             &Element::Aggregate(ref agg) => {
                 match agg.args.len() {
@@ -573,10 +624,7 @@ pub enum Limit {
 /// Examples:
 ///
 /// ```rust
-/// # extern crate edn;
 /// # extern crate mentat_query;
-/// # use std::rc::Rc;
-/// # use edn::PlainSymbol;
 /// # use mentat_query::{Element, FindSpec, Variable};
 ///
 /// # fn main() {

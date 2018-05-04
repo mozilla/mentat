@@ -9,7 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate regex;
-extern crate mentat_core;
+#[macro_use] extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_sql;
@@ -252,42 +252,6 @@ fn push_column(qb: &mut QueryBuilder, col: &Column) -> BuildQueryResult {
 
 //---------------------------------------------------------
 // Turn that representation into SQL.
-
-
-/// A helper macro to sequentially process an iterable sequence,
-/// evaluating a block between each pair of items.
-///
-/// This is used to simply and efficiently produce output like
-///
-/// ```sql
-///   1, 2, 3
-/// ```
-///
-/// or
-///
-/// ```sql
-/// x = 1 AND y = 2
-/// ```
-///
-/// without producing an intermediate string sequence.
-macro_rules! interpose {
-    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
-        interpose_iter!($name, $across.iter(), $body, $inter)
-    }
-}
-
-macro_rules! interpose_iter {
-    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
-        let mut seq = $across;
-        if let Some($name) = seq.next() {
-            $body;
-            for $name in seq {
-                $inter;
-                $body;
-            }
-        }
-    }
-}
 
 impl QueryFragment for ColumnOrExpression {
     fn push_sql(&self, out: &mut QueryBuilder) -> BuildQueryResult {

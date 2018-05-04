@@ -23,6 +23,10 @@ use time::{
     PreciseTime,
 };
 
+use mentat_core::{
+    StructuredMap,
+};
+
 use mentat::{
     CacheDirection,
     NamespacedKeyword,
@@ -423,14 +427,14 @@ impl Repl {
         match query_output.results {
             QueryResults::Scalar(v) => {
                 if let Some(val) = v {
-                    writeln!(output, "| {}\t |", &self.binding_as_string(val))?;
+                    writeln!(output, "| {}\t |", &self.binding_as_string(&val))?;
                 }
             },
 
             QueryResults::Tuple(vv) => {
                 if let Some(vals) = vv {
                     for val in vals {
-                        write!(output, "| {}\t", self.binding_as_string(val))?;
+                        write!(output, "| {}\t", self.binding_as_string(&val))?;
                     }
                     writeln!(output, "|")?;
                 }
@@ -438,14 +442,14 @@ impl Repl {
 
             QueryResults::Coll(vv) => {
                 for val in vv {
-                    writeln!(output, "| {}\t|", self.binding_as_string(val))?;
+                    writeln!(output, "| {}\t|", self.binding_as_string(&val))?;
                 }
             },
 
             QueryResults::Rel(vvv) => {
                 for vv in vvv {
                     for v in vv {
-                        write!(output, "| {}\t", self.binding_as_string(v))?;
+                        write!(output, "| {}\t", self.binding_as_string(&v))?;
                     }
                     writeln!(output, "|")?;
                 }
@@ -512,26 +516,53 @@ impl Repl {
         Ok(report)
     }
 
-    fn binding_as_string(&self, value: Binding) -> String {
+    fn binding_as_string(&self, value: &Binding) -> String {
         use self::Binding::*;
         match value {
-            Scalar(v) => self.value_as_string(v),
-            Map(_) => format!("TODO"),
-            Vec(_) => format!("TODO"),
+            &Scalar(ref v) => self.value_as_string(v),
+            &Map(ref v) => self.map_as_string(v),
+            &Vec(ref v) => self.vec_as_string(v),
         }
     }
 
-    fn value_as_string(&self, value: TypedValue) -> String {
+    fn vec_as_string(&self, value: &Vec<Binding>) -> String {
+        let mut out: String = "[".to_string();
+        let vals: Vec<String> = value.iter()
+                                     .map(|v| self.binding_as_string(v))
+                                     .collect();
+
+        out.push_str(vals.join(", ").as_str());
+        out.push_str("]");
+        out
+    }
+
+    fn map_as_string(&self, value: &StructuredMap) -> String {
+        let mut out: String = "{".to_string();
+        let mut first = true;
+        for (k, v) in value.0.iter() {
+            if !first {
+                out.push_str(", ");
+                first = true;
+            }
+            out.push_str(&k.to_string());
+            out.push_str(" ");
+            out.push_str(self.binding_as_string(v).as_str());
+        }
+        out.push_str("}");
+        out
+    }
+
+    fn value_as_string(&self, value: &TypedValue) -> String {
         use self::TypedValue::*;
         match value {
-            Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
-            Double(d) => format!("{}", d),
-            Instant(i) => format!("{}", i),
-            Keyword(k) => format!("{}", k),
-            Long(l) => format!("{}", l),
-            Ref(r) => format!("{}", r),
-            String(s) => format!("{:?}", s.to_string()),
-            Uuid(u) => format!("{}", u),
+            &Boolean(b) => if b { "true".to_string() } else { "false".to_string() },
+            &Double(d) => format!("{}", d),
+            &Instant(ref i) => format!("{}", i),
+            &Keyword(ref k) => format!("{}", k),
+            &Long(l) => format!("{}", l),
+            &Ref(r) => format!("{}", r),
+            &String(ref s) => format!("{:?}", s.to_string()),
+            &Uuid(ref u) => format!("{}", u),
         }
     }
 }

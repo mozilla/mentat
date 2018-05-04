@@ -64,6 +64,9 @@ path = "query-parser"
 [dependencies.mentat_query_projector]
 path = "query-projector"
 
+[dependencies.mentat_query_pull]
+path = "query-pull"
+
 [dependencies.mentat_query_sql]
 path = "query-sql"
 

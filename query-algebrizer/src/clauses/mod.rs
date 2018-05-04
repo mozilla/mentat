@@ -40,7 +40,10 @@ use mentat_core::{
 use mentat_core::counter::RcCounter;
 
 use mentat_query::{
+    Element,
+    FindSpec,
     NamespacedKeyword,
+    Pull,
     Variable,
     WhereClause,
 };
@@ -330,6 +333,21 @@ impl ConjoiningClauses {
                                .map(|(k, v)| (k.clone(), ValueTypeSet::of_one(*v))));
                 cc
             },
+        }
+    }
+}
+
+/// Early-stage query handling.
+impl ConjoiningClauses {
+    pub(crate) fn derive_types_from_find_spec(&mut self, find_spec: &FindSpec) {
+        for spec in find_spec.columns() {
+            match spec {
+                &Element::Pull(Pull { ref var, patterns: _ }) => {
+                    self.constrain_var_to_type(var.clone(), ValueType::Ref);
+                },
+                _ => {
+                },
+            }
         }
     }
 }

@@ -161,6 +161,10 @@ impl AlgebraicQuery {
         self.find_spec
             .columns()
             .all(|e| match e {
+                // Pull expressions are never fully bound.
+                // TODO: but the 'inside' of a pull expression certainly can be.
+                &Element::Pull(_) => false,
+
                 &Element::Variable(ref var) |
                 &Element::Corresponding(ref var) => self.cc.is_value_bound(var),
 
@@ -274,6 +278,9 @@ pub fn algebrize_with_inputs(known: Known,
                              inputs: QueryInputs) -> Result<AlgebraicQuery> {
     let alias_counter = RcCounter::with_initial(counter);
     let mut cc = ConjoiningClauses::with_inputs_and_alias_counter(parsed.in_vars, inputs, alias_counter);
+
+    // This is so the rest of the query knows that `?x` is a ref if `(pull ?x …)` appears in `:find`.
+    cc.derive_types_from_find_spec(&parsed.find_spec);
 
     // Do we have a variable limit? If so, tell the CC that the var must be numeric.
     if let &Limit::Variable(ref var) = &parsed.limit {

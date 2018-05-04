@@ -116,7 +116,7 @@ macro_rules! assert_parse_failure_contains {
         let input = edn::parse::value($input).expect("to be able to parse input as EDN");
         let par = $parser();
         let stream = input.atom_stream();
-        let result = par.skip(eof()).parse(stream).map(|x| x.0).map_err(|e| -> ::ValueParseError { e.into() });
+        let result = par.skip(eof()).parse(stream).map(|x| x.0).map_err(|e| -> $crate::ValueParseError { e.into() });
         assert!(format!("{:?}", result).contains($expected), "Expected {:?} to contain {:?}", result, $expected);
     }}
 }
