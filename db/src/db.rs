@@ -1078,21 +1078,40 @@ impl PartitionMapping for PartitionMap {
 
 #[cfg(test)]
 mod tests {
+    extern crate env_logger;
+
     use super::*;
     use bootstrap;
     use debug;
+    use errors;
     use edn;
     use mentat_core::{
         HasSchema,
+        KnownEntid,
         NamespacedKeyword,
         attribute,
+    };
+    use mentat_core::intern_set::{
+        InternSet,
+    };
+    use mentat_core::util::Either::*;
+    use mentat_tx::entities::{
+        OpType,
+        TempId,
     };
     use mentat_tx_parser;
     use rusqlite;
     use std::collections::{
         BTreeMap,
     };
+    use internal_types::{
+        Term,
+        TermWithTempIds,
+    };
     use types::TxReport;
+    use tx::{
+        transact_terms,
+    };
 
     // Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
     // against it.
@@ -1116,10 +1135,12 @@ mod tests {
     // This unwraps safely and makes asserting errors pleasant.
     macro_rules! assert_transact {
         ( $conn: expr, $input: expr, $expected: expr ) => {{
+            trace!("assert_transact: {}", $input);
             let result = $conn.transact($input).map_err(|e| e.to_string());
             assert_eq!(result, $expected.map_err(|e| e.to_string()));
         }};
         ( $conn: expr, $input: expr ) => {{
+            trace!("assert_transact: {}", $input);
             let result = $conn.transact($input);
             assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
             result.unwrap()
@@ -1154,6 +1175,29 @@ mod tests {
                 let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
                 // Applying the transaction can fail, so we don't unwrap.
                 let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), entities)?;
+                tx.commit()?;
+                details
+            };
+
+            let (report, next_partition_map, next_schema, _watcher) = details;
+            self.partition_map = next_partition_map;
+            if let Some(next_schema) = next_schema {
+                self.schema = next_schema;
+            }
+
+            // Verify that we've updated the materialized views during transacting.
+            self.assert_materialized_views();
+
+            Ok(report)
+        }
+
+        fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
+            let details = {
+                // The block scopes the borrow of self.sqlite.
+                // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
+                let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                // Applying the transaction can fail, so we don't unwrap.
+                let details = transact_terms(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), terms, tempid_set)?;
                 tx.commit()?;
                 details
             };
@@ -1316,7 +1360,7 @@ mod tests {
         assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
                                  [:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
                                  [:db/add 102 :db/ident :name/Vlad]]",
-                         Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(268435458, 3, Instant(2017-06-16T00:59:11.257Z)), (268435458, 3, Instant(2017-06-16T00:59:11.752Z))] }\n"));
+                         Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 268435458, a: 3, vs: {Instant(2017-06-16T00:59:11.257Z), Instant(2017-06-16T00:59:11.752Z)} }\n"));
 
         // Test multiple txInstants with the same value.
         assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
@@ -2423,7 +2467,7 @@ mod tests {
             [:db/add "bar" :test/one 124]
         ]"#,
         // This is implementation specific (due to the allocated entid), but it should be deterministic.
-        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(65536, 111, Long(123)), (65536, 111, Long(124))] }\n"));
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 65536, a: 111, vs: {Long(123), Long(124)} }\n"));
 
         // It also fails for map notation.
         assert_transact!(conn, r#"[
@@ -2431,7 +2475,7 @@ mod tests {
             {:test/unique "x", :test/one 124}
         ]"#,
         // This is implementation specific (due to the allocated entid), but it should be deterministic.
-        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(65536, 111, Long(123)), (65536, 111, Long(124))] }\n"));
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 65536, a: 111, vs: {Long(123), Long(124)} }\n"));
     }
 
     #[test]
@@ -2483,7 +2527,7 @@ mod tests {
             [:db/add "x" :page/ref 333]
             [:db/add "x" :page/ref 444]
         ]"#,
-        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { added: [(65539, 65537, Ref(333)), (65539, 65537, Ref(444))] }\n"));
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 65539, a: 65537, vs: {Ref(333), Ref(444)} }\n"));
     }
 
     #[test]
@@ -2533,5 +2577,81 @@ mod tests {
                           [?e :page/title \"x\" ?tx true]
                           [?e :page/title \"y\" ?tx true]
                           [?tx :db/txInstant ?ms ?tx true]]");
+    }
+
+    #[test]
+    fn test_term_typechecking_issue_663() {
+        // The builder interfaces provide untrusted `Term` instances to the transactor, bypassing
+        // the typechecking layers invoked in the schema-aware coercion from `edn::Value` into
+        // `TypedValue`.  Typechecking now happens lower in the stack (as well as higher in the
+        // stack) so we shouldn't be able to insert bad data into the store.
+
+        let mut conn = TestConn::default();
+
+        let mut terms = vec![];
+
+        terms.push(Term::AddOrRetract(OpType::Add, Left(KnownEntid(200)), entids::DB_IDENT, Left(TypedValue::typed_string("test"))));
+        terms.push(Term::AddOrRetract(OpType::Retract, Left(KnownEntid(100)), entids::DB_TX_INSTANT, Left(TypedValue::Long(-1))));
+
+        let report = conn.transact_simple_terms(terms, InternSet::new());
+
+        match report.unwrap_err() {
+            errors::Error(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms }), _) => {
+                let mut map = BTreeMap::default();
+                map.insert((100, entids::DB_TX_INSTANT, TypedValue::Long(-1)), ValueType::Instant);
+                map.insert((200, entids::DB_IDENT, TypedValue::typed_string("test")), ValueType::Keyword);
+
+                assert_eq!(conflicting_datoms, map);
+            },
+            x => panic!("expected schema constraint violation, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_cardinality_constraints() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+        ]"#);
+
+        // Can add the same datom multiple times for an attribute, regardless of cardinality.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/one 1]
+            [:db/add 100 :test/one 1]
+            [:db/add 100 :test/many 2]
+            [:db/add 100 :test/many 2]
+        ]"#);
+
+        // Can retract the same datom multiple times for an attribute, regardless of cardinality.
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :test/one 1]
+            [:db/retract 100 :test/one 1]
+            [:db/retract 100 :test/many 2]
+            [:db/retract 100 :test/many 2]
+        ]"#);
+
+        // Can't transact multiple datoms for a cardinality one attribute.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/one 3]
+            [:db/add 100 :test/one 4]
+        ]"#,
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 100, a: 200, vs: {Long(3), Long(4)} }\n"));
+
+        // Can transact multiple datoms for a cardinality many attribute.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/many 5]
+            [:db/add 100 :test/many 6]
+        ]"#);
+
+        // Can't add and retract the same datom for an attribute, regardless of cardinality.
+        assert_transact!(conn, r#"[
+            [:db/add     100 :test/one 7]
+            [:db/retract 100 :test/one 7]
+            [:db/add     100 :test/many 8]
+            [:db/retract 100 :test/many 8]
+        ]"#,
+        Err("schema constraint violation: cardinality conflicts:\n  AddRetractConflict { e: 100, a: 200, vs: {Long(7)} }\n  AddRetractConflict { e: 100, a: 201, vs: {Long(8)} }\n"));
     }
 }

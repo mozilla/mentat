@@ -1712,11 +1712,13 @@ mod tests {
 
         let mut tx_ids = Vec::new();
         let mut changesets = Vec::new();
+        let db_tx_instant_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:db/txInstant)).expect("entid to exist for :db/txInstant").into();
         let uuid_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/uuid)).expect("entid to exist for name").into();
         {
             let mut in_progress = conn.begin_transaction().expect("expected transaction");
             for i in 0..3 {
                 let mut changeset = BTreeSet::new();
+                changeset.insert(db_tx_instant_entid.clone());
                 let name = format!("todo{}", i);
                 let uuid = Uuid::new_v4();
                 let mut builder = in_progress.builder().describe_tempid(&name);

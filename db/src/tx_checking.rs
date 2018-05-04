@@ -9,8 +9,8 @@
 // specific language governing permissions and limitations under the License.
 
 use std::collections::{
-    BTreeMap,
     BTreeSet,
+    BTreeMap,
 };
 
 use mentat_core::{
@@ -19,36 +19,34 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_tx::entities::{
-    OpType,
-};
 use errors::{
     CardinalityConflict,
 };
 
 use internal_types::{
-    AttributedTerm,
-    Term,
+    AEVTrie,
 };
+
+/// Map from found [e a v] to expected type.
+pub(crate) type TypeDisagreements = BTreeMap<(Entid, Entid, TypedValue), ValueType>;
 
 /// Ensure that the given terms type check.
 ///
 /// We try to be maximally helpful by yielding every malformed datom, rather than only the first.
 /// In the future, we might change this choice, or allow the consumer to specify the robustness of
 /// the type checking desired, since there is a cost to providing helpful diagnostics.
-pub(crate) fn type_disagreements<'a, I>(terms: I) -> BTreeMap<(Entid, Entid, TypedValue), ValueType>
-where I: IntoIterator<Item=&'a AttributedTerm<'a>> {
-    let errors: BTreeMap<_, _> = terms.into_iter().filter_map(|term| {
-        match term {
-            &Term::AddOrRetract(_, e, (a, attribute), ref v) => {
+pub(crate) fn type_disagreements<'schema>(aev_trie: &AEVTrie<'schema>) -> TypeDisagreements {
+    let mut errors: TypeDisagreements = TypeDisagreements::default();
+
+    for (&(a, attribute), evs) in aev_trie {
+        for (&e, ref ars) in evs {
+            for v in ars.add.iter().chain(ars.retract.iter()) {
                 if attribute.value_type != v.value_type() {
-                    Some(((e, a, v.clone()), attribute.value_type))
-                } else {
-                    None
+                    errors.insert((e, a, v.clone()), attribute.value_type);
                 }
-            },
+            }
         }
-    }).collect();
+    }
 
     errors
 }
@@ -61,51 +59,24 @@ where I: IntoIterator<Item=&'a AttributedTerm<'a>> {
 ///
 /// - add two distinct values for the same cardinality one attribute and entity in a single transaction
 /// - add and remove the same values for the same attribute and entity in a single transaction
-/// - add any attribute to an entity that is also the subject of a `:db/retractEntity` term
 ///
 /// We try to be maximally helpful by yielding every malformed set of datoms, rather than just the
 /// first set, or even the first conflict.  In the future, we might change this choice, or allow the
 /// consumer to specify the robustness of the cardinality checking desired.
-pub(crate) fn cardinality_conflicts<'a, I>(terms: I) -> Vec<CardinalityConflict>
-where I: IntoIterator<Item=&'a AttributedTerm<'a>> {
+pub(crate) fn cardinality_conflicts<'schema>(aev_trie: &AEVTrie<'schema>) -> Vec<CardinalityConflict> {
     let mut errors = vec![];
 
-    let mut added: BTreeMap<Entid, BTreeMap<(Entid, bool), BTreeSet<&TypedValue>>> = BTreeMap::default();
-    let mut retracted: BTreeMap<Entid, BTreeMap<(Entid, bool), BTreeSet<&TypedValue>>> = BTreeMap::default();
-
-    for term in terms.into_iter() {
-        match term {
-            &Term::AddOrRetract(op, e, (a, attribute), ref v) => {
-                let map = match op {
-                    OpType::Add => &mut added,
-                    OpType::Retract => &mut retracted,
-                };
-                map
-                    .entry(e).or_insert(BTreeMap::default())
-                    .entry((a, attribute.multival)).or_insert(BTreeSet::default())
-                    .insert(v);
-            },
-        }
-    }
-
-    for (e, avs) in added.iter() {
-        for (&(a, multival), added_vs) in avs.iter() {
-            if !multival && added_vs.len() > 1 {
-                let added = added_vs.iter().map(|v| (*e, a, (*v).clone())).collect();
-                errors.push(CardinalityConflict::CardinalityOneAddConflict {
-                    added: added,
-                });
+    for (&(a, attribute), evs) in aev_trie {
+        for (&e, ref ars) in evs {
+            if !attribute.multival && ars.add.len() > 1 {
+                let vs = ars.add.clone();
+                errors.push(CardinalityConflict::CardinalityOneAddConflict { e, a, vs });
             }
 
-            retracted.get(e).and_then(|avs| avs.get(&(a, multival))).map(|retracted_vs| {
-                let intersection: Vec<_> = added_vs.intersection(&retracted_vs).cloned().collect();
-                if !intersection.is_empty() {
-                    let datoms = intersection.iter().map(|v| (*e, a, (*v).clone())).collect();
-                    errors.push(CardinalityConflict::AddRetractConflict {
-                        datoms: datoms,
-                    });
-                }
-            });
+            let vs: BTreeSet<_> = ars.retract.intersection(&ars.add).cloned().collect();
+            if !vs.is_empty() {
+                errors.push(CardinalityConflict::AddRetractConflict { e, a, vs })
+            }
         }
     }
 

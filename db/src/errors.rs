@@ -35,12 +35,16 @@ use types::{
 pub enum CardinalityConflict {
     /// A cardinality one attribute has multiple assertions `[e a v1], [e a v2], ...`.
     CardinalityOneAddConflict {
-        added: Vec<(Entid, Entid, TypedValue)>,
+        e: Entid,
+        a: Entid,
+        vs: BTreeSet<TypedValue>,
     },
 
     /// A datom has been both asserted and retracted, like `[:db/add e a v]` and `[:db/retract e a v]`.
     AddRetractConflict {
-        datoms: Vec<(Entid, Entid, TypedValue)>,
+        e: Entid,
+        a: Entid,
+        vs: BTreeSet<TypedValue>,
     },
 }
 

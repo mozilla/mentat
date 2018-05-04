@@ -75,6 +75,8 @@ use errors::{
     Result,
 };
 use internal_types::{
+    AddAndRetract,
+    AEVTrie,
     KnownEntidOr,
     LookupRef,
     LookupRefOrTempId,
@@ -160,9 +162,6 @@ pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
 
     /// The transaction ID of the transaction.
     tx_id: Entid,
-
-    /// The timestamp when the transaction began to be committed.
-    tx_instant: Option<DateTime<Utc>>,
 }
 
 impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
@@ -180,7 +179,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             schema: schema,
             watcher: watcher,
             tx_id: tx_id,
-            tx_instant: None,
         }
     }
 
@@ -679,10 +677,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         // store.
         let mut tx_might_update_metadata = false;
 
-        let final_terms: Vec<TermWithoutTempIds> = [final_populations.resolved,
-                                                    final_populations.allocated,
-                                                    inert_terms.into_iter().map(|term| term.unwrap()).collect()].concat();
-
+        // Mutable so that we can add the transaction :db/txInstant.
+        let mut aev_trie = into_aev_trie(&self.schema, final_populations, inert_terms)?;
 
         let tx_instant;
         { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
@@ -702,60 +698,44 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         // We need to ensure that callers can't blindly transact entities that haven't been
         // allocated by this store.
 
-        let errors = tx_checking::type_disagreements(&final_terms);
+        let errors = tx_checking::type_disagreements(&aev_trie);
         if !errors.is_empty() {
             bail!(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms: errors }));
         }
 
-        let errors = tx_checking::cardinality_conflicts(&final_terms);
+        let errors = tx_checking::cardinality_conflicts(&aev_trie);
         if !errors.is_empty() {
             bail!(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::CardinalityConflicts { conflicts: errors }));
         }
 
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
-        // TODO: use something like Clojure's group_by to do this.
-        for term in final_terms {
-            match term {
-                Term::AddOrRetract(op, KnownEntid(e), a, v) => {
-                    let attribute: &Attribute = self.schema.require_attribute_for_entid(a)?;
-                    if entids::might_update_metadata(a) {
-                        tx_might_update_metadata = true;
-                    }
 
-                    let added = op == OpType::Add;
+        tx_instant = get_or_insert_tx_instant(&mut aev_trie, &self.schema, self.tx_id)?;
 
-                    // :db/txInstant is :db/cardinality :db.cardinality/one, so we'll only ever see
-                    // at most one value, and it'll definitely be an instant.
-                    if added && e == self.tx_id && a == entids::DB_TX_INSTANT {
-                        if let TypedValue::Instant(instant) = v {
-                            self.tx_instant = Some(instant);
-                        } else {
-                            unreachable!();
-                        }
-                    }
+        for ((a, attribute), evs) in aev_trie {
+            if entids::might_update_metadata(a) {
+                tx_might_update_metadata = true;
+            }
 
+            let mut queue = match (attribute.fulltext, attribute.multival) {
+                (false, true) => &mut non_fts_many,
+                (false, false) => &mut non_fts_one,
+                (true, false) => &mut fts_one,
+                (true, true) => &mut fts_many,
+            };
+
+            for (e, ars) in evs {
+                for (added, v) in ars.add.into_iter().map(|v| (true, v)).chain(ars.retract.into_iter().map(|v| (false, v))) {
+                    let op = match added {
+                        true => OpType::Add,
+                        false => OpType::Retract,
+                    };
                     self.watcher.datom(op, e, a, &v);
-
-                    let reduced = (e, a, attribute, v, added);
-                    match (attribute.fulltext, attribute.multival) {
-                        (false, true) => non_fts_many.push(reduced),
-                        (false, false) => non_fts_one.push(reduced),
-                        (true, false) => fts_one.push(reduced),
-                        (true, true) => fts_many.push(reduced),
-                    }
-                },
+                    queue.push((e, a, attribute, v, added));
+                }
             }
         }
-
-        tx_instant = self.tx_instant.unwrap_or_else(now);
-
-        // Transact [:db/add :db/txInstant tx_instant (transaction-tx)].
-        non_fts_one.push((self.tx_id,
-                          entids::DB_TX_INSTANT,
-                          self.schema.require_attribute_for_entid(entids::DB_TX_INSTANT).unwrap(),
-                          tx_instant.into(),
-                          true));
 
         if !non_fts_one.is_empty() {
             self.store.insert_non_fts_searches(&non_fts_one[..], db::SearchType::Inexact)?;
@@ -863,4 +843,60 @@ pub fn transact_terms<'conn, 'a, I, W>(conn: &'conn rusqlite::Connection,
     let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema, watcher)?;
     let report = tx.transact_simple_terms(terms, tempid_set)?;
     conclude_tx(tx, report)
+}
+
+fn extend_aev_trie<'schema, I>(schema: &'schema Schema, terms: I, trie: &mut AEVTrie<'schema>) -> Result<()>
+where I: IntoIterator<Item=TermWithoutTempIds>
+{
+    for Term::AddOrRetract(op, KnownEntid(e), a, v) in terms.into_iter() {
+        let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
+
+        let a_and_r = trie
+            .entry((a, attribute)).or_insert(BTreeMap::default())
+            .entry(e).or_insert(AddAndRetract::default());
+
+        match op {
+            OpType::Add => a_and_r.add.insert(v),
+            OpType::Retract => a_and_r.retract.insert(v),
+        };
+    }
+
+    Ok(())
+}
+
+pub(crate) fn into_aev_trie<'schema>(schema: &'schema Schema, final_populations: FinalPopulations, inert_terms: Vec<TermWithTempIds>) -> Result<AEVTrie<'schema>> {
+    let mut trie = AEVTrie::default();
+    extend_aev_trie(schema, final_populations.resolved, &mut trie)?;
+    extend_aev_trie(schema, final_populations.allocated, &mut trie)?;
+    // Inert terms need to be unwrapped.  It is a coding error if a term can't be unwrapped.
+    extend_aev_trie(schema, inert_terms.into_iter().map(|term| term.unwrap()), &mut trie)?;
+
+    Ok(trie)
+}
+
+/// Transact [:db/add :db/txInstant tx_instant (transaction-tx)] if the trie doesn't contain it
+/// already.  Return the instant from the input or the instant inserted.
+fn get_or_insert_tx_instant<'schema>(aev_trie: &mut AEVTrie<'schema>, schema: &'schema Schema, tx_id: Entid) -> Result<DateTime<Utc>> {
+    let ars = aev_trie
+        .entry((entids::DB_TX_INSTANT, schema.require_attribute_for_entid(entids::DB_TX_INSTANT)?))
+        .or_insert(BTreeMap::default())
+        .entry(tx_id)
+        .or_insert(AddAndRetract::default());
+    if !ars.retract.is_empty() {
+        // Cannot retract :db/txInstant!
+    }
+
+    // Otherwise we have a coding error -- we should have cardinality checked this already.
+    assert!(ars.add.len() <= 1);
+
+    let first = ars.add.iter().next().cloned();
+    match first {
+        Some(TypedValue::Instant(instant)) => Ok(instant),
+        Some(_) => unreachable!(), // This is a coding error -- we should have typechecked this already.
+        None => {
+            let instant = now();
+            ars.add.insert(instant.into());
+            Ok(instant)
+        },
+    }
 }
