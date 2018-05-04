@@ -52,9 +52,9 @@
 ///! decomposed into two chained expressions:
 ///!
 ///! ```edn
-///! (chain
-///!   (pull ?person [:person/friend])
-///!   (pull ?friend [*]))
+///! (pull
+///!     (pull ?person [:person/friend])
+///      [*]))
 ///! ```
 
 #[macro_use]
@@ -181,9 +181,9 @@ impl Puller {
                         attrs.insert(entid.into());
                     }
                 },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(ref entid)) => {
-                    names.insert(*entid, lookup_name(entid));
-                    attrs.insert(*entid);
+                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(id)) => {
+                    names.insert(*id, lookup_name(id));
+                    attrs.insert(*id);
                 },
             }
         }
@@ -212,17 +212,19 @@ impl Puller {
         // Build a cache for these attributes and entities.
         // TODO: use the store's existing cache!
         let entities: Vec<Entid> = entities.into_iter().collect();
-        let cache = cache::AttributeCaches::make_cache_for_entities_and_attributes(
+        let caches = cache::AttributeCaches::make_cache_for_entities_and_attributes(
             schema,
             db,
             self.attribute_spec.clone(),
             &entities)?;
 
         // Now construct the appropriate result format.
+        // TODO: should we walk `e` then `a`, or `a` then `e`? Possibly the right answer
+        // is just to collect differently!
         let mut maps = BTreeMap::new();
         for (name, cache) in self.attributes.iter().filter_map(|(a, name)|
-            cache.forward_attribute_cache_for_attribute(schema, *a)
-                 .map(|cache| (name.clone(), cache))) {
+            caches.forward_attribute_cache_for_attribute(schema, *a)
+                  .map(|cache| (name.clone(), cache))) {
 
             for e in entities.iter() {
                 if let Some(binding) = cache.binding_for_e(*e) {

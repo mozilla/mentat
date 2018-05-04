@@ -23,7 +23,7 @@ extern crate tabwriter;
 extern crate time;
 
 #[macro_use] extern crate edn;
-extern crate mentat_core;
+#[macro_use] extern crate mentat_core;
 extern crate mentat_sql;
 extern crate mentat_tx;
 extern crate mentat_tx_parser;
@@ -61,6 +61,7 @@ pub use schema::{
     AttributeBuilder,
     AttributeValidation,
 };
+
 pub use bootstrap::{
     CORE_SCHEMA_VERSION,
 };

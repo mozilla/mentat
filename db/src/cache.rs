@@ -915,27 +915,6 @@ impl AttributeCaches {
     }
 }
 
-// Borrowed from mentat_query_sql.
-macro_rules! interpose {
-    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
-        interpose_iter!($name, $across.iter(), $body, $inter)
-    }
-}
-
-// Borrowed from mentat_query_sql.
-macro_rules! interpose_iter {
-    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
-        let mut seq = $across;
-        if let Some($name) = seq.next() {
-            $body;
-            for $name in seq {
-                $inter;
-                $body;
-            }
-        }
-    }
-}
-
 #[derive(Clone)]
 pub enum AttributeSpec {
     All,
@@ -969,6 +948,13 @@ impl AttributeSpec {
 }
 
 impl AttributeCaches {
+    /// Fetch the requested entities and attributes from the store and put them in the cache.
+    ///
+    /// The caller is responsible for ensuring that `entities` is unique, and for avoiding any
+    /// redundant work.
+    ///
+    /// Each provided attribute will be marked as forward-cached; the caller is responsible for
+    /// ensuring that this cache is complete or that it is not expected to be complete.
     fn populate_cache_for_entities_and_attributes<'s, 'c>(&mut self,
                                                           schema: &'s Schema,
                                                           sqlite: &'c rusqlite::Connection,
@@ -1041,6 +1027,9 @@ impl AttributeCaches {
         self.repopulate_from_aevt(schema, &mut stmt, vec![], replacing)
     }
 
+    /// Return a reference to the cache for the provided `a`, if `a` names an attribute that is
+    /// cached in the forward direction. If `a` doesn't name an attribute, or it's not cached at
+    /// all, or it's only cached in reverse (`v` to `e`, not `e` to `v`), `None` is returned.
     pub fn forward_attribute_cache_for_attribute<'a, 's>(&'a self, schema: &'s Schema, a: Entid) -> Option<&'a AttributeCache> {
         if !self.forward_cached_attributes.contains(&a) {
             return None;
@@ -1054,7 +1043,9 @@ impl AttributeCaches {
                 })
     }
 
-    // Ensure that `entities` is unique.
+    /// Fetch the requested entities and attributes from the store and put them in the cache.
+    /// The caller is responsible for ensuring that `entities` is unique.
+    /// Attributes for which every entity is already cached will not be processed again.
     pub fn extend_cache_for_entities_and_attributes<'s, 'c>(&mut self,
                                                             schema: &'s Schema,
                                                             sqlite: &'c rusqlite::Connection,
@@ -1105,7 +1096,8 @@ impl AttributeCaches {
         self.populate_cache_for_entities_and_attributes(schema, sqlite, attrs, entities)
     }
 
-    /// Ensure that `entities` is unique.
+    /// Fetch the requested entities and attributes and put them in a new cache.
+    /// The caller is responsible for ensuring that `entities` is unique.
     pub fn make_cache_for_entities_and_attributes<'s, 'c>(schema: &'s Schema,
                                                           sqlite: &'c rusqlite::Connection,
                                                           attrs: AttributeSpec,

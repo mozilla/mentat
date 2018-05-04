@@ -538,11 +538,15 @@ impl Repl {
 
     fn map_as_string(&self, value: &StructuredMap) -> String {
         let mut out: String = "{".to_string();
+        let mut first = true;
         for (k, v) in value.0.iter() {
+            if !first {
+                out.push_str(", ");
+                first = true;
+            }
             out.push_str(&k.to_string());
-            out.push_str(": ");
+            out.push_str(" ");
             out.push_str(self.binding_as_string(v).as_str());
-            out.push_str(", ");
         }
         out.push_str("}");
         out

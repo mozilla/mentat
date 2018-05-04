@@ -164,9 +164,8 @@ impl Projector for TupleTwoStagePullProjector {
                 }
 
                 // Expand the pull expressions back into the results vector.
-                for p in pull_consumers.iter_mut() {
+                for p in pull_consumers.into_iter() {
                     p.expand(&mut bindings);
-                    p.done();
                 }
 
                 QueryResults::Tuple(Some(bindings))
@@ -321,7 +320,7 @@ impl Projector for CollTwoStagePullProjector {
         pull_consumer.pull(sqlite)?;
 
         // Expand the pull expressions into a results vector.
-        let out = pull_consumer.to_coll_results();
+        let out = pull_consumer.into_coll_results();
 
         Ok(QueryOutput {
             spec: self.spec.clone(),

@@ -363,6 +363,45 @@ pub mod intern_set;
 pub mod counter;
 pub mod util;
 
+/// A helper macro to sequentially process an iterable sequence,
+/// evaluating a block between each pair of items.
+///
+/// This is used to simply and efficiently produce output like
+///
+/// ```sql
+///   1, 2, 3
+/// ```
+///
+/// or
+///
+/// ```sql
+/// x = 1 AND y = 2
+/// ```
+///
+/// without producing an intermediate string sequence.
+#[macro_export]
+macro_rules! interpose {
+    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
+        interpose_iter!($name, $across.iter(), $body, $inter)
+    }
+}
+
+/// A helper to bind `name` to values in `across`, running `body` for each value,
+/// and running `inter` between each value. See `interpose` for examples.
+#[macro_export]
+macro_rules! interpose_iter {
+    ( $name: pat, $across: expr, $body: block, $inter: block ) => {
+        let mut seq = $across;
+        if let Some($name) = seq.next() {
+            $body;
+            for $name in seq {
+                $inter;
+                $body;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

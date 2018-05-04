@@ -44,7 +44,7 @@ pub(crate) struct PullOperation(pub(crate) Vec<PullAttributeSpec>);
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PullIndices {
-    pub(crate) sql_index: Index,                   // SQLite row index.
+    pub(crate) sql_index: Index,                   // SQLite column index.
     pub(crate) output_index: usize,
 }
 
@@ -115,12 +115,7 @@ impl<'schema> PullConsumer<'schema> {
     }
 
     // TODO: do we need to include empty maps for entities that didn't match any pull?
-    pub(crate) fn to_coll_results(self) -> Vec<Binding> {
+    pub(crate) fn into_coll_results(self) -> Vec<Binding> {
         self.results.values().cloned().map(|vrc| Binding::Map(vrc)).collect()
-    }
-
-    pub(crate) fn done(&mut self) {
-        self.results.clear();
-        self.entities.clear();
     }
 }
