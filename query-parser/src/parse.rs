@@ -1224,6 +1224,9 @@ mod test {
                                           PullConcreteAttribute::Ident(foo_baz.clone())),
                                   ],
                               }));
+        assert_parse_failure_contains!(Find::elem,
+                              "(pull ?x [* :foo/bar])",
+                              r#"errors: [Unexpected(Borrowed("wildcard with specified attributes"))]"#);
     }
 
     #[test]
