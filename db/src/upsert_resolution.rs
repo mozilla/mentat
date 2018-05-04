@@ -232,8 +232,7 @@ impl Generation {
         Ok(())
     }
 
-    /// After evolution is complete, yield the set of tempids that require entid allocation are the
-    /// tempids that appeared in [:db/add ...] entities, but that didn't upsert to existing entids.
+    /// After evolution is complete, yield the set of tempids that require entid allocation.
     ///
     /// Some of the tempids may be identified, so we also provide a map from tempid to a dense set
     /// of contiguous integer labels.
@@ -272,7 +271,7 @@ impl Generation {
             }
         }
 
-        // Now we union-find all the known tempids.  Two tempids are unioned if they both appears as
+        // Now we union-find all the known tempids.  Two tempids are unioned if they both appear as
         // the entity of an `[a v]` upsert, including when the value column `v` is itself a tempid.
         let mut uf = unionfind::UnionFind::new(temp_ids.len());
 

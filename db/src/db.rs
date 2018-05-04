@@ -153,7 +153,7 @@ lazy_static! {
         //   attribute in a transaction efficiently.
         //
         // - Second, it provides a layer of assurance that the transactor is correct by asserting
-        //   that a single dato `[e a v]` is added or retracted at most once in a single
+        //   that a single datom `[e a v]` is added or retracted at most once in a single
         //   transaction.
         r#"CREATE UNIQUE INDEX idx_transactions_unique_tx_a_e_v ON transactions (tx, a, e, v)"#,
 

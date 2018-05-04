@@ -62,7 +62,7 @@ pub enum SchemaConstraintViolation {
         conflicting_upserts: BTreeMap<TempId, BTreeSet<KnownEntid>>,
     },
 
-    /// A transaction tried to assert a datom or datoms with the wrong value `v type(s).
+    /// A transaction tried to assert a datom or datoms with the wrong value `v` type(s).
     TypeDisagreements {
         /// The key (`[e a v]`) has an invalid value `v`: it is not of the expected value type.
         conflicting_datoms: BTreeMap<(Entid, Entid, TypedValue), ValueType>
