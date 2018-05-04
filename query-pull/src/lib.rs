@@ -98,6 +98,7 @@ use mentat_query::{
 pub mod errors;
 
 use errors::{
+    ErrorKind,
     Result,
 };
 
@@ -156,11 +157,10 @@ impl Puller {
         // thing. For now it's just a convenience.
 
         let lookup_name = |i: &Entid| {
-            // In the unlikely event that we have an attribute with no name, we invent one.
-            ValueRc::new(
-                schema.get_ident(*i)
-                      .cloned()
-                      .unwrap_or(NamespacedKeyword::new("attribute", format!("a{}", i).as_str())))
+            // In the unlikely event that we have an attribute with no name, we bail.
+            schema.get_ident(*i)
+                    .map(|ident| ValueRc::new(ident.clone()))
+                    .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
         };
 
         let mut names: BTreeMap<Entid, ValueRc<NamespacedKeyword>> = Default::default();
@@ -170,7 +170,7 @@ impl Puller {
                 &PullAttributeSpec::Wildcard => {
                     let attribute_ids = schema.attribute_map.keys();
                     for id in attribute_ids {
-                        names.insert(*id, lookup_name(id));
+                        names.insert(*id, lookup_name(id)?);
                         attrs.insert(*id);
                     }
                     break;
@@ -181,9 +181,9 @@ impl Puller {
                         attrs.insert(entid.into());
                     }
                 },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(id)) => {
-                    names.insert(*id, lookup_name(id));
-                    attrs.insert(*id);
+                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(ref entid)) => {
+                    names.insert(*entid, lookup_name(entid)?);
+                    attrs.insert(*entid);
                 },
             }
         }
