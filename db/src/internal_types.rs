@@ -19,7 +19,9 @@ use mentat_core::KnownEntid;
 
 use mentat_core::util::Either;
 
+use edn;
 use edn::{
+    SpannedValue,
     ValueAndSpan,
 };
 
@@ -27,7 +29,6 @@ use errors;
 use errors::{
     ErrorKind,
     Result,
-    ResultExt,
 };
 use schema::{
     SchemaTypeChecking,
@@ -40,12 +41,13 @@ use types::{
     TypedValue,
     ValueType,
 };
+use mentat_tx::entities;
 use mentat_tx::entities::{
     EntidOrLookupRefOrTempId,
     OpType,
     TempId,
+    TxFunction,
 };
-use mentat_tx_parser;
 
 /// The transactor is tied to `edn::ValueAndSpan` right now, but in the future we'd like to support
 /// `TypedValue` directly for programmatic use.  `TransactableValue` encapsulates the interface
@@ -68,8 +70,43 @@ impl TransactableValue for ValueAndSpan {
     }
 
     fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId> {
-        mentat_tx_parser::Tx::parse_entid_or_lookup_ref_or_temp_id(self)
-            .chain_err(|| ErrorKind::NotYetImplemented("db id error".into()))
+        use self::SpannedValue::*;
+        match self.inner {
+            Integer(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Entid(v))),
+            NamespacedKeyword(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Ident(v))),
+            Text(v) => Ok(EntidOrLookupRefOrTempId::TempId(TempId::External(v))),
+            List(ls) => {
+                let mut it = ls.iter();
+                match (it.next().map(|x| &x.inner), it.next(), it.next(), it.next()) {
+                    // Like "(transaction-id)".
+                    (Some(&PlainSymbol(ref op)), None, None, None) => {
+                        Ok(EntidOrLookupRefOrTempId::TxFunction(TxFunction { op: op.clone() }))
+                    },
+                    // Like "(lookup-ref)".
+                    (Some(&PlainSymbol(edn::PlainSymbol(ref s))), Some(a), Some(v), None) if s == "lookup-ref" => {
+                        match a.clone().into_entity_place()? {
+                            EntidOrLookupRefOrTempId::Entid(a) => Ok(EntidOrLookupRefOrTempId::LookupRef(entities::LookupRef { a, v: v.clone().without_spans() })),
+                            EntidOrLookupRefOrTempId::TempId(_) => bail!(""),
+                            EntidOrLookupRefOrTempId::TxFunction(_) => bail!(""),
+                            EntidOrLookupRefOrTempId::LookupRef(_) => bail!(""),
+                        }
+                    },
+                    _ => bail!(ErrorKind::NotYetImplemented("cannot convert value place into entity place".into()))
+                }
+            },
+            Nil |
+            Boolean(_) |
+            Instant(_) |
+            BigInteger(_) |
+            Float(_) |
+            Uuid(_) |
+            PlainSymbol(_) |
+            NamespacedSymbol(_) |
+            Keyword(_) |
+            Vector(_) |
+            Set(_) |
+            Map(_) => bail!(ErrorKind::NotYetImplemented("cannot convert value place into entity place".into()))
+        }
     }
 
     fn as_tempid(&self) -> Option<TempId> {
