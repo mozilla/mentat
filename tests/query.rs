@@ -742,7 +742,7 @@ fn test_type_reqs() {
         {:db/ident :test/long2 :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
     ]"#).unwrap();
 
-    conn.transact(&mut c, &format!("[[:db/add {} :test/long2 5]]", entid)).unwrap();
+    conn.transact(&mut c, format!("[[:db/add {} :test/long2 5]]", entid)).unwrap();
     let longs_query = r#"[:find [?v ...]
                           :order (asc ?v)
                           :in ?e

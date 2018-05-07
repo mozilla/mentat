@@ -30,7 +30,6 @@ use mentat_query_pull;
 use mentat_query_translator;
 use mentat_sql;
 use mentat_tolstoy;
-use mentat_tx_parser;
 
 error_chain! {
     types {
@@ -52,7 +51,6 @@ error_chain! {
         PullError(mentat_query_pull::errors::Error, mentat_query_pull::errors::ErrorKind);
         TranslatorError(mentat_query_translator::Error, mentat_query_translator::ErrorKind);
         SqlError(mentat_sql::Error, mentat_sql::ErrorKind);
-        TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
         SyncError(mentat_tolstoy::Error, mentat_tolstoy::ErrorKind);
     }
 

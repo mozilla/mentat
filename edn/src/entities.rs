@@ -10,14 +10,19 @@
 
 //! This module defines core types that support the transaction processor.
 
-extern crate edn;
-
 use std::collections::BTreeMap;
 use std::fmt;
 
-use self::edn::symbols::NamespacedKeyword;
+use symbols::{
+    NamespacedKeyword,
+    PlainSymbol,
+};
+use types::{
+    Value,
+    ValueAndSpan,
+};
 
-/// A tempid, either an external tempid given in a transaction (usually as an `edn::Value::Text`),
+/// A tempid, either an external tempid given in a transaction (usually as an `Value::Text`),
 /// or an internal tempid allocated by Mentat itself.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum TempId {
@@ -63,7 +68,7 @@ pub struct LookupRef {
     pub a: Entid,
     // In theory we could allow nested lookup-refs.  In practice this would require us to process
     // lookup-refs in multiple phases, like how we resolve tempids, which isn't worth the effort.
-    pub v: edn::Value, // An atom.
+    pub v: Value, // An atom.
 }
 
 /// A "transaction function" that exposes some value determined by the current transaction.  The
@@ -80,14 +85,14 @@ pub struct LookupRef {
 /// generalization.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct TxFunction {
-    pub op: edn::PlainSymbol,
+    pub op: PlainSymbol,
 }
 
 pub type MapNotation = BTreeMap<Entid, AtomOrLookupRefOrVectorOrMapNotation>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum AtomOrLookupRefOrVectorOrMapNotation {
-    Atom(edn::ValueAndSpan),
+    Atom(ValueAndSpan),
     LookupRef(LookupRef),
     TxFunction(TxFunction),
     Vector(Vec<AtomOrLookupRefOrVectorOrMapNotation>),

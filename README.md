@@ -157,6 +157,8 @@ So what are they?
 
 Our EDN parser. It uses `rust-peg` to parse [EDN](https://github.com/edn-format/edn), which is Clojure/Datomic's richer alternative to JSON. `edn`'s dependencies are all either for representing rich values (`chrono`, `uuid`, `ordered-float`) or for parsing (`serde`, `peg`).
 
+In addition, this crate turns a stream of EDN values into a representation suitable to be transacted.
+
 #### `mentat_core`
 
 This is the lowest-level Mentat crate. It collects together the following things:
@@ -184,12 +186,6 @@ Similarly, this crate defines an abstract representation of a SQL query as under
 #### `mentat_tx`
 
 Mentat has two main inputs: reads (queries) and writes (transacts). Just as `mentat_query` defines the types produced by the query parser, `mentat_tx` defines the types produced by the tx parser.
-
-### Transact processing
-
-#### `mentat_tx_parser`
-
-This is a `combine` parser that turns a stream of EDN values into a representation suitable to be transacted.
 
 ### Query processing
 

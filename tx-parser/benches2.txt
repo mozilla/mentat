@@ -1,0 +1,17 @@
+
+running 5 tests
+test tests::test_add ... ignored
+test tests::test_lookup_ref ... ignored
+test tests::test_map_notation ... ignored
+test tests::test_nested_vector ... ignored
+test tests::test_retract ... ignored
+
+test result: ok. 0 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out
+
+
+running 3 tests
+test bench_parse1 ... bench:       2,799 ns/iter (+/- 801)
+test bench_parse2 ... bench:     191,856 ns/iter (+/- 19,331)
+test bench_parse3 ... bench:      53,925 ns/iter (+/- 10,299)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 3 measured; 0 filtered out

@@ -10,6 +10,10 @@
 
 #![allow(dead_code)]
 
+use std::borrow::{
+    Borrow,
+};
+
 use std::collections::{
     BTreeMap,
 };
@@ -84,8 +88,6 @@ use mentat_tx::entities::{
     TempId,
     OpType,
 };
-
-use mentat_tx_parser;
 
 use mentat_tolstoy::Syncer;
 
@@ -494,9 +496,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
         Ok(report)
     }
 
-    pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
-        let assertion_vector = edn::parse::value(transaction)?;
-        let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
+    pub fn transact<B>(&mut self, transaction: B) -> Result<TxReport> where B: Borrow<str> {
+        let entities = edn::parse::entities(transaction.borrow())?;
         self.transact_entities(entities)
     }
 
@@ -912,15 +913,14 @@ impl Conn {
 
     /// Transact entities against the Mentat store, using the given connection and the current
     /// metadata.
-    pub fn transact(&mut self,
+    pub fn transact<B>(&mut self,
                     sqlite: &mut rusqlite::Connection,
-                    transaction: &str) -> Result<TxReport> {
+                    transaction: B) -> Result<TxReport> where B: Borrow<str> {
         // Parse outside the SQL transaction. This is a tradeoff: we are limiting the scope of the
         // transaction, and indeed we don't even create a SQL transaction if the provided input is
         // invalid, but it means SQLite errors won't be found until the parse is complete, and if
         // there's a race for the database (don't do that!) we are less likely to win it.
-        let assertion_vector = edn::parse::value(transaction)?;
-        let entities = mentat_tx_parser::Tx::parse(&assertion_vector)?;
+        let entities = edn::parse::entities(transaction.borrow())?;
 
         let mut in_progress = self.begin_transaction(sqlite)?;
         let report = in_progress.transact_entities(entities)?;
@@ -1248,7 +1248,7 @@ mod tests {
         // Bad transaction data: missing leading :db/add.
         let report = conn.transact(&mut sqlite, "[[\"t\" :db/ident :b/keyword]]");
         match report.unwrap_err() {
-            Error(ErrorKind::TxParseError(::mentat_tx_parser::errors::ErrorKind::ParseError(_)), _) => { },
+            Error(ErrorKind::EdnParseError(_), _) => { },
             x => panic!("expected EDN parse error, got {:?}", x),
         }
 

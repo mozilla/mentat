@@ -21,7 +21,6 @@ use rusqlite;
 use mentat_tx::entities::{
     TempId,
 };
-use mentat_tx_parser;
 use mentat_core::{
     KnownEntid,
 };
@@ -60,6 +59,30 @@ impl ::std::fmt::Display for SchemaConstraintViolation {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InputError {
+    /// Map notation included a bad `:db/id` value.
+    BadDbId,
+
+    /// A value place cannot be interpreted as an entity place (for example, in nested map
+    /// notation).
+    BadEntityPlace,
+}
+
+impl ::std::fmt::Display for InputError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        use self::InputError::*;
+        match self {
+            &BadDbId => {
+                writeln!(f, ":db/id in map notation must either not be present or be an entid, an ident, or a tempid")
+            },
+            &BadEntityPlace => {
+                writeln!(f, "cannot convert value place into entity place")
+            },
+        }
+    }
+}
+
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
@@ -67,10 +90,6 @@ error_chain! {
 
     foreign_links {
         Rusqlite(rusqlite::Error);
-    }
-
-    links {
-        TxParseError(mentat_tx_parser::Error, mentat_tx_parser::ErrorKind);
     }
 
     errors {
@@ -151,6 +170,13 @@ error_chain! {
         SchemaConstraintViolation(violation: SchemaConstraintViolation) {
             description("schema constraint violation")
             display("schema constraint violation: {}", violation)
+        }
+
+        /// The transaction was malformed in some way (that was not recognized at parse time; for
+        /// example, in a way that is schema-dependent).
+        InputError(error: InputError) {
+            description("transaction input error")
+            display("transaction input error: {}", error)
         }
     }
 }

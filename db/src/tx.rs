@@ -174,7 +174,7 @@ pub fn remove_db_id(map: &mut entmod::MapNotation) -> Result<Option<entmod::Enti
             entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(_) |
             entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) |
             entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) => {
-                bail!(ErrorKind::NotYetImplemented("db id error".into()))
+                bail!(ErrorKind::InputError(errors::InputError::BadDbId))
             },
         }
     } else {

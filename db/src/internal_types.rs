@@ -86,12 +86,12 @@ impl TransactableValue for ValueAndSpan {
                     (Some(&PlainSymbol(edn::PlainSymbol(ref s))), Some(a), Some(v), None) if s == "lookup-ref" => {
                         match a.clone().into_entity_place()? {
                             EntidOrLookupRefOrTempId::Entid(a) => Ok(EntidOrLookupRefOrTempId::LookupRef(entities::LookupRef { a, v: v.clone().without_spans() })),
-                            EntidOrLookupRefOrTempId::TempId(_) => bail!(""),
-                            EntidOrLookupRefOrTempId::TxFunction(_) => bail!(""),
-                            EntidOrLookupRefOrTempId::LookupRef(_) => bail!(""),
+                            EntidOrLookupRefOrTempId::TempId(_) |
+                            EntidOrLookupRefOrTempId::TxFunction(_) |
+                            EntidOrLookupRefOrTempId::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
                         }
                     },
-                    _ => bail!(ErrorKind::NotYetImplemented("cannot convert value place into entity place".into()))
+                    _ => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
                 }
             },
             Nil |
@@ -105,7 +105,7 @@ impl TransactableValue for ValueAndSpan {
             Keyword(_) |
             Vector(_) |
             Set(_) |
-            Map(_) => bail!(ErrorKind::NotYetImplemented("cannot convert value place into entity place".into()))
+            Map(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
         }
     }
 

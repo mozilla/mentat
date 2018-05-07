@@ -17,7 +17,6 @@ use edn::symbols;
 use entids;
 use db::TypedSQLValue;
 use mentat_tx::entities::Entity;
-use mentat_tx_parser;
 use mentat_core::{
     IdentMap,
     Schema,
@@ -300,6 +299,6 @@ pub(crate) fn bootstrap_entities() -> Vec<Entity> {
 
     // Failure here is a coding error (since the inputs are fixed), not a runtime error.
     // TODO: represent these bootstrap data errors rather than just panicing.
-    let bootstrap_entities: Vec<Entity> = mentat_tx_parser::Tx::parse(&bootstrap_assertions.with_spans()).unwrap();
+    let bootstrap_entities: Vec<Entity> = edn::parse::entities(&bootstrap_assertions.to_string()).unwrap();
     return bootstrap_entities;
 }
