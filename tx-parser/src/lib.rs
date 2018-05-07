@@ -177,42 +177,13 @@ impl<'a> Tx<'a> {
             .map_err(|e| Error::from_kind(ErrorKind::ParseError(e.into())))
     }
 
-    fn parse_entid_or_lookup_ref_or_temp_id(input: edn::ValueAndSpan) -> std::result::Result<EntidOrLookupRefOrTempId, errors::Error> {
+    pub fn parse_entid_or_lookup_ref_or_temp_id(input: edn::ValueAndSpan) -> std::result::Result<EntidOrLookupRefOrTempId, errors::Error> {
         Tx::entid_or_lookup_ref_or_temp_id()
             .skip(eof())
             .parse(input.atom_stream())
             .map(|x| x.0)
             .map_err(|e| Error::from_kind(ErrorKind::ParseError(e.into())))
     }
-}
-
-/// Remove any :db/id value from the given map notation, converting the returned value into
-/// something suitable for the entity position rather than something suitable for a value position.
-///
-/// This is here simply to not expose some of the internal APIs of the tx-parser.
-pub fn remove_db_id(map: &mut MapNotation) -> std::result::Result<Option<EntidOrLookupRefOrTempId>, errors::Error> {
-    // TODO: extract lazy defined constant.
-    let db_id_key = Entid::Ident(edn::NamespacedKeyword::new("db", "id"));
-
-    let db_id: Option<EntidOrLookupRefOrTempId> = if let Some(id) = map.remove(&db_id_key) {
-        match id {
-            AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
-                let db_id = Tx::parse_entid_or_lookup_ref_or_temp_id(v)
-                    .chain_err(|| Error::from(ErrorKind::DbIdError))?;
-                Some(db_id)
-            },
-            AtomOrLookupRefOrVectorOrMapNotation::LookupRef(_) |
-            AtomOrLookupRefOrVectorOrMapNotation::TxFunction(_) |
-            AtomOrLookupRefOrVectorOrMapNotation::Vector(_) |
-            AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) => {
-                bail!(ErrorKind::DbIdError)
-            },
-        }
-    } else {
-        None
-    };
-
-    Ok(db_id)
 }
 
 #[cfg(test)]

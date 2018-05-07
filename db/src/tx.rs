@@ -82,6 +82,7 @@ use internal_types::{
     TermWithTempIds,
     TermWithTempIdsAndLookupRefs,
     TermWithoutTempIds,
+    TransactableValue,
     TypedValueOr,
     replace_lookup_ref,
 };
@@ -105,7 +106,6 @@ use mentat_tx::entities::{
     OpType,
     TempId,
 };
-use mentat_tx_parser;
 use metadata;
 use rusqlite;
 use schema::{
@@ -159,6 +159,29 @@ pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
 
     /// The timestamp when the transaction began to be committed.
     tx_instant: Option<DateTime<Utc>>,
+}
+
+/// Remove any :db/id value from the given map notation, converting the returned value into
+/// something suitable for the entity position rather than something suitable for a value position.
+pub fn remove_db_id(map: &mut entmod::MapNotation) -> Result<Option<entmod::EntidOrLookupRefOrTempId>> {
+    // TODO: extract lazy defined constant.
+    let db_id_key = entmod::Entid::Ident(NamespacedKeyword::new("db", "id"));
+
+    let db_id: Option<entmod::EntidOrLookupRefOrTempId> = if let Some(id) = map.remove(&db_id_key) {
+        match id {
+            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => Some(v.into_entity_place()?),
+            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(_) |
+            entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(_) |
+            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) |
+            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) => {
+                bail!(ErrorKind::NotYetImplemented("db id error".into()))
+            },
+        }
+    } else {
+        None
+    };
+
+    Ok(db_id)
 }
 
 impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
@@ -340,18 +363,19 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         }
 
                         match x {
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(ref v) => {
+                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
                                 // Here is where we do schema-aware typechecking: we either assert
                                 // that the given value is in the attribute's value set, or (in
                                 // limited cases) coerce the value into the attribute's value set.
-                                if let Some(text) = v.inner.as_text() {
-                                    Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(TempId::External(text.clone())))))
-                                } else {
-                                    if let TypedValue::Ref(entid) = self.schema.to_typed_value(&v.clone().without_spans(), ValueType::Ref)? {
-                                        Ok(Either::Left(KnownEntid(entid)))
-                                    } else {
-                                        // The given value is expected to be :db.type/ref, so this shouldn't happen.
-                                        bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
+                                match v.as_tempid() {
+                                    Some(tempid) => Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(tempid)))),
+                                    None => {
+                                        if let TypedValue::Ref(entid) = v.into_typed_value(&self.schema, ValueType::Ref)? {
+                                            Ok(Either::Left(KnownEntid(entid)))
+                                        } else {
+                                            // The given value is expected to be :db.type/ref, so this shouldn't happen.
+                                            bail!(ErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
+                                        }
                                     }
                                 }
                             },
@@ -392,7 +416,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Entity::MapNotation(mut map_notation) => {
                     // :db/id is optional; if it's not given, we generate a special internal tempid
                     // to use for upserting.  This tempid will not be reported in the TxReport.
-                    let db_id: entmod::EntidOrLookupRefOrTempId = mentat_tx_parser::remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
+                    let db_id: entmod::EntidOrLookupRefOrTempId = remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                     // We're not nested, so :db/isComponent is not relevant.  We just explode the
                     // map notation.
@@ -418,14 +442,16 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                         let v = match v {
                             entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
-                                if attribute.value_type == ValueType::Ref && v.inner.is_text() {
-                                    Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(v.inner.as_text().cloned().map(TempId::External).unwrap())))
+                                // Here is where we do schema-aware typechecking: we either assert
+                                // that the given value is in the attribute's value set, or (in
+                                // limited cases) coerce the value into the attribute's value set.
+                                if attribute.value_type == ValueType::Ref {
+                                    match v.as_tempid() {
+                                        Some(tempid) => Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(tempid))),
+                                        None => v.into_typed_value(&self.schema, attribute.value_type).map(Either::Left)?,
+                                    }
                                 } else {
-                                    // Here is where we do schema-aware typechecking: we either assert that
-                                    // the given value is in the attribute's value set, or (in limited
-                                    // cases) coerce the value into the attribute's value set.
-                                    let typed_value: TypedValue = self.schema.to_typed_value(&v.without_spans(), attribute.value_type)?;
-                                    Either::Left(typed_value)
+                                    v.into_typed_value(&self.schema, attribute.value_type).map(Either::Left)?
                                 }
                             },
 
@@ -488,7 +514,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                                 // :db/id is optional; if it's not given, we generate a special internal tempid
                                 // to use for upserting.  This tempid will not be reported in the TxReport.
-                                let db_id: Option<entmod::EntidOrLookupRefOrTempId> = mentat_tx_parser::remove_db_id(&mut map_notation)?;
+                                let db_id: Option<entmod::EntidOrLookupRefOrTempId> = remove_db_id(&mut map_notation)?;
                                 let mut dangling = db_id.is_none();
                                 let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
 

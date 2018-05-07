@@ -19,18 +19,63 @@ use mentat_core::KnownEntid;
 
 use mentat_core::util::Either;
 
+use edn::{
+    ValueAndSpan,
+};
+
 use errors;
-use errors::ErrorKind;
+use errors::{
+    ErrorKind,
+    Result,
+    ResultExt,
+};
+use schema::{
+    SchemaTypeChecking,
+};
 use types::{
     AVMap,
     AVPair,
     Entid,
+    Schema,
     TypedValue,
+    ValueType,
 };
 use mentat_tx::entities::{
+    EntidOrLookupRefOrTempId,
     OpType,
     TempId,
 };
+use mentat_tx_parser;
+
+/// The transactor is tied to `edn::ValueAndSpan` right now, but in the future we'd like to support
+/// `TypedValue` directly for programmatic use.  `TransactableValue` encapsulates the interface
+/// value types (i.e., values in the value place) need to support to be transacted.
+pub trait TransactableValue {
+    /// Coerce this value place into the given type.  This is where we perform schema-aware
+    /// coercion, for example coercing an integral value into a ref where appropriate.
+    fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue>;
+
+    /// Make an entity place out of this value place.  This is where we limit values in nested maps
+    /// to valid entity places.
+    fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId>;
+
+    fn as_tempid(&self) -> Option<TempId>;
+}
+
+impl TransactableValue for ValueAndSpan {
+    fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue> {
+        schema.to_typed_value(&self.without_spans(), value_type)
+    }
+
+    fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId> {
+        mentat_tx_parser::Tx::parse_entid_or_lookup_ref_or_temp_id(self)
+            .chain_err(|| ErrorKind::NotYetImplemented("db id error".into()))
+    }
+
+    fn as_tempid(&self) -> Option<TempId> {
+        self.inner.as_text().cloned().map(TempId::External)
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Term<E, V> {
