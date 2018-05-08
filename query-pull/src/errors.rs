@@ -22,6 +22,11 @@ error_chain! {
             description("unnamed attribute")
             display("attribute {:?} has no name", id)
         }
+
+        RepeatedDbId {
+            description(":db/id repeated")
+            display(":db/id repeated")
+        }
     }
 
     links {

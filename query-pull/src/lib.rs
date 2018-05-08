@@ -79,12 +79,14 @@ use std::iter::{
 };
 
 use mentat_core::{
+    Binding,
     Cloned,
     Entid,
     HasSchema,
     Keyword,
     Schema,
     StructuredMap,
+    TypedValue,
     ValueRc,
 };
 
@@ -143,6 +145,7 @@ pub struct Puller {
     // The range is the set of aliases to use in the output.
     attributes: BTreeMap<Entid, ValueRc<Keyword>>,
     attribute_spec: cache::AttributeSpec,
+    db_id_alias: Option<ValueRc<NamespacedKeyword>>,
 }
 
 impl Puller {
@@ -166,6 +169,9 @@ impl Puller {
 
         let mut names: BTreeMap<Entid, ValueRc<Keyword>> = Default::default();
         let mut attrs: BTreeSet<Entid> = Default::default();
+        let db_id = ::std::rc::Rc::new(NamespacedKeyword::new("db", "id"));
+        let mut db_id_alias = None;
+
         for attr in attributes.iter() {
             match attr {
                 &PullAttributeSpec::Wildcard => {
@@ -183,6 +189,14 @@ impl Puller {
                     let alias = alias.as_ref()
                                      .map(|ref r| r.to_value_rc());
                     match attribute {
+                        // Handle :db/id.
+                        &PullConcreteAttribute::Ident(ref i) if i.as_ref() == db_id.as_ref() => {
+                            // We only allow :db/id once.
+                            if db_id_alias.is_some() {
+                                bail!(ErrorKind::RepeatedDbId);
+                            }
+                            db_id_alias = Some(alias.unwrap_or_else(|| db_id.to_value_rc()));
+                        },
                         &PullConcreteAttribute::Ident(ref i) => {
                             if let Some(entid) = schema.get_entid(i) {
                                 let name = alias.unwrap_or_else(|| i.to_value_rc());
@@ -203,6 +217,7 @@ impl Puller {
         Ok(Puller {
             attributes: names,
             attribute_spec: cache::AttributeSpec::specified(&attrs, schema),
+            db_id_alias,
         })
     }
 
@@ -234,6 +249,17 @@ impl Puller {
         // TODO: should we walk `e` then `a`, or `a` then `e`? Possibly the right answer
         // is just to collect differently!
         let mut maps = BTreeMap::new();
+
+        // Collect :db/id if requested.
+        if let Some(ref alias) = self.db_id_alias {
+            for e in entities.iter() {
+                let mut r = maps.entry(*e)
+                                .or_insert(ValueRc::new(StructuredMap::default()));
+                let mut m = ValueRc::get_mut(r).unwrap();
+                m.insert(alias.clone(), Binding::Scalar(TypedValue::Ref(*e)));
+            }
+        }
+
         for (name, cache) in self.attributes.iter().filter_map(|(a, name)|
             caches.forward_attribute_cache_for_attribute(schema, *a)
                   .map(|cache| (name.clone(), cache))) {
