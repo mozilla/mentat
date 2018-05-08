@@ -55,7 +55,11 @@ pub use edn::{
 };
 
 use mentat_core::{
+    Attribute,
     FromRc,
+    HasSchema,
+    KnownEntid,
+    Schema,
     TypedValue,
     ValueRc,
     ValueType,
@@ -499,6 +503,19 @@ pub enum PullConcreteAttribute {
     Entid(i64),
 }
 
+impl PullConcreteAttribute {
+    pub fn get_attribute<'s>(&self, schema: &'s Schema) -> Option<(&'s Attribute, KnownEntid)> {
+        match self {
+            &PullConcreteAttribute::Ident(ref rc) => {
+                schema.attribute_for_ident(rc.as_ref())
+            },
+            &PullConcreteAttribute::Entid(e) => {
+                schema.attribute_for_entid(e).map(|a| (a, KnownEntid(e)))
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NamedPullAttribute {
     pub attribute: PullConcreteAttribute,
@@ -518,7 +535,7 @@ impl From<PullConcreteAttribute> for NamedPullAttribute {
 pub enum PullAttributeSpec {
     Wildcard,
     Attribute(NamedPullAttribute),
-    // PullMapSpec(Vec<…>),
+    Nested(PullConcreteAttribute, Vec<PullAttributeSpec>),
     // LimitedAttribute(PullConcreteAttribute, u64),  // Limit nil => Attribute instead.
     // DefaultedAttribute(PullConcreteAttribute, PullDefaultValue),
 }
@@ -555,6 +572,13 @@ impl std::fmt::Display for PullAttributeSpec {
             },
             &PullAttributeSpec::Attribute(ref attr) => {
                 write!(f, "{}", attr)
+            },
+            &PullAttributeSpec::Nested(ref attr, ref patterns) => {
+                write!(f, "{{{} [", attr)?;
+                for p in patterns {
+                    write!(f, " {}", p)?;
+                }
+                write!(f, "]}}")
             },
         }
     }

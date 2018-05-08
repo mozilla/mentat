@@ -27,6 +27,11 @@ error_chain! {
             description(":db/id repeated")
             display(":db/id repeated")
         }
+
+        NonRefNestedPullAttribute {
+            description("nested pull attribute is non-ref")
+            display("nested pull attribute is non-ref")
+        }
     }
 
     links {

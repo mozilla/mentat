@@ -88,6 +88,7 @@ use mentat_core::{
     StructuredMap,
     TypedValue,
     ValueRc,
+    ValueType,
 };
 
 use mentat_db::cache;
@@ -144,8 +145,18 @@ pub struct Puller {
     // The domain of this map is the set of attributes to fetch.
     // The range is the set of aliases to use in the output.
     attributes: BTreeMap<Entid, ValueRc<NamespacedKeyword>>,
+
+    // The original spec for this puller.
     attribute_spec: cache::AttributeSpec,
+
+    // If :db/id is mentioned in the attribute list, its alias is this.
     db_id_alias: Option<ValueRc<NamespacedKeyword>>,
+
+    // A pull expression can be arbitrarily nested. We represent this both
+    // within the `attribute_spec` itself and also as a nested set of `Puller`s.
+    // When an attribute in the list above returns an entity -- and it should! --
+    // it is accumulated and we recurse down into these nested layers.
+    nested: BTreeMap<Entid, Puller>,
 }
 
 impl Puller {
@@ -156,8 +167,8 @@ impl Puller {
         let lookup_name = |i: &Entid| {
             // In the unlikely event that we have an attribute with no name, we bail.
             schema.get_ident(*i)
-                    .map(|ident| ValueRc::new(ident.clone()))
-                    .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
+                  .map(|ident| ValueRc::new(ident.clone()))
+                  .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
         };
 
         let mut names: BTreeMap<Entid, ValueRc<NamespacedKeyword>> = Default::default();
@@ -204,6 +215,20 @@ impl Puller {
                         },
                     }
                 },
+
+                // An attribute that nests must be ref-typed.
+                &PullAttributeSpec::Nested(ref attribute, ref patterns) => {
+                    let value_type = attribute.get_attribute(schema)
+                                              .map(|(a, _e)| a.value_type);
+                    let is_ref_typed = value_type.map(|v| v == ValueType::Ref)
+                                                 .unwrap_or(false);
+                    if !is_ref_typed {
+                        bail!(ErrorKind::NonRefNestedPullAttribute);
+                    }
+
+                    // TODO
+                    unimplemented!();
+                },
             }
         }
 
@@ -211,6 +236,7 @@ impl Puller {
             attributes: names,
             attribute_spec: cache::AttributeSpec::specified(&attrs, schema),
             db_id_alias,
+            nested: Default::default(),
         })
     }
 

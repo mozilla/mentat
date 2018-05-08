@@ -366,7 +366,11 @@ fn validate_attributes<'a, I>(attrs: I) -> std::result::Result<(), &'static str>
                     return Err("wildcard with specified attributes");
                 }
             },
-            // TODO: map form.
+            &PullAttributeSpec::Nested(ref _attr, ref patterns) => {
+                if patterns.is_empty() {
+                    return Err("empty nested pull map");
+                }
+            },
         }
     }
     Ok(())
