@@ -232,9 +232,7 @@ impl Puller {
         // - Recursing. (TODO: we'll need AttributeCaches to not overwrite in case of recursion! And
         //   ideally not do excess work when some entity/attribute pairs are known.)
         // - Building a structure by walking the pull expression with the caches.
-        //   TODO: aliases.
         // TODO: limits.
-        // TODO: fts.
 
         // Build a cache for these attributes and entities.
         // TODO: use the store's existing cache!
