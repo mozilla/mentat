@@ -149,13 +149,6 @@ pub struct Puller {
 }
 
 impl Puller {
-    pub fn prepare_simple_attributes(schema: &Schema, attributes: Vec<Entid>) -> Result<Puller> {
-        Puller::prepare(schema,
-                        attributes.into_iter()
-                                  .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
-                                  .collect())
-    }
-
     pub fn prepare(schema: &Schema, attributes: Vec<PullAttributeSpec>) -> Result<Puller> {
         // TODO: eventually this entry point will handle aliasing and that kind of
         // thing. For now it's just a convenience.
