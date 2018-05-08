@@ -499,11 +499,25 @@ pub enum PullConcreteAttribute {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NamedPullAttribute {
+    pub attribute: PullConcreteAttribute,
+    pub alias: Option<Rc<NamespacedKeyword>>,
+}
+
+impl From<PullConcreteAttribute> for NamedPullAttribute {
+    fn from(a: PullConcreteAttribute) -> Self {
+        NamedPullAttribute {
+            attribute: a,
+            alias: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PullAttributeSpec {
     Wildcard,
-    Attribute(PullConcreteAttribute),
+    Attribute(NamedPullAttribute),
     // PullMapSpec(Vec<…>),
-    // AttributeWithOpts(PullConcreteAttribute, …),
     // LimitedAttribute(PullConcreteAttribute, u64),  // Limit nil => Attribute instead.
     // DefaultedAttribute(PullConcreteAttribute, PullDefaultValue),
 }
@@ -521,14 +535,25 @@ impl std::fmt::Display for PullConcreteAttribute {
     }
 }
 
+impl std::fmt::Display for NamedPullAttribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let &Some(ref alias) = &self.alias {
+            write!(f, "{} :as {}", self.attribute, alias)
+        } else {
+            write!(f, "{}", self.attribute)
+        }
+    }
+}
+
+
 impl std::fmt::Display for PullAttributeSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             &PullAttributeSpec::Wildcard => {
                 write!(f, "*")
             },
-            &PullAttributeSpec::Attribute(ref a) => {
-                write!(f, "{}", a)
+            &PullAttributeSpec::Attribute(ref attr) => {
+                write!(f, "{}", attr)
             },
         }
     }

@@ -116,7 +116,7 @@ fn test_simple_pull() {
     assert_eq!(pulled, expected);
 
     // Now test pull inside the query itself.
-    let query = r#"[:find ?hood (pull ?district [:district/name :district/region])
+    let query = r#"[:find ?hood (pull ?district [[:district/name :as :district/district] :district/region])
                     :where
                     (or [?hood :neighborhood/name "Beacon Hill"]
                         [?hood :neighborhood/name "Capitol Hill"])
@@ -128,12 +128,12 @@ fn test_simple_pull() {
                                            .expect("results");
 
     let beacon_district: Vec<(Keyword, TypedValue)> = vec![
-        (kw!(:district/name), "Greater Duwamish".into()),
+        (kw!(:district/district), "Greater Duwamish".into()),
         (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "se")).unwrap().into())
     ];
     let beacon_district: StructuredMap = beacon_district.into();
     let capitol_district: Vec<(Keyword, TypedValue)> = vec![
-        (kw!(:district/name), "East".into()),
+        (kw!(:district/district), "East".into()),
         (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "e")).unwrap().into())
     ];
     let capitol_district: StructuredMap = capitol_district.into();

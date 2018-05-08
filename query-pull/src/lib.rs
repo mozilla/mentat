@@ -91,6 +91,7 @@ use mentat_core::{
 use mentat_db::cache;
 
 use mentat_query::{
+    NamedPullAttribute,
     PullAttributeSpec,
     PullConcreteAttribute,
 };
@@ -110,7 +111,7 @@ pub fn pull_attributes_for_entity<A>(schema: &Schema,
                                      attributes: A) -> Result<StructuredMap>
     where A: IntoIterator<Item=Entid> {
     let attrs = attributes.into_iter()
-                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                           .collect();
     Puller::prepare(schema, attrs)?
         .pull(schema, db, once(entity))
@@ -130,7 +131,7 @@ pub fn pull_attributes_for_entities<E, A>(schema: &Schema,
     where E: IntoIterator<Item=Entid>,
           A: IntoIterator<Item=Entid> {
     let attrs = attributes.into_iter()
-                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                           .collect();
     Puller::prepare(schema, attrs)?
         .pull(schema, db, entities)
@@ -148,7 +149,7 @@ impl Puller {
     pub fn prepare_simple_attributes(schema: &Schema, attributes: Vec<Entid>) -> Result<Puller> {
         Puller::prepare(schema,
                         attributes.into_iter()
-                                  .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                                  .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                                   .collect())
     }
 
@@ -175,15 +176,26 @@ impl Puller {
                     }
                     break;
                 },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Ident(ref i)) => {
-                    if let Some(entid) = schema.get_entid(i) {
-                        names.insert(entid.into(), i.to_value_rc());
-                        attrs.insert(entid.into());
+                &PullAttributeSpec::Attribute(NamedPullAttribute {
+                    ref attribute,
+                    ref alias,
+                }) => {
+                    let alias = alias.as_ref()
+                                     .map(|ref r| r.to_value_rc());
+                    match attribute {
+                        &PullConcreteAttribute::Ident(ref i) => {
+                            if let Some(entid) = schema.get_entid(i) {
+                                let name = alias.unwrap_or_else(|| i.to_value_rc());
+                                names.insert(entid.into(), name);
+                                attrs.insert(entid.into());
+                            }
+                        },
+                        &PullConcreteAttribute::Entid(ref entid) => {
+                            let name = alias.map(Ok).unwrap_or_else(|| lookup_name(entid))?;
+                            names.insert(*entid, name);
+                            attrs.insert(*entid);
+                        },
                     }
-                },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(ref entid)) => {
-                    names.insert(*entid, lookup_name(entid)?);
-                    attrs.insert(*entid);
                 },
             }
         }
