@@ -71,8 +71,8 @@ pub(crate) struct Generation {
     upserts_ev: Vec<UpsertEV>,
 
     /// Entities that look like:
-    /// - [:db/add TEMPID b OTHERID]. where b is not :db.unique/identity;
-    /// - [:db/add TEMPID b v].  b may be :db.unique/identity.
+    /// - [:db/add TEMPID b OTHERID].  b may be :db.unique/identity if it has failed to upsert.
+    /// - [:db/add TEMPID b v].  b may be :db.unique/identity if it has failed to upsert.
     /// - [:db/add e b OTHERID].
     allocations: Vec<TermWithTempIds>,
 

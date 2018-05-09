@@ -146,16 +146,7 @@ lazy_static! {
         r#"CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"#,
 
         r#"CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"#,
-
-        // This index serves two purposes:
-        //
-        // - First, it allows to query specific transactions efficiently, and then to filter by
-        //   attribute in a transaction efficiently.
-        //
-        // - Second, it provides a layer of assurance that the transactor is correct by asserting
-        //   that a single datom `[e a v]` is added or retracted at most once in a single
-        //   transaction.
-        r#"CREATE UNIQUE INDEX idx_transactions_unique_tx_a_e_v ON transactions (tx, a, e, v)"#,
+        r#"CREATE INDEX idx_transactions_tx ON transactions (tx, added)"#,
 
         // Fulltext indexing.
         // A fulltext indexed value v is an integer rowid referencing fulltext_values.
@@ -524,14 +515,12 @@ fn search(conn: &rusqlite::Connection) -> Result<()> {
 fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
     // Mentat follows Datomic and treats its input as a set.  That means it is okay to transact the
     // same [e a v] twice in one transaction.  However, we don't want to represent the transacted
-    // datom twice, so we exploit the idx_transactions_unique_tx_a_e_v on transactions to IGNORE
-    // duplicated datoms coming from our search results.  This is a choice: we could also ensure
-    // that the search results satisfied the uniqueness constraints, or we could SELECT DISTINCT
-    // from the search results.  We're doing this since we need an index no transactions anyway, so
-    // we might as well make it a UNIQUE index and exploit it for this purpose too.
+    // datom twice.  Therefore, the transactor unifies repeated datoms, and in addition we add
+    // indices to the search inputs and search results to ensure that we don't see repeated datoms
+    // at this point.
 
     let s = r#"
-      INSERT OR IGNORE INTO transactions (e, a, v, tx, added, value_type_tag)
+      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v0, ?, 1, value_type_tag0
       FROM temp.search_results
       WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
@@ -542,7 +531,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         .chain_err(|| "Could not insert transaction: failed to add datoms not already present")?;
 
     let s = r#"
-      INSERT OR IGNORE INTO transactions (e, a, v, tx, added, value_type_tag)
+      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v, ?, 0, value_type_tag0
       FROM temp.search_results
       WHERE rid IS NOT NULL AND
@@ -581,11 +570,11 @@ fn update_datoms(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
     // Insert datoms that were added and not already present. We also must expand our bitfield into
     // flags.  Since Mentat follows Datomic and treats its input as a set, it is okay to transact
     // the same [e a v] twice in one transaction, but we don't want to represent the transacted
-    // datom twice in datoms.  Hence we IGNORE repeated datoms here.  This is a choice: we could
-    // also push the uniqueness constraints into the search results themselves, or SELECT DISTINCT
-    // from the search results.  This exploits the existing UNIQUE indices on the `datoms` table.
+    // datom twice in datoms.  The transactor unifies repeated datoms, and in addition we add
+    // indices to the search inputs and search results to ensure that we don't see repeated datoms
+    // at this point.
     let s = format!(r#"
-      INSERT OR IGNORE INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
+      INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
       SELECT e0, a0, v0, ?, value_type_tag0,
              flags0 & {} IS NOT 0,
              flags0 & {} IS NOT 0,
@@ -700,6 +689,11 @@ impl MentatStoring for rusqlite::Connection {
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
 
+            // It is fine to transact the same [e a v] twice in one transaction, but the transaction
+            // processor should unify such repeated datoms.  This index will cause insertion to fail
+            // if the transaction processor incorrectly tries to assert the same (cardinality one)
+            // datom twice.  (Sadly, the failure is opaque.)
+            r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.inexact_searches_unique ON inexact_searches (e0, a0) WHERE added0 = 1"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
             // TODO: don't encode search_type as a STRING.  This is explicit and much easier to read
             // than another flag, so we'll do it to start, and optimize later.
@@ -713,6 +707,13 @@ impl MentatStoring for rusqlite::Connection {
                search_type STRING NOT NULL,
                rid INTEGER,
                v BLOB)"#,
+            // It is fine to transact the same [e a v] twice in one transaction, but the transaction
+            // processor should identify those datoms.  This index will cause insertion to fail if
+            // the internals of the database searching code incorrectly find the same datom twice.
+            // (Sadly, the failure is opaque.)
+            //
+            // N.b.: temp goes on index name, not table name.  See http://stackoverflow.com/a/22308016.
+            r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.search_results_unique ON search_results (e0, a0, v0, value_type_tag0)"#,
         ];
 
         for statement in &statements {
@@ -2541,7 +2542,7 @@ mod tests {
         ]"#);
 
         // Observe that "foo" and "zot" upsert to the same entid, and that doesn't cause a
-        // cardinality constraint, because we treat the input with set semantics and accept
+        // cardinality conflict, because we treat the input with set semantics and accept
         // duplicate datoms.
         let report = assert_transact!(conn, r#"[
             [:db/add "bar" :page/id "z"]
