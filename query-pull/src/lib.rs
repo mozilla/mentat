@@ -79,18 +79,22 @@ use std::iter::{
 };
 
 use mentat_core::{
+    Binding,
     Cloned,
     Entid,
     HasSchema,
     NamespacedKeyword,
     Schema,
     StructuredMap,
+    TypedValue,
     ValueRc,
+    ValueType,
 };
 
 use mentat_db::cache;
 
 use mentat_query::{
+    NamedPullAttribute,
     PullAttributeSpec,
     PullConcreteAttribute,
 };
@@ -110,7 +114,7 @@ pub fn pull_attributes_for_entity<A>(schema: &Schema,
                                      attributes: A) -> Result<StructuredMap>
     where A: IntoIterator<Item=Entid> {
     let attrs = attributes.into_iter()
-                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                           .collect();
     Puller::prepare(schema, attrs)?
         .pull(schema, db, once(entity))
@@ -130,7 +134,7 @@ pub fn pull_attributes_for_entities<E, A>(schema: &Schema,
     where E: IntoIterator<Item=Entid>,
           A: IntoIterator<Item=Entid> {
     let attrs = attributes.into_iter()
-                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                           .collect();
     Puller::prepare(schema, attrs)?
         .pull(schema, db, entities)
@@ -141,17 +145,21 @@ pub struct Puller {
     // The domain of this map is the set of attributes to fetch.
     // The range is the set of aliases to use in the output.
     attributes: BTreeMap<Entid, ValueRc<NamespacedKeyword>>,
+
+    // The original spec for this puller.
     attribute_spec: cache::AttributeSpec,
+
+    // If :db/id is mentioned in the attribute list, its alias is this.
+    db_id_alias: Option<ValueRc<NamespacedKeyword>>,
+
+    // A pull expression can be arbitrarily nested. We represent this both
+    // within the `attribute_spec` itself and also as a nested set of `Puller`s.
+    // When an attribute in the list above returns an entity -- and it should! --
+    // it is accumulated and we recurse down into these nested layers.
+    nested: BTreeMap<Entid, Puller>,
 }
 
 impl Puller {
-    pub fn prepare_simple_attributes(schema: &Schema, attributes: Vec<Entid>) -> Result<Puller> {
-        Puller::prepare(schema,
-                        attributes.into_iter()
-                                  .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
-                                  .collect())
-    }
-
     pub fn prepare(schema: &Schema, attributes: Vec<PullAttributeSpec>) -> Result<Puller> {
         // TODO: eventually this entry point will handle aliasing and that kind of
         // thing. For now it's just a convenience.
@@ -159,12 +167,15 @@ impl Puller {
         let lookup_name = |i: &Entid| {
             // In the unlikely event that we have an attribute with no name, we bail.
             schema.get_ident(*i)
-                    .map(|ident| ValueRc::new(ident.clone()))
-                    .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
+                  .map(|ident| ValueRc::new(ident.clone()))
+                  .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
         };
 
         let mut names: BTreeMap<Entid, ValueRc<NamespacedKeyword>> = Default::default();
         let mut attrs: BTreeSet<Entid> = Default::default();
+        let db_id = ::std::rc::Rc::new(NamespacedKeyword::new("db", "id"));
+        let mut db_id_alias = None;
+
         for attr in attributes.iter() {
             match attr {
                 &PullAttributeSpec::Wildcard => {
@@ -175,15 +186,48 @@ impl Puller {
                     }
                     break;
                 },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Ident(ref i)) => {
-                    if let Some(entid) = schema.get_entid(i) {
-                        names.insert(entid.into(), i.to_value_rc());
-                        attrs.insert(entid.into());
+                &PullAttributeSpec::Attribute(NamedPullAttribute {
+                    ref attribute,
+                    ref alias,
+                }) => {
+                    let alias = alias.as_ref()
+                                     .map(|ref r| r.to_value_rc());
+                    match attribute {
+                        // Handle :db/id.
+                        &PullConcreteAttribute::Ident(ref i) if i.as_ref() == db_id.as_ref() => {
+                            // We only allow :db/id once.
+                            if db_id_alias.is_some() {
+                                bail!(ErrorKind::RepeatedDbId);
+                            }
+                            db_id_alias = Some(alias.unwrap_or_else(|| db_id.to_value_rc()));
+                        },
+                        &PullConcreteAttribute::Ident(ref i) => {
+                            if let Some(entid) = schema.get_entid(i) {
+                                let name = alias.unwrap_or_else(|| i.to_value_rc());
+                                names.insert(entid.into(), name);
+                                attrs.insert(entid.into());
+                            }
+                        },
+                        &PullConcreteAttribute::Entid(ref entid) => {
+                            let name = alias.map(Ok).unwrap_or_else(|| lookup_name(entid))?;
+                            names.insert(*entid, name);
+                            attrs.insert(*entid);
+                        },
                     }
                 },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(ref entid)) => {
-                    names.insert(*entid, lookup_name(entid)?);
-                    attrs.insert(*entid);
+
+                // An attribute that nests must be ref-typed.
+                &PullAttributeSpec::Nested(ref attribute, ref patterns) => {
+                    let value_type = attribute.get_attribute(schema)
+                                              .map(|(a, _e)| a.value_type);
+                    let is_ref_typed = value_type.map(|v| v == ValueType::Ref)
+                                                 .unwrap_or(false);
+                    if !is_ref_typed {
+                        bail!(ErrorKind::NonRefNestedPullAttribute);
+                    }
+
+                    // TODO
+                    unimplemented!();
                 },
             }
         }
@@ -191,6 +235,8 @@ impl Puller {
         Ok(Puller {
             attributes: names,
             attribute_spec: cache::AttributeSpec::specified(&attrs, schema),
+            db_id_alias,
+            nested: Default::default(),
         })
     }
 
@@ -205,9 +251,7 @@ impl Puller {
         // - Recursing. (TODO: we'll need AttributeCaches to not overwrite in case of recursion! And
         //   ideally not do excess work when some entity/attribute pairs are known.)
         // - Building a structure by walking the pull expression with the caches.
-        //   TODO: aliases.
         // TODO: limits.
-        // TODO: fts.
 
         // Build a cache for these attributes and entities.
         // TODO: use the store's existing cache!
@@ -222,6 +266,17 @@ impl Puller {
         // TODO: should we walk `e` then `a`, or `a` then `e`? Possibly the right answer
         // is just to collect differently!
         let mut maps = BTreeMap::new();
+
+        // Collect :db/id if requested.
+        if let Some(ref alias) = self.db_id_alias {
+            for e in entities.iter() {
+                let mut r = maps.entry(*e)
+                                .or_insert(ValueRc::new(StructuredMap::default()));
+                let mut m = ValueRc::get_mut(r).unwrap();
+                m.insert(alias.clone(), Binding::Scalar(TypedValue::Ref(*e)));
+            }
+        }
+
         for (name, cache) in self.attributes.iter().filter_map(|(a, name)|
             caches.forward_attribute_cache_for_attribute(schema, *a)
                   .map(|cache| (name.clone(), cache))) {

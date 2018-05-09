@@ -116,7 +116,9 @@ fn test_simple_pull() {
     assert_eq!(pulled, expected);
 
     // Now test pull inside the query itself.
-    let query = r#"[:find ?hood (pull ?district [:district/name :district/region])
+    let query = r#"[:find ?hood (pull ?district [:db/id
+                                                 [:district/name :as :district/district]
+                                                 :district/region])
                     :where
                     (or [?hood :neighborhood/name "Beacon Hill"]
                         [?hood :neighborhood/name "Capitol Hill"])
@@ -127,22 +129,24 @@ fn test_simple_pull() {
                                            .into_rel_result()
                                            .expect("results");
 
-    let beacon_district: Vec<(NamespacedKeyword, TypedValue)> = vec![
-        (kw!(:district/name), "Greater Duwamish".into()),
+    let beacon_district_pull: Vec<(NamespacedKeyword, TypedValue)> = vec![
+        (kw!(:db/id), TypedValue::Ref(beacon_district)),
+        (kw!(:district/district), "Greater Duwamish".into()),
         (kw!(:district/region), schema.get_entid(&NamespacedKeyword::new("region", "se")).unwrap().into())
     ];
-    let beacon_district: StructuredMap = beacon_district.into();
-    let capitol_district: Vec<(NamespacedKeyword, TypedValue)> = vec![
-        (kw!(:district/name), "East".into()),
+    let beacon_district_pull: StructuredMap = beacon_district_pull.into();
+    let capitol_district_pull: Vec<(NamespacedKeyword, TypedValue)> = vec![
+        (kw!(:db/id), TypedValue::Ref(capitol_district)),
+        (kw!(:district/district), "East".into()),
         (kw!(:district/region), schema.get_entid(&NamespacedKeyword::new("region", "e")).unwrap().into())
     ];
-    let capitol_district: StructuredMap = capitol_district.into();
+    let capitol_district_pull: StructuredMap = capitol_district_pull.into();
 
     let expected = RelResult {
                        width: 2,
                        values: vec![
-                           TypedValue::Ref(capitol).into(), capitol_district.into(),
-                           TypedValue::Ref(beacon).into(), beacon_district.into(),
+                           TypedValue::Ref(capitol).into(), capitol_district_pull.into(),
+                           TypedValue::Ref(beacon).into(), beacon_district_pull.into(),
                        ].into(),
                    };
     assert_eq!(results, expected.clone());
@@ -158,14 +162,19 @@ fn test_simple_pull() {
 
     // Execute a scalar query where the body is constant.
     // TODO: we shouldn't require `:where`; that makes this non-constant!
-    let query = r#"[:find (pull ?hood [:neighborhood/name]) . :in ?hood
+    let query = r#"[:find (pull ?hood [[:db/id :as :neighborhood/id]
+                                       :neighborhood/name]) .
+                    :in ?hood
                     :where [?hood :neighborhood/district _]]"#;
     let result = reader.q_once(query, QueryInputs::with_value_sequence(vec![(var!(?hood), TypedValue::Ref(beacon))]))
                        .into_scalar_result()
                        .expect("success")
                        .expect("result");
 
-    let expected: StructuredMap = vec![(kw!(:neighborhood/name), TypedValue::from("Beacon Hill"))].into();
+    let expected: StructuredMap = vec![
+        (kw!(:neighborhood/name), TypedValue::from("Beacon Hill")),
+        (kw!(:neighborhood/id), TypedValue::Ref(beacon)),
+    ].into();
     assert_eq!(result, expected.into());
 
     // Collect the names and regions of all districts.
