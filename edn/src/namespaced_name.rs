@@ -72,21 +72,17 @@ impl NamespacedName {
 
     #[inline]
     pub fn namespace(&self) -> &str {
-        unsafe {
-            self.ns_and_name.slice_unchecked(0, self.boundary)
-        }
+        &self.ns_and_name[0..self.boundary]
     }
 
     #[inline]
     pub fn name(&self) -> &str {
-        unsafe {
-            self.ns_and_name.slice_unchecked(self.boundary, self.ns_and_name.len())
-        }
+        &self.ns_and_name[self.boundary..]
     }
 
     #[inline]
     pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
-        (self.namespace(), self.name())
+        self.ns_and_name.split_at(self.boundary)
     }
 }
 
