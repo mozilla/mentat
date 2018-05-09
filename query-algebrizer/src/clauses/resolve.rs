@@ -84,7 +84,8 @@ impl ConjoiningClauses {
             FnArg::Variable(var) => {
                 match self.bound_value(&var) {
                     Some(TypedValue::Instant(v)) => Ok(QueryValue::TypedValue(TypedValue::Instant(v))),
-                    _ => {
+                    Some(v) => bail!(ErrorKind::InputTypeDisagreement(var.name().clone(), ValueType::Instant, v.value_type())),
+                    None => {
                         self.constrain_var_to_type(var.clone(), ValueType::Instant);
                         self.column_bindings
                             .get(&var)
