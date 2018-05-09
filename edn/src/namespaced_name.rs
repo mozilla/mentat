@@ -48,7 +48,7 @@ pub struct NamespacedName {
 
 impl NamespacedName {
     #[inline]
-    pub fn new<T>(namespace: T, name: T) -> Self where T: AsRef<str> {
+    pub fn new<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
         let n = name.as_ref();
         let ns = namespace.as_ref();
 
