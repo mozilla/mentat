@@ -271,89 +271,6 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     Ok(db)
 }
 
-// (def v2-statements v1-statements)
-
-// (defn create-temp-tx-lookup-statement [table-name]
-//   // n.b., v0/value_type_tag0 can be NULL, in which case we look up v from datoms;
-//   // and the datom columns are NULL into the LEFT JOIN fills them in.
-//   // The table-name is not escaped in any way, in order to allow r#"temp.dotted" names.
-//   // TODO: update comment about sv.
-//   [(str r#"CREATE TABLE IF NOT EXISTS r#" table-name
-//         r#" (e0 INTEGER NOT NULL, a0 SMALLINT NOT NULL, v0 BLOB NOT NULL, tx0 INTEGER NOT NULL, added0 TINYINT NOT NULL,
-//            value_type_tag0 SMALLINT NOT NULL,
-//            index_avet0 TINYINT, index_vaet0 TINYINT,
-//            index_fulltext0 TINYINT,
-//            unique_value0 TINYINT,
-//            sv BLOB,
-//            svalue_type_tag SMALLINT,
-//            rid INTEGER,
-//            e INTEGER, a SMALLINT, v BLOB, tx INTEGER, value_type_tag SMALLINT)")])
-
-// (defn create-temp-tx-lookup-eavt-statement [idx-name table-name]
-//   // Note that the consuming code creates and drops the indexes
-//   // manually, which makes insertion slightly faster.
-//   // This index prevents overlapping transactions.
-//   // The idx-name and table-name are not escaped in any way, in order
-//   // to allow r#"temp.dotted" names.
-//   // TODO: drop added0?
-//   [(str r#"CREATE UNIQUE INDEX IF NOT EXISTS r#"#,
-//         idx-name
-//         r#" ON r#"#,
-//         table-name
-//         r#" (e0, a0, v0, added0, value_type_tag0) WHERE sv IS NOT NULL")])
-
-// (defn <create-current-version
-//   [db bootstrapper]
-//   (println r#"Creating database at" current-version)
-//   (s/in-transaction!
-//     db
-//     #(go-pair
-//        (doseq [statement v2-statements]
-//          (try
-//            (<? (s/execute! db [statement]))
-//            (catch #?(:clj Throwable :cljs js/Error) e
-//              (throw (ex-info r#"Failed to execute statement" {:statement statement} e)))))
-//        (<? (bootstrapper db 0))
-//        (<? (s/set-user-version db current-version))
-//        [0 (<? (s/get-user-version db))])))
-
-
-// (defn <update-from-version
-//   [db from-version bootstrapper]
-//   {:pre [(> from-version 0)]} // Or we'd create-current-version instead.
-//   {:pre [(< from-version current-version)]} // Or we wouldn't need to update-from-version.
-//   (println r#"Upgrading database from" from-version r#"to" current-version)
-//   (s/in-transaction!
-//     db
-//     #(go-pair
-//        // We must only be migrating from v1 to v2.
-//        (let [statement r#"UPDATE parts SET idx = idx + 2 WHERE part = ?"]
-//          (try
-//            (<? (s/execute!
-//                  db
-//                  [statement :db.part/db]))
-//            (catch #?(:clj Throwable :cljs js/Error) e
-//              (throw (ex-info r#"Failed to execute statement" {:statement statement} e)))))
-//        (<? (bootstrapper db from-version))
-//        (<? (s/set-user-version db current-version))
-//        [from-version (<? (s/get-user-version db))])))
-
-// (defn <ensure-current-version
-//   r#"Returns a pair: [previous-version current-version]."#,
-//   [db bootstrapper]
-//   (go-pair
-//     (let [v (<? (s/get-user-version db))]
-//       (cond
-//         (= v current-version)
-//         [v v]
-
-//         (= v 0)
-//         (<? (<create-current-version db bootstrapper))
-
-//         (< v current-version)
-//         (<? (<update-from-version db v bootstrapper))))))
-// */
-
 pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     if rusqlite::version_number() < MIN_SQLITE_VERSION {
         panic!("Mentat requires at least sqlite {}", MIN_SQLITE_VERSION);
@@ -596,6 +513,12 @@ fn search(conn: &rusqlite::Connection) -> Result<()> {
 ///
 /// See https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.
 fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
+    // Mentat follows Datomic and treats its input as a set.  That means it is okay to transact the
+    // same [e a v] twice in one transaction.  However, we don't want to represent the transacted
+    // datom twice.  Therefore, the transactor unifies repeated datoms, and in addition we add
+    // indices to the search inputs and search results to ensure that we don't see repeated datoms
+    // at this point.
+
     let s = r#"
       INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v0, ?, 1, value_type_tag0
@@ -644,8 +567,12 @@ fn update_datoms(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         .map(|_c| ())
         .chain_err(|| "Could not update datoms: failed to retract datoms already present")?;
 
-    // Insert datoms that were added and not already present. We also must
-    // expand our bitfield into flags.
+    // Insert datoms that were added and not already present. We also must expand our bitfield into
+    // flags.  Since Mentat follows Datomic and treats its input as a set, it is okay to transact
+    // the same [e a v] twice in one transaction, but we don't want to represent the transacted
+    // datom twice in datoms.  The transactor unifies repeated datoms, and in addition we add
+    // indices to the search inputs and search results to ensure that we don't see repeated datoms
+    // at this point.
     let s = format!(r#"
       INSERT INTO datoms (e, a, v, tx, value_type_tag, index_avet, index_vaet, index_fulltext, unique_value)
       SELECT e0, a0, v0, ?, value_type_tag0,
@@ -762,8 +689,10 @@ impl MentatStoring for rusqlite::Connection {
                added0 TINYINT NOT NULL,
                flags0 TINYINT NOT NULL)"#,
 
-            // We create this unique index so that it's impossible to violate a cardinality constraint
-            // within a transaction.
+            // It is fine to transact the same [e a v] twice in one transaction, but the transaction
+            // processor should unify such repeated datoms.  This index will cause insertion to fail
+            // if the transaction processor incorrectly tries to assert the same (cardinality one)
+            // datom twice.  (Sadly, the failure is opaque.)
             r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.inexact_searches_unique ON inexact_searches (e0, a0) WHERE added0 = 1"#,
             r#"DROP TABLE IF EXISTS temp.search_results"#,
             // TODO: don't encode search_type as a STRING.  This is explicit and much easier to read
@@ -778,9 +707,10 @@ impl MentatStoring for rusqlite::Connection {
                search_type STRING NOT NULL,
                rid INTEGER,
                v BLOB)"#,
-            // It is an error to transact the same [e a v] twice in one transaction.  This index will
-            // cause insertion to fail if a transaction tries to do that.  (Sadly, the failure is
-            // opaque.)
+            // It is fine to transact the same [e a v] twice in one transaction, but the transaction
+            // processor should identify those datoms.  This index will cause insertion to fail if
+            // the internals of the database searching code incorrectly find the same datom twice.
+            // (Sadly, the failure is opaque.)
             //
             // N.b.: temp goes on index name, not table name.  See http://stackoverflow.com/a/22308016.
             r#"CREATE UNIQUE INDEX IF NOT EXISTS temp.search_results_unique ON search_results (e0, a0, v0, value_type_tag0)"#,
@@ -1149,22 +1079,40 @@ impl PartitionMapping for PartitionMap {
 
 #[cfg(test)]
 mod tests {
+    extern crate env_logger;
+
     use super::*;
     use bootstrap;
     use debug;
+    use errors;
     use edn;
     use mentat_core::{
         HasSchema,
+        KnownEntid,
         NamespacedKeyword,
-        Schema,
         attribute,
+    };
+    use mentat_core::intern_set::{
+        InternSet,
+    };
+    use mentat_core::util::Either::*;
+    use mentat_tx::entities::{
+        OpType,
+        TempId,
     };
     use mentat_tx_parser;
     use rusqlite;
     use std::collections::{
         BTreeMap,
     };
+    use internal_types::{
+        Term,
+        TermWithTempIds,
+    };
     use types::TxReport;
+    use tx::{
+        transact_terms,
+    };
 
     // Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
     // against it.
@@ -1188,10 +1136,12 @@ mod tests {
     // This unwraps safely and makes asserting errors pleasant.
     macro_rules! assert_transact {
         ( $conn: expr, $input: expr, $expected: expr ) => {{
+            trace!("assert_transact: {}", $input);
             let result = $conn.transact($input).map_err(|e| e.to_string());
             assert_eq!(result, $expected.map_err(|e| e.to_string()));
         }};
         ( $conn: expr, $input: expr ) => {{
+            trace!("assert_transact: {}", $input);
             let result = $conn.transact($input);
             assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
             result.unwrap()
@@ -1226,6 +1176,29 @@ mod tests {
                 let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
                 // Applying the transaction can fail, so we don't unwrap.
                 let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), entities)?;
+                tx.commit()?;
+                details
+            };
+
+            let (report, next_partition_map, next_schema, _watcher) = details;
+            self.partition_map = next_partition_map;
+            if let Some(next_schema) = next_schema {
+                self.schema = next_schema;
+            }
+
+            // Verify that we've updated the materialized views during transacting.
+            self.assert_materialized_views();
+
+            Ok(report)
+        }
+
+        fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport> where I: IntoIterator<Item=TermWithTempIds> {
+            let details = {
+                // The block scopes the borrow of self.sqlite.
+                // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
+                let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                // Applying the transaction can fail, so we don't unwrap.
+                let details = transact_terms(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), terms, tempid_set)?;
                 tx.commit()?;
                 details
             };
@@ -1388,7 +1361,7 @@ mod tests {
         assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
                                  [:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.752Z\"]
                                  [:db/add 102 :db/ident :name/Vlad]]",
-                         Err("conflicting datoms in tx"));
+                         Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 268435458, a: 3, vs: {Instant(2017-06-16T00:59:11.257Z), Instant(2017-06-16T00:59:11.752Z)} }\n"));
 
         // Test multiple txInstants with the same value.
         assert_transact!(conn, "[[:db/add (transaction-tx) :db/txInstant #inst \"2017-06-16T00:59:11.257Z\"]
@@ -1612,6 +1585,53 @@ mod tests {
         //                 "[[65538 :db/ident :name/Josef]
         //                   [65538 :db/ident :name/Karl]
         //                   [?tx :db/txInstant ?ms ?tx true]]");
+    }
+
+    #[test]
+    fn test_resolved_upserts() {
+        let mut conn = TestConn::default();
+        assert_transact!(conn, "[
+            {:db/ident :test/id
+             :db/valueType :db.type/string
+             :db/unique :db.unique/identity
+             :db/index true
+             :db/cardinality :db.cardinality/one}
+            {:db/ident :test/ref
+             :db/valueType :db.type/ref
+             :db/unique :db.unique/identity
+             :db/index true
+             :db/cardinality :db.cardinality/one}
+        ]");
+
+        // Partial data for :test/id, links via :test/ref.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/id "0"]
+            [:db/add 101 :test/ref 100]
+            [:db/add 102 :test/ref 101]
+            [:db/add 103 :test/ref 102]
+        ]"#);
+
+        // Fill in the rest of the data for :test/id, using the links of :test/ref.
+        let report = assert_transact!(conn, r#"[
+            {:db/id "a" :test/id "0"}
+            {:db/id "b" :test/id "1" :test/ref "a"}
+            {:db/id "c" :test/id "2" :test/ref "b"}
+            {:db/id "d" :test/id "3" :test/ref "c"}
+        ]"#);
+
+        assert_matches!(tempids(&report), r#"{
+            "a" 100
+            "b" 101
+            "c" 102
+            "d" 103
+        }"#);
+
+        assert_matches!(conn.last_transaction(), r#"[
+            [101 :test/id "1" ?tx true]
+            [102 :test/id "2" ?tx true]
+            [103 :test/id "3" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]
+        ]"#);
     }
 
     #[test]
@@ -2447,14 +2467,16 @@ mod tests {
             [:db/add "bar" :test/unique "x"]
             [:db/add "bar" :test/one 124]
         ]"#,
-        Err("Could not insert non-fts one statements into temporary search table!"));
+        // This is implementation specific (due to the allocated entid), but it should be deterministic.
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 65536, a: 111, vs: {Long(123), Long(124)} }\n"));
 
         // It also fails for map notation.
         assert_transact!(conn, r#"[
             {:test/unique "x", :test/one 123}
             {:test/unique "x", :test/one 124}
         ]"#,
-        Err("Could not insert non-fts one statements into temporary search table!"));
+        // This is implementation specific (due to the allocated entid), but it should be deterministic.
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 65536, a: 111, vs: {Long(123), Long(124)} }\n"));
     }
 
     #[test]
@@ -2506,6 +2528,131 @@ mod tests {
             [:db/add "x" :page/ref 333]
             [:db/add "x" :page/ref 444]
         ]"#,
-        Err("Could not insert non-fts one statements into temporary search table!"));
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 65539, a: 65537, vs: {Ref(333), Ref(444)} }\n"));
+    }
+
+    #[test]
+    fn test_upsert_issue_532() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/ident :page/id :db/valueType :db.type/string :db/index true :db/unique :db.unique/identity}
+            {:db/ident :page/ref :db/valueType :db.type/ref :db/index true :db/unique :db.unique/identity}
+            {:db/ident :page/title :db/valueType :db.type/string :db/cardinality :db.cardinality/many}
+        ]"#);
+
+        // Observe that "foo" and "zot" upsert to the same entid, and that doesn't cause a
+        // cardinality conflict, because we treat the input with set semantics and accept
+        // duplicate datoms.
+        let report = assert_transact!(conn, r#"[
+            [:db/add "bar" :page/id "z"]
+            [:db/add "foo" :page/ref "bar"]
+            [:db/add "foo" :page/title "x"]
+            [:db/add "zot" :page/ref "bar"]
+            [:db/add "zot" :db/ident :other/ident]
+        ]"#);
+        assert_matches!(tempids(&report),
+                        "{\"bar\" ?b
+                          \"foo\" ?f
+                          \"zot\" ?f}");
+        assert_matches!(conn.last_transaction(),
+                        "[[?b :page/id \"z\" ?tx true]
+                          [?f :db/ident :other/ident ?tx true]
+                          [?f :page/ref ?b ?tx true]
+                          [?f :page/title \"x\" ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        let report = assert_transact!(conn, r#"[
+            [:db/add "foo" :page/id "x"]
+            [:db/add "foo" :page/title "x"]
+            [:db/add "bar" :page/id "x"]
+            [:db/add "bar" :page/title "y"]
+        ]"#);
+        assert_matches!(tempids(&report),
+                        "{\"foo\" ?e
+                          \"bar\" ?e}");
+
+        // One entity, two page titles.
+        assert_matches!(conn.last_transaction(),
+                        "[[?e :page/id \"x\" ?tx true]
+                          [?e :page/title \"x\" ?tx true]
+                          [?e :page/title \"y\" ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+    }
+
+    #[test]
+    fn test_term_typechecking_issue_663() {
+        // The builder interfaces provide untrusted `Term` instances to the transactor, bypassing
+        // the typechecking layers invoked in the schema-aware coercion from `edn::Value` into
+        // `TypedValue`.  Typechecking now happens lower in the stack (as well as higher in the
+        // stack) so we shouldn't be able to insert bad data into the store.
+
+        let mut conn = TestConn::default();
+
+        let mut terms = vec![];
+
+        terms.push(Term::AddOrRetract(OpType::Add, Left(KnownEntid(200)), entids::DB_IDENT, Left(TypedValue::typed_string("test"))));
+        terms.push(Term::AddOrRetract(OpType::Retract, Left(KnownEntid(100)), entids::DB_TX_INSTANT, Left(TypedValue::Long(-1))));
+
+        let report = conn.transact_simple_terms(terms, InternSet::new());
+
+        match report.unwrap_err() {
+            errors::Error(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms }), _) => {
+                let mut map = BTreeMap::default();
+                map.insert((100, entids::DB_TX_INSTANT, TypedValue::Long(-1)), ValueType::Instant);
+                map.insert((200, entids::DB_IDENT, TypedValue::typed_string("test")), ValueType::Keyword);
+
+                assert_eq!(conflicting_datoms, map);
+            },
+            x => panic!("expected schema constraint violation, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_cardinality_constraints() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+        ]"#);
+
+        // Can add the same datom multiple times for an attribute, regardless of cardinality.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/one 1]
+            [:db/add 100 :test/one 1]
+            [:db/add 100 :test/many 2]
+            [:db/add 100 :test/many 2]
+        ]"#);
+
+        // Can retract the same datom multiple times for an attribute, regardless of cardinality.
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :test/one 1]
+            [:db/retract 100 :test/one 1]
+            [:db/retract 100 :test/many 2]
+            [:db/retract 100 :test/many 2]
+        ]"#);
+
+        // Can't transact multiple datoms for a cardinality one attribute.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/one 3]
+            [:db/add 100 :test/one 4]
+        ]"#,
+        Err("schema constraint violation: cardinality conflicts:\n  CardinalityOneAddConflict { e: 100, a: 200, vs: {Long(3), Long(4)} }\n"));
+
+        // Can transact multiple datoms for a cardinality many attribute.
+        assert_transact!(conn, r#"[
+            [:db/add 100 :test/many 5]
+            [:db/add 100 :test/many 6]
+        ]"#);
+
+        // Can't add and retract the same datom for an attribute, regardless of cardinality.
+        assert_transact!(conn, r#"[
+            [:db/add     100 :test/one 7]
+            [:db/retract 100 :test/one 7]
+            [:db/add     100 :test/many 8]
+            [:db/retract 100 :test/many 8]
+        ]"#,
+        Err("schema constraint violation: cardinality conflicts:\n  AddRetractConflict { e: 100, a: 200, vs: {Long(7)} }\n  AddRetractConflict { e: 100, a: 201, vs: {Long(8)} }\n"));
     }
 }

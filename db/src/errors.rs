@@ -27,8 +27,26 @@ use mentat_core::{
 };
 use types::{
     Entid,
+    TypedValue,
     ValueType,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CardinalityConflict {
+    /// A cardinality one attribute has multiple assertions `[e a v1], [e a v2], ...`.
+    CardinalityOneAddConflict {
+        e: Entid,
+        a: Entid,
+        vs: BTreeSet<TypedValue>,
+    },
+
+    /// A datom has been both asserted and retracted, like `[:db/add e a v]` and `[:db/retract e a v]`.
+    AddRetractConflict {
+        e: Entid,
+        a: Entid,
+        vs: BTreeSet<TypedValue>,
+    },
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SchemaConstraintViolation {
@@ -43,6 +61,17 @@ pub enum SchemaConstraintViolation {
         /// rewriting passes the input undergoes.
         conflicting_upserts: BTreeMap<TempId, BTreeSet<KnownEntid>>,
     },
+
+    /// A transaction tried to assert a datom or datoms with the wrong value `v` type(s).
+    TypeDisagreements {
+        /// The key (`[e a v]`) has an invalid value `v`: it is not of the expected value type.
+        conflicting_datoms: BTreeMap<(Entid, Entid, TypedValue), ValueType>
+    },
+
+    /// A transaction tried to assert a datoms that don't observe the schema's cardinality constraints.
+    CardinalityConflicts {
+        conflicts: Vec<CardinalityConflict>,
+    },
 }
 
 impl ::std::fmt::Display for SchemaConstraintViolation {
@@ -53,6 +82,20 @@ impl ::std::fmt::Display for SchemaConstraintViolation {
                 write!(f, "conflicting upserts:\n")?;
                 for (tempid, entids) in conflicting_upserts {
                     write!(f, "  tempid {:?} upserts to {:?}\n", tempid, entids)?;
+                }
+                Ok(())
+            },
+            &TypeDisagreements { ref conflicting_datoms } => {
+                write!(f, "type disagreements:\n")?;
+                for (ref datom, expected_type) in conflicting_datoms {
+                    write!(f, "  expected value of type {} but got datom [{} {} {:?}]\n", expected_type, datom.0, datom.1, datom.2)?;
+                }
+                Ok(())
+            },
+            &CardinalityConflicts { ref conflicts } => {
+                writeln!(f, "cardinality conflicts:")?;
+                for ref conflict in conflicts {
+                    writeln!(f, "  {:?}", conflict)?;
                 }
                 Ok(())
             },
@@ -125,11 +168,6 @@ error_chain! {
         UnrecognizedEntid(entid: Entid) {
             description("unrecognized or no ident found for entid")
             display("unrecognized or no ident found for entid: {}", entid)
-        }
-
-        ConflictingDatoms {
-            description("conflicting datoms in tx")
-            display("conflicting datoms in tx")
         }
 
         UnknownAttribute(attr: Entid) {

@@ -18,6 +18,7 @@ extern crate itertools;
 #[macro_use] extern crate log;
 
 extern crate num;
+extern crate petgraph;
 extern crate rusqlite;
 extern crate tabwriter;
 extern crate time;
@@ -47,6 +48,7 @@ mod schema;
 pub mod tx_observer;
 mod watcher;
 mod tx;
+mod tx_checking;
 pub mod types;
 mod upsert_resolution;
 
