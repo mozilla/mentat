@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -8,7 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::cmp::{Ord, PartialOrd, Ordering};
+use std::cmp::{
+    Ord,
+    Ordering,
+    PartialOrd,
+};
+
 use std::fmt;
 
 #[cfg(feature = "serde_support")]
@@ -17,9 +22,7 @@ use serde::{
     ser::{Serialize, Serializer}
 };
 
-// Data storage for both NamespacedKeyword and NamespacedSymbol. This gets it's own module because
-// modifying it's fields is `unsafe`, and so we'd like to minimize the amount of code that can
-// touch it.
+// Data storage for both NamespacedKeyword and NamespacedSymbol.
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct NamespacedName {
     // The bytes that make up the namespace followed directly by those
@@ -87,7 +90,7 @@ impl NamespacedName {
     }
 }
 
-// We can't derive these, since the derived version doesn't know how to interepret `ns_and_name`.
+// We order by namespace then by name.
 impl PartialOrd for NamespacedName {
     fn partial_cmp(&self, other: &NamespacedName) -> Option<Ordering> {
         // Just use a lexicographic ordering.

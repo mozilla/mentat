@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -220,13 +220,12 @@ impl NamespacedKeyword {
     /// assert_eq!(":foo/_bar", reversed.to_string());
     /// ```
     pub fn to_reversed(&self) -> NamespacedKeyword {
-        let name = if self.is_backward() {
-            self.name()[1..].to_string()
+        let name = self.name();
+        if name.starts_with('_') {
+            NamespacedKeyword::new(self.namespace(), &name[1..])
         } else {
-            format!("{}{}", "_", self.name())
-        };
-
-        NamespacedKeyword::new(self.namespace(), &name)
+            NamespacedKeyword::new(self.namespace(), &format!("_{}", name))
+        }
     }
 
     /// If this `NamespacedKeyword` is 'backward' (see `symbols::NamespacedKeyword::is_backward`),
