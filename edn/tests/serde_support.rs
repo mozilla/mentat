@@ -24,8 +24,9 @@ fn test_serialize_keyword() {
     let kw = NamespacedKeyword::new("foo", "bar");
     assert_tokens(&kw, &[
         Token::NewtypeStruct { name: "NamespacedKeyword" },
-        Token::Struct { name: "NamespacedName", len: 2 },
+        Token::Struct { name: "NamespaceableName", len: 2 },
         Token::Str("namespace"),
+        Token::Some,
         Token::BorrowedStr("foo"),
         Token::Str("name"),
         Token::BorrowedStr("bar"),

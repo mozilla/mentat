@@ -22,31 +22,44 @@ use serde::{
     ser::{Serialize, Serializer}
 };
 
-// Data storage for both NamespacedKeyword and NamespacedSymbol.
+// Data storage for both NamespaceableKeyword and NamespaceableSymbol.
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct NamespacedName {
+pub struct NamespaceableName {
     // The bytes that make up the namespace followed directly by those
     // that make up the name.
-    ns_and_name: String,
+    components: String,
 
-    // The index (in bytes) into `ns_and_name` where the namespace ends and
+    // The index (in bytes) into `components` where the namespace ends and
     // name begins.
+    //
+    // If this is zero, it means that this is _not_ a namespaced value!
     //
     // Important: The following invariants around `boundary` must be maintained
     // for memory safety.
     //
-    // 1. `boundary` must always be less than or equal to `ns_and_name.len()`.
+    // 1. `boundary` must always be less than or equal to `components.len()`.
     // 2. `boundary` must be byte index that points to a character boundary,
     //     and not point into the middle of a utf8 codepoint. That is,
-    //    `ns_and_name.is_char_boundary(boundary)` must always be true.
+    //    `components.is_char_boundary(boundary)` must always be true.
     //
-    // These invariants are enforced by `NamespacedName::new()`, and since
-    // we never mutate `NamespacedName`s, that's the only place we need to
+    // These invariants are enforced by `NamespaceableName::new()`, and since
+    // we never mutate `NamespaceableName`s, that's the only place we need to
     // worry about them.
     boundary: usize,
 }
 
-impl NamespacedName {
+impl NamespaceableName {
+    #[inline]
+    pub fn unnamespaced<T>(name: T) -> Self where T: Into<String> {
+        let n = name.into();
+        assert!(!n.is_empty(), "Symbols and keywords cannot be unnamed.");
+
+        NamespaceableName {
+            components: n,
+            boundary: 0,
+        }
+    }
+
     #[inline]
     pub fn new<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
         let n = name.as_ref();
@@ -64,46 +77,62 @@ impl NamespacedName {
 
         let boundary = ns.len();
 
-        NamespacedName {
-            ns_and_name: dest,
+        NamespaceableName {
+            components: dest,
             boundary: boundary,
         }
     }
 
+    pub fn is_namespaced(&self) -> bool {
+        self.boundary > 0
+    }
+
     #[inline]
-    pub fn namespace(&self) -> &str {
-        &self.ns_and_name[0..self.boundary]
+    pub fn namespace(&self) -> Option<&str> {
+        if self.boundary > 0 {
+            Some(&self.components[0..self.boundary])
+        } else {
+            None
+        }
     }
 
     #[inline]
     pub fn name(&self) -> &str {
-        &self.ns_and_name[self.boundary..]
+        &self.components[self.boundary..]
     }
 
     #[inline]
     pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
-        self.ns_and_name.split_at(self.boundary)
+        self.components.split_at(self.boundary)
     }
 }
 
 // We order by namespace then by name.
-impl PartialOrd for NamespacedName {
-    fn partial_cmp(&self, other: &NamespacedName) -> Option<Ordering> {
-        // Just use a lexicographic ordering.
-        self.components().partial_cmp(&other.components())
+// Non-namespaced values always sort before.
+impl PartialOrd for NamespaceableName {
+    fn partial_cmp(&self, other: &NamespaceableName) -> Option<Ordering> {
+        match (self.boundary, other.boundary) {
+            (0, 0) => self.components.partial_cmp(&other.components),
+            (0, _) => Some(Ordering::Less),
+            (_, 0) => Some(Ordering::Greater),
+            (_, _) => {
+                // Just use a lexicographic ordering.
+                self.components().partial_cmp(&other.components())
+            },
+        }
     }
 }
 
-impl Ord for NamespacedName {
-    fn cmp(&self, other: &NamespacedName) -> Ordering {
+impl Ord for NamespaceableName {
+    fn cmp(&self, other: &NamespaceableName) -> Ordering {
         self.components().cmp(&other.components())
     }
 }
 
 // We could derive this, but it's really hard to make sense of as-is.
-impl fmt::Debug for NamespacedName {
+impl fmt::Debug for NamespaceableName {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("NamespacedName")
+        fmt.debug_struct("NamespaceableName")
            .field("namespace", &self.namespace())
            .field("name", &self.name())
            .finish()
@@ -115,37 +144,42 @@ impl fmt::Debug for NamespacedName {
 // `derive(Deserialize)` since `unsafe` code depends on `self.boundary` being a valid index).
 //
 // We'd also like for users consuming our serialized data as e.g. JSON not to have to learn how we
-// store NamespacedName internally, since it's very much an implementation detail.
+// store NamespaceableName internally, since it's very much an implementation detail.
 //
 // We achieve both of these by implemeting a type that can serialize in way that's both user-
 // friendly and automatic (e.g. `derive`d), and just pass all work off to it in our custom
 // implementation of Serialize and Deserialize.
 #[cfg(feature = "serde_support")]
-#[cfg_attr(feature = "serde_support", serde(rename = "NamespacedName"))]
+#[cfg_attr(feature = "serde_support", serde(rename = "NamespaceableName"))]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
-struct SerializedNamespacedName<'a> {
-    namespace: &'a str,
+struct SerializedNamespaceableName<'a> {
+    namespace: Option<&'a str>,
     name: &'a str,
 }
 
 #[cfg(feature = "serde_support")]
-impl<'de> Deserialize<'de> for NamespacedName {
+impl<'de> Deserialize<'de> for NamespaceableName {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-        let separated = SerializedNamespacedName::deserialize(deserializer)?;
+        let separated = SerializedNamespaceableName::deserialize(deserializer)?;
         if separated.name.len() == 0 {
             return Err(de::Error::custom("Empty name in keyword or symbol"));
         }
-        if separated.namespace.len() == 0 {
-            return Err(de::Error::custom("Empty namespace in keyword or symbol"));
+        if let Some(ns) = separated.namespace {
+            if ns.len() == 0 {
+                Err(de::Error::custom("Empty but present namespace in keyword or symbol"))
+            } else {
+                Ok(NamespaceableName::new(ns, separated.name))
+            }
+        } else {
+            Ok(NamespaceableName::unnamespaced(separated.name))
         }
-        Ok(NamespacedName::new(separated.namespace, separated.name))
     }
 }
 
 #[cfg(feature = "serde_support")]
-impl Serialize for NamespacedName {
+impl Serialize for NamespaceableName {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-        let ser = SerializedNamespacedName {
+        let ser = SerializedNamespaceableName {
             namespace: self.namespace(),
             name: self.name(),
         };
@@ -160,39 +194,39 @@ mod test {
 
     #[test]
     fn test_new_invariants_maintained() {
-        assert!(panic::catch_unwind(|| NamespacedName::new("", "foo")).is_err(),
+        assert!(panic::catch_unwind(|| NamespaceableName::new("", "foo")).is_err(),
                 "Empty namespace should panic");
-        assert!(panic::catch_unwind(|| NamespacedName::new("foo", "")).is_err(),
+        assert!(panic::catch_unwind(|| NamespaceableName::new("foo", "")).is_err(),
                 "Empty name should panic");
-        assert!(panic::catch_unwind(|| NamespacedName::new("", "")).is_err(),
+        assert!(panic::catch_unwind(|| NamespaceableName::new("", "")).is_err(),
                 "Should panic if both fields are empty");
     }
 
     #[test]
     fn test_basic() {
-        let s = NamespacedName::new("aaaaa", "b");
-        assert_eq!(s.namespace(), "aaaaa");
+        let s = NamespaceableName::new("aaaaa", "b");
+        assert_eq!(s.namespace(), Some("aaaaa"));
         assert_eq!(s.name(), "b");
         assert_eq!(s.components(), ("aaaaa", "b"));
 
-        let s = NamespacedName::new("b", "aaaaa");
+        let s = NamespaceableName::new("b", "aaaaa");
+        assert_eq!(s.namespace(), Some("b"));
         assert_eq!(s.name(), "aaaaa");
-        assert_eq!(s.namespace(), "b");
         assert_eq!(s.components(), ("b", "aaaaa"));
     }
 
     #[test]
     fn test_order() {
-        let n0 = NamespacedName::new("a", "aa");
-        let n1 = NamespacedName::new("aa", "a");
+        let n0 = NamespaceableName::new("a", "aa");
+        let n1 = NamespaceableName::new("aa", "a");
 
-        let n2 = NamespacedName::new("a", "ab");
-        let n3 = NamespacedName::new("aa", "b");
+        let n2 = NamespaceableName::new("a", "ab");
+        let n3 = NamespaceableName::new("aa", "b");
 
-        let n4 = NamespacedName::new("b", "ab");
-        let n5 = NamespacedName::new("ba", "b");
+        let n4 = NamespaceableName::new("b", "ab");
+        let n5 = NamespaceableName::new("ba", "b");
 
-        let n6 = NamespacedName::new("z", "zz");
+        let n6 = NamespaceableName::new("z", "zz");
 
         let mut arr = [
             n5.clone(),

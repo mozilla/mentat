@@ -9,7 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use std::fmt::{Display, Formatter};
-use namespaced_name::NamespacedName;
+use namespaceable_name::NamespaceableName;
 
 #[macro_export]
 macro_rules! ns_keyword {
@@ -23,7 +23,7 @@ macro_rules! ns_keyword {
 pub struct PlainSymbol(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct NamespacedSymbol(NamespacedName);
+pub struct NamespacedSymbol(NamespaceableName);
 
 /// A keyword is a symbol, optionally with a namespace, that prints with a leading colon.
 /// This concept is imported from Clojure, as it features in EDN and the query
@@ -67,7 +67,7 @@ pub struct Keyword(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
-pub struct NamespacedKeyword(NamespacedName);
+pub struct NamespacedKeyword(NamespaceableName);
 
 impl PlainSymbol {
     pub fn new<T>(name: T) -> Self where T: Into<String> {
@@ -105,8 +105,10 @@ impl PlainSymbol {
 }
 
 impl NamespacedSymbol {
-    pub fn new<T>(namespace: T, name: T) -> Self where T: AsRef<str> {
-        NamespacedSymbol(NamespacedName::new(namespace, name))
+    pub fn new<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
+        let r = namespace.as_ref();
+        assert!(!r.is_empty(), "Namespaced symbols cannot have an empty non-null namespace.");
+        NamespacedSymbol(NamespaceableName::new(r, name))
     }
 
     #[inline]
@@ -116,7 +118,7 @@ impl NamespacedSymbol {
 
     #[inline]
     pub fn namespace(&self) -> &str {
-        self.0.namespace()
+        self.0.namespace().unwrap()
     }
 
     #[inline]
@@ -146,8 +148,10 @@ impl NamespacedKeyword {
     /// ```
     ///
     /// See also the `kw!` macro in the main `mentat` crate.
-    pub fn new<T>(namespace: T, name: T) -> Self where T: AsRef<str> {
-        NamespacedKeyword(NamespacedName::new(namespace, name))
+    pub fn new<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
+        let r = namespace.as_ref();
+        assert!(!r.is_empty(), "Namespaced keywords cannot have an empty non-null namespace.");
+        NamespacedKeyword(NamespaceableName::new(r, name))
     }
 
     #[inline]
@@ -157,7 +161,7 @@ impl NamespacedKeyword {
 
     #[inline]
     pub fn namespace(&self) -> &str {
-        self.0.namespace()
+        self.0.namespace().unwrap()
     }
 
     #[inline]
