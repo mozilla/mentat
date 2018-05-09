@@ -26,7 +26,7 @@ use mentat_core::{
 };
 
 use mentat_query::{
-    NamespacedKeyword,
+    Keyword,
     PlainSymbol,
     Variable,
 };
@@ -48,9 +48,9 @@ use utils::{
 
 fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "date"), 65);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "double"), 66);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "long"), 67);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "date"), 65);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "double"), 66);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "long"), 67);
     add_attribute(&mut schema, 65, Attribute {
         value_type: ValueType::Instant,
         multival: false,

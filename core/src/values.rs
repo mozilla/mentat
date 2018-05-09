@@ -17,7 +17,7 @@
 use edn::types::Value;
 use edn::symbols;
 
-/// Declare a lazy static `ident` of type `Value::NamespacedKeyword` with the given `namespace` and
+/// Declare a lazy static `ident` of type `Value::Keyword` with the given `namespace` and
 /// `name`.
 ///
 /// It may look surprising that we declare a new `lazy_static!` block rather than including
@@ -31,7 +31,7 @@ macro_rules! lazy_static_namespaced_keyword_value (
     ($tag:ident, $namespace:expr, $name:expr) => (
         lazy_static! {
             pub static ref $tag: Value = {
-                Value::NamespacedKeyword(symbols::NamespacedKeyword::namespaced($namespace, $name))
+                Value::Keyword(symbols::Keyword::namespaced($namespace, $name))
             };
         }
     )

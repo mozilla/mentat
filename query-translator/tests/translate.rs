@@ -22,7 +22,7 @@ use std::rc::Rc;
 
 use mentat_query::{
     FindSpec,
-    NamespacedKeyword,
+    Keyword,
     Variable,
 };
 
@@ -62,7 +62,7 @@ macro_rules! var {
     };
 }
 
-fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+fn associate_ident(schema: &mut Schema, i: Keyword, e: Entid) {
     schema.entid_map.insert(e, i.clone());
     schema.ident_map.insert(i.clone(), e);
 }
@@ -123,12 +123,12 @@ fn translate_to_constant(schema: &Schema, query: &'static str) -> ConstantProjec
 
 fn prepopulated_typed_schema(foo_type: ValueType) -> Schema {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "bar"), 99);
     add_attribute(&mut schema, 99, Attribute {
         value_type: foo_type,
         ..Default::default()
     });
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "fts"), 100);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "fts"), 100);
     add_attribute(&mut schema, 100, Attribute {
         value_type: ValueType::String,
         index: true,
@@ -486,9 +486,9 @@ fn test_compare_double_to_long() {
 #[test]
 fn test_simple_or_join() {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "url"), 97);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "title"), 98);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "description"), 99);
+    associate_ident(&mut schema, Keyword::namespaced("page", "url"), 97);
+    associate_ident(&mut schema, Keyword::namespaced("page", "title"), 98);
+    associate_ident(&mut schema, Keyword::namespaced("page", "description"), 99);
     for x in 97..100 {
         add_attribute(&mut schema, x, Attribute {
             value_type: ValueType::String,
@@ -511,16 +511,16 @@ fn test_simple_or_join() {
 #[test]
 fn test_complex_or_join() {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "save"), 95);
+    associate_ident(&mut schema, Keyword::namespaced("page", "save"), 95);
     add_attribute(&mut schema, 95, Attribute {
         value_type: ValueType::Ref,
         ..Default::default()
     });
 
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("save", "title"), 96);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "url"), 97);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "title"), 98);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "description"), 99);
+    associate_ident(&mut schema, Keyword::namespaced("save", "title"), 96);
+    associate_ident(&mut schema, Keyword::namespaced("page", "url"), 97);
+    associate_ident(&mut schema, Keyword::namespaced("page", "title"), 98);
+    associate_ident(&mut schema, Keyword::namespaced("page", "description"), 99);
     for x in 96..100 {
         add_attribute(&mut schema, x, Attribute {
             value_type: ValueType::String,
@@ -572,7 +572,7 @@ fn test_complex_or_join() {
 #[test]
 fn test_complex_or_join_type_projection() {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "title"), 98);
+    associate_ident(&mut schema, Keyword::namespaced("page", "title"), 98);
     add_attribute(&mut schema, 98, Attribute {
         value_type: ValueType::String,
         ..Default::default()
@@ -603,9 +603,9 @@ fn test_complex_or_join_type_projection() {
 #[test]
 fn test_not() {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "url"), 97);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "title"), 98);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "bookmarked"), 99);
+    associate_ident(&mut schema, Keyword::namespaced("page", "url"), 97);
+    associate_ident(&mut schema, Keyword::namespaced("page", "title"), 98);
+    associate_ident(&mut schema, Keyword::namespaced("page", "bookmarked"), 99);
     for x in 97..99 {
         add_attribute(&mut schema, x, Attribute {
             value_type: ValueType::String,
@@ -629,9 +629,9 @@ fn test_not() {
 #[test]
 fn test_not_join() {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "url"), 97);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("bookmarks", "page"), 98);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("bookmarks", "date_created"), 99);
+    associate_ident(&mut schema, Keyword::namespaced("page", "url"), 97);
+    associate_ident(&mut schema, Keyword::namespaced("bookmarks", "page"), 98);
+    associate_ident(&mut schema, Keyword::namespaced("bookmarks", "date_created"), 99);
     add_attribute(&mut schema, 97, Attribute {
         value_type: ValueType::String,
         ..Default::default()
@@ -698,7 +698,7 @@ fn test_order_by() {
 #[test]
 fn test_complex_nested_or_join_type_projection() {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("page", "title"), 98);
+    associate_ident(&mut schema, Keyword::namespaced("page", "title"), 98);
     add_attribute(&mut schema, 98, Attribute {
         value_type: ValueType::String,
         ..Default::default()
@@ -884,10 +884,10 @@ fn test_unbound_attribute_with_ground() {
 #[test]
 fn test_not_with_ground() {
     let mut schema = prepopulated_schema();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("db", "valueType"), 7);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("db.type", "ref"), 23);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("db.type", "bool"), 28);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("db.type", "instant"), 29);
+    associate_ident(&mut schema, Keyword::namespaced("db", "valueType"), 7);
+    associate_ident(&mut schema, Keyword::namespaced("db.type", "ref"), 23);
+    associate_ident(&mut schema, Keyword::namespaced("db.type", "bool"), 28);
+    associate_ident(&mut schema, Keyword::namespaced("db.type", "instant"), 29);
     add_attribute(&mut schema, 7, Attribute {
         value_type: ValueType::Ref,
         multival: false,
@@ -1139,7 +1139,7 @@ fn test_tx_before_and_after() {
 #[test]
 fn test_tx_ids() {
     let mut schema = prepopulated_typed_schema(ValueType::Double);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("db", "txInstant"), 101);
+    associate_ident(&mut schema, Keyword::namespaced("db", "txInstant"), 101);
     add_attribute(&mut schema, 101, Attribute {
         value_type: ValueType::Instant,
         multival: false,

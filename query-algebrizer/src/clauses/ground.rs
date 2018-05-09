@@ -329,7 +329,7 @@ mod testing {
     use mentat_query::{
         Binding,
         FnArg,
-        NamespacedKeyword,
+        Keyword,
         PlainSymbol,
         Variable,
     };
@@ -346,7 +346,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "fts"), 100);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "fts"), 100);
         add_attribute(&mut schema, 100, Attribute {
             value_type: ValueType::String,
             index: true,

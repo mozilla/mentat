@@ -29,7 +29,7 @@ use mentat_core::{
 
 use mentat::{
     CacheDirection,
-    NamespacedKeyword,
+    Keyword,
     Queryable,
     QueryExplanation,
     QueryOutput,
@@ -109,12 +109,12 @@ fn eprint_out(s: &str) {
     eprint!("{green}{s}{reset}", green = color::Fg(::GREEN), s = s, reset = color::Fg(color::Reset));
 }
 
-fn parse_namespaced_keyword(input: &str) -> Option<NamespacedKeyword> {
+fn parse_namespaced_keyword(input: &str) -> Option<Keyword> {
     let splits = [':', '/'];
     let mut i = input.split(&splits[..]);
     match (i.next(), i.next(), i.next(), i.next()) {
         (Some(""), Some(namespace), Some(name), None) => {
-            Some(NamespacedKeyword::namespaced(namespace, name))
+            Some(Keyword::namespaced(namespace, name))
         },
         _ => None,
     }

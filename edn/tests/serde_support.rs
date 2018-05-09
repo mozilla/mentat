@@ -15,15 +15,15 @@ extern crate serde_test;
 extern crate serde_json;
 
 extern crate edn;
-use edn::symbols::NamespacedKeyword;
+use edn::symbols::Keyword;
 use serde_test::{assert_tokens, Token};
 
 #[cfg(feature = "serde_support")]
 #[test]
 fn test_serialize_keyword() {
-    let kw = NamespacedKeyword::namespaced("foo", "bar");
+    let kw = Keyword::namespaced("foo", "bar");
     assert_tokens(&kw, &[
-        Token::NewtypeStruct { name: "NamespacedKeyword" },
+        Token::NewtypeStruct { name: "Keyword" },
         Token::Struct { name: "NamespaceableName", len: 2 },
         Token::Str("namespace"),
         Token::Some,
@@ -39,16 +39,16 @@ fn test_serialize_keyword() {
 #[test]
 fn test_deserialize_keyword() {
     let json = r#"{"name": "foo", "namespace": "bar"}"#;
-    let kw = serde_json::from_str::<NamespacedKeyword>(json).unwrap();
+    let kw = serde_json::from_str::<Keyword>(json).unwrap();
     assert_eq!(kw.name(), "foo");
-    assert_eq!(kw.namespace(), "bar");
+    assert_eq!(kw.namespace(), Some("bar"));
 
     let bad_ns_json = r#"{"name": "foo", "namespace": ""}"#;
-    let not_kw = serde_json::from_str::<NamespacedKeyword>(bad_ns_json);
+    let not_kw = serde_json::from_str::<Keyword>(bad_ns_json);
     assert!(not_kw.is_err());
 
     let bad_ns_json = r#"{"name": "", "namespace": "bar"}"#;
-    let not_kw = serde_json::from_str::<NamespacedKeyword>(bad_ns_json);
+    let not_kw = serde_json::from_str::<Keyword>(bad_ns_json);
     assert!(not_kw.is_err());
 }
 

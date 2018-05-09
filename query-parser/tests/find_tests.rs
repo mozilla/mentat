@@ -17,7 +17,7 @@ extern crate mentat_query;
 extern crate mentat_query_parser;
 
 use edn::{
-    NamespacedKeyword,
+    Keyword,
     PlainSymbol,
 };
 
@@ -162,7 +162,7 @@ fn can_parse_simple_or_join() {
 
 #[cfg(test)]
 fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-    NamespacedKeyword::namespaced(ns, name).into()
+    Keyword::namespaced(ns, name).into()
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn can_parse_uuid() {
                WhereClause::Pattern(
                    Pattern::new(None,
                                 PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
-                                NamespacedKeyword::namespaced("foo", "baz").into(),
+                                Keyword::namespaced("foo", "baz").into(),
                                 PatternValuePlace::Constant(NonIntegerConstant::Uuid(expected)),
                                 PatternNonValuePlace::Placeholder)
                        .expect("valid pattern")));

@@ -95,7 +95,7 @@ error_chain! {
             display("core schema: wanted {}, got {:?}", mentat_db::CORE_SCHEMA_VERSION, version)
         }
 
-        MissingCoreVocabulary(kw: mentat_query::NamespacedKeyword) {
+        MissingCoreVocabulary(kw: mentat_query::Keyword) {
             description("missing core vocabulary")
             display("missing core attribute {}", kw)
         }

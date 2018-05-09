@@ -14,7 +14,7 @@ use namespaceable_name::NamespaceableName;
 #[macro_export]
 macro_rules! ns_keyword {
     ($ns: expr, $name: expr) => {{
-        $crate::NamespacedKeyword::namespaced($ns, $name)
+        $crate::Keyword::namespaced($ns, $name)
     }}
 }
 
@@ -46,12 +46,12 @@ pub struct NamespacedSymbol(NamespaceableName);
 ///
 /// ```rust
 /// # use edn::symbols::Keyword;
-/// # use edn::symbols::NamespacedKeyword;
 /// let bar     = Keyword::plain("bar");                         // :bar
-/// let foo_bar = NamespacedKeyword::namespaced("foo", "bar");        // :foo/bar
-/// assert_eq!("bar", bar.0);
+/// let foo_bar = Keyword::namespaced("foo", "bar");        // :foo/bar
+/// assert_eq!("bar", bar.name());
+/// assert_eq!(None, bar.namespace());
 /// assert_eq!("bar", foo_bar.name());
-/// assert_eq!("foo", foo_bar.namespace());
+/// assert_eq!(Some("foo"), foo_bar.namespace());
 /// ```
 ///
 /// If you're not sure whether your input is well-formed, you should use a
@@ -63,11 +63,8 @@ pub struct NamespacedSymbol(NamespaceableName);
 /// Future: fast equality (interning?) for keywords.
 ///
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct Keyword(pub String);
-
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
-pub struct NamespacedKeyword(NamespaceableName);
+pub struct Keyword(NamespaceableName);
 
 impl PlainSymbol {
     pub fn plain<T>(name: T) -> Self where T: Into<String> {
@@ -129,21 +126,18 @@ impl NamespacedSymbol {
 
 impl Keyword {
     pub fn plain<T>(name: T) -> Self where T: Into<String> {
-        let n = name.into();
-        assert!(!n.is_empty(), "Keywords cannot be unnamed.");
-
-        Keyword(n)
+        Keyword(NamespaceableName::plain(name))
     }
 }
 
-impl NamespacedKeyword {
-    /// Creates a new `NamespacedKeyword`.
+impl Keyword {
+    /// Creates a new `Keyword`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use edn::symbols::NamespacedKeyword;
-    /// let keyword = NamespacedKeyword::namespaced("foo", "bar");
+    /// # use edn::symbols::Keyword;
+    /// let keyword = Keyword::namespaced("foo", "bar");
     /// assert_eq!(keyword.to_string(), ":foo/bar");
     /// ```
     ///
@@ -151,7 +145,7 @@ impl NamespacedKeyword {
     pub fn namespaced<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
         let r = namespace.as_ref();
         assert!(!r.is_empty(), "Namespaced keywords cannot have an empty non-null namespace.");
-        NamespacedKeyword(NamespaceableName::namespaced(r, name))
+        Keyword(NamespaceableName::namespaced(r, name))
     }
 
     #[inline]
@@ -160,8 +154,8 @@ impl NamespacedKeyword {
     }
 
     #[inline]
-    pub fn namespace(&self) -> &str {
-        self.0.namespace().unwrap()
+    pub fn namespace(&self) -> Option<&str> {
+        self.0.namespace()
     }
 
     #[inline]
@@ -169,7 +163,7 @@ impl NamespacedKeyword {
         self.0.components()
     }
 
-    /// Whether this `NamespacedKeyword` should be interpreted in reverse order. For example,
+    /// Whether this `Keyword` should be interpreted in reverse order. For example,
     /// the two following snippets are identical:
     ///
     /// ```edn
@@ -183,39 +177,46 @@ impl NamespacedKeyword {
     /// # Examples
     ///
     /// ```rust
-    /// # use edn::symbols::NamespacedKeyword;
-    /// assert!(!NamespacedKeyword::namespaced("foo", "bar").is_backward());
-    /// assert!(NamespacedKeyword::namespaced("foo", "_bar").is_backward());
+    /// # use edn::symbols::Keyword;
+    /// assert!(!Keyword::namespaced("foo", "bar").is_backward());
+    /// assert!(Keyword::namespaced("foo", "_bar").is_backward());
     /// ```
-
     #[inline]
     pub fn is_backward(&self) -> bool {
-        self.name().starts_with('_')
+        self.0.is_backward()
     }
 
-    /// Whether this `NamespacedKeyword` should be interpreted in forward order.
-    /// See `symbols::NamespacedKeyword::is_backward`.
+    /// Whether this `Keyword` should be interpreted in forward order.
+    /// See `symbols::Keyword::is_backward`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use edn::symbols::NamespacedKeyword;
-    /// assert!(NamespacedKeyword::namespaced("foo", "bar").is_forward());
-    /// assert!(!NamespacedKeyword::namespaced("foo", "_bar").is_forward());
+    /// # use edn::symbols::Keyword;
+    /// assert!(Keyword::namespaced("foo", "bar").is_forward());
+    /// assert!(!Keyword::namespaced("foo", "_bar").is_forward());
     /// ```
     #[inline]
     pub fn is_forward(&self) -> bool {
-        !self.is_backward()
+        self.0.is_forward()
     }
 
-    /// Returns a `NamespacedKeyword` with the same namespace and a
-    /// 'backward' name. See `symbols::NamespacedKeyword::is_backward`.
+    #[inline]
+    pub fn is_namespaced(&self) -> bool {
+        self.0.is_namespaced()
+    }
+
+    /// Returns a `Keyword` with the same namespace and a
+    /// 'backward' name. See `symbols::Keyword::is_backward`.
+    ///
+    /// Returns a forward name if passed a reversed keyword; i.e., this
+    /// function is its own inverse.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use edn::symbols::NamespacedKeyword;
-    /// let nsk = NamespacedKeyword::namespaced("foo", "bar");
+    /// # use edn::symbols::Keyword;
+    /// let nsk = Keyword::namespaced("foo", "bar");
     /// assert!(!nsk.is_backward());
     /// assert_eq!(":foo/bar", nsk.to_string());
     ///
@@ -223,31 +224,26 @@ impl NamespacedKeyword {
     /// assert!(reversed.is_backward());
     /// assert_eq!(":foo/_bar", reversed.to_string());
     /// ```
-    pub fn to_reversed(&self) -> NamespacedKeyword {
-        let name = self.name();
-        if name.starts_with('_') {
-            NamespacedKeyword::namespaced(self.namespace(), &name[1..])
-        } else {
-            NamespacedKeyword::namespaced(self.namespace(), &format!("_{}", name))
-        }
+    pub fn to_reversed(&self) -> Keyword {
+        Keyword(self.0.to_reversed())
     }
 
-    /// If this `NamespacedKeyword` is 'backward' (see `symbols::NamespacedKeyword::is_backward`),
+    /// If this `Keyword` is 'backward' (see `symbols::Keyword::is_backward`),
     /// return `Some('forward name')`; otherwise, return `None`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use edn::symbols::NamespacedKeyword;
-    /// let nsk = NamespacedKeyword::namespaced("foo", "bar");
+    /// # use edn::symbols::Keyword;
+    /// let nsk = Keyword::namespaced("foo", "bar");
     /// assert_eq!(None, nsk.unreversed());
     ///
     /// let reversed = nsk.to_reversed();
     /// assert_eq!(Some(nsk), reversed.unreversed());
     /// ```
-    pub fn unreversed(&self) -> Option<NamespacedKeyword> {
+    pub fn unreversed(&self) -> Option<Keyword> {
         if self.is_backward() {
-            Some(NamespacedKeyword::namespaced(self.namespace(), &self.name()[1..]))
+            Some(self.to_reversed())
         } else {
             None
         }
@@ -294,32 +290,24 @@ impl Display for Keyword {
     /// ```rust
     /// # use edn::symbols::Keyword;
     /// assert_eq!(":baz", Keyword::plain("baz").to_string());
+    /// assert_eq!(":bar/baz", Keyword::namespaced("bar", "baz").to_string());
+    /// assert_eq!(":bar/_baz", Keyword::namespaced("bar", "baz").to_reversed().to_string());
+    /// assert_eq!(":bar/baz", Keyword::namespaced("bar", "baz").to_reversed().to_reversed().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, ":{}", self.0)
-    }
-}
-
-impl Display for NamespacedKeyword {
-    /// Print the keyword in EDN format.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use edn::symbols::NamespacedKeyword;
-    /// assert_eq!(":bar/baz", NamespacedKeyword::namespaced("bar", "baz").to_string());
-    /// assert_eq!(":bar/_baz", NamespacedKeyword::namespaced("bar", "baz").to_reversed().to_string());
-    /// assert_eq!(":bar/baz", NamespacedKeyword::namespaced("bar", "baz").to_reversed().to_reversed().to_string());
-    /// ```
-    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, ":{}/{}", self.namespace(), self.name())
+        if self.0.is_namespaced() {
+            let (ns, name) = self.0.components();
+            write!(f, ":{}/{}", ns, name)
+        } else {
+            write!(f, ":{}", self.0.name())
+        }
     }
 }
 
 #[test]
 fn test_ns_keyword_macro() {
     assert_eq!(ns_keyword!("test", "name").to_string(),
-               NamespacedKeyword::namespaced("test", "name").to_string());
+               Keyword::namespaced("test", "name").to_string());
     assert_eq!(ns_keyword!("ns", "_name").to_string(),
-               NamespacedKeyword::namespaced("ns", "_name").to_string());
+               Keyword::namespaced("ns", "_name").to_string());
 }

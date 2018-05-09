@@ -15,7 +15,7 @@ use std::collections::{
 
 use mentat_core::{
     Entid,
-    NamespacedKeyword,
+    Keyword,
     Binding,
     TypedValue,
     ValueType,
@@ -53,7 +53,7 @@ impl<'a> QueryBuilder<'a> {
         self
     }
 
-    pub fn bind_ref_from_kw(&mut self, var: &str, value: NamespacedKeyword) -> Result<&mut Self> {
+    pub fn bind_ref_from_kw(&mut self, var: &str, value: Keyword) -> Result<&mut Self> {
         let entid = self.store.conn().current_schema().get_entid(&value).ok_or(ErrorKind::UnknownAttribute(value.to_string()))?;
         self.values.insert(Variable::from_valid_name(var), TypedValue::Ref(entid.into()));
         Ok(self)

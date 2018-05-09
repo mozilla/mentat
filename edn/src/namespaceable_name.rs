@@ -83,8 +83,36 @@ impl NamespaceableName {
         }
     }
 
+    fn dwim<N, T>(namespace: Option<N>, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
+        if let Some(ns) = namespace {
+            Self::namespaced(ns, name)
+        } else {
+            Self::plain(name.as_ref())
+        }
+    }
+
     pub fn is_namespaced(&self) -> bool {
         self.boundary > 0
+    }
+
+    #[inline]
+    pub fn is_backward(&self) -> bool {
+        self.name().starts_with('_')
+    }
+
+    #[inline]
+    pub fn is_forward(&self) -> bool {
+        !self.is_backward()
+    }
+
+    pub fn to_reversed(&self) -> NamespaceableName {
+        let name = self.name();
+
+        if name.starts_with('_') {
+            Self::dwim(self.namespace(), &name[1..])
+        } else {
+            Self::dwim(self.namespace(), &format!("_{}", name))
+        }
     }
 
     #[inline]
@@ -98,7 +126,11 @@ impl NamespaceableName {
 
     #[inline]
     pub fn name(&self) -> &str {
-        &self.components[self.boundary..]
+        if self.boundary == 0 {
+            &self.components
+        } else {
+            &self.components[self.boundary..]
+        }
     }
 
     #[inline]

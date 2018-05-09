@@ -734,22 +734,22 @@ mod test {
         Variable(Rc::new(x))
     }
 
-    fn ident_kw(kw: edn::NamespacedKeyword) -> PatternNonValuePlace {
+    fn ident_kw(kw: edn::Keyword) -> PatternNonValuePlace {
         PatternNonValuePlace::Ident(kw.into())
     }
 
     fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-        ident_kw(edn::NamespacedKeyword::namespaced(ns, name))
+        ident_kw(edn::Keyword::namespaced(ns, name))
     }
 
     #[test]
     fn test_pattern_mixed() {
         let e = edn::PlainSymbol::plain("_");
-        let a = edn::NamespacedKeyword::namespaced("foo", "bar");
+        let a = edn::Keyword::namespaced("foo", "bar");
         let v = OrderedFloat(99.9);
         let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
-                                            edn::Value::NamespacedKeyword(a.clone()),
+                                            edn::Value::Keyword(a.clone()),
                                             edn::Value::Float(v.clone()),
                                             edn::Value::PlainSymbol(tx.clone())));
         assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
@@ -785,11 +785,11 @@ mod test {
     #[test]
     fn test_pattern_reversed_invalid() {
         let e = edn::PlainSymbol::plain("_");
-        let a = edn::NamespacedKeyword::namespaced("foo", "_bar");
+        let a = edn::Keyword::namespaced("foo", "_bar");
         let v = OrderedFloat(99.9);
         let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
-                 edn::Value::NamespacedKeyword(a.clone()),
+                 edn::Value::Keyword(a.clone()),
                  edn::Value::Float(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())));
 
@@ -802,11 +802,11 @@ mod test {
     #[test]
     fn test_pattern_reversed() {
         let e = edn::PlainSymbol::plain("_");
-        let a = edn::NamespacedKeyword::namespaced("foo", "_bar");
+        let a = edn::Keyword::namespaced("foo", "_bar");
         let v = edn::PlainSymbol::plain("?v");
         let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
-                 edn::Value::NamespacedKeyword(a.clone()),
+                 edn::Value::Keyword(a.clone()),
                  edn::Value::PlainSymbol(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())));
 
@@ -1203,8 +1203,8 @@ mod test {
                                   patterns: vec![PullAttributeSpec::Wildcard],
                               }));
 
-        let foo_bar = ::std::rc::Rc::new(edn::NamespacedKeyword::namespaced("foo", "bar"));
-        let foo_baz = ::std::rc::Rc::new(edn::NamespacedKeyword::namespaced("foo", "baz"));
+        let foo_bar = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"));
+        let foo_baz = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "baz"));
         assert_edn_parses_to!(Query::pull_concrete_attribute,
                               ":foo/bar",
                               PullAttributeSpec::Attribute(
@@ -1241,7 +1241,7 @@ mod test {
                         patterns: vec![
                             PullAttributeSpec::Attribute(
                                 PullConcreteAttribute::Ident(
-                                    ::std::rc::Rc::new(edn::NamespacedKeyword::namespaced("foo", "bar"))
+                                    ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"))
                                 )
                             ),
                         ] })]),

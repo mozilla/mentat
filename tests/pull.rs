@@ -34,7 +34,7 @@ use mentat::{
     Entid,
     HasSchema,
     IntoResult,
-    NamespacedKeyword,
+    Keyword,
     Pullable,
     Queryable,
     QueryInputs,
@@ -127,14 +127,14 @@ fn test_simple_pull() {
                                            .into_rel_result()
                                            .expect("results");
 
-    let beacon_district: Vec<(NamespacedKeyword, TypedValue)> = vec![
+    let beacon_district: Vec<(Keyword, TypedValue)> = vec![
         (kw!(:district/name), "Greater Duwamish".into()),
-        (kw!(:district/region), schema.get_entid(&NamespacedKeyword::namespaced("region", "se")).unwrap().into())
+        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "se")).unwrap().into())
     ];
     let beacon_district: StructuredMap = beacon_district.into();
-    let capitol_district: Vec<(NamespacedKeyword, TypedValue)> = vec![
+    let capitol_district: Vec<(Keyword, TypedValue)> = vec![
         (kw!(:district/name), "East".into()),
-        (kw!(:district/region), schema.get_entid(&NamespacedKeyword::namespaced("region", "e")).unwrap().into())
+        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "e")).unwrap().into())
     ];
     let capitol_district: StructuredMap = capitol_district.into();
 

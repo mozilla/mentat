@@ -41,7 +41,6 @@ pub enum Value {
     PlainSymbol(symbols::PlainSymbol),
     NamespacedSymbol(symbols::NamespacedSymbol),
     Keyword(symbols::Keyword),
-    NamespacedKeyword(symbols::NamespacedKeyword),
     Vector(Vec<Value>),
     // We're using a LinkedList here instead of a Vec or VecDeque because the
     // LinkedList is faster for appending (which we do a lot of).
@@ -70,7 +69,6 @@ pub enum SpannedValue {
     PlainSymbol(symbols::PlainSymbol),
     NamespacedSymbol(symbols::NamespacedSymbol),
     Keyword(symbols::Keyword),
-    NamespacedKeyword(symbols::NamespacedKeyword),
     Vector(Vec<ValueAndSpan>),
     List(LinkedList<ValueAndSpan>),
     Set(BTreeSet<ValueAndSpan>),
@@ -159,7 +157,6 @@ impl From<SpannedValue> for Value {
             SpannedValue::PlainSymbol(v) => Value::PlainSymbol(v),
             SpannedValue::NamespacedSymbol(v) => Value::NamespacedSymbol(v),
             SpannedValue::Keyword(v) => Value::Keyword(v),
-            SpannedValue::NamespacedKeyword(v) => Value::NamespacedKeyword(v),
             SpannedValue::Vector(v) => Value::Vector(v.into_iter().map(|x| x.without_spans()).collect()),
             SpannedValue::List(v) => Value::List(v.into_iter().map(|x| x.without_spans()).collect()),
             SpannedValue::Set(v) => Value::Set(v.into_iter().map(|x| x.without_spans()).collect()),
@@ -278,7 +275,7 @@ macro_rules! to_symbol {
 /// # use edn::types::Value;
 /// # use edn::symbols;
 /// let value = to_keyword!("foo", "bar", Value);
-/// assert_eq!(value, Value::NamespacedKeyword(symbols::NamespacedKeyword::namespaced("foo", "bar")));
+/// assert_eq!(value, Value::Keyword(symbols::Keyword::namespaced("foo", "bar")));
 ///
 /// let value = to_keyword!(None, "baz", Value);
 /// assert_eq!(value, Value::Keyword(symbols::Keyword::plain("baz")));
@@ -293,7 +290,7 @@ macro_rules! to_keyword {
     ( $namespace:expr, $name:expr, $t:tt ) => {
         $namespace.into().map_or_else(
             || $t::Keyword(symbols::Keyword::plain($name)),
-            |ns| $t::NamespacedKeyword(symbols::NamespacedKeyword::namespaced(ns, $name)))
+            |ns| $t::Keyword(symbols::Keyword::namespaced(ns, $name)))
     }
 }
 
@@ -311,12 +308,24 @@ macro_rules! def_common_value_methods {
         def_is!(is_uuid, $t::Uuid(_));
         def_is!(is_symbol, $t::PlainSymbol(_));
         def_is!(is_namespaced_symbol, $t::NamespacedSymbol(_));
-        def_is!(is_keyword, $t::Keyword(_));
-        def_is!(is_namespaced_keyword, $t::NamespacedKeyword(_));
         def_is!(is_vector, $t::Vector(_));
         def_is!(is_list, $t::List(_));
         def_is!(is_set, $t::Set(_));
         def_is!(is_map, $t::Map(_));
+
+        pub fn is_keyword(&self) -> bool {
+            match self {
+                &$t::Keyword(ref k) => !k.is_namespaced(),
+                _ => false,
+            }
+        }
+
+        pub fn is_namespaced_keyword(&self) -> bool {
+            match self {
+                &$t::Keyword(ref k) => k.is_namespaced(),
+                _ => false,
+            }
+        }
 
         /// `as_nil` does not use the macro as it does not have an underlying
         /// value, and returns `Option<()>`.
@@ -335,8 +344,21 @@ macro_rules! def_common_value_methods {
         def_as_ref!(as_uuid, $t::Uuid, Uuid);
         def_as_ref!(as_symbol, $t::PlainSymbol, symbols::PlainSymbol);
         def_as_ref!(as_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol);
-        def_as_ref!(as_keyword, $t::Keyword, symbols::Keyword);
-        def_as_ref!(as_namespaced_keyword, $t::NamespacedKeyword, symbols::NamespacedKeyword);
+
+        pub fn as_keyword(&self) -> Option<&symbols::Keyword> {
+            match self {
+                &$t::Keyword(ref k) if !k.is_namespaced() => Some(k),
+                _ => None,
+            }
+        }
+
+        pub fn as_namespaced_keyword(&self) -> Option<&symbols::Keyword> {
+            match self {
+                &$t::Keyword(ref k) if k.is_namespaced() => Some(k),
+                _ => None,
+            }
+        }
+
         def_as_ref!(as_vector, $t::Vector, Vec<$tchild>);
         def_as_ref!(as_list, $t::List, LinkedList<$tchild>);
         def_as_ref!(as_set, $t::Set, BTreeSet<$tchild>);
@@ -352,8 +374,34 @@ macro_rules! def_common_value_methods {
         def_into!(into_uuid, $t::Uuid, Uuid,);
         def_into!(into_symbol, $t::PlainSymbol, symbols::PlainSymbol,);
         def_into!(into_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol,);
-        def_into!(into_keyword, $t::Keyword, symbols::Keyword,);
-        def_into!(into_namespaced_keyword, $t::NamespacedKeyword, symbols::NamespacedKeyword,);
+
+        pub fn into_keyword(self) -> Option<symbols::Keyword> {
+            match self {
+                $t::Keyword(k) => {
+                    if !k.is_namespaced() {
+                        Some(k)
+                    } else {
+                        None
+                    }
+                },
+                _ => None,
+            }
+        }
+
+        pub fn into_namespaced_keyword(self) -> Option<symbols::Keyword> {
+            match self {
+                $t::Keyword(k) => {
+                    if k.is_namespaced() {
+                        Some(k)
+                    } else {
+                        None
+                    }
+                },
+                _ => None,
+            }
+        }
+
+
         def_into!(into_vector, $t::Vector, Vec<$tchild>,);
         def_into!(into_list, $t::List, LinkedList<$tchild>,);
         def_into!(into_set, $t::Set, BTreeSet<$tchild>,);
@@ -383,8 +431,8 @@ macro_rules! def_common_value_methods {
                 $t::Uuid(_) => 7,
                 $t::PlainSymbol(_) => 8,
                 $t::NamespacedSymbol(_) => 9,
-                $t::Keyword(_) => 10,
-                $t::NamespacedKeyword(_) => 11,
+                $t::Keyword(ref k) if !k.is_namespaced() => 10,
+                $t::Keyword(_) => 11,
                 $t::Vector(_) => 12,
                 $t::List(_) => 13,
                 $t::Set(_) => 14,
@@ -405,7 +453,6 @@ macro_rules! def_common_value_methods {
                 $t::PlainSymbol(_) => false,
                 $t::NamespacedSymbol(_) => false,
                 $t::Keyword(_) => false,
-                $t::NamespacedKeyword(_) => false,
                 $t::Vector(_) => true,
                 $t::List(_) => true,
                 $t::Set(_) => true,
@@ -443,7 +490,6 @@ macro_rules! def_common_value_ord {
             (&$t::PlainSymbol(ref a), &$t::PlainSymbol(ref b)) => b.cmp(a),
             (&$t::NamespacedSymbol(ref a), &$t::NamespacedSymbol(ref b)) => b.cmp(a),
             (&$t::Keyword(ref a), &$t::Keyword(ref b)) => b.cmp(a),
-            (&$t::NamespacedKeyword(ref a), &$t::NamespacedKeyword(ref b)) => b.cmp(a),
             (&$t::Vector(ref a), &$t::Vector(ref b)) => b.cmp(a),
             (&$t::List(ref a), &$t::List(ref b)) => b.cmp(a),
             (&$t::Set(ref a), &$t::Set(ref b)) => b.cmp(a),
@@ -482,7 +528,6 @@ macro_rules! def_common_value_display {
             $t::PlainSymbol(ref v) => v.fmt($f),
             $t::NamespacedSymbol(ref v) => v.fmt($f),
             $t::Keyword(ref v) => v.fmt($f),
-            $t::NamespacedKeyword(ref v) => v.fmt($f),
             $t::Vector(ref v) => {
                 write!($f, "[")?;
                 for x in v {

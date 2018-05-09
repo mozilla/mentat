@@ -22,7 +22,7 @@
 //     Entity::AddOrRetract {
 //         op: OpType::Add,
 //         e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
-//             a: Entid::Ident(NamespacedKeyword::namespaced("test", "a1")),
+//             a: Entid::Ident(Keyword::namespaced("test", "a1")),
 //             v: Value::Text("v1".into()),
 //         }),
 //         a: Entid::Ident(kw!(:test/a)),
@@ -56,7 +56,7 @@
 use mentat_core::{
     HasSchema,
     KnownEntid,
-    NamespacedKeyword,
+    Keyword,
     TypedValue,
 };
 
@@ -256,21 +256,21 @@ impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
 }
 
 impl<'a, 'c> InProgressBuilder<'a, 'c> {
-    pub fn add_kw<E, V>(&mut self, e: E, a: &NamespacedKeyword, v: V) -> Result<()>
+    pub fn add_kw<E, V>(&mut self, e: E, a: &Keyword, v: V) -> Result<()>
     where E: IntoThing<KnownEntidOr<TempIdHandle>>,
           V: IntoThing<TypedValueOr<TempIdHandle>> {
         let (attribute, value) = self.extract_kw_value(a, v.into_thing())?;
         self.add(e, attribute, value)
     }
 
-    pub fn retract_kw<E, V>(&mut self, e: E, a: &NamespacedKeyword, v: V) -> Result<()>
+    pub fn retract_kw<E, V>(&mut self, e: E, a: &Keyword, v: V) -> Result<()>
     where E: IntoThing<KnownEntidOr<TempIdHandle>>,
           V: IntoThing<TypedValueOr<TempIdHandle>> {
         let (attribute, value) = self.extract_kw_value(a, v.into_thing())?;
         self.retract(e, attribute, value)
     }
 
-    fn extract_kw_value(&mut self, a: &NamespacedKeyword, v: TypedValueOr<TempIdHandle>) -> Result<(KnownEntid, TypedValueOr<TempIdHandle>)> {
+    fn extract_kw_value(&mut self, a: &Keyword, v: TypedValueOr<TempIdHandle>) -> Result<(KnownEntid, TypedValueOr<TempIdHandle>)> {
         let attribute: KnownEntid;
         if let Some((attr, aa)) = self.in_progress.attribute_for_ident(a) {
             if let Either::Left(ref tv) = v {
@@ -289,12 +289,12 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
 }
 
 impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
-    pub fn add_kw<V>(&mut self, a: &NamespacedKeyword, v: V) -> Result<()>
+    pub fn add_kw<V>(&mut self, a: &Keyword, v: V) -> Result<()>
     where V: IntoThing<TypedValueOr<TempIdHandle>> {
         self.builder.add_kw(self.entity.clone(), a, v)
     }
 
-    pub fn retract_kw<V>(&mut self, a: &NamespacedKeyword, v: V) -> Result<()>
+    pub fn retract_kw<V>(&mut self, a: &Keyword, v: V) -> Result<()>
     where V: IntoThing<TypedValueOr<TempIdHandle>> {
         self.builder.retract_kw(self.entity.clone(), a, v)
     }

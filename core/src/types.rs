@@ -40,7 +40,7 @@ use ::indexmap::{
 use ::edn::{
     self,
     FromMicros,
-    NamespacedKeyword,
+    Keyword,
     Utc,
 };
 
@@ -205,8 +205,8 @@ impl ::enum_set::CLike for ValueType {
 }
 
 impl ValueType {
-    pub fn into_keyword(self) -> NamespacedKeyword {
-        NamespacedKeyword::namespaced("db.type", match self {
+    pub fn into_keyword(self) -> Keyword {
+        Keyword::namespaced("db.type", match self {
             ValueType::Ref => "ref",
             ValueType::Boolean => "boolean",
             ValueType::Instant => "instant",
@@ -280,7 +280,7 @@ pub enum TypedValue {
     Instant(DateTime<Utc>),               // Use `into()` to ensure truncation.
     // TODO: &str throughout?
     String(ValueRc<String>),
-    Keyword(ValueRc<NamespacedKeyword>),
+    Keyword(ValueRc<Keyword>),
     Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
 
@@ -335,23 +335,23 @@ impl Binding {
 /// We entirely support the former, and partially support the latter -- you can alias
 /// using a different keyword only.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct StructuredMap(pub IndexMap<ValueRc<NamespacedKeyword>, Binding>);
+pub struct StructuredMap(pub IndexMap<ValueRc<Keyword>, Binding>);
 
 impl StructuredMap {
-    pub fn insert<N, B>(&mut self, name: N, value: B) where N: Into<ValueRc<NamespacedKeyword>>, B: Into<Binding> {
+    pub fn insert<N, B>(&mut self, name: N, value: B) where N: Into<ValueRc<Keyword>>, B: Into<Binding> {
         self.0.insert(name.into(), value.into());
     }
 }
 
-impl From<IndexMap<ValueRc<NamespacedKeyword>, Binding>> for StructuredMap {
-    fn from(src: IndexMap<ValueRc<NamespacedKeyword>, Binding>) -> Self {
+impl From<IndexMap<ValueRc<Keyword>, Binding>> for StructuredMap {
+    fn from(src: IndexMap<ValueRc<Keyword>, Binding>) -> Self {
         StructuredMap(src)
     }
 }
 
 // Mostly for testing.
-impl<T> From<Vec<(NamespacedKeyword, T)>> for StructuredMap where T: Into<Binding> {
-    fn from(value: Vec<(NamespacedKeyword, T)>) -> Self {
+impl<T> From<Vec<(Keyword, T)>> for StructuredMap where T: Into<Binding> {
+    fn from(value: Vec<(Keyword, T)>) -> Self {
         let mut sm = StructuredMap::default();
         for (k, v) in value.into_iter() {
             sm.insert(k, v);
@@ -414,7 +414,7 @@ impl TypedValue {
     /// values and wrapping them in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        NamespacedKeyword::namespaced(ns, name).into()
+        Keyword::namespaced(ns, name).into()
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
@@ -509,20 +509,20 @@ impl From<String> for TypedValue {
     }
 }
 
-impl From<Arc<NamespacedKeyword>> for TypedValue {
-    fn from(value: Arc<NamespacedKeyword>) -> TypedValue {
+impl From<Arc<Keyword>> for TypedValue {
+    fn from(value: Arc<Keyword>) -> TypedValue {
         TypedValue::Keyword(ValueRc::from_arc(value))
     }
 }
 
-impl From<Rc<NamespacedKeyword>> for TypedValue {
-    fn from(value: Rc<NamespacedKeyword>) -> TypedValue {
+impl From<Rc<Keyword>> for TypedValue {
+    fn from(value: Rc<Keyword>) -> TypedValue {
         TypedValue::Keyword(ValueRc::from_rc(value))
     }
 }
 
-impl From<NamespacedKeyword> for TypedValue {
-    fn from(value: NamespacedKeyword) -> TypedValue {
+impl From<Keyword> for TypedValue {
+    fn from(value: Keyword) -> TypedValue {
         TypedValue::Keyword(ValueRc::new(value))
     }
 }
@@ -560,7 +560,7 @@ impl TypedValue {
         }
     }
 
-    pub fn into_kw(self) -> Option<ValueRc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<ValueRc<Keyword>> {
         match self {
             TypedValue::Keyword(v) => Some(v),
             _ => None,
@@ -687,7 +687,7 @@ impl Binding {
         }
     }
 
-    pub fn into_kw(self) -> Option<ValueRc<NamespacedKeyword>> {
+    pub fn into_kw(self) -> Option<ValueRc<Keyword>> {
         match self {
             Binding::Scalar(TypedValue::Keyword(v)) => Some(v),
             _ => None,

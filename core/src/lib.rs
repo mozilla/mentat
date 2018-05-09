@@ -39,7 +39,7 @@ pub use chrono::{
 
 pub use edn::{
     FromMicros,
-    NamespacedKeyword,
+    Keyword,
     ToMicros,
     Utc,
 };
@@ -180,10 +180,10 @@ impl Attribute {
         flags
     }
 
-    pub fn to_edn_value(&self, ident: Option<NamespacedKeyword>) -> edn::Value {
+    pub fn to_edn_value(&self, ident: Option<Keyword>) -> edn::Value {
         let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
         if let Some(ident) = ident {
-            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::NamespacedKeyword(ident));
+            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::Keyword(ident));
         }
 
         attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.into_edn_value());
@@ -231,11 +231,11 @@ impl Default for Attribute {
     }
 }
 
-/// Map `NamespacedKeyword` idents (`:db/ident`) to positive integer entids (`1`).
-pub type IdentMap = BTreeMap<NamespacedKeyword, Entid>;
+/// Map `Keyword` idents (`:db/ident`) to positive integer entids (`1`).
+pub type IdentMap = BTreeMap<Keyword, Entid>;
 
-/// Map positive integer entids (`1`) to `NamespacedKeyword` idents (`:db/ident`).
-pub type EntidMap = BTreeMap<Entid, NamespacedKeyword>;
+/// Map positive integer entids (`1`) to `Keyword` idents (`:db/ident`).
+pub type EntidMap = BTreeMap<Entid, Keyword>;
 
 /// Map attribute entids to `Attribute` instances.
 pub type AttributeMap = BTreeMap<Entid, Attribute>;
@@ -273,18 +273,18 @@ pub struct Schema {
 pub trait HasSchema {
     fn entid_for_type(&self, t: ValueType) -> Option<KnownEntid>;
 
-    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid>;
-    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid>;
+    fn get_ident<T>(&self, x: T) -> Option<&Keyword> where T: Into<Entid>;
+    fn get_entid(&self, x: &Keyword) -> Option<KnownEntid>;
     fn attribute_for_entid<T>(&self, x: T) -> Option<&Attribute> where T: Into<Entid>;
 
     // Returns the attribute and the entid named by the provided ident.
-    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)>;
+    fn attribute_for_ident(&self, ident: &Keyword) -> Option<(&Attribute, KnownEntid)>;
 
     /// Return true if the provided entid identifies an attribute in this schema.
     fn is_attribute<T>(&self, x: T) -> bool where T: Into<Entid>;
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool;
+    fn identifies_attribute(&self, x: &Keyword) -> bool;
 
     fn component_attributes(&self) -> &[Entid];
 }
@@ -304,7 +304,7 @@ impl Schema {
             .collect())
     }
 
-    fn get_raw_entid(&self, x: &NamespacedKeyword) -> Option<Entid> {
+    fn get_raw_entid(&self, x: &Keyword) -> Option<Entid> {
         self.ident_map.get(x).map(|x| *x)
     }
 
@@ -325,11 +325,11 @@ impl HasSchema for Schema {
         self.get_entid(&t.into_keyword())
     }
 
-    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
+    fn get_ident<T>(&self, x: T) -> Option<&Keyword> where T: Into<Entid> {
         self.entid_map.get(&x.into())
     }
 
-    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
+    fn get_entid(&self, x: &Keyword) -> Option<KnownEntid> {
         self.get_raw_entid(x).map(KnownEntid)
     }
 
@@ -337,7 +337,7 @@ impl HasSchema for Schema {
         self.attribute_map.get(&x.into())
     }
 
-    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
+    fn attribute_for_ident(&self, ident: &Keyword) -> Option<(&Attribute, KnownEntid)> {
         self.get_raw_entid(&ident)
             .and_then(|entid| {
                 self.attribute_for_entid(entid).map(|a| (a, KnownEntid(entid)))
@@ -350,7 +350,7 @@ impl HasSchema for Schema {
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+    fn identifies_attribute(&self, x: &Keyword) -> bool {
         self.get_raw_entid(x).map(|e| self.is_attribute(e)).unwrap_or(false)
     }
 
@@ -408,7 +408,7 @@ mod test {
 
     use std::str::FromStr;
 
-    fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+    fn associate_ident(schema: &mut Schema, i: Keyword, e: Entid) {
         schema.entid_map.insert(e, i.clone());
         schema.ident_map.insert(i, e);
     }
@@ -491,7 +491,7 @@ mod test {
             component: false,
             no_history: true,
         };
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 97);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bar"), 97);
         add_attribute(&mut schema, 97, attr1);
 
         let attr2 = Attribute {
@@ -503,7 +503,7 @@ mod test {
             component: false,
             no_history: false,
         };
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bas"), 98);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bas"), 98);
         add_attribute(&mut schema, 98, attr2);
 
         let attr3 = Attribute {
@@ -516,7 +516,7 @@ mod test {
             no_history: false,
         };
 
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bat"), 99);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bat"), 99);
         add_attribute(&mut schema, 99, attr3);
 
         let value = schema.to_edn_value();

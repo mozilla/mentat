@@ -55,7 +55,6 @@ pub use types::{
 
 pub use symbols::{
     Keyword,
-    NamespacedKeyword,
     NamespacedSymbol,
     PlainSymbol,
 };

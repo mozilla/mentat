@@ -26,7 +26,7 @@ use mentat_query_parser::{
 };
 
 use mentat_query::{
-    NamespacedKeyword,
+    Keyword,
 };
 
 use mentat_query_algebrizer::{
@@ -39,7 +39,7 @@ use mentat_query_projector::{
 };
 
 // These are helpers that tests use to build Schema instances.
-fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+fn associate_ident(schema: &mut Schema, i: Keyword, e: Entid) {
     schema.entid_map.insert(e, i.clone());
     schema.ident_map.insert(i.clone(), e);
 }
@@ -50,9 +50,9 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 
 fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "name"), 65);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "age"), 68);
-    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "height"), 69);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "name"), 65);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "age"), 68);
+    associate_ident(&mut schema, Keyword::namespaced("foo", "height"), 69);
     add_attribute(&mut schema, 65, Attribute {
         value_type: ValueType::String,
         multival: false,

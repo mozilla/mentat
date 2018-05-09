@@ -54,5 +54,5 @@ fn test_to_edn_value_pair() {
     assert_eq!(TypedValue::Double(OrderedFloat(0.5)).to_edn_value_pair(), (edn::Value::Float(OrderedFloat(0.5)), ValueType::Double));
 
     assert_eq!(TypedValue::typed_string(":db/keyword").to_edn_value_pair(), (edn::Value::Text(":db/keyword".into()), ValueType::String));
-    assert_eq!(TypedValue::typed_ns_keyword("db", "keyword").to_edn_value_pair(), (edn::Value::NamespacedKeyword(symbols::NamespacedKeyword::namespaced("db", "keyword")), ValueType::Keyword));
+    assert_eq!(TypedValue::typed_ns_keyword("db", "keyword").to_edn_value_pair(), (edn::Value::Keyword(symbols::Keyword::namespaced("db", "keyword")), ValueType::Keyword));
 }

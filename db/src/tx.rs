@@ -64,7 +64,7 @@ use db::{
     PartitionMapping,
 };
 use edn::{
-    NamespacedKeyword,
+    Keyword,
 };
 use entids;
 use errors;
@@ -165,7 +165,7 @@ pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
 /// something suitable for the entity position rather than something suitable for a value position.
 pub fn remove_db_id(map: &mut entmod::MapNotation) -> Result<Option<entmod::EntidOrLookupRefOrTempId>> {
     // TODO: extract lazy defined constant.
-    let db_id_key = entmod::Entid::Ident(NamespacedKeyword::new("db", "id"));
+    let db_id_key = entmod::Entid::Ident(Keyword::namespaced("db", "id"));
 
     let db_id: Option<entmod::EntidOrLookupRefOrTempId> = if let Some(id) = map.remove(&db_id_key) {
         match id {
@@ -281,7 +281,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 }
             }
 
-            fn ensure_ident_exists(&self, e: &NamespacedKeyword) -> Result<KnownEntid> {
+            fn ensure_ident_exists(&self, e: &Keyword) -> Result<KnownEntid> {
                 self.schema.require_entid(e)
             }
 

@@ -192,7 +192,7 @@ mod testing {
 
     use mentat_query::{
         FnArg,
-        NamespacedKeyword,
+        Keyword,
         Pattern,
         PatternNonValuePlace,
         PatternValuePlace,
@@ -220,7 +220,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Long,
             ..Default::default()
@@ -275,8 +275,8 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "roz"), 98);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bar"), 99);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "roz"), 98);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Long,
             ..Default::default()

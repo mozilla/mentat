@@ -82,7 +82,7 @@ use mentat_core::{
     Cloned,
     Entid,
     HasSchema,
-    NamespacedKeyword,
+    Keyword,
     Schema,
     StructuredMap,
     ValueRc,
@@ -140,7 +140,7 @@ pub fn pull_attributes_for_entities<E, A>(schema: &Schema,
 pub struct Puller {
     // The domain of this map is the set of attributes to fetch.
     // The range is the set of aliases to use in the output.
-    attributes: BTreeMap<Entid, ValueRc<NamespacedKeyword>>,
+    attributes: BTreeMap<Entid, ValueRc<Keyword>>,
     attribute_spec: cache::AttributeSpec,
 }
 
@@ -163,7 +163,7 @@ impl Puller {
                     .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
         };
 
-        let mut names: BTreeMap<Entid, ValueRc<NamespacedKeyword>> = Default::default();
+        let mut names: BTreeMap<Entid, ValueRc<Keyword>> = Default::default();
         let mut attrs: BTreeSet<Entid> = Default::default();
         for attr in attributes.iter() {
             match attr {

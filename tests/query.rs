@@ -42,7 +42,7 @@ use mentat_query_projector::{
 
 use mentat::{
     IntoResult,
-    NamespacedKeyword,
+    Keyword,
     PlainSymbol,
     QueryInputs,
     Queryable,
@@ -135,7 +135,7 @@ fn test_scalar() {
 
     if let QueryResults::Scalar(Some(Binding::Scalar(TypedValue::Keyword(ref rc)))) = results {
         // Should be '24'.
-        assert_eq!(&NamespacedKeyword::namespaced("db.type", "keyword"), rc.as_ref());
+        assert_eq!(&Keyword::namespaced("db.type", "keyword"), rc.as_ref());
         assert_eq!(KnownEntid(24),
                    db.schema.get_entid(rc).unwrap());
     } else {
@@ -165,7 +165,7 @@ fn test_tuple() {
     assert_eq!(1, results.len());
 
     if let QueryResults::Tuple(Some(ref tuple)) = results {
-        let cardinality_one = NamespacedKeyword::namespaced("db.cardinality", "one");
+        let cardinality_one = Keyword::namespaced("db.cardinality", "one");
         assert_eq!(tuple.len(), 2);
         assert_eq!(tuple[0], TypedValue::Boolean(true).into());
         assert_eq!(tuple[1], db.schema.get_entid(&cardinality_one).expect("c1").into());
@@ -216,7 +216,7 @@ fn test_inputs() {
                         .results;
 
     if let QueryResults::Scalar(Some(Binding::Scalar(TypedValue::Keyword(value)))) = results {
-        assert_eq!(value.as_ref(), &NamespacedKeyword::namespaced("db.install", "valueType"));
+        assert_eq!(value.as_ref(), &Keyword::namespaced("db.install", "valueType"));
     } else {
         panic!("Expected scalar.");
     }

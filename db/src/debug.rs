@@ -71,7 +71,7 @@ impl Datom {
         let f = |entid: &Entid| -> edn::Value {
             match *entid {
                 Entid::Entid(ref y) => edn::Value::Integer(y.clone()),
-                Entid::Ident(ref y) => edn::Value::NamespacedKeyword(y.clone()),
+                Entid::Ident(ref y) => edn::Value::Keyword(y.clone()),
             }
         };
 

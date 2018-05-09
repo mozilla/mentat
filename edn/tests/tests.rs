@@ -38,7 +38,7 @@ use edn::utils;
 
 // Helper for making wrapped keywords with a namespace.
 fn k_ns(ns: &str, name: &str) -> Value {
-    Value::NamespacedKeyword(symbols::NamespacedKeyword::namespaced(ns, name))
+    Value::Keyword(symbols::Keyword::namespaced(ns, name))
 }
 
 // Helper for making wrapped keywords without a namespace.
@@ -1457,7 +1457,7 @@ fn test_is_and_as_type_helper_functions() {
         assert_eq!(values.len(), is_result.len());
 
         for (j, result) in is_result.iter().enumerate() {
-            assert_eq!(j == i, *result);
+            assert_eq!(j == i, *result, "Expected {} = {} to equal {}", j, i, result);
         }
 
         if i == 0 {
@@ -1477,7 +1477,7 @@ fn test_is_and_as_type_helper_functions() {
         def_test_as_type!(value, as_symbol, i == 6, symbols::PlainSymbol::plain("$symbol"));
         def_test_as_type!(value, as_namespaced_symbol, i == 7, symbols::NamespacedSymbol::namespaced("$ns", "$symbol"));
         def_test_as_type!(value, as_keyword, i == 8, symbols::Keyword::plain("hello"));
-        def_test_as_type!(value, as_namespaced_keyword, i == 9, symbols::NamespacedKeyword::namespaced("hello", "world"));
+        def_test_as_type!(value, as_namespaced_keyword, i == 9, symbols::Keyword::namespaced("hello", "world"));
         def_test_as_type!(value, as_vector, i == 10, vec![Value::Integer(1)]);
         def_test_as_type!(value, as_list, i == 11, LinkedList::from_iter(vec![]));
         def_test_as_type!(value, as_set, i == 12, BTreeSet::from_iter(vec![]));
@@ -1495,7 +1495,7 @@ fn test_is_and_as_type_helper_functions() {
         def_test_into_type!(value, into_symbol, i == 6, symbols::PlainSymbol::plain("$symbol"));
         def_test_into_type!(value, into_namespaced_symbol, i == 7, symbols::NamespacedSymbol::namespaced("$ns", "$symbol"));
         def_test_into_type!(value, into_keyword, i == 8, symbols::Keyword::plain("hello"));
-        def_test_into_type!(value, into_namespaced_keyword, i == 9, symbols::NamespacedKeyword::namespaced("hello", "world"));
+        def_test_into_type!(value, into_namespaced_keyword, i == 9, symbols::Keyword::namespaced("hello", "world"));
         def_test_into_type!(value, into_vector, i == 10, vec![Value::Integer(1)]);
         def_test_into_type!(value, into_list, i == 11, LinkedList::from_iter(vec![]));
         def_test_into_type!(value, into_set, i == 12, BTreeSet::from_iter(vec![]));

@@ -763,7 +763,7 @@ mod testing {
     };
 
     use mentat_query::{
-        NamespacedKeyword,
+        Keyword,
         Variable,
     };
 
@@ -810,11 +810,11 @@ mod testing {
 
     fn prepopulated_schema() -> Schema {
         let mut schema = Schema::default();
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "name"), 65);
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "knows"), 66);
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "parent"), 67);
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "age"), 68);
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "height"), 69);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "name"), 65);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "knows"), 66);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "parent"), 67);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "age"), 68);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "height"), 69);
         add_attribute(&mut schema, 65, Attribute {
             value_type: ValueType::String,
             multival: false,
@@ -855,7 +855,7 @@ mod testing {
                         [?x :foo/nope3 "Daphne"])]"#;
         let cc = alg(known, query);
         assert!(cc.is_known_empty());
-        assert_eq!(cc.empty_because, Some(EmptyBecause::UnresolvedIdent(NamespacedKeyword::namespaced("foo", "nope3"))));
+        assert_eq!(cc.empty_because, Some(EmptyBecause::UnresolvedIdent(Keyword::namespaced("foo", "nope3"))));
     }
 
     /// Test that if only one of the attributes in an `or` resolves, it's equivalent to a simple query.

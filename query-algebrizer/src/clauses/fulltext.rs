@@ -269,7 +269,7 @@ mod testing {
     use mentat_query::{
         Binding,
         FnArg,
-        NamespacedKeyword,
+        Keyword,
         PlainSymbol,
         Variable,
     };
@@ -284,14 +284,14 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 101);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bar"), 101);
         add_attribute(&mut schema, 101, Attribute {
             value_type: ValueType::String,
             fulltext: false,
             ..Default::default()
         });
 
-        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "fts"), 100);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "fts"), 100);
         add_attribute(&mut schema, 100, Attribute {
             value_type: ValueType::String,
             index: true,
@@ -306,7 +306,7 @@ mod testing {
             operator: op,
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
-                FnArg::IdentOrKeyword(NamespacedKeyword::namespaced("foo", "fts")),
+                FnArg::IdentOrKeyword(Keyword::namespaced("foo", "fts")),
                 FnArg::Constant("needle".into()),
             ],
             binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),
@@ -364,7 +364,7 @@ mod testing {
             operator: op,
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
-                FnArg::IdentOrKeyword(NamespacedKeyword::namespaced("foo", "bar")),
+                FnArg::IdentOrKeyword(Keyword::namespaced("foo", "bar")),
                 FnArg::Constant("needle".into()),
             ],
             binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),

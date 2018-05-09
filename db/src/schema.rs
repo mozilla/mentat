@@ -237,20 +237,20 @@ impl AttributeBuilder {
 }
 
 pub trait SchemaBuilding {
-    fn require_ident(&self, entid: Entid) -> Result<&symbols::NamespacedKeyword>;
-    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<KnownEntid>;
+    fn require_ident(&self, entid: Entid) -> Result<&symbols::Keyword>;
+    fn require_entid(&self, ident: &symbols::Keyword) -> Result<KnownEntid>;
     fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute>;
     fn from_ident_map_and_attribute_map(ident_map: IdentMap, attribute_map: AttributeMap) -> Result<Schema>;
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
-        where U: IntoIterator<Item=(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>;
+        where U: IntoIterator<Item=(symbols::Keyword, symbols::Keyword, TypedValue)>;
 }
 
 impl SchemaBuilding for Schema {
-    fn require_ident(&self, entid: Entid) -> Result<&symbols::NamespacedKeyword> {
+    fn require_ident(&self, entid: Entid) -> Result<&symbols::Keyword> {
         self.get_ident(entid).ok_or(ErrorKind::UnrecognizedEntid(entid).into())
     }
 
-    fn require_entid(&self, ident: &symbols::NamespacedKeyword) -> Result<KnownEntid> {
+    fn require_entid(&self, ident: &symbols::Keyword) -> Result<KnownEntid> {
         self.get_entid(&ident).ok_or(ErrorKind::UnrecognizedIdent(ident.to_string()).into())
     }
 
@@ -266,9 +266,9 @@ impl SchemaBuilding for Schema {
         Ok(Schema::new(ident_map, entid_map, attribute_map))
     }
 
-    /// Turn vec![(NamespacedKeyword(:ident), NamespacedKeyword(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
+    /// Turn vec![(Keyword(:ident), Keyword(:key), TypedValue(:value)), ...] into a Mentat `Schema`.
     fn from_ident_map_and_triples<U>(ident_map: IdentMap, assertions: U) -> Result<Schema>
-        where U: IntoIterator<Item=(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>{
+        where U: IntoIterator<Item=(symbols::Keyword, symbols::Keyword, TypedValue)>{
 
         let entid_assertions: Result<Vec<(Entid, Entid, TypedValue)>> = assertions.into_iter().map(|(symbolic_ident, symbolic_attr, value)| {
             let ident: i64 = *ident_map.get(&symbolic_ident).ok_or(ErrorKind::UnrecognizedIdent(symbolic_ident.to_string()))?;
@@ -342,11 +342,11 @@ impl SchemaTypeChecking for Schema {
 #[cfg(test)]
 mod test {
     use super::*;
-    use self::edn::NamespacedKeyword;
+    use self::edn::Keyword;
     use errors::Error;
 
     fn add_attribute(schema: &mut Schema,
-            ident: NamespacedKeyword,
+            ident: Keyword,
             entid: Entid,
             attribute: Attribute) {
 
@@ -364,7 +364,7 @@ mod test {
     fn validate_attribute_map_success() {
         let mut schema = Schema::default();
         // attribute that is not an index has no uniqueness
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 97, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bar"), 97, Attribute {
             index: false,
             value_type: ValueType::Boolean,
             fulltext: false,
@@ -374,7 +374,7 @@ mod test {
             no_history: false,
         });
         // attribute is unique by value and an index
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "baz"), 98, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "baz"), 98, Attribute {
             index: true,
             value_type: ValueType::Long,
             fulltext: false,
@@ -384,7 +384,7 @@ mod test {
             no_history: false,
         });
         // attribue is unique by identity and an index
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bat"), 99, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bat"), 99, Attribute {
             index: true,
             value_type: ValueType::Ref,
             fulltext: false,
@@ -394,7 +394,7 @@ mod test {
             no_history: false,
         });
         // attribute is a components and a `Ref`
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bak"), 100, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bak"), 100, Attribute {
             index: false,
             value_type: ValueType::Ref,
             fulltext: false,
@@ -404,7 +404,7 @@ mod test {
             no_history: false,
         });
         // fulltext attribute is a string and an index
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bap"), 101, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bap"), 101, Attribute {
             index: true,
             value_type: ValueType::String,
             fulltext: true,
@@ -421,7 +421,7 @@ mod test {
     fn invalid_schema_unique_value_not_index() {
         let mut schema = Schema::default();
         // attribute unique by value but not index
-        let ident = NamespacedKeyword::namespaced("foo", "bar");
+        let ident = Keyword::namespaced("foo", "bar");
         add_attribute(&mut schema, ident , 99, Attribute {
             index: false,
             value_type: ValueType::Boolean,
@@ -445,7 +445,7 @@ mod test {
     fn invalid_schema_unique_identity_not_index() {
         let mut schema = Schema::default();
         // attribute is unique by identity but not index
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bar"), 99, Attribute {
             index: false,
             value_type: ValueType::Long,
             fulltext: false,
@@ -468,7 +468,7 @@ mod test {
     fn invalid_schema_component_not_ref() {
         let mut schema = Schema::default();
         // attribute that is a component is not a `Ref`
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bar"), 99, Attribute {
             index: false,
             value_type: ValueType::Boolean,
             fulltext: false,
@@ -491,7 +491,7 @@ mod test {
     fn invalid_schema_fulltext_not_index() {
         let mut schema = Schema::default();
         // attribute that is fulltext is not an index
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bar"), 99, Attribute {
             index: false,
             value_type: ValueType::String,
             fulltext: true,
@@ -513,7 +513,7 @@ mod test {
     fn invalid_schema_fulltext_index_not_string() {
         let mut schema = Schema::default();
         // attribute that is fulltext and not a `String`
-        add_attribute(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99, Attribute {
+        add_attribute(&mut schema, Keyword::namespaced("foo", "bar"), 99, Attribute {
             index: true,
             value_type: ValueType::Long,
             fulltext: true,

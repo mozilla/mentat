@@ -165,7 +165,7 @@ This is the lowest-level Mentat crate. It collects together the following things
 
 - Fundamental domain-specific data structures like `ValueType` and `TypedValue`.
 - Fundamental SQL-related linkages like `SQLValueType`. These encode the mapping between Mentat's types and values and their representation in our SQLite format.
-- Conversion to and from EDN types (_e.g._, `edn::NamespacedKeyword` to `TypedValue::Keyword`).
+- Conversion to and from EDN types (_e.g._, `edn::Keyword` to `TypedValue::Keyword`).
 - Common utilities (some in the `util` module, and others that should be moved there or broken out) like `Either`, `InternSet`, and `RcCounter`.
 - Reusable lazy namespaced keywords (_e.g._, `DB_TYPE_DOUBLE`) that are used by `mentat_db` and EDN serialization of core structs.
 

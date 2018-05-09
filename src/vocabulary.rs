@@ -109,7 +109,7 @@ use ::{
     Entid,
     HasSchema,
     IntoResult,
-    NamespacedKeyword,
+    Keyword,
     Binding,
     TypedValue,
     ValueType,
@@ -157,9 +157,9 @@ pub type Datom = (Entid, Entid, TypedValue);
 /// checks or employ more fine-grained logic.
 #[derive(Clone)]
 pub struct Definition {
-    pub name: NamespacedKeyword,
+    pub name: Keyword,
     pub version: Version,
-    pub attributes: Vec<(NamespacedKeyword, Attribute)>,
+    pub attributes: Vec<(Keyword, Attribute)>,
     pub pre: fn(&mut InProgress, &Vocabulary) -> Result<()>,
     pub post: fn(&mut InProgress, &Vocabulary) -> Result<()>,
 }
@@ -252,8 +252,8 @@ impl Definition {
     }
 
     pub fn new<N, A>(name: N, version: Version, attributes: A) -> Definition
-    where N: Into<NamespacedKeyword>,
-          A: Into<Vec<(NamespacedKeyword, Attribute)>> {
+    where N: Into<Keyword>,
+          A: Into<Vec<(Keyword, Attribute)>> {
         Definition {
             name: name.into(),
             version: version,
@@ -279,7 +279,7 @@ impl Definition {
 /// A definition of a vocabulary as retrieved from a particular store.
 ///
 /// A `Vocabulary` is just like `Definition`, but concrete: its name and attributes are identified
-/// by `Entid`, not `NamespacedKeyword`.
+/// by `Entid`, not `Keyword`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Vocabulary {
     pub entity: Entid,
@@ -295,68 +295,68 @@ impl Vocabulary {
 
 /// A collection of named `Vocabulary` instances, as retrieved from the store.
 #[derive(Debug, Default, Clone)]
-pub struct Vocabularies(pub BTreeMap<NamespacedKeyword, Vocabulary>);   // N.B., this has a copy of the attributes in Schema!
+pub struct Vocabularies(pub BTreeMap<Keyword, Vocabulary>);   // N.B., this has a copy of the attributes in Schema!
 
 impl Vocabularies {
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn get(&self, name: &NamespacedKeyword) -> Option<&Vocabulary> {
+    pub fn get(&self, name: &Keyword) -> Option<&Vocabulary> {
         self.0.get(name)
     }
 
-    pub fn iter(&self) -> ::std::collections::btree_map::Iter<NamespacedKeyword, Vocabulary> {
+    pub fn iter(&self) -> ::std::collections::btree_map::Iter<Keyword, Vocabulary> {
         self.0.iter()
     }
 }
 
 lazy_static! {
-    static ref DB_SCHEMA_CORE: NamespacedKeyword = {
+    static ref DB_SCHEMA_CORE: Keyword = {
         kw!(:db.schema/core)
     };
-    static ref DB_SCHEMA_ATTRIBUTE: NamespacedKeyword = {
+    static ref DB_SCHEMA_ATTRIBUTE: Keyword = {
         kw!(:db.schema/attribute)
     };
-    static ref DB_SCHEMA_VERSION: NamespacedKeyword = {
+    static ref DB_SCHEMA_VERSION: Keyword = {
         kw!(:db.schema/version)
     };
-    static ref DB_IDENT: NamespacedKeyword = {
+    static ref DB_IDENT: Keyword = {
         kw!(:db/ident)
     };
-    static ref DB_UNIQUE: NamespacedKeyword = {
+    static ref DB_UNIQUE: Keyword = {
         kw!(:db/unique)
     };
-    static ref DB_UNIQUE_VALUE: NamespacedKeyword = {
+    static ref DB_UNIQUE_VALUE: Keyword = {
         kw!(:db.unique/value)
     };
-    static ref DB_UNIQUE_IDENTITY: NamespacedKeyword = {
+    static ref DB_UNIQUE_IDENTITY: Keyword = {
         kw!(:db.unique/identity)
     };
-    static ref DB_IS_COMPONENT: NamespacedKeyword = {
-        NamespacedKeyword::namespaced("db", "isComponent")
+    static ref DB_IS_COMPONENT: Keyword = {
+        Keyword::namespaced("db", "isComponent")
     };
-    static ref DB_VALUE_TYPE: NamespacedKeyword = {
-        NamespacedKeyword::namespaced("db", "valueType")
+    static ref DB_VALUE_TYPE: Keyword = {
+        Keyword::namespaced("db", "valueType")
     };
-    static ref DB_INDEX: NamespacedKeyword = {
+    static ref DB_INDEX: Keyword = {
         kw!(:db/index)
     };
-    static ref DB_FULLTEXT: NamespacedKeyword = {
+    static ref DB_FULLTEXT: Keyword = {
         kw!(:db/fulltext)
     };
-    static ref DB_CARDINALITY: NamespacedKeyword = {
+    static ref DB_CARDINALITY: Keyword = {
         kw!(:db/cardinality)
     };
-    static ref DB_CARDINALITY_ONE: NamespacedKeyword = {
+    static ref DB_CARDINALITY_ONE: Keyword = {
         kw!(:db.cardinality/one)
     };
-    static ref DB_CARDINALITY_MANY: NamespacedKeyword = {
+    static ref DB_CARDINALITY_MANY: Keyword = {
         kw!(:db.cardinality/many)
     };
 
-    static ref DB_NO_HISTORY: NamespacedKeyword = {
-        NamespacedKeyword::namespaced("db", "noHistory")
+    static ref DB_NO_HISTORY: Keyword = {
+        Keyword::namespaced("db", "noHistory")
     };
 }
 
@@ -365,11 +365,11 @@ trait HasCoreSchema {
     fn core_type(&self, t: ValueType) -> Result<KnownEntid>;
 
     /// Return the entity ID for an ident. On failure, return `MissingCoreVocabulary`.
-    fn core_entid(&self, ident: &NamespacedKeyword) -> Result<KnownEntid>;
+    fn core_entid(&self, ident: &Keyword) -> Result<KnownEntid>;
 
     /// Return the entity ID for an attribute's keyword. On failure, return
     /// `MissingCoreVocabulary`.
-    fn core_attribute(&self, ident: &NamespacedKeyword) -> Result<KnownEntid>;
+    fn core_attribute(&self, ident: &Keyword) -> Result<KnownEntid>;
 }
 
 impl<T> HasCoreSchema for T where T: HasSchema {
@@ -378,12 +378,12 @@ impl<T> HasCoreSchema for T where T: HasSchema {
             .ok_or_else(|| ErrorKind::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
     }
 
-    fn core_entid(&self, ident: &NamespacedKeyword) -> Result<KnownEntid> {
+    fn core_entid(&self, ident: &Keyword) -> Result<KnownEntid> {
         self.get_entid(ident)
             .ok_or_else(|| ErrorKind::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
     }
 
-    fn core_attribute(&self, ident: &NamespacedKeyword) -> Result<KnownEntid> {
+    fn core_attribute(&self, ident: &Keyword) -> Result<KnownEntid> {
         self.attribute_for_ident(ident)
             .ok_or_else(|| ErrorKind::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
             .map(|(_, e)| e)
@@ -391,9 +391,9 @@ impl<T> HasCoreSchema for T where T: HasSchema {
 }
 
 impl Definition {
-    fn description_for_attributes<'s, T, R>(&'s self, attributes: &[R], via: &T, diff: Option<BTreeMap<NamespacedKeyword, Attribute>>) -> Result<Terms>
+    fn description_for_attributes<'s, T, R>(&'s self, attributes: &[R], via: &T, diff: Option<BTreeMap<Keyword, Attribute>>) -> Result<Terms>
      where T: HasCoreSchema,
-           R: ::std::borrow::Borrow<(NamespacedKeyword, Attribute)> {
+           R: ::std::borrow::Borrow<(Keyword, Attribute)> {
 
         // The attributes we'll need to describe this vocabulary.
         let a_version = via.core_attribute(&DB_SCHEMA_VERSION)?;
@@ -520,7 +520,7 @@ pub enum VocabularyCheck<'definition> {
     PresentButTooNew { newer_version: Vocabulary },
 
     /// The provided definition is present in the store, but some of its attributes are not.
-    PresentButMissingAttributes { attributes: Vec<&'definition (NamespacedKeyword, Attribute)> },
+    PresentButMissingAttributes { attributes: Vec<&'definition (Keyword, Attribute)> },
 }
 
 /// This enum captures the outcome of attempting to ensure that a vocabulary definition is present
@@ -545,7 +545,7 @@ pub enum VocabularyOutcome {
 /// This trait captures the ability to retrieve and describe stored vocabularies.
 pub trait HasVocabularies {
     fn read_vocabularies(&self) -> Result<Vocabularies>;
-    fn read_vocabulary_named(&self, name: &NamespacedKeyword) -> Result<Option<Vocabulary>>;
+    fn read_vocabulary_named(&self, name: &Keyword) -> Result<Option<Vocabulary>>;
 }
 
 /// This trait captures the ability of a store to check and install/upgrade vocabularies.
@@ -557,7 +557,7 @@ pub trait VersionedStore: HasVocabularies + HasSchema {
             // Check the version.
             if vocabulary.version == definition.version {
                 // Same version. Check that all of our attributes are present.
-                let mut missing: Vec<&'definition (NamespacedKeyword, Attribute)> = vec![];
+                let mut missing: Vec<&'definition (Keyword, Attribute)> = vec![];
                 for pair in definition.attributes.iter() {
                     if let Some(entid) = self.get_entid(&pair.0) {
                         if let Some(existing) = vocabulary.find(entid) {
@@ -609,7 +609,7 @@ pub trait VersionedStore: HasVocabularies + HasSchema {
     ///
     /// Use this function instead of calling `ensure_vocabulary` if you need to have pre/post
     /// functions invoked when vocabulary changes are necessary.
-    fn ensure_vocabularies(&mut self, vocabularies: &mut VocabularySource) -> Result<BTreeMap<NamespacedKeyword, VocabularyOutcome>>;
+    fn ensure_vocabularies(&mut self, vocabularies: &mut VocabularySource) -> Result<BTreeMap<Keyword, VocabularyOutcome>>;
 
     /// Make sure that our expectations of the core vocabulary — basic types and attributes — are met.
     fn verify_core_schema(&self) -> Result<()> {
@@ -632,13 +632,13 @@ pub trait VersionedStore: HasVocabularies + HasSchema {
 /// vocabularies — you can retrieve the requested definition and the resulting `VocabularyCheck`
 /// by name.
 pub trait VocabularyStatus {
-    fn get(&self, name: &NamespacedKeyword) -> Option<(&Definition, &VocabularyCheck)>;
-    fn version(&self, name: &NamespacedKeyword) -> Option<Version>;
+    fn get(&self, name: &Keyword) -> Option<(&Definition, &VocabularyCheck)>;
+    fn version(&self, name: &Keyword) -> Option<Version>;
 }
 
 #[derive(Default)]
 struct CheckedVocabularies<'a> {
-    items: BTreeMap<NamespacedKeyword, (&'a Definition, VocabularyCheck<'a>)>,
+    items: BTreeMap<Keyword, (&'a Definition, VocabularyCheck<'a>)>,
 }
 
 impl<'a> CheckedVocabularies<'a> {
@@ -652,18 +652,18 @@ impl<'a> CheckedVocabularies<'a> {
 }
 
 impl<'a> VocabularyStatus for CheckedVocabularies<'a> {
-    fn get(&self, name: &NamespacedKeyword) -> Option<(&Definition, &VocabularyCheck)> {
+    fn get(&self, name: &Keyword) -> Option<(&Definition, &VocabularyCheck)> {
         self.items.get(name).map(|&(ref d, ref c)| (*d, c))
     }
 
-    fn version(&self, name: &NamespacedKeyword) -> Option<Version> {
+    fn version(&self, name: &Keyword) -> Option<Version> {
         self.items.get(name).map(|&(d, _)| d.version)
     }
 }
 
 trait VocabularyMechanics {
     fn install_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome>;
-    fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (NamespacedKeyword, Attribute)>) -> Result<VocabularyOutcome>;
+    fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (Keyword, Attribute)>) -> Result<VocabularyOutcome>;
     fn upgrade_vocabulary(&mut self, definition: &Definition, from_version: Vocabulary) -> Result<VocabularyOutcome>;
 }
 
@@ -686,7 +686,7 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
         }
     }
 
-    fn ensure_vocabularies(&mut self, vocabularies: &mut VocabularySource) -> Result<BTreeMap<NamespacedKeyword, VocabularyOutcome>> {
+    fn ensure_vocabularies(&mut self, vocabularies: &mut VocabularySource) -> Result<BTreeMap<Keyword, VocabularyOutcome>> {
         let definitions = vocabularies.definitions();
 
         let mut update  = Vec::new();
@@ -817,7 +817,7 @@ impl<'a, 'c> VocabularyMechanics for InProgress<'a, 'c> {
         Ok(VocabularyOutcome::Installed)
     }
 
-    fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (NamespacedKeyword, Attribute)>) -> Result<VocabularyOutcome> {
+    fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (Keyword, Attribute)>) -> Result<VocabularyOutcome> {
         let (terms, tempids) = definition.description_for_attributes(&attributes, self, None)?;
         self.transact_terms(terms, tempids)?;
         Ok(VocabularyOutcome::InstalledMissingAttributes)
@@ -843,7 +843,7 @@ impl<'a, 'c> VocabularyMechanics for InProgress<'a, 'c> {
 }
 
 impl<T> HasVocabularies for T where T: HasSchema + Queryable {
-    fn read_vocabulary_named(&self, name: &NamespacedKeyword) -> Result<Option<Vocabulary>> {
+    fn read_vocabulary_named(&self, name: &Keyword) -> Result<Option<Vocabulary>> {
         if let Some(entid) = self.get_entid(name) {
             match self.lookup_value_for_attribute(entid, &DB_SCHEMA_VERSION)? {
                 None => Ok(None),

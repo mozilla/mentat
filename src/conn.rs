@@ -47,7 +47,7 @@ use mentat_core::{
     Entid,
     HasSchema,
     KnownEntid,
-    NamespacedKeyword,
+    Keyword,
     Schema,
     StructuredMap,
     TypedValue,
@@ -215,9 +215,9 @@ pub trait Queryable {
         where T: Into<Option<QueryInputs>>;
     fn q_prepare<T>(&self, query: &str, inputs: T) -> PreparedResult
         where T: Into<Option<QueryInputs>>;
-    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid>;
-    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Option<TypedValue>>
         where E: Into<Entid>;
 }
 
@@ -269,12 +269,12 @@ impl<'a, 'c> Queryable for InProgressRead<'a, 'c> {
         self.0.q_explain(query, inputs)
     }
 
-    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid> {
         self.0.lookup_values_for_attribute(entity, attribute)
     }
 
-    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Option<TypedValue>>
         where E: Into<Entid> {
         self.0.lookup_value_for_attribute(entity, attribute)
     }
@@ -331,13 +331,13 @@ impl<'a, 'c> Queryable for InProgress<'a, 'c> {
                   inputs)
     }
 
-    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid> {
         let known = Known::new(&self.schema, Some(&self.cache));
         lookup_values_for_attribute(&*(self.transaction), known, entity, attribute)
     }
 
-    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Option<TypedValue>>
         where E: Into<Entid> {
         let known = Known::new(&self.schema, Some(&self.cache));
         lookup_value_for_attribute(&*(self.transaction), known, entity, attribute)
@@ -364,11 +364,11 @@ impl<'a, 'c> HasSchema for InProgressRead<'a, 'c> {
         self.0.entid_for_type(t)
     }
 
-    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
+    fn get_ident<T>(&self, x: T) -> Option<&Keyword> where T: Into<Entid> {
         self.0.get_ident(x)
     }
 
-    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
+    fn get_entid(&self, x: &Keyword) -> Option<KnownEntid> {
         self.0.get_entid(x)
     }
 
@@ -376,7 +376,7 @@ impl<'a, 'c> HasSchema for InProgressRead<'a, 'c> {
         self.0.attribute_for_entid(x)
     }
 
-    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
+    fn attribute_for_ident(&self, ident: &Keyword) -> Option<(&Attribute, KnownEntid)> {
         self.0.attribute_for_ident(ident)
     }
 
@@ -386,7 +386,7 @@ impl<'a, 'c> HasSchema for InProgressRead<'a, 'c> {
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+    fn identifies_attribute(&self, x: &Keyword) -> bool {
         self.0.identifies_attribute(x)
     }
 
@@ -400,11 +400,11 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
         self.schema.entid_for_type(t)
     }
 
-    fn get_ident<T>(&self, x: T) -> Option<&NamespacedKeyword> where T: Into<Entid> {
+    fn get_ident<T>(&self, x: T) -> Option<&Keyword> where T: Into<Entid> {
         self.schema.get_ident(x)
     }
 
-    fn get_entid(&self, x: &NamespacedKeyword) -> Option<KnownEntid> {
+    fn get_entid(&self, x: &Keyword) -> Option<KnownEntid> {
         self.schema.get_entid(x)
     }
 
@@ -412,7 +412,7 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
         self.schema.attribute_for_entid(x)
     }
 
-    fn attribute_for_ident(&self, ident: &NamespacedKeyword) -> Option<(&Attribute, KnownEntid)> {
+    fn attribute_for_ident(&self, ident: &Keyword) -> Option<(&Attribute, KnownEntid)> {
         self.schema.attribute_for_ident(ident)
     }
 
@@ -422,7 +422,7 @@ impl<'a, 'c> HasSchema for InProgress<'a, 'c> {
     }
 
     /// Return true if the provided ident identifies an attribute in this schema.
-    fn identifies_attribute(&self, x: &NamespacedKeyword) -> bool {
+    fn identifies_attribute(&self, x: &Keyword) -> bool {
         self.schema.identifies_attribute(x)
     }
 
@@ -549,7 +549,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
     }
 
     pub fn cache(&mut self,
-                 attribute: &NamespacedKeyword,
+                 attribute: &Keyword,
                  cache_direction: CacheDirection,
                  cache_action: CacheAction) -> Result<()> {
         let attribute_entid: Entid = self.schema
@@ -631,7 +631,7 @@ impl Store {
         self.conn.begin_transaction(&mut self.sqlite)
     }
 
-    pub fn cache(&mut self, attr: &NamespacedKeyword, direction: CacheDirection) -> Result<()> {
+    pub fn cache(&mut self, attr: &Keyword, direction: CacheDirection) -> Result<()> {
         let schema = &self.conn.current_schema();
         self.conn.cache(&mut self.sqlite,
                         schema,
@@ -648,7 +648,7 @@ impl Store {
         self.conn.unregister_observer(key);
     }
 
-    pub fn assert_datom<T>(&mut self, entid: T, attribute: NamespacedKeyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
+    pub fn assert_datom<T>(&mut self, entid: T, attribute: Keyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
         self.conn.assert_datom(&mut self.sqlite, entid, attribute, value)
     }
 }
@@ -669,12 +669,12 @@ impl Queryable for Store {
         self.conn.q_explain(&self.sqlite, query, inputs)
     }
 
-    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>>
+    fn lookup_values_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Vec<TypedValue>>
         where E: Into<Entid> {
         self.conn.lookup_values_for_attribute(&self.sqlite, entity.into(), attribute)
     }
 
-    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>>
+    fn lookup_value_for_attribute<E>(&self, entity: E, attribute: &edn::Keyword) -> Result<Option<TypedValue>>
         where E: Into<Entid> {
         self.conn.lookup_value_for_attribute(&self.sqlite, entity.into(), attribute)
     }
@@ -845,7 +845,7 @@ impl Conn {
     pub fn lookup_values_for_attribute(&self,
                                        sqlite: &rusqlite::Connection,
                                        entity: Entid,
-                                       attribute: &edn::NamespacedKeyword) -> Result<Vec<TypedValue>> {
+                                       attribute: &edn::Keyword) -> Result<Vec<TypedValue>> {
         let metadata = self.metadata.lock().unwrap();
         let known = Known::new(&*metadata.schema, Some(&metadata.attribute_cache));
         lookup_values_for_attribute(sqlite, known, entity, attribute)
@@ -854,7 +854,7 @@ impl Conn {
     pub fn lookup_value_for_attribute(&self,
                                       sqlite: &rusqlite::Connection,
                                       entity: Entid,
-                                      attribute: &edn::NamespacedKeyword) -> Result<Option<TypedValue>> {
+                                      attribute: &edn::Keyword) -> Result<Option<TypedValue>> {
         let metadata = self.metadata.lock().unwrap();
         let known = Known::new(&*metadata.schema, Some(&metadata.attribute_cache));
         lookup_value_for_attribute(sqlite, known, entity, attribute)
@@ -937,7 +937,7 @@ impl Conn {
     pub fn cache(&mut self,
                  sqlite: &mut rusqlite::Connection,
                  schema: &Schema,
-                 attribute: &NamespacedKeyword,
+                 attribute: &Keyword,
                  cache_direction: CacheDirection,
                  cache_action: CacheAction) -> Result<()> {
         let mut metadata = self.metadata.lock().unwrap();
@@ -977,7 +977,7 @@ impl Conn {
     // TODO: expose the entity builder over FFI and remove the need for this function entirely
     // It's really only here in order to keep the FFI layer as thin as possible.
     // Once the entity builder is exposed, we can perform all of these functions over FFI from the client.
-    pub fn assert_datom<T>(&mut self, sqlite: &mut rusqlite::Connection, entid: T, attribute: NamespacedKeyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
+    pub fn assert_datom<T>(&mut self, sqlite: &mut rusqlite::Connection, entid: T, attribute: Keyword, value: TypedValue) -> Result<()> where T: Into<KnownEntid> {
         let in_progress = self.begin_transaction(sqlite)?;
         let mut builder = in_progress.builder().describe(entid.into());
         builder.add_kw(&attribute, value)?;
@@ -1122,6 +1122,8 @@ mod tests {
             assert!(one == tempid_offset || one == tempid_offset + 1);
             assert!(two == tempid_offset || two == tempid_offset + 1);
 
+            println!("RES: {:?}", in_progress.q_once("[:find ?v :where [?x :db/ident ?v]]", None).unwrap());
+
             let during = in_progress.q_once("[:find ?x . :where [?x :db/ident :a/keyword1]]", None)
                                     .expect("query succeeded");
             assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one).into())));
@@ -1208,9 +1210,9 @@ mod tests {
             assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one).into())));
 
             // And we can do direct lookup, too.
-            let kw = in_progress.lookup_value_for_attribute(one, &edn::NamespacedKeyword::namespaced("db", "ident"))
+            let kw = in_progress.lookup_value_for_attribute(one, &edn::Keyword::namespaced("db", "ident"))
                                 .expect("lookup succeeded");
-            assert_eq!(kw, Some(TypedValue::Keyword(edn::NamespacedKeyword::namespaced("a", "keyword1").into())));
+            assert_eq!(kw, Some(TypedValue::Keyword(edn::Keyword::namespaced("a", "keyword1").into())));
 
             in_progress.rollback()
                        .expect("rollback succeeded");
