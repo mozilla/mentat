@@ -42,7 +42,7 @@ pub struct NamespaceableName {
     //     and not point into the middle of a utf8 codepoint. That is,
     //    `components.is_char_boundary(boundary)` must always be true.
     //
-    // These invariants are enforced by `NamespaceableName::new()`, and since
+    // These invariants are enforced by `NamespaceableName::namespaced()`, and since
     // we never mutate `NamespaceableName`s, that's the only place we need to
     // worry about them.
     boundary: usize,
@@ -50,7 +50,7 @@ pub struct NamespaceableName {
 
 impl NamespaceableName {
     #[inline]
-    pub fn unnamespaced<T>(name: T) -> Self where T: Into<String> {
+    pub fn plain<T>(name: T) -> Self where T: Into<String> {
         let n = name.into();
         assert!(!n.is_empty(), "Symbols and keywords cannot be unnamed.");
 
@@ -61,7 +61,7 @@ impl NamespaceableName {
     }
 
     #[inline]
-    pub fn new<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
+    pub fn namespaced<N, T>(namespace: N, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
         let n = name.as_ref();
         let ns = namespace.as_ref();
 
@@ -168,10 +168,10 @@ impl<'de> Deserialize<'de> for NamespaceableName {
             if ns.len() == 0 {
                 Err(de::Error::custom("Empty but present namespace in keyword or symbol"))
             } else {
-                Ok(NamespaceableName::new(ns, separated.name))
+                Ok(NamespaceableName::namespaced(ns, separated.name))
             }
         } else {
-            Ok(NamespaceableName::unnamespaced(separated.name))
+            Ok(NamespaceableName::plain(separated.name))
         }
     }
 }
@@ -194,22 +194,22 @@ mod test {
 
     #[test]
     fn test_new_invariants_maintained() {
-        assert!(panic::catch_unwind(|| NamespaceableName::new("", "foo")).is_err(),
+        assert!(panic::catch_unwind(|| NamespaceableName::namespaced("", "foo")).is_err(),
                 "Empty namespace should panic");
-        assert!(panic::catch_unwind(|| NamespaceableName::new("foo", "")).is_err(),
+        assert!(panic::catch_unwind(|| NamespaceableName::namespaced("foo", "")).is_err(),
                 "Empty name should panic");
-        assert!(panic::catch_unwind(|| NamespaceableName::new("", "")).is_err(),
+        assert!(panic::catch_unwind(|| NamespaceableName::namespaced("", "")).is_err(),
                 "Should panic if both fields are empty");
     }
 
     #[test]
     fn test_basic() {
-        let s = NamespaceableName::new("aaaaa", "b");
+        let s = NamespaceableName::namespaced("aaaaa", "b");
         assert_eq!(s.namespace(), Some("aaaaa"));
         assert_eq!(s.name(), "b");
         assert_eq!(s.components(), ("aaaaa", "b"));
 
-        let s = NamespaceableName::new("b", "aaaaa");
+        let s = NamespaceableName::namespaced("b", "aaaaa");
         assert_eq!(s.namespace(), Some("b"));
         assert_eq!(s.name(), "aaaaa");
         assert_eq!(s.components(), ("b", "aaaaa"));
@@ -217,16 +217,16 @@ mod test {
 
     #[test]
     fn test_order() {
-        let n0 = NamespaceableName::new("a", "aa");
-        let n1 = NamespaceableName::new("aa", "a");
+        let n0 = NamespaceableName::namespaced("a", "aa");
+        let n1 = NamespaceableName::namespaced("aa", "a");
 
-        let n2 = NamespaceableName::new("a", "ab");
-        let n3 = NamespaceableName::new("aa", "b");
+        let n2 = NamespaceableName::namespaced("a", "ab");
+        let n3 = NamespaceableName::namespaced("aa", "b");
 
-        let n4 = NamespaceableName::new("b", "ab");
-        let n5 = NamespaceableName::new("ba", "b");
+        let n4 = NamespaceableName::namespaced("b", "ab");
+        let n5 = NamespaceableName::namespaced("ba", "b");
 
-        let n6 = NamespaceableName::new("z", "zz");
+        let n6 = NamespaceableName::namespaced("z", "zz");
 
         let mut arr = [
             n5.clone(),

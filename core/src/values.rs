@@ -31,7 +31,7 @@ macro_rules! lazy_static_namespaced_keyword_value (
     ($tag:ident, $namespace:expr, $name:expr) => (
         lazy_static! {
             pub static ref $tag: Value = {
-                Value::NamespacedKeyword(symbols::NamespacedKeyword::new($namespace, $name))
+                Value::NamespacedKeyword(symbols::NamespacedKeyword::namespaced($namespace, $name))
             };
         }
     )

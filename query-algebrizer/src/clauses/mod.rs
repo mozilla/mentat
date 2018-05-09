@@ -1167,7 +1167,7 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 
 #[cfg(test)]
 pub(crate) fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-    NamespacedKeyword::new(ns, name).into()
+    NamespacedKeyword::namespaced(ns, name).into()
 }
 
 #[cfg(test)]

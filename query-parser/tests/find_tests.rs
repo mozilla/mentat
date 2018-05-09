@@ -63,7 +63,7 @@ fn can_parse_predicates() {
                        value: PatternValuePlace::Variable(Variable::from_valid_name("?y")),
                        tx: PatternNonValuePlace::Placeholder,
                    }),
-                   WhereClause::Pred(Predicate { operator: PlainSymbol::new("<"), args: vec![
+                   WhereClause::Pred(Predicate { operator: PlainSymbol::plain("<"), args: vec![
                        FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(10),
                    ]}),
                ]);
@@ -162,7 +162,7 @@ fn can_parse_simple_or_join() {
 
 #[cfg(test)]
 fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-    NamespacedKeyword::new(ns, name).into()
+    NamespacedKeyword::namespaced(ns, name).into()
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn can_parse_simple_or_and_join() {
                                        ],
                                    )),
 
-                                   WhereClause::Pred(Predicate { operator: PlainSymbol::new("<"), args: vec![
+                                   WhereClause::Pred(Predicate { operator: PlainSymbol::plain("<"), args: vec![
                                        FnArg::Variable(Variable::from_valid_name("?y")), FnArg::EntidOrInteger(1),
                                    ]}),
                                ],
@@ -281,7 +281,7 @@ fn can_parse_uuid() {
                WhereClause::Pattern(
                    Pattern::new(None,
                                 PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
-                                NamespacedKeyword::new("foo", "baz").into(),
+                                NamespacedKeyword::namespaced("foo", "baz").into(),
                                 PatternValuePlace::Constant(NonIntegerConstant::Uuid(expected)),
                                 PatternNonValuePlace::Placeholder)
                        .expect("valid pattern")));

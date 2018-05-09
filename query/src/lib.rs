@@ -81,7 +81,7 @@ impl Variable {
 
     /// Return a new `Variable`, assuming that the provided string is a valid name.
     pub fn from_valid_name(name: &str) -> Variable {
-        let s = PlainSymbol::new(name);
+        let s = PlainSymbol::plain(name);
         assert!(s.is_var_symbol());
         Variable(Rc::new(s))
     }
@@ -193,7 +193,7 @@ impl SrcVar {
             if sym.0 == "$" {
                 Some(SrcVar::DefaultSrc)
             } else {
-                Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+                Some(SrcVar::NamedSrc(sym.name().to_string()))
             }
         } else {
             None

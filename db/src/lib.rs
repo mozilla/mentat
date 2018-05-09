@@ -102,7 +102,7 @@ pub fn to_namespaced_keyword(s: &str) -> Result<symbols::NamespacedKeyword> {
     let splits = [':', '/'];
     let mut i = s.split(&splits[..]);
     let nsk = match (i.next(), i.next(), i.next(), i.next()) {
-        (Some(""), Some(namespace), Some(name), None) => Some(symbols::NamespacedKeyword::new(namespace, name)),
+        (Some(""), Some(namespace), Some(name), None) => Some(symbols::NamespacedKeyword::namespaced(namespace, name)),
         _ => None,
     };
 

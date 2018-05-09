@@ -220,7 +220,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Long,
             ..Default::default()
@@ -238,8 +238,8 @@ mod testing {
         });
         assert!(!cc.is_known_empty());
 
-        let op = PlainSymbol::new("<");
-        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        let op = PlainSymbol::plain("<");
+        let comp = Inequality::from_datalog_operator(op.name()).unwrap();
         assert!(cc.apply_inequality(known, comp, Predicate {
              operator: op,
              args: vec![
@@ -275,8 +275,8 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "roz"), 98);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Long,
             ..Default::default()
@@ -299,8 +299,8 @@ mod testing {
         });
         assert!(!cc.is_known_empty());
 
-        let op = PlainSymbol::new(">=");
-        let comp = Inequality::from_datalog_operator(op.plain_name()).unwrap();
+        let op = PlainSymbol::plain(">=");
+        let comp = Inequality::from_datalog_operator(op.name()).unwrap();
         assert!(cc.apply_inequality(known, comp, Predicate {
              operator: op,
              args: vec![

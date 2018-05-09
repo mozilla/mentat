@@ -491,7 +491,7 @@ mod test {
             component: false,
             no_history: true,
         };
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 97);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 97);
         add_attribute(&mut schema, 97, attr1);
 
         let attr2 = Attribute {
@@ -503,7 +503,7 @@ mod test {
             component: false,
             no_history: false,
         };
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bas"), 98);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bas"), 98);
         add_attribute(&mut schema, 98, attr2);
 
         let attr3 = Attribute {
@@ -516,7 +516,7 @@ mod test {
             no_history: false,
         };
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bat"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bat"), 99);
         add_attribute(&mut schema, 99, attr3);
 
         let value = schema.to_edn_value();

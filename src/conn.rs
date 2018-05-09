@@ -1208,9 +1208,9 @@ mod tests {
             assert_eq!(during.results, QueryResults::Scalar(Some(TypedValue::Ref(one).into())));
 
             // And we can do direct lookup, too.
-            let kw = in_progress.lookup_value_for_attribute(one, &edn::NamespacedKeyword::new("db", "ident"))
+            let kw = in_progress.lookup_value_for_attribute(one, &edn::NamespacedKeyword::namespaced("db", "ident"))
                                 .expect("lookup succeeded");
-            assert_eq!(kw, Some(TypedValue::Keyword(edn::NamespacedKeyword::new("a", "keyword1").into())));
+            assert_eq!(kw, Some(TypedValue::Keyword(edn::NamespacedKeyword::namespaced("a", "keyword1").into())));
 
             in_progress.rollback()
                        .expect("rollback succeeded");

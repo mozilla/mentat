@@ -22,7 +22,7 @@
 //     Entity::AddOrRetract {
 //         op: OpType::Add,
 //         e: EntidOrLookupRefOrTempId::LookupRef(LookupRef {
-//             a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
+//             a: Entid::Ident(NamespacedKeyword::namespaced("test", "a1")),
 //             v: Value::Text("v1".into()),
 //         }),
 //         a: Entid::Ident(kw!(:test/a)),

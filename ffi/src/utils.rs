@@ -33,7 +33,7 @@ pub mod strings {
     pub fn kw_from_string(mut keyword_string: String) -> NamespacedKeyword {
         let attr_name = keyword_string.split_off(1);
         let parts: Vec<&str> = attr_name.split("/").collect();
-        NamespacedKeyword::new(parts[0], parts[1])
+        NamespacedKeyword::namespaced(parts[0], parts[1])
     }
 }
 

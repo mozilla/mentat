@@ -334,10 +334,10 @@ lazy_static! {
         kw!(:db.unique/identity)
     };
     static ref DB_IS_COMPONENT: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "isComponent")
+        NamespacedKeyword::namespaced("db", "isComponent")
     };
     static ref DB_VALUE_TYPE: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "valueType")
+        NamespacedKeyword::namespaced("db", "valueType")
     };
     static ref DB_INDEX: NamespacedKeyword = {
         kw!(:db/index)
@@ -356,7 +356,7 @@ lazy_static! {
     };
 
     static ref DB_NO_HISTORY: NamespacedKeyword = {
-        NamespacedKeyword::new("db", "noHistory")
+        NamespacedKeyword::namespaced("db", "noHistory")
     };
 }
 

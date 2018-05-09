@@ -49,11 +49,11 @@ use utils::{
 
 fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "name"), 65);
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "knows"), 66);
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "parent"), 67);
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "age"), 68);
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "height"), 69);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "name"), 65);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "knows"), 66);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "parent"), 67);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "age"), 68);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "height"), 69);
     add_attribute(&mut schema, 65, Attribute {
         value_type: ValueType::String,
         multival: false,
@@ -276,7 +276,7 @@ fn test_ground_tuple_duplicate_vars() {
     let e = bails(known, &q);
     match e {
         Error(ErrorKind::InvalidBinding(v, e), _) => {
-            assert_eq!(v, PlainSymbol::new("ground"));
+            assert_eq!(v, PlainSymbol::plain("ground"));
             assert_eq!(e, BindingError::RepeatedBoundVariable);
         },
         _ => {
@@ -293,7 +293,7 @@ fn test_ground_rel_duplicate_vars() {
     let e = bails(known, &q);
     match e {
         Error(ErrorKind::InvalidBinding(v, e), _) => {
-            assert_eq!(v, PlainSymbol::new("ground"));
+            assert_eq!(v, PlainSymbol::plain("ground"));
             assert_eq!(e, BindingError::RepeatedBoundVariable);
         },
         _ => {

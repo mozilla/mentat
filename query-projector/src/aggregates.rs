@@ -59,7 +59,7 @@ impl SimpleAggregationOp {
     }
 
     fn for_function(function: &QueryFunction) -> Option<SimpleAggregationOp> {
-        match function.0.plain_name() {
+        match function.0.name() {
             "avg" => Some(SimpleAggregationOp::Avg),
             "count" => Some(SimpleAggregationOp::Count),
             "max" => Some(SimpleAggregationOp::Max),

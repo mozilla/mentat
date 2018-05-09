@@ -120,7 +120,7 @@ mod tests {
     };
 
     fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
-        NamespacedKeyword::new(ns, name).into()
+        NamespacedKeyword::namespaced(ns, name).into()
     }
 
     /// Tests that the top-level form is a valid `or`, returning the clauses.

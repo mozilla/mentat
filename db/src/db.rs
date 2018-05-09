@@ -1840,7 +1840,7 @@ mod tests {
 
         // Once we've done so, the schema shows it's not unique…
         {
-            let attr = conn.schema.attribute_for_ident(&NamespacedKeyword::new("test", "ident")).unwrap().0;
+            let attr = conn.schema.attribute_for_ident(&NamespacedKeyword::namespaced("test", "ident")).unwrap().0;
             assert_eq!(None, attr.unique);
         }
 

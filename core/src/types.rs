@@ -206,7 +206,7 @@ impl ::enum_set::CLike for ValueType {
 
 impl ValueType {
     pub fn into_keyword(self) -> NamespacedKeyword {
-        NamespacedKeyword::new("db.type", match self {
+        NamespacedKeyword::namespaced("db.type", match self {
             ValueType::Ref => "ref",
             ValueType::Boolean => "boolean",
             ValueType::Instant => "instant",
@@ -414,7 +414,7 @@ impl TypedValue {
     /// values and wrapping them in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
     pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        NamespacedKeyword::new(ns, name).into()
+        NamespacedKeyword::namespaced(ns, name).into()
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided

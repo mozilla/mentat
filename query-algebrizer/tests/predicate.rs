@@ -48,9 +48,9 @@ use utils::{
 
 fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "date"), 65);
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "double"), 66);
-    associate_ident(&mut schema, NamespacedKeyword::new("foo", "long"), 67);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "date"), 65);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "double"), 66);
+    associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "long"), 67);
     add_attribute(&mut schema, 65, Attribute {
         value_type: ValueType::Instant,
         multival: false,
@@ -81,7 +81,7 @@ fn test_instant_predicates_require_instants() {
                     [(> ?t "2017-06-16T00:56:41.257Z")]]"#;
     match bails(known, query).0 {
         ErrorKind::InvalidArgumentType(op, why, idx) => {
-            assert_eq!(op, PlainSymbol::new(">"));
+            assert_eq!(op, PlainSymbol::plain(">"));
             assert_eq!(why, ValueTypeSet::of_numeric_and_instant_types());
             assert_eq!(idx, 1);
         },
@@ -94,7 +94,7 @@ fn test_instant_predicates_require_instants() {
                     [(> "2017-06-16T00:56:41.257Z", ?t)]]"#;
     match bails(known, query).0 {
         ErrorKind::InvalidArgumentType(op, why, idx) => {
-            assert_eq!(op, PlainSymbol::new(">"));
+            assert_eq!(op, PlainSymbol::plain(">"));
             assert_eq!(why, ValueTypeSet::of_numeric_and_instant_types());
             assert_eq!(idx, 0);                      // We get this right.
         },

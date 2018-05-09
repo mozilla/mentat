@@ -114,7 +114,7 @@ fn parse_namespaced_keyword(input: &str) -> Option<NamespacedKeyword> {
     let mut i = input.split(&splits[..]);
     match (i.next(), i.next(), i.next(), i.next()) {
         (Some(""), Some(namespace), Some(name), None) => {
-            Some(NamespacedKeyword::new(namespace, name))
+            Some(NamespacedKeyword::namespaced(namespace, name))
         },
         _ => None,
     }

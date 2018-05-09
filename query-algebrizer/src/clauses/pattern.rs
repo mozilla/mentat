@@ -709,7 +709,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
 
         let known = Known::for_schema(&schema);
         cc.apply_parsed_pattern(known, Pattern {
@@ -728,7 +728,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -814,7 +814,7 @@ mod testing {
     fn test_apply_unattributed_but_bound_pattern_with_returned() {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -962,8 +962,8 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "roz"), 98);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -1035,7 +1035,7 @@ mod testing {
     fn test_value_bindings() {
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -1083,7 +1083,7 @@ mod testing {
     fn test_value_bindings_type_disagreement() {
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -1117,7 +1117,7 @@ mod testing {
     fn test_fulltext_type_disagreement() {
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::String,
             index: true,
@@ -1155,8 +1155,8 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "roz"), 98);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "roz"), 98);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()
@@ -1244,7 +1244,7 @@ mod testing {
     fn ensure_extracted_types_is_cleared() {
         let query = r#"[:find ?e ?v :where [_ _ ?v] [?e :foo/bar ?v]]"#;
         let mut schema = Schema::default();
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 99);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "bar"), 99);
         add_attribute(&mut schema, 99, Attribute {
             value_type: ValueType::Boolean,
             ..Default::default()

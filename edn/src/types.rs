@@ -249,10 +249,10 @@ macro_rules! def_into {
 /// # use edn::types::Value;
 /// # use edn::symbols;
 /// let value = to_symbol!("foo", "bar", Value);
-/// assert_eq!(value, Value::NamespacedSymbol(symbols::NamespacedSymbol::new("foo", "bar")));
+/// assert_eq!(value, Value::NamespacedSymbol(symbols::NamespacedSymbol::namespaced("foo", "bar")));
 ///
 /// let value = to_symbol!(None, "baz", Value);
-/// assert_eq!(value, Value::PlainSymbol(symbols::PlainSymbol::new("baz")));
+/// assert_eq!(value, Value::PlainSymbol(symbols::PlainSymbol::plain("baz")));
 ///
 /// let value = to_symbol!("foo", "bar", SpannedValue);
 /// assert_eq!(value.into(), to_symbol!("foo", "bar", Value));
@@ -263,8 +263,8 @@ macro_rules! def_into {
 macro_rules! to_symbol {
     ( $namespace:expr, $name:expr, $t:tt ) => {
         $namespace.into().map_or_else(
-            || $t::PlainSymbol(symbols::PlainSymbol::new($name)),
-            |ns| $t::NamespacedSymbol(symbols::NamespacedSymbol::new(ns, $name)))
+            || $t::PlainSymbol(symbols::PlainSymbol::plain($name)),
+            |ns| $t::NamespacedSymbol(symbols::NamespacedSymbol::namespaced(ns, $name)))
     }
 }
 
@@ -278,10 +278,10 @@ macro_rules! to_symbol {
 /// # use edn::types::Value;
 /// # use edn::symbols;
 /// let value = to_keyword!("foo", "bar", Value);
-/// assert_eq!(value, Value::NamespacedKeyword(symbols::NamespacedKeyword::new("foo", "bar")));
+/// assert_eq!(value, Value::NamespacedKeyword(symbols::NamespacedKeyword::namespaced("foo", "bar")));
 ///
 /// let value = to_keyword!(None, "baz", Value);
-/// assert_eq!(value, Value::Keyword(symbols::Keyword::new("baz")));
+/// assert_eq!(value, Value::Keyword(symbols::Keyword::plain("baz")));
 ///
 /// let value = to_keyword!("foo", "bar", SpannedValue);
 /// assert_eq!(value.into(), to_keyword!("foo", "bar", Value));
@@ -292,8 +292,8 @@ macro_rules! to_symbol {
 macro_rules! to_keyword {
     ( $namespace:expr, $name:expr, $t:tt ) => {
         $namespace.into().map_or_else(
-            || $t::Keyword(symbols::Keyword::new($name)),
-            |ns| $t::NamespacedKeyword(symbols::NamespacedKeyword::new(ns, $name)))
+            || $t::Keyword(symbols::Keyword::plain($name)),
+            |ns| $t::NamespacedKeyword(symbols::NamespacedKeyword::namespaced(ns, $name)))
     }
 }
 

@@ -76,7 +76,7 @@ impl SchemaBuilder {
                                  multival: bool) -> Self
         where T: AsRef<str>
     {
-        self.define_attr(NamespacedKeyword::new(keyword_ns, keyword_name), Attribute {
+        self.define_attr(NamespacedKeyword::namespaced(keyword_ns, keyword_name), Attribute {
             value_type,
             multival,
             ..Default::default()

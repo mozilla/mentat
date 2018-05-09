@@ -76,14 +76,14 @@ macro_rules! var {
 #[macro_export]
 macro_rules! kw {
     ( : $ns:ident / $n:ident ) => {
-        $crate::NamespacedKeyword::new(
+        $crate::NamespacedKeyword::namespaced(
             stringify!($ns),
             stringify!($n)
         )
     };
 
     ( : $ns:ident$(. $nss:ident)+ / $n:ident ) => {
-        $crate::NamespacedKeyword::new(
+        $crate::NamespacedKeyword::namespaced(
             concat!(stringify!($ns) $(, ".", stringify!($nss))+),
             stringify!($n)
         )
@@ -135,13 +135,13 @@ mod tests {
 
     #[test]
     fn can_import_edn() {
-        assert_eq!("foo", Keyword::new("foo").0);
+        assert_eq!("foo", Keyword::plain("foo").0);
     }
 
     #[test]
     fn test_kw() {
-        assert_eq!(kw!(:foo/bar), NamespacedKeyword::new("foo", "bar"));
-        assert_eq!(kw!(:org.mozilla.foo/bar_baz), NamespacedKeyword::new("org.mozilla.foo", "bar_baz"));
+        assert_eq!(kw!(:foo/bar), NamespacedKeyword::namespaced("foo", "bar"));
+        assert_eq!(kw!(:org.mozilla.foo/bar_baz), NamespacedKeyword::namespaced("org.mozilla.foo", "bar_baz"));
     }
 
     #[test]

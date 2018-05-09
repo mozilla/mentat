@@ -151,11 +151,11 @@ mod testing {
 
     fn prepopulated_schema() -> Schema {
         let mut schema = Schema::default();
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "name"), 65);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "knows"), 66);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "parent"), 67);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "age"), 68);
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "height"), 69);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "name"), 65);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "knows"), 66);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "parent"), 67);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "age"), 68);
+        associate_ident(&mut schema, NamespacedKeyword::namespaced("foo", "height"), 69);
         add_attribute(&mut schema,
                       65,
                       Attribute {

@@ -21,7 +21,7 @@ use serde_test::{assert_tokens, Token};
 #[cfg(feature = "serde_support")]
 #[test]
 fn test_serialize_keyword() {
-    let kw = NamespacedKeyword::new("foo", "bar");
+    let kw = NamespacedKeyword::namespaced("foo", "bar");
     assert_tokens(&kw, &[
         Token::NewtypeStruct { name: "NamespacedKeyword" },
         Token::Struct { name: "NamespaceableName", len: 2 },
