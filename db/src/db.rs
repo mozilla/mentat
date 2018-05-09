@@ -550,6 +550,9 @@ pub trait MentatStoring {
     fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
     fn insert_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
 
+    // :db/retractEntity the given entids.
+    fn insert_retract_entities<'a>(&self, entids: &'a [Entid]) -> Result<()>;
+
     /// Finalize the underlying storage layer after a Mentat transaction.
     ///
     /// Use this to finalize temporary tables, complete indices, revert pragmas, etc, after the
@@ -981,6 +984,48 @@ impl MentatStoring for rusqlite::Connection {
             .chain_err(|| "Could not drop FTS search ids!")?;
 
         results.map(|_| ())
+    }
+
+    /// Insert datoms corresponding to :db/retractEntity entities into the search results.
+    fn insert_retract_entities(&self, entids: &[Entid]) -> Result<()> {
+        let max_vars = self.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER) as usize;
+        let bindings_per_statement = 2;
+
+        let chunks: itertools::IntoChunks<_> = entids.into_iter().chunks(max_vars / bindings_per_statement);
+
+        // We'd like to flat_map here, but it's not obvious how to flat_map across Result.
+        let results: Result<Vec<()>> = chunks.into_iter().map(|chunk| -> Result<()> {
+            let mut count = 0;
+            let mut params: Vec<&ToSql> = chunk.flat_map(|e| {
+                count += 1;
+                once(e as &ToSql)
+            }).collect();
+
+            // Two copies, first for testing e, then for testing v.
+            // TODO: perhaps we can reference the same named parameter multiple times, making this
+            // more efficient.
+            let mut params2 = params.clone();
+            params.append(&mut params2);
+
+            let values: String = repeat_values(count, 1);
+
+            // Note that the value for flags (-1) is nonsense.  Since these rows are being removed
+            // from datoms, flags/flags0 is not referenced and this is fine.  The value for the
+            // search type is also ignored.
+            let s: String = format!(r#"
+              INSERT INTO temp.search_results
+              SELECT d.e, d.a, d.v, d.value_type_tag, 0, -1, ':db.cardinality/many', d.rowid, d.v
+              FROM datoms AS d
+              WHERE d.e IN ({}) OR (d.value_type_tag = 0 AND d.v IN ({}))
+              "#, values, values);
+
+            let mut stmt = self.prepare_cached(s.as_str())?;
+            stmt.execute(&params)
+                .map(|_c| ())
+                .chain_err(|| "Could not retract entities!")
+        }).collect::<Result<Vec<()>>>();
+
+        results.and(Ok(()))
     }
 
     fn commit_transaction(&self, tx_id: Entid) -> Result<()> {
@@ -2417,6 +2462,71 @@ mod tests {
         assert_transact!(conn,
                          "[{:test/_dangling 1.23}]",
                          Err("EDN value \'1.23\' is not the expected Mentat value type Ref"));
+    }
+
+    #[test]
+    fn test_retract_entity() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a few attributes.
+        assert_transact!(conn, "[[:db/add 111 :db/ident :test/many]
+                                 [:db/add 111 :db/valueType :db.type/long]
+                                 [:db/add 111 :db/cardinality :db.cardinality/many]
+                                 [:db/add 222 :db/ident :test/component]
+                                 [:db/add 222 :db/isComponent true]
+                                 [:db/add 222 :db/valueType :db.type/ref]
+                                 [:db/add 333 :db/ident :test/dangling]
+                                 [:db/add 333 :db/valueType :db.type/ref]]");
+
+        // Verify that we can retract simple entities by entid.
+        assert_transact!(conn, "[[:db/retractEntity 111]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[111 :db/ident :test/many ?tx false]
+                          [111 :db/valueType :db.type/long ?tx false]
+                          [111 :db/cardinality :db.cardinality/many ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Verify that we can retract entities that don't exist.
+        assert_transact!(conn, "[[:db/retractEntity 111]]");
+
+        // Verify that we can retract simple entities by keyword.
+        assert_transact!(conn, "[[:db/retractEntity :test/component]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[222 :db/ident :test/component ?tx false]
+                          [222 :db/valueType :db.type/ref ?tx false]
+                          [222 :db/isComponent true ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Some data for testing associated references.
+        assert_transact!(conn, "[[:db/add 555 :test/dangling 666]
+                                 [:db/add 666 :test/dangling 777]
+                                 [:db/add 777 :test/dangling 777]
+                                 [:db/add 888 :test/dangling 999]]");
+
+        // Verify that associated references are also retracted.
+        assert_transact!(conn, "[[:db/retractEntity 666]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[555 :test/dangling 666 ?tx false]
+                          [666 :test/dangling 777 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // What happens if we have a self reference?
+        assert_transact!(conn, "[[:db/retractEntity 777]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[777 :test/dangling 777 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Verify that we can retract entities that aren't recognized, but that appear as dangling
+        // references.
+        assert_transact!(conn, "[[:db/retractEntity 999]]");
+        assert_matches!(conn.last_transaction(),
+                        "[[888 :test/dangling 999 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Let's make sure we actually retracted from the datoms table.
+        assert_matches!(conn.datoms(),
+                        "[[333 :db/ident :test/dangling]
+                          [333 :db/valueType :db.type/ref]]");
     }
 
     #[test]

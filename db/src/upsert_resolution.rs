@@ -124,6 +124,9 @@ impl Generation {
                 Term::AddOrRetract(op, Left(e), a, Left(v)) => {
                     inert.push(Term::AddOrRetract(op, Left(e), a, Left(v)));
                 },
+                t @ Term::RetractEntity(_) => {
+                    inert.push(t);
+                },
             }
         }
 
@@ -194,6 +197,7 @@ impl Generation {
                     }
                 },
                 Term::AddOrRetract(_, Left(_), _, Left(_)) => unreachable!(),
+                Term::RetractEntity(_) => unreachable!(), // This is a coding error -- these should not be in allocations.
             }
         }
 
@@ -238,6 +242,7 @@ impl Generation {
                     // [:db/retract ...] entities never allocate entids; they have to resolve due to
                     // other upserts (or they fail the transaction).
                 },
+                &Term::RetractEntity(_) => unreachable!(), // This is a coding error -- these should not be in allocations.
             }
         }
 
@@ -280,6 +285,7 @@ impl Generation {
                     }
                 },
                 Term::AddOrRetract(_, Left(_), _, Left(_)) => unreachable!(), // This is a coding error -- these should not be in allocations.
+                Term::RetractEntity(_) => unreachable!(), // This is a coding error -- these should not be in allocations.
             };
             populations.allocated.push(allocated);
         }

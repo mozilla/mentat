@@ -95,11 +95,26 @@ pub enum AtomOrLookupRefOrVectorOrMapNotation {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum EntidOrLookupRef {
+    Entid(Entid),
+    LookupRef(LookupRef),
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntidOrLookupRefOrTempId {
     Entid(Entid),
     LookupRef(LookupRef),
     TxFunction(TxFunction),
     TempId(TempId),
+}
+
+impl From<EntidOrLookupRef> for EntidOrLookupRefOrTempId {
+    fn from(k: EntidOrLookupRef) -> EntidOrLookupRefOrTempId {
+        match k {
+            EntidOrLookupRef::Entid(x) => EntidOrLookupRefOrTempId::Entid(x),
+            EntidOrLookupRef::LookupRef(x) => EntidOrLookupRefOrTempId::LookupRef(x),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
@@ -117,6 +132,8 @@ pub enum Entity {
         a: Entid,
         v: AtomOrLookupRefOrVectorOrMapNotation,
     },
+    // Like [:db/retractEntity e].
+    RetractEntity(EntidOrLookupRef),
     // Like {:db/id "tempid" a1 v1 a2 v2}.
     MapNotation(MapNotation),
 }

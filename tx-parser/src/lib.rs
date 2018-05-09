@@ -34,6 +34,7 @@ use combine::{
 use mentat_tx::entities::{
     AtomOrLookupRefOrVectorOrMapNotation,
     Entid,
+    EntidOrLookupRef,
     EntidOrLookupRefOrTempId,
     Entity,
     LookupRef,
@@ -89,6 +90,11 @@ def_parser!(Tx, lookup_ref, LookupRef, {
             .map(|(a, v)| LookupRef { a: a, v: v.clone().without_spans() }))
 });
 
+def_parser!(Tx, entid_or_lookup_ref, EntidOrLookupRef, {
+    Tx::entid().map(EntidOrLookupRef::Entid)
+        .or(Tx::lookup_ref().map(EntidOrLookupRef::LookupRef))
+});
+
 def_parser!(Tx, entid_or_lookup_ref_or_temp_id, EntidOrLookupRefOrTempId, {
     Tx::temp_id().map(EntidOrLookupRefOrTempId::TempId)
         .or(Tx::entid().map(EntidOrLookupRefOrTempId::Entid))
@@ -131,8 +137,7 @@ def_matches_namespaced_keyword!(Tx, literal_db_add, "db", "add");
 def_matches_namespaced_keyword!(Tx, literal_db_retract, "db", "retract");
 
 def_parser!(Tx, add_or_retract, Entity, {
-    vector().of_exactly(
-        // TODO: This commits as soon as it sees :db/{add,retract}, but could use an improved error message.
+    try(vector().of_exactly(
         (Tx::literal_db_add().map(|_| OpType::Add).or(Tx::literal_db_retract().map(|_| OpType::Retract)),
           try((Tx::entid_or_lookup_ref_or_temp_id(),
                Tx::forward_entid(),
@@ -148,7 +153,14 @@ def_parser!(Tx, add_or_retract, Entity, {
                     a: a,
                     v: v,
                 }
-            }))
+            })))
+});
+
+def_matches_namespaced_keyword!(Tx, literal_db_retract_entity, "db", "retractEntity");
+
+def_parser!(Tx, retract_entity, Entity, {
+    try(vector().of_exactly(
+        (Tx::literal_db_retract_entity(), Tx::entid_or_lookup_ref()).map(|(_, e)| Entity::RetractEntity(e))))
 });
 
 def_parser!(Tx, map_notation, MapNotation, {
@@ -161,6 +173,7 @@ def_parser!(Tx, map_notation, MapNotation, {
 
 def_parser!(Tx, entity, Entity, {
     Tx::add_or_retract()
+        .or(Tx::retract_entity())
         .or(Tx::map_notation().map(Entity::MapNotation))
 });
 
@@ -281,6 +294,52 @@ mod tests {
                        a: Entid::Ident(NamespacedKeyword::new("test", "a")),
                        v: AtomOrLookupRefOrVectorOrMapNotation::Atom(ValueAndSpan::new(SpannedValue::Text("v".into()), Span(25, 28))),
                    }));
+    }
+
+
+    #[test]
+    fn test_retract_entity() {
+        let input = Value::Vector(vec![kw("db", "retractEntity"),
+                                       Value::Integer(101)]);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
+        assert_eq!(result,
+                   Ok(Entity::RetractEntity(EntidOrLookupRef::Entid(Entid::Entid(101)))));
+    }
+
+    #[test]
+    fn test_retract_entity_kw() {
+        let input = Value::Vector(vec![kw("db", "retractEntity"),
+                                       kw("known", "ident")]);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
+        assert_eq!(result,
+                   Ok(Entity::RetractEntity(EntidOrLookupRef::Entid(Entid::Ident(NamespacedKeyword::new("known", "ident"))))));
+    }
+
+    #[test]
+    fn test_retract_entity_lookup_ref() {
+        let input = Value::Vector(vec![kw("db", "retractEntity"),
+                                       Value::List(vec![Value::PlainSymbol(PlainSymbol::new("lookup-ref")),
+                                                        kw("test", "a1"),
+                                                        Value::Text("v1".into())].into_iter().collect()),
+                                       ]);
+
+        let input = input.with_spans();
+        let stream = input.atom_stream();
+        let result = Tx::entity().parse(stream).map(|x| x.0);
+
+        assert_eq!(result,
+                   Ok(Entity::RetractEntity(EntidOrLookupRef::LookupRef(LookupRef {
+                           a: Entid::Ident(NamespacedKeyword::new("test", "a1")),
+                           v: Value::Text("v1".into()),
+                       }))));
     }
 
     #[test]
