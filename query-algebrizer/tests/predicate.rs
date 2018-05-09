@@ -17,7 +17,10 @@ mod utils;
 
 use mentat_core::{
     Attribute,
+    DateTime,
     Schema,
+    TypedValue,
+    Utc,
     ValueType,
     ValueTypeSet,
 };
@@ -32,11 +35,13 @@ use mentat_query_algebrizer::{
     EmptyBecause,
     ErrorKind,
     Known,
+    QueryInputs,
 };
 
 use utils::{
     add_attribute,
     alg,
+    alg_with_inputs,
     associate_ident,
     bails,
 };
@@ -45,6 +50,7 @@ fn prepopulated_schema() -> Schema {
     let mut schema = Schema::default();
     associate_ident(&mut schema, NamespacedKeyword::new("foo", "date"), 65);
     associate_ident(&mut schema, NamespacedKeyword::new("foo", "double"), 66);
+    associate_ident(&mut schema, NamespacedKeyword::new("foo", "long"), 67);
     add_attribute(&mut schema, 65, Attribute {
         value_type: ValueType::Instant,
         multival: false,
@@ -52,6 +58,11 @@ fn prepopulated_schema() -> Schema {
     });
     add_attribute(&mut schema, 66, Attribute {
         value_type: ValueType::Double,
+        multival: false,
+        ..Default::default()
+    });
+    add_attribute(&mut schema, 67, Attribute {
+        value_type: ValueType::Long,
         multival: false,
         ..Default::default()
     });
@@ -115,4 +126,61 @@ fn test_instant_predicates_require_instants() {
     assert!(!cc.is_known_empty());
     assert_eq!(cc.known_type(&Variable::from_valid_name("?t")).expect("?t is known"),
                ValueType::Double);
+}
+
+#[test]
+fn test_instant_predicates_accepts_var() {
+    let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
+
+    let instant_var = Variable::from_valid_name("?time");
+    let instant_value = TypedValue::Instant(DateTime::parse_from_rfc3339("2018-04-11T19:17:00.000Z")
+                    .map(|t| t.with_timezone(&Utc))
+                    .expect("expected valid date"));
+
+    let query = r#"[:find ?e
+                    :in ?time
+                    :where
+                    [?e :foo/date ?t]
+                    [(< ?t ?time)]]"#;
+    let cc = alg_with_inputs(known, query, QueryInputs::with_value_sequence(vec![(instant_var.clone(), instant_value.clone())]));
+    assert_eq!(cc.known_type(&instant_var).expect("?time is known"),
+               ValueType::Instant);
+
+    let query = r#"[:find ?e
+                    :in ?time
+                    :where
+                    [?e :foo/date ?t]
+                    [(> ?time, ?t)]]"#;
+    let cc = alg_with_inputs(known, query, QueryInputs::with_value_sequence(vec![(instant_var.clone(), instant_value.clone())]));
+    assert_eq!(cc.known_type(&instant_var).expect("?time is known"),
+               ValueType::Instant);
+}
+
+#[test]
+fn test_numeric_predicates_accepts_var() {
+    let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
+
+    let numeric_var = Variable::from_valid_name("?long");
+    let numeric_value = TypedValue::Long(1234567);
+
+    // You can't use a string for an inequality: this is a straight-up error.
+    let query = r#"[:find ?e
+                    :in ?long
+                    :where
+                    [?e :foo/long ?t]
+                    [(> ?t ?long)]]"#;
+    let cc = alg_with_inputs(known, query, QueryInputs::with_value_sequence(vec![(numeric_var.clone(), numeric_value.clone())]));
+    assert_eq!(cc.known_type(&numeric_var).expect("?long is known"),
+               ValueType::Long);
+
+    let query = r#"[:find ?e
+                    :in ?long
+                    :where
+                    [?e :foo/long ?t]
+                    [(> ?long, ?t)]]"#;
+    let cc = alg_with_inputs(known, query, QueryInputs::with_value_sequence(vec![(numeric_var.clone(), numeric_value.clone())]));
+    assert_eq!(cc.known_type(&numeric_var).expect("?long is known"),
+               ValueType::Long);
 }

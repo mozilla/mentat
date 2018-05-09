@@ -98,3 +98,8 @@ pub fn alg(known: Known, input: &str) -> ConjoiningClauses {
     let parsed = parse_find_string(input).expect("query input to have parsed");
     algebrize(known, parsed).expect("algebrizing to have succeeded").cc
 }
+
+pub fn alg_with_inputs(known: Known, input: &str, inputs: QueryInputs) -> ConjoiningClauses {
+    let parsed = parse_find_string(input).expect("query input to have parsed");
+    algebrize_with_inputs(known, parsed, 0, inputs).expect("algebrizing to have succeeded").cc
+}
