@@ -29,9 +29,6 @@ path = "../sql"
 [dependencies.mentat_tx]
 path = "../tx"
 
-[dependencies.mentat_tx_parser]
-path = "../tx-parser"
-
 # Should be dev-dependencies.
 [dependencies.tabwriter]
 version = "1.0.3"

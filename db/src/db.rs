@@ -1159,7 +1159,6 @@ mod tests {
         Schema,
         attribute,
     };
-    use mentat_tx_parser;
     use rusqlite;
     use std::collections::{
         BTreeMap,
@@ -1217,8 +1216,7 @@ mod tests {
 
         fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
             // Failure to parse the transaction is a coding error, so we unwrap.
-            let assertions = edn::parse::value(transaction.borrow()).expect(format!("to be able to parse {} into EDN", transaction.borrow()).as_str());
-            let entities: Vec<_> = mentat_tx_parser::Tx::parse(&assertions).expect(format!("to be able to parse {} into entities", assertions).as_str());
+            let entities = edn::parse::entities(transaction.borrow()).expect(format!("to be able to parse {} into entities", transaction.borrow()).as_str());
 
             let details = {
                 // The block scopes the borrow of self.sqlite.

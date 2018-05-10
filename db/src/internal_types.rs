@@ -19,18 +19,100 @@ use mentat_core::KnownEntid;
 
 use mentat_core::util::Either;
 
+use edn;
+use edn::{
+    SpannedValue,
+    ValueAndSpan,
+};
+
 use errors;
-use errors::ErrorKind;
+use errors::{
+    ErrorKind,
+    Result,
+};
+use schema::{
+    SchemaTypeChecking,
+};
 use types::{
     AVMap,
     AVPair,
     Entid,
+    Schema,
     TypedValue,
+    ValueType,
 };
+use mentat_tx::entities;
 use mentat_tx::entities::{
+    EntidOrLookupRefOrTempId,
     OpType,
     TempId,
+    TxFunction,
 };
+
+/// The transactor is tied to `edn::ValueAndSpan` right now, but in the future we'd like to support
+/// `TypedValue` directly for programmatic use.  `TransactableValue` encapsulates the interface
+/// value types (i.e., values in the value place) need to support to be transacted.
+pub trait TransactableValue {
+    /// Coerce this value place into the given type.  This is where we perform schema-aware
+    /// coercion, for example coercing an integral value into a ref where appropriate.
+    fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue>;
+
+    /// Make an entity place out of this value place.  This is where we limit values in nested maps
+    /// to valid entity places.
+    fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId>;
+
+    fn as_tempid(&self) -> Option<TempId>;
+}
+
+impl TransactableValue for ValueAndSpan {
+    fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue> {
+        schema.to_typed_value(&self.without_spans(), value_type)
+    }
+
+    fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId> {
+        use self::SpannedValue::*;
+        match self.inner {
+            Integer(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Entid(v))),
+            NamespacedKeyword(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Ident(v))),
+            Text(v) => Ok(EntidOrLookupRefOrTempId::TempId(TempId::External(v))),
+            List(ls) => {
+                let mut it = ls.iter();
+                match (it.next().map(|x| &x.inner), it.next(), it.next(), it.next()) {
+                    // Like "(transaction-id)".
+                    (Some(&PlainSymbol(ref op)), None, None, None) => {
+                        Ok(EntidOrLookupRefOrTempId::TxFunction(TxFunction { op: op.clone() }))
+                    },
+                    // Like "(lookup-ref)".
+                    (Some(&PlainSymbol(edn::PlainSymbol(ref s))), Some(a), Some(v), None) if s == "lookup-ref" => {
+                        match a.clone().into_entity_place()? {
+                            EntidOrLookupRefOrTempId::Entid(a) => Ok(EntidOrLookupRefOrTempId::LookupRef(entities::LookupRef { a, v: v.clone().without_spans() })),
+                            EntidOrLookupRefOrTempId::TempId(_) |
+                            EntidOrLookupRefOrTempId::TxFunction(_) |
+                            EntidOrLookupRefOrTempId::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+                        }
+                    },
+                    _ => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+                }
+            },
+            Nil |
+            Boolean(_) |
+            Instant(_) |
+            BigInteger(_) |
+            Float(_) |
+            Uuid(_) |
+            PlainSymbol(_) |
+            NamespacedSymbol(_) |
+            Keyword(_) |
+            Vector(_) |
+            Set(_) |
+            Map(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+        }
+    }
+
+    fn as_tempid(&self) -> Option<TempId> {
+        self.inner.as_text().cloned().map(TempId::External)
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Term<E, V> {

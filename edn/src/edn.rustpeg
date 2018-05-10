@@ -23,6 +23,8 @@ use num::BigInt;
 use ordered_float::OrderedFloat;
 use uuid::Uuid;
 
+use entities::*;
+use symbols::*;
 use types::{SpannedValue, Span, ValueAndSpan};
 
 // Goal: Be able to parse https://github.com/edn-format/edn
@@ -51,21 +53,25 @@ validbase = [3][0-6] / [12][0-9] / [2-9]
 hex = [0-9a-fA-F]
 sign = [+-]
 
-pub bigint -> SpannedValue = b:$( sign? digit+ ) "N"
-    { SpannedValue::BigInteger(b.parse::<BigInt>().unwrap()) }
-pub octalinteger -> SpannedValue = "0" i:$( octaldigit+ )
-    { SpannedValue::Integer(i64::from_str_radix(i, 8).unwrap()) }
-pub hexinteger -> SpannedValue = "0x" i:$( hex+ )
-    { SpannedValue::Integer(i64::from_str_radix(i, 16).unwrap()) }
+pub raw_bigint -> BigInt = b:$( sign? digit+ ) "N"
+    { b.parse::<BigInt>().unwrap() }
+pub raw_octalinteger -> i64 = "0" i:$( octaldigit+ )
+    { i64::from_str_radix(i, 8).unwrap() }
+pub raw_hexinteger -> i64 = "0x" i:$( hex+ )
+    { i64::from_str_radix(i, 16).unwrap() }
+pub raw_basedinteger -> i64 = b:$( validbase ) "r" i:$( alphanumeric+ )
+    { i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap() }
+pub raw_integer -> i64 = i:$( sign? digit+ ) !("." / ([eE]))
+    { i.parse::<i64>().unwrap() }
+pub raw_float -> OrderedFloat<f64> = f:$(sign? digit+ ("." digit+)? ([eE] sign? digit+)?)
+    { OrderedFloat(f.parse::<f64>().unwrap()) }
 
-pub basedinteger -> SpannedValue = b:$( validbase ) "r" i:$( alphanumeric+ )
-    { SpannedValue::Integer(i64::from_str_radix(i, b.parse::<u32>().unwrap()).unwrap()) }
-
-pub integer -> SpannedValue = i:$( sign? digit+ ) !("." / ([eE]))
-    { SpannedValue::Integer(i.parse::<i64>().unwrap()) }
-
-pub float -> SpannedValue = f:$(sign? digit+ ("." digit+)? ([eE] sign? digit+)?)
-    { SpannedValue::Float(OrderedFloat(f.parse::<f64>().unwrap())) }
+pub bigint -> SpannedValue = v:raw_bigint { SpannedValue::BigInteger(v) }
+pub octalinteger -> SpannedValue = v:raw_octalinteger { SpannedValue::Integer(v) }
+pub hexinteger -> SpannedValue = v:raw_hexinteger { SpannedValue::Integer(v) }
+pub basedinteger -> SpannedValue = v:raw_basedinteger { SpannedValue::Integer(v) }
+pub integer -> SpannedValue = v:raw_integer { SpannedValue::Integer(v) }
+pub float -> SpannedValue = v:raw_float { SpannedValue::Float(v) }
 
 number -> SpannedValue = ( bigint / basedinteger / hexinteger / octalinteger / integer / float )
 
@@ -81,8 +87,11 @@ string_normal_chars -> &'input str = $([^"\\]+)
 //      output = [quote, "foo", backslash, "bar", quote]
 //      result = r#""foo\\bar""#
 // For the typical case, string_normal_chars will match multiple, leading to a single-element vec.
-pub text -> SpannedValue = "\"" t:((string_special_char / string_normal_chars)*) "\""
-    {  SpannedValue::Text(t.join(&"").to_string()) }
+pub raw_text -> String = "\"" t:((string_special_char / string_normal_chars)*) "\""
+    {  t.join(&"").to_string() }
+
+pub text -> SpannedValue
+    = v:raw_text { SpannedValue::Text(v) }
 
 // RFC 3339 timestamps. #inst "1985-04-12T23:20:50.52Z"
 // We accept an arbitrary depth of decimals.
@@ -180,9 +189,69 @@ pub value -> ValueAndSpan =
         }
     }
 
+atom -> ValueAndSpan
+    = v:value {? if v.is_atom() { Ok(v) } else { Err("expected atom") } }
+
 // Clojure (and thus EDN) regards commas as whitespace, and thus the two-element vectors [1 2] and
 // [1,,,,2] are equivalent, as are the maps {:a 1, :b 2} and {:a 1 :b 2}.
-whitespace = [  \r\n\t,]
-comment = ";" [^\r\n]* [\r\n]?
+whitespace = #quiet<[  \r\n\t,]>
+comment = #quiet<";" [^\r\n]* [\r\n]?>
 
 __ = (whitespace / comment)*
+
+pub op -> OpType
+    = ":db/add"     { OpType::Add }
+    / ":db/retract" { OpType::Retract }
+
+raw_keyword -> NamespacedKeyword
+    = keyword_prefix ns:$(symbol_namespace) namespace_separator n:$(symbol_name) { NamespacedKeyword::new(ns, n) }
+
+raw_forward_keyword -> NamespacedKeyword
+    = v:raw_keyword {? if v.is_forward() { Ok(v) } else { Err("expected :forward/keyword") } }
+
+raw_backward_keyword -> NamespacedKeyword
+    = v:raw_keyword {? if v.is_backward() { Ok(v) } else { Err("expected :backward/_keyword") } }
+
+entid -> Entid
+    = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { Entid::Entid(v) }
+    / v:raw_keyword { Entid::Ident(v) }
+
+forward_entid -> Entid
+    = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { Entid::Entid(v) }
+    / v:raw_forward_keyword { Entid::Ident(v) }
+
+backward_entid -> Entid
+    = v:raw_backward_keyword { Entid::Ident(v.to_reversed()) }
+
+lookup_ref -> LookupRef
+    = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a, v: v.without_spans() } }
+
+tx_function -> TxFunction
+    = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::new(n) } }
+
+entity_place -> EntidOrLookupRefOrTempId
+    = v:raw_text { EntidOrLookupRefOrTempId::TempId(TempId::External(v)) }
+    / v:entid { EntidOrLookupRefOrTempId::Entid(v) }
+    / v:lookup_ref { EntidOrLookupRefOrTempId::LookupRef(v) }
+    / v:tx_function { EntidOrLookupRefOrTempId::TxFunction(v) }
+
+value_place_pair -> (Entid, AtomOrLookupRefOrVectorOrMapNotation)
+    = k:(entid) __ v:(value_place) { (k, v) }
+
+map_notation -> MapNotation
+    = "{" __ kvs:(value_place_pair*) __ "}" { kvs.into_iter().collect() }
+
+value_place -> AtomOrLookupRefOrVectorOrMapNotation
+    = __ v:lookup_ref __ { AtomOrLookupRefOrVectorOrMapNotation::LookupRef(v) }
+    / __ v:tx_function __ { AtomOrLookupRefOrVectorOrMapNotation::TxFunction(v) }
+    / __ "[" __ vs:(value_place*) __ "]" __ { AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) }
+    / __ v:map_notation __ { AtomOrLookupRefOrVectorOrMapNotation::MapNotation(v) }
+    / __ v:atom __ { AtomOrLookupRefOrVectorOrMapNotation::Atom(v) }
+
+pub entity -> Entity
+    = __ "[" __ op:(op) __ e:(entity_place) __ a:(forward_entid)  __ v:(value_place) __  "]" __ { Entity::AddOrRetract { op, e: e, a, v: v } }
+    / __ "[" __ op:(op) __ e:(value_place)  __ a:(backward_entid) __ v:(entity_place) __ "]" __ { Entity::AddOrRetract { op, e: v, a, v: e } }
+    / __ map:map_notation __ { Entity::MapNotation(map) }
+
+pub entities -> Vec<Entity>
+    = __ "[" __ es:(entity*) __ "]" __ { es }

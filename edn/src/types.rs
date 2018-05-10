@@ -110,6 +110,10 @@ impl ValueAndSpan {
         }
     }
 
+    pub fn is_atom(&self) -> bool {
+        self.inner.is_atom()
+    }
+
     pub fn as_atom(&self) -> Option<&ValueAndSpan> {
         if self.inner.is_atom() {
             Some(self)

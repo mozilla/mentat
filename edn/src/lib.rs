@@ -22,6 +22,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
+pub mod entities;
 pub mod symbols;
 pub mod types;
 pub mod pretty_print;
