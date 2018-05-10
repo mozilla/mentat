@@ -286,19 +286,19 @@ pub(crate) fn bootstrap_ident_map() -> IdentMap {
 
 pub(crate) fn bootstrap_schema() -> Schema {
     let ident_map = bootstrap_ident_map();
-    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V1_SYMBOLIC_SCHEMA).unwrap();
+    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V1_SYMBOLIC_SCHEMA).expect("symbolic schema");
     Schema::from_ident_map_and_triples(ident_map, bootstrap_triples).unwrap()
 }
 
 pub(crate) fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
-        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
+        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).expect("symbolic schema"),
         idents_to_assertions(&V1_IDENTS[..]),
         schema_attrs_to_assertions(CORE_SCHEMA_VERSION, V1_CORE_SCHEMA.as_ref()),
     ].concat());
 
     // Failure here is a coding error (since the inputs are fixed), not a runtime error.
     // TODO: represent these bootstrap data errors rather than just panicing.
-    let bootstrap_entities: Vec<Entity> = edn::parse::entities(&bootstrap_assertions.to_string()).unwrap();
+    let bootstrap_entities: Vec<Entity> = edn::parse::entities(&bootstrap_assertions.to_string()).expect("bootstrap assertions");
     return bootstrap_entities;
 }
