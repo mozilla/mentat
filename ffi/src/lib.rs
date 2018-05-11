@@ -908,9 +908,7 @@ pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut TransactionChange, 
 /// destroy function for releasing the memory for `repr(C)` structs.
 #[no_mangle]
 pub unsafe extern "C" fn destroy(obj: *mut c_void) {
-    if !obj.is_null() {
-        let _ = Box::from_raw(obj);
-    }
+    let _ = Box::from_raw(obj);
 }
 
 /// Creates a function with a given `$name` that releases the memroy for a type `$t`.
