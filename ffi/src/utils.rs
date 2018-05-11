@@ -19,10 +19,9 @@ pub mod strings {
         Keyword,
     };
 
-    pub fn c_char_to_string(cchar: *const c_char) -> String {
+    pub fn c_char_to_string(cchar: *const c_char) -> &'static str {
         let c_str = unsafe { CStr::from_ptr(cchar) };
-        let r_str = c_str.to_str().unwrap_or("");
-        r_str.to_string()
+        c_str.to_str().unwrap_or("")
     }
 
     pub fn string_to_c_char<T>(r_string: T) -> *mut c_char where T: Into<String> {
@@ -31,7 +30,7 @@ pub mod strings {
 
     // TODO: validate. The input might not be a keyword!
     pub fn kw_from_string(mut keyword_string: String) -> Keyword {
-        let attr_name = keyword_string.split_off(1);
+        let attr_name = keyword_string.trim_left_matches(":");
         let parts: Vec<&str> = attr_name.split("/").collect();
         Keyword::namespaced(parts[0], parts[1])
     }
