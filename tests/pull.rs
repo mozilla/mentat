@@ -213,6 +213,35 @@ fn test_simple_pull() {
     let expected: Vec<Binding> = expected.into_iter().map(|m| m.into()).collect();
     assert_eq!(results, expected);
 
+    // Pull fulltext.
+    let query = r#"[:find [(pull ?c [:community/name :community/category]) ...]
+                    :where
+                    [?c :community/name ?name]
+                    [?c :community/type :community.type/website]
+                    [(fulltext $ :community/category "food") [[?c ?cat]]]]"#;
+    let results = reader.q_once(query, None)
+                        .into_coll_result()
+                        .expect("result");
+    let expected: Vec<StructuredMap> = vec![
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("Community Harvest of Southwest Seattle"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("sustainable food"))].into())].into(),
+
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("InBallard"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("shopping")),
+                                             Binding::Scalar(TypedValue::from("food")),
+                                             Binding::Scalar(TypedValue::from("nightlife")),
+                                             Binding::Scalar(TypedValue::from("services"))].into())].into(),
+
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("Seattle Chinatown Guide"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("shopping")),
+                                             Binding::Scalar(TypedValue::from("food"))].into())].into(),
+
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("University District Food Bank"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("food bank"))].into())].into(),
+    ];
+
+    let expected: Vec<Binding> = expected.into_iter().map(|m| m.into()).collect();
+    assert_eq!(results, expected);
 }
 
 // TEST:
