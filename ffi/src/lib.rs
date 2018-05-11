@@ -267,7 +267,7 @@ pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c
     let store = &mut*store;
     let transaction = c_char_to_string(transaction);
     let result = store.begin_transaction().and_then(|mut in_progress| {
-        in_progress.transact(&transaction).and_then(|tx_report| {
+        in_progress.transact(transaction).and_then(|tx_report| {
             in_progress.commit()
                        .map(|_| tx_report)
         })

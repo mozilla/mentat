@@ -94,6 +94,7 @@ use mentat_tolstoy::Syncer;
 use uuid::Uuid;
 
 use entity_builder::{
+    BuildTerms,
     InProgressBuilder,
     TermBuilder,
 };
