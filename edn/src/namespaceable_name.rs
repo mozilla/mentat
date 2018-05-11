@@ -17,9 +17,15 @@ use std::cmp::{
 use std::fmt;
 
 #[cfg(feature = "serde_support")]
-use serde::{
-    de::{self, Deserialize, Deserializer},
-    ser::{Serialize, Serializer}
+use serde::de::{
+    self,
+    Deserialize,
+    Deserializer
+};
+#[cfg(feature = "serde_support")]
+use serde::ser::{
+    Serialize,
+    Serializer,
 };
 
 // Data storage for both NamespaceableKeyword and NamespaceableSymbol.

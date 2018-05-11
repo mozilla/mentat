@@ -207,7 +207,7 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
             for (ident, mp) in m {
                 let ident = match ident {
                     &Value::Keyword(ref ident) => ident,
-                    v => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident))),
+                    _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident))),
                 };
                 match *mp {
                     Value::Map(ref mpp) => {
