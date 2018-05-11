@@ -224,7 +224,7 @@ backward_entid -> Entid
     = v:raw_backward_keyword { Entid::Ident(v.to_reversed()) }
 
 lookup_ref -> LookupRef
-    = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a, v: v.without_spans() } }
+    = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a: AttributePlace::Entid(a), v: v.without_spans() } }
 
 tx_function -> TxFunction
     = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::plain(n) } }
@@ -249,8 +249,8 @@ value_place -> AtomOrLookupRefOrVectorOrMapNotation
     / __ v:atom __ { AtomOrLookupRefOrVectorOrMapNotation::Atom(v) }
 
 pub entity -> Entity
-    = __ "[" __ op:(op) __ e:(entity_place) __ a:(forward_entid)  __ v:(value_place) __  "]" __ { Entity::AddOrRetract { op, e: e, a, v: v } }
-    / __ "[" __ op:(op) __ e:(value_place)  __ a:(backward_entid) __ v:(entity_place) __ "]" __ { Entity::AddOrRetract { op, e: v, a, v: e } }
+    = __ "[" __ op:(op) __ e:(entity_place) __ a:(forward_entid)  __ v:(value_place) __  "]" __ { Entity::AddOrRetract { op, e: e, a: AttributePlace::Entid(a), v: v } }
+    / __ "[" __ op:(op) __ e:(value_place)  __ a:(backward_entid) __ v:(entity_place) __ "]" __ { Entity::AddOrRetract { op, e: v, a: AttributePlace::Entid(a), v: e } }
     / __ map:map_notation __ { Entity::MapNotation(map) }
 
 pub entities -> Vec<Entity>

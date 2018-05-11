@@ -106,6 +106,7 @@ use mentat_core::intern_set::InternSet;
 
 use mentat_tx::entities as entmod;
 use mentat_tx::entities::{
+    AttributePlace,
     Entity,
     OpType,
     TempId,
@@ -289,8 +290,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
             fn intern_lookup_ref(&mut self, lookup_ref: &entmod::LookupRef) -> Result<LookupRef> {
                 let lr_a: i64 = match lookup_ref.a {
-                    entmod::Entid::Entid(ref a) => *a,
-                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?.into(),
+                    AttributePlace::Entid(entmod::Entid::Entid(ref a)) => *a,
+                    AttributePlace::Entid(entmod::Entid::Ident(ref a)) => self.schema.require_entid(&a)?.into(),
                 };
                 let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
 
@@ -426,13 +427,15 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         deque.push_front(Entity::AddOrRetract {
                             op: OpType::Add,
                             e: db_id.clone(),
-                            a: a,
+                            a: AttributePlace::Entid(a),
                             v: v,
                         });
                     }
                 },
 
                 Entity::AddOrRetract { op, e, a, v } => {
+                    let AttributePlace::Entid(a) = a;
+
                     if let Some(reversed_a) = a.unreversed() {
                         let reversed_e = in_process.entity_v_into_term_e(v, &a)?;
                         let reversed_a = in_process.entity_a_into_term_a(reversed_a)?;
@@ -494,7 +497,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                     deque.push_front(Entity::AddOrRetract {
                                         op: op.clone(),
                                         e: e.clone(),
-                                        a: entmod::Entid::Entid(a),
+                                        a: AttributePlace::Entid(entmod::Entid::Entid(a)),
                                         v: vv,
                                     });
                                 }
@@ -557,7 +560,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                         deque.push_front(Entity::AddOrRetract {
                                             op: OpType::Add,
                                             e: db_id.clone(),
-                                            a: entmod::Entid::Entid(inner_a),
+                                            a: AttributePlace::Entid(entmod::Entid::Entid(inner_a)),
                                             v: inner_v,
                                         });
                                     }
