@@ -26,7 +26,7 @@ public class ColResultIterator extends RustObject implements Iterator {
     }
 
     private Pointer getNextPointer() {
-        return JNA.INSTANCE.values_iter_next(this.rawPointer);
+        return JNA.INSTANCE.typed_value_list_iter_next(this.rawPointer);
     }
 
     @Override

@@ -82,7 +82,7 @@ class RelResultIterator: OptionalRustObject, IteratorProtocol  {
 
     func next() -> Element? {
         guard let iter = self.raw,
-            let rowPtr = rows_iter_next(iter) else {
+            let rowPtr = typed_value_result_set_iter_next(iter) else {
             return nil
         }
         return TupleResult(raw: rowPtr)
@@ -96,7 +96,7 @@ class RelResultIterator: OptionalRustObject, IteratorProtocol  {
 extension RelResult: Sequence {
     func makeIterator() -> RelResultIterator {
         do {
-            let rowIter = rows_iter(try self.validPointer())
+            let rowIter = typed_value_result_set_into_iter(try self.validPointer())
             self.raw = nil
             return RelResultIterator(iter: rowIter)
         } catch {

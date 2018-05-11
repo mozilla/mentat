@@ -25,7 +25,7 @@ public class RelResultIterator extends RustObject implements Iterator {
     }
 
     private Pointer getNextPointer() {
-        return JNA.INSTANCE.rows_iter_next(this.rawPointer);
+        return JNA.INSTANCE.typed_value_result_set_iter_next(this.rawPointer);
     }
 
     @Override

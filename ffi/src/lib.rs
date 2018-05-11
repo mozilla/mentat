@@ -506,7 +506,7 @@ fn unwrap_conversion<T>(value: Option<T>, expected_type: ValueType) -> T {
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Long).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_long(typed_value: *mut Binding) -> c_longlong {
+pub unsafe extern "C" fn typed_value_into_long(typed_value: *mut Binding) -> c_longlong {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_long(), ValueType::Long)
 }
@@ -517,7 +517,7 @@ pub unsafe extern "C" fn typed_value_as_long(typed_value: *mut Binding) -> c_lon
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Ref).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_entid(typed_value: *mut Binding) -> Entid {
+pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) -> Entid {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_entid(), ValueType::Ref)
 }
@@ -528,7 +528,7 @@ pub unsafe extern "C" fn typed_value_as_entid(typed_value: *mut Binding) -> Enti
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Ref).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_kw(typed_value: *mut Binding) -> *const c_char {
+pub unsafe extern "C" fn typed_value_into_kw(typed_value: *mut Binding) -> *const c_char {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_kw_c_string(), ValueType::Keyword) as *const c_char
 }
@@ -541,7 +541,7 @@ pub unsafe extern "C" fn typed_value_as_kw(typed_value: *mut Binding) -> *const 
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Boolean).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_boolean(typed_value: *mut Binding) -> i32 {
+pub unsafe extern "C" fn typed_value_into_boolean(typed_value: *mut Binding) -> i32 {
     let typed_value = Box::from_raw(typed_value);
     if unwrap_conversion(typed_value.into_boolean(), ValueType::Boolean) { 1 } else { 0 }
 }
@@ -552,7 +552,7 @@ pub unsafe extern "C" fn typed_value_as_boolean(typed_value: *mut Binding) -> i3
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Double).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_double(typed_value: *mut Binding) -> f64 {
+pub unsafe extern "C" fn typed_value_into_double(typed_value: *mut Binding) ->  f64 {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_double(), ValueType::Double)
 }
@@ -563,7 +563,7 @@ pub unsafe extern "C" fn typed_value_as_double(typed_value: *mut Binding) -> f64
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Instant).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_timestamp(typed_value: *mut Binding) -> c_longlong {
+pub unsafe extern "C" fn typed_value_into_timestamp(typed_value: *mut Binding) ->  c_longlong {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_timestamp(), ValueType::Instant)
 }
@@ -574,7 +574,7 @@ pub unsafe extern "C" fn typed_value_as_timestamp(typed_value: *mut Binding) -> 
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::String).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_string(typed_value: *mut Binding) -> *const c_char {
+pub unsafe extern "C" fn typed_value_into_string(typed_value: *mut Binding) ->  *const c_char {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_c_string(), ValueType::String) as *const c_char
 }
@@ -585,7 +585,7 @@ pub unsafe extern "C" fn typed_value_as_string(typed_value: *mut Binding) -> *co
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Uuid).
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_as_uuid(typed_value: *mut Binding) -> *mut [u8; 16] {
+pub unsafe extern "C" fn typed_value_into_uuid(typed_value: *mut Binding) ->  *mut [u8; 16] {
     let typed_value = Box::from_raw(typed_value);
     let value = unwrap_conversion(typed_value.into_uuid(), ValueType::Uuid);
     Box::into_raw(Box::new(*value.as_bytes()))
@@ -620,7 +620,7 @@ pub unsafe extern "C" fn row_at_index(rows: *mut RelResult<Binding>, index: c_in
 /// A destructor `typed_value_result_set_iter_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn rows_iter(rows: *mut RelResult<Binding>) -> *mut BindingListIterator {
+pub unsafe extern "C" fn typed_value_result_set_into_iter(rows: *mut RelResult<Binding>) -> *mut BindingListIterator {
     let result = &*rows;
     let rows = result.rows();
     Box::into_raw(Box::new(rows))
@@ -635,7 +635,7 @@ pub unsafe extern "C" fn rows_iter(rows: *mut RelResult<Binding>) -> *mut Bindin
 /// A destructor `typed_value_list_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn rows_iter_next(iter: *mut BindingListIterator) -> *mut Vec<Binding> {
+pub unsafe extern "C" fn typed_value_result_set_iter_next(iter: *mut BindingListIterator) -> *mut Vec<Binding> {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v.to_vec())))
 }
@@ -648,7 +648,7 @@ pub unsafe extern "C" fn rows_iter_next(iter: *mut BindingListIterator) -> *mut 
 /// A destructor `typed_value_list_iter_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn values_iter(values: *mut Vec<Binding>) -> *mut BindingIterator {
+pub unsafe extern "C" fn typed_value_list_into_iter(values: *mut Vec<Binding>) -> *mut BindingIterator {
     let result = Box::from_raw(values);
     Box::into_raw(Box::new(result.into_iter()))
 }
@@ -662,7 +662,7 @@ pub unsafe extern "C" fn values_iter(values: *mut Vec<Binding>) -> *mut BindingI
 /// A destructor `typed_value_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn values_iter_next(iter: *mut BindingIterator) -> *mut Binding {
+pub unsafe extern "C" fn typed_value_list_iter_next(iter: *mut BindingIterator) -> *mut Binding {
     let iter = &mut *iter;
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v)))
 }
@@ -688,7 +688,7 @@ pub unsafe extern "C" fn value_at_index(values: *mut Vec<Binding>, index: c_int)
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not `ValueType::Long`.
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_long(values: *mut Vec<Binding>, index: c_int) -> c_longlong {
+pub unsafe extern "C" fn value_at_index_into_long(values: *mut Vec<Binding>, index: c_int) ->  c_longlong {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     unwrap_conversion(value.clone().into_long(), ValueType::Long)
@@ -701,7 +701,7 @@ pub unsafe extern "C" fn value_at_index_as_long(values: *mut Vec<Binding>, index
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not `ValueType::Ref`.
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_entid(values: *mut Vec<Binding>, index: c_int) -> Entid {
+pub unsafe extern "C" fn value_at_index_into_entid(values: *mut Vec<Binding>, index: c_int) ->  Entid {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     unwrap_conversion(value.clone().into_entid(), ValueType::Ref)
@@ -714,7 +714,7 @@ pub unsafe extern "C" fn value_at_index_as_entid(values: *mut Vec<Binding>, inde
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Ref](mentat::ValueType::Ref).
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_kw(values: *mut Vec<Binding>, index: c_int) -> *const c_char {
+pub unsafe extern "C" fn value_at_index_into_kw(values: *mut Vec<Binding>, index: c_int) ->  *const c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     unwrap_conversion(value.clone().into_kw_c_string(), ValueType::Keyword) as *const c_char
@@ -729,7 +729,7 @@ pub unsafe extern "C" fn value_at_index_as_kw(values: *mut Vec<Binding>, index: 
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::Long).
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_boolean(values: *mut Vec<Binding>, index: c_int) -> i32 {
+pub unsafe extern "C" fn value_at_index_into_boolean(values: *mut Vec<Binding>, index: c_int) ->  i32 {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     if unwrap_conversion(value.clone().into_boolean(), ValueType::Boolean) { 1 } else { 0 }
@@ -742,7 +742,7 @@ pub unsafe extern "C" fn value_at_index_as_boolean(values: *mut Vec<Binding>, in
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Double](mentat::ValueType::Double).
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_double(values: *mut Vec<Binding>, index: c_int) -> f64 {
+pub unsafe extern "C" fn value_at_index_into_double(values: *mut Vec<Binding>, index: c_int) ->  f64 {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     unwrap_conversion(value.clone().into_double(), ValueType::Double)
@@ -755,7 +755,7 @@ pub unsafe extern "C" fn value_at_index_as_double(values: *mut Vec<Binding>, ind
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Instant](mentat::ValueType::Instant).
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<Binding>, index: c_int) -> c_longlong {
+pub unsafe extern "C" fn value_at_index_into_timestamp(values: *mut Vec<Binding>, index: c_int) ->  c_longlong {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     unwrap_conversion(value.clone().into_timestamp(), ValueType::Instant)
@@ -768,7 +768,7 @@ pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<Binding>, 
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::String](mentat::ValueType::String).
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<Binding>, index: c_int) -> *const c_char {
+pub unsafe extern "C" fn value_at_index_into_string(values: *mut Vec<Binding>, index: c_int) ->  *const c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     unwrap_conversion(value.clone().into_c_string(), ValueType::String) as *const c_char
@@ -781,7 +781,7 @@ pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<Binding>, ind
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Uuid](mentat::ValueType::Uuid).
 /// If there is no value at `index`.
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_as_uuid(values: *mut Vec<Binding>, index: c_int) -> *mut [u8; 16] {
+pub unsafe extern "C" fn value_at_index_into_uuid(values: *mut Vec<Binding>, index: c_int) ->  *mut [u8; 16] {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
     let uuid = unwrap_conversion(value.clone().into_uuid(), ValueType::Uuid);
