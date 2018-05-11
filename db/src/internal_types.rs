@@ -97,7 +97,7 @@ impl TransactableValue for ValueAndSpan {
                     // Like "(lookup-ref)".
                     (Some(&PlainSymbol(edn::PlainSymbol(ref s))), Some(a), Some(v), None) if s == "lookup-ref" => {
                         match a.clone().into_entity_place()? {
-                            EntidOrLookupRefOrTempId::Entid(a) => Ok(EntidOrLookupRefOrTempId::LookupRef(entities::LookupRef { a, v: v.clone().without_spans() })),
+                            EntidOrLookupRefOrTempId::Entid(a) => Ok(EntidOrLookupRefOrTempId::LookupRef(entities::LookupRef { a: entities::AttributePlace::Entid(a), v: v.clone().without_spans() })),
                             EntidOrLookupRefOrTempId::TempId(_) |
                             EntidOrLookupRefOrTempId::TxFunction(_) |
                             EntidOrLookupRefOrTempId::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),

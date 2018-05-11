@@ -65,7 +65,7 @@ impl Entid {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub struct LookupRef {
-    pub a: Entid,
+    pub a: AttributePlace,
     // In theory we could allow nested lookup-refs.  In practice this would require us to process
     // lookup-refs in multiple phases, like how we resolve tempids, which isn't worth the effort.
     pub v: Value, // An atom.
@@ -107,6 +107,11 @@ pub enum EntidOrLookupRefOrTempId {
     TempId(TempId),
 }
 
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub enum AttributePlace {
+    Entid(Entid),
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum OpType {
     Add,
@@ -119,7 +124,7 @@ pub enum Entity {
     AddOrRetract {
         op: OpType,
         e: EntidOrLookupRefOrTempId,
-        a: Entid,
+        a: AttributePlace,
         v: AtomOrLookupRefOrVectorOrMapNotation,
     },
     // Like {:db/id "tempid" a1 v1 a2 v2}.
