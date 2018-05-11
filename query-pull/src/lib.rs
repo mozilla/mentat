@@ -145,6 +145,12 @@ pub struct Puller {
     // The range is the set of aliases to use in the output.
     attributes: BTreeMap<Entid, ValueRc<Keyword>>,
     attribute_spec: cache::AttributeSpec,
+
+    // If this is set, each pulled entity is contributed to its own output map, labeled with this
+    // keyword. This is a divergence from Datomic, which has no types by which to differentiate a
+    // long from an entity ID, and thus represents all entities in pull as, _e.g._, `{:db/id 1234}`.
+    //  Mentat can use `TypedValue::Ref(1234)`, but it's sometimes convenient to fetch the entity ID
+    // itself as part of a pull expression: `{:person 1234, :person/name "Peter"}`.
     db_id_alias: Option<ValueRc<NamespacedKeyword>>,
 }
 

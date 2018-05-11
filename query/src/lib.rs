@@ -518,8 +518,8 @@ pub enum PullAttributeSpec {
     Wildcard,
     Attribute(NamedPullAttribute),
     // PullMapSpec(Vec<…>),
-    // LimitedAttribute(PullConcreteAttribute, u64),  // Limit nil => Attribute instead.
-    // DefaultedAttribute(PullConcreteAttribute, PullDefaultValue),
+    // LimitedAttribute(NamedPullAttribute, u64),  // Limit nil => Attribute instead.
+    // DefaultedAttribute(NamedPullAttribute, PullDefaultValue),
 }
 
 impl std::fmt::Display for PullConcreteAttribute {

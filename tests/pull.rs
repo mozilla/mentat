@@ -117,7 +117,7 @@ fn test_simple_pull() {
 
     // Now test pull inside the query itself.
     let query = r#"[:find ?hood (pull ?district [:db/id
-                                                 [:district/name :as :district/district]
+                                                 :district/name :as :district/district
                                                  :district/region])
                     :where
                     (or [?hood :neighborhood/name "Beacon Hill"]
@@ -159,7 +159,7 @@ fn test_simple_pull() {
 
     // Execute a scalar query where the body is constant.
     // TODO: we shouldn't require `:where`; that makes this non-constant!
-    let query = r#"[:find (pull ?hood [[:db/id :as :neighborhood/id]
+    let query = r#"[:find (pull ?hood [:db/id :as :neighborhood/id
                                        :neighborhood/name]) .
                     :in ?hood
                     :where [?hood :neighborhood/district _]]"#;

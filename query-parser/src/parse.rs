@@ -309,24 +309,15 @@ def_parser!(Query, pull_concrete_attribute_ident, PullConcreteAttribute, {
     forward_keyword().map(|k| PullConcreteAttribute::Ident(::std::rc::Rc::new(k.clone())))
 });
 
-def_parser!(Query, pull_aliased_attribute, PullAttributeSpec, {
-    vector().of_exactly(
-        (Query::pull_concrete_attribute_ident()
-            .skip(Query::alias_as()),
-        forward_keyword().map(|alias| Some(::std::rc::Rc::new(alias.clone()))))
-            .map(|(attribute, alias)|
-                PullAttributeSpec::Attribute(
-                    NamedPullAttribute { attribute, alias })))
-});
-
 def_parser!(Query, pull_concrete_attribute, PullAttributeSpec, {
-    Query::pull_concrete_attribute_ident()
-        .map(|attribute|
-            PullAttributeSpec::Attribute(
-                NamedPullAttribute {
-                    attribute,
-                    alias: None,
-                }))
+    (Query::pull_concrete_attribute_ident(),
+     optional(try(Query::alias_as().with(forward_keyword().map(|alias| ::std::rc::Rc::new(alias.clone()))))))
+    .map(|(attribute, alias)|
+        PullAttributeSpec::Attribute(
+            NamedPullAttribute {
+                attribute,
+                alias: alias,
+            }))
 });
 
 def_parser!(Query, pull_wildcard_attribute, PullAttributeSpec, {
@@ -335,7 +326,6 @@ def_parser!(Query, pull_wildcard_attribute, PullAttributeSpec, {
 
 def_parser!(Query, pull_attribute, PullAttributeSpec, {
     choice([
-        try(Query::pull_aliased_attribute()),
         try(Query::pull_concrete_attribute()),
         try(Query::pull_wildcard_attribute()),
         // TODO: reversed keywords, entids (with aliases, presumably…).
@@ -1235,7 +1225,7 @@ mod test {
                               PullAttributeSpec::Attribute(
                                   PullConcreteAttribute::Ident(foo_bar.clone()).into()));
         assert_edn_parses_to!(Find::elem,
-                              "(pull ?v [[:foo/bar :as :foo/horse] :foo/baz])",
+                              "(pull ?v [:foo/bar :as :foo/horse, :foo/baz])",
                               Element::Pull(Pull {
                                   var: Variable::from_valid_name("?v"),
                                   patterns: vec![
