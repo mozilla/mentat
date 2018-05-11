@@ -88,19 +88,19 @@ pub struct TxFunction {
     pub op: PlainSymbol,
 }
 
-pub type MapNotation = BTreeMap<Entid, AtomOrLookupRefOrVectorOrMapNotation>;
+pub type MapNotation = BTreeMap<Entid, ValuePlace>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum AtomOrLookupRefOrVectorOrMapNotation {
+pub enum ValuePlace {
     Atom(ValueAndSpan),
     LookupRef(LookupRef),
     TxFunction(TxFunction),
-    Vector(Vec<AtomOrLookupRefOrVectorOrMapNotation>),
+    Vector(Vec<ValuePlace>),
     MapNotation(MapNotation),
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum EntidOrLookupRefOrTempId {
+pub enum EntityPlace {
     Entid(Entid),
     LookupRef(LookupRef),
     TxFunction(TxFunction),
@@ -123,9 +123,9 @@ pub enum Entity {
     // Like [:db/add|:db/retract e a v].
     AddOrRetract {
         op: OpType,
-        e: EntidOrLookupRefOrTempId,
+        e: EntityPlace,
         a: AttributePlace,
-        v: AtomOrLookupRefOrVectorOrMapNotation,
+        v: ValuePlace,
     },
     // Like {:db/id "tempid" a1 v1 a2 v2}.
     MapNotation(MapNotation),

@@ -167,17 +167,17 @@ pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
 
 /// Remove any :db/id value from the given map notation, converting the returned value into
 /// something suitable for the entity position rather than something suitable for a value position.
-pub fn remove_db_id(map: &mut entmod::MapNotation) -> Result<Option<entmod::EntidOrLookupRefOrTempId>> {
+pub fn remove_db_id(map: &mut entmod::MapNotation) -> Result<Option<entmod::EntityPlace>> {
     // TODO: extract lazy defined constant.
     let db_id_key = entmod::Entid::Ident(Keyword::namespaced("db", "id"));
 
-    let db_id: Option<entmod::EntidOrLookupRefOrTempId> = if let Some(id) = map.remove(&db_id_key) {
+    let db_id: Option<entmod::EntityPlace> = if let Some(id) = map.remove(&db_id_key) {
         match id {
-            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => Some(v.into_entity_place()?),
-            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(_) |
-            entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(_) |
-            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) |
-            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) => {
+            entmod::ValuePlace::Atom(v) => Some(v.into_entity_place()?),
+            entmod::ValuePlace::LookupRef(_) |
+            entmod::ValuePlace::TxFunction(_) |
+            entmod::ValuePlace::Vector(_) |
+            entmod::ValuePlace::MapNotation(_) => {
                 bail!(ErrorKind::InputError(errors::InputError::BadDbId))
             },
         }
@@ -309,14 +309,14 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
             /// Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
             /// unique within one transaction; they should never escape a transaction.
-            fn allocate_mentat_id(&mut self) -> entmod::EntidOrLookupRefOrTempId {
+            fn allocate_mentat_id(&mut self) -> entmod::EntityPlace {
                 self.mentat_id_count += 1;
-                entmod::EntidOrLookupRefOrTempId::TempId(TempId::Internal(self.mentat_id_count))
+                entmod::EntityPlace::TempId(TempId::Internal(self.mentat_id_count))
             }
 
-            fn entity_e_into_term_e(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<KnownEntidOr<LookupRefOrTempId>> {
+            fn entity_e_into_term_e(&mut self, x: entmod::EntityPlace) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match x {
-                    entmod::EntidOrLookupRefOrTempId::Entid(e) => {
+                    entmod::EntityPlace::Entid(e) => {
                         let e = match e {
                             entmod::Entid::Entid(ref e) => self.ensure_entid_exists(*e)?,
                             entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
@@ -324,15 +324,15 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         Ok(Either::Left(e))
                     },
 
-                    entmod::EntidOrLookupRefOrTempId::TempId(e) => {
+                    entmod::EntityPlace::TempId(e) => {
                         Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(e))))
                     },
 
-                    entmod::EntidOrLookupRefOrTempId::LookupRef(ref lookup_ref) => {
+                    entmod::EntityPlace::LookupRef(ref lookup_ref) => {
                         Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?)))
                     },
 
-                    entmod::EntidOrLookupRefOrTempId::TxFunction(ref tx_function) => {
+                    entmod::EntityPlace::TxFunction(ref tx_function) => {
                         match tx_function.op.0.as_str() {
                             "transaction-tx" => Ok(Either::Left(self.tx_id)),
                             unknown @ _ => bail!(ErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
@@ -349,11 +349,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Ok(a)
             }
 
-            fn entity_e_into_term_v(&mut self, x: entmod::EntidOrLookupRefOrTempId) -> Result<TypedValueOr<LookupRefOrTempId>> {
+            fn entity_e_into_term_v(&mut self, x: entmod::EntityPlace) -> Result<TypedValueOr<LookupRefOrTempId>> {
                 self.entity_e_into_term_e(x).map(|r| r.map_left(|ke| TypedValue::Ref(ke.0)))
             }
 
-            fn entity_v_into_term_e(&mut self, x: entmod::AtomOrLookupRefOrVectorOrMapNotation, backward_a: &entmod::Entid) -> Result<KnownEntidOr<LookupRefOrTempId>> {
+            fn entity_v_into_term_e(&mut self, x: entmod::ValuePlace, backward_a: &entmod::Entid) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match backward_a.unreversed() {
                     None => {
                         bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
@@ -366,7 +366,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         }
 
                         match x {
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
+                            entmod::ValuePlace::Atom(v) => {
                                 // Here is where we do schema-aware typechecking: we either assert
                                 // that the given value is in the attribute's value set, or (in
                                 // limited cases) coerce the value into the attribute's value set.
@@ -383,20 +383,20 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 }
                             },
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) =>
+                            entmod::ValuePlace::LookupRef(ref lookup_ref) =>
                                 Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(ref tx_function) => {
+                            entmod::ValuePlace::TxFunction(ref tx_function) => {
                                 match tx_function.op.0.as_str() {
                                     "transaction-tx" => Ok(Either::Left(KnownEntid(self.tx_id.0))),
                                     unknown @ _ => bail!(ErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
                                 }
                             },
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(_) =>
+                            entmod::ValuePlace::Vector(_) =>
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", forward_a))),
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(_) =>
+                            entmod::ValuePlace::MapNotation(_) =>
                                 bail!(ErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", forward_a))),
                         }
                     },
@@ -419,7 +419,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Entity::MapNotation(mut map_notation) => {
                     // :db/id is optional; if it's not given, we generate a special internal tempid
                     // to use for upserting.  This tempid will not be reported in the TxReport.
-                    let db_id: entmod::EntidOrLookupRefOrTempId = remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
+                    let db_id: entmod::EntityPlace = remove_db_id(&mut map_notation)?.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                     // We're not nested, so :db/isComponent is not relevant.  We just explode the
                     // map notation.
@@ -446,7 +446,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                         let attribute = self.schema.require_attribute_for_entid(a)?;
 
                         let v = match v {
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Atom(v) => {
+                            entmod::ValuePlace::Atom(v) => {
                                 // Here is where we do schema-aware typechecking: we either assert
                                 // that the given value is in the attribute's value set, or (in
                                 // limited cases) coerce the value into the attribute's value set.
@@ -460,7 +460,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 }
                             },
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::LookupRef(ref lookup_ref) => {
+                            entmod::ValuePlace::LookupRef(ref lookup_ref) => {
                                 if attribute.value_type != ValueType::Ref {
                                     bail!(ErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                                 }
@@ -468,7 +468,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
                             },
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::TxFunction(ref tx_function) => {
+                            entmod::ValuePlace::TxFunction(ref tx_function) => {
                                 let typed_value = match tx_function.op.0.as_str() {
                                     "transaction-tx" => TypedValue::Ref(self.tx_id),
                                     unknown @ _ => bail!(ErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
@@ -488,7 +488,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 Either::Left(typed_value)
                             },
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) => {
+                            entmod::ValuePlace::Vector(vs) => {
                                 if !attribute.multival {
                                     bail!(ErrorKind::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
                                 }
@@ -504,7 +504,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 continue
                             },
 
-                            entmod::AtomOrLookupRefOrVectorOrMapNotation::MapNotation(mut map_notation) => {
+                            entmod::ValuePlace::MapNotation(mut map_notation) => {
                                 // TODO: consider handling this at the tx-parser level.  That would be
                                 // more strict and expressive, but it would lead to splitting
                                 // AddOrRetract, which proliferates types and code, or only handling
@@ -519,9 +519,9 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                                 // :db/id is optional; if it's not given, we generate a special internal tempid
                                 // to use for upserting.  This tempid will not be reported in the TxReport.
-                                let db_id: Option<entmod::EntidOrLookupRefOrTempId> = remove_db_id(&mut map_notation)?;
+                                let db_id: Option<entmod::EntityPlace> = remove_db_id(&mut map_notation)?;
                                 let mut dangling = db_id.is_none();
-                                let db_id: entmod::EntidOrLookupRefOrTempId = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
+                                let db_id: entmod::EntityPlace = db_id.unwrap_or_else(|| in_process.allocate_mentat_id());
 
                                 // We're nested, so we want to ensure we're not creating "dangling"
                                 // entities that can't be reached.  If we're :db/isComponent, then this
