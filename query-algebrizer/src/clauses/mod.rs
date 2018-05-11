@@ -42,7 +42,7 @@ use mentat_core::counter::RcCounter;
 use mentat_query::{
     Element,
     FindSpec,
-    NamespacedKeyword,
+    Keyword,
     Pull,
     Variable,
     WhereClause,
@@ -760,7 +760,7 @@ impl ConjoiningClauses {
         self.empty_because = Some(why);
     }
 
-    fn entid_for_ident<'s, 'a>(&self, schema: &'s Schema, ident: &'a NamespacedKeyword) -> Option<KnownEntid> {
+    fn entid_for_ident<'s, 'a>(&self, schema: &'s Schema, ident: &'a Keyword) -> Option<KnownEntid> {
         schema.get_entid(&ident)
     }
 
@@ -1155,7 +1155,7 @@ impl PushComputed for Vec<ComputedTable> {
 
 // These are helpers that tests use to build Schema instances.
 #[cfg(test)]
-fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+fn associate_ident(schema: &mut Schema, i: Keyword, e: Entid) {
     schema.entid_map.insert(e, i.clone());
     schema.ident_map.insert(i.clone(), e);
 }
@@ -1167,7 +1167,7 @@ fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
 
 #[cfg(test)]
 pub(crate) fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-    NamespacedKeyword::new(ns, name).into()
+    Keyword::namespaced(ns, name).into()
 }
 
 #[cfg(test)]

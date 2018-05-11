@@ -23,6 +23,8 @@ extern crate serde;
 extern crate serde_derive;
 
 pub mod entities;
+// Intentionally not pub.
+mod namespaceable_name;
 pub mod symbols;
 pub mod types;
 pub mod pretty_print;
@@ -53,7 +55,6 @@ pub use types::{
 
 pub use symbols::{
     Keyword,
-    NamespacedKeyword,
     NamespacedSymbol,
     PlainSymbol,
 };

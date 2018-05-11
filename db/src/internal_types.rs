@@ -73,7 +73,14 @@ impl TransactableValue for ValueAndSpan {
         use self::SpannedValue::*;
         match self.inner {
             Integer(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Entid(v))),
-            NamespacedKeyword(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Ident(v))),
+            Keyword(v) => {
+                if v.is_namespaced() {
+                    Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Ident(v)))
+                } else {
+                    // We only allow namespaced idents.
+                    bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace))
+                }
+            },
             Text(v) => Ok(EntidOrLookupRefOrTempId::TempId(TempId::External(v))),
             List(ls) => {
                 let mut it = ls.iter();
@@ -102,7 +109,6 @@ impl TransactableValue for ValueAndSpan {
             Uuid(_) |
             PlainSymbol(_) |
             NamespacedSymbol(_) |
-            Keyword(_) |
             Vector(_) |
             Set(_) |
             Map(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),

@@ -38,7 +38,7 @@ pub const USER0: i64 = 0x10000;
 pub const CORE_SCHEMA_VERSION: u32 = 1;
 
 lazy_static! {
-    static ref V1_IDENTS: [(symbols::NamespacedKeyword, i64); 40] = {
+    static ref V1_IDENTS: [(symbols::Keyword, i64); 40] = {
             [(ns_keyword!("db", "ident"),             entids::DB_IDENT),
              (ns_keyword!("db.part", "db"),           entids::DB_PART_DB),
              (ns_keyword!("db", "txInstant"),         entids::DB_TX_INSTANT),
@@ -82,14 +82,14 @@ lazy_static! {
         ]
     };
 
-    static ref V1_PARTS: [(symbols::NamespacedKeyword, i64, i64); 3] = {
+    static ref V1_PARTS: [(symbols::Keyword, i64, i64); 3] = {
             [(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
              (ns_keyword!("db.part", "user"), USER0, USER0),
              (ns_keyword!("db.part", "tx"), TX0, TX0),
         ]
     };
 
-    static ref V1_CORE_SCHEMA: [(symbols::NamespacedKeyword); 16] = {
+    static ref V1_CORE_SCHEMA: [(symbols::Keyword); 16] = {
             [(ns_keyword!("db", "ident")),
              (ns_keyword!("db.install", "partition")),
              (ns_keyword!("db.install", "valueType")),
@@ -162,25 +162,25 @@ lazy_static! {
 }
 
 /// Convert (ident, entid) pairs into [:db/add IDENT :db/ident IDENT] `Value` instances.
-fn idents_to_assertions(idents: &[(symbols::NamespacedKeyword, i64)]) -> Vec<Value> {
+fn idents_to_assertions(idents: &[(symbols::Keyword, i64)]) -> Vec<Value> {
     idents
         .into_iter()
         .map(|&(ref ident, _)| {
-            let value = Value::NamespacedKeyword(ident.clone());
+            let value = Value::Keyword(ident.clone());
             Value::Vector(vec![values::DB_ADD.clone(), value.clone(), values::DB_IDENT.clone(), value.clone()])
         })
         .collect()
 }
 
 /// Convert an ident list into [:db/add :db.schema/core :db.schema/attribute IDENT] `Value` instances.
-fn schema_attrs_to_assertions(version: u32, idents: &[symbols::NamespacedKeyword]) -> Vec<Value> {
-    let schema_core = Value::NamespacedKeyword(ns_keyword!("db.schema", "core"));
-    let schema_attr = Value::NamespacedKeyword(ns_keyword!("db.schema", "attribute"));
-    let schema_version = Value::NamespacedKeyword(ns_keyword!("db.schema", "version"));
+fn schema_attrs_to_assertions(version: u32, idents: &[symbols::Keyword]) -> Vec<Value> {
+    let schema_core = Value::Keyword(ns_keyword!("db.schema", "core"));
+    let schema_attr = Value::Keyword(ns_keyword!("db.schema", "attribute"));
+    let schema_version = Value::Keyword(ns_keyword!("db.schema", "version"));
     idents
         .into_iter()
         .map(|ident| {
-            let value = Value::NamespacedKeyword(ident.clone());
+            let value = Value::Keyword(ident.clone());
             Value::Vector(vec![values::DB_ADD.clone(),
                                schema_core.clone(),
                                schema_attr.clone(),
@@ -194,28 +194,28 @@ fn schema_attrs_to_assertions(version: u32, idents: &[symbols::NamespacedKeyword
 }
 
 /// Convert {:ident {:key :value ...} ...} to
-/// vec![(symbols::NamespacedKeyword(:ident), symbols::NamespacedKeyword(:key), TypedValue(:value)), ...].
+/// vec![(symbols::Keyword(:ident), symbols::Keyword(:key), TypedValue(:value)), ...].
 ///
 /// Such triples are closer to what the transactor will produce when processing attribute
 /// assertions.
-fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)>> {
+fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> Result<Vec<(symbols::Keyword, symbols::Keyword, TypedValue)>> {
     // Failure here is a coding error, not a runtime error.
-    let mut triples: Vec<(symbols::NamespacedKeyword, symbols::NamespacedKeyword, TypedValue)> = vec![];
+    let mut triples: Vec<(symbols::Keyword, symbols::Keyword, TypedValue)> = vec![];
     // TODO: Consider `flat_map` and `map` rather than loop.
     match *symbolic_schema {
         Value::Map(ref m) => {
             for (ident, mp) in m {
                 let ident = match ident {
-                    &Value::NamespacedKeyword(ref ident) => ident,
-                    _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident)))
+                    &Value::Keyword(ref ident) => ident,
+                    v => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident))),
                 };
                 match *mp {
                     Value::Map(ref mpp) => {
                         for (attr, value) in mpp {
                             let attr = match attr {
-                                &Value::NamespacedKeyword(ref attr) => attr,
-                                _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for attr but got '{:?}'", attr)))
-                            };
+                                &Value::Keyword(ref attr) => attr,
+                                _ => bail!(ErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for attr but got '{:?}'", attr))),
+                        };
 
                             // We have symbolic idents but the transactor handles entids.  Ad-hoc
                             // convert right here.  This is a fundamental limitation on the
@@ -286,19 +286,19 @@ pub(crate) fn bootstrap_ident_map() -> IdentMap {
 
 pub(crate) fn bootstrap_schema() -> Schema {
     let ident_map = bootstrap_ident_map();
-    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V1_SYMBOLIC_SCHEMA).unwrap();
+    let bootstrap_triples = symbolic_schema_to_triples(&ident_map, &V1_SYMBOLIC_SCHEMA).expect("symbolic schema");
     Schema::from_ident_map_and_triples(ident_map, bootstrap_triples).unwrap()
 }
 
 pub(crate) fn bootstrap_entities() -> Vec<Entity> {
     let bootstrap_assertions: Value = Value::Vector([
-        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).unwrap(),
+        symbolic_schema_to_assertions(&V1_SYMBOLIC_SCHEMA).expect("symbolic schema"),
         idents_to_assertions(&V1_IDENTS[..]),
         schema_attrs_to_assertions(CORE_SCHEMA_VERSION, V1_CORE_SCHEMA.as_ref()),
     ].concat());
 
     // Failure here is a coding error (since the inputs are fixed), not a runtime error.
     // TODO: represent these bootstrap data errors rather than just panicing.
-    let bootstrap_entities: Vec<Entity> = edn::parse::entities(&bootstrap_assertions.to_string()).unwrap();
+    let bootstrap_entities: Vec<Entity> = edn::parse::entities(&bootstrap_assertions.to_string()).expect("bootstrap assertions");
     return bootstrap_entities;
 }

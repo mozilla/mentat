@@ -329,7 +329,7 @@ mod testing {
     use mentat_query::{
         Binding,
         FnArg,
-        NamespacedKeyword,
+        Keyword,
         PlainSymbol,
         Variable,
     };
@@ -346,7 +346,7 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "fts"), 100);
         add_attribute(&mut schema, 100, Attribute {
             value_type: ValueType::String,
             index: true,
@@ -358,7 +358,7 @@ mod testing {
 
         // It's awkward enough to write these expansions that we give the details for the simplest
         // case only.  See the tests of the translator for more extensive (albeit looser) coverage.
-        let op = PlainSymbol::new("ground");
+        let op = PlainSymbol::plain("ground");
         cc.apply_ground(known, WhereFn {
             operator: op,
             args: vec![

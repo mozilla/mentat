@@ -72,7 +72,7 @@ pub enum AttributeAlteration {
 /// An alteration to an ident.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum IdentAlteration {
-    Ident(symbols::NamespacedKeyword),
+    Ident(symbols::Keyword),
 }
 
 /// Summarizes changes to metadata such as a a `Schema` and (in the future) a `PartitionMap`.
@@ -285,7 +285,7 @@ pub fn update_schema_from_entid_quadruples<U>(schema: &mut Schema, assertions: U
     // retracted at most once), which means all attribute alterations are simple changes from an old
     // value to a new value.
     let mut attribute_set: AddRetractAlterSet<(Entid, Entid), TypedValue> = AddRetractAlterSet::default();
-    let mut ident_set: AddRetractAlterSet<Entid, symbols::NamespacedKeyword> = AddRetractAlterSet::default();
+    let mut ident_set: AddRetractAlterSet<Entid, symbols::Keyword> = AddRetractAlterSet::default();
 
     for (e, a, typed_value, added) in assertions.into_iter() {
         // Here we handle :db/ident assertions.

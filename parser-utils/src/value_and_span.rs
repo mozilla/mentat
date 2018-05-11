@@ -442,34 +442,37 @@ pub fn integer<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseRes
     parser(integer_ as fn(Stream<'a>) -> ParseResult<i64, Stream<'a>>).expected("integer")
 }
 
-pub fn namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>> {
-    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword())
+pub fn namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan|
+        v.inner.as_namespaced_keyword()
+         .and_then(|k| if k.is_namespaced() { Some(k) } else { None })
+        )
         .parse_lazy(input)
         .into()
 }
 
-pub fn namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>>> {
-    parser(namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("namespaced_keyword")
+pub fn namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("namespaced_keyword")
 }
 
-pub fn forward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>> {
-    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_forward() { Some(k) } else { None }))
+pub fn forward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_forward() && k.is_namespaced() { Some(k) } else { None }))
         .parse_lazy(input)
         .into()
 }
 
-pub fn forward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>>> {
-    parser(forward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("forward_keyword")
+pub fn forward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(forward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("forward_keyword")
 }
 
-pub fn backward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>> {
-    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_backward() { Some(k) } else { None }))
+pub fn backward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_backward() && k.is_namespaced() { Some(k) } else { None }))
         .parse_lazy(input)
         .into()
 }
 
-pub fn backward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>>> {
-    parser(backward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::NamespacedKeyword, Stream<'a>>).expected("backward_keyword")
+pub fn backward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(backward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("backward_keyword")
 }
 
 /// Generate a `satisfy` expression that matches a `PlainSymbol` value with the given name.
@@ -482,7 +485,7 @@ macro_rules! def_matches_plain_symbol {
         def_parser!($parser, $name, &'a edn::ValueAndSpan, {
             satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
-                    edn::SpannedValue::PlainSymbol(ref s) => s.0.as_str() == $input,
+                    edn::SpannedValue::PlainSymbol(ref s) => s.name() == $input,
                     _ => false,
                 }
             })
@@ -499,7 +502,7 @@ macro_rules! def_matches_keyword {
         def_parser!($parser, $name, &'a edn::ValueAndSpan, {
             satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
-                    edn::SpannedValue::Keyword(ref s) => s.0.as_str() == $input,
+                    edn::SpannedValue::Keyword(ref s) if !s.is_namespaced() => s.name() == $input,
                     _ => false,
                 }
             })
@@ -507,7 +510,7 @@ macro_rules! def_matches_keyword {
     }
 }
 
-/// Generate a `satisfy` expression that matches a `NamespacedKeyword` value with the given
+/// Generate a `satisfy` expression that matches a `Keyword` value with the given
 /// namespace and name.
 ///
 /// We do this rather than using `combine::token` to save allocations.
@@ -517,7 +520,10 @@ macro_rules! def_matches_namespaced_keyword {
         def_parser!($parser, $name, &'a edn::ValueAndSpan, {
             satisfy(|v: &'a edn::ValueAndSpan| {
                 match v.inner {
-                    edn::SpannedValue::NamespacedKeyword(ref s) => s.namespace.as_str() == $input_namespace && s.name.as_str() == $input_name,
+                    edn::SpannedValue::Keyword(ref s) if s.is_namespaced() => {
+                        let (ns, n) = s.components();
+                        ns == $input_namespace && n == $input_name
+                    },
                     _ => false,
                 }
             })
@@ -565,7 +571,7 @@ macro_rules! keyword_map_parser {
                         Ok(value) => {
                             $(
                                 if let Some(ref keyword) = value.inner.as_keyword() {
-                                    if keyword.0.as_str() == *$keyword {
+                                    if &keyword.name() == $keyword {
                                         if $tmp.is_some() {
                                             // Repeated match -- bail out!  Providing good error
                                             // messages is hard; this will do for now.
@@ -711,7 +717,7 @@ mod tests {
     fn test_keyword_map_failures() {
         assert_parse_failure_contains!(|| vector().of_exactly(keyword_map_of!(("x", Test::entid()), ("y", Test::entid()))),
                               "[:x 1 :x 2]",
-                              r#"errors: [Unexpected(Token(ValueAndSpan { inner: Keyword(Keyword("x"))"#);
+                              r#"errors: [Unexpected(Token(ValueAndSpan { inner: Keyword(Keyword(NamespaceableName { namespace: None, name: "x" }))"#);
     }
 
 

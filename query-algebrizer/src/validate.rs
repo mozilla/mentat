@@ -100,7 +100,7 @@ mod tests {
 
     use self::mentat_query::{
         FindQuery,
-        NamespacedKeyword,
+        Keyword,
         OrWhereClause,
         Pattern,
         PatternNonValuePlace,
@@ -120,7 +120,7 @@ mod tests {
     };
 
     fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
-        NamespacedKeyword::new(ns, name).into()
+        Keyword::namespaced(ns, name).into()
     }
 
     /// Tests that the top-level form is a valid `or`, returning the clauses.

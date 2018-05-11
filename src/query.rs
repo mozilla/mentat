@@ -33,7 +33,7 @@ pub use mentat_query_algebrizer::{
 };
 
 pub use mentat_query::{
-    NamespacedKeyword,
+    Keyword,
     PlainSymbol,
     Variable,
 };
@@ -212,9 +212,9 @@ fn fetch_values<'sqlite>
     run_algebrized_query(known, sqlite, algebrized)
 }
 
-fn lookup_attribute(schema: &Schema, attribute: &NamespacedKeyword) -> Result<KnownEntid> {
+fn lookup_attribute(schema: &Schema, attribute: &Keyword) -> Result<KnownEntid> {
     schema.get_entid(attribute)
-          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.name.clone()).into())
+          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.name().into()).into())
 }
 
 /// Return a single value for the provided entity and attribute.
@@ -271,7 +271,7 @@ pub fn lookup_value_for_attribute<'sqlite, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
  known: Known,
  entity: E,
- attribute: &'attribute NamespacedKeyword) -> Result<Option<TypedValue>>
+ attribute: &'attribute Keyword) -> Result<Option<TypedValue>>
  where E: Into<Entid> {
     let attribute = lookup_attribute(known.schema, attribute)?;
     lookup_value(sqlite, known, entity.into(), attribute)
@@ -281,7 +281,7 @@ pub fn lookup_values_for_attribute<'sqlite, 'attribute, E>
 (sqlite: &'sqlite rusqlite::Connection,
  known: Known,
  entity: E,
- attribute: &'attribute NamespacedKeyword) -> Result<Vec<TypedValue>>
+ attribute: &'attribute Keyword) -> Result<Vec<TypedValue>>
  where E: Into<Entid> {
     let attribute = lookup_attribute(known.schema, attribute)?;
     lookup_values(sqlite, known, entity.into(), attribute)

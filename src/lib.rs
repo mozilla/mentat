@@ -39,7 +39,7 @@ pub use mentat_core::{
     DateTime,
     HasSchema,
     KnownEntid,
-    NamespacedKeyword,
+    Keyword,
     Schema,
     Binding,
     TypedValue,
@@ -70,25 +70,29 @@ macro_rules! var {
     };
 }
 
-/// Produce the appropriate `NamespacedKeyword` for the provided namespace and name.
+/// Produce the appropriate `Keyword` for the provided namespace and name.
 /// This lives here because we can't re-export macros:
 /// https://github.com/rust-lang/rust/issues/29638.
 #[macro_export]
 macro_rules! kw {
+    ( : $n:ident ) => {
+        $crate::Keyword::plain(
+            stringify!($n)
+        )
+    };
+
     ( : $ns:ident / $n:ident ) => {
-        // We don't need to go through `new` -- `ident` is strict enough.
-        $crate::NamespacedKeyword {
-            namespace: stringify!($ns).into(),
-            name: stringify!($n).into(),
-        }
+        $crate::Keyword::namespaced(
+            stringify!($ns),
+            stringify!($n)
+        )
     };
 
     ( : $ns:ident$(. $nss:ident)+ / $n:ident ) => {
-        // We don't need to go through `new` -- `ident` is strict enough.
-        $crate::NamespacedKeyword {
-            namespace: concat!(stringify!($ns) $(, ".", stringify!($nss))+).into(),
-            name: stringify!($n).into(),
-        }
+        $crate::Keyword::namespaced(
+            concat!(stringify!($ns) $(, ".", stringify!($nss))+),
+            stringify!($n)
+        )
     };
 }
 
@@ -137,13 +141,13 @@ mod tests {
 
     #[test]
     fn can_import_edn() {
-        assert_eq!("foo", Keyword::new("foo").0);
+        assert_eq!(":foo", &Keyword::plain("foo").to_string());
     }
 
     #[test]
     fn test_kw() {
-        assert_eq!(kw!(:foo/bar), NamespacedKeyword::new("foo", "bar"));
-        assert_eq!(kw!(:org.mozilla.foo/bar_baz), NamespacedKeyword::new("org.mozilla.foo", "bar_baz"));
+        assert_eq!(kw!(:foo/bar), Keyword::namespaced("foo", "bar"));
+        assert_eq!(kw!(:org.mozilla.foo/bar_baz), Keyword::namespaced("org.mozilla.foo", "bar_baz"));
     }
 
     #[test]

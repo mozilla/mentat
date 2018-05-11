@@ -58,7 +58,7 @@ macro_rules! matches_plain_symbol {
     ($name: expr, $input: ident) => {
         satisfy_map(|x: edn::Value| {
             if let edn::Value::PlainSymbol(ref s) = x {
-                if s.0.as_str() == $name {
+                if s.name() == $name {
                     return Some(());
                 }
             }

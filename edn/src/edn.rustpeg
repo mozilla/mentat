@@ -203,13 +203,13 @@ pub op -> OpType
     = ":db/add"     { OpType::Add }
     / ":db/retract" { OpType::Retract }
 
-raw_keyword -> NamespacedKeyword
-    = keyword_prefix ns:$(symbol_namespace) namespace_separator n:$(symbol_name) { NamespacedKeyword::new(ns, n) }
+raw_keyword -> Keyword
+    = keyword_prefix ns:$(symbol_namespace) namespace_separator n:$(symbol_name) { Keyword::namespaced(ns, n) }
 
-raw_forward_keyword -> NamespacedKeyword
+raw_forward_keyword -> Keyword
     = v:raw_keyword {? if v.is_forward() { Ok(v) } else { Err("expected :forward/keyword") } }
 
-raw_backward_keyword -> NamespacedKeyword
+raw_backward_keyword -> Keyword
     = v:raw_keyword {? if v.is_backward() { Ok(v) } else { Err("expected :backward/_keyword") } }
 
 entid -> Entid
@@ -227,7 +227,7 @@ lookup_ref -> LookupRef
     = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a, v: v.without_spans() } }
 
 tx_function -> TxFunction
-    = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::new(n) } }
+    = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::plain(n) } }
 
 entity_place -> EntidOrLookupRefOrTempId
     = v:raw_text { EntidOrLookupRefOrTempId::TempId(TempId::External(v)) }

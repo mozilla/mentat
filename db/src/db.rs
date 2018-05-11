@@ -422,7 +422,7 @@ impl TypedSQLValue for TypedValue {
             &Value::Uuid(x) => Some(TypedValue::Uuid(x)),
             &Value::Float(ref x) => Some(TypedValue::Double(x.clone())),
             &Value::Text(ref x) => Some(x.clone().into()),
-            &Value::NamespacedKeyword(ref x) => Some(x.clone().into()),
+            &Value::Keyword(ref x) => Some(x.clone().into()),
             _ => None
         }
     }
@@ -452,7 +452,7 @@ impl TypedSQLValue for TypedValue {
             &TypedValue::Double(x) => (Value::Float(x), ValueType::Double),
             &TypedValue::String(ref x) => (Value::Text(x.as_ref().clone()), ValueType::String),
             &TypedValue::Uuid(ref u) => (Value::Uuid(u.clone()), ValueType::Uuid),
-            &TypedValue::Keyword(ref x) => (Value::NamespacedKeyword(x.as_ref().clone()), ValueType::Keyword),
+            &TypedValue::Keyword(ref x) => (Value::Keyword(x.as_ref().clone()), ValueType::Keyword),
         }
     }
 }
@@ -1155,7 +1155,7 @@ mod tests {
     use edn;
     use mentat_core::{
         HasSchema,
-        NamespacedKeyword,
+        Keyword,
         Schema,
         attribute,
     };
@@ -1840,7 +1840,7 @@ mod tests {
 
         // Once we've done so, the schema shows it's not unique…
         {
-            let attr = conn.schema.attribute_for_ident(&NamespacedKeyword::new("test", "ident")).unwrap().0;
+            let attr = conn.schema.attribute_for_ident(&Keyword::namespaced("test", "ident")).unwrap().0;
             assert_eq!(None, attr.unique);
         }
 

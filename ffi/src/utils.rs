@@ -16,7 +16,7 @@ pub mod strings {
     use std::os::raw::c_char;
 
     use mentat::{
-        NamespacedKeyword,
+        Keyword,
     };
 
     pub fn c_char_to_string(cchar: *const c_char) -> String {
@@ -30,10 +30,10 @@ pub mod strings {
     }
 
     // TODO: validate. The input might not be a keyword!
-    pub fn kw_from_string(mut keyword_string: String) -> NamespacedKeyword {
+    pub fn kw_from_string(mut keyword_string: String) -> Keyword {
         let attr_name = keyword_string.split_off(1);
         let parts: Vec<&str> = attr_name.split("/").collect();
-        NamespacedKeyword::new(parts[0], parts[1])
+        Keyword::namespaced(parts[0], parts[1])
     }
 }
 

@@ -269,7 +269,7 @@ mod testing {
     use mentat_query::{
         Binding,
         FnArg,
-        NamespacedKeyword,
+        Keyword,
         PlainSymbol,
         Variable,
     };
@@ -284,14 +284,14 @@ mod testing {
         let mut cc = ConjoiningClauses::default();
         let mut schema = Schema::default();
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "bar"), 101);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "bar"), 101);
         add_attribute(&mut schema, 101, Attribute {
             value_type: ValueType::String,
             fulltext: false,
             ..Default::default()
         });
 
-        associate_ident(&mut schema, NamespacedKeyword::new("foo", "fts"), 100);
+        associate_ident(&mut schema, Keyword::namespaced("foo", "fts"), 100);
         add_attribute(&mut schema, 100, Attribute {
             value_type: ValueType::String,
             index: true,
@@ -301,12 +301,12 @@ mod testing {
 
         let known = Known::for_schema(&schema);
 
-        let op = PlainSymbol::new("fulltext");
+        let op = PlainSymbol::plain("fulltext");
         cc.apply_fulltext(known, WhereFn {
             operator: op,
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
-                FnArg::IdentOrKeyword(NamespacedKeyword::new("foo", "fts")),
+                FnArg::IdentOrKeyword(Keyword::namespaced("foo", "fts")),
                 FnArg::Constant("needle".into()),
             ],
             binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),
@@ -359,12 +359,12 @@ mod testing {
                    vec![ValueType::Double].into_iter().collect());
 
         let mut cc = ConjoiningClauses::default();
-        let op = PlainSymbol::new("fulltext");
+        let op = PlainSymbol::plain("fulltext");
         cc.apply_fulltext(known, WhereFn {
             operator: op,
             args: vec![
                 FnArg::SrcVar(SrcVar::DefaultSrc),
-                FnArg::IdentOrKeyword(NamespacedKeyword::new("foo", "bar")),
+                FnArg::IdentOrKeyword(Keyword::namespaced("foo", "bar")),
                 FnArg::Constant("needle".into()),
             ],
             binding: Binding::BindRel(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?entity")),

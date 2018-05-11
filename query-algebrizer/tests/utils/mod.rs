@@ -25,7 +25,7 @@ use mentat_query_parser::{
 };
 
 use mentat_query::{
-    NamespacedKeyword,
+    Keyword,
 };
 
 use mentat_query_algebrizer::{
@@ -40,7 +40,7 @@ use mentat_query_algebrizer::{
 // Common utility functions used in multiple test files.
 
 // These are helpers that tests use to build Schema instances.
-pub fn associate_ident(schema: &mut Schema, i: NamespacedKeyword, e: Entid) {
+pub fn associate_ident(schema: &mut Schema, i: Keyword, e: Entid) {
     schema.entid_map.insert(e, i.clone());
     schema.ident_map.insert(i.clone(), e);
 }
@@ -62,7 +62,7 @@ impl SchemaBuilder {
         }
     }
 
-    pub fn define_attr(mut self, kw: NamespacedKeyword, attr: Attribute) -> Self {
+    pub fn define_attr(mut self, kw: Keyword, attr: Attribute) -> Self {
         associate_ident(&mut self.schema, kw, self.counter);
         add_attribute(&mut self.schema, self.counter, attr);
         self.counter += 1;
@@ -74,9 +74,9 @@ impl SchemaBuilder {
                                  keyword_name: T,
                                  value_type: ValueType,
                                  multival: bool) -> Self
-        where T: Into<String>
+        where T: AsRef<str>
     {
-        self.define_attr(NamespacedKeyword::new(keyword_ns, keyword_name), Attribute {
+        self.define_attr(Keyword::namespaced(keyword_ns, keyword_name), Attribute {
             value_type,
             multival,
             ..Default::default()

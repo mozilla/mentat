@@ -734,22 +734,22 @@ mod test {
         Variable(Rc::new(x))
     }
 
-    fn ident_kw(kw: edn::NamespacedKeyword) -> PatternNonValuePlace {
+    fn ident_kw(kw: edn::Keyword) -> PatternNonValuePlace {
         PatternNonValuePlace::Ident(kw.into())
     }
 
     fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
-        ident_kw(edn::NamespacedKeyword::new(ns, name))
+        ident_kw(edn::Keyword::namespaced(ns, name))
     }
 
     #[test]
     fn test_pattern_mixed() {
-        let e = edn::PlainSymbol::new("_");
-        let a = edn::NamespacedKeyword::new("foo", "bar");
+        let e = edn::PlainSymbol::plain("_");
+        let a = edn::Keyword::namespaced("foo", "bar");
         let v = OrderedFloat(99.9);
-        let tx = edn::PlainSymbol::new("?tx");
+        let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
-                                            edn::Value::NamespacedKeyword(a.clone()),
+                                            edn::Value::Keyword(a.clone()),
                                             edn::Value::Float(v.clone()),
                                             edn::Value::PlainSymbol(tx.clone())));
         assert_parses_to!(Where::pattern, input, WhereClause::Pattern(Pattern {
@@ -763,11 +763,11 @@ mod test {
 
     #[test]
     fn test_pattern_vars() {
-        let s = edn::PlainSymbol::new("$x");
-        let e = edn::PlainSymbol::new("?e");
-        let a = edn::PlainSymbol::new("?a");
-        let v = edn::PlainSymbol::new("?v");
-        let tx = edn::PlainSymbol::new("?tx");
+        let s = edn::PlainSymbol::plain("$x");
+        let e = edn::PlainSymbol::plain("?e");
+        let a = edn::PlainSymbol::plain("?a");
+        let v = edn::PlainSymbol::plain("?v");
+        let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(s.clone()),
                  edn::Value::PlainSymbol(e.clone()),
                  edn::Value::PlainSymbol(a.clone()),
@@ -784,12 +784,12 @@ mod test {
 
     #[test]
     fn test_pattern_reversed_invalid() {
-        let e = edn::PlainSymbol::new("_");
-        let a = edn::NamespacedKeyword::new("foo", "_bar");
+        let e = edn::PlainSymbol::plain("_");
+        let a = edn::Keyword::namespaced("foo", "_bar");
         let v = OrderedFloat(99.9);
-        let tx = edn::PlainSymbol::new("?tx");
+        let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
-                 edn::Value::NamespacedKeyword(a.clone()),
+                 edn::Value::Keyword(a.clone()),
                  edn::Value::Float(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())));
 
@@ -801,12 +801,12 @@ mod test {
 
     #[test]
     fn test_pattern_reversed() {
-        let e = edn::PlainSymbol::new("_");
-        let a = edn::NamespacedKeyword::new("foo", "_bar");
-        let v = edn::PlainSymbol::new("?v");
-        let tx = edn::PlainSymbol::new("?tx");
+        let e = edn::PlainSymbol::plain("_");
+        let a = edn::Keyword::namespaced("foo", "_bar");
+        let v = edn::PlainSymbol::plain("?v");
+        let tx = edn::PlainSymbol::plain("?tx");
         let input = edn::Value::Vector(vec!(edn::Value::PlainSymbol(e.clone()),
-                 edn::Value::NamespacedKeyword(a.clone()),
+                 edn::Value::Keyword(a.clone()),
                  edn::Value::PlainSymbol(v.clone()),
                  edn::Value::PlainSymbol(tx.clone())));
 
@@ -823,7 +823,7 @@ mod test {
 
     #[test]
     fn test_rule_vars() {
-        let e = edn::PlainSymbol::new("?e");
+        let e = edn::PlainSymbol::plain("?e");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]);
         assert_parses_to!(Where::rule_vars, input,
                           btreeset!{variable(e.clone())});
@@ -831,14 +831,14 @@ mod test {
 
     #[test]
     fn test_repeated_vars() {
-        let e = edn::PlainSymbol::new("?e");
-        let f = edn::PlainSymbol::new("?f");
+        let e = edn::PlainSymbol::plain("?e");
+        let f = edn::PlainSymbol::plain("?f");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
                                             edn::Value::PlainSymbol(f.clone()),]);
         assert_parses_to!(|| vector().of_exactly(Find::vars()), input,
                           btreeset!{variable(e.clone()), variable(f.clone())});
 
-        let g = edn::PlainSymbol::new("?g");
+        let g = edn::PlainSymbol::plain("?g");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(g.clone()),
                                             edn::Value::PlainSymbol(g.clone()),]);
 
@@ -859,10 +859,10 @@ mod test {
 
     #[test]
     fn test_or() {
-        let oj = edn::PlainSymbol::new("or");
-        let e = edn::PlainSymbol::new("?e");
-        let a = edn::PlainSymbol::new("?a");
-        let v = edn::PlainSymbol::new("?v");
+        let oj = edn::PlainSymbol::plain("or");
+        let e = edn::PlainSymbol::plain("?e");
+        let a = edn::PlainSymbol::plain("?a");
+        let v = edn::PlainSymbol::plain("?v");
         let input = edn::Value::List(
             vec![edn::Value::PlainSymbol(oj),
                  edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone()),
@@ -883,10 +883,10 @@ mod test {
 
     #[test]
     fn test_or_join() {
-        let oj = edn::PlainSymbol::new("or-join");
-        let e = edn::PlainSymbol::new("?e");
-        let a = edn::PlainSymbol::new("?a");
-        let v = edn::PlainSymbol::new("?v");
+        let oj = edn::PlainSymbol::plain("or-join");
+        let e = edn::PlainSymbol::plain("?e");
+        let a = edn::PlainSymbol::plain("?a");
+        let v = edn::PlainSymbol::plain("?v");
         let input = edn::Value::List(
             vec![edn::Value::PlainSymbol(oj),
                  edn::Value::Vector(vec![edn::Value::PlainSymbol(e.clone())]),
@@ -908,9 +908,9 @@ mod test {
 
     #[test]
     fn test_not() {
-        let e = edn::PlainSymbol::new("?e");
-        let a = edn::PlainSymbol::new("?a");
-        let v = edn::PlainSymbol::new("?v");
+        let e = edn::PlainSymbol::plain("?e");
+        let a = edn::PlainSymbol::plain("?a");
+        let v = edn::PlainSymbol::plain("?v");
 
         assert_edn_parses_to!(Where::not_clause,
                               "(not [?e ?a ?v])",
@@ -930,9 +930,9 @@ mod test {
 
     #[test]
     fn test_not_join() {
-        let e = edn::PlainSymbol::new("?e");
-        let a = edn::PlainSymbol::new("?a");
-        let v = edn::PlainSymbol::new("?v");
+        let e = edn::PlainSymbol::plain("?e");
+        let a = edn::PlainSymbol::plain("?a");
+        let v = edn::PlainSymbol::plain("?v");
 
         assert_edn_parses_to!(Where::not_join_clause,
                               "(not-join [?e] [?e ?a ?v])",
@@ -951,15 +951,15 @@ mod test {
 
     #[test]
     fn test_find_sp_variable() {
-        let sym = edn::PlainSymbol::new("?x");
+        let sym = edn::PlainSymbol::plain("?x");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone())]);
         assert_parses_to!(|| vector().of_exactly(Query::variable()), input, variable(sym));
     }
 
     #[test]
     fn test_find_scalar() {
-        let sym = edn::PlainSymbol::new("?x");
-        let period = edn::PlainSymbol::new(".");
+        let sym = edn::PlainSymbol::plain("?x");
+        let period = edn::PlainSymbol::plain(".");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone()), edn::Value::PlainSymbol(period.clone())]);
         assert_parses_to!(|| vector().of_exactly(Find::find_scalar()),
                           input,
@@ -968,8 +968,8 @@ mod test {
 
     #[test]
     fn test_find_coll() {
-        let sym = edn::PlainSymbol::new("?x");
-        let period = edn::PlainSymbol::new("...");
+        let sym = edn::PlainSymbol::plain("?x");
+        let period = edn::PlainSymbol::plain("...");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(sym.clone()),
                                             edn::Value::PlainSymbol(period.clone())]);
         assert_parses_to!(Find::find_coll,
@@ -979,8 +979,8 @@ mod test {
 
     #[test]
     fn test_find_rel() {
-        let vx = edn::PlainSymbol::new("?x");
-        let vy = edn::PlainSymbol::new("?y");
+        let vx = edn::PlainSymbol::plain("?x");
+        let vy = edn::PlainSymbol::plain("?y");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()), edn::Value::PlainSymbol(vy.clone())]);
         assert_parses_to!(|| vector().of_exactly(Find::find_rel()),
                           input,
@@ -990,8 +990,8 @@ mod test {
 
     #[test]
     fn test_find_tuple() {
-        let vx = edn::PlainSymbol::new("?x");
-        let vy = edn::PlainSymbol::new("?y");
+        let vx = edn::PlainSymbol::plain("?x");
+        let vy = edn::PlainSymbol::plain("?y");
         let input = edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
                                              edn::Value::PlainSymbol(vy.clone())]);
         assert_parses_to!(Find::find_tuple,
@@ -1033,8 +1033,8 @@ mod test {
 
     #[test]
     fn test_fn_arg_collections() {
-        let vx = edn::PlainSymbol::new("?x");
-        let vy = edn::PlainSymbol::new("?y");
+        let vx = edn::PlainSymbol::plain("?x");
+        let vy = edn::PlainSymbol::plain("?y");
         let input = edn::Value::Vector(vec![edn::Value::Vector(vec![edn::Value::PlainSymbol(vx.clone()),
                                             edn::Value::PlainSymbol(vy.clone())])]);
 
@@ -1047,7 +1047,7 @@ mod test {
 
     #[test]
     fn test_bind_scalar() {
-        let vx = edn::PlainSymbol::new("?x");
+        let vx = edn::PlainSymbol::plain("?x");
         assert_edn_parses_to!(|| list().of_exactly(Bind::binding()),
                               "(?x)",
                               Binding::BindScalar(variable(vx)));
@@ -1055,7 +1055,7 @@ mod test {
 
     #[test]
     fn test_bind_coll() {
-        let vx = edn::PlainSymbol::new("?x");
+        let vx = edn::PlainSymbol::plain("?x");
         assert_edn_parses_to!(|| list().of_exactly(Bind::binding()),
                               "([?x ...])",
                               Binding::BindColl(variable(vx)));
@@ -1063,9 +1063,9 @@ mod test {
 
     #[test]
     fn test_bind_rel() {
-        let vx = edn::PlainSymbol::new("?x");
-        let vy = edn::PlainSymbol::new("?y");
-        let vw = edn::PlainSymbol::new("?w");
+        let vx = edn::PlainSymbol::plain("?x");
+        let vy = edn::PlainSymbol::plain("?y");
+        let vw = edn::PlainSymbol::plain("?w");
         assert_edn_parses_to!(|| list().of_exactly(Bind::binding()),
                               "([[?x ?y _ ?w]])",
                               Binding::BindRel(vec![VariableOrPlaceholder::Variable(variable(vx)),
@@ -1077,9 +1077,9 @@ mod test {
 
     #[test]
     fn test_bind_tuple() {
-        let vx = edn::PlainSymbol::new("?x");
-        let vy = edn::PlainSymbol::new("?y");
-        let vw = edn::PlainSymbol::new("?w");
+        let vx = edn::PlainSymbol::plain("?x");
+        let vy = edn::PlainSymbol::plain("?y");
+        let vw = edn::PlainSymbol::plain("?w");
         assert_edn_parses_to!(|| list().of_exactly(Bind::binding()),
                               "([?x ?y _ ?w])",
                               Binding::BindTuple(vec![VariableOrPlaceholder::Variable(variable(vx)),
@@ -1138,7 +1138,7 @@ mod test {
         assert_edn_parses_to!(Where::where_fn,
                               "[(f ?x 1) ?y]",
                               WhereClause::WhereFn(WhereFn {
-                                  operator: edn::PlainSymbol::new("f"),
+                                  operator: edn::PlainSymbol::plain("f"),
                                   args: vec![FnArg::Variable(Variable::from_valid_name("?x")),
                                              FnArg::EntidOrInteger(1)],
                                   binding: Binding::BindScalar(Variable::from_valid_name("?y")),
@@ -1147,7 +1147,7 @@ mod test {
         assert_edn_parses_to!(Where::where_fn,
                               "[(f ?x) [?y ...]]",
                               WhereClause::WhereFn(WhereFn {
-                                  operator: edn::PlainSymbol::new("f"),
+                                  operator: edn::PlainSymbol::plain("f"),
                                   args: vec![FnArg::Variable(Variable::from_valid_name("?x"))],
                                   binding: Binding::BindColl(Variable::from_valid_name("?y")),
                               }));
@@ -1155,7 +1155,7 @@ mod test {
         assert_edn_parses_to!(Where::where_fn,
                               "[(f) [?y _]]",
                               WhereClause::WhereFn(WhereFn {
-                                  operator: edn::PlainSymbol::new("f"),
+                                  operator: edn::PlainSymbol::plain("f"),
                                   args: vec![],
                                   binding: Binding::BindTuple(vec![VariableOrPlaceholder::Variable(Variable::from_valid_name("?y")),
                                                                    VariableOrPlaceholder::Placeholder]),
@@ -1164,7 +1164,7 @@ mod test {
         assert_edn_parses_to!(Where::where_fn,
                               "[(f) [[_ ?y]]]",
                               WhereClause::WhereFn(WhereFn {
-                                  operator: edn::PlainSymbol::new("f"),
+                                  operator: edn::PlainSymbol::plain("f"),
                                   args: vec![],
                                   binding: Binding::BindRel(vec![VariableOrPlaceholder::Placeholder,
                                                                  VariableOrPlaceholder::Variable(Variable::from_valid_name("?y"))]),
@@ -1203,8 +1203,8 @@ mod test {
                                   patterns: vec![PullAttributeSpec::Wildcard],
                               }));
 
-        let foo_bar = ::std::rc::Rc::new(edn::NamespacedKeyword::new("foo", "bar"));
-        let foo_baz = ::std::rc::Rc::new(edn::NamespacedKeyword::new("foo", "baz"));
+        let foo_bar = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"));
+        let foo_baz = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "baz"));
         assert_edn_parses_to!(Query::pull_concrete_attribute,
                               ":foo/bar",
                               PullAttributeSpec::Attribute(
@@ -1241,7 +1241,7 @@ mod test {
                         patterns: vec![
                             PullAttributeSpec::Attribute(
                                 PullConcreteAttribute::Ident(
-                                    ::std::rc::Rc::new(edn::NamespacedKeyword::new("foo", "bar"))
+                                    ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"))
                                 )
                             ),
                         ] })]),

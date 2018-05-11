@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use symbols::{
-    NamespacedKeyword,
+    Keyword,
     PlainSymbol,
 };
 use types::{
@@ -51,7 +51,7 @@ impl fmt::Display for TempId {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum Entid {
     Entid(i64),
-    Ident(NamespacedKeyword),
+    Ident(Keyword),
 }
 
 impl Entid {

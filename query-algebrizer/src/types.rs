@@ -25,7 +25,7 @@ use mentat_core::{
 
 use mentat_query::{
     Direction,
-    NamespacedKeyword,
+    Keyword,
     Order,
     SrcVar,
     Variable,
@@ -617,8 +617,8 @@ pub enum EmptyBecause {
     NonEntityArgument,
     NonStringFulltextValue,
     NonFulltextAttribute(Entid),
-    UnresolvedIdent(NamespacedKeyword),
-    InvalidAttributeIdent(NamespacedKeyword),
+    UnresolvedIdent(Keyword),
+    InvalidAttributeIdent(Keyword),
     InvalidAttributeEntid(Entid),
     InvalidBinding(Column, TypedValue),
     ValueTypeMismatch(ValueType, TypedValue),
@@ -708,7 +708,7 @@ pub enum EvolvedValuePlace {
     Entid(Entid),
     Value(TypedValue),
     EntidOrInteger(i64),
-    IdentOrKeyword(ValueRc<NamespacedKeyword>),
+    IdentOrKeyword(ValueRc<Keyword>),
 }
 
 pub enum PlaceOrEmpty<T> {

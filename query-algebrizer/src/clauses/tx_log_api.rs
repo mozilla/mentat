@@ -268,7 +268,7 @@ mod testing {
 
         let known = Known::for_schema(&schema);
 
-        let op = PlainSymbol::new("tx-ids");
+        let op = PlainSymbol::plain("tx-ids");
         cc.apply_tx_ids(known, WhereFn {
             operator: op,
             args: vec![
@@ -323,7 +323,7 @@ mod testing {
 
         let known = Known::for_schema(&schema);
 
-        let op = PlainSymbol::new("tx-data");
+        let op = PlainSymbol::plain("tx-data");
         cc.apply_tx_data(known, WhereFn {
             operator: op,
             args: vec![

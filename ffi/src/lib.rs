@@ -32,7 +32,7 @@ pub use mentat::{
     FindSpec,
     HasSchema,
     KnownEntid,
-    NamespacedKeyword,
+    Keyword,
     Queryable,
     QueryBuilder,
     QueryInputs,

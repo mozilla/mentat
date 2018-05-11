@@ -98,16 +98,16 @@ pub use types::{
     TxReport,
 };
 
-pub fn to_namespaced_keyword(s: &str) -> Result<symbols::NamespacedKeyword> {
+pub fn to_namespaced_keyword(s: &str) -> Result<symbols::Keyword> {
     let splits = [':', '/'];
     let mut i = s.split(&splits[..]);
     let nsk = match (i.next(), i.next(), i.next(), i.next()) {
-        (Some(""), Some(namespace), Some(name), None) => Some(symbols::NamespacedKeyword::new(namespace, name)),
+        (Some(""), Some(namespace), Some(name), None) => Some(symbols::Keyword::namespaced(namespace, name)),
         _ => None,
     };
 
     // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-    nsk.ok_or(ErrorKind::NotYetImplemented(format!("InvalidNamespacedKeyword: {}", s)).into())
+    nsk.ok_or(ErrorKind::NotYetImplemented(format!("InvalidKeyword: {}", s)).into())
 }
 
 /// Prepare an SQL `VALUES` block, like (?, ?, ?), (?, ?, ?).

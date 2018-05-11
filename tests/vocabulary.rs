@@ -44,7 +44,7 @@ use mentat::{
     Conn,
     InProgress,
     KnownEntid,
-    NamespacedKeyword,
+    Keyword,
     QueryInputs,
     Queryable,
     RelResult,
@@ -65,11 +65,11 @@ use mentat::errors::{
 };
 
 lazy_static! {
-    static ref FOO_NAME: NamespacedKeyword = {
+    static ref FOO_NAME: Keyword = {
         kw!(:foo/name)
     };
 
-    static ref FOO_MOMENT: NamespacedKeyword = {
+    static ref FOO_MOMENT: Keyword = {
         kw!(:foo/moment)
     };
 

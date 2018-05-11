@@ -50,7 +50,7 @@ use edn::{
 };
 
 pub use edn::{
-    NamespacedKeyword,
+    Keyword,
     PlainSymbol,
 };
 
@@ -81,7 +81,7 @@ impl Variable {
 
     /// Return a new `Variable`, assuming that the provided string is a valid name.
     pub fn from_valid_name(name: &str) -> Variable {
-        let s = PlainSymbol::new(name);
+        let s = PlainSymbol::plain(name);
         assert!(s.is_var_symbol());
         Variable(Rc::new(s))
     }
@@ -193,7 +193,7 @@ impl SrcVar {
             if sym.0 == "$" {
                 Some(SrcVar::DefaultSrc)
             } else {
-                Some(SrcVar::NamedSrc(sym.plain_name().to_string()))
+                Some(SrcVar::NamedSrc(sym.name().to_string()))
             }
         } else {
             None
@@ -242,7 +242,7 @@ pub enum FnArg {
     Variable(Variable),
     SrcVar(SrcVar),
     EntidOrInteger(i64),
-    IdentOrKeyword(NamespacedKeyword),
+    IdentOrKeyword(Keyword),
     Constant(NonIntegerConstant),
     // The collection values representable in EDN.  There's no advantage to destructuring up front,
     // since consumers will need to handle arbitrarily nested EDN themselves anyway.
@@ -260,7 +260,7 @@ impl FromValue<FnArg> for FnArg {
             PlainSymbol(ref x) if x.is_var_symbol() =>
                 Variable::from_symbol(x).map(FnArg::Variable),
             PlainSymbol(_) => None,
-            NamespacedKeyword(ref x) =>
+            Keyword(ref x) =>
                 Some(FnArg::IdentOrKeyword(x.clone())),
             Instant(x) =>
                 Some(FnArg::Constant(NonIntegerConstant::Instant(x))),
@@ -277,7 +277,6 @@ impl FromValue<FnArg> for FnArg {
                 Some(FnArg::Constant(x.clone().into())),
             Nil |
             NamespacedSymbol(_) |
-            Keyword(_) |
             Vector(_) |
             List(_) |
             Set(_) |
@@ -326,17 +325,17 @@ pub enum PatternNonValuePlace {
     Placeholder,
     Variable(Variable),
     Entid(i64),                       // Will always be +ve. See #190.
-    Ident(ValueRc<NamespacedKeyword>),
+    Ident(ValueRc<Keyword>),
 }
 
-impl From<Rc<NamespacedKeyword>> for PatternNonValuePlace {
-    fn from(value: Rc<NamespacedKeyword>) -> Self {
+impl From<Rc<Keyword>> for PatternNonValuePlace {
+    fn from(value: Rc<Keyword>) -> Self {
         PatternNonValuePlace::Ident(ValueRc::from_rc(value))
     }
 }
 
-impl From<NamespacedKeyword> for PatternNonValuePlace {
-    fn from(value: NamespacedKeyword) -> Self {
+impl From<Keyword> for PatternNonValuePlace {
+    fn from(value: Keyword) -> Self {
         PatternNonValuePlace::Ident(ValueRc::new(value))
     }
 }
@@ -380,7 +379,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
                     None
                 }
             },
-            edn::SpannedValue::NamespacedKeyword(ref x) =>
+            edn::SpannedValue::Keyword(ref x) =>
                 Some(x.clone().into()),
             _ => None,
         }
@@ -389,7 +388,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IdentOrEntid {
-    Ident(NamespacedKeyword),
+    Ident(Keyword),
     Entid(i64),
 }
 
@@ -401,18 +400,18 @@ pub enum PatternValuePlace {
     Placeholder,
     Variable(Variable),
     EntidOrInteger(i64),
-    IdentOrKeyword(ValueRc<NamespacedKeyword>),
+    IdentOrKeyword(ValueRc<Keyword>),
     Constant(NonIntegerConstant),
 }
 
-impl From<Rc<NamespacedKeyword>> for PatternValuePlace {
-    fn from(value: Rc<NamespacedKeyword>) -> Self {
+impl From<Rc<Keyword>> for PatternValuePlace {
+    fn from(value: Rc<Keyword>) -> Self {
         PatternValuePlace::IdentOrKeyword(ValueRc::from_rc(value))
     }
 }
 
-impl From<NamespacedKeyword> for PatternValuePlace {
-    fn from(value: NamespacedKeyword) -> Self {
+impl From<Keyword> for PatternValuePlace {
+    fn from(value: Keyword) -> Self {
         PatternValuePlace::IdentOrKeyword(ValueRc::new(value))
     }
 }
@@ -426,7 +425,7 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
                 Some(PatternValuePlace::Placeholder),
             edn::SpannedValue::PlainSymbol(ref x) =>
                 Variable::from_symbol(x).map(PatternValuePlace::Variable),
-            edn::SpannedValue::NamespacedKeyword(ref x) =>
+            edn::SpannedValue::Keyword(ref x) if x.is_namespaced() =>
                 Some(x.clone().into()),
             edn::SpannedValue::Boolean(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
@@ -445,7 +444,7 @@ impl FromValue<PatternValuePlace> for PatternValuePlace {
             // These don't appear in queries.
             edn::SpannedValue::Nil => None,
             edn::SpannedValue::NamespacedSymbol(_) => None,
-            edn::SpannedValue::Keyword(_) => None,
+            edn::SpannedValue::Keyword(_) => None,                // … yet.
             edn::SpannedValue::Map(_) => None,
             edn::SpannedValue::List(_) => None,
             edn::SpannedValue::Set(_) => None,
@@ -489,13 +488,13 @@ impl PatternValuePlace {
 // Not yet used.
 // pub enum PullDefaultValue {
 //     EntidOrInteger(i64),
-//     IdentOrKeyword(Rc<NamespacedKeyword>),
+//     IdentOrKeyword(Rc<Keyword>),
 //     Constant(NonIntegerConstant),
 // }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PullConcreteAttribute {
-    Ident(Rc<NamespacedKeyword>),
+    Ident(Rc<Keyword>),
     Entid(i64),
 }
 
