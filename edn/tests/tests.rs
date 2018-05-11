@@ -264,10 +264,31 @@ fn test_uuid() {
 
     let expected = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000")
                        .expect("valid UUID");
-    let actual = parse::uuid("#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
+    let s = "#uuid \"550e8400-e29b-41d4-a716-446655440000\"";
+    let actual = parse::uuid(s)
                        .expect("parse success")
                        .into();
-    assert_eq!(self::Value::Uuid(expected), actual);
+    let value = self::Value::Uuid(expected);
+    assert_eq!(value, actual);
+    assert_eq!(format!("{}", value), s);
+    assert_eq!(value.to_pretty(100).unwrap(), s);
+}
+
+#[test]
+fn test_inst() {
+    assert!(parse::value("#inst\"2016-01-01T11:00:00.000Z\"").is_err());   // No whitespace.
+    assert!(parse::value("#inst \"2016-01-01T11:00:00.000\"").is_err());   // No timezone.
+    assert!(parse::value("#inst \"2016-01-01T11:00:00.000z\"").is_err());  // Lowercase timezone.
+
+    let expected = Utc.timestamp(1493410985, 187000000);
+    let s = "#inst \"2017-04-28T20:23:05.187Z\"";
+    let actual = parse::value(s)
+                       .expect("parse success")
+                       .into();
+    let value = self::Value::Instant(expected);
+    assert_eq!(value, actual);
+    assert_eq!(format!("{}", value), s);
+    assert_eq!(value.to_pretty(100).unwrap(), s);
 }
 
 #[test]

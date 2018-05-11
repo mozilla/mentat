@@ -8,6 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use chrono::{
+    SecondsFormat,
+};
+
 use itertools::Itertools;
 use pretty;
 
@@ -70,6 +74,7 @@ impl Value {
             Value::Keyword(ref v) => pp.text(":").append(v.0.as_ref()),
             Value::Text(ref v) => pp.text("\"").append(v.as_ref()).append("\""),
             Value::Uuid(ref u) => pp.text("#uuid \"").append(u.hyphenated().to_string()).append("\""),
+            Value::Instant(ref v) => pp.text("#inst \"").append(v.to_rfc3339_opts(SecondsFormat::AutoSi, true)).append("\""),
             _ => pp.text(self.to_string())
         }
     }
