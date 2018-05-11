@@ -501,7 +501,7 @@ pub enum PullConcreteAttribute {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NamedPullAttribute {
     pub attribute: PullConcreteAttribute,
-    pub alias: Option<Rc<NamespacedKeyword>>,
+    pub alias: Option<Rc<Keyword>>,
 }
 
 impl From<PullConcreteAttribute> for NamedPullAttribute {

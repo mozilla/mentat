@@ -151,7 +151,7 @@ pub struct Puller {
     // long from an entity ID, and thus represents all entities in pull as, _e.g._, `{:db/id 1234}`.
     //  Mentat can use `TypedValue::Ref(1234)`, but it's sometimes convenient to fetch the entity ID
     // itself as part of a pull expression: `{:person 1234, :person/name "Peter"}`.
-    db_id_alias: Option<ValueRc<NamespacedKeyword>>,
+    db_id_alias: Option<ValueRc<Keyword>>,
 }
 
 impl Puller {
@@ -168,7 +168,7 @@ impl Puller {
 
         let mut names: BTreeMap<Entid, ValueRc<Keyword>> = Default::default();
         let mut attrs: BTreeSet<Entid> = Default::default();
-        let db_id = ::std::rc::Rc::new(NamespacedKeyword::new("db", "id"));
+        let db_id = ::std::rc::Rc::new(Keyword::namespaced("db", "id"));
         let mut db_id_alias = None;
 
         for attr in attributes.iter() {

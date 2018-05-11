@@ -131,11 +131,14 @@ fn test_simple_pull() {
 
     let beacon_district_pull: Vec<(Keyword, TypedValue)> = vec![
         (kw!(:db/id), TypedValue::Ref(beacon_district)),
-    let beacon_district_pull: StructuredMap = beacon_district.into();
+        (kw!(:district/district), "Greater Duwamish".into()),
+        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "se")).unwrap().into()),
+    ];
+    let beacon_district_pull: StructuredMap = beacon_district_pull.into();
     let capitol_district_pull: Vec<(Keyword, TypedValue)> = vec![
         (kw!(:db/id), TypedValue::Ref(capitol_district)),
         (kw!(:district/district), "East".into()),
-        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "e")).unwrap().into())
+        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "e")).unwrap().into()),
     ];
     let capitol_district_pull: StructuredMap = capitol_district_pull.into();
 
