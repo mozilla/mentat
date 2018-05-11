@@ -88,19 +88,25 @@ pub type MapNotation<V> = BTreeMap<Entid, ValuePlace<V>>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum ValuePlace<V> {
-    Atom(V),
+    // We never know at parse-time whether an integer or ident is really an entid, but we will often
+    // know when building entities programmatically.
+    Entid(Entid),
+    // We never know at parse-time whether a string is really a tempid, but we will often know when
+    // building entities programmatically.
+    TempId(TempId),
     LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
     Vector(Vec<ValuePlace<V>>),
+    Atom(V),
     MapNotation(MapNotation<V>),
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntityPlace<V> {
     Entid(Entid),
+    TempId(TempId),
     LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
-    TempId(TempId),
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]

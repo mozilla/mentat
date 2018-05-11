@@ -2239,6 +2239,16 @@ mod tests {
         assert_matches!(tempids(&report),
                         "{\"t\" 65537}");
 
+        // Check that we can explode map notation with :db/id as a lookup-ref or tx-function.
+        let report = assert_transact!(conn, "[{:db/id (lookup-ref :db/ident :db/ident) :test/many 4}
+                                              {:db/id (transaction-tx) :test/many 5}]");
+        assert_matches!(conn.last_transaction(),
+                        "[[1 :test/many 4 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]
+                          [?tx :test/many 5 ?tx true]]");
+        assert_matches!(tempids(&report),
+                        "{}");
+
         // Check that we can explode map notation with nested vector values.
         let report = assert_transact!(conn, "[{:test/many [1 2]}]");
         assert_matches!(conn.last_transaction(),
