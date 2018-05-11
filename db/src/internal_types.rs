@@ -48,7 +48,7 @@ use types::{
 };
 use mentat_tx::entities;
 use mentat_tx::entities::{
-    EntidOrLookupRefOrTempId,
+    EntityPlace,
     OpType,
     TempId,
     TxFunction,
@@ -64,7 +64,7 @@ pub trait TransactableValue {
 
     /// Make an entity place out of this value place.  This is where we limit values in nested maps
     /// to valid entity places.
-    fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId>;
+    fn into_entity_place(self) -> Result<EntityPlace>;
 
     fn as_tempid(&self) -> Option<TempId>;
 }
@@ -74,33 +74,33 @@ impl TransactableValue for ValueAndSpan {
         schema.to_typed_value(&self.without_spans(), value_type)
     }
 
-    fn into_entity_place(self) -> Result<EntidOrLookupRefOrTempId> {
+    fn into_entity_place(self) -> Result<EntityPlace> {
         use self::SpannedValue::*;
         match self.inner {
-            Integer(v) => Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Entid(v))),
+            Integer(v) => Ok(EntityPlace::Entid(entities::Entid::Entid(v))),
             Keyword(v) => {
                 if v.is_namespaced() {
-                    Ok(EntidOrLookupRefOrTempId::Entid(entities::Entid::Ident(v)))
+                    Ok(EntityPlace::Entid(entities::Entid::Ident(v)))
                 } else {
                     // We only allow namespaced idents.
                     bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace))
                 }
             },
-            Text(v) => Ok(EntidOrLookupRefOrTempId::TempId(TempId::External(v))),
+            Text(v) => Ok(EntityPlace::TempId(TempId::External(v))),
             List(ls) => {
                 let mut it = ls.iter();
                 match (it.next().map(|x| &x.inner), it.next(), it.next(), it.next()) {
                     // Like "(transaction-id)".
                     (Some(&PlainSymbol(ref op)), None, None, None) => {
-                        Ok(EntidOrLookupRefOrTempId::TxFunction(TxFunction { op: op.clone() }))
+                        Ok(EntityPlace::TxFunction(TxFunction { op: op.clone() }))
                     },
                     // Like "(lookup-ref)".
                     (Some(&PlainSymbol(edn::PlainSymbol(ref s))), Some(a), Some(v), None) if s == "lookup-ref" => {
                         match a.clone().into_entity_place()? {
-                            EntidOrLookupRefOrTempId::Entid(a) => Ok(EntidOrLookupRefOrTempId::LookupRef(entities::LookupRef { a: entities::AttributePlace::Entid(a), v: v.clone().without_spans() })),
-                            EntidOrLookupRefOrTempId::TempId(_) |
-                            EntidOrLookupRefOrTempId::TxFunction(_) |
-                            EntidOrLookupRefOrTempId::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+                            EntityPlace::Entid(a) => Ok(EntityPlace::LookupRef(entities::LookupRef { a: entities::AttributePlace::Entid(a), v: v.clone().without_spans() })),
+                            EntityPlace::TempId(_) |
+                            EntityPlace::TxFunction(_) |
+                            EntityPlace::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
                         }
                     },
                     _ => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),

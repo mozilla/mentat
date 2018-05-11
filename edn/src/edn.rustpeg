@@ -229,24 +229,24 @@ lookup_ref -> LookupRef
 tx_function -> TxFunction
     = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::plain(n) } }
 
-entity_place -> EntidOrLookupRefOrTempId
-    = v:raw_text { EntidOrLookupRefOrTempId::TempId(TempId::External(v)) }
-    / v:entid { EntidOrLookupRefOrTempId::Entid(v) }
-    / v:lookup_ref { EntidOrLookupRefOrTempId::LookupRef(v) }
-    / v:tx_function { EntidOrLookupRefOrTempId::TxFunction(v) }
+entity_place -> EntityPlace
+    = v:raw_text { EntityPlace::TempId(TempId::External(v)) }
+    / v:entid { EntityPlace::Entid(v) }
+    / v:lookup_ref { EntityPlace::LookupRef(v) }
+    / v:tx_function { EntityPlace::TxFunction(v) }
 
-value_place_pair -> (Entid, AtomOrLookupRefOrVectorOrMapNotation)
+value_place_pair -> (Entid, ValuePlace)
     = k:(entid) __ v:(value_place) { (k, v) }
 
 map_notation -> MapNotation
     = "{" __ kvs:(value_place_pair*) __ "}" { kvs.into_iter().collect() }
 
-value_place -> AtomOrLookupRefOrVectorOrMapNotation
-    = __ v:lookup_ref __ { AtomOrLookupRefOrVectorOrMapNotation::LookupRef(v) }
-    / __ v:tx_function __ { AtomOrLookupRefOrVectorOrMapNotation::TxFunction(v) }
-    / __ "[" __ vs:(value_place*) __ "]" __ { AtomOrLookupRefOrVectorOrMapNotation::Vector(vs) }
-    / __ v:map_notation __ { AtomOrLookupRefOrVectorOrMapNotation::MapNotation(v) }
-    / __ v:atom __ { AtomOrLookupRefOrVectorOrMapNotation::Atom(v) }
+value_place -> ValuePlace
+    = __ v:lookup_ref __ { ValuePlace::LookupRef(v) }
+    / __ v:tx_function __ { ValuePlace::TxFunction(v) }
+    / __ "[" __ vs:(value_place*) __ "]" __ { ValuePlace::Vector(vs) }
+    / __ v:map_notation __ { ValuePlace::MapNotation(v) }
+    / __ v:atom __ { ValuePlace::Atom(v) }
 
 pub entity -> Entity
     = __ "[" __ op:(op) __ e:(entity_place) __ a:(forward_entid)  __ v:(value_place) __  "]" __ { Entity::AddOrRetract { op, e: e, a: AttributePlace::Entid(a), v: v } }
