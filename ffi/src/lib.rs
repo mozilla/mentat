@@ -19,34 +19,37 @@
 //! Mentat's FFI contains unsafe code. As it is an interface between foreign code
 //! and native Rust code, Rust cannot guarantee that the types and data that have been passed
 //! to it from another language are present and in the format it is expecting.
-//! This interface is designed to ensure that nothing unsafe ever leaves this module
-//! and enters Mentat proper.
+//! This interface is designed to ensure that nothing unsafe passes through this module
+//! and enters Mentat proper
 //!
 //! Structs defined with `#[repr(C)]` are guaranteed to have a layout that is compatible
 //! with the platform's representation in C.
 //!
 //! This API passes pointers in two ways, depending on the lifetime of the value and
 //! what value owns it.
-//! Pointers to values that can be guaranteed to live beyond the lifetime of the function,
+//! Pointers to values that are guaranteed to live beyond the lifetime of the function,
 //! are passed over the FFI as a raw pointer.
+//!
 //! ```
 //! value as *const TypedValue
 //! ```
 //! Pointers to values that cannot be guaranteed to live beyond the lifetime of the function
 //! are first `Box`ed so that they live on the heap, and the raw pointer passed this way.
+//!
 //! ```
 //! Box::into_raw(Box::new(value))
 //! ```
 //!
-//! The memory for values that are moved onto the heap before being passed over the FFI
-//! are no longer managed by Rust, but Rust still owns the value. Therefore the pointer
+//! The memory for a value that is moved onto the heap before being passed over the FFI
+//! is no longer managed by Rust, but Rust still owns the value. Therefore the pointer
 //! must be returned to Rust in order to be released. To this effect a number of `destructor`
-//! functions are provided for each Rust value type that is passed, and a catch all destructor
-//! is provided to release memory for `#[repr(C)]` values.
-//! The destructors reclaim the memory via `Box` and then drop the reference, causing the
+//! functions are provided for each Rust value type that is passed, as is a catch all destructor
+//! to release memory for `#[repr(C)]` values.
+//! The destructors reclaim the memory via [Box](std::boxed::Box) and then drop the reference, causing the
 //! memory to be released.
 //!
 //! A macro has been provided to make defining destructors easier.
+//!
 //! ```
 //! define_destructor!(query_builder_destroy, QueryBuilder);
 //! ```
@@ -55,17 +58,18 @@
 //! so callers have to be careful to ensure they manage their pointers properly.
 //! Failure to call a destructor for a value on the heap will cause a memory leak.
 //!
-//! Most of the functions exposed in this FFI have a direct mapping to existing Mentat APIs.
-//! Application logic has been kept to a minumum in order to provide the greatest flexibility
-//! for callers using the interface, however there are a one exception where several steps
-//! have been wrapped into a single call in order to make the interface easier to use.
-//! `store_register_observer` takes a single native callback function which is wrapped inside a
-//! Rust closure and added to a `TxObserver` struct. This is then used to register the
-//! observer with the store.
+//! Generally, the functions exposed in this module have a direct mapping to existing Mentat APIs,
+//! in order to keep application logic to a minumum and provide the greatest flexibility
+//! for callers using the interface. However, in some cases a single convenience function
+//! has been provided in order to make the interface easier to use and reduce the number
+//! of calls that have to be made over the FFI to perform a task. An example of this is
+//! `store_register_observer`, which takes a single native callback function that is then
+//! wrapped inside a Rust closure and added to a [TxObserver](mentat::TxObserver) struct. This is then used to
+//! register the observer with the store.
 //!
-//! `Result` and `Option` Rust types have `repr(C)` structs that mirror them. This is to provide a more
+//! [Result](std::result::Result) and [Option](std::option::Option) Rust types have `repr(C)` structs that mirror them. This is to provide a more
 //! native access pattern to callers and to enable easier passing of optional types and error
-//! propogation. These types have implemented `From` such that conversion from the Rust type
+//! propogation. These types have implemented [From](std::convert::From) such that conversion from the Rust type
 //! to the C type is as painless as possible.
 //!
 extern crate libc;
@@ -129,7 +133,7 @@ pub use utils::log;
 pub type TypedValueIterator = vec::IntoIter<TypedValue>;
 pub type TypedValueListIterator = vec::IntoIter<Vec<TypedValue>>;
 
-/// A C representation of the a change provided by the transaction observers
+/// A C representation of the change provided by the transaction observers
 /// from a single transact.
 /// Holds a transaction identifier, the changes as a set of affected attributes
 /// and the length of the list of changes.
@@ -162,9 +166,9 @@ pub struct TxChangeList {
     pub len: usize,
 }
 
-/// A C representation Rust's Option.
-/// A value of Some results in `value` containing a raw pointer as a `c_void`.
-/// A value of None results in `value` containing a null pointer.
+/// A C representation Rust's [Option](std::option::Option).
+/// A value of `Some` results in `value` containing a raw pointer as a `c_void`.
+/// A value of `None` results in `value` containing a null pointer.
 ///
 /// #Safety
 ///
@@ -185,10 +189,10 @@ impl<T> From<Option<T>> for ExternOption {
     }
 }
 
-/// A C representation Rust's Result.
-/// A value of Ok results in `ok` containing a raw pointer as a `c_void`
+/// A C representation Rust's [Result](std::result::Result).
+/// A value of `Ok` results in `ok` containing a raw pointer as a `c_void`
 /// and `err` containing a null pointer.
-/// A value of Err results in `value` containing a null pointer and `err` containing an error message.
+/// A value of `Err` results in `value` containing a null pointer and `err` containing an error message.
 ///
 /// #Safety
 ///
@@ -224,8 +228,8 @@ impl<T, E> From<Result<T, E>> for ExternResult where E: std::error::Error {
 /// A store cannot be opened twice to the same location.
 /// Once created, the reference to the store is held by the caller and not Rust,
 /// therefore the caller is responsible for calling `destroy` to release the memory
-/// used by the Store in order to avoid a memory leak.
-/// TODO: Start returning `ExternResult`s rather than crashing on error.
+/// used by the [Store](mentat::Store) in order to avoid a memory leak.
+// TODO: Start returning `ExternResult`s rather than crashing on error.
 ///
 /// # Safety
 ///
@@ -253,14 +257,11 @@ pub extern "C" fn store_open(uri: *const c_char) -> *mut Store {
 ///
 /// # Safety
 ///
-/// Callers must ensure that the pointer to the `Store` is not dangling and that
-/// the C string provided to `transaction` is valid.
-///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `destroy` is provided for releasing the memory for this
 /// pointer type.
 ///
-/// TODO: Document the errors that can result from transact
+// TODO: Document the errors that can result from transact
 #[no_mangle]
 pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c_char) -> *mut ExternResult {
     let store = &mut*store;
@@ -274,35 +275,22 @@ pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c
     Box::into_raw(Box::new(result.into()))
 }
 
-/// Fetches the `tx_id` for the given `TxReport`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TxReport` is not dangling.
+/// Fetches the `tx_id` for the given [TxReport](mentat::TxReport).
 #[no_mangle]
 pub unsafe extern "C" fn tx_report_get_entid(tx_report: *mut TxReport) -> c_longlong {
     let tx_report = &*tx_report;
     tx_report.tx_id as c_longlong
 }
 
-/// Fetches the `tx_instant` for the given `TxReport`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TxReport` is not dangling.
+/// Fetches the `tx_instant` for the given [TxReport](mentat::TxReport).
 #[no_mangle]
 pub unsafe extern "C" fn tx_report_get_tx_instant(tx_report: *mut TxReport) -> c_longlong {
     let tx_report = &*tx_report;
     tx_report.tx_instant.timestamp() as c_longlong
 }
 
-/// Fetches the `Entid` assigned to the `tempid` during the transaction represented
-/// by the given `TxReport`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TxReport` is not dangling and that
-/// the C string provided to `tempid` is valid.
+/// Fetches the [Entid](mentat::Entid) assigned to the `tempid` during the transaction represented
+/// by the given [TxReport](mentat::TxReport).
 #[no_mangle]
 pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, tempid: *const c_char) -> *mut c_longlong {
     let tx_report = &*tx_report;
@@ -318,18 +306,15 @@ pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, 
 
 // TODO: q_once
 
-/// Creates a `QueryBuilder` from the given store to execute the provided query.
+/// Creates a [QueryBuilder](mentat::QueryBuilder) from the given store to execute the provided query.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling and that
-/// the C string provided to `query` is valid.
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `query_builder_destroy` is provided for releasing the memory for this
 /// pointer type.
 ///
-/// TODO: Update QueryBuilder so it only takes a `Store` pointer on execution
+/// TODO: Update QueryBuilder so it only takes a [Store](mentat::Store)  pointer on execution
 #[no_mangle]
 pub unsafe extern "C" fn store_query<'a>(store: *mut Store, query: *const c_char) -> *mut QueryBuilder<'a> {
     let query = c_char_to_string(query);
@@ -338,12 +323,7 @@ pub unsafe extern "C" fn store_query<'a>(store: *mut Store, query: *const c_char
     Box::into_raw(Box::new(query_builder))
 }
 
-/// Binds a `TypedValue::Long` to a `Variable` with the given name.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C string provided to `var` is valid.
+/// Binds a [TypedValue::Long](mentat::TypedValue::Long) to a [Variable](mentat::Variable) with the given name.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_long(query_builder: *mut QueryBuilder, var: *const c_char, value: c_longlong) {
     let var = c_char_to_string(var);
@@ -351,12 +331,7 @@ pub unsafe extern "C" fn query_builder_bind_long(query_builder: *mut QueryBuilde
    query_builder.bind_long(&var, value);
 }
 
-/// Binds a `TypedValue::Ref` to a `Variable` with the given name.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C string provided to `var` is valid.
+/// Binds a [TypedValue::Ref](mentat::TypedValue::Ref) to a [Variable](mentat::Variable) with the given name.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_ref(query_builder: *mut QueryBuilder, var: *const c_char, value: c_longlong) {
     let var = c_char_to_string(var);
@@ -364,17 +339,12 @@ pub unsafe extern "C" fn query_builder_bind_ref(query_builder: *mut QueryBuilder
     query_builder.bind_ref(&var, value);
 }
 
-/// Binds a `TypedValue::Ref` to a `Variable` with the given name. Takes a keyword as a c string in the format
-/// `:namespace/name` and converts it into an `NamespacedKeyword`.
+/// Binds a [TypedValue::Ref](mentat::TypedValue::Ref) to a [Variable](mentat::Variable) with the given name. Takes a keyword as a c string in the format
+/// `:namespace/name` and converts it into an [NamespacedKeyworf](mentat::NamespacedKeyword).
 ///
 /// # Panics
 ///
 /// If the provided keyword does not map to a valid keyword in the schema.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C strings provided to `var` and `value` are valid.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_ref_kw(query_builder: *mut QueryBuilder, var: *const c_char, value: *const c_char) {
     let var = c_char_to_string(var);
@@ -385,13 +355,8 @@ pub unsafe extern "C" fn query_builder_bind_ref_kw(query_builder: *mut QueryBuil
     }
 }
 
-/// Binds a `TypedValue::Keyword` to a `Variable` with the given name. Takes a keyword as a c string in the format
-/// `:namespace/name` and converts it into an `NamespacedKeyword`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C strings provided to `var` and `value` are valid.
+/// Binds a [TypedValue::Ref](mentat::TypedValue::Ref) to a [Variable](mentat::Variable) with the given name. Takes a keyword as a c string in the format
+/// `:namespace/name` and converts it into an [NamespacedKeyworf](mentat::NamespacedKeyword).
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_kw(query_builder: *mut QueryBuilder, var: *const c_char, value: *const c_char) {
     let var = c_char_to_string(var);
@@ -400,12 +365,7 @@ pub unsafe extern "C" fn query_builder_bind_kw(query_builder: *mut QueryBuilder,
     query_builder.bind_value(&var, kw);
 }
 
-/// Binds a `TypedValue::Boolean` to a `Variable` with the given name.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C string provided to `var` is valid.
+/// Binds a [TypedValue::Boolean](mentat::TypedValue::Boolean) to a [Variable](mentat::Variable) with the given name.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_boolean(query_builder: *mut QueryBuilder, var: *const c_char, value: bool) {
     let var = c_char_to_string(var);
@@ -413,12 +373,7 @@ pub unsafe extern "C" fn query_builder_bind_boolean(query_builder: *mut QueryBui
     query_builder.bind_value(&var, value);
 }
 
-/// Binds a `TypedValue::Double` to a `Variable` with the given name.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C string provided to `var` is valid.
+/// Binds a [TypedValue::Double](mentat::TypedValue::Double) to a [Variable](mentat::Variable) with the given name.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_double(query_builder: *mut QueryBuilder, var: *const c_char, value: f64) {
     let var = c_char_to_string(var);
@@ -426,13 +381,8 @@ pub unsafe extern "C" fn query_builder_bind_double(query_builder: *mut QueryBuil
     query_builder.bind_value(&var, value);
 }
 
-/// Binds a `TypedValue::Instant` to a `Variable` with the given name.
+/// Binds a [TypedValue::Instant](mentat::TypedValue::Instant) to a [Variable](mentat::Variable) with the given name.
 /// Takes a timestamp in microseconds.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C string provided to `var` is valid.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_timestamp(query_builder: *mut QueryBuilder, var: *const c_char, value: c_longlong) {
     let var = c_char_to_string(var);
@@ -440,12 +390,7 @@ pub unsafe extern "C" fn query_builder_bind_timestamp(query_builder: *mut QueryB
     query_builder.bind_instant(&var, value);
 }
 
-/// Binds a `TypedValue::String` to a `Variable` with the given name.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C strings provided to `var` and `value` are valid.
+/// Binds a [TypedValue::String](mentat::TypedValue::String) to a [Variable](mentat::Variable) with the given name.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_string(query_builder: *mut QueryBuilder, var: *const c_char, value: *const c_char) {
     let var = c_char_to_string(var);
@@ -454,13 +399,8 @@ pub unsafe extern "C" fn query_builder_bind_string(query_builder: *mut QueryBuil
     query_builder.bind_value(&var, value);
 }
 
-/// Binds a `TypedValue::Uuid` to a `Variable` with the given name.
-/// Takes a UUID as a byte slice of length 16. This maps directly to the `uuid_t` C type.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling and that
-/// the C string provided to `var` is valid.
+/// Binds a [TypedValue::Uuid](mentat::TypedValue::Uuid) to a [Variable](mentat::Variable) with the given name.
+/// Takes a `UUID` as a byte slice of length 16. This maps directly to the `uuid_t` C type.
 #[no_mangle]
 pub unsafe extern "C" fn query_builder_bind_uuid(query_builder: *mut QueryBuilder, var: *const c_char, value: *mut [u8; 16]) {
     let var = c_char_to_string(var);
@@ -470,15 +410,13 @@ pub unsafe extern "C" fn query_builder_bind_uuid(query_builder: *mut QueryBuilde
     query_builder.bind_value(&var, value);
 }
 
-/// Executes a query and returns the results as a Scalar.
+/// Executes a query and returns the results as a [Scalar](mentat::QueryResults::Scalar).
 ///
 /// # Panics
 ///
-/// If the query executed is not structured as Scalar.
+/// If the find set of the query executed is not structured `[:find ?foo . :where ...]`.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling.
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `destroy` is provided for releasing the memory for this
@@ -495,15 +433,13 @@ pub unsafe extern "C" fn query_builder_execute_scalar(query_builder: *mut QueryB
     Box::into_raw(Box::new(extern_result))
 }
 
-/// Executes a query and returns the results as a Coll.
+/// Executes a query and returns the results as a [Coll](mentat::QueryResults::Coll).
 ///
 /// # Panics
 ///
-/// If the query executed is not structured as Coll.
+/// If the find set of the query executed is not structured `[:find [?foo ...] :where ...]`.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling.
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `destroy` is provided for releasing the memory for this
@@ -515,15 +451,13 @@ pub unsafe extern "C" fn query_builder_execute_coll(query_builder: *mut QueryBui
     Box::into_raw(Box::new(results.into()))
 }
 
-/// Executes a query and returns the results as a Tuple.
+/// Executes a query and returns the results as a [Tuple](mentat::QueryResults::Tuple).
 ///
 /// # Panics
 ///
-/// If the query executed is not structured as Tuple.
+/// If the find set of the query executed is not structured `[:find [?foo ?bar] :where ...]`.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling.
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `destroy` is provided for releasing the memory for this
@@ -540,15 +474,13 @@ pub unsafe extern "C" fn query_builder_execute_tuple(query_builder: *mut QueryBu
     Box::into_raw(Box::new(extern_result))
 }
 
-/// Executes a query and returns the results as a Rel.
+/// Executes a query and returns the results as a [Rel](mentat::QueryResults::Rel).
 ///
 /// # Panics
 ///
-/// If the query executed is not structured as Rel.
+/// If the find set of the query executed is not structured `[:find ?foo ?bar :where ...]`.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `QueryBuilder` is not dangling.
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `destroy` is provided for releasing the memory for this
@@ -567,122 +499,90 @@ fn unwrap_conversion<T>(value: Option<T>, expected_type: ValueType) -> T {
     }
 }
 
-/// Consumes a `TypedValue` and returns the value as a `long`.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as a C `long`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Long`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Long).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_long(typed_value: *mut TypedValue) ->  c_longlong {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_long(), ValueType::Long)
 }
 
-/// Consumes a `TypedValue` and returns the value as an `Entid`.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as an [Entid](mentat::Entid).
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Ref`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Ref).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_entid(typed_value: *mut TypedValue) ->  Entid {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_entid(), ValueType::Ref)
 }
 
-/// Consumes a `TypedValue` and returns the value as an keyword `String`.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as an keyword C `String`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Ref`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Ref).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_kw(typed_value: *mut TypedValue) ->  *const c_char {
     let typed_value = Box::from_raw(typed_value);
     string_to_c_char(unwrap_conversion(typed_value.into_kw(), ValueType::Keyword).to_string())
 }
 
-/// Consumes a `TypedValue` and returns the value as a boolean represented as an `i32`.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as a boolean represented as an `i32`.
 /// If the value of the boolean is `true` the value returned is 1.
 /// If the value of the boolean is `false` the value returned is 0.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Boolean`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Boolean).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_boolean(typed_value: *mut TypedValue) -> i32 {
     let typed_value = Box::from_raw(typed_value);
     if unwrap_conversion(typed_value.into_boolean(), ValueType::Boolean) { 1 } else { 0 }
 }
 
-/// Consumes a `TypedValue` and returns the value as a `f64`.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as a `f64`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Double`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Double).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_double(typed_value: *mut TypedValue) ->  f64 {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_double(), ValueType::Double)
 }
 
-/// Consumes a `TypedValue` and returns the value as a microsecond timestamp.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as a microsecond timestamp.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Instant`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Instant).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_timestamp(typed_value: *mut TypedValue) ->  c_longlong {
     let typed_value = Box::from_raw(typed_value);
     unwrap_conversion(typed_value.into_timestamp(), ValueType::Instant)
 }
 
-/// Consumes a `TypedValue` and returns the value as a `String`.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as a C `String`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::String`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::String).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_string(typed_value: *mut TypedValue) ->  *const c_char {
     let typed_value = Box::from_raw(typed_value);
     c_char_from_rc(unwrap_conversion(typed_value.into_string(), ValueType::String))
 }
 
-/// Consumes a `TypedValue` and returns the value as a UUID byte slice of length 16.
+/// Consumes a [TypedValue](mentat::TypedValue) and returns the value as a UUID byte slice of length 16.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Uuid`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Uuid).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_as_uuid(typed_value: *mut TypedValue) ->  *mut [u8; 16] {
     let typed_value = Box::from_raw(typed_value);
@@ -690,11 +590,7 @@ pub unsafe extern "C" fn typed_value_as_uuid(typed_value: *mut TypedValue) ->  *
     Box::into_raw(Box::new(*value.as_bytes()))
 }
 
-/// Returns the `ValueType` of this `TypedValue`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TypedValue` is not dangling .
+/// Returns the [ValueType](mentat::ValueType) of this [TypedValue](mentat::TypedValue).
 #[no_mangle]
 pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut TypedValue) ->  ValueType {
     let typed_value = &*typed_value;
@@ -705,8 +601,6 @@ pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut TypedValue) ->
 /// If there is no value present at the `index`, a null pointer is returned.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<Vec<TypedValue>>` is not dangling .
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_result_set_destroy` is provided for releasing the memory for this
@@ -720,8 +614,6 @@ pub unsafe extern "C" fn row_at_index(rows: *mut Vec<Vec<TypedValue>>, index: c_
 /// Consumes the `Vec<Vec<TypedValue>>` and returns an iterator over the values.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<Vec<TypedValue>>` is not dangling .
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_result_set_iter_destroy` is provided for releasing the memory for this
@@ -737,8 +629,6 @@ pub unsafe extern "C" fn rows_iter(rows: *mut Vec<Vec<TypedValue>>) ->  *mut Typ
 ///
 /// # Safety
 ///
-/// Callers must ensure that the pointer to the `Vec<Vec<TypedValue>>` is not dangling .
-///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_list_destroy` is provided for releasing the memory for this
 /// pointer type.
@@ -752,8 +642,6 @@ pub unsafe extern "C" fn rows_iter_next(iter: *mut TypedValueListIterator) ->  *
 ///
 /// # Safety
 ///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
-///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_list_iter_destroy` is provided for releasing the memory for this
 /// pointer type.
@@ -763,12 +651,10 @@ pub unsafe extern "C" fn values_iter(values: *mut Vec<TypedValue>) ->  *mut Type
     Box::into_raw(Box::new(result.into_iter()))
 }
 
-/// Returns the next value in the `iter` as a `ValueType`.
+/// Returns the next value in the `iter` as a [TypedValue](mentat::TypedValue).
 /// If there is no value next value, a null pointer is returned.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_destroy` is provided for releasing the memory for this
@@ -779,12 +665,10 @@ pub unsafe extern "C" fn values_iter_next(iter: *mut TypedValueIterator) ->  *mu
     iter.next().map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v)))
 }
 
-/// Returns the value at the provided `index` as a `ValueType`.
+/// Returns the value at the provided `index` as a [TypedValue](mentat::TypedValue).
 /// If there is no value present at the `index`, a null pointer is returned.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_destroy` is provided for releasing the memory for this
@@ -795,16 +679,12 @@ pub unsafe extern "C" fn value_at_index(values: *mut Vec<TypedValue>, index: c_i
     result.get(index as usize).expect("No value at index") as *const TypedValue
 }
 
-/// Returns the value of the `TypedValue` at `index` as a `long`.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as a `long`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Long`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not `ValueType::Long`.
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_long(values: *mut Vec<TypedValue>, index: c_int) ->  c_longlong {
     let result = &*values;
@@ -812,16 +692,12 @@ pub unsafe extern "C" fn value_at_index_as_long(values: *mut Vec<TypedValue>, in
     unwrap_conversion(value.clone().into_long(), ValueType::Long)
 }
 
-/// Returns the value of the `TypedValue` at `index` as an `Entid`.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as an [Entid](mentat::Entid).
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Ref`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not `ValueType::Ref`.
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_entid(values: *mut Vec<TypedValue>, index: c_int) ->  Entid {
     let result = &*values;
@@ -829,16 +705,12 @@ pub unsafe extern "C" fn value_at_index_as_entid(values: *mut Vec<TypedValue>, i
     unwrap_conversion(value.clone().into_entid(), ValueType::Ref)
 }
 
-/// Returns the value of the `TypedValue` at `index` as a keyword `String`.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as a keyword C `String`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Ref`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Ref](mentat::ValueType::Ref).
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_kw(values: *mut Vec<TypedValue>, index: c_int) ->  *const c_char {
     let result = &*values;
@@ -846,18 +718,14 @@ pub unsafe extern "C" fn value_at_index_as_kw(values: *mut Vec<TypedValue>, inde
     string_to_c_char(unwrap_conversion(value.clone().into_kw(), ValueType::Keyword).to_string())
 }
 
-/// Returns the value of the `TypedValue` at `index` as a boolean represented by a `i32`.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as a boolean represented by a `i32`.
 /// If the value of the `boolean` is `true` then the value returned is 1.
 /// If the value of the `boolean` is `false` then the value returned is 0.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Long`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Long](mentat::ValueType::Long).
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_boolean(values: *mut Vec<TypedValue>, index: c_int) ->  i32 {
     let result = &*values;
@@ -865,16 +733,12 @@ pub unsafe extern "C" fn value_at_index_as_boolean(values: *mut Vec<TypedValue>,
     if unwrap_conversion(value.clone().into_boolean(), ValueType::Boolean) { 1 } else { 0 }
 }
 
-/// Returns the value of the `TypedValue` at `index` as an `f64`.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as an `f64`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Double`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Double](mentat::ValueType::Double).
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_double(values: *mut Vec<TypedValue>, index: c_int) ->  f64 {
     let result = &*values;
@@ -882,16 +746,12 @@ pub unsafe extern "C" fn value_at_index_as_double(values: *mut Vec<TypedValue>, 
     unwrap_conversion(value.clone().into_double(), ValueType::Boolean)
 }
 
-/// Returns the value of the `TypedValue` at `index` as a microsecond timestamp.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as a microsecond timestamp.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::instant`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Instant](mentat::ValueType::Instant).
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<TypedValue>, index: c_int) ->  c_longlong {
     let result = &*values;
@@ -899,16 +759,12 @@ pub unsafe extern "C" fn value_at_index_as_timestamp(values: *mut Vec<TypedValue
     unwrap_conversion(value.clone().into_timestamp(), ValueType::Instant)
 }
 
-/// Returns the value of the `TypedValue` at `index` as an `String`.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as a C `String`.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::String`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::String](mentat::ValueType::String).
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<TypedValue>, index: c_int) ->  *mut c_char {
     let result = &*values;
@@ -916,16 +772,12 @@ pub unsafe extern "C" fn value_at_index_as_string(values: *mut Vec<TypedValue>, 
     c_char_from_rc(unwrap_conversion(value.clone().into_string(), ValueType::String))
 }
 
-/// Returns the value of the `TypedValue` at `index` as a UUID byte slice of length 16.
+/// Returns the value of the [TypedValue](mentat::TypedValue) at `index` as a UUID byte slice of length 16.
 ///
 /// # Panics
 ///
-/// If the `ValueType` of the `TypedValue` is not `ValueType::Uuid`.
+/// If the [ValueType](mentat::ValueType) of the [TypedValue](mentat::TypedValue) is not [ValueType::Uuid](mentat::ValueType::Uuid).
 /// If there is no value at `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Vec<TypedValue>` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn value_at_index_as_uuid(values: *mut Vec<TypedValue>, index: c_int) ->  *mut [u8; 16] {
     let result = &*values;
@@ -934,16 +786,14 @@ pub unsafe extern "C" fn value_at_index_as_uuid(values: *mut Vec<TypedValue>, in
     Box::into_raw(Box::new(*uuid.as_bytes()))
 }
 
-/// Returns an `ExternResult` containing the `TypedValue` associated with the `attribute` as `:namespace/name`
+/// Returns an [ExternResult](ExternResult) containing the [TypedValue](mentat::TypedValue) associated with the `attribute` as `:namespace/name`
 /// for the given `entid`.
 /// If there is a value for that `attribute` on the entity with id `entid` then the value is returned in `ok`.
 /// If there no value for that `attribute` on the entity with id `entid` but the attribute is value,
 /// then a null pointer is returned in `ok`.
-/// If there is no `Attribute` in the `Schema` for the given `attribute` then an error is returned in `err`.
+/// If there is no [Attribute](mentat::Attribute) in the [Schema](mentat::Schema) for the given `attribute` then an error is returned in `err`.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling .
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `destroy` is provided for releasing the memory for this
@@ -962,18 +812,13 @@ pub unsafe extern "C" fn store_value_for_attribute(store: *mut Store, entid: c_l
     Box::into_raw(Box::new(value))
 }
 
-/// Registers a `TxObserver` with the `key` to observe changes to `attributes`
+/// Registers a [TxObserver](mentat::TxObserver) with the `key` to observe changes to `attributes`
 /// on this `store`.
 /// Calls `callback` is a relevant transaction occurs.
 ///
 /// # Panics
 ///
-/// If there is no `Attribute` in the `Schema` for a given `attribute`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling, that the
-/// C string in `key` is valid and that the function pointer is not dangling.
+/// If there is no [Attribute](mentat::Attribute)  in the [Schema](mentat::Schema)  for a given `attribute`.
 ///
 #[no_mangle]
 pub unsafe extern "C" fn store_register_observer(store: *mut Store,
@@ -1006,12 +851,7 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
     store.register_observer(key, tx_observer);
 }
 
-/// Unregisters a `TxObserver` with the `key` to observe changes on this `store`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling, that the
-/// C string in `key` is valid.
+/// Unregisters a [TxObserver](mentat::TxObserver)  with the `key` to observe changes on this `store`.
 #[no_mangle]
 pub unsafe extern "C" fn store_unregister_observer(store: *mut Store, key: *const c_char) {
     let store = &mut*store;
@@ -1019,16 +859,11 @@ pub unsafe extern "C" fn store_unregister_observer(store: *mut Store, key: *cons
     store.unregister_observer(&key);
 }
 
-/// Returns the `Entid` associated with the `attr` as `:namespace/name`.
+/// Returns the [Entid](mentat::Entid)  associated with the `attr` as `:namespace/name`.
 ///
 /// # Panics
 ///
-/// If there is no `Attribute` in the `Schema` for `attr`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `Store` is not dangling, that the
-/// C string in `attr` is valid.
+/// If there is no [Attribute](mentat::Attribute)  in the [Schema](mentat::Schema)  for `attr`.
 #[no_mangle]
 pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *const c_char) -> Entid {
     let store = &mut*store;
@@ -1039,15 +874,13 @@ pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *con
     current_schema.get_entid(&kw).expect("Unable to find entid for invalid attribute").into()
 }
 
-/// Returns the value at the provided `index` as a `TransactionChange`.
+/// Returns the value at the provided `index` as a [TransactionChange](TransactionChange) .
 ///
 /// # Panics
 ///
 /// If there is no value present at the `index`.
 ///
 /// # Safety
-///
-/// Callers must ensure that the pointer to the `TxChangeList` is not dangling .
 ///
 /// Callers are responsible for managing the memory for the return value.
 /// A destructor `typed_value_destroy` is provided for releasing the memory for this
@@ -1060,15 +893,11 @@ pub unsafe extern "C" fn tx_change_list_entry_at(tx_report_list: *mut TxChangeLi
     Box::into_raw(report)
 }
 
-/// Returns the value at the provided `index` as a `Entid`.
+/// Returns the value at the provided `index` as a [Entid](mentat::Entid) .
 ///
 /// # Panics
 ///
 /// If there is no value present at the `index`.
-///
-/// # Safety
-///
-/// Callers must ensure that the pointer to the `TransactionChange` is not dangling .
 #[no_mangle]
 pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut TransactionChange, index: c_int) -> Entid {
     let tx_report = &*tx_report;
@@ -1094,26 +923,26 @@ macro_rules! define_destructor (
     )
 );
 
-/// Destructor for releasing the memory of `QueryBuilder`.
+/// Destructor for releasing the memory of [QueryBuilder](mentat::QueryBuilder) .
 define_destructor!(query_builder_destroy, QueryBuilder);
 
-/// Destructor for releasing the memory of `Store`.
+/// Destructor for releasing the memory of [Store](mentat::Store) .
 define_destructor!(store_destroy, Store);
 
-/// Destructor for releasing the memory of `TxReport`.
+/// Destructor for releasing the memory of [TxReport](mentat::TxReport) .
 define_destructor!(tx_report_destroy, TxReport);
 
-/// Destructor for releasing the memory of `TypedValue`.
+/// Destructor for releasing the memory of [TypedValue](mentat::TypedValue).
 define_destructor!(typed_value_destroy, TypedValue);
 
 /// Destructor for releasing the memory of `Vec<TypedValue>`.
 define_destructor!(typed_value_list_destroy, Vec<TypedValue>);
 
-/// Destructor for releasing the memory of `TypedValueIterator`.
+/// Destructor for releasing the memory of [TypedValueIterator](TypedValueIterator) .
 define_destructor!(typed_value_list_iter_destroy, TypedValueIterator);
 
 /// Destructor for releasing the memory of `Vec<Vec<TypedValue>>`.
 define_destructor!(typed_value_result_set_destroy, Vec<Vec<TypedValue>>);
 
-/// Destructor for releasing the memory of `TypedValueListIterator`.
+/// Destructor for releasing the memory of [TypedValueListIterator](TypedValueListIterator) .
 define_destructor!(typed_value_result_set_iter_destroy, TypedValueListIterator);
