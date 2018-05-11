@@ -72,30 +72,30 @@ public interface JNA extends Library {
     RustResult query_builder_execute_tuple(Pointer query);
 
     // Query Result Processing
-    long typed_value_as_long(Pointer value);
-    long typed_value_as_entid(Pointer value);
-    String typed_value_as_kw(Pointer value);
-    String typed_value_as_string(Pointer value);
-    Pointer typed_value_as_uuid(Pointer value);
-    int typed_value_as_boolean(Pointer value);
-    double typed_value_as_double(Pointer value);
-    long typed_value_as_timestamp(Pointer value);
+    long typed_value_into_long(Pointer value);
+    long typed_value_into_entid(Pointer value);
+    String typed_value_into_kw(Pointer value);
+    String typed_value_into_string(Pointer value);
+    Pointer typed_value_into_uuid(Pointer value);
+    int typed_value_into_boolean(Pointer value);
+    double typed_value_into_double(Pointer value);
+    long typed_value_into_timestamp(Pointer value);
     Pointer typed_value_value_type(Pointer value);
 
     Pointer row_at_index(Pointer rows, int index);
-    Pointer rows_iter(Pointer rows);
-    Pointer rows_iter_next(Pointer iter);
+    Pointer typed_value_result_set_into_iter(Pointer rows);
+    Pointer typed_value_result_set_iter_next(Pointer iter);
 
-    Pointer values_iter(Pointer rows);
-    Pointer values_iter_next(Pointer iter);
+    Pointer typed_value_list_into_iter(Pointer rows);
+    Pointer typed_value_list_iter_next(Pointer iter);
 
     Pointer value_at_index(Pointer rows, int index);
-    long value_at_index_as_long(Pointer rows, int index);
-    long value_at_index_as_entid(Pointer rows, int index);
-    String value_at_index_as_kw(Pointer rows, int index);
-    String value_at_index_as_string(Pointer rows, int index);
-    Pointer value_at_index_as_uuid(Pointer rows, int index);
-    long value_at_index_as_boolean(Pointer rows, int index);
-    double value_at_index_as_double(Pointer rows, int index);
-    long value_at_index_as_timestamp(Pointer rows, int index);
+    long value_at_index_into_long(Pointer rows, int index);
+    long value_at_index_into_entid(Pointer rows, int index);
+    String value_at_index_into_kw(Pointer rows, int index);
+    String value_at_index_into_string(Pointer rows, int index);
+    Pointer value_at_index_into_uuid(Pointer rows, int index);
+    long value_at_index_into_boolean(Pointer rows, int index);
+    double value_at_index_into_double(Pointer rows, int index);
+    long value_at_index_into_timestamp(Pointer rows, int index);
 }

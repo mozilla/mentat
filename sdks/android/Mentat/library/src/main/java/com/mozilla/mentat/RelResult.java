@@ -69,7 +69,7 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
     @Override
     public RelResultIterator iterator() {
         this.validate();
-        Pointer iterPointer = JNA.INSTANCE.rows_iter(this.rawPointer);
+        Pointer iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.rawPointer);
         this.rawPointer = null;
         if (iterPointer == null) {
             return null;

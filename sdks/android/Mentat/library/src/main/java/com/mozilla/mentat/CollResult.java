@@ -50,7 +50,7 @@ public class CollResult extends TupleResult implements Iterable<TypedValue> {
 
     @Override
     public ColResultIterator iterator() {
-        Pointer iterPointer = JNA.INSTANCE.values_iter(this.rawPointer);
+        Pointer iterPointer = JNA.INSTANCE.typed_value_list_into_iter(this.rawPointer);
         this.rawPointer = null;
         if (iterPointer == null) {
             return null;

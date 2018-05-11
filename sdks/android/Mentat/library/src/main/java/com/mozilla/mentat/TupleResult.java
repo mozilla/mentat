@@ -66,7 +66,7 @@ public class TupleResult extends RustObject {
      */
     public Long asLong(Integer index) {
         this.validate();
-        return JNA.INSTANCE.value_at_index_as_long(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_long(this.rawPointer, index);
     }
 
     /**
@@ -78,7 +78,7 @@ public class TupleResult extends RustObject {
      */
     public Long asEntid(Integer index) {
         this.validate();
-        return JNA.INSTANCE.value_at_index_as_entid(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_entid(this.rawPointer, index);
     }
 
     /**
@@ -90,7 +90,7 @@ public class TupleResult extends RustObject {
      */
     public String asKeyword(Integer index) {
         this.validate();
-        return JNA.INSTANCE.value_at_index_as_kw(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_kw(this.rawPointer, index);
     }
 
     /**
@@ -102,7 +102,7 @@ public class TupleResult extends RustObject {
      */
     public Boolean asBool(Integer index) {
         this.validate();
-        return JNA.INSTANCE.value_at_index_as_boolean(this.rawPointer, index) == 0 ? false : true;
+        return JNA.INSTANCE.value_at_index_into_boolean(this.rawPointer, index) == 0 ? false : true;
     }
 
     /**
@@ -114,7 +114,7 @@ public class TupleResult extends RustObject {
      */
     public Double asDouble(Integer index) {
         this.validate();
-        return JNA.INSTANCE.value_at_index_as_double(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_double(this.rawPointer, index);
     }
 
     /**
@@ -126,7 +126,7 @@ public class TupleResult extends RustObject {
      */
     public Date asDate(Integer index) {
         this.validate();
-        return new Date(JNA.INSTANCE.value_at_index_as_timestamp(this.rawPointer, index));
+        return new Date(JNA.INSTANCE.value_at_index_into_timestamp(this.rawPointer, index));
     }
 
     /**
@@ -138,7 +138,7 @@ public class TupleResult extends RustObject {
      */
     public String asString(Integer index) {
         this.validate();
-        return JNA.INSTANCE.value_at_index_as_string(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_string(this.rawPointer, index);
     }
 
     /**
@@ -150,7 +150,7 @@ public class TupleResult extends RustObject {
      */
     public UUID asUUID(Integer index) {
         this.validate();
-        Pointer uuidPtr = JNA.INSTANCE.value_at_index_as_uuid(this.rawPointer, index);
+        Pointer uuidPtr = JNA.INSTANCE.value_at_index_into_uuid(this.rawPointer, index);
         byte[] bytes = uuidPtr.getByteArray(0, 16);
         ByteBuffer bb = ByteBuffer.wrap(bytes);
         long high = bb.getLong();

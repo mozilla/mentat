@@ -139,31 +139,31 @@ struct Result*_Nonnull query_builder_execute_coll(struct Query*_Nonnull query);
 struct Result*_Nonnull query_builder_execute_tuple(struct Query*_Nonnull query);
 
 // Query Result Processing
-int64_t typed_value_as_long(struct TypedValue*_Nonnull  value);
-int64_t typed_value_as_entid(struct TypedValue*_Nonnull  value);
-const char* _Nonnull typed_value_as_kw(struct TypedValue*_Nonnull  value);
-int32_t typed_value_as_boolean(struct TypedValue*_Nonnull  value);
-double typed_value_as_double(struct TypedValue*_Nonnull  value);
-int64_t typed_value_as_timestamp(struct TypedValue*_Nonnull  value);
-const char* _Nonnull typed_value_as_string(struct TypedValue*_Nonnull  value);
-const uuid_t* _Nonnull typed_value_as_uuid(struct TypedValue*_Nonnull  value);
+int64_t typed_value_into_long(struct TypedValue*_Nonnull  value);
+int64_t typed_value_into_entid(struct TypedValue*_Nonnull  value);
+const char* _Nonnull typed_value_into_kw(struct TypedValue*_Nonnull  value);
+int32_t typed_value_into_boolean(struct TypedValue*_Nonnull  value);
+double typed_value_into_double(struct TypedValue*_Nonnull  value);
+int64_t typed_value_into_timestamp(struct TypedValue*_Nonnull  value);
+const char* _Nonnull typed_value_into_string(struct TypedValue*_Nonnull  value);
+const uuid_t* _Nonnull typed_value_into_uuid(struct TypedValue*_Nonnull  value);
 enum ValueType typed_value_value_type(struct TypedValue*_Nonnull value);
 
 struct QueryResultRow* _Nullable row_at_index(struct QueryResultRows* _Nonnull rows, const int32_t index);
-struct QueryRowsIterator* _Nonnull rows_iter(struct QueryResultRows* _Nonnull rows);
-struct QueryResultRow* _Nullable rows_iter_next(struct QueryRowsIterator* _Nonnull iter);
-struct QueryRowIterator* _Nonnull values_iter(struct QueryResultRow* _Nonnull row);
-struct TypedValue* _Nullable values_iter_next(struct QueryRowIterator* _Nonnull iter);
+struct QueryRowsIterator* _Nonnull typed_value_result_set_into_iter(struct QueryResultRows* _Nonnull rows);
+struct QueryResultRow* _Nullable typed_value_result_set_iter_next(struct QueryRowsIterator* _Nonnull iter);
+struct QueryRowIterator* _Nonnull typed_value_list_into_iter(struct QueryResultRow* _Nonnull row);
+struct TypedValue* _Nullable typed_value_list_iter_next(struct QueryRowIterator* _Nonnull iter);
 
 struct TypedValue* _Nonnull value_at_index(struct QueryResultRow* _Nonnull row, const int32_t index);
-int64_t value_at_index_as_long(struct QueryResultRow* _Nonnull row, const int32_t index);
-int64_t value_at_index_as_entid(struct QueryResultRow* _Nonnull row, const int32_t index);
-const char* _Nonnull value_at_index_as_kw(struct QueryResultRow* _Nonnull row, const int32_t index);
-int32_t value_at_index_as_boolean(struct QueryResultRow* _Nonnull row, const int32_t index);
-double value_at_index_as_double(struct QueryResultRow* _Nonnull row, const int32_t index);
-int64_t value_at_index_as_timestamp(struct QueryResultRow* _Nonnull row, const int32_t index);
-const char* _Nonnull value_at_index_as_string(struct QueryResultRow* _Nonnull row, const int32_t index);
-const uuid_t* _Nonnull value_at_index_as_uuid(struct QueryResultRow* _Nonnull row, const int32_t index);
+int64_t value_at_index_into_long(struct QueryResultRow* _Nonnull row, const int32_t index);
+int64_t value_at_index_into_entid(struct QueryResultRow* _Nonnull row, const int32_t index);
+const char* _Nonnull value_at_index_into_kw(struct QueryResultRow* _Nonnull row, const int32_t index);
+int32_t value_at_index_into_boolean(struct QueryResultRow* _Nonnull row, const int32_t index);
+double value_at_index_into_double(struct QueryResultRow* _Nonnull row, const int32_t index);
+int64_t value_at_index_into_timestamp(struct QueryResultRow* _Nonnull row, const int32_t index);
+const char* _Nonnull value_at_index_into_string(struct QueryResultRow* _Nonnull row, const int32_t index);
+const uuid_t* _Nonnull value_at_index_into_uuid(struct QueryResultRow* _Nonnull row, const int32_t index);
 
 // Transaction change lists
 const struct TxChange* _Nullable tx_change_list_entry_at(const struct TxChangeList* _Nonnull list, size_t index);

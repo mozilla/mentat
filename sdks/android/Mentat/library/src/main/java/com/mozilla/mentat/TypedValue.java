@@ -45,7 +45,7 @@ public class TypedValue extends RustObject {
      */
     public Long asLong() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_as_long(this.rawPointer);
+            this.value = JNA.INSTANCE.typed_value_into_long(this.rawPointer);
             this.rawPointer = null;
         }
         return (Long)value;
@@ -58,7 +58,7 @@ public class TypedValue extends RustObject {
      */
     public Long asEntid() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_as_entid(this.rawPointer);
+            this.value = JNA.INSTANCE.typed_value_into_entid(this.rawPointer);
             this.rawPointer = null;
         }
         return (Long)value;
@@ -71,7 +71,7 @@ public class TypedValue extends RustObject {
      */
     public String asKeyword() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_as_kw(this.rawPointer);
+            this.value = JNA.INSTANCE.typed_value_into_kw(this.rawPointer);
             this.rawPointer = null;
         }
         return (String)value;
@@ -84,7 +84,7 @@ public class TypedValue extends RustObject {
      */
     public Boolean asBoolean() {
         if (!this.isConsumed()) {
-            long value = JNA.INSTANCE.typed_value_as_boolean(this.rawPointer);
+            long value = JNA.INSTANCE.typed_value_into_boolean(this.rawPointer);
             this.value = value == 0 ? false : true;
             this.rawPointer = null;
         }
@@ -98,7 +98,7 @@ public class TypedValue extends RustObject {
      */
     public Double asDouble() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_as_double(this.rawPointer);
+            this.value = JNA.INSTANCE.typed_value_into_double(this.rawPointer);
             this.rawPointer = null;
         }
         return (Double)value;
@@ -111,7 +111,7 @@ public class TypedValue extends RustObject {
      */
     public Date asDate() {
         if (!this.isConsumed()) {
-            this.value = new Date(JNA.INSTANCE.typed_value_as_timestamp(this.rawPointer) * 1_000);
+            this.value = new Date(JNA.INSTANCE.typed_value_into_timestamp(this.rawPointer) * 1_000);
             this.rawPointer = null;
         }
         return (Date)this.value;
@@ -124,7 +124,7 @@ public class TypedValue extends RustObject {
      */
     public String asString() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_as_string(this.rawPointer);
+            this.value = JNA.INSTANCE.typed_value_into_string(this.rawPointer);
             this.rawPointer = null;
         }
         return (String)value;
@@ -137,7 +137,7 @@ public class TypedValue extends RustObject {
      */
     public UUID asUUID() {
         if (!this.isConsumed()) {
-            Pointer uuidPtr = JNA.INSTANCE.typed_value_as_uuid(this.rawPointer);
+            Pointer uuidPtr = JNA.INSTANCE.typed_value_into_uuid(this.rawPointer);
             byte[] bytes = uuidPtr.getByteArray(0, 16);
             ByteBuffer bb = ByteBuffer.wrap(bytes);
             long high = bb.getLong();

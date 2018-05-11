@@ -48,7 +48,7 @@ class TypedValue: OptionalRustObject {
             self.raw = nil
         }
         if !self.isConsumed() {
-            self.value = typed_value_as_long(self.raw!)
+            self.value = typed_value_into_long(self.raw!)
         }
         return self.value as! Int64
     }
@@ -65,7 +65,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            self.value = typed_value_as_entid(self.raw!)
+            self.value = typed_value_into_entid(self.raw!)
         }
         return self.value as! Entid
     }
@@ -82,7 +82,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            self.value = String(cString: typed_value_as_kw(self.raw!))
+            self.value = String(cString: typed_value_into_kw(self.raw!))
         }
         return self.value as! String
     }
@@ -99,7 +99,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            let v = typed_value_as_boolean(self.raw!)
+            let v = typed_value_into_boolean(self.raw!)
             self.value =  v > 0
         }
         return self.value as! Bool
@@ -117,7 +117,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            self.value = typed_value_as_double(self.raw!)
+            self.value = typed_value_into_double(self.raw!)
         }
         return self.value as! Double
     }
@@ -134,7 +134,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            let timestamp = typed_value_as_timestamp(self.raw!)
+            let timestamp = typed_value_into_timestamp(self.raw!)
             self.value = Date(timeIntervalSince1970: TimeInterval(timestamp))
         }
         return self.value as! Date
@@ -152,7 +152,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            self.value = String(cString: typed_value_as_string(self.raw!))
+            self.value = String(cString: typed_value_into_string(self.raw!))
         }
         return self.value as! String
     }
@@ -169,7 +169,7 @@ class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            let bytes = typed_value_as_uuid(self.raw!).pointee
+            let bytes = typed_value_into_uuid(self.raw!).pointee
             self.value = UUID(uuid: bytes)
         }
         return self.value as! UUID?
