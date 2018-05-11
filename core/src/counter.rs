@@ -8,26 +8,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std::cell::Cell;
 use std::rc::Rc;
-
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
 
 #[derive(Clone)]
 pub struct RcCounter {
-    c: Rc<AtomicUsize>,
+    c: Rc<Cell<usize>>,
 }
 
 /// A simple shared counter.
 impl RcCounter {
     pub fn with_initial(value: usize) -> Self {
-        RcCounter { c: Rc::new(AtomicUsize::new(value)) }
+        RcCounter { c: Rc::new(Cell::new(value)) }
     }
 
     pub fn new() -> Self {
-        RcCounter { c: Rc::new(AtomicUsize::new(0)) }
+        RcCounter { c: Rc::new(Cell::new(0)) }
     }
 
     /// Return the next value in the sequence.
@@ -43,7 +39,8 @@ impl RcCounter {
     /// assert_eq!(c.next(), 6);
     /// ```
     pub fn next(&self) -> usize {
-        self.c.fetch_add(1, Ordering::SeqCst)
+        let current = self.c.get();
+        self.c.replace(current + 1)
     }
 }
 
