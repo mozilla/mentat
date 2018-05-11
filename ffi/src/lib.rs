@@ -296,7 +296,7 @@ pub unsafe extern "C" fn tx_report_get_tx_instant(tx_report: *mut TxReport) -> c
 pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, tempid: *const c_char) -> *mut c_longlong {
     let tx_report = &*tx_report;
     let key = c_char_to_string(tempid);
-    if let Some(entid) = tx_report.tempids.get(&key) {
+    if let Some(entid) = tx_report.tempids.get(key) {
         Box::into_raw(Box::new(entid.clone() as c_longlong))
     } else {
         std::ptr::null_mut()
@@ -853,14 +853,14 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
         };
         callback(string_to_c_char(obs_key), &reports);
     }));
-    store.register_observer(key, tx_observer);
+    store.register_observer(key.to_string(), tx_observer);
 }
 
 /// Unregisters a [TxObserver](mentat::TxObserver)  with the `key` to observe changes on this `store`.
 #[no_mangle]
 pub unsafe extern "C" fn store_unregister_observer(store: *mut Store, key: *const c_char) {
     let store = &mut*store;
-    let key = c_char_to_string(key);
+    let key = c_char_to_string(key).to_string();
     store.unregister_observer(&key);
 }
 
