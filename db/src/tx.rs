@@ -172,9 +172,11 @@ pub fn remove_db_id<V: TransactableValue>(map: &mut entmod::MapNotation<V>) -> R
 
     let db_id: Option<entmod::EntityPlace<V>> = if let Some(id) = map.remove(&db_id_key) {
         match id {
+            entmod::ValuePlace::Entid(e) => Some(entmod::EntityPlace::Entid(e)),
+            entmod::ValuePlace::LookupRef(e) => Some(entmod::EntityPlace::LookupRef(e)),
+            entmod::ValuePlace::TempId(e) => Some(entmod::EntityPlace::TempId(e)),
+            entmod::ValuePlace::TxFunction(e) => Some(entmod::EntityPlace::TxFunction(e)),
             entmod::ValuePlace::Atom(v) => Some(v.into_entity_place()?),
-            entmod::ValuePlace::LookupRef(_) |
-            entmod::ValuePlace::TxFunction(_) |
             entmod::ValuePlace::Vector(_) |
             entmod::ValuePlace::MapNotation(_) => {
                 bail!(ErrorKind::InputError(errors::InputError::BadDbId))
@@ -382,6 +384,12 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 }
                             },
 
+                            entmod::ValuePlace::Entid(entid) =>
+                                Ok(Either::Left(KnownEntid(self.entity_a_into_term_a(entid)?))),
+
+                            entmod::ValuePlace::TempId(tempid) =>
+                                Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(tempid)))),
+
                             entmod::ValuePlace::LookupRef(ref lookup_ref) =>
                                 Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
 
@@ -458,6 +466,12 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                     v.into_typed_value(&self.schema, attribute.value_type).map(Either::Left)?
                                 }
                             },
+
+                            entmod::ValuePlace::Entid(entid) =>
+                                Either::Left(TypedValue::Ref(in_process.entity_a_into_term_a(entid)?)),
+
+                            entmod::ValuePlace::TempId(tempid) =>
+                                Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(tempid))),
 
                             entmod::ValuePlace::LookupRef(ref lookup_ref) => {
                                 if attribute.value_type != ValueType::Ref {
