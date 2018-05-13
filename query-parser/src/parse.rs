@@ -67,6 +67,7 @@ use self::mentat_query::{
     Order,
     OrJoin,
     OrWhereClause,
+    NamedPullAttribute,
     NotJoin,
     Pattern,
     PatternNonValuePlace,
@@ -191,6 +192,7 @@ def_parser!(Query, order, Order, {
 def_matches_plain_symbol!(Query, the, "the");
 def_matches_plain_symbol!(Query, pull, "pull");
 def_matches_plain_symbol!(Query, wildcard, "*");
+def_matches_keyword!(Query, alias_as, "as");
 
 pub struct Where<'a>(std::marker::PhantomData<&'a ()>);
 
@@ -303,11 +305,19 @@ def_parser!(Query, aggregate, Aggregate, {
          })
 });
 
+def_parser!(Query, pull_concrete_attribute_ident, PullConcreteAttribute, {
+    forward_keyword().map(|k| PullConcreteAttribute::Ident(::std::rc::Rc::new(k.clone())))
+});
+
 def_parser!(Query, pull_concrete_attribute, PullAttributeSpec, {
-    forward_keyword().map(|k|
+    (Query::pull_concrete_attribute_ident(),
+     optional(try(Query::alias_as().with(forward_keyword().map(|alias| ::std::rc::Rc::new(alias.clone()))))))
+    .map(|(attribute, alias)|
         PullAttributeSpec::Attribute(
-            PullConcreteAttribute::Ident(
-                ::std::rc::Rc::new(k.clone()))))
+            NamedPullAttribute {
+                attribute,
+                alias: alias,
+            }))
 });
 
 def_parser!(Query, pull_wildcard_attribute, PullAttributeSpec, {
@@ -1205,23 +1215,27 @@ mod test {
 
         let foo_bar = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"));
         let foo_baz = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "baz"));
+        let foo_horse = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "horse"));
         assert_edn_parses_to!(Query::pull_concrete_attribute,
                               ":foo/bar",
                               PullAttributeSpec::Attribute(
-                                  PullConcreteAttribute::Ident(foo_bar.clone())));
+                                  PullConcreteAttribute::Ident(foo_bar.clone()).into()));
         assert_edn_parses_to!(Query::pull_attribute,
                               ":foo/bar",
                               PullAttributeSpec::Attribute(
-                                  PullConcreteAttribute::Ident(foo_bar.clone())));
+                                  PullConcreteAttribute::Ident(foo_bar.clone()).into()));
         assert_edn_parses_to!(Find::elem,
-                              "(pull ?v [:foo/bar :foo/baz])",
+                              "(pull ?v [:foo/bar :as :foo/horse, :foo/baz])",
                               Element::Pull(Pull {
                                   var: Variable::from_valid_name("?v"),
                                   patterns: vec![
                                       PullAttributeSpec::Attribute(
-                                          PullConcreteAttribute::Ident(foo_bar.clone())),
+                                          NamedPullAttribute {
+                                              attribute: PullConcreteAttribute::Ident(foo_bar.clone()),
+                                              alias: Some(foo_horse),
+                                          }),
                                       PullAttributeSpec::Attribute(
-                                          PullConcreteAttribute::Ident(foo_baz.clone())),
+                                          PullConcreteAttribute::Ident(foo_baz.clone()).into()),
                                   ],
                               }));
         assert_parse_failure_contains!(Find::elem,
@@ -1242,7 +1256,7 @@ mod test {
                             PullAttributeSpec::Attribute(
                                 PullConcreteAttribute::Ident(
                                     ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"))
-                                )
+                                ).into()
                             ),
                         ] })]),
                 where_clauses: vec![

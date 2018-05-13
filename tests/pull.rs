@@ -116,7 +116,9 @@ fn test_simple_pull() {
     assert_eq!(pulled, expected);
 
     // Now test pull inside the query itself.
-    let query = r#"[:find ?hood (pull ?district [:district/name :district/region])
+    let query = r#"[:find ?hood (pull ?district [:db/id
+                                                 :district/name :as :district/district
+                                                 :district/region])
                     :where
                     (or [?hood :neighborhood/name "Beacon Hill"]
                         [?hood :neighborhood/name "Capitol Hill"])
@@ -127,22 +129,24 @@ fn test_simple_pull() {
                                            .into_rel_result()
                                            .expect("results");
 
-    let beacon_district: Vec<(Keyword, TypedValue)> = vec![
-        (kw!(:district/name), "Greater Duwamish".into()),
-        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "se")).unwrap().into())
+    let beacon_district_pull: Vec<(Keyword, TypedValue)> = vec![
+        (kw!(:db/id), TypedValue::Ref(beacon_district)),
+        (kw!(:district/district), "Greater Duwamish".into()),
+        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "se")).unwrap().into()),
     ];
-    let beacon_district: StructuredMap = beacon_district.into();
-    let capitol_district: Vec<(Keyword, TypedValue)> = vec![
-        (kw!(:district/name), "East".into()),
-        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "e")).unwrap().into())
+    let beacon_district_pull: StructuredMap = beacon_district_pull.into();
+    let capitol_district_pull: Vec<(Keyword, TypedValue)> = vec![
+        (kw!(:db/id), TypedValue::Ref(capitol_district)),
+        (kw!(:district/district), "East".into()),
+        (kw!(:district/region), schema.get_entid(&Keyword::namespaced("region", "e")).unwrap().into()),
     ];
-    let capitol_district: StructuredMap = capitol_district.into();
+    let capitol_district_pull: StructuredMap = capitol_district_pull.into();
 
     let expected = RelResult {
                        width: 2,
                        values: vec![
-                           TypedValue::Ref(capitol).into(), capitol_district.into(),
-                           TypedValue::Ref(beacon).into(), beacon_district.into(),
+                           TypedValue::Ref(capitol).into(), capitol_district_pull.into(),
+                           TypedValue::Ref(beacon).into(), beacon_district_pull.into(),
                        ].into(),
                    };
     assert_eq!(results, expected.clone());
@@ -158,14 +162,19 @@ fn test_simple_pull() {
 
     // Execute a scalar query where the body is constant.
     // TODO: we shouldn't require `:where`; that makes this non-constant!
-    let query = r#"[:find (pull ?hood [:neighborhood/name]) . :in ?hood
+    let query = r#"[:find (pull ?hood [:db/id :as :neighborhood/id
+                                       :neighborhood/name]) .
+                    :in ?hood
                     :where [?hood :neighborhood/district _]]"#;
     let result = reader.q_once(query, QueryInputs::with_value_sequence(vec![(var!(?hood), TypedValue::Ref(beacon))]))
                        .into_scalar_result()
                        .expect("success")
                        .expect("result");
 
-    let expected: StructuredMap = vec![(kw!(:neighborhood/name), TypedValue::from("Beacon Hill"))].into();
+    let expected: StructuredMap = vec![
+        (kw!(:neighborhood/name), TypedValue::from("Beacon Hill")),
+        (kw!(:neighborhood/id), TypedValue::Ref(beacon)),
+    ].into();
     assert_eq!(result, expected.into());
 
     // Collect the names and regions of all districts.
@@ -207,6 +216,35 @@ fn test_simple_pull() {
     let expected: Vec<Binding> = expected.into_iter().map(|m| m.into()).collect();
     assert_eq!(results, expected);
 
+    // Pull fulltext.
+    let query = r#"[:find [(pull ?c [:community/name :community/category]) ...]
+                    :where
+                    [?c :community/name ?name]
+                    [?c :community/type :community.type/website]
+                    [(fulltext $ :community/category "food") [[?c ?cat]]]]"#;
+    let results = reader.q_once(query, None)
+                        .into_coll_result()
+                        .expect("result");
+    let expected: Vec<StructuredMap> = vec![
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("Community Harvest of Southwest Seattle"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("sustainable food"))].into())].into(),
+
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("InBallard"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("shopping")),
+                                             Binding::Scalar(TypedValue::from("food")),
+                                             Binding::Scalar(TypedValue::from("nightlife")),
+                                             Binding::Scalar(TypedValue::from("services"))].into())].into(),
+
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("Seattle Chinatown Guide"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("shopping")),
+                                             Binding::Scalar(TypedValue::from("food"))].into())].into(),
+
+        vec![(kw!(:community/name), Binding::Scalar(TypedValue::from("University District Food Bank"))),
+             (kw!(:community/category), vec![Binding::Scalar(TypedValue::from("food bank"))].into())].into(),
+    ];
+
+    let expected: Vec<Binding> = expected.into_iter().map(|m| m.into()).collect();
+    assert_eq!(results, expected);
 }
 
 // TEST:

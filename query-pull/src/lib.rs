@@ -79,18 +79,21 @@ use std::iter::{
 };
 
 use mentat_core::{
+    Binding,
     Cloned,
     Entid,
     HasSchema,
     Keyword,
     Schema,
     StructuredMap,
+    TypedValue,
     ValueRc,
 };
 
 use mentat_db::cache;
 
 use mentat_query::{
+    NamedPullAttribute,
     PullAttributeSpec,
     PullConcreteAttribute,
 };
@@ -110,7 +113,7 @@ pub fn pull_attributes_for_entity<A>(schema: &Schema,
                                      attributes: A) -> Result<StructuredMap>
     where A: IntoIterator<Item=Entid> {
     let attrs = attributes.into_iter()
-                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                           .collect();
     Puller::prepare(schema, attrs)?
         .pull(schema, db, once(entity))
@@ -130,7 +133,7 @@ pub fn pull_attributes_for_entities<E, A>(schema: &Schema,
     where E: IntoIterator<Item=Entid>,
           A: IntoIterator<Item=Entid> {
     let attrs = attributes.into_iter()
-                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
+                          .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e).into()))
                           .collect();
     Puller::prepare(schema, attrs)?
         .pull(schema, db, entities)
@@ -142,16 +145,16 @@ pub struct Puller {
     // The range is the set of aliases to use in the output.
     attributes: BTreeMap<Entid, ValueRc<Keyword>>,
     attribute_spec: cache::AttributeSpec,
+
+    // If this is set, each pulled entity is contributed to its own output map, labeled with this
+    // keyword. This is a divergence from Datomic, which has no types by which to differentiate a
+    // long from an entity ID, and thus represents all entities in pull as, _e.g._, `{:db/id 1234}`.
+    //  Mentat can use `TypedValue::Ref(1234)`, but it's sometimes convenient to fetch the entity ID
+    // itself as part of a pull expression: `{:person 1234, :person/name "Peter"}`.
+    db_id_alias: Option<ValueRc<Keyword>>,
 }
 
 impl Puller {
-    pub fn prepare_simple_attributes(schema: &Schema, attributes: Vec<Entid>) -> Result<Puller> {
-        Puller::prepare(schema,
-                        attributes.into_iter()
-                                  .map(|e| PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(e)))
-                                  .collect())
-    }
-
     pub fn prepare(schema: &Schema, attributes: Vec<PullAttributeSpec>) -> Result<Puller> {
         // TODO: eventually this entry point will handle aliasing and that kind of
         // thing. For now it's just a convenience.
@@ -165,6 +168,9 @@ impl Puller {
 
         let mut names: BTreeMap<Entid, ValueRc<Keyword>> = Default::default();
         let mut attrs: BTreeSet<Entid> = Default::default();
+        let db_id = ::std::rc::Rc::new(Keyword::namespaced("db", "id"));
+        let mut db_id_alias = None;
+
         for attr in attributes.iter() {
             match attr {
                 &PullAttributeSpec::Wildcard => {
@@ -175,15 +181,34 @@ impl Puller {
                     }
                     break;
                 },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Ident(ref i)) => {
-                    if let Some(entid) = schema.get_entid(i) {
-                        names.insert(entid.into(), i.to_value_rc());
-                        attrs.insert(entid.into());
+                &PullAttributeSpec::Attribute(NamedPullAttribute {
+                    ref attribute,
+                    ref alias,
+                }) => {
+                    let alias = alias.as_ref()
+                                     .map(|ref r| r.to_value_rc());
+                    match attribute {
+                        // Handle :db/id.
+                        &PullConcreteAttribute::Ident(ref i) if i.as_ref() == db_id.as_ref() => {
+                            // We only allow :db/id once.
+                            if db_id_alias.is_some() {
+                                bail!(ErrorKind::RepeatedDbId);
+                            }
+                            db_id_alias = Some(alias.unwrap_or_else(|| db_id.to_value_rc()));
+                        },
+                        &PullConcreteAttribute::Ident(ref i) => {
+                            if let Some(entid) = schema.get_entid(i) {
+                                let name = alias.unwrap_or_else(|| i.to_value_rc());
+                                names.insert(entid.into(), name);
+                                attrs.insert(entid.into());
+                            }
+                        },
+                        &PullConcreteAttribute::Entid(ref entid) => {
+                            let name = alias.map(Ok).unwrap_or_else(|| lookup_name(entid))?;
+                            names.insert(*entid, name);
+                            attrs.insert(*entid);
+                        },
                     }
-                },
-                &PullAttributeSpec::Attribute(PullConcreteAttribute::Entid(ref entid)) => {
-                    names.insert(*entid, lookup_name(entid)?);
-                    attrs.insert(*entid);
                 },
             }
         }
@@ -191,6 +216,7 @@ impl Puller {
         Ok(Puller {
             attributes: names,
             attribute_spec: cache::AttributeSpec::specified(&attrs, schema),
+            db_id_alias,
         })
     }
 
@@ -205,9 +231,7 @@ impl Puller {
         // - Recursing. (TODO: we'll need AttributeCaches to not overwrite in case of recursion! And
         //   ideally not do excess work when some entity/attribute pairs are known.)
         // - Building a structure by walking the pull expression with the caches.
-        //   TODO: aliases.
         // TODO: limits.
-        // TODO: fts.
 
         // Build a cache for these attributes and entities.
         // TODO: use the store's existing cache!
@@ -222,6 +246,17 @@ impl Puller {
         // TODO: should we walk `e` then `a`, or `a` then `e`? Possibly the right answer
         // is just to collect differently!
         let mut maps = BTreeMap::new();
+
+        // Collect :db/id if requested.
+        if let Some(ref alias) = self.db_id_alias {
+            for e in entities.iter() {
+                let mut r = maps.entry(*e)
+                                .or_insert(ValueRc::new(StructuredMap::default()));
+                let mut m = ValueRc::get_mut(r).unwrap();
+                m.insert(alias.clone(), Binding::Scalar(TypedValue::Ref(*e)));
+            }
+        }
+
         for (name, cache) in self.attributes.iter().filter_map(|(a, name)|
             caches.forward_attribute_cache_for_attribute(schema, *a)
                   .map(|cache| (name.clone(), cache))) {

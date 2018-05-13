@@ -315,6 +315,12 @@ impl From<StructuredMap> for Binding {
     }
 }
 
+impl From<Vec<Binding>> for Binding {
+    fn from(value: Vec<Binding>) -> Self {
+        Binding::Vec(ValueRc::new(value))
+    }
+}
+
 impl Binding {
     pub fn val(self) -> Option<TypedValue> {
         match self {
