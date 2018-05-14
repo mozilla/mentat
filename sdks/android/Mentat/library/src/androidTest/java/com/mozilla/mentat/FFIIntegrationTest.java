@@ -50,6 +50,23 @@ public class FFIIntegrationTest {
         }
     }
 
+    class QueryTimer {
+        private long startTime = 0;
+        private long endTime = 0;
+
+        public void start() {
+            this.startTime = System.nanoTime();
+        }
+
+        public void end() {
+            this.endTime = System.nanoTime();
+        }
+
+        public long duration() {
+            return this.endTime - this.startTime;
+        }
+    }
+
     Mentat mentat = null;
 
     @Test
@@ -1301,21 +1318,4 @@ public class FFIIntegrationTest {
 
     }
 
-}
-
-class QueryTimer {
-    private long startTime = 0;
-    private long endTime = 0;
-
-    public void start() {
-        this.startTime = System.nanoTime();
-    }
-
-    public void end() {
-        this.endTime = System.nanoTime();
-    }
-
-    public long duration() {
-        return this.endTime - this.startTime;
-    }
 }
