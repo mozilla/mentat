@@ -46,7 +46,8 @@ use self::mentat_parser_utils::value_and_span::Stream as ValueStream;
 use self::mentat_parser_utils::value_and_span::{
     Item,
     OfExactlyParsing,
-    forward_keyword,
+    forward_any_keyword,
+    forward_namespaced_keyword,
     keyword_map,
     list,
     map,
@@ -306,12 +307,15 @@ def_parser!(Query, aggregate, Aggregate, {
 });
 
 def_parser!(Query, pull_concrete_attribute_ident, PullConcreteAttribute, {
-    forward_keyword().map(|k| PullConcreteAttribute::Ident(::std::rc::Rc::new(k.clone())))
+    forward_namespaced_keyword()
+        .map(|k| PullConcreteAttribute::Ident(::std::rc::Rc::new(k.clone())))
 });
 
 def_parser!(Query, pull_concrete_attribute, PullAttributeSpec, {
     (Query::pull_concrete_attribute_ident(),
-     optional(try(Query::alias_as().with(forward_keyword().map(|alias| ::std::rc::Rc::new(alias.clone()))))))
+     optional(try(Query::alias_as()
+                      .with(forward_any_keyword()
+                                .map(|alias| ::std::rc::Rc::new(alias.clone()))))))
     .map(|(attribute, alias)|
         PullAttributeSpec::Attribute(
             NamedPullAttribute {
@@ -1216,6 +1220,7 @@ mod test {
         let foo_bar = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "bar"));
         let foo_baz = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "baz"));
         let foo_horse = ::std::rc::Rc::new(edn::Keyword::namespaced("foo", "horse"));
+        let horse = ::std::rc::Rc::new(edn::Keyword::plain("horse"));
         assert_edn_parses_to!(Query::pull_concrete_attribute,
                               ":foo/bar",
                               PullAttributeSpec::Attribute(
@@ -1233,6 +1238,20 @@ mod test {
                                           NamedPullAttribute {
                                               attribute: PullConcreteAttribute::Ident(foo_bar.clone()),
                                               alias: Some(foo_horse),
+                                          }),
+                                      PullAttributeSpec::Attribute(
+                                          PullConcreteAttribute::Ident(foo_baz.clone()).into()),
+                                  ],
+                              }));
+        assert_edn_parses_to!(Find::elem,
+                              "(pull ?v [:foo/bar :as :horse, :foo/baz])",
+                              Element::Pull(Pull {
+                                  var: Variable::from_valid_name("?v"),
+                                  patterns: vec![
+                                      PullAttributeSpec::Attribute(
+                                          NamedPullAttribute {
+                                              attribute: PullConcreteAttribute::Ident(foo_bar.clone()),
+                                              alias: Some(horse),
                                           }),
                                       PullAttributeSpec::Attribute(
                                           PullConcreteAttribute::Ident(foo_baz.clone()).into()),

@@ -347,6 +347,13 @@ macro_rules! def_common_value_methods {
 
         pub fn as_keyword(&self) -> Option<&symbols::Keyword> {
             match self {
+                &$t::Keyword(ref k) => Some(k),
+                _ => None,
+            }
+        }
+
+        pub fn as_plain_keyword(&self) -> Option<&symbols::Keyword> {
+            match self {
                 &$t::Keyword(ref k) if !k.is_namespaced() => Some(k),
                 _ => None,
             }
@@ -376,6 +383,13 @@ macro_rules! def_common_value_methods {
         def_into!(into_namespaced_symbol, $t::NamespacedSymbol, symbols::NamespacedSymbol,);
 
         pub fn into_keyword(self) -> Option<symbols::Keyword> {
+            match self {
+                $t::Keyword(k) => Some(k),
+                _ => None,
+            }
+        }
+
+        pub fn into_plain_keyword(self) -> Option<symbols::Keyword> {
             match self {
                 $t::Keyword(k) => {
                     if !k.is_namespaced() {
@@ -725,5 +739,29 @@ mod test {
         assert_eq!(Value::List(LinkedList::new()).cmp(&Value::List(LinkedList::new())), Ordering::Equal);
         assert_eq!(Value::Set(BTreeSet::new()).cmp(&Value::Set(BTreeSet::new())), Ordering::Equal);
         assert_eq!(Value::Map(BTreeMap::new()).cmp(&Value::Map(BTreeMap::new())), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_keyword_as() {
+        let namespaced = symbols::Keyword::namespaced("foo", "bar");
+        let plain = symbols::Keyword::plain("bar");
+        let n_v = Value::Keyword(namespaced);
+        let p_v = Value::Keyword(plain);
+
+        assert!(n_v.as_keyword().is_some());
+        assert!(n_v.as_plain_keyword().is_none());
+        assert!(n_v.as_namespaced_keyword().is_some());
+
+        assert!(p_v.as_keyword().is_some());
+        assert!(p_v.as_plain_keyword().is_some());
+        assert!(p_v.as_namespaced_keyword().is_none());
+
+        assert!(n_v.clone().into_keyword().is_some());
+        assert!(n_v.clone().into_plain_keyword().is_none());
+        assert!(n_v.clone().into_namespaced_keyword().is_some());
+
+        assert!(p_v.clone().into_keyword().is_some());
+        assert!(p_v.clone().into_plain_keyword().is_some());
+        assert!(p_v.clone().into_namespaced_keyword().is_none());
     }
 }

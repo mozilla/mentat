@@ -162,7 +162,7 @@ fn test_simple_pull() {
 
     // Execute a scalar query where the body is constant.
     // TODO: we shouldn't require `:where`; that makes this non-constant!
-    let query = r#"[:find (pull ?hood [:db/id :as :neighborhood/id
+    let query = r#"[:find (pull ?hood [:db/id :as :neighborhood
                                        :neighborhood/name]) .
                     :in ?hood
                     :where [?hood :neighborhood/district _]]"#;
@@ -173,7 +173,7 @@ fn test_simple_pull() {
 
     let expected: StructuredMap = vec![
         (kw!(:neighborhood/name), TypedValue::from("Beacon Hill")),
-        (kw!(:neighborhood/id), TypedValue::Ref(beacon)),
+        (kw!(:neighborhood), TypedValue::Ref(beacon)),
     ].into();
     assert_eq!(result, expected.into());
 
