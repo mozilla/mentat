@@ -1476,7 +1476,7 @@ fn test_is_and_as_type_helper_functions() {
         def_test_as_type!(value, as_text, i == 5, "hello world".to_string());
         def_test_as_type!(value, as_symbol, i == 6, symbols::PlainSymbol::plain("$symbol"));
         def_test_as_type!(value, as_namespaced_symbol, i == 7, symbols::NamespacedSymbol::namespaced("$ns", "$symbol"));
-        def_test_as_type!(value, as_keyword, i == 8, symbols::Keyword::plain("hello"));
+        def_test_as_type!(value, as_plain_keyword, i == 8, symbols::Keyword::plain("hello"));
         def_test_as_type!(value, as_namespaced_keyword, i == 9, symbols::Keyword::namespaced("hello", "world"));
         def_test_as_type!(value, as_vector, i == 10, vec![Value::Integer(1)]);
         def_test_as_type!(value, as_list, i == 11, LinkedList::from_iter(vec![]));
@@ -1494,7 +1494,7 @@ fn test_is_and_as_type_helper_functions() {
         def_test_into_type!(value, into_text, i == 5, "hello world".to_string());
         def_test_into_type!(value, into_symbol, i == 6, symbols::PlainSymbol::plain("$symbol"));
         def_test_into_type!(value, into_namespaced_symbol, i == 7, symbols::NamespacedSymbol::namespaced("$ns", "$symbol"));
-        def_test_into_type!(value, into_keyword, i == 8, symbols::Keyword::plain("hello"));
+        def_test_into_type!(value, into_plain_keyword, i == 8, symbols::Keyword::plain("hello"));
         def_test_into_type!(value, into_namespaced_keyword, i == 9, symbols::Keyword::namespaced("hello", "world"));
         def_test_into_type!(value, into_vector, i == 10, vec![Value::Integer(1)]);
         def_test_into_type!(value, into_list, i == 11, LinkedList::from_iter(vec![]));

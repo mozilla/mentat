@@ -442,37 +442,54 @@ pub fn integer<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseRes
     parser(integer_ as fn(Stream<'a>) -> ParseResult<i64, Stream<'a>>).expected("integer")
 }
 
-pub fn namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
-    satisfy_map(|v: &'a edn::ValueAndSpan|
-        v.inner.as_namespaced_keyword()
-         .and_then(|k| if k.is_namespaced() { Some(k) } else { None })
-        )
+pub fn any_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_keyword())
         .parse_lazy(input)
         .into()
+}
+
+pub fn namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword())
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn any_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(any_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("any_keyword")
 }
 
 pub fn namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
     parser(namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("namespaced_keyword")
 }
 
-pub fn forward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
-    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_forward() && k.is_namespaced() { Some(k) } else { None }))
+pub fn forward_any_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_keyword().and_then(|k| if k.is_forward() { Some(k) } else { None }))
         .parse_lazy(input)
         .into()
 }
 
-pub fn forward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
-    parser(forward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("forward_keyword")
+pub fn forward_any_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(forward_any_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("forward_any_keyword")
 }
 
-pub fn backward_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
-    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_backward() && k.is_namespaced() { Some(k) } else { None }))
+pub fn forward_namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_forward() { Some(k) } else { None }))
         .parse_lazy(input)
         .into()
 }
 
-pub fn backward_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
-    parser(backward_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("backward_keyword")
+pub fn forward_namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(forward_namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("forward_namespaced_keyword")
+}
+
+pub fn backward_namespaced_keyword_<'a>(input: Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>> {
+    satisfy_map(|v: &'a edn::ValueAndSpan| v.inner.as_namespaced_keyword().and_then(|k| if k.is_backward() { Some(k) } else { None }))
+        .parse_lazy(input)
+        .into()
+}
+
+pub fn backward_namespaced_keyword<'a>() -> Expected<FnParser<Stream<'a>, fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>>> {
+    parser(backward_namespaced_keyword_ as fn(Stream<'a>) -> ParseResult<&'a edn::Keyword, Stream<'a>>).expected("backward_namespaced_keyword")
 }
 
 /// Generate a `satisfy` expression that matches a `PlainSymbol` value with the given name.
@@ -570,7 +587,7 @@ macro_rules! keyword_map_parser {
                     match input.uncons() {
                         Ok(value) => {
                             $(
-                                if let Some(ref keyword) = value.inner.as_keyword() {
+                                if let Some(ref keyword) = value.inner.as_plain_keyword() {
                                     if &keyword.name() == $keyword {
                                         if $tmp.is_some() {
                                             // Repeated match -- bail out!  Providing good error

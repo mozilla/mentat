@@ -89,7 +89,7 @@ impl NamespaceableName {
         }
     }
 
-    fn dwim<N, T>(namespace: Option<N>, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
+    fn new<N, T>(namespace: Option<N>, name: T) -> Self where N: AsRef<str>, T: AsRef<str> {
         if let Some(ns) = namespace {
             Self::namespaced(ns, name)
         } else {
@@ -115,9 +115,9 @@ impl NamespaceableName {
         let name = self.name();
 
         if name.starts_with('_') {
-            Self::dwim(self.namespace(), &name[1..])
+            Self::new(self.namespace(), &name[1..])
         } else {
-            Self::dwim(self.namespace(), &format!("_{}", name))
+            Self::new(self.namespace(), &format!("_{}", name))
         }
     }
 
