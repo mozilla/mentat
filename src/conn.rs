@@ -69,6 +69,7 @@ use mentat_db::{
     transact_terms,
     InProgressObserverTransactWatcher,
     PartitionMap,
+    TransactableValue,
     TransactWatcher,
     TxObservationService,
     TxObserver,
@@ -82,9 +83,7 @@ use mentat_query_pull::{
     pull_attributes_for_entity,
 };
 
-use mentat_tx;
-
-use mentat_tx::entities::{
+use edn::entities::{
     TempId,
     OpType,
 };
@@ -469,7 +468,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
         Ok(report)
     }
 
-    pub fn transact_entities<I>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=mentat_tx::entities::Entity> {
+    pub fn transact_entities<I, V: TransactableValue>(&mut self, entities: I) -> Result<TxReport> where I: IntoIterator<Item=edn::entities::Entity<V>> {
         // We clone the partition map here, rather than trying to use a Cell or using a mutable
         // reference, for two reasons:
         // 1. `transact` allocates new IDs in partitions before and while doing work that might
@@ -1697,11 +1696,13 @@ mod tests {
 
         let mut tx_ids = Vec::new();
         let mut changesets = Vec::new();
+        let db_tx_instant_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:db/txInstant)).expect("entid to exist for :db/txInstant").into();
         let uuid_entid: Entid = conn.conn().current_schema().get_entid(&kw!(:todo/uuid)).expect("entid to exist for name").into();
         {
             let mut in_progress = conn.begin_transaction().expect("expected transaction");
             for i in 0..3 {
                 let mut changeset = BTreeSet::new();
+                changeset.insert(db_tx_instant_entid.clone());
                 let name = format!("todo{}", i);
                 let uuid = Uuid::new_v4();
                 let mut builder = in_progress.builder().describe_tempid(&name);
