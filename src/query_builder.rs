@@ -14,10 +14,12 @@ use std::collections::{
 };
 
 use mentat_core::{
+    DateTime,
     Entid,
     Keyword,
     Binding,
     TypedValue,
+    Utc,
     ValueType,
 };
 
@@ -37,15 +39,15 @@ use errors::{
 };
 
 pub struct QueryBuilder<'a> {
-    sql: String,
+    query: String,
     values: BTreeMap<Variable, TypedValue>,
     types: BTreeMap<Variable, ValueType>,
     store: &'a mut Store,
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn new<T>(store: &'a mut Store, sql: T) -> QueryBuilder where T: Into<String> {
-        QueryBuilder { sql: sql.into(), values: BTreeMap::new(), types: BTreeMap::new(), store }
+    pub fn new<T>(store: &'a mut Store, query: T) -> QueryBuilder where T: Into<String> {
+        QueryBuilder { query: query.into(), values: BTreeMap::new(), types: BTreeMap::new(), store }
     }
 
     pub fn bind_value<T>(&mut self, var: &str, value: T) -> &mut Self where T: Into<TypedValue> {
@@ -71,6 +73,12 @@ impl<'a> QueryBuilder<'a> {
 
     pub fn bind_instant(&mut self, var: &str, value: i64) -> &mut Self {
        self.values.insert(Variable::from_valid_name(var), TypedValue::instant(value));
+
+       self
+    }
+
+    pub fn bind_date_time(&mut self, var: &str, value: DateTime<Utc>) -> &mut Self {
+       self.values.insert(Variable::from_valid_name(var), TypedValue::Instant(value));
        self
     }
 
@@ -84,7 +92,7 @@ impl<'a> QueryBuilder<'a> {
         let types = ::std::mem::replace(&mut self.types, Default::default());
         let query_inputs = QueryInputs::new(types, values)?;
         let read = self.store.begin_read()?;
-        read.q_once(&self.sql, query_inputs)
+        read.q_once(&self.query, query_inputs)
     }
 
     pub fn execute_scalar(&mut self) -> Result<Option<Binding>> {
@@ -114,6 +122,11 @@ mod test {
         QueryBuilder,
         TypedValue,
         Store,
+    };
+
+    use mentat_core::{
+        DateTime,
+        Utc,
     };
 
     #[test]
