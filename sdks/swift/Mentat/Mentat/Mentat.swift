@@ -68,11 +68,11 @@ class Mentat: RustObject {
 
      - Parameter attribute: The attribute to cache
      - Parameter direction: The direction the attribute should be keyed.
-        `FORWARD` caches values for an attribute keyed by entity
+        `forward` caches values for an attribute keyed by entity
         (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
-        `REVERSE` caches entities for an attribute keyed by value.
+        `reverse` caches entities for an attribute keyed by value.
         (i.e. find entities that have a particular value for an attribute).
-        `BOTH` adds an attribute such that it is cached in both directions.
+        `both` adds an attribute such that it is cached in both directions.
 
      - Throws: `ResultError.error` if an error occured while trying to cache the attribute.
      */

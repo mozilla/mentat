@@ -52,7 +52,7 @@ public class Mentat extends RustObject {
      * Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
      * looked up.
      *
-     * TODO: Throw an exception if cache action fails
+     * TODO: Throw an exception if cache action fails. https://github.com/mozilla/mentat/issues/700
      *
      * @param attribute The attribute to cache
      * @param direction The direction the attribute should be keyed.
@@ -79,7 +79,7 @@ public class Mentat extends RustObject {
 
     /**
      * Simple transact of an EDN string.
-     * TODO: Throw an exception if the transact fails
+     * TODO: Throw an exception if the transact fails. https://github.com/mozilla/mentat/issues/700
      * @param transaction   The string, as EDN, to be transacted.
      * @return  The {@link TxReport} of the completed transaction
      */
@@ -117,7 +117,7 @@ public class Mentat extends RustObject {
 
     /**
      * Retrieve a single value of an attribute for an Entity
-     * TODO: Throw an exception if the result contains an error.
+     * TODO: Throw an exception if the result contains an error. https://github.com/mozilla/mentat/issues/700
      * @param attribute The string the attribute whose value is to be returned. The string is represented as `:namespace/name`.
      * @param entid The `Entid` of the entity we want the value from.
      * @return  The {@link TypedValue} containing the value of the attribute for the entity.
@@ -171,7 +171,7 @@ public class Mentat extends RustObject {
     /**
      * Start a new transaction
      *
-     * TODO: Throw an exception if the result contains an error.
+     * TODO: Throw an exception if the result contains an error. https://github.com/mozilla/mentat/issues/700
      *
      * @return The {@link InProgress} used to manage the transaction
      */
@@ -192,7 +192,7 @@ public class Mentat extends RustObject {
      * Creates a new transaction ({@link InProgress}) and returns an {@link InProgressBuilder} for
      * that transaction.
      *
-     * TODO: Throw an exception if the result contains an error.
+     * TODO: Throw an exception if the result contains an error. https://github.com/mozilla/mentat/issues/700
      *
      * @return  an {@link InProgressBuilder} for a new transaction.
      */
@@ -213,7 +213,7 @@ public class Mentat extends RustObject {
      * Creates a new transaction ({@link InProgress}) and returns an {@link EntityBuilder} for the
      * entity with `entid` for that transaction.
      *
-     * TODO: Throw an exception if the result contains an error.
+     * TODO: Throw an exception if the result contains an error. https://github.com/mozilla/mentat/issues/700
      *
      * @param entid The `Entid` for this entity.
      * @return  an {@link EntityBuilder} for a new transaction.
@@ -235,7 +235,7 @@ public class Mentat extends RustObject {
      * Creates a new transaction ({@link InProgress}) and returns an {@link EntityBuilder} for a new
      * entity with `tempId` for that transaction.
      *
-     * TODO: Throw an exception if the result contains an error.
+     * TODO: Throw an exception if the result contains an error. https://github.com/mozilla/mentat/issues/700
      *
      * @param tempId    The temporary identifier for this entity.
      * @return  an {@link EntityBuilder} for a new transaction.
