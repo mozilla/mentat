@@ -30,15 +30,12 @@
 //! Pointers to values that are guaranteed to live beyond the lifetime of the function,
 //! are passed over the FFI as a raw pointer.
 //!
-//! ```
-//! value as *const TypedValue
-//! ```
+//! `value as *const Binding`
+//!
 //! Pointers to values that cannot be guaranteed to live beyond the lifetime of the function
 //! are first `Box`ed so that they live on the heap, and the raw pointer passed this way.
 //!
-//! ```
-//! Box::into_raw(Box::new(value))
-//! ```
+//! `Box::into_raw(Box::new(value))`
 //!
 //! The memory for a value that is moved onto the heap before being passed over the FFI
 //! is no longer managed by Rust, but Rust still owns the value. Therefore the pointer
@@ -50,9 +47,7 @@
 //!
 //! A macro has been provided to make defining destructors easier.
 //!
-//! ```
-//! define_destructor!(query_builder_destroy, QueryBuilder);
-//! ```
+//! `define_destructor!(query_builder_destroy, QueryBuilder);`
 //!
 //! Passing a pointer to memory that has already been released will cause Mentat to crash,
 //! so callers have to be careful to ensure they manage their pointers properly.
@@ -71,7 +66,7 @@
 //! native access pattern to callers and to enable easier passing of optional types and error
 //! propogation. These types have implemented [From](std::convert::From) such that conversion from the Rust type
 //! to the C type is as painless as possible.
-//!
+
 extern crate libc;
 extern crate mentat;
 

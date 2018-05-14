@@ -55,7 +55,7 @@ pom.xml.asc
 /fixtures/*.db-wal
 /query-parser/out/
 ## Build generated
-build/
+/sdks/swift/Mentat/build/
 DerivedData
 build.xcarchive
 
