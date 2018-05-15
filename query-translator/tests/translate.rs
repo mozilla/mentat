@@ -1091,14 +1091,17 @@ fn test_project_aggregates() {
     let SQLQuery { sql, args } = translate(&schema, query);
 
     // No outer DISTINCT: we aggregate or group by every variable.
-    assert_eq!(sql, "SELECT `?e` AS `?e`, max(`?t`) AS `(max ?t)` \
+    assert_eq!(sql, "SELECT * \
                      FROM \
-                     (SELECT DISTINCT \
-                      `datoms00`.e AS `?e`, \
-                      `datoms00`.v AS `?t` \
-                      FROM `datoms` AS `datoms00` \
-                      WHERE `datoms00`.a = 99) \
-                      GROUP BY `?e`");
+                     (SELECT `?e` AS `?e`, max(`?t`) AS `(max ?t)` \
+                      FROM \
+                      (SELECT DISTINCT \
+                       `datoms00`.e AS `?e`, \
+                       `datoms00`.v AS `?t` \
+                       FROM `datoms` AS `datoms00` \
+                       WHERE `datoms00`.a = 99) \
+                      GROUP BY `?e`) \
+                     WHERE `(max ?t)` IS NOT NULL");
     assert_eq!(args, vec![]);
 
     let query = r#"[:find (max ?t)
@@ -1106,13 +1109,103 @@ fn test_project_aggregates() {
                     :where
                     [?e :foo/bar ?t]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
-    assert_eq!(sql, "SELECT max(`?t`) AS `(max ?t)` \
+    assert_eq!(sql, "SELECT * \
+                     FROM \
+                     (SELECT max(`?t`) AS `(max ?t)` \
+                      FROM \
+                      (SELECT DISTINCT \
+                       `datoms00`.v AS `?t`, \
+                       `datoms00`.e AS `?e` \
+                       FROM `datoms` AS `datoms00` \
+                       WHERE `datoms00`.a = 99)\
+                      ) \
+                     WHERE `(max ?t)` IS NOT NULL");
+    assert_eq!(args, vec![]);
+
+    // ORDER BY lifted to outer query if there is no LIMIT.
+    let query = r#"[:find (max ?x)
+                    :with ?e
+                    :where
+                    [?e ?a ?t]
+                    [?t :foo/bar ?x]
+                    :order ?a]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT * \
+	                   FROM \
+                     (SELECT max(`?x`) AS `(max ?x)`, `?a` AS `?a` \
+                      FROM \
+                      (SELECT DISTINCT \
+                       `datoms01`.v AS `?x`, \
+                       `datoms00`.a AS `?a`, \
+                       `datoms00`.e AS `?e` \
+                       FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` \
+                       WHERE `datoms01`.a = 99 AND `datoms00`.v = `datoms01`.e) \
+                      GROUP BY `?a`) \
+                     WHERE `(max ?x)` IS NOT NULL \
+                     ORDER BY `?a` ASC");
+    assert_eq!(args, vec![]);
+
+    // ORDER BY duplicated in outer query if there is a LIMIT.
+    let query = r#"[:find (max ?x)
+                    :with ?e
+                    :where
+                    [?e ?a ?t]
+                    [?t :foo/bar ?x]
+                    :order (desc ?a)
+                    :limit 10]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT * \
+	                   FROM \
+                     (SELECT max(`?x`) AS `(max ?x)`, `?a` AS `?a` \
+                      FROM \
+                      (SELECT DISTINCT \
+                       `datoms01`.v AS `?x`, \
+                       `datoms00`.a AS `?a`, \
+                       `datoms00`.e AS `?e` \
+                       FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` \
+                       WHERE `datoms01`.a = 99 AND `datoms00`.v = `datoms01`.e) \
+                      GROUP BY `?a` \
+                      ORDER BY `?a` DESC \
+                      LIMIT 10) \
+                     WHERE `(max ?x)` IS NOT NULL \
+                     ORDER BY `?a` DESC");
+    assert_eq!(args, vec![]);
+
+    // No outer SELECT * for non-nullable aggregates.
+    let query = r#"[:find (count ?t)
+                    :with ?e
+                    :where
+                    [?e :foo/bar ?t]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+    assert_eq!(sql, "SELECT count(`?t`) AS `(count ?t)` \
                      FROM \
                      (SELECT DISTINCT \
                       `datoms00`.v AS `?t`, \
                       `datoms00`.e AS `?e` \
                       FROM `datoms` AS `datoms00` \
                       WHERE `datoms00`.a = 99)");
+    assert_eq!(args, vec![]);
+}
+
+#[test]
+fn test_project_the() {
+    let schema = prepopulated_typed_schema(ValueType::Long);
+    let query = r#"[:find (the ?e) (max ?t)
+                    :where
+                    [?e :foo/bar ?t]]"#;
+    let SQLQuery { sql, args } = translate(&schema, query);
+
+    // We shouldn't NULL-check (the).
+    assert_eq!(sql, "SELECT * \
+                     FROM \
+                     (SELECT `?e` AS `?e`, max(`?t`) AS `(max ?t)` \
+                      FROM \
+                      (SELECT DISTINCT \
+                       `datoms00`.e AS `?e`, \
+                       `datoms00`.v AS `?t` \
+                       FROM `datoms` AS `datoms00` \
+                       WHERE `datoms00`.a = 99)) \
+                     WHERE `(max ?t)` IS NOT NULL");
     assert_eq!(args, vec![]);
 }
 

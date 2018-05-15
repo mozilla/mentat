@@ -1194,6 +1194,94 @@ fn test_aggregate_the() {
 }
 
 #[test]
+fn test_null_aggregates() {
+    let store = Store::open("").expect("opened");
+
+    let rel =
+        store.q_once(r#"
+            [:find (count ?tx) (max ?txInstant)
+             :where [_ _ _ ?tx]
+                    [?tx :db/txInstant ?txInstant]
+                    [(< ?txInstant #inst "2016-01-01T11:00:00.000Z")]
+            ]"#, None)
+             .into_rel_result()
+             .expect("no results");
+
+    // (count ?tx) is 0, but (max ?txInstant) is over 0 SQL rows, yielding a NULL in the SQL rows.
+    // We reject the entire row containing NULL aggregates.
+    assert_eq!(0, rel.row_count());
+
+    let rel_pull =
+        store.q_once(r#"
+            [:find (count ?tx) (max ?txInstant) (pull ?tx [*])
+             :where [_ _ _ ?tx]
+                    [?tx :db/txInstant ?txInstant]
+                    [(< ?txInstant #inst "2016-01-01T11:00:00.000Z")]
+            ]"#, None)
+             .into_rel_result()
+             .expect("no results");
+
+    // Same logic as above -- just verifying that `RelTwoStagePullProjector` handles NULL.
+    assert_eq!(0, rel_pull.row_count());
+
+    let coll =
+        store.q_once(r#"
+            [:find [(max ?txInstant) ...]
+             :where [_ _ _ ?tx]
+                    [?tx :db/txInstant ?txInstant]
+                    [(< ?txInstant #inst "2016-01-01T11:00:00.000Z")]
+            ]"#, None)
+             .into_coll_result()
+             .expect("no results");
+
+    // (max ?txInstant) is over 0 SQL rows, yielding a NULL in the SQL rows.  We reject the entire
+    // row containing NULL aggregates, yielding an empty vector of results.
+    assert_eq!(coll, vec![]);
+
+    let tuple =
+        store.q_once(r#"
+            [:find [(count ?tx) (max ?txInstant)]
+             :where [_ _ _ ?tx]
+                    [?tx :db/txInstant ?txInstant]
+                    [(< ?txInstant #inst "2016-01-01T11:00:00.000Z")]
+            ]"#, None)
+             .into_tuple_result()
+             .expect("no results");
+
+    // (count ?tx) is 0, but (max ?txInstant) is over 0 SQL rows, yielding a NULL in the SQL rows.
+    // We reject the entire row containing NULL aggregates, yielding no tuple result at all.
+    assert_eq!(tuple, None);
+
+
+    let tuple_pull =
+        store.q_once(r#"
+            [:find [(count ?tx) (max ?txInstant) (pull ?tx [*])]
+             :where [_ _ _ ?tx]
+                    [?tx :db/txInstant ?txInstant]
+                    [(< ?txInstant #inst "2016-01-01T11:00:00.000Z")]
+            ]"#, None)
+             .into_tuple_result()
+             .expect("no results");
+
+    // Same logic as above -- just verifying that `CollTwoStagePullProjector` handles NULL.
+    assert_eq!(tuple_pull, None);
+
+    let scalar =
+        store.q_once(r#"
+            [:find (max ?txInstant) .
+             :where [_ _ _ ?tx]
+                    [?tx :db/txInstant ?txInstant]
+                    [(< ?txInstant #inst "2016-01-01T11:00:00.000Z")]
+            ]"#, None)
+             .into_scalar_result()
+             .expect("no results");
+
+    // (max ?txInstant) is over 0 SQL rows, yielding a NULL in the SQL rows.  We reject the entire
+    // row containing NULL aggregates, yielding no scalar result at all.
+    assert_eq!(scalar, None);
+}
+
+#[test]
 fn test_aggregation_implicit_grouping() {
     let mut store = Store::open("").expect("opened");
 

@@ -427,14 +427,63 @@ fn re_project(mut inner: SelectQuery, projection: Projection) -> SelectQuery {
     let limit = inner.limit;
     inner.limit = Limit::None;
 
-    SelectQuery {
+    use self::Projection::*;
+
+    let nullable = match &projection {
+        &Columns(ref columns) => {
+            columns.iter().filter_map(|pc| {
+                match pc {
+                    &ProjectedColumn(ColumnOrExpression::NullableAggregate(_, _), ref name) => {
+                        Some(Constraint::IsNotNull {
+                            value: ColumnOrExpression::ExistingColumn(name.clone()),
+                        })
+                    },
+                    _ => None,
+                }
+            }).collect()
+        },
+        &Star => vec![],
+        &One => vec![],
+    };
+
+    if nullable.is_empty() {
+        return SelectQuery {
+            distinct: outer_distinct,
+            projection: projection,
+            from: FromClause::TableList(TableList(vec![TableOrSubquery::Subquery(Box::new(inner))])),
+            constraints: vec![],
+            group_by: group_by,
+            order: order_by,
+            limit: limit,
+        };
+    }
+
+    // Our pattern is `SELECT * FROM (SELECT ...) WHERE (nullable aggregate) IS NOT NULL`.  If
+    // there's an `ORDER BY` in the subselect, SQL does not guarantee that the outer select will
+    // respect that order.  But `ORDER BY` is relevant to the subselect when we have a `LIMIT`.
+    // Thus we lift the `ORDER BY` if there’s no `LIMIT` in the subselect, and repeat the `ORDER BY`
+    // if there is.
+    let subselect = SelectQuery {
         distinct: outer_distinct,
         projection: projection,
         from: FromClause::TableList(TableList(vec![TableOrSubquery::Subquery(Box::new(inner))])),
         constraints: vec![],
         group_by: group_by,
+        order: match &limit {
+            &Limit::None => vec![],
+            &Limit::Fixed(_) | &Limit::Variable(_) => order_by.clone(),
+        },
+        limit,
+    };
+
+    SelectQuery {
+        distinct: false,
+        projection: Projection::Star,
+        from: FromClause::TableList(TableList(vec![TableOrSubquery::Subquery(Box::new(subselect))])),
+        constraints: nullable,
+        group_by: vec![],
         order: order_by,
-        limit: limit,
+        limit: Limit::None, // Any limiting comes from the internal query.
     }
 }
 
