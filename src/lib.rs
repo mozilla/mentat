@@ -101,13 +101,14 @@ macro_rules! kw {
     };
 }
 
+pub mod conn;
+pub mod entity_builder;
 pub mod errors;
 pub mod ident;
-pub mod vocabulary;
-pub mod conn;
 pub mod query;
-pub mod entity_builder;
 pub mod query_builder;
+pub mod store;
+pub mod vocabulary;
 
 pub use query::{
     IntoResult,
@@ -136,6 +137,9 @@ pub use conn::{
     Pullable,
     Queryable,
     Syncable,
+};
+
+pub use store::{
     Store,
 };
 
