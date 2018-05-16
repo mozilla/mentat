@@ -137,6 +137,7 @@ pub use conn::{
 
 pub use stores::{
     Store,
+    Stores,
 };
 
 #[cfg(test)]

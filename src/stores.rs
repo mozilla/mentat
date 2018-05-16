@@ -16,6 +16,7 @@ use std::collections::{
 
 use std::path::{
     Path,
+    PathBuf,
 };
 
 use std::sync::{
@@ -62,10 +63,66 @@ use query::{
     QueryOutput,
 };
 
+pub struct Stores {
+    stores: BTreeMap<PathBuf, Store>,
+}
+
+impl Stores {
+    fn new() -> Stores {
+        Stores {
+            stores: Default::default(),
+        }
+    }
+}
+
+impl Stores {
+    fn is_open(&self, path: PathBuf) -> bool {
+        self.stores.contains_key(&path)
+    }
+
+    pub fn open<'p, P>(&mut self, path: P) -> Result<&mut Store> where P: Into<&'p Path> {
+        let path = path.into();
+        let canonical = path.canonicalize()?;
+        Ok(self.stores.entry(canonical).or_insert(Store::open(path.to_str().unwrap())?))
+    }
+
+    pub fn get<'p, P>(&mut self, path: P) -> Result<Option<&Store>> where P: Into<&'p Path> {
+        let canonical = path.into().canonicalize()?;
+        Ok(self.stores.get(&canonical))
+    }
+
+    pub fn get_mut<'p, P>(&mut self, path: P) -> Result<Option<&mut Store>> where P: Into<&'p Path> {
+        let canonical = path.into().canonicalize()?;
+        Ok(self.stores.get_mut(&canonical))
+    }
+
+    pub fn connect<'p, P>(&mut self, path: P) -> Result<Store> where P: Into<&'p Path> {
+        let path = path.into();
+        let canonical = path.canonicalize()?;
+        let store = self.stores.get_mut(&canonical).unwrap();
+        let connection = ::new_connection(path.to_str().unwrap())?;
+        Ok(store.fork(connection))
+    }
+
+    fn open_connections_for_store(&self, path: &PathBuf) -> usize {
+        Arc::strong_count(self.stores.get(path).unwrap().conn())
+    }
+
+    pub fn close<'p, P>(&mut self, path: P) -> Result<()> where P: Into<&'p Path> {
+        let canonical = path.into().canonicalize()?;
+        if self.open_connections_for_store(&canonical) <= 1 {
+            self.stores.remove(&canonical);
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
 /// for applications that don't require complex connection management.
 pub struct Store {
-    conn: Conn,
+    conn: Arc<Conn>,
     sqlite: rusqlite::Connection,
 }
 
@@ -75,9 +132,13 @@ impl Store {
         let mut connection = ::new_connection(path)?;
         let conn = Conn::connect(&mut connection)?;
         Ok(Store {
-            conn: conn,
+            conn: Arc::new(conn),
             sqlite: connection,
         })
+    }
+
+    pub fn open_in_memory() -> Result<Store> {
+        Store::open("")
     }
 
     /// Returns a totally blank store with no bootstrap schema. Use `open` instead.
@@ -91,7 +152,7 @@ impl Store {
         let mut connection = ::new_connection(path)?;
         let conn = Conn::empty(&mut connection)?;
         Ok(Store {
-            conn: conn,
+            conn: Arc::new(conn),
             sqlite: connection,
         })
     }
@@ -124,25 +185,25 @@ impl Store {
         }
     }
 
-    pub fn dismantle(self) -> (rusqlite::Connection, Conn) {
+    pub fn dismantle(self) -> (rusqlite::Connection, Arc<Conn>) {
         (self.sqlite, self.conn)
     }
 
-    pub fn conn(&self) -> &Conn {
+    pub fn conn(&self) -> &Arc<Conn> {
         &self.conn
     }
 
     pub fn begin_read<'m>(&'m mut self) -> Result<InProgressRead<'m, 'm>> {
-        self.conn.begin_read(&mut self.sqlite)
+        Arc::make_mut(&mut self.conn).begin_read(&mut self.sqlite)
     }
 
     pub fn begin_transaction<'m>(&'m mut self) -> Result<InProgress<'m, 'm>> {
-        self.conn.begin_transaction(&mut self.sqlite)
+        Arc::make_mut(&mut self.conn).begin_transaction(&mut self.sqlite)
     }
 
     pub fn cache(&mut self, attr: &Keyword, direction: CacheDirection) -> Result<()> {
         let schema = &self.conn.current_schema();
-        self.conn.cache(&mut self.sqlite,
+        Arc::make_mut(&mut self.conn).cache(&mut self.sqlite,
                         schema,
                         attr,
                         direction,
@@ -150,11 +211,11 @@ impl Store {
     }
 
     pub fn register_observer(&mut self, key: String, observer: Arc<TxObserver>) {
-        self.conn.register_observer(key, observer);
+        Arc::make_mut(&mut self.conn).register_observer(key, observer);
     }
 
     pub fn unregister_observer(&mut self, key: &String) {
-        self.conn.unregister_observer(key);
+        Arc::make_mut(&mut self.conn).unregister_observer(key);
     }
 }
 
@@ -232,7 +293,6 @@ mod tests {
 
     use mentat_core::{
         CachedAttributes,
-        HasSchema,
         TypedValue,
         ValueType,
     };

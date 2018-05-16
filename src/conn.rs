@@ -115,6 +115,7 @@ use query::{
 /// changing parts (schema) that we want to share across threads.
 ///
 /// See https://github.com/mozilla/mentat/wiki/Thoughts:-modeling-db-conn-in-Rust.
+#[derive(Clone)]
 pub struct Metadata {
     pub generation: u64,
     pub partition_map: PartitionMap,
@@ -135,6 +136,7 @@ impl Metadata {
 }
 
 /// A mutable, safe reference to the current Mentat store.
+#[derive(Clone)]
 pub struct Conn {
     /// `Mutex` since all reads and writes need to be exclusive.  Internally, owned data for the
     /// volatile parts (generation and partition map), and `Arc` for the infrequently changing parts
@@ -151,13 +153,12 @@ pub struct Conn {
     /// gives us copy-on-write semantics.
     /// We store that cached `Arc` here in a `Mutex`, so that the main copy can be carefully
     /// replaced on commit.
-    metadata: Mutex<Metadata>,
+    metadata: Arc<Mutex<Metadata>>,
 
     // TODO: maintain set of change listeners or handles to transaction report queues. #298.
 
     // TODO: maintain cache of query plans that could be shared across threads and invalidated when
     // the schema changes. #315.
-    tx_observer_service: Mutex<TxObservationService>,
     pub(crate) tx_observer_service: Arc<Mutex<TxObservationService>>,
 }
 
@@ -572,8 +573,8 @@ impl Conn {
     // Intentionally not public.
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {
         Conn {
-            metadata: Mutex::new(Metadata::new(0, partition_map, Arc::new(schema), Default::default())),
-            tx_observer_service: Mutex::new(TxObservationService::new()),
+            metadata: Arc::new(Mutex::new(Metadata::new(0, partition_map, Arc::new(schema), Default::default()))),
+            tx_observer_service: Arc::new(Mutex::new(TxObservationService::new())),
         }
     }
 
