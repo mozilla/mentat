@@ -101,6 +101,7 @@ pub mod errors;
 pub mod ident;
 pub mod vocabulary;
 pub mod conn;
+pub mod stores;
 pub mod query;
 pub mod entity_builder;
 pub mod query_builder;
@@ -132,6 +133,9 @@ pub use conn::{
     Pullable,
     Queryable,
     Syncable,
+};
+
+pub use stores::{
     Store,
 };
 
