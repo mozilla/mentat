@@ -109,5 +109,15 @@ error_chain! {
             description("provided value doesn't match value type")
             display("provided value of type {} doesn't match attribute value type {}", provided, expected)
         }
+
+        StoreNotFound(path: String) {
+            description("the Store provided does not exist or is not yet open.")
+            display("the Store at {:?} does not exist or is not yet open.", path)
+        }
+
+        StoreConnectionStillActive(path: String) {
+            description("the Store provided has active connections and cannot be closed.")
+            display("the Store at {:?} has active connections and cannot be closed.", path)
+        }
     }
 }

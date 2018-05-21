@@ -16,7 +16,6 @@ use std::collections::{
 
 use std::path::{
     Path,
-    PathBuf,
 };
 
 use std::sync::{
@@ -38,6 +37,7 @@ use mentat_db::{
     TxObserver,
     TxReport,
 };
+use mentat_db::db;
 
 use mentat_tolstoy::Syncer;
 
@@ -64,7 +64,7 @@ use query::{
 };
 
 pub struct Stores {
-    stores: BTreeMap<PathBuf, Store>,
+    stores: BTreeMap<String, Store>,
 }
 
 impl Stores {
@@ -76,45 +76,39 @@ impl Stores {
 }
 
 impl Stores {
-    fn is_open(&self, path: PathBuf) -> bool {
-        self.stores.contains_key(&path)
+    fn is_open(&self, path: &str) -> bool {
+        self.stores.contains_key(path)
     }
 
-    pub fn open<'p, P>(&mut self, path: P) -> Result<&mut Store> where P: Into<&'p Path> {
-        let path = path.into();
-        let canonical = path.canonicalize()?;
-        Ok(self.stores.entry(canonical).or_insert(Store::open(path.to_str().unwrap())?))
+    pub fn open(&mut self, path: &str) -> Result<&mut Store> {
+        let p = path.to_string();
+        Ok(self.stores.entry(p).or_insert(Store::open(path)?))
     }
 
-    pub fn get<'p, P>(&mut self, path: P) -> Result<Option<&Store>> where P: Into<&'p Path> {
-        let canonical = path.into().canonicalize()?;
-        Ok(self.stores.get(&canonical))
+    pub fn get(&self, path: &str) -> Result<Option<&Store>> {
+        Ok(self.stores.get(path))
     }
 
-    pub fn get_mut<'p, P>(&mut self, path: P) -> Result<Option<&mut Store>> where P: Into<&'p Path> {
-        let canonical = path.into().canonicalize()?;
-        Ok(self.stores.get_mut(&canonical))
+    pub fn get_mut(&mut self, path: &str) -> Result<Option<&mut Store>> {
+        Ok(self.stores.get_mut(path))
     }
 
-    pub fn connect<'p, P>(&mut self, path: P) -> Result<Store> where P: Into<&'p Path> {
-        let path = path.into();
-        let canonical = path.canonicalize()?;
-        let store = self.stores.get_mut(&canonical).unwrap();
-        let connection = ::new_connection(path.to_str().unwrap())?;
-        Ok(store.fork(connection))
+    pub fn connect(&mut self, path: &str) -> Result<Store> {
+        let store = self.stores.get_mut(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?;
+        let connection = ::new_connection(path)?;
+        store.fork(connection)
     }
 
-    fn open_connections_for_store(&self, path: &PathBuf) -> usize {
-        Arc::strong_count(self.stores.get(path).unwrap().conn())
+    fn open_connections_for_store(&self, path: &str) -> Result<usize> {
+        Ok(Arc::strong_count(self.stores.get(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?.conn()))
     }
 
-    pub fn close<'p, P>(&mut self, path: P) -> Result<()> where P: Into<&'p Path> {
-        let canonical = path.into().canonicalize()?;
-        if self.open_connections_for_store(&canonical) <= 1 {
-            self.stores.remove(&canonical);
+    pub fn close(&mut self, path: &str) -> Result<()> {
+        if self.open_connections_for_store(path)? <= 1 {
+            self.stores.remove(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?;
             Ok(())
         } else {
-            Ok(())
+            bail!(ErrorKind::StoreConnectionStillActive(path.to_string()))
         }
     }
 }
@@ -135,10 +129,6 @@ impl Store {
             conn: Arc::new(conn),
             sqlite: connection,
         })
-    }
-
-    pub fn open_in_memory() -> Result<Store> {
-        Store::open("")
     }
 
     /// Returns a totally blank store with no bootstrap schema. Use `open` instead.
@@ -178,11 +168,11 @@ impl Store {
 }
 
 impl Store {
-    pub fn fork(&mut self, sqlite: rusqlite::Connection) -> Store {
-        Store {
+    pub fn fork(&mut self, sqlite: rusqlite::Connection) -> Result<Store> {
+        Ok(Store {
             conn: self.conn.clone(),
             sqlite: sqlite,
-        }
+        })
     }
 
     pub fn dismantle(self) -> (rusqlite::Connection, Arc<Conn>) {
@@ -293,6 +283,7 @@ mod tests {
 
     use mentat_core::{
         CachedAttributes,
+        HasSchema,
         TypedValue,
         ValueType,
     };
@@ -719,5 +710,233 @@ mod tests {
         assert_eq!(o.called_key, None);
         assert_eq!(o.txids, tx_ids);
         assert_eq!(o.changes, changesets);
+    }
+
+    #[test]
+    fn test_stores_open_new_store() {
+        let mut manager = Stores::new();
+        let store = manager.open("test.db").expect("Expected a store to be opened");
+        assert_eq!(1, Arc::strong_count(store.conn()));
+    }
+
+    #[test]
+    fn test_stores_open_new_in_memory_store() {
+        let mut manager = Stores::new();
+        let path = "";
+        let store = manager.open(path).expect("Expected a store to be opened");
+        assert_eq!(1, Arc::strong_count(store.conn()));
+    }
+
+    #[test]
+    fn test_stores_open_existing_store() {
+        let mut manager = Stores::new();
+        {
+            let store1 = manager.open("").expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store1.conn()));
+        }
+        {
+            let store2 = manager.open("").expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store2.conn()));
+        }
+    }
+
+    #[test]
+    fn test_stores_get_open_store() {
+        let mut manager = Stores::new();
+        let path = "";
+        {
+            let store = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store.conn()));
+        }
+        {
+            let store_ref = manager.get(path).expect("Expected a store to be fetched").unwrap();
+            assert_eq!(1, Arc::strong_count(store_ref.conn()));
+        }
+    }
+
+    #[test]
+    fn test_stores_get_closed_store() {
+        let manager = Stores::new();
+        match manager.get("").expect("Expected a store to be fetched") {
+            None => (),
+            Some(_) => panic!("Store is not open and so none should be returned"),
+        }
+    }
+
+    #[test]
+    fn test_stores_get_mut_open_store() {
+        let mut manager = Stores::new();
+        let path = "";
+        {
+            let store = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store.conn()));
+        }
+        {
+            let store_ref = manager.get_mut(path).expect("Expected a store to be fetched").unwrap();
+            assert_eq!(1, Arc::strong_count(store_ref.conn()));
+        }
+    }
+
+    #[test]
+    fn test_stores_get_mut_closed_store() {
+        let mut manager = Stores::new();
+        match manager.get_mut("").expect("Expected a store to be fetched") {
+            None => (),
+            Some(_) => panic!("Store is not open and so none should be returned"),
+        }
+    }
+
+    #[test]
+    fn test_stores_connect_open_store() {
+        let mut manager = Stores::new();
+        let path = "";
+        {
+            let store1 = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store1.conn()));
+        }
+
+        // forking an open store leads to a ref count of 2 on the shared conn.
+        let store2 = manager.connect(path).expect("expected a new store");
+        assert_eq!(2, Arc::strong_count(store2.conn()));
+
+        {
+            // fetching a reference to the original store also has a ref count of 2 on the shared conn
+            let store3 = manager.get(path).expect("Expected a store to be fetched").unwrap();
+            assert_eq!(2, Arc::strong_count(store3.conn()));
+        }
+
+        {
+            // forking again, in it's own scope increases the refcount.
+            let store4 = manager.connect(path).expect("expected a new store");
+            assert_eq!(3, Arc::strong_count(store2.conn()));
+            assert_eq!(3, Arc::strong_count(store4.conn()));
+        }
+
+        // but now that scope is over, the original refcount is restored.
+        // let store5 = manager.get(path).expect("Expected a store to be fetched").unwrap();
+        assert_eq!(2, Arc::strong_count(store2.conn()));
+    }
+
+    #[test]
+    fn test_stores_connect_closed_store() {
+        let mut manager = Stores::new();
+        let path = "";
+        let err = manager.connect(path).err();
+        match err.unwrap() {
+            Error(ErrorKind::StoreNotFound(message), _) => { assert_eq!(path, message); },
+            x => panic!("expected Store Not Found error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_stores_close_store_with_one_reference() {
+        let mut manager = Stores::new();
+        let path = "";
+        {
+            let store = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store.conn()));
+        }
+
+        assert!(manager.close(path).is_ok());
+
+        assert!(manager.get(path).expect("expected an empty result").is_none())
+    }
+
+    #[test]
+    fn test_stores_close_store_with_multiple_references() {
+        let mut manager = Stores::new();
+        let path = "";
+        {
+            let store1 = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store1.conn()));
+        }
+
+        // forking an open store leads to a ref count of 2 on the shared conn.
+        let store2 = manager.connect(path).expect("expected a new store");
+        assert_eq!(2, Arc::strong_count(store2.conn()));
+
+        let err = manager.close(path).err();
+        match err.unwrap() {
+            Error(ErrorKind::StoreConnectionStillActive(message), _) => { assert_eq!(path, message); },
+            x => panic!("expected StoreConnectionStillActive error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_stores_close_store_with_scoped_multiple_references() {
+        let mut manager = Stores::new();
+        let path = "";
+        {
+            let store1 = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store1.conn()));
+        }
+
+        {
+            // forking an open store leads to a ref count of 2 on the shared conn.
+            let store2 = manager.connect(path).expect("expected a new store");
+            assert_eq!(2, Arc::strong_count(store2.conn()));
+
+            let err = manager.close(path).err();
+            match err.unwrap() {
+                Error(ErrorKind::StoreConnectionStillActive(message), _) => { assert_eq!(path, message); },
+                x => panic!("expected StoreConnectionStillActive error, got {:?}", x),
+            }
+        }
+
+        // outside of the scope, there should only be one strong reference so we can close the connection
+        assert!(manager.close(path).is_ok());
+        assert!(manager.get(path).expect("expected an empty result").is_none())
+    }
+
+    #[test]
+    fn test_stores_close_unopened_store() {
+        let mut manager = Stores::new();
+        let path = "";
+
+        let err = manager.close(path).err();
+        match err.unwrap() {
+            Error(ErrorKind::StoreNotFound(message), _) => { assert_eq!(path, message); },
+            x => panic!("expected StoreNotFound error, got {:?}", x),
+        }
+    }
+
+    #[test]
+    fn test_stores_connect_perform_mutable_operations() {
+        let mut manager = Stores::new();
+        let path = "test.db";
+
+        {
+            let store1 = manager.open(path).expect("Expected a store to be opened");
+            assert_eq!(1, Arc::strong_count(store1.conn()));
+            let mut in_progress = store1.begin_transaction().expect("begun");
+            in_progress.transact(r#"[
+                {  :db/ident       :foo/bar
+                   :db/cardinality :db.cardinality/one
+                   :db/index       true
+                   :db/unique      :db.unique/identity
+                   :db/valueType   :db.type/long },
+                {  :db/ident       :foo/baz
+                   :db/cardinality :db.cardinality/one
+                   :db/valueType   :db.type/boolean }
+                {  :db/ident       :foo/x
+                   :db/cardinality :db.cardinality/many
+                   :db/valueType   :db.type/long }]"#).expect("transact");
+
+            in_progress.commit().expect("commit");
+        }
+
+        {
+            // forking an open store leads to a ref count of 2 on the shared conn.
+            // we should be able to perform write operations on this connection
+            let mut store2 = manager.connect(path).expect("expected a new store");
+            assert_eq!(2, Arc::strong_count(store2.conn()));
+            let mut in_progress = store2.begin_transaction().expect("begun");
+            in_progress.transact(r#"[
+                {:foo/bar 15, :foo/baz false, :foo/x [1, 2, 3]}
+                {:foo/bar 99, :foo/baz true}
+                {:foo/bar -2, :foo/baz true}
+                ]"#).expect("transact");
+            in_progress.commit().expect("commit");
+        }
     }
 }
