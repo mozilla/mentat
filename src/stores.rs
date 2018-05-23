@@ -65,10 +65,14 @@ use query::{
 
 /// A process is only permitted to have one open handle to each database. This manager
 /// exists to enforce that constraint: don't open databases directly.
-lazy_static! {
-    static ref STORES: Arc<RwLock<Stores>> = {
-        Arc::new(RwLock::new(Stores::new()))
+thread_local! {
+    static STORES: RwLock<Stores> = {
+        RwLock::new(Stores::new())
     };
+}
+
+lazy_static! {
+    static ref CONNECTIONS: BTreeMap<String, Arc<Conn>> = BTreeMap::default();
 }
 
 pub struct Stores {
@@ -81,10 +85,6 @@ impl Stores {
             stores: Default::default(),
         }
     }
-
-    pub fn singleton() -> &'static RwLock<Stores> {
-        &*STORES
-    }
 }
 
 impl Stores {
@@ -92,9 +92,32 @@ impl Stores {
         Stores::singleton().read().unwrap().stores.contains_key(path)
     }
 
-    pub fn open(path: &str) -> Result<&mut Store> {
+    pub fn open(path: &str) -> Result<Store> {
         let p = path.to_string();
-        Ok(Stores::singleton().write().unwrap().stores.entry(p).or_insert(Store::open(path)?))
+        let stores = Stores::singleton().read().unwrap().stores;
+        let store = match stores.get(path) {
+            Some(conn) => {
+                let connection = CONNECTIONS.with(|s| s.entry(path.to_string()).or_insert_with(|| {
+                    ::new_connection(path).unwrap()
+                }));
+                Store {
+                    conn: conn.clone(),
+                    sqlite: *connection,
+                }
+            },
+            None => {
+                let mut connection = ::new_connection(path)?;
+                CONNECTIONS.with(|s| s.insert(path.to_string(), connection));
+                let conn = Arc::new(Conn::connect(&mut connection)?);
+                stores.insert(path.to_string(), conn);
+                let store = Store {
+                        conn: conn,
+                        sqlite: connection,
+                    };
+                store
+            }
+        };
+        Ok(store)
     }
 
     pub fn get(path: &str) -> Result<Option<&Store>> {
