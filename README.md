@@ -70,7 +70,7 @@ We've observed that data storage is a particular area of difficulty for software
 
 ## Comparison to DataScript
 
-DataScript asks the question: "What if creating a database would be as cheap as creating a Hashmap?"
+DataScript asks the question: "What if creating a database were as cheap as creating a Hashmap?"
 
 Mentat is not interested in that. Instead, it's strongly interested in persistence and performance, with very little interest in immutable databases/databases as values or throwaway use.
 
