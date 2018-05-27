@@ -48,7 +48,6 @@ use mentat_query::{
     WhereClause,
 };
 
-#[cfg(test)]
 use mentat_query::{
     PatternNonValuePlace,
 };
@@ -1068,11 +1067,31 @@ impl ConjoiningClauses {
         Ok(())
     }
 
+    fn mark_as_ref(&mut self, pos: &PatternNonValuePlace) {
+        if let &PatternNonValuePlace::Variable(ref var) = pos {
+            self.constrain_var_to_type(var.clone(), ValueType::Ref)
+        }
+    }
+
     pub(crate) fn apply_clauses(&mut self, known: Known, where_clauses: Vec<WhereClause>) -> Result<()> {
         // We apply (top level) type predicates first as an optimization.
         for clause in where_clauses.iter() {
-            if let &WhereClause::TypeAnnotation(ref anno) = clause {
-                self.apply_type_anno(anno)?;
+            match clause {
+                &WhereClause::TypeAnnotation(ref anno) => {
+                    self.apply_type_anno(anno)?;
+                },
+
+                // Patterns are common, so let's grab as much type information from
+                // them as we can.
+                &WhereClause::Pattern(ref p) => {
+                    self.mark_as_ref(&p.entity);
+                    self.mark_as_ref(&p.attribute);
+                    self.mark_as_ref(&p.tx);
+                },
+
+                // TODO: if we wish we can include other kinds of clauses in this type
+                // extraction phase.
+                _ => {},
             }
         }
 
