@@ -8,7 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::fmt::{Display, Formatter};
+use std::fmt::{
+    Display,
+    Formatter,
+    Write,
+};
+
 use namespaceable_name::NamespaceableName;
 
 #[macro_export]
@@ -264,7 +269,7 @@ impl Display for PlainSymbol {
     /// assert_eq!("baz", PlainSymbol::plain("baz").to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, "{}", self.0)
+        self.0.fmt(f)
     }
 }
 
@@ -278,7 +283,7 @@ impl Display for NamespacedSymbol {
     /// assert_eq!("bar/baz", NamespacedSymbol::namespaced("bar", "baz").to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        write!(f, "{}/{}", self.namespace(), self.name())
+        self.0.fmt(f)
     }
 }
 
@@ -295,12 +300,8 @@ impl Display for Keyword {
     /// assert_eq!(":bar/baz", Keyword::namespaced("bar", "baz").to_reversed().to_reversed().to_string());
     /// ```
     fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
-        if self.0.is_namespaced() {
-            let (ns, name) = self.0.components();
-            write!(f, ":{}/{}", ns, name)
-        } else {
-            write!(f, ":{}", self.0.name())
-        }
+        f.write_char(':')?;
+        self.0.fmt(f)
     }
 }
 
