@@ -30,18 +30,18 @@
 ///! deeply into this it's worth recognizing that this loss of 'sovereignty' is
 ///! a tradeoff against well-typed function signatures and other such boundaries.
 
-extern crate edn;
-extern crate mentat_core;
-
 use std::collections::{
     BTreeSet,
     HashSet,
 };
 
+use std;
 use std::fmt;
-use std::rc::Rc;
+use std::rc::{
+    Rc,
+};
 
-use edn::{
+use ::{
     BigInt,
     DateTime,
     OrderedFloat,
@@ -49,15 +49,14 @@ use edn::{
     Utc,
 };
 
-pub use edn::{
-    Keyword,
-    PlainSymbol,
+use ::value_rc::{
+    FromRc,
+    ValueRc,
 };
 
-use mentat_core::{
-    FromRc,
-    TypedValue,
-    ValueRc,
+pub use ::{
+    Keyword,
+    PlainSymbol,
 };
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
@@ -87,15 +86,15 @@ impl Variable {
 }
 
 pub trait FromValue<T> {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<T>;
+    fn from_value(v: &::ValueAndSpan) -> Option<T>;
 }
 
 /// If the provided EDN value is a PlainSymbol beginning with '?', return
 /// it wrapped in a Variable. If not, return None.
 /// TODO: intern strings. #398.
 impl FromValue<Variable> for Variable {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<Variable> {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
+    fn from_value(v: &::ValueAndSpan) -> Option<Variable> {
+        if let ::SpannedValue::PlainSymbol(ref s) = v.inner {
             Variable::from_symbol(s)
         } else {
             None
@@ -138,8 +137,8 @@ impl std::fmt::Display for Variable {
 pub struct QueryFunction(pub PlainSymbol);
 
 impl FromValue<QueryFunction> for QueryFunction {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<QueryFunction> {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
+    fn from_value(v: &::ValueAndSpan) -> Option<QueryFunction> {
+        if let ::SpannedValue::PlainSymbol(ref s) = v.inner {
             QueryFunction::from_symbol(s)
         } else {
             None
@@ -177,8 +176,8 @@ pub enum SrcVar {
 }
 
 impl FromValue<SrcVar> for SrcVar {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<SrcVar> {
-        if let edn::SpannedValue::PlainSymbol(ref s) = v.inner {
+    fn from_value(v: &::ValueAndSpan) -> Option<SrcVar> {
+        if let ::SpannedValue::PlainSymbol(ref s) = v.inner {
             SrcVar::from_symbol(s)
         } else {
             None
@@ -211,19 +210,6 @@ pub enum NonIntegerConstant {
     Uuid(Uuid),
 }
 
-impl NonIntegerConstant {
-    pub fn into_typed_value(self) -> TypedValue {
-        match self {
-            NonIntegerConstant::BigInteger(_) => unimplemented!(),     // TODO: #280.
-            NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
-            NonIntegerConstant::Float(v) => TypedValue::Double(v),
-            NonIntegerConstant::Text(v) => v.into(),
-            NonIntegerConstant::Instant(v) => TypedValue::Instant(v),
-            NonIntegerConstant::Uuid(v) => TypedValue::Uuid(v),
-        }
-    }
-}
-
 impl<'a> From<&'a str> for NonIntegerConstant {
     fn from(val: &'a str) -> NonIntegerConstant {
         NonIntegerConstant::Text(ValueRc::new(val.to_string()))
@@ -249,8 +235,8 @@ pub enum FnArg {
 }
 
 impl FromValue<FnArg> for FnArg {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<FnArg> {
-        use edn::SpannedValue::*;
+    fn from_value(v: &::ValueAndSpan) -> Option<FnArg> {
+        use ::SpannedValue::*;
         match v.inner {
             Integer(x) =>
                 Some(FnArg::EntidOrInteger(x)),
@@ -362,14 +348,14 @@ impl PatternNonValuePlace {
 }
 
 impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<PatternNonValuePlace> {
+    fn from_value(v: &::ValueAndSpan) -> Option<PatternNonValuePlace> {
         match v.inner {
-            edn::SpannedValue::Integer(x) => if x >= 0 {
+            ::SpannedValue::Integer(x) => if x >= 0 {
                 Some(PatternNonValuePlace::Entid(x))
             } else {
                 None
             },
-            edn::SpannedValue::PlainSymbol(ref x) => if x.0.as_str() == "_" {
+            ::SpannedValue::PlainSymbol(ref x) => if x.0.as_str() == "_" {
                 Some(PatternNonValuePlace::Placeholder)
             } else {
                 if let Some(v) = Variable::from_symbol(x) {
@@ -378,7 +364,7 @@ impl FromValue<PatternNonValuePlace> for PatternNonValuePlace {
                     None
                 }
             },
-            edn::SpannedValue::Keyword(ref x) =>
+            ::SpannedValue::Keyword(ref x) =>
                 Some(x.clone().into()),
             _ => None,
         }
@@ -416,38 +402,38 @@ impl From<Keyword> for PatternValuePlace {
 }
 
 impl FromValue<PatternValuePlace> for PatternValuePlace {
-    fn from_value(v: &edn::ValueAndSpan) -> Option<PatternValuePlace> {
+    fn from_value(v: &::ValueAndSpan) -> Option<PatternValuePlace> {
         match v.inner {
-            edn::SpannedValue::Integer(x) =>
+            ::SpannedValue::Integer(x) =>
                 Some(PatternValuePlace::EntidOrInteger(x)),
-            edn::SpannedValue::PlainSymbol(ref x) if x.0.as_str() == "_" =>
+            ::SpannedValue::PlainSymbol(ref x) if x.0.as_str() == "_" =>
                 Some(PatternValuePlace::Placeholder),
-            edn::SpannedValue::PlainSymbol(ref x) =>
+            ::SpannedValue::PlainSymbol(ref x) =>
                 Variable::from_symbol(x).map(PatternValuePlace::Variable),
-            edn::SpannedValue::Keyword(ref x) if x.is_namespaced() =>
+            ::SpannedValue::Keyword(ref x) if x.is_namespaced() =>
                 Some(x.clone().into()),
-            edn::SpannedValue::Boolean(x) =>
+            ::SpannedValue::Boolean(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Boolean(x))),
-            edn::SpannedValue::Float(x) =>
+            ::SpannedValue::Float(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Float(x))),
-            edn::SpannedValue::BigInteger(ref x) =>
+            ::SpannedValue::BigInteger(ref x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::BigInteger(x.clone()))),
-            edn::SpannedValue::Instant(x) =>
+            ::SpannedValue::Instant(x) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Instant(x))),
-            edn::SpannedValue::Text(ref x) =>
+            ::SpannedValue::Text(ref x) =>
                 // TODO: intern strings. #398.
                 Some(PatternValuePlace::Constant(x.clone().into())),
-            edn::SpannedValue::Uuid(ref u) =>
+            ::SpannedValue::Uuid(ref u) =>
                 Some(PatternValuePlace::Constant(NonIntegerConstant::Uuid(u.clone()))),
 
             // These don't appear in queries.
-            edn::SpannedValue::Nil => None,
-            edn::SpannedValue::NamespacedSymbol(_) => None,
-            edn::SpannedValue::Keyword(_) => None,                // … yet.
-            edn::SpannedValue::Map(_) => None,
-            edn::SpannedValue::List(_) => None,
-            edn::SpannedValue::Set(_) => None,
-            edn::SpannedValue::Vector(_) => None,
+            ::SpannedValue::Nil => None,
+            ::SpannedValue::NamespacedSymbol(_) => None,
+            ::SpannedValue::Keyword(_) => None,                // … yet.
+            ::SpannedValue::Map(_) => None,
+            ::SpannedValue::List(_) => None,
+            ::SpannedValue::Set(_) => None,
+            ::SpannedValue::Vector(_) => None,
         }
     }
 }
@@ -647,8 +633,7 @@ pub enum Limit {
 /// Examples:
 ///
 /// ```rust
-/// # extern crate mentat_query;
-/// # use mentat_query::{Element, FindSpec, Variable};
+/// # use edn::query::{Element, FindSpec, Variable};
 ///
 /// # fn main() {
 ///
@@ -687,7 +672,7 @@ pub enum FindSpec {
 /// Returns true if the provided `FindSpec` returns at most one result.
 impl FindSpec {
     pub fn is_unit_limited(&self) -> bool {
-        use FindSpec::*;
+        use self::FindSpec::*;
         match self {
             &FindScalar(..) => true,
             &FindTuple(..)  => true,
@@ -697,7 +682,7 @@ impl FindSpec {
     }
 
     pub fn expected_column_count(&self) -> usize {
-        use FindSpec::*;
+        use self::FindSpec::*;
         match self {
             &FindScalar(..) => 1,
             &FindColl(..)   => 1,
@@ -729,7 +714,7 @@ impl FindSpec {
     }
 
     pub fn columns<'s>(&'s self) -> Box<Iterator<Item=&Element> + 's> {
-        use FindSpec::*;
+        use self::FindSpec::*;
         match self {
             &FindScalar(ref e) => Box::new(std::iter::once(e)),
             &FindColl(ref e)   => Box::new(std::iter::once(e)),
@@ -792,16 +777,16 @@ impl Binding {
     /// placeholder or unique.
     ///
     /// ```
-    /// extern crate mentat_query;
+    /// use edn::query::{Binding,Variable,VariableOrPlaceholder};
     /// use std::rc::Rc;
     ///
-    /// let v = mentat_query::Variable::from_valid_name("?foo");
-    /// let vv = mentat_query::VariableOrPlaceholder::Variable(v);
-    /// let p = mentat_query::VariableOrPlaceholder::Placeholder;
+    /// let v = Variable::from_valid_name("?foo");
+    /// let vv = VariableOrPlaceholder::Variable(v);
+    /// let p = VariableOrPlaceholder::Placeholder;
     ///
-    /// let e = mentat_query::Binding::BindTuple(vec![p.clone()]);
-    /// let b = mentat_query::Binding::BindTuple(vec![p.clone(), vv.clone()]);
-    /// let d = mentat_query::Binding::BindTuple(vec![vv.clone(), p, vv]);
+    /// let e = Binding::BindTuple(vec![p.clone()]);
+    /// let b = Binding::BindTuple(vec![p.clone(), vv.clone()]);
+    /// let d = Binding::BindTuple(vec![vv.clone(), p, vv]);
     /// assert!(b.is_valid());          // One var, one placeholder: OK.
     /// assert!(!e.is_valid());         // Empty: not OK.
     /// assert!(!d.is_valid());         // Duplicate var: not OK.
@@ -1052,7 +1037,7 @@ pub trait ContainsVariables {
 
 impl ContainsVariables for WhereClause {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
-        use WhereClause::*;
+        use self::WhereClause::*;
         match self {
             &OrJoin(ref o)         => o.accumulate_mentioned_variables(acc),
             &Pred(ref p)           => p.accumulate_mentioned_variables(acc),
@@ -1067,7 +1052,7 @@ impl ContainsVariables for WhereClause {
 
 impl ContainsVariables for OrWhereClause {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {
-        use OrWhereClause::*;
+        use self::OrWhereClause::*;
         match self {
             &And(ref clauses) => for clause in clauses { clause.accumulate_mentioned_variables(acc) },
             &Clause(ref clause) => clause.accumulate_mentioned_variables(acc),
@@ -1123,7 +1108,6 @@ impl ContainsVariables for Predicate {
         }
     }
 }
-
 
 impl ContainsVariables for TypeAnnotation {
     fn accumulate_mentioned_variables(&self, acc: &mut BTreeSet<Variable>) {

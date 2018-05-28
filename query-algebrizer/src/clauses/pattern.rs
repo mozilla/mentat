@@ -18,6 +18,7 @@ use mentat_core::{
 };
 
 use mentat_query::{
+    NonIntegerConstant,
     Pattern,
     PatternValuePlace,
     PatternNonValuePlace,
@@ -41,6 +42,17 @@ use types::{
 };
 
 use Known;
+
+pub fn into_typed_value(nic: NonIntegerConstant) -> TypedValue {
+    match nic {
+        NonIntegerConstant::BigInteger(_) => unimplemented!(),     // TODO: #280.
+        NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
+        NonIntegerConstant::Float(v) => TypedValue::Double(v),
+        NonIntegerConstant::Text(v) => v.into(),
+        NonIntegerConstant::Instant(v) => TypedValue::Instant(v),
+        NonIntegerConstant::Uuid(v) => TypedValue::Uuid(v),
+    }
+}
 
 /// Application of patterns.
 impl ConjoiningClauses {
@@ -518,7 +530,7 @@ impl ConjoiningClauses {
                 }
             },
             PatternValuePlace::Constant(nic) => {
-                Place(EvolvedValuePlace::Value(nic.into_typed_value()))
+                Place(EvolvedValuePlace::Value(into_typed_value(nic)))
             },
         }
     }
@@ -655,7 +667,6 @@ mod testing {
 
     use mentat_query::{
         Keyword,
-        NonIntegerConstant,
         Variable,
     };
 
