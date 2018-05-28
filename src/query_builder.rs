@@ -124,11 +124,6 @@ mod test {
         Store,
     };
 
-    use mentat_core::{
-        DateTime,
-        Utc,
-    };
-
     #[test]
     fn test_scalar_query() {
         let mut store = Store::open("").expect("store connection");
