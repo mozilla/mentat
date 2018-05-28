@@ -949,6 +949,15 @@ pub struct NotJoin {
     pub clauses: Vec<WhereClause>,
 }
 
+impl NotJoin {
+    pub fn new(unify_vars: UnifyVars, clauses: Vec<WhereClause>) -> NotJoin {
+        NotJoin {
+            unify_vars: unify_vars,
+            clauses: clauses,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeAnnotation {
     pub value_type: Keyword,
@@ -979,6 +988,131 @@ pub struct FindQuery {
     pub where_clauses: Vec<WhereClause>,
     pub order: Option<Vec<Order>>,
     // TODO: in_rules;
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Eq, PartialEq)]
+pub struct ParsedFindQuery {
+    pub find_spec: FindSpec,
+    pub default_source: SrcVar,
+    pub with: Vec<Variable>,
+    pub in_vars: Vec<Variable>,
+    pub in_sources: BTreeSet<SrcVar>,
+    pub limit: Limit,
+    pub where_clauses: Vec<WhereClause>,
+    pub order: Option<Vec<Order>>,
+    // TODO: in_rules;
+}
+
+pub(crate) enum QueryPart {
+    FindSpec(FindSpec),
+    WithVars(Vec<Variable>),
+    InVars(Vec<Variable>),
+    Limit(Limit),
+    WhereClauses(Vec<WhereClause>),
+    Order(Vec<Order>),
+}
+
+impl ParsedFindQuery {
+    pub(crate) fn from_parts(parts: Vec<QueryPart>) -> std::result::Result<ParsedFindQuery, &'static str> {
+        let mut find_spec: Option<FindSpec> = None;
+        let mut with: Option<Vec<Variable>> = None;
+        let mut in_vars: Option<Vec<Variable>> = None;
+        let mut limit: Option<Limit> = None;
+        let mut where_clauses: Option<Vec<WhereClause>> = None;
+        let mut order: Option<Vec<Order>> = None;
+
+        for part in parts.into_iter() {
+            match part {
+                QueryPart::FindSpec(x) => {
+                    if find_spec.is_some() {
+                        return Err("find query has repeated :find");
+                    }
+                    find_spec = Some(x)
+                },
+                QueryPart::WithVars(x) => {
+                    if with.is_some() {
+                        return Err("find query has repeated :with");
+                    }
+                    with = Some(x)
+                },
+                QueryPart::InVars(x) => {
+                    if in_vars.is_some() {
+                        return Err("find query has repeated :in");
+                    }
+                    in_vars = Some(x)
+                },
+                QueryPart::Limit(x) => {
+                    if limit.is_some() {
+                        return Err("find query has repeated :limit");
+                    }
+                    limit = Some(x)
+                },
+                QueryPart::WhereClauses(x) => {
+                    if where_clauses.is_some() {
+                        return Err("find query has repeated :where");
+                    }
+                    where_clauses = Some(x)
+                },
+                QueryPart::Order(x) => {
+                    if order.is_some() {
+                        return Err("find query has repeated :order");
+                    }
+                    order = Some(x)
+                },
+            }
+        }
+
+        Ok(ParsedFindQuery {
+            find_spec: find_spec.ok_or("expected :find")?,
+            default_source: SrcVar::DefaultSrc,
+            with: with.unwrap_or(vec![]),
+            in_vars: in_vars.unwrap_or(vec![]),
+            in_sources: BTreeSet::default(),
+            limit: limit.unwrap_or(Limit::None),
+            where_clauses: where_clauses.ok_or("expected :where")?,
+            order,
+        })
+    }
+
+
+    pub fn into_find_query(self: ParsedFindQuery) -> Result<FindQuery, &'static str> {
+        let in_vars = {
+            let len = self.in_vars.len();
+            let set: BTreeSet<Variable> = self.in_vars.into_iter().collect();
+            if len != set.len() {
+                return Err("find query has repeated :in variable".into());
+            }
+            set
+        };
+
+        let with = {
+            let len = self.with.len();
+            let set: BTreeSet<Variable> = self.with.into_iter().collect();
+            if len != set.len() {
+                return Err("find query has repeated :with variable".into());
+            }
+            set
+        };
+
+        // Make sure that if we have `:limit ?x`, `?x` appears in `:in`.
+        if let Limit::Variable(ref v) = self.limit {
+            if !in_vars.contains(v) {
+                return Err("limit var not present in :in");
+            }
+        }
+
+        Ok(FindQuery {
+            find_spec: self.find_spec,
+            default_source: self.default_source,
+            with,
+            in_vars,
+            in_sources: self.in_sources,
+            limit: self.limit,
+            where_clauses: self.where_clauses,
+            order: self.order,
+        })
+    }
 }
 
 impl FindQuery {

@@ -22,7 +22,6 @@ extern crate edn;
 extern crate mentat_parser_utils;
 
 mod errors;
-mod parse;
 
 pub use errors::{
     Error,
@@ -31,6 +30,8 @@ pub use errors::{
     ResultExt,
 };
 
-pub use parse::{
-    parse_find_string,
-};
+pub fn parse_find_string(string: &str) -> Result<edn::query::FindQuery> {
+    edn::parse::query(string)
+        .map_err(|e| e.into())
+        .and_then(|parsed| parsed.into_find_query().map_err(|e| e.into()))
+}
