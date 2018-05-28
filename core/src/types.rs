@@ -131,6 +131,24 @@ impl ValueType {
         })
     }
 
+    pub fn from_keyword(keyword: &Keyword) -> Option<Self> {
+        if keyword.namespace() != Some("db.type") {
+            return None;
+        }
+
+        return match keyword.name() {
+            "ref" => Some(ValueType::Ref),
+            "boolean" => Some(ValueType::Boolean),
+            "instant" => Some(ValueType::Instant),
+            "long" => Some(ValueType::Long),
+            "double" => Some(ValueType::Double),
+            "string" => Some(ValueType::String),
+            "keyword" => Some(ValueType::Keyword),
+            "uuid" => Some(ValueType::Uuid),
+            _ => None,
+        }
+    }
+
     pub fn into_typed_value(self) -> TypedValue {
         TypedValue::typed_ns_keyword("db.type", match self {
             ValueType::Ref => "ref",

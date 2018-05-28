@@ -16,9 +16,6 @@ extern crate maplit;
 #[macro_use]
 extern crate error_chain;
 
-#[macro_use]
-extern crate matches;
-
 extern crate edn;
 
 #[macro_use]

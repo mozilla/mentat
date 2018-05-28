@@ -43,22 +43,12 @@ fn prepopulated_schema() -> Schema {
 
 #[test]
 fn test_empty_known() {
-    let type_names = [
-        "boolean",
-        "long",
-        "double",
-        "string",
-        "keyword",
-        "uuid",
-        "instant",
-        "ref",
-    ];
     let schema = prepopulated_schema();
     let known = Known::for_schema(&schema);
-    for known_type in type_names.iter() {
-        for required in type_names.iter() {
-            let q = format!("[:find ?e :where [?e :test/{} ?v] [({} ?v)]]",
-                            known_type, required);
+    for known_type in ValueType::all_enums().iter() {
+        for required in ValueType::all_enums().iter() {
+            let q = format!("[:find ?e :where [?e :test/{} ?v] [(type ?v {})]]",
+                            known_type.into_keyword().name(), required);
             println!("Query: {}", q);
             let cc = alg(known, &q);
             // It should only be empty if the known type and our requirement differ.
@@ -72,7 +62,7 @@ fn test_empty_known() {
 fn test_multiple() {
     let schema = prepopulated_schema();
     let known = Known::for_schema(&schema);
-    let q = "[:find ?e :where [?e _ ?v] [(long ?v)] [(double ?v)]]";
+    let q = "[:find ?e :where [?e _ ?v] [(type ?v :db.type/long)] [(type ?v :db.type/double)]]";
     let cc = alg(known, &q);
     assert!(cc.empty_because.is_some());
 }
@@ -81,5 +71,5 @@ fn test_multiple() {
 fn test_unbound() {
     let schema = prepopulated_schema();
     let known = Known::for_schema(&schema);
-    bails(known, "[:find ?e :where [(string ?e)]]");
+    bails(known, "[:find ?e :where [(type ?e :db.type/string)]]");
 }

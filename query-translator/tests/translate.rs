@@ -348,7 +348,7 @@ fn test_unknown_ident() {
 fn test_type_required_long() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(long ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/long)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
@@ -363,7 +363,7 @@ fn test_type_required_long() {
 fn test_type_required_double() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(double ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/double)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
@@ -378,7 +378,7 @@ fn test_type_required_double() {
 fn test_type_required_boolean() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(boolean ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/boolean)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
@@ -392,7 +392,7 @@ fn test_type_required_boolean() {
 fn test_type_required_string() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(string ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/string)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     // Note: strings should use `all_datoms` and not `datoms`.

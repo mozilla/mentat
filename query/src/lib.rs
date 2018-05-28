@@ -58,7 +58,6 @@ use mentat_core::{
     FromRc,
     TypedValue,
     ValueRc,
-    ValueType,
 };
 
 pub type SrcVarName = String;          // Do not include the required syntactic '$'.
@@ -967,7 +966,7 @@ pub struct NotJoin {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeAnnotation {
-    pub value_type: ValueType,
+    pub value_type: Keyword,
     pub variable: Variable,
 }
 

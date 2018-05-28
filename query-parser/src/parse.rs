@@ -12,7 +12,6 @@ extern crate combine;
 extern crate edn;
 extern crate mentat_parser_utils;
 extern crate mentat_query;
-extern crate mentat_core;
 
 use std; // To refer to std::result::Result.
 
@@ -33,8 +32,6 @@ use self::combine::{
 };
 
 use self::combine::combinator::{any, choice, or, try};
-
-use self::mentat_core::ValueType;
 
 use errors::{
     Error,
@@ -98,6 +95,10 @@ pub struct Query<'a>(std::marker::PhantomData<&'a ()>);
 
 def_parser!(Query, variable, Variable, {
     satisfy_map(Variable::from_value)
+});
+
+def_parser!(Query, keyword, edn::Keyword, {
+    satisfy_map(|v: &edn::ValueAndSpan| v.inner.as_keyword().cloned())
 });
 
 def_parser!(Query, source_var, SrcVar, {
@@ -177,6 +178,8 @@ def_matches_plain_symbol!(Where, or_join, "or-join");
 def_matches_plain_symbol!(Where, not, "not");
 
 def_matches_plain_symbol!(Where, not_join, "not-join");
+
+def_matches_plain_symbol!(Where, type_symbol, "type");
 
 def_parser!(Where, rule_vars, BTreeSet<Variable>, {
     seq()
@@ -339,36 +342,14 @@ def_parser!(Where, pred, WhereClause, {
                 })))
 });
 
-def_parser!(Query, type_anno_type, ValueType, {
-    satisfy_map(|v: &edn::ValueAndSpan| {
-        match v.inner {
-            edn::SpannedValue::PlainSymbol(ref s) => {
-                let name = s.0.as_str();
-                match name {
-                    "ref" => Some(ValueType::Ref),
-                    "boolean" => Some(ValueType::Boolean),
-                    "instant" => Some(ValueType::Instant),
-                    "long" => Some(ValueType::Long),
-                    "double" => Some(ValueType::Double),
-                    "string" => Some(ValueType::String),
-                    "keyword" => Some(ValueType::Keyword),
-                    "uuid" => Some(ValueType::Uuid),
-                    _ => None
-                }
-            },
-            _ => None,
-        }
-    })
-});
-
 /// A type annotation.
 def_parser!(Where, type_annotation, WhereClause, {
     // Accept either a nested list or a nested vector here:
-    // `[(string ?x)]` or `[[string ?x]]`
+    // `[(type ?x :db.type/string)]` or `[[type ?x :db.type/long]]`
     vector()
         .of_exactly(seq()
-            .of_exactly((Query::type_anno_type(), Query::variable())
-                .map(|(ty, var)| {
+            .of_exactly((Where::type_symbol(), Query::variable(), Query::keyword())
+                .map(|(_, var, ty)| {
                     WhereClause::TypeAnnotation(
                         TypeAnnotation {
                             value_type: ty,
@@ -759,7 +740,10 @@ mod test {
         let input = input.with_spans();
         let mut par = Where::pattern();
         let result = par.parse(input.atom_stream());
-        assert!(matches!(result, Err(_)), "Expected a parse error.");
+        match result {
+            Err(_) => (),
+            _ => assert!(false, "Expected a parse error"),
+        }
     }
 
     #[test]
@@ -1137,15 +1121,16 @@ mod test {
     #[test]
     fn test_type_anno() {
         assert_edn_parses_to!(Where::type_annotation,
-                              "[(string ?x)]",
+                              "[(type ?x :db.type/string)]",
                               WhereClause::TypeAnnotation(TypeAnnotation {
-                                  value_type: ValueType::String,
+                                  value_type: edn::Keyword::namespaced("db.type", "string"),
                                   variable: Variable::from_valid_name("?x"),
                               }));
+        // We don't check for valid types, or even that the type is namespaced.
         assert_edn_parses_to!(Where::clause,
-                              "[[long ?foo]]",
+                              "[[type ?foo :db_type_long]]",
                               WhereClause::TypeAnnotation(TypeAnnotation {
-                                  value_type: ValueType::Long,
+                                  value_type: edn::Keyword::plain("db_type_long"),
                                   variable: Variable::from_valid_name("?foo"),
                               }));
 

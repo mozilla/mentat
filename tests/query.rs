@@ -602,7 +602,7 @@ fn test_aggregates_type_handling() {
 
     // You can't sum instants.
     let r = store.q_once(r#"[:find (sum ?v) .
-                             :where [_ _ ?v] [(instant ?v)]]"#,
+                             :where [_ _ ?v] [(type ?v :db.type/instant)]]"#,
                          None);
     match r {
         Result::Err(
@@ -623,7 +623,7 @@ fn test_aggregates_type_handling() {
 
     // But you can count them.
     let r = store.q_once(r#"[:find (count ?v) .
-                             :where [_ _ ?v] [(instant ?v)]]"#,
+                             :where [_ _ ?v] [(type ?v :db.type/instant)]]"#,
                          None)
                  .into_scalar_result()
                  .expect("results")
@@ -634,7 +634,7 @@ fn test_aggregates_type_handling() {
 
     // And you can min them, which returns an instant.
     let r = store.q_once(r#"[:find (min ?v) .
-                             :where [_ _ ?v] [(instant ?v)]]"#,
+                             :where [_ _ ?v] [(type ?v :db.type/instant)]]"#,
                          None)
                  .into_scalar_result()
                  .expect("results")
@@ -644,7 +644,7 @@ fn test_aggregates_type_handling() {
     assert_eq!(Binding::Scalar(TypedValue::Instant(earliest)), r);
 
     let r = store.q_once(r#"[:find (sum ?v) .
-                             :where [_ _ ?v] [(long ?v)]]"#,
+                             :where [_ _ ?v] [(type ?v :db.type/long)]]"#,
                          None)
                  .into_scalar_result()
                  .expect("results")
@@ -655,7 +655,7 @@ fn test_aggregates_type_handling() {
     assert_eq!(Binding::Scalar(TypedValue::Long(total)), r);
 
     let r = store.q_once(r#"[:find (avg ?v) .
-                             :where [_ _ ?v] [(double ?v)]]"#,
+                             :where [_ _ ?v] [(type ?v :db.type/double)]]"#,
                          None)
                  .into_scalar_result()
                  .expect("results")
@@ -710,19 +710,8 @@ fn test_type_reqs() {
             }
         };
 
-    let type_names = &[
-        "boolean",
-        "long",
-        "double",
-        "string",
-        "keyword",
-        "uuid",
-        "instant",
-        "ref",
-    ];
-
-    for name in type_names {
-        let q = format!("[:find [?v ...] :in ?e :where [?e _ ?v] [({} ?v)]]", name);
+    for value_type in ValueType::all_enums().iter() {
+        let q = format!("[:find [?v ...] :in ?e :where [?e _ ?v] [(type ?v {})]]", value_type.into_keyword());
         let results = conn.q_once(&mut c, &q, QueryInputs::with_value_sequence(vec![
                                (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
                            ]))
@@ -746,7 +735,7 @@ fn test_type_reqs() {
     let longs_query = r#"[:find [?v ...]
                           :order (asc ?v)
                           :in ?e
-                          :where [?e _ ?v] [(long ?v)]]"#;
+                          :where [?e _ ?v] [(type ?v :db.type/long)]]"#;
 
     let res = conn.q_once(&mut c, longs_query, QueryInputs::with_value_sequence(vec![
                       (Variable::from_valid_name("?e"), TypedValue::Ref(entid)),
