@@ -38,10 +38,13 @@ pub use chrono::{
 };
 
 pub use edn::{
+    Cloned,
     FromMicros,
+    FromRc,
     Keyword,
     ToMicros,
     Utc,
+    ValueRc,
 };
 
 pub use cache::{
@@ -56,15 +59,12 @@ mod sql_types;
 
 pub use types::{
     Binding,
-    Cloned,
     Entid,
-    FromRc,
     KnownEntid,
     StructuredMap,
     TypedValue,
     ValueType,
     ValueTypeTag,
-    ValueRc,
     now,
 };
 
