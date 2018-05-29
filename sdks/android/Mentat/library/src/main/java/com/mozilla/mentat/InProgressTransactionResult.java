@@ -41,7 +41,7 @@ public class InProgressTransactionResult extends Structure implements Closeable 
     
     public TxReport getReport() {
         if (this.result.isFailure()) {
-            Log.e("InProgressTransactionResult", this.result.err);
+            Log.e("InProgressTransactRes", this.result.err);
             return null;
         }
 
