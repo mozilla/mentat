@@ -36,17 +36,16 @@ pub struct NamespaceableName {
     // the two parts.
     components: String,
 
-    // The index (in bytes) into `components` of the dividing solidus — the place
-    // where the namespace ends and the name begins.
+    // The index (in bytes) into `components` of the dividing solidus — the character
+    // between the namespace and the name.
     //
     // If this is zero, it means that this is _not_ a namespaced value!
     //
-    // Important: The following invariants around `boundary` must be maintained
-    // for memory safety.
+    // Important: The following invariants around `boundary` must be maintained:
     //
     // 1. `boundary` must always be less than or equal to `components.len()`.
-    // 2. `boundary` must be byte index that points to a character boundary,
-    //     and not point into the middle of a utf8 codepoint. That is,
+    // 2. `boundary` must be a byte index that points to a character boundary,
+    //     and not point into the middle of a UTF-8 codepoint. That is,
     //    `components.is_char_boundary(boundary)` must always be true.
     //
     // These invariants are enforced by `NamespaceableName::namespaced()`, and since
