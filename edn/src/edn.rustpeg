@@ -203,25 +203,26 @@ pub op -> OpType
     = ":db/add"     { OpType::Add }
     / ":db/retract" { OpType::Retract }
 
-raw_keyword -> Keyword
+raw_namespaced_keyword -> Keyword
     = keyword_prefix ns:$(symbol_namespace) namespace_separator n:$(symbol_name) { Keyword::namespaced(ns, n) }
+    / #expected("namespaced keyword")
 
-raw_forward_keyword -> Keyword
-    = v:raw_keyword {? if v.is_forward() { Ok(v) } else { Err("expected :forward/keyword") } }
+raw_forward_namespaced_keyword -> Keyword
+    = v:raw_namespaced_keyword {? if v.is_forward() { Ok(v) } else { Err("expected namespaced :forward/keyword") } }
 
-raw_backward_keyword -> Keyword
-    = v:raw_keyword {? if v.is_backward() { Ok(v) } else { Err("expected :backward/_keyword") } }
+raw_backward_namespaced_keyword -> Keyword
+    = v:raw_namespaced_keyword {? if v.is_backward() { Ok(v) } else { Err("expected namespaced :backward/_keyword") } }
 
 entid -> Entid
     = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { Entid::Entid(v) }
-    / v:raw_keyword { Entid::Ident(v) }
+    / v:raw_namespaced_keyword { Entid::Ident(v) }
 
 forward_entid -> Entid
     = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { Entid::Entid(v) }
-    / v:raw_forward_keyword { Entid::Ident(v) }
+    / v:raw_forward_namespaced_keyword { Entid::Ident(v) }
 
 backward_entid -> Entid
-    = v:raw_backward_keyword { Entid::Ident(v.to_reversed()) }
+    = v:raw_backward_namespaced_keyword { Entid::Ident(v.to_reversed()) }
 
 lookup_ref -> LookupRef<ValueAndSpan>
     = "(" __ "lookup-ref" __ a:(entid) __ v:(value) __ ")" { LookupRef { a: AttributePlace::Entid(a), v } }
