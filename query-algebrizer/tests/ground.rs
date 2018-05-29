@@ -225,6 +225,19 @@ fn test_ground_tuple_infers_types() {
     assert_eq!(cc.bound_value(&Variable::from_valid_name("?v")), Some(TypedValue::Long(10)));
 }
 
+// We determine the types of variables in the query in an early first pass, and thus we can
+// safely use idents to name entities, including attributes.
+#[test]
+fn test_ground_coll_infers_attribute_types() {
+    let q = r#"[:find ?x
+                :where [(ground [:foo/age :foo/height]) [?a ...]]
+                       [?x ?a ?v]]"#;
+    let schema = prepopulated_schema();
+    let known = Known::for_schema(&schema);
+    let cc = alg(known, &q);
+    assert!(cc.empty_because.is_none());
+}
+
 #[test]
 fn test_ground_rel_infers_types() {
     let q = r#"[:find ?x :where [?x :foo/age ?v] [(ground [[8 10]]) [[?x ?v]]]]"#;

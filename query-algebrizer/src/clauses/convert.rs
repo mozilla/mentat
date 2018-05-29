@@ -119,12 +119,19 @@ impl ConjoiningClauses {
             }));
         }
 
+        let constrained_types;
+        if let Some(required) = self.required_types.get(var) {
+            constrained_types = known_types.intersection(required);
+        } else {
+            constrained_types = known_types;
+        }
+
         match arg {
             // Longs are potentially ambiguous: they might be longs or entids.
             FnArg::EntidOrInteger(x) => {
                 match (ValueType::Ref.accommodates_integer(x),
-                       known_types.contains(ValueType::Ref),
-                       known_types.contains(ValueType::Long)) {
+                       constrained_types.contains(ValueType::Ref),
+                       constrained_types.contains(ValueType::Long)) {
                     (true, true, true) => {
                         // Ambiguous: this arg could be an entid or a long.
                         // We default to long.
@@ -159,8 +166,8 @@ impl ConjoiningClauses {
 
             // If you definitely want to look up an ident, do it before running the query.
             FnArg::IdentOrKeyword(x) => {
-                match (known_types.contains(ValueType::Ref),
-                       known_types.contains(ValueType::Keyword)) {
+                match (constrained_types.contains(ValueType::Ref),
+                       constrained_types.contains(ValueType::Keyword)) {
                     (true, true) => {
                         // Ambiguous: this could be a keyword or an ident.
                         // Default to keyword.

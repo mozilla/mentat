@@ -32,20 +32,20 @@ use serde::ser::{
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct NamespaceableName {
     // The bytes that make up the namespace followed directly by those
-    // that make up the name.
+    // that make up the name. If there is a namespace, a solidus ('/') is between
+    // the two parts.
     components: String,
 
-    // The index (in bytes) into `components` where the namespace ends and
-    // name begins.
+    // The index (in bytes) into `components` of the dividing solidus — the character
+    // between the namespace and the name.
     //
     // If this is zero, it means that this is _not_ a namespaced value!
     //
-    // Important: The following invariants around `boundary` must be maintained
-    // for memory safety.
+    // Important: The following invariants around `boundary` must be maintained:
     //
     // 1. `boundary` must always be less than or equal to `components.len()`.
-    // 2. `boundary` must be byte index that points to a character boundary,
-    //     and not point into the middle of a utf8 codepoint. That is,
+    // 2. `boundary` must be a byte index that points to a character boundary,
+    //     and not point into the middle of a UTF-8 codepoint. That is,
     //    `components.is_char_boundary(boundary)` must always be true.
     //
     // These invariants are enforced by `NamespaceableName::namespaced()`, and since
@@ -79,6 +79,7 @@ impl NamespaceableName {
         let mut dest = String::with_capacity(n.len() + ns.len());
 
         dest.push_str(ns);
+        dest.push('/');
         dest.push_str(n);
 
         let boundary = ns.len();
@@ -135,13 +136,19 @@ impl NamespaceableName {
         if self.boundary == 0 {
             &self.components
         } else {
-            &self.components[self.boundary..]
+            &self.components[(self.boundary + 1)..]
         }
     }
 
     #[inline]
     pub fn components<'a>(&'a self) -> (&'a str, &'a str) {
-        self.components.split_at(self.boundary)
+        if self.boundary > 0 {
+            (&self.components[0..self.boundary],
+             &self.components[(self.boundary + 1)..])
+        } else {
+            (&self.components[0..0],
+             &self.components)
+        }
     }
 }
 
@@ -174,6 +181,12 @@ impl fmt::Debug for NamespaceableName {
            .field("namespace", &self.namespace())
            .field("name", &self.name())
            .finish()
+    }
+}
+
+impl fmt::Display for NamespaceableName {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(&self.components)
     }
 }
 
