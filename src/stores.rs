@@ -10,6 +10,7 @@
 
 #![allow(dead_code)]
 
+use std::cell::RefCell;
 use std::collections::{
     BTreeMap,
 };
@@ -66,85 +67,93 @@ use query::{
 /// A process is only permitted to have one open handle to each database. This manager
 /// exists to enforce that constraint: don't open databases directly.
 thread_local! {
-    static STORES: RwLock<Stores> = {
-        RwLock::new(Stores::new())
+    static LOCAL_STORES: RefCell<Stores> = {
+        RefCell::new(Stores::new())
     };
 }
 
 lazy_static! {
-    static ref CONNECTIONS: BTreeMap<String, Arc<Conn>> = BTreeMap::default();
+    static ref CONNECTIONS: RwLock<BTreeMap<String, Arc<Conn>>> = RwLock::new(BTreeMap::default());
 }
 
 pub struct Stores {
-    stores: BTreeMap<String, Store>,
+    connections: BTreeMap<String, Store>,
 }
 
 impl Stores {
     fn new() -> Stores {
         Stores {
-            stores: Default::default(),
+            connections: Default::default(),
         }
     }
 }
 
 impl Stores {
     fn is_open(path: &str) -> bool {
-        Stores::singleton().read().unwrap().stores.contains_key(path)
+        CONNECTIONS.read().unwrap().contains_key(path)
     }
 
-    pub fn open(path: &str) -> Result<Store> {
+    fn is_open_on_thread(path: &str) -> bool {
+        LOCAL_STORES.with(|s| (*s.borrow()).connections.contains_key(path))
+    }
+
+    pub fn open(path: &str) -> Result<&mut Store> {
         let p = path.to_string();
-        let stores = Stores::singleton().read().unwrap().stores;
-        let store = match stores.get(path) {
+        let connections = CONNECTIONS.read().unwrap();
+        let store = match connections.get(path) {
             Some(conn) => {
-                let connection = CONNECTIONS.with(|s| s.entry(path.to_string()).or_insert_with(|| {
-                    ::new_connection(path).unwrap()
-                }));
-                Store {
-                    conn: conn.clone(),
-                    sqlite: *connection,
-                }
+                LOCAL_STORES.with(|s| {
+                    let readable = *s.borrow();
+                    match readable.connections.get_mut(path) {
+                        Some(store) => store,
+                        None => {
+                            let store = Store {
+                                conn: conn.clone(),
+                                sqlite: ::new_connection(path).expect("connection"),
+                            };
+                            (*s.borrow_mut()).connections.insert(path.to_string(), store);
+                            readable.connections.get_mut(path).unwrap()
+                        }
+                    }
+                })
             },
             None => {
-                let mut connection = ::new_connection(path)?;
-                CONNECTIONS.with(|s| s.insert(path.to_string(), connection));
-                let conn = Arc::new(Conn::connect(&mut connection)?);
-                stores.insert(path.to_string(), conn);
-                let store = Store {
-                        conn: conn,
-                        sqlite: connection,
-                    };
-                store
+                let store = Store::open(path)?;
+                CONNECTIONS.write().unwrap().insert(path.to_string(), store.conn().clone());
+
+                LOCAL_STORES.with(|s| {
+                    (*s.borrow_mut()).connections.insert(path.to_string(), store);
+                    (*s.borrow()).connections.get_mut(path).unwrap()
+                })
             }
         };
         Ok(store)
     }
 
     pub fn get(path: &str) -> Result<Option<&Store>> {
-        Ok(Stores::singleton().read().unwrap().stores.get(path))
+        Ok(LOCAL_STORES.with(|s| (*s.borrow()).connections.get(path)))
     }
 
     pub fn get_mut(path: &str) -> Result<Option<&mut Store>> {
-        Ok(Stores::singleton().read().unwrap().stores.get_mut(path))
+        Ok(LOCAL_STORES.with(|s| (*s.borrow_mut()).connections.get_mut(path)))
     }
 
     pub fn connect(path: &str) -> Result<Store> {
-        let store = Stores::singleton().read().unwrap().stores.get_mut(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?;
-        let connection = ::new_connection(path)?;
-        store.fork(connection)
+        let store = LOCAL_STORES.with(|s| (*s.borrow()).connections.get_mut(path)).ok_or(ErrorKind::StoreNotFound(path.to_string()))?;
+        let sqlite = ::new_connection(path)?;
+        store.fork(sqlite)
     }
 
     fn open_connections_for_store(path: &str) -> Result<usize> {
-        Ok(Arc::strong_count(Stores::singleton().read().unwrap().stores.get(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?.conn()))
+        Ok(Arc::strong_count(CONNECTIONS.read().unwrap().get(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?))
     }
 
     pub fn close(path: &str) -> Result<()> {
+        LOCAL_STORES.with(|s| (*s.borrow_mut()).connections.remove(path));
         if Stores::open_connections_for_store(path)? <= 1 {
-            Stores::singleton().write().unwrap().stores.remove(path).ok_or(ErrorKind::StoreNotFound(path.to_string()))?;
-            Ok(())
-        } else {
-            bail!(ErrorKind::StoreConnectionStillActive(path.to_string()))
+            CONNECTIONS.write().unwrap().remove(path);
         }
+        Ok(())
     }
 }
 
