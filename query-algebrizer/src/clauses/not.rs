@@ -338,7 +338,7 @@ mod testing {
             [:find ?x ?age
              :where
              [?x :foo/age ?age]
-             [[< ?age 30]]
+             [(< ?age 30)]
              (not [?x :foo/knows "John"]
                   [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);
