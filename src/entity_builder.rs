@@ -15,7 +15,7 @@
 // The internal data format for transacting is required to encode the complexities of
 // processing that format: temporary IDs, lookup refs, input spans, etc.
 //
-// See mentat_tx::entities::Entity and all of its child enums to see how complex this gets.
+// See edn::entities::Entity and all of its child enums to see how complex this gets.
 //
 // A programmatic consumer doesn't want to build something that looks like:
 //
@@ -75,7 +75,7 @@ use mentat_db::internal_types::{
     TypedValueOr,
 };
 
-use mentat_tx::entities::{
+use edn::entities::{
     OpType,
     TempId,
 };

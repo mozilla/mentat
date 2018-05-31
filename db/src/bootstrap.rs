@@ -16,7 +16,7 @@ use edn::types::Value;
 use edn::symbols;
 use entids;
 use db::TypedSQLValue;
-use mentat_tx::entities::Entity;
+use edn::entities::Entity;
 use mentat_core::{
     IdentMap,
     Schema,

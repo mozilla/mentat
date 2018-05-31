@@ -31,7 +31,9 @@ use mentat_core::{
     TypedValue,
     ValueType,
 };
-use mentat_tx::entities::{Entid};
+use edn::entities::{
+    Entid,
+};
 use schema::{
     SchemaBuilding,
 };

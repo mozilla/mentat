@@ -47,8 +47,8 @@ use types::{
     TypedValue,
     ValueType,
 };
-use mentat_tx::entities;
-use mentat_tx::entities::{
+use edn::entities;
+use edn::entities::{
     EntityPlace,
     OpType,
     TempId,

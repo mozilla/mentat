@@ -17,7 +17,7 @@ use std::collections::{
 
 use rusqlite;
 
-use mentat_tx::entities::{
+use edn::entities::{
     TempId,
 };
 use mentat_core::{

@@ -183,10 +183,6 @@ This crate defines the structs and enums that are the output of the query parser
 
 Similarly, this crate defines an abstract representation of a SQL query as understood by Mentat. This bridges between Mentat's types (_e.g._, `TypedValue`) and SQL concepts (`ColumnOrExpression`, `GroupBy`). It's produced by the algebrizer and consumed by the translator.
 
-#### `mentat_tx`
-
-Mentat has two main inputs: reads (queries) and writes (transacts). Just as `mentat_query` defines the types produced by the query parser, `mentat_tx` defines the types produced by the tx parser.
-
 ### Query processing
 
 #### `mentat_query_algebrizer`

@@ -70,9 +70,6 @@ path = "query-sql"
 [dependencies.mentat_query_translator]
 path = "query-translator"
 
-[dependencies.mentat_tx]
-path = "tx"
-
 [dependencies.mentat_tolstoy]
 path = "tolstoy"
 

@@ -103,8 +103,8 @@ use mentat_core::{
 
 use mentat_core::intern_set::InternSet;
 
-use mentat_tx::entities as entmod;
-use mentat_tx::entities::{
+use edn::entities as entmod;
+use edn::entities::{
     AttributePlace,
     Entity,
     OpType,

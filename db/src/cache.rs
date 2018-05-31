@@ -97,7 +97,7 @@ use mentat_sql::{
     SQLQuery,
 };
 
-use mentat_tx::entities::{
+use edn::entities::{
     OpType,
 };
 

@@ -29,7 +29,7 @@ pub use self::mentat_core::{
     ValueType,
 };
 
-use mentat_tx::entities::{
+use edn::entities::{
     EntityPlace,
     TempId,
 };

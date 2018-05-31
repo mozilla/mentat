@@ -1,8 +1,0 @@
-[package]
-name = "mentat_tx"
-version = "0.0.1"
-workspace = ".."
-
-[dependencies]
-[dependencies.edn]
-  path = "../edn"

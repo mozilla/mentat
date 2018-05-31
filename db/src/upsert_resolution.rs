@@ -45,7 +45,7 @@ use mentat_core::{
     Schema,
     TypedValue,
 };
-use mentat_tx::entities::OpType;
+use edn::entities::OpType;
 use schema::SchemaBuilding;
 
 /// A "Simple upsert" that looks like [:db/add TEMPID a v], where a is :db.unique/identity.

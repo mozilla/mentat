@@ -30,7 +30,6 @@ extern crate mentat_query_pull;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 extern crate mentat_tolstoy;
-extern crate mentat_tx;
 
 pub use mentat_core::{
     Attribute,
