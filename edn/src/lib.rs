@@ -10,7 +10,7 @@
 
 extern crate chrono;
 extern crate itertools;
-extern crate num;
+extern crate num_bigint as num;
 extern crate ordered_float;
 extern crate pretty;
 extern crate uuid;

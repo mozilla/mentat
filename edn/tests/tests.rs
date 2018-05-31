@@ -10,7 +10,8 @@
 
 extern crate chrono;
 extern crate edn;
-extern crate num;
+extern crate num_bigint as num;
+extern crate num_traits;
 extern crate ordered_float;
 extern crate uuid;
 
@@ -18,8 +19,8 @@ use std::collections::{BTreeSet, BTreeMap, LinkedList};
 use std::iter::FromIterator;
 use std::f64;
 
-use num::bigint::ToBigInt;
-use num::traits::{Zero, One};
+use num::ToBigInt;
+use num_traits::{Zero, One};
 use ordered_float::OrderedFloat;
 
 use edn::parse::{self, ParseError};

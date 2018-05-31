@@ -16,6 +16,7 @@ extern crate serde_json;
 
 extern crate edn;
 use edn::symbols::Keyword;
+use edn::{parse, Value};
 use serde_test::{assert_tokens, Token};
 
 #[cfg(feature = "serde_support")]
@@ -53,4 +54,121 @@ fn test_deserialize_keyword() {
 }
 
 
+#[cfg(feature = "serde_support")]
+#[test]
+fn test_serialize_value() {
+    let test = "[
+        :find ?id ?reason ?ts
+        :in $
+        :where
+            [?id :session/startReason ?reason ?tx]
+            [?tx :db/txInstant ?ts]
+            (not-join [?id] [?id :session/endReason _])
+    ]";
 
+    let expected = r#"
+{
+  "Vector": [
+    {
+      "Keyword": {
+        "namespace": null,
+        "name": "find"
+      }
+    },
+    {
+      "PlainSymbol": "?id"
+    },
+    {
+      "PlainSymbol": "?reason"
+    },
+    {
+      "PlainSymbol": "?ts"
+    },
+    {
+      "Keyword": {
+        "namespace": null,
+        "name": "in"
+      }
+    },
+    {
+      "PlainSymbol": "$"
+    },
+    {
+      "Keyword": {
+        "namespace": null,
+        "name": "where"
+      }
+    },
+    {
+      "Vector": [
+        {
+          "PlainSymbol": "?id"
+        },
+        {
+          "Keyword": {
+            "namespace": "session",
+            "name": "startReason"
+          }
+        },
+        {
+          "PlainSymbol": "?reason"
+        },
+        {
+          "PlainSymbol": "?tx"
+        }
+      ]
+    },
+    {
+      "Vector": [
+        {
+          "PlainSymbol": "?tx"
+        },
+        {
+          "Keyword": {
+            "namespace": "db",
+            "name": "txInstant"
+          }
+        },
+        {
+          "PlainSymbol": "?ts"
+        }
+      ]
+    },
+    {
+      "List": [
+        {
+          "PlainSymbol": "not-join"
+        },
+        {
+          "Vector": [
+            {
+              "PlainSymbol": "?id"
+            }
+          ]
+        },
+        {
+          "Vector": [
+            {
+              "PlainSymbol": "?id"
+            },
+            {
+              "Keyword": {
+                "namespace": "session",
+                "name": "endReason"
+              }
+            },
+            {
+              "PlainSymbol": "_"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+
+    let edn: Value = parse::value(test).unwrap().into();
+    let parsed: Value = serde_json::from_str(expected).unwrap();
+
+    assert_eq!(edn, parsed);
+}
