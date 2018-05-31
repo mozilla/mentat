@@ -19,7 +19,6 @@ use edn::symbols::Keyword;
 use edn::{parse, Value};
 use serde_test::{assert_tokens, Token};
 
-#[cfg(feature = "serde_support")]
 #[test]
 fn test_serialize_keyword() {
     let kw = Keyword::namespaced("foo", "bar");
@@ -36,7 +35,6 @@ fn test_serialize_keyword() {
 }
 
 
-#[cfg(feature = "serde_support")]
 #[test]
 fn test_deserialize_keyword() {
     let json = r#"{"name": "foo", "namespace": "bar"}"#;
@@ -54,7 +52,6 @@ fn test_deserialize_keyword() {
 }
 
 
-#[cfg(feature = "serde_support")]
 #[test]
 fn test_serialize_value() {
     let test = "[
