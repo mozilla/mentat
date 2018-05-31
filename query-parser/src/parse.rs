@@ -36,6 +36,13 @@ use self::combine::combinator::{any, choice, or, try};
 
 use self::mentat_core::ValueType;
 
+use errors::{
+    Error,
+    ErrorKind,
+    Result,
+    ResultExt,
+};
+
 use self::mentat_parser_utils::{
     KeywordMapParser,
     ResultParser,
@@ -86,64 +93,6 @@ use self::mentat_query::{
     WhereClause,
     WhereFn,
 };
-
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
-
-    foreign_links {
-        EdnParseError(edn::parse::ParseError);
-    }
-
-    errors {
-        DuplicateVariableError {
-            description("duplicate variable")
-            display("duplicates in variable list")
-        }
-
-        NotAVariableError(value: edn::ValueAndSpan) {
-            description("not a variable")
-            display("not a variable: '{}'", value)
-        }
-
-        FindParseError(e: ValueParseError) {
-            description(":find parse error")
-            display(":find parse error")
-        }
-
-        WhereParseError(e: ValueParseError) {
-            description(":where parse error")
-            display(":where parse error")
-        }
-
-        // Not yet used.
-        WithParseError {
-            description(":with parse error")
-            display(":with parse error")
-        }
-
-        InvalidInputError(value: edn::Value) {
-            description("invalid input")
-            display("invalid input: '{}'", value)
-        }
-
-        MissingFieldError(value: edn::Keyword) {
-            description("missing field")
-            display("missing field: '{}'", value)
-        }
-
-        UnknownLimitVar(var: edn::PlainSymbol) {
-            description("limit var not present in :in")
-            display("limit var {} not present in :in", var)
-        }
-
-        InvalidLimit(val: edn::Value) {
-            description("limit value not valid")
-            display("expected natural number, got {}", val)
-        }
-    }
-}
 
 pub struct Query<'a>(std::marker::PhantomData<&'a ()>);
 

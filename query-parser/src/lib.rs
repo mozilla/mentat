@@ -24,12 +24,16 @@ extern crate edn;
 #[macro_use]
 extern crate mentat_parser_utils;
 
+mod errors;
 mod parse;
 
-pub use parse::{
+pub use errors::{
     Error,
     ErrorKind,
     Result,
     ResultExt,
+};
+
+pub use parse::{
     parse_find_string,
 };
