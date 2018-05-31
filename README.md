@@ -133,12 +133,12 @@ To run tests use:
 # Run tests for everything.
 cargo test --all
 
-# Run tests for just the query-parser folder (specify the crate, not the folder),
+# Run tests for just the query-algebrizer folder (specify the crate, not the folder),
 # printing debug output.
-cargo test -p mentat_query_parser -- --nocapture
+cargo test -p mentat_query_algebrizer -- --nocapture
 ````
 
-For most `cargo` commands you can pass the `-p` argument to run the command just on that package. So, `cargo build -p mentat_query_parser` will build just the "query-parser" folder.
+For most `cargo` commands you can pass the `-p` argument to run the command just on that package. So, `cargo build -p mentat_query_algebrizer` will build just the "query-algebrizer" folder.
 
 ## What are all of these crates?
 
@@ -188,10 +188,6 @@ Similarly, this crate defines an abstract representation of a SQL query as under
 Mentat has two main inputs: reads (queries) and writes (transacts). Just as `mentat_query` defines the types produced by the query parser, `mentat_tx` defines the types produced by the tx parser.
 
 ### Query processing
-
-#### `mentat_query_parser`
-
-This is a `combine` parser that uses `mentat_parser_utils` and `mentat_query` to turn a stream of EDN values into a more usable representation of a query.
 
 #### `mentat_query_algebrizer`
 

@@ -86,8 +86,6 @@ impl ConjoiningClauses {
 
 #[cfg(test)]
 mod testing {
-    extern crate mentat_query_parser;
-
     use std::collections::BTreeSet;
 
     use super::*;

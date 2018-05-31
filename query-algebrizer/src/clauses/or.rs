@@ -751,8 +751,6 @@ fn union_types(into: &mut BTreeMap<Variable, ValueTypeSet>,
 
 #[cfg(test)]
 mod testing {
-    extern crate mentat_query_parser;
-
     use super::*;
 
     use mentat_core::{

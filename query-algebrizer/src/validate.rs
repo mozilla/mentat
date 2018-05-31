@@ -96,7 +96,6 @@ pub(crate) fn validate_not_join(not_join: &NotJoin) -> Result<()> {
 mod tests {
     extern crate mentat_core;
     extern crate mentat_query;
-    extern crate mentat_query_parser;
 
     use self::mentat_query::{
         Keyword,

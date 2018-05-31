@@ -27,7 +27,3 @@ path = "../query-sql"
 
 [dependencies.mentat_sql]
 path = "../sql"
-
-# Only for tests.
-[dev-dependencies.mentat_query_parser]
-path = "../query-parser"

@@ -11,7 +11,6 @@
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
-extern crate mentat_query_parser;
 extern crate mentat_query_projector;
 
 use mentat_core::{
