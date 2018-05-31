@@ -1,3 +1,4 @@
 language: rust
 script:
   - cargo test --verbose --all
+  - cargo test --features edn/serde_support --verbose --all
