@@ -11,9 +11,6 @@
 #![allow(unused_imports)]
 
 #[macro_use]
-extern crate maplit;
-
-#[macro_use]
 extern crate error_chain;
 
 extern crate edn;
@@ -29,9 +26,3 @@ pub use errors::{
     Result,
     ResultExt,
 };
-
-pub fn parse_find_string(string: &str) -> Result<edn::query::FindQuery> {
-    edn::parse::query(string)
-        .map_err(|e| e.into())
-        .and_then(|parsed| parsed.into_find_query().map_err(|e| e.into()))
-}

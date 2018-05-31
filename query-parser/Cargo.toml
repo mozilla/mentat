@@ -6,7 +6,6 @@ workspace = ".."
 [dependencies]
 combine = "2.3.2"
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
-maplit = "0.1"
 
 [dependencies.edn]
   path = "../edn"

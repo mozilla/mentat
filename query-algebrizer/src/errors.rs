@@ -11,6 +11,7 @@
 extern crate mentat_query;
 
 use mentat_core::{
+    EdnParseError,
     ValueType,
     ValueTypeSet,
 };
@@ -42,6 +43,10 @@ pub enum BindingError {
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
+    }
+
+    foreign_links {
+        EdnParseError(EdnParseError);
     }
 
     errors {
@@ -116,6 +121,16 @@ error_chain! {
             // TODO: flesh out.
             description("non-matching variables in 'not' clause")
             display("non-matching variables in 'not' clause")
+        }
+
+        DuplicateVariableError(name: PlainSymbol, clause: &'static str)  {
+            description("duplicate variables")
+            display("{} var {} is duplicated", clause, name)
+        }
+
+        UnknownLimitVar(name: PlainSymbol) {
+            description(":limit var not present in :in")
+            display(":limit var {} not present in :in", name)
         }
     }
 }

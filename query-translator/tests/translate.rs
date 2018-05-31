@@ -34,12 +34,12 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_query_parser::parse_find_string;
 use mentat_query_algebrizer::{
     Known,
     QueryInputs,
     algebrize,
     algebrize_with_inputs,
+    parse_find_string,
 };
 
 use mentat_query_projector::{

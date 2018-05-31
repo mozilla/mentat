@@ -12,7 +12,6 @@ use std::collections::BTreeSet;
 use std::fmt::{
     Debug,
     Formatter,
-    Result,
 };
 
 use mentat_core::{
@@ -25,10 +24,13 @@ use mentat_core::{
 
 use mentat_query::{
     Direction,
+    FindSpec,
     Keyword,
+    Limit,
     Order,
     SrcVar,
     Variable,
+    WhereClause,
 };
 
 /// This enum models the fixed set of default tables we have -- two
@@ -174,7 +176,7 @@ impl ColumnName for VariableColumn {
 }
 
 impl Debug for VariableColumn {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         match self {
             // These should agree with VariableColumn::column_name.
             &VariableColumn::Variable(ref v) => write!(f, "{}", v.as_str()),
@@ -184,13 +186,13 @@ impl Debug for VariableColumn {
 }
 
 impl Debug for DatomsColumn {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
 
 impl Debug for Column {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         match self {
             &Column::Fixed(ref c) => c.fmt(f),
             &Column::Fulltext(ref c) => c.fmt(f),
@@ -217,7 +219,7 @@ impl ColumnName for FulltextColumn {
 }
 
 impl Debug for FulltextColumn {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
@@ -251,7 +253,7 @@ impl ColumnName for TransactionsColumn {
 }
 
 impl Debug for TransactionsColumn {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
@@ -264,7 +266,7 @@ pub type TableAlias = String;
 pub struct SourceAlias(pub DatomsTable, pub TableAlias);
 
 impl Debug for SourceAlias {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, "SourceAlias({:?}, {})", self.0, self.1)
     }
 }
@@ -274,7 +276,7 @@ impl Debug for SourceAlias {
 pub struct QualifiedAlias(pub TableAlias, pub Column);
 
 impl Debug for QualifiedAlias {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         write!(f, "{}.{:?}", self.0, self.1)
     }
 }
@@ -689,6 +691,22 @@ impl Debug for EmptyBecause {
             },
         }
     }
+}
+
+
+/// A `FindQuery` represents a valid query to the query algebrizer.
+#[allow(dead_code)]
+#[derive(Debug, Eq, PartialEq)]
+pub struct FindQuery {
+    pub find_spec: FindSpec,
+    pub default_source: SrcVar,
+    pub with: BTreeSet<Variable>,
+    pub in_vars: BTreeSet<Variable>,
+    pub in_sources: BTreeSet<SrcVar>,
+    pub limit: Limit,
+    pub where_clauses: Vec<WhereClause>,
+    pub order: Option<Vec<Order>>,
+    // TODO: in_rules;
 }
 
 // Intermediate data structures for resolving patterns.

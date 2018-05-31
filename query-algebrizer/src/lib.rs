@@ -13,10 +13,6 @@
 #[macro_use]
 extern crate error_chain;
 
-#[cfg(test)]
-#[macro_use]
-extern crate maplit;
-
 extern crate mentat_core;
 extern crate mentat_query;
 
@@ -35,18 +31,20 @@ use mentat_core::{
     Schema,
     TypedValue,
     ValueType,
+    parse_query,
 };
 
 use mentat_core::counter::RcCounter;
 
 use mentat_query::{
     Element,
-    FindQuery,
     FindSpec,
     Limit,
     Order,
+    ParsedFindQuery,
     SrcVar,
     Variable,
+    WhereClause,
 };
 
 pub use errors::{
@@ -63,6 +61,7 @@ pub use clauses::{
 
 pub use types::{
     EmptyBecause,
+    FindQuery,
 };
 
 /// A convenience wrapper around things known in memory: the schema and caches.
@@ -336,3 +335,70 @@ pub use types::{
     TableAlias,
     VariableColumn,
 };
+
+
+impl FindQuery {
+    pub fn simple(spec: FindSpec, where_clauses: Vec<WhereClause>) -> FindQuery {
+        FindQuery {
+            find_spec: spec,
+            default_source: SrcVar::DefaultSrc,
+            with: BTreeSet::default(),
+            in_vars: BTreeSet::default(),
+            in_sources: BTreeSet::default(),
+            limit: Limit::None,
+            where_clauses: where_clauses,
+            order: None,
+        }
+    }
+
+    pub fn from_parsed_find_query(parsed: ParsedFindQuery) -> Result<FindQuery> {
+        let in_vars = {
+            let mut set: BTreeSet<Variable> = BTreeSet::default();
+
+            for var in parsed.in_vars.into_iter() {
+                if !set.insert(var.clone()) {
+                    bail!(ErrorKind::DuplicateVariableError(var.name(), ":in"));
+                }
+            }
+
+            set
+        };
+
+        let with = {
+            let mut set: BTreeSet<Variable> = BTreeSet::default();
+
+            for var in parsed.with.into_iter() {
+                if !set.insert(var.clone()) {
+                    bail!(ErrorKind::DuplicateVariableError(var.name(), ":with"));
+                }
+            }
+
+            set
+        };
+
+        // Make sure that if we have `:limit ?x`, `?x` appears in `:in`.
+        if let Limit::Variable(ref v) = parsed.limit {
+            if !in_vars.contains(v) {
+                bail!(ErrorKind::UnknownLimitVar(v.name()));
+            }
+        }
+
+        Ok(FindQuery {
+            find_spec: parsed.find_spec,
+            default_source: parsed.default_source,
+            with,
+            in_vars,
+            in_sources: parsed.in_sources,
+            limit: parsed.limit,
+            where_clauses: parsed.where_clauses,
+            order: parsed.order,
+        })
+    }
+}
+
+pub fn parse_find_string(string: &str) -> Result<FindQuery> {
+    parse_query(string)
+        // .and_then(
+        .map_err(|e| e.into())
+        .and_then(|parsed| FindQuery::from_parsed_find_query(parsed)) // .map_err(|e| e.into()))
+}

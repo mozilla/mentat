@@ -106,8 +106,6 @@ mod testing {
         Variable
     };
 
-    use self::mentat_query_parser::parse_find_string;
-
     use clauses::{
         QueryInputs,
         add_attribute,
@@ -135,6 +133,7 @@ mod testing {
     use {
         algebrize,
         algebrize_with_inputs,
+        parse_find_string,
     };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {

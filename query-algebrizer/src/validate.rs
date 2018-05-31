@@ -99,7 +99,6 @@ mod tests {
     extern crate mentat_query_parser;
 
     use self::mentat_query::{
-        FindQuery,
         Keyword,
         OrWhereClause,
         Pattern,
@@ -110,13 +109,12 @@ mod tests {
         WhereClause,
     };
 
-    use self::mentat_query_parser::parse_find_string;
-
     use clauses::ident;
 
-    use super::{
-        validate_not_join,
-        validate_or_join,
+    use super::*;
+    use parse_find_string;
+    use types::{
+        FindQuery,
     };
 
     fn value_ident(ns: &str, name: &str) -> PatternValuePlace {
@@ -212,7 +210,7 @@ mod tests {
                                    (and [?artist :artist/type ?type]
                                         [?type :artist/role :artist.role/parody]))]"#;
         let parsed = parse_find_string(query).expect("expected successful parse");
-        let clauses = valid_or_join(parsed, UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?artist")}));
+        let clauses = valid_or_join(parsed, UnifyVars::Explicit(::std::iter::once(Variable::from_valid_name("?artist")).collect()));
 
         // Let's do some detailed parse checks.
         let mut arms = clauses.into_iter();
@@ -322,7 +320,7 @@ mod tests {
                                    [?release :release/artists ?artist]
                                    [?release :release/year 1970])]"#;
         let parsed = parse_find_string(query).expect("expected successful parse");
-        let clauses = valid_not_join(parsed, UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?artist")}));
+        let clauses = valid_not_join(parsed, UnifyVars::Explicit(::std::iter::once(Variable::from_valid_name("?artist")).collect()));
 
         let release = PatternNonValuePlace::Variable(Variable::from_valid_name("?release"));
         let artist = PatternValuePlace::Variable(Variable::from_valid_name("?artist"));

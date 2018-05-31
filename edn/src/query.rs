@@ -978,20 +978,6 @@ pub enum WhereClause {
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
-pub struct FindQuery {
-    pub find_spec: FindSpec,
-    pub default_source: SrcVar,
-    pub with: BTreeSet<Variable>,
-    pub in_vars: BTreeSet<Variable>,
-    pub in_sources: BTreeSet<SrcVar>,
-    pub limit: Limit,
-    pub where_clauses: Vec<WhereClause>,
-    pub order: Option<Vec<Order>>,
-    // TODO: in_rules;
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
 pub struct ParsedFindQuery {
     pub find_spec: FindSpec,
     pub default_source: SrcVar,
@@ -1013,6 +999,12 @@ pub(crate) enum QueryPart {
     Order(Vec<Order>),
 }
 
+/// A `ParsedFindQuery` represents a parsed but potentially invalid query to the query algebrizer.
+/// Such a query is syntactically valid but might be semantically invalid, for example because
+/// constraints on the set of variables are not respected.
+///
+/// We split `ParsedFindQuery` from `FindQuery` because it's not easy to generalize over containers
+/// (here, `Vec` and `BTreeSet`) in Rust.
 impl ParsedFindQuery {
     pub(crate) fn from_parts(parts: Vec<QueryPart>) -> std::result::Result<ParsedFindQuery, &'static str> {
         let mut find_spec: Option<FindSpec> = None;
@@ -1073,60 +1065,6 @@ impl ParsedFindQuery {
             where_clauses: where_clauses.ok_or("expected :where")?,
             order,
         })
-    }
-
-
-    pub fn into_find_query(self: ParsedFindQuery) -> Result<FindQuery, &'static str> {
-        let in_vars = {
-            let len = self.in_vars.len();
-            let set: BTreeSet<Variable> = self.in_vars.into_iter().collect();
-            if len != set.len() {
-                return Err("find query has repeated :in variable".into());
-            }
-            set
-        };
-
-        let with = {
-            let len = self.with.len();
-            let set: BTreeSet<Variable> = self.with.into_iter().collect();
-            if len != set.len() {
-                return Err("find query has repeated :with variable".into());
-            }
-            set
-        };
-
-        // Make sure that if we have `:limit ?x`, `?x` appears in `:in`.
-        if let Limit::Variable(ref v) = self.limit {
-            if !in_vars.contains(v) {
-                return Err("limit var not present in :in");
-            }
-        }
-
-        Ok(FindQuery {
-            find_spec: self.find_spec,
-            default_source: self.default_source,
-            with,
-            in_vars,
-            in_sources: self.in_sources,
-            limit: self.limit,
-            where_clauses: self.where_clauses,
-            order: self.order,
-        })
-    }
-}
-
-impl FindQuery {
-    pub fn simple(spec: FindSpec, where_clauses: Vec<WhereClause>) -> FindQuery {
-        FindQuery {
-            find_spec: spec,
-            default_source: SrcVar::DefaultSrc,
-            with: BTreeSet::default(),
-            in_vars: BTreeSet::default(),
-            in_sources: BTreeSet::default(),
-            limit: Limit::None,
-            where_clauses: where_clauses,
-            order: None,
-        }
     }
 }
 

@@ -767,10 +767,6 @@ mod testing {
         Variable,
     };
 
-    use self::mentat_query_parser::{
-        parse_find_string,
-    };
-
     use clauses::{
         add_attribute,
         associate_ident,
@@ -789,6 +785,7 @@ mod testing {
     use {
         algebrize,
         algebrize_with_counter,
+        parse_find_string,
     };
 
     fn alg(known: Known, input: &str) -> ConjoiningClauses {

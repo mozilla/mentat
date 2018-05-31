@@ -670,10 +670,6 @@ mod testing {
         Variable,
     };
 
-    use self::mentat_query_parser::{
-        parse_find_string,
-    };
-
     use clauses::{
         QueryInputs,
         add_attribute,
@@ -690,7 +686,10 @@ mod testing {
         SourceAlias,
     };
 
-    use algebrize;
+    use {
+        algebrize,
+        parse_find_string,
+    };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");
