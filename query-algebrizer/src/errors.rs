@@ -10,8 +10,18 @@
 
 extern crate mentat_query;
 
+use std; // To refer to std::result::Result.
+use std::fmt;
+use std::fmt::Display;
+
+use failure::{
+    Backtrace,
+    Context,
+    Error,
+    Fail,
+};
+
 use mentat_core::{
-    EdnParseError,
     ValueType,
     ValueTypeSet,
 };
@@ -20,7 +30,53 @@ use self::mentat_query::{
     PlainSymbol,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => (
+        return Err($e.into());
+    )
+}
+
+#[derive(Debug)]
+pub struct InvalidBinding {
+    pub function: PlainSymbol,
+    pub inner: Context<BindingError>
+}
+
+impl InvalidBinding {
+    pub fn new(function: PlainSymbol, inner: BindingError) -> InvalidBinding {
+        InvalidBinding {
+            function: function,
+            inner: Context::new(inner)
+        }
+    }
+}
+
+impl Fail for InvalidBinding {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
+    }
+}
+
+impl Display for InvalidBinding {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "invalid binding for {}: {:?}", self.function, self.inner)
+    }
+}
+
+impl Display for BindingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BindingError: {:?}", self)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Fail)]
 pub enum BindingError {
     NoBoundVariable,
     UnexpectedBinding,
@@ -40,98 +96,52 @@ pub enum BindingError {
     InvalidNumberOfBindings { number: usize, expected: usize },
 }
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+#[derive(Debug, Fail)]
+pub enum AlgebrizerError {
+    #[fail(display = "{} var {} is duplicated", _0, _1)]
+    DuplicateVariableError(PlainSymbol, &'static str),
 
-    foreign_links {
-        EdnParseError(EdnParseError);
-    }
+    #[fail(display = "unexpected FnArg")]
+    UnsupportedArgument,
 
-    errors {
-        UnsupportedArgument {
-            description("unexpected FnArg")
-            display("unexpected FnArg")
-        }
+    #[fail(display = "value of type {} provided for var {}, expected {}", _0, _1, _2)]
+    InputTypeDisagreement(PlainSymbol, ValueType, ValueType),
 
-        InputTypeDisagreement(var: PlainSymbol, declared: ValueType, provided: ValueType) {
-            description("input type disagreement")
-            display("value of type {} provided for var {}, expected {}", provided, var, declared)
-        }
+    #[fail(display = "invalid number of arguments to {}: expected {}, got {}.", _0, _1, _2)]
+    InvalidNumberOfArguments(PlainSymbol, usize, usize),
 
-        UnrecognizedIdent(ident: String) {
-            description("no entid found for ident")
-            display("no entid found for ident: {}", ident)
-        }
+    #[fail(display = "invalid argument to {}: expected {} in position {}.", _0, _1, _2)]
+    InvalidArgument(PlainSymbol, &'static str, usize),
 
-        UnknownFunction(name: PlainSymbol) {
-            description("no such function")
-            display("no function named {}", name)
-        }
+    #[fail(display = "invalid argument to {}: expected one of {:?} in position {}.", _0, _1, _2)]
+    InvalidArgumentType(PlainSymbol, ValueTypeSet, usize),
 
-        InvalidNumberOfArguments(function: PlainSymbol, number: usize, expected: usize) {
-            description("invalid number of arguments")
-            display("invalid number of arguments to {}: expected {}, got {}.", function, expected, number)
-        }
+    // TODO: flesh this out.
+    #[fail(display = "invalid expression in ground constant")]
+    InvalidGroundConstant,
 
-        UnboundVariable(name: PlainSymbol) {
-            description("unbound variable in order clause or function call")
-            display("unbound variable: {}", name)
-        }
+    #[fail(display = "invalid limit {} of type {}: expected natural number.", _0, _1)]
+    InvalidLimit(String, ValueType),
 
-        InvalidBinding(function: PlainSymbol, binding_error: BindingError) {
-            description("invalid binding")
-            display("invalid binding for {}: {:?}.", function, binding_error)
-        }
+    #[fail(display = "mismatched bindings in ground")]
+    GroundBindingsMismatch,
 
-        GroundBindingsMismatch {
-            description("mismatched bindings in ground")
-            display("mismatched bindings in ground")
-        }
+    #[fail(display = "no entid found for ident: {}", _0)]
+    UnrecognizedIdent(String),
 
-        InvalidGroundConstant {
-            // TODO: flesh this out.
-            description("invalid expression in ground constant")
-            display("invalid expression in ground constant")
-        }
+    #[fail(display = "no function named {}", _0)]
+    UnknownFunction(PlainSymbol),
 
-        InvalidArgument(function: PlainSymbol, expected: &'static str, position: usize) {
-            description("invalid argument")
-            display("invalid argument to {}: expected {} in position {}.", function, expected, position)
-        }
+    #[fail(display = ":limit var {} not present in :in", _0)]
+    UnknownLimitVar(PlainSymbol),
 
-        InvalidArgumentType(function: PlainSymbol, expected_types: ValueTypeSet, position: usize) {
-            description("invalid argument")
-            display("invalid argument to {}: expected one of {:?} in position {}.", function, expected_types, position)
-        }
+    #[fail(display = "unbound variable {} in order clause or function call", _0)]
+    UnboundVariable(PlainSymbol),
 
-        InvalidLimit(val: String, kind: ValueType) {
-            description("invalid limit")
-            display("invalid limit {} of type {}: expected natural number.", val, kind)
-        }
+    // TODO: flesh out.
+    #[fail(display = "non-matching variables in 'or' clause")]
+    NonMatchingVariablesInOrClause,
 
-        NonMatchingVariablesInOrClause {
-            // TODO: flesh out.
-            description("non-matching variables in 'or' clause")
-            display("non-matching variables in 'or' clause")
-        }
-
-        NonMatchingVariablesInNotClause {
-            // TODO: flesh out.
-            description("non-matching variables in 'not' clause")
-            display("non-matching variables in 'not' clause")
-        }
-
-        DuplicateVariableError(name: PlainSymbol, clause: &'static str)  {
-            description("duplicate variables")
-            display("{} var {} is duplicated", clause, name)
-        }
-
-        UnknownLimitVar(name: PlainSymbol) {
-            description(":limit var not present in :in")
-            display(":limit var {} not present in :in", name)
-        }
-    }
+    #[fail(display = "non-matching variables in 'not' clause")]
+    NonMatchingVariablesInNotClause,
 }
-
