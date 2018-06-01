@@ -62,7 +62,10 @@ pub enum ColumnOrExpression {
     Integer(i32),       // We use these for type codes etc.
     Long(i64),
     Value(TypedValue),
-    Expression(Box<Expression>, ValueType),      // Track the return type.
+    // Some aggregates (`min`, `max`, `avg`) can be over 0 rows, and therefore can be `NULL`; that
+    // needs special treatment.
+    NullableAggregate(Box<Expression>, ValueType),      // Track the return type.
+    Expression(Box<Expression>, ValueType),             // Track the return type.
 }
 
 pub enum Expression {
@@ -129,6 +132,12 @@ pub enum Constraint {
     In {
         left: ColumnOrExpression,
         list: Vec<ColumnOrExpression>,
+    },
+    IsNull {
+        value: ColumnOrExpression,
+    },
+    IsNotNull {
+        value: ColumnOrExpression,
     },
     NotExists {
         subquery: TableOrSubquery,
@@ -278,6 +287,7 @@ impl QueryFragment for ColumnOrExpression {
             &Value(ref v) => {
                 out.push_typed_value(v)
             },
+            &NullableAggregate(ref e, _) |
             &Expression(ref e, _) => {
                 e.push_sql(out)
             },
@@ -341,6 +351,18 @@ impl QueryFragment for Constraint {
                 op.push_sql(out)?;
                 out.push_sql(" ");
                 right.push_sql(out)
+            },
+
+            &IsNull { ref value } => {
+                value.push_sql(out)?;
+                out.push_sql(" IS NULL");
+                Ok(())
+            },
+
+            &IsNotNull { ref value } => {
+                value.push_sql(out)?;
+                out.push_sql(" IS NOT NULL");
+                Ok(())
             },
 
             &And { ref constraints } => {

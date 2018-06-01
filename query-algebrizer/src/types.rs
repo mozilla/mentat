@@ -330,7 +330,7 @@ impl Debug for QueryValue {
 
 /// Represents an entry in the ORDER BY list: a variable or a variable's type tag.
 /// (We require order vars to be projected, so we can simply use a variable here.)
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OrderBy(pub Direction, pub VariableColumn);
 
 impl From<Order> for OrderBy {

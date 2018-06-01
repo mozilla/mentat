@@ -164,6 +164,15 @@ impl SimpleAggregate {
             Count | Sum => false,
         }
     }
+
+    /// Return `true` if this aggregate can be `NULL` over 0 rows.
+    pub(crate) fn is_nullable(&self) -> bool {
+        use self::SimpleAggregationOp::*;
+        match self.op {
+            Avg | Max | Min => true,
+            Count | Sum => false,
+        }
+    }
 }
 
 pub(crate) trait SimpleAggregation {
@@ -201,7 +210,11 @@ pub(crate) fn projected_column_for_simple_aggregate(simple: &SimpleAggregate, cc
                     sql_op: simple.op.to_sql(),
                     arg: ColumnOrExpression::Value(value),
                 };
-                ColumnOrExpression::Expression(Box::new(expression), return_type)
+                if simple.is_nullable() {
+                    ColumnOrExpression::NullableAggregate(Box::new(expression), return_type)
+                } else {
+                    ColumnOrExpression::Expression(Box::new(expression), return_type)
+                }
             }
         } else {
             // The common case: the values are bound during execution.
@@ -210,7 +223,11 @@ pub(crate) fn projected_column_for_simple_aggregate(simple: &SimpleAggregate, cc
                 sql_op: simple.op.to_sql(),
                 arg: ColumnOrExpression::ExistingColumn(name),
             };
-            ColumnOrExpression::Expression(Box::new(expression), return_type)
+            if simple.is_nullable() {
+                ColumnOrExpression::NullableAggregate(Box::new(expression), return_type)
+            } else {
+                ColumnOrExpression::Expression(Box::new(expression), return_type)
+            }
         };
     Ok((ProjectedColumn(projected_column_or_expression, simple.column_name()), return_type))
 }
