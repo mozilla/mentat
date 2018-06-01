@@ -4,7 +4,8 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
-error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
+failure = "0.1.1"
+failure_derive = "0.1.1"
 ordered-float = "0.5"
 
 [dependencies.rusqlite]
