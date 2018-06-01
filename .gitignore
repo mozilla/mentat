@@ -54,8 +54,10 @@ pom.xml.asc
 /fixtures/*.db-shm
 /fixtures/*.db-wal
 /query-parser/out/
+
 ## Build generated
 /sdks/swift/Mentat/build/
+/sdks/android/**/build
 DerivedData
 build.xcarchive
 
@@ -79,3 +81,9 @@ build.xcarchive
 ## Obj-C/Swift specific
 *.hmap
 *.ipa
+
+
+# Android & IntelliJ
+**/*.iml
+**/.idea
+/sdks/android/**/local.properties
