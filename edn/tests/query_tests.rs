@@ -35,7 +35,7 @@ use edn::query::{
 };
 
 use edn::parse::{
-    query as parse_query,
+    parse_query,
 };
 
 ///! N.B., parsing a query can be done without reference to a DB.
@@ -270,6 +270,25 @@ fn can_parse_limit() {
 fn can_parse_uuid() {
     let expected = edn::Uuid::parse_str("4cb3f828-752d-497a-90c9-b1fd516d5644").expect("valid uuid");
     let s = "[:find ?x :where [?x :foo/baz #uuid \"4cb3f828-752d-497a-90c9-b1fd516d5644\"]]";
+    assert_eq!(parse_query(s).expect("parsed").where_clauses.pop().expect("a where clause"),
+               WhereClause::Pattern(
+                   Pattern::new(None,
+                                PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                                Keyword::namespaced("foo", "baz").into(),
+                                PatternValuePlace::Constant(NonIntegerConstant::Uuid(expected)),
+                                PatternNonValuePlace::Placeholder)
+                       .expect("valid pattern")));
+}
+
+#[test]
+fn can_parse_exotic_whitespace() {
+    let expected = edn::Uuid::parse_str("4cb3f828-752d-497a-90c9-b1fd516d5644").expect("valid uuid");
+    // The query string from `can_parse_uuid`, with newlines, commas, and line comments interspersed.
+    let s = r#"[:find
+?x ,, :where,   ;atest
+[?x :foo/baz #uuid
+   "4cb3f828-752d-497a-90c9-b1fd516d5644", ;testa
+,],,  ,],;"#;
     assert_eq!(parse_query(s).expect("parsed").where_clauses.pop().expect("a where clause"),
                WhereClause::Pattern(
                    Pattern::new(None,

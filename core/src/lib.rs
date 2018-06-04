@@ -46,8 +46,9 @@ pub use edn::{
     Utc,
     ValueRc,
 };
+
 pub use edn::parse::{
-    query as parse_query,
+    parse_query,
     ParseError as EdnParseError,
 };
 

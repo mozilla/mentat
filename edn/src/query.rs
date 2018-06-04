@@ -978,7 +978,7 @@ pub enum WhereClause {
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
-pub struct ParsedFindQuery {
+pub struct ParsedQuery {
     pub find_spec: FindSpec,
     pub default_source: SrcVar,
     pub with: Vec<Variable>,
@@ -987,7 +987,6 @@ pub struct ParsedFindQuery {
     pub limit: Limit,
     pub where_clauses: Vec<WhereClause>,
     pub order: Option<Vec<Order>>,
-    // TODO: in_rules;
 }
 
 pub(crate) enum QueryPart {
@@ -999,14 +998,14 @@ pub(crate) enum QueryPart {
     Order(Vec<Order>),
 }
 
-/// A `ParsedFindQuery` represents a parsed but potentially invalid query to the query algebrizer.
+/// A `ParsedQuery` represents a parsed but potentially invalid query to the query algebrizer.
 /// Such a query is syntactically valid but might be semantically invalid, for example because
 /// constraints on the set of variables are not respected.
 ///
-/// We split `ParsedFindQuery` from `FindQuery` because it's not easy to generalize over containers
+/// We split `ParsedQuery` from `FindQuery` because it's not easy to generalize over containers
 /// (here, `Vec` and `BTreeSet`) in Rust.
-impl ParsedFindQuery {
-    pub(crate) fn from_parts(parts: Vec<QueryPart>) -> std::result::Result<ParsedFindQuery, &'static str> {
+impl ParsedQuery {
+    pub(crate) fn from_parts(parts: Vec<QueryPart>) -> std::result::Result<ParsedQuery, &'static str> {
         let mut find_spec: Option<FindSpec> = None;
         let mut with: Option<Vec<Variable>> = None;
         let mut in_vars: Option<Vec<Variable>> = None;
@@ -1055,7 +1054,7 @@ impl ParsedFindQuery {
             }
         }
 
-        Ok(ParsedFindQuery {
+        Ok(ParsedQuery {
             find_spec: find_spec.ok_or("expected :find")?,
             default_source: SrcVar::DefaultSrc,
             with: with.unwrap_or(vec![]),

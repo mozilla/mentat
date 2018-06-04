@@ -695,6 +695,9 @@ impl Debug for EmptyBecause {
 
 
 /// A `FindQuery` represents a valid query to the query algebrizer.
+///
+/// We split `FindQuery` from `ParsedQuery` because it's not easy to generalize over containers
+/// (here, `Vec` and `BTreeSet`) in Rust.
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
 pub struct FindQuery {
@@ -706,7 +709,6 @@ pub struct FindQuery {
     pub limit: Limit,
     pub where_clauses: Vec<WhereClause>,
     pub order: Option<Vec<Order>>,
-    // TODO: in_rules;
 }
 
 // Intermediate data structures for resolving patterns.

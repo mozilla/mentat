@@ -471,8 +471,8 @@ query_part -> query::QueryPart
     / __ ":where" ws:where_clause+ { query::QueryPart::WhereClauses(ws) }
     / __ ":with" with_vars:variable+ { query::QueryPart::WithVars(with_vars) }
 
-pub query -> query::ParsedFindQuery
-    = __ "[" qps:query_part+ "]" __ {? query::ParsedFindQuery::from_parts(qps) }
+pub parse_query -> query::ParsedQuery
+    = __ "[" qps:query_part+ "]" __ {? query::ParsedQuery::from_parts(qps) }
 
 variable -> query::Variable
     = v:value {? query::Variable::from_value(&v).ok_or("expected variable") }

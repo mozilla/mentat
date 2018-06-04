@@ -41,7 +41,7 @@ use mentat_query::{
     FindSpec,
     Limit,
     Order,
-    ParsedFindQuery,
+    ParsedQuery,
     SrcVar,
     Variable,
     WhereClause,
@@ -351,7 +351,7 @@ impl FindQuery {
         }
     }
 
-    pub fn from_parsed_find_query(parsed: ParsedFindQuery) -> Result<FindQuery> {
+    pub fn from_parsed_query(parsed: ParsedQuery) -> Result<FindQuery> {
         let in_vars = {
             let mut set: BTreeSet<Variable> = BTreeSet::default();
 
@@ -398,7 +398,6 @@ impl FindQuery {
 
 pub fn parse_find_string(string: &str) -> Result<FindQuery> {
     parse_query(string)
-        // .and_then(
         .map_err(|e| e.into())
-        .and_then(|parsed| FindQuery::from_parsed_find_query(parsed)) // .map_err(|e| e.into()))
+        .and_then(|parsed| FindQuery::from_parsed_query(parsed))
 }
