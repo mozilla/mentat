@@ -8,72 +8,58 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use rusqlite;
+use std; // To refer to std::result::Result.
+
+use failure::{
+    Error,
+};
 
 use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_db;
-
 use mentat_query::{
     PlainSymbol,
 };
-
-use mentat_query_pull;
 
 use aggregates::{
     SimpleAggregationOp,
 };
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => (
+        return Err($e.into());
+    )
+}
 
-    errors {
-        /// We're just not done yet.  Message that the feature is recognized but not yet
-        /// implemented.
-        NotYetImplemented(t: String) {
-            description("not yet implemented")
-            display("not yet implemented: {}", t)
-        }
-        CannotProjectImpossibleBinding(op: SimpleAggregationOp) {
-            description("no possible types for variable in projection list")
-            display("no possible types for value provided to {:?}", op)
-        }
-        CannotApplyAggregateOperationToTypes(op: SimpleAggregationOp, types: ValueTypeSet) {
-            description("cannot apply projection operation to types")
-            display("cannot apply projection operation {:?} to types {:?}", op, types)
-        }
-        InvalidProjection(t: String) {
-            description("invalid projection")
-            display("invalid projection: {}", t)
-        }
-        UnboundVariable(var: PlainSymbol) {
-            description("cannot project unbound variable")
-            display("cannot project unbound variable {:?}", var)
-        }
-        NoTypeAvailableForVariable(var: PlainSymbol) {
-            description("cannot find type for variable")
-            display("cannot find type for variable {:?}", var)
-        }
-        UnexpectedResultsType(actual: &'static str, expected: &'static str) {
-            description("unexpected query results type")
-            display("expected {}, got {}", expected, actual)
-        }
-        AmbiguousAggregates(min_max_count: usize, corresponding_count: usize) {
-            description("ambiguous aggregates")
-            display("min/max expressions: {} (max 1), corresponding: {}", min_max_count, corresponding_count)
-        }
-    }
+pub type Result<T> = std::result::Result<T, Error>;
 
-    foreign_links {
-        Rusqlite(rusqlite::Error);
-    }
+#[derive(Debug, Fail)]
+pub enum ProjectorError {
+    /// We're just not done yet.  Message that the feature is recognized but not yet
+    /// implemented.
+    #[fail(display = "not yet implemented: {}", _0)]
+    NotYetImplemented(String),
 
-    links {
-        DbError(mentat_db::Error, mentat_db::ErrorKind);
-        PullError(mentat_query_pull::errors::Error, mentat_query_pull::errors::ErrorKind);
-    }
+    #[fail(display = "no possible types for value provided to {:?}", _0)]
+    CannotProjectImpossibleBinding(SimpleAggregationOp),
+
+    #[fail(display = "cannot apply projection operation {:?} to types {:?}", _0, _1)]
+    CannotApplyAggregateOperationToTypes(SimpleAggregationOp, ValueTypeSet),
+
+    #[fail(display = "invalid projection: {}", _0)]
+    InvalidProjection(String),
+
+    #[fail(display = "cannot project unbound variable {:?}", _0)]
+    UnboundVariable(PlainSymbol),
+
+    #[fail(display = "cannot find type for variable {:?}", _0)]
+    NoTypeAvailableForVariable(PlainSymbol),
+
+    #[fail(display = "expected {}, got {}", _0, _1)]
+    UnexpectedResultsType(&'static str, &'static str),
+
+    #[fail(display = "min/max expressions: {} (max 1), corresponding: {}", _0, _1)]
+    AmbiguousAggregates(usize, usize),
 }
