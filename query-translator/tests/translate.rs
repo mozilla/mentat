@@ -11,7 +11,6 @@
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
-extern crate mentat_query_parser;
 extern crate mentat_query_projector;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
@@ -34,12 +33,12 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_query_parser::parse_find_string;
 use mentat_query_algebrizer::{
     Known,
     QueryInputs,
     algebrize,
     algebrize_with_inputs,
+    parse_find_string,
 };
 
 use mentat_query_projector::{
@@ -348,7 +347,7 @@ fn test_unknown_ident() {
 fn test_type_required_long() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(long ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/long)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
@@ -363,7 +362,7 @@ fn test_type_required_long() {
 fn test_type_required_double() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(double ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/double)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
@@ -378,7 +377,7 @@ fn test_type_required_double() {
 fn test_type_required_boolean() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(boolean ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/boolean)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     assert_eq!(sql, "SELECT DISTINCT `datoms00`.e AS `?x` \
@@ -392,7 +391,7 @@ fn test_type_required_boolean() {
 fn test_type_required_string() {
     let schema = Schema::default();
 
-    let query = r#"[:find ?x :where [?x _ ?e] [(string ?e)]]"#;
+    let query = r#"[:find ?x :where [?x _ ?e] [(type ?e :db.type/string)]]"#;
     let SQLQuery { sql, args } = translate(&schema, query);
 
     // Note: strings should use `all_datoms` and not `datoms`.

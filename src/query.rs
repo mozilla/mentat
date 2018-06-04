@@ -14,18 +14,20 @@ use rusqlite::types::ToSql;
 use std::rc::Rc;
 
 use mentat_core::{
+    Binding,
     Entid,
     HasSchema,
     KnownEntid,
     Schema,
-    Binding,
     TypedValue,
 };
 
 use mentat_query_algebrizer::{
     AlgebraicQuery,
     EmptyBecause,
+    FindQuery,
     algebrize_with_inputs,
+    parse_find_string,
 };
 
 pub use mentat_query_algebrizer::{
@@ -40,16 +42,11 @@ pub use mentat_query::{
 
 use mentat_query::{
     Element,
-    FindQuery,
     FindSpec,
     Pattern,
     PatternNonValuePlace,
     PatternValuePlace,
     WhereClause,
-};
-
-use mentat_query_parser::{
-    parse_find_string,
 };
 
 use mentat_query_projector::{

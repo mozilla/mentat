@@ -29,10 +29,6 @@ path = "../query-algebrizer"
 [dependencies.mentat_query_pull]
 path = "../query-pull"
 
-# Only for tests.
-[dev-dependencies.mentat_query_parser]
-path = "../query-parser"
-
 [dependencies.mentat_query_sql]
 path = "../query-sql"
 

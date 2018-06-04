@@ -58,9 +58,6 @@ path = "query"
 [dependencies.mentat_query_algebrizer]
 path = "query-algebrizer"
 
-[dependencies.mentat_query_parser]
-path = "query-parser"
-
 [dependencies.mentat_query_projector]
 path = "query-projector"
 
@@ -72,9 +69,6 @@ path = "query-sql"
 
 [dependencies.mentat_query_translator]
 path = "query-translator"
-
-[dependencies.mentat_tx]
-path = "tx"
 
 [dependencies.mentat_tolstoy]
 path = "tolstoy"

@@ -1096,7 +1096,7 @@ mod tests {
         InternSet,
     };
     use mentat_core::util::Either::*;
-    use mentat_tx::entities::{
+    use edn::entities::{
         OpType,
         TempId,
     };

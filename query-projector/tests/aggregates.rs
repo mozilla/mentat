@@ -11,7 +11,6 @@
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
-extern crate mentat_query_parser;
 extern crate mentat_query_projector;
 
 use mentat_core::{
@@ -21,10 +20,6 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_query_parser::{
-    parse_find_string,
-};
-
 use mentat_query::{
     Keyword,
 };
@@ -32,6 +27,7 @@ use mentat_query::{
 use mentat_query_algebrizer::{
     Known,
     algebrize,
+    parse_find_string,
 };
 
 use mentat_query_projector::{

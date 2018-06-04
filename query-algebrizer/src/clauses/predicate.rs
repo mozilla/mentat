@@ -16,6 +16,7 @@ use mentat_core::{
 
 use mentat_query::{
     FnArg,
+    PlainSymbol,
     Predicate,
     TypeAnnotation,
 };
@@ -66,7 +67,10 @@ impl ConjoiningClauses {
     /// Apply a type annotation, which is a construct like a predicate that constrains the argument
     /// to be a specific ValueType.
     pub(crate) fn apply_type_anno(&mut self, anno: &TypeAnnotation) -> Result<()> {
-        self.add_type_requirement(anno.variable.clone(), ValueTypeSet::of_one(anno.value_type));
+        match ValueType::from_keyword(&anno.value_type) {
+            Some(value_type) => self.add_type_requirement(anno.variable.clone(), ValueTypeSet::of_one(value_type)),
+            None => bail!(ErrorKind::InvalidArgumentType(PlainSymbol::plain("type"), ValueTypeSet::any(), 2)),
+        }
         Ok(())
     }
 

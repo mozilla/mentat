@@ -86,8 +86,6 @@ impl ConjoiningClauses {
 
 #[cfg(test)]
 mod testing {
-    extern crate mentat_query_parser;
-
     use std::collections::BTreeSet;
 
     use super::*;
@@ -105,8 +103,6 @@ mod testing {
         PlainSymbol,
         Variable
     };
-
-    use self::mentat_query_parser::parse_find_string;
 
     use clauses::{
         QueryInputs,
@@ -135,6 +131,7 @@ mod testing {
     use {
         algebrize,
         algebrize_with_inputs,
+        parse_find_string,
     };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
@@ -338,7 +335,7 @@ mod testing {
             [:find ?x ?age
              :where
              [?x :foo/age ?age]
-             [[< ?age 30]]
+             [(< ?age 30)]
              (not [?x :foo/knows "John"]
                   [?x :foo/knows "Daphne"])]"#;
         let cc = alg(&schema, query);

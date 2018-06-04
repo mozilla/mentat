@@ -20,10 +20,6 @@ use mentat_core::{
     ValueType,
 };
 
-use mentat_query_parser::{
-    parse_find_string,
-};
-
 use mentat_query::{
     Keyword,
 };
@@ -35,6 +31,7 @@ use mentat_query_algebrizer::{
     QueryInputs,
     algebrize,
     algebrize_with_inputs,
+    parse_find_string,
 };
 
 // Common utility functions used in multiple test files.

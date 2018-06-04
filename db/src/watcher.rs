@@ -23,7 +23,7 @@ use mentat_core::{
     TypedValue,
 };
 
-use mentat_tx::entities::{
+use edn::entities::{
     OpType,
 };
 

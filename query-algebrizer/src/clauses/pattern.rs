@@ -18,6 +18,7 @@ use mentat_core::{
 };
 
 use mentat_query::{
+    NonIntegerConstant,
     Pattern,
     PatternValuePlace,
     PatternNonValuePlace,
@@ -41,6 +42,17 @@ use types::{
 };
 
 use Known;
+
+pub fn into_typed_value(nic: NonIntegerConstant) -> TypedValue {
+    match nic {
+        NonIntegerConstant::BigInteger(_) => unimplemented!(),     // TODO: #280.
+        NonIntegerConstant::Boolean(v) => TypedValue::Boolean(v),
+        NonIntegerConstant::Float(v) => TypedValue::Double(v),
+        NonIntegerConstant::Text(v) => v.into(),
+        NonIntegerConstant::Instant(v) => TypedValue::Instant(v),
+        NonIntegerConstant::Uuid(v) => TypedValue::Uuid(v),
+    }
+}
 
 /// Application of patterns.
 impl ConjoiningClauses {
@@ -518,7 +530,7 @@ impl ConjoiningClauses {
                 }
             },
             PatternValuePlace::Constant(nic) => {
-                Place(EvolvedValuePlace::Value(nic.into_typed_value()))
+                Place(EvolvedValuePlace::Value(into_typed_value(nic)))
             },
         }
     }
@@ -639,8 +651,6 @@ impl ConjoiningClauses {
 
 #[cfg(test)]
 mod testing {
-    extern crate mentat_query_parser;
-
     use super::*;
 
     use std::collections::BTreeMap;
@@ -655,12 +665,7 @@ mod testing {
 
     use mentat_query::{
         Keyword,
-        NonIntegerConstant,
         Variable,
-    };
-
-    use self::mentat_query_parser::{
-        parse_find_string,
     };
 
     use clauses::{
@@ -679,7 +684,10 @@ mod testing {
         SourceAlias,
     };
 
-    use algebrize;
+    use {
+        algebrize,
+        parse_find_string,
+    };
 
     fn alg(schema: &Schema, input: &str) -> ConjoiningClauses {
         let parsed = parse_find_string(input).expect("parse failed");

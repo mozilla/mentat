@@ -8,20 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#[macro_use]
-extern crate maplit;
-
 extern crate edn;
-extern crate mentat_core;
-extern crate mentat_query;
-extern crate mentat_query_parser;
 
 use edn::{
     Keyword,
     PlainSymbol,
 };
 
-use mentat_query::{
+use edn::query::{
     Direction,
     Element,
     FindSpec,
@@ -40,7 +34,9 @@ use mentat_query::{
     WhereClause,
 };
 
-use mentat_query_parser::parse_find_string;
+use edn::parse::{
+    parse_query,
+};
 
 ///! N.B., parsing a query can be done without reference to a DB.
 ///! Processing the parsed query into something we can work with
@@ -50,7 +46,7 @@ use mentat_query_parser::parse_find_string;
 #[test]
 fn can_parse_predicates() {
     let s = "[:find [?x ...] :where [?x _ ?y] [(< ?y 10)]]";
-    let p = parse_find_string(s).unwrap();
+    let p = parse_query(s).unwrap();
 
     assert_eq!(p.find_spec,
                FindSpec::FindColl(Element::Variable(Variable::from_valid_name("?x"))));
@@ -72,7 +68,7 @@ fn can_parse_predicates() {
 #[test]
 fn can_parse_simple_or() {
     let s = "[:find ?x . :where (or [?x _ 10] [?x _ 15])]";
-    let p = parse_find_string(s).unwrap();
+    let p = parse_query(s).unwrap();
 
     assert_eq!(p.find_spec,
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
@@ -105,14 +101,14 @@ fn can_parse_simple_or() {
 #[test]
 fn can_parse_unit_or_join() {
     let s = "[:find ?x . :where (or-join [?x] [?x _ 15])]";
-    let p = parse_find_string(s).expect("to be able to parse find");
+    let p = parse_query(s).expect("to be able to parse find");
 
     assert_eq!(p.find_spec,
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
     assert_eq!(p.where_clauses,
                vec![
                    WhereClause::OrJoin(OrJoin::new(
-                       UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?x")}),
+                       UnifyVars::Explicit(std::iter::once(Variable::from_valid_name("?x")).collect()),
                        vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
@@ -130,14 +126,14 @@ fn can_parse_unit_or_join() {
 #[test]
 fn can_parse_simple_or_join() {
     let s = "[:find ?x . :where (or-join [?x] [?x _ 10] [?x _ -15])]";
-    let p = parse_find_string(s).unwrap();
+    let p = parse_query(s).unwrap();
 
     assert_eq!(p.find_spec,
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
     assert_eq!(p.where_clauses,
                vec![
                    WhereClause::OrJoin(OrJoin::new(
-                       UnifyVars::Explicit(btreeset!{Variable::from_valid_name("?x")}),
+                       UnifyVars::Explicit(std::iter::once(Variable::from_valid_name("?x")).collect()),
                        vec![
                            OrWhereClause::Clause(
                                WhereClause::Pattern(Pattern {
@@ -168,7 +164,7 @@ fn ident(ns: &str, name: &str) -> PatternNonValuePlace {
 #[test]
 fn can_parse_simple_or_and_join() {
     let s = "[:find ?x . :where (or [?x _ 10] (and (or [?x :foo/bar ?y] [?x :foo/baz ?y]) [(< ?y 1)]))]";
-    let p = parse_find_string(s).unwrap();
+    let p = parse_query(s).unwrap();
 
     assert_eq!(p.find_spec,
                FindSpec::FindScalar(Element::Variable(Variable::from_valid_name("?x"))));
@@ -220,23 +216,23 @@ fn can_parse_simple_or_and_join() {
 #[test]
 fn can_parse_order_by() {
     let invalid = "[:find ?x :where [?x :foo/baz ?y] :order]";
-    assert!(parse_find_string(invalid).is_err());
+    assert!(parse_query(invalid).is_err());
 
     // Defaults to ascending.
     let default = "[:find ?x :where [?x :foo/baz ?y] :order ?y]";
-    assert_eq!(parse_find_string(default).unwrap().order,
+    assert_eq!(parse_query(default).unwrap().order,
                Some(vec![Order(Direction::Ascending, Variable::from_valid_name("?y"))]));
 
     let ascending = "[:find ?x :where [?x :foo/baz ?y] :order (asc ?y)]";
-    assert_eq!(parse_find_string(ascending).unwrap().order,
+    assert_eq!(parse_query(ascending).unwrap().order,
                Some(vec![Order(Direction::Ascending, Variable::from_valid_name("?y"))]));
 
     let descending = "[:find ?x :where [?x :foo/baz ?y] :order (desc ?y)]";
-    assert_eq!(parse_find_string(descending).unwrap().order,
+    assert_eq!(parse_query(descending).unwrap().order,
                Some(vec![Order(Direction::Descending, Variable::from_valid_name("?y"))]));
 
     let mixed = "[:find ?x :where [?x :foo/baz ?y] :order (desc ?y) (asc ?x)]";
-    assert_eq!(parse_find_string(mixed).unwrap().order,
+    assert_eq!(parse_query(mixed).unwrap().order,
                Some(vec![Order(Direction::Descending, Variable::from_valid_name("?y")),
                          Order(Direction::Ascending, Variable::from_valid_name("?x"))]));
 }
@@ -244,40 +240,56 @@ fn can_parse_order_by() {
 #[test]
 fn can_parse_limit() {
     let invalid = "[:find ?x :where [?x :foo/baz ?y] :limit]";
-    assert!(parse_find_string(invalid).is_err());
+    assert!(parse_query(invalid).is_err());
 
     let zero_invalid = "[:find ?x :where [?x :foo/baz ?y] :limit 00]";
-    assert!(parse_find_string(zero_invalid).is_err());
+    assert!(parse_query(zero_invalid).is_err());
 
     let none = "[:find ?x :where [?x :foo/baz ?y]]";
-    assert_eq!(parse_find_string(none).unwrap().limit,
+    assert_eq!(parse_query(none).unwrap().limit,
                Limit::None);
 
     let one = "[:find ?x :where [?x :foo/baz ?y] :limit 1]";
-    assert_eq!(parse_find_string(one).unwrap().limit,
+    assert_eq!(parse_query(one).unwrap().limit,
                Limit::Fixed(1));
 
     let onethousand = "[:find ?x :where [?x :foo/baz ?y] :limit 1000]";
-    assert_eq!(parse_find_string(onethousand).unwrap().limit,
+    assert_eq!(parse_query(onethousand).unwrap().limit,
                Limit::Fixed(1000));
 
     let variable_with_in = "[:find ?x :in ?limit :where [?x :foo/baz ?y] :limit ?limit]";
-    assert_eq!(parse_find_string(variable_with_in).unwrap().limit,
+    assert_eq!(parse_query(variable_with_in).unwrap().limit,
                Limit::Variable(Variable::from_valid_name("?limit")));
 
     let variable_with_in_used = "[:find ?x :in ?limit :where [?x :foo/baz ?limit] :limit ?limit]";
-    assert_eq!(parse_find_string(variable_with_in_used).unwrap().limit,
+    assert_eq!(parse_query(variable_with_in_used).unwrap().limit,
                Limit::Variable(Variable::from_valid_name("?limit")));
-
-    let variable_without_in = "[:find ?x :where [?x :foo/baz ?y] :limit ?limit]";
-    assert!(parse_find_string(variable_without_in).is_err());
 }
 
 #[test]
 fn can_parse_uuid() {
     let expected = edn::Uuid::parse_str("4cb3f828-752d-497a-90c9-b1fd516d5644").expect("valid uuid");
     let s = "[:find ?x :where [?x :foo/baz #uuid \"4cb3f828-752d-497a-90c9-b1fd516d5644\"]]";
-    assert_eq!(parse_find_string(s).expect("parsed").where_clauses.pop().expect("a where clause"),
+    assert_eq!(parse_query(s).expect("parsed").where_clauses.pop().expect("a where clause"),
+               WhereClause::Pattern(
+                   Pattern::new(None,
+                                PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),
+                                Keyword::namespaced("foo", "baz").into(),
+                                PatternValuePlace::Constant(NonIntegerConstant::Uuid(expected)),
+                                PatternNonValuePlace::Placeholder)
+                       .expect("valid pattern")));
+}
+
+#[test]
+fn can_parse_exotic_whitespace() {
+    let expected = edn::Uuid::parse_str("4cb3f828-752d-497a-90c9-b1fd516d5644").expect("valid uuid");
+    // The query string from `can_parse_uuid`, with newlines, commas, and line comments interspersed.
+    let s = r#"[:find
+?x ,, :where,   ;atest
+[?x :foo/baz #uuid
+   "4cb3f828-752d-497a-90c9-b1fd516d5644", ;testa
+,],,  ,],;"#;
+    assert_eq!(parse_query(s).expect("parsed").where_clauses.pop().expect("a where clause"),
                WhereClause::Pattern(
                    Pattern::new(None,
                                 PatternNonValuePlace::Variable(Variable::from_valid_name("?x")),

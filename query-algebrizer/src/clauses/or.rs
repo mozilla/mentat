@@ -751,8 +751,6 @@ fn union_types(into: &mut BTreeMap<Variable, ValueTypeSet>,
 
 #[cfg(test)]
 mod testing {
-    extern crate mentat_query_parser;
-
     use super::*;
 
     use mentat_core::{
@@ -765,10 +763,6 @@ mod testing {
     use mentat_query::{
         Keyword,
         Variable,
-    };
-
-    use self::mentat_query_parser::{
-        parse_find_string,
     };
 
     use clauses::{
@@ -789,6 +783,7 @@ mod testing {
     use {
         algebrize,
         algebrize_with_counter,
+        parse_find_string,
     };
 
     fn alg(known: Known, input: &str) -> ConjoiningClauses {
@@ -973,7 +968,7 @@ mod testing {
             [:find ?x ?age
              :where
              [?x :foo/age ?age]
-             [[< ?age 30]]
+             [(< ?age 30)]
              (or [?x :foo/knows "John"]
                  [?x :foo/knows "Daphne"])]"#;
         let cc = alg(known, query);
