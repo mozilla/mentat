@@ -8,14 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#[macro_use]
-extern crate error_chain;
+extern crate failure;
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
+
+use failure::Error;
 
 mod translate;
 
@@ -29,15 +30,4 @@ pub use translate::{
     query_to_select,
 };
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
-
-    foreign_links {
-    }
-
-    links {
-        ProjectorError(mentat_query_projector::errors::Error, mentat_query_projector::errors::ErrorKind);
-    }
-}
+type Result<T> = std::result::Result<T, Error>;
