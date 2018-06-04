@@ -8,28 +8,23 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use std; // To refer to std::result::Result.
+
 use mentat_core::{
     Entid,
 };
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+use failure::{
+    Error,
+};
 
-    errors {
-        UnnamedAttribute(id: Entid) {
-            description("unnamed attribute")
-            display("attribute {:?} has no name", id)
-        }
+pub type Result<T> = std::result::Result<T, Error>;
 
-        RepeatedDbId {
-            description(":db/id repeated")
-            display(":db/id repeated")
-        }
-    }
+#[derive(Debug, Fail)]
+pub enum PullError {
+    #[fail(display = "attribute {:?} has no name", _0)]
+    UnnamedAttribute(Entid),
 
-    links {
-        DbError(::mentat_db::Error, ::mentat_db::ErrorKind);
-    }
+    #[fail(display = ":db/id repeated")]
+    RepeatedDbId,
 }

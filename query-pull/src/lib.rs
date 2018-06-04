@@ -57,8 +57,10 @@
 ///      [*]))
 ///! ```
 
+extern crate failure;
+
 #[macro_use]
-extern crate error_chain;
+extern crate failure_derive;
 
 extern crate rusqlite;
 
@@ -101,7 +103,7 @@ use mentat_query::{
 pub mod errors;
 
 use errors::{
-    ErrorKind,
+    PullError,
     Result,
 };
 
@@ -163,7 +165,7 @@ impl Puller {
             // In the unlikely event that we have an attribute with no name, we bail.
             schema.get_ident(*i)
                     .map(|ident| ValueRc::new(ident.clone()))
-                    .ok_or_else(|| ErrorKind::UnnamedAttribute(*i))
+                    .ok_or_else(|| PullError::UnnamedAttribute(*i))
         };
 
         let mut names: BTreeMap<Entid, ValueRc<Keyword>> = Default::default();
@@ -192,7 +194,7 @@ impl Puller {
                         &PullConcreteAttribute::Ident(ref i) if i.as_ref() == db_id.as_ref() => {
                             // We only allow :db/id once.
                             if db_id_alias.is_some() {
-                                bail!(ErrorKind::RepeatedDbId);
+                                Err(PullError::RepeatedDbId)?
                             }
                             db_id_alias = Some(alias.unwrap_or_else(|| db_id.to_value_rc()));
                         },
