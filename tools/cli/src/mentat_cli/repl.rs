@@ -11,6 +11,11 @@
 use std::io::Write;
 use std::process;
 
+use failure::{
+    err_msg,
+    Error,
+};
+
 use tabwriter::TabWriter;
 
 use termion::{
@@ -383,7 +388,7 @@ impl Repl {
         if self.path.is_empty() || path != self.path {
             let next = match encryption_key {
                 #[cfg(not(feature = "sqlcipher"))]
-                Some(_) => bail!(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature"),
+                Some(_) => return Err(err_msg(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature")),
                 #[cfg(feature = "sqlcipher")]
                 Some(k) => {
                     if empty {
@@ -467,7 +472,7 @@ impl Repl {
         output.flush().unwrap();
     }
 
-    fn print_results(&self, query_output: QueryOutput) -> Result<(), ::errors::Error> {
+    fn print_results(&self, query_output: QueryOutput) -> Result<(), Error> {
         let stdout = ::std::io::stdout();
         let mut output = TabWriter::new(stdout.lock());
 

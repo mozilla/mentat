@@ -28,7 +28,7 @@ use command_parser::{
     command,
 };
 
-use errors as cli;
+use failure::Error;
 
 /// Starting prompt
 const DEFAULT_PROMPT: &'static str = "mentat=> ";
@@ -97,7 +97,7 @@ impl InputReader {
     /// Reads a single command, item, or statement from `stdin`.
     /// Returns `More` if further input is required for a complete result.
     /// In this case, the input received so far is buffered internally.
-    pub fn read_input(&mut self) -> Result<InputResult, cli::Error> {
+    pub fn read_input(&mut self) -> Result<InputResult, Error> {
         let prompt = if self.in_process_cmd.is_some() { MORE_PROMPT } else { DEFAULT_PROMPT };
         let prompt = format!("{blue}{prompt}{reset}",
                              blue = color::Fg(::BLUE),
