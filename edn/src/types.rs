@@ -29,6 +29,7 @@ use symbols;
 
 /// Value represents one of the allowed values in an EDN string.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum Value {
     Nil,
     Boolean(bool),
@@ -653,7 +654,7 @@ impl ToMicros for DateTime<Utc> {
 mod test {
     extern crate chrono;
     extern crate ordered_float;
-    extern crate num;
+    extern crate num_bigint as num;
 
     use super::*;
 

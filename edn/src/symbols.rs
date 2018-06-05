@@ -25,9 +25,11 @@ macro_rules! ns_keyword {
 
 /// A simplification of Clojure's Symbol.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct PlainSymbol(pub String);
 
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct NamespacedSymbol(NamespaceableName);
 
 /// A keyword is a symbol, optionally with a namespace, that prints with a leading colon.
