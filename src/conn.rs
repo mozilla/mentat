@@ -182,22 +182,6 @@ impl Store {
         })
     }
 
-    /// Returns a totally blank store with no bootstrap schema. Use `open` instead.
-    pub fn open_empty(path: &str) -> Result<Store> {
-        if !path.is_empty() {
-            if Path::new(path).exists() {
-                bail!(ErrorKind::PathAlreadyExists(path.to_string()));
-            }
-        }
-
-        let mut connection = ::new_connection(path)?;
-        let conn = Conn::empty(&mut connection)?;
-        Ok(Store {
-            conn: conn,
-            sqlite: connection,
-        })
-    }
-
     pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
         let mut ip = self.begin_transaction()?;
         let report = ip.transact(transaction)?;

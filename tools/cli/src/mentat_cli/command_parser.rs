@@ -46,7 +46,6 @@ pub static COMMAND_HELP: &'static str = &"help";
 pub static COMMAND_IMPORT_LONG: &'static str = &"import";
 pub static COMMAND_IMPORT_SHORT: &'static str = &"i";
 pub static COMMAND_OPEN: &'static str = &"open";
-pub static COMMAND_OPEN_EMPTY: &'static str = &"empty";
 pub static COMMAND_QUERY_LONG: &'static str = &"query";
 pub static COMMAND_QUERY_SHORT: &'static str = &"q";
 pub static COMMAND_QUERY_EXPLAIN_LONG: &'static str = &"explain_query";
@@ -66,7 +65,6 @@ pub enum Command {
     Help(Vec<String>),
     Import(String),
     Open(String),
-    OpenEmpty(String),
     Query(String),
     QueryExplain(String),
     QueryPrepared(String),
@@ -96,7 +94,6 @@ impl Command {
             &Command::Help(_) |
             &Command::Import(_) |
             &Command::Open(_) |
-            &Command::OpenEmpty(_) |
             &Command::Timer(_) |
             &Command::Schema |
             &Command::Sync(_)
@@ -117,7 +114,6 @@ impl Command {
             &Command::Exit |
             &Command::Help(_) |
             &Command::Open(_) |
-            &Command::OpenEmpty(_) |
             &Command::QueryExplain(_) |
             &Command::Timer(_) |
             &Command::Schema |
@@ -145,9 +141,6 @@ impl Command {
             },
             &Command::Open(ref args) => {
                 format!(".{} {}", COMMAND_OPEN, args)
-            },
-            &Command::OpenEmpty(ref args) => {
-                format!(".{} {}", COMMAND_OPEN_EMPTY, args)
             },
             &Command::Query(ref args) => {
                 format!(".{} {}", COMMAND_QUERY_LONG, args)
@@ -259,19 +252,6 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
                         Ok(Command::Open(args[0].clone()))
                     });
 
-    let open_empty_parser = string(COMMAND_OPEN_EMPTY)
-                    .with(spaces())
-                    .with(arguments())
-                    .map(|args| {
-                        if args.len() < 1 {
-                            bail!(cli::ErrorKind::CommandParse("Missing required argument".to_string()));
-                        }
-                        if args.len() > 1 {
-                            bail!(cli::ErrorKind::CommandParse(format!("Unrecognized argument {:?}", args[1])));
-                        }
-                        Ok(Command::OpenEmpty(args[0].clone()))
-                    });
-
     let query_parser = try(string(COMMAND_QUERY_LONG)).or(try(string(COMMAND_QUERY_SHORT)))
                         .with(edn_arg_parser())
                         .map(|x| {
@@ -321,13 +301,12 @@ pub fn command(s: &str) -> Result<Command, cli::Error> {
 
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 14], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, cli::Error>>; 13], _>
           ([&mut try(help_parser),
             &mut try(import_parser),
             &mut try(timer_parser),
             &mut try(cache_parser),
             &mut try(open_parser),
-            &mut try(open_empty_parser),
             &mut try(close_parser),
             &mut try(explain_query_parser),
             &mut try(exit_parser),
