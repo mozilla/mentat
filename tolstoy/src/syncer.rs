@@ -289,9 +289,24 @@ struct SerializedTransaction<'a> {
     chunks: &'a Vec<Uuid>
 }
 
+#[derive(Deserialize)]
+struct DeserializableTransaction {
+    parent: Uuid,
+    chunks: Vec<Uuid>,
+    id: Uuid,
+    seq: i64,
+}
+
+#[derive(Deserialize)]
+struct SerializedTransactions {
+    limit: i64,
+    from: Uuid,
+    transactions: Vec<Uuid>,
+}
+
 struct RemoteClient {
     base_uri: String,
-    user_uuid: Uuid
+    user_uuid: Uuid,
 }
 
 
@@ -308,9 +323,14 @@ impl RemoteClient {
         format!("{}/{}", self.base_uri, self.user_uuid)
     }
 
+    // TODO what we want is a method that returns a deserialized json structure.
+    // It'll need a type T so that consumers can specify what downloaded json will
+    // map to. I ran into borrow issues doing that - probably need to restructure
+    // this and use PhantomData markers or somesuch.
+    // But for now, we get code duplication.
     fn get_uuid(&self, uri: String) -> Result<Uuid> {
         let mut core = Core::new()?;
-        // TODO enable TLS, see https://github.com/mozilla/mentat/issues/569
+        // TODO https://github.com/mozilla/mentat/issues/569
         // let client = hyper::Client::configure()
         //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
         //     .build(&core.handle());
@@ -326,10 +346,10 @@ impl RemoteClient {
             println!("Response: {}", res.status());
 
             res.body().concat2().and_then(move |body| {
-                let head_json: SerializedHead = serde_json::from_slice(&body).map_err(|e| {
+                let json: SerializedHead = serde_json::from_slice(&body).map_err(|e| {
                     std::io::Error::new(std::io::ErrorKind::Other, e)
                 })?;
-                Ok(head_json)
+                Ok(json)
             })
         });
 
@@ -343,7 +363,7 @@ impl RemoteClient {
     fn put<T>(&self, uri: String, payload: T, expected: StatusCode) -> Result<()>
     where hyper::Body: std::convert::From<T>, {
         let mut core = Core::new()?;
-        // TODO enable TLS, see https://github.com/mozilla/mentat/issues/569
+        // TODO https://github.com/mozilla/mentat/issues/569
         // let client = hyper::Client::configure()
         //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
         //     .build(&core.handle());
@@ -370,6 +390,105 @@ impl RemoteClient {
 
         core.run(put)?;
         Ok(())
+    }
+
+    fn get_transactions(&self, parent_uuid: &Uuid) -> Result<Vec<Uuid>> {
+        let mut core = Core::new()?;
+        // TODO https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
+
+        let uri = format!("{}/transactions?from={}", self.bound_base_uri(), parent_uuid);
+        let uri = uri.parse()?;
+
+        d(&format!("parsed uri {:?}", uri));
+
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let json: SerializedTransactions = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(json)
+            })
+        });
+
+        d(&format!("running..."));
+
+        let transactions_json = core.run(work)?;
+        d(&format!("got transactions: {:?}", &transactions_json.transactions));
+        Ok(transactions_json.transactions)
+    }
+
+    fn get_chunks(&self, transaction_uuid: &Uuid) -> Result<Vec<Uuid>> {
+        let mut core = Core::new()?;
+        // TODO https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
+
+        let uri = format!("{}/transactions/{}", self.bound_base_uri(), transaction_uuid);
+        let uri = uri.parse()?;
+
+        d(&format!("parsed uri {:?}", uri));
+
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let json: DeserializableTransaction = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(json)
+            })
+        });
+
+        d(&format!("running..."));
+
+        let transaction_json = core.run(work)?;
+        d(&format!("got transaction chunks: {:?}", &transaction_json.chunks));
+        Ok(transaction_json.chunks)
+    }
+
+    fn get_chunk(&self, chunk_uuid: &Uuid) -> Result<TxPart> {
+        let mut core = Core::new()?;
+        // TODO https://github.com/mozilla/mentat/issues/569
+        // let client = hyper::Client::configure()
+        //     .connector(hyper_tls::HttpsConnector::new(4, &core.handle()).unwrap())
+        //     .build(&core.handle());
+        let client = hyper::Client::new(&core.handle());
+
+        d(&format!("client"));
+
+        let uri = format!("{}/chunks/{}", self.bound_base_uri(), chunk_uuid);
+        let uri = uri.parse()?;
+
+        d(&format!("parsed uri {:?}", uri));
+
+        let work = client.get(uri).and_then(|res| {
+            println!("Response: {}", res.status());
+
+            res.body().concat2().and_then(move |body| {
+                let json: TxPart = serde_json::from_slice(&body).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                })?;
+                Ok(json)
+            })
+        });
+
+        d(&format!("running..."));
+
+        let chunk = core.run(work)?;
+        d(&format!("got transaction chunk: {:?}", &chunk));
+        Ok(chunk)
     }
 
     fn put_transaction(&self, transaction_uuid: &Uuid, parent_uuid: &Uuid, chunks: &Vec<Uuid>) -> Result<()> {
