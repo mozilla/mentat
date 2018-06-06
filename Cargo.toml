@@ -16,8 +16,9 @@ version = "0.7.0"
 build = "build/version.rs"
 
 [features]
-default = ["bundled_sqlite3"]
+default = ["bundled_sqlite3", "syncable"]
 bundled_sqlite3 = ["rusqlite/bundled"]
+syncable = ["mentat_tolstoy"]
 
 [workspace]
 members = ["tools/cli", "ffi"]
@@ -72,6 +73,7 @@ path = "query-translator"
 
 [dependencies.mentat_tolstoy]
 path = "tolstoy"
+optional = true
 
 [profile.release]
 opt-level = 3
