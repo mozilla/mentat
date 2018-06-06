@@ -89,22 +89,6 @@ impl Store {
         })
     }
 
-    /// Returns a totally blank store with no bootstrap schema. Use `open` instead.
-    pub fn open_empty(path: &str) -> Result<Store> {
-        if !path.is_empty() {
-            if Path::new(path).exists() {
-                bail!(MentatError::PathAlreadyExists(path.to_string()));
-            }
-        }
-
-        let mut connection = ::new_connection(path)?;
-        let conn = Conn::empty(&mut connection)?;
-        Ok(Store {
-            conn: conn,
-            sqlite: connection,
-        })
-    }
-
     pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
         let mut ip = self.begin_transaction()?;
         let report = ip.transact(transaction)?;
@@ -127,28 +111,9 @@ impl Store {
         })
     }
 
-    /// Variant of `open_empty` that allows a key (for encryption/decryption) to
-    /// be supplied. Fails unless linked against sqlcipher (or something else
-    /// that supports the Sqlite Encryption Extension).
-    pub fn open_empty_with_key(path: &str, encryption_key: &str) -> Result<Store> {
-        if !path.is_empty() {
-            if Path::new(path).exists() {
-                bail!(MentatError::PathAlreadyExists(path.to_string()));
-            }
-        }
-
-        let mut connection = ::new_connection_with_key(path, encryption_key)?;
-        let conn = Conn::empty(&mut connection)?;
-        Ok(Store {
-            conn: conn,
-            sqlite: connection,
-        })
-    }
-
-    /// Change the key for a database that was opened using `open_with_key` or
-    /// `open_empty_with_key` (using `PRAGMA rekey`). Fails unless linked
-    /// against sqlcipher (or something else that supports the Sqlite Encryption
-    /// Extension).
+    /// Change the key for a database that was opened using `open_with_key` (using `PRAGMA
+    /// rekey`). Fails unless linked against sqlcipher (or something else that supports the Sqlite
+    /// Encryption Extension).
     pub fn change_encryption_key(&mut self, new_encryption_key: &str) -> Result<()> {
         ::change_encryption_key(&self.sqlite, new_encryption_key)?;
         Ok(())
