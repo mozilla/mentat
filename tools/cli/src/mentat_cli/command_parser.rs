@@ -51,9 +51,7 @@ pub static COMMAND_HELP: &'static str = &"help";
 pub static COMMAND_IMPORT_LONG: &'static str = &"import";
 pub static COMMAND_IMPORT_SHORT: &'static str = &"i";
 pub static COMMAND_OPEN: &'static str = &"open";
-pub static COMMAND_OPEN_EMPTY: &'static str = &"empty";
 pub static COMMAND_OPEN_ENCRYPTED: &'static str = &"open_encrypted";
-pub static COMMAND_OPEN_EMPTY_ENCRYPTED: &'static str = &"empty_encrypted";
 pub static COMMAND_QUERY_LONG: &'static str = &"query";
 pub static COMMAND_QUERY_SHORT: &'static str = &"q";
 pub static COMMAND_QUERY_EXPLAIN_LONG: &'static str = &"explain_query";
@@ -73,9 +71,7 @@ pub enum Command {
     Help(Vec<String>),
     Import(String),
     Open(String),
-    OpenEmpty(String),
     OpenEncrypted(String, String),
-    OpenEmptyEncrypted(String, String),
     Query(String),
     QueryExplain(String),
     QueryPrepared(String),
@@ -105,9 +101,7 @@ impl Command {
             &Command::Help(_) |
             &Command::Import(_) |
             &Command::Open(_) |
-            &Command::OpenEmpty(_) |
             &Command::OpenEncrypted(_, _) |
-            &Command::OpenEmptyEncrypted(_, _) |
             &Command::Timer(_) |
             &Command::Schema |
             &Command::Sync(_)
@@ -128,9 +122,7 @@ impl Command {
             &Command::Exit |
             &Command::Help(_) |
             &Command::Open(_) |
-            &Command::OpenEmpty(_) |
             &Command::OpenEncrypted(_, _) |
-            &Command::OpenEmptyEncrypted(_, _) |
             &Command::QueryExplain(_) |
             &Command::Timer(_) |
             &Command::Schema |
@@ -159,14 +151,8 @@ impl Command {
             &Command::Open(ref args) => {
                 format!(".{} {}", COMMAND_OPEN, args)
             },
-            &Command::OpenEmpty(ref args) => {
-                format!(".{} {}", COMMAND_OPEN_EMPTY, args)
-            },
             &Command::OpenEncrypted(ref db, ref key) => {
                 format!(".{} {} {}", COMMAND_OPEN_ENCRYPTED, db, key)
-            },
-            &Command::OpenEmptyEncrypted(ref db, ref key) => {
-                format!(".{} {} {}", COMMAND_OPEN_EMPTY_ENCRYPTED, db, key)
             },
             &Command::Query(ref args) => {
                 format!(".{} {}", COMMAND_QUERY_LONG, args)
@@ -282,14 +268,8 @@ pub fn command(s: &str) -> Result<Command, Error> {
     let open_parser = opener(COMMAND_OPEN, 1).map(|args_res|
         args_res.map(|args| Command::Open(args[0].clone())));
 
-    let open_empty_parser = opener(COMMAND_OPEN_EMPTY, 1).map(|args_res|
-        args_res.map(|args| Command::OpenEmpty(args[0].clone())));
-
     let open_encrypted_parser = opener(COMMAND_OPEN_ENCRYPTED, 2).map(|args_res|
         args_res.map(|args| Command::OpenEncrypted(args[0].clone(), args[1].clone())));
-
-    let open_empty_encrypted_parser = opener(COMMAND_OPEN_EMPTY_ENCRYPTED, 2).map(|args_res|
-        args_res.map(|args| Command::OpenEmptyEncrypted(args[0].clone(), args[1].clone())));
 
     let query_parser = try(string(COMMAND_QUERY_LONG)).or(try(string(COMMAND_QUERY_SHORT)))
                         .with(edn_arg_parser())
@@ -340,15 +320,13 @@ pub fn command(s: &str) -> Result<Command, Error> {
 
     spaces()
     .skip(token('.'))
-    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, Error>>; 16], _>
+    .with(choice::<[&mut Parser<Input = _, Output = Result<Command, Error>>; 14], _>
           ([&mut try(help_parser),
             &mut try(import_parser),
             &mut try(timer_parser),
             &mut try(cache_parser),
             &mut try(open_encrypted_parser),
-            &mut try(open_empty_encrypted_parser),
             &mut try(open_parser),
-            &mut try(open_empty_parser),
             &mut try(close_parser),
             &mut try(explain_query_parser),
             &mut try(exit_parser),
@@ -460,28 +438,8 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_encrypted_parser() {
-        let input = ".empty_encrypted /path/to/my.db hunter2";
-        let cmd = command(&input).expect("Expected empty_encrypted command");
-        match cmd {
-            Command::OpenEmptyEncrypted(path, key) => {
-                assert_eq!(path, "/path/to/my.db".to_string());
-                assert_eq!(key, "hunter2".to_string());
-            },
-            _ => assert!(false)
-        }
-    }
-
-    #[test]
     fn test_open_encrypted_parser_missing_key() {
         let input = ".open_encrypted path/to/db.db";
-        let err = command(&input).expect_err("Expected an error");
-        assert_eq!(err.to_string(), "Missing required argument");
-    }
-
-    #[test]
-    fn test_empty_encrypted_parser_missing_key() {
-        let input = ".empty_encrypted path/to/db.db";
         let err = command(&input).expect_err("Expected an error");
         assert_eq!(err.to_string(), "Missing required argument");
     }
