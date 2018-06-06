@@ -88,6 +88,11 @@ pub enum MentatError {
     #[fail(display = "{}", _0)]
     IoError(#[cause] std::io::Error),
 
+    /// We're just not done yet.  Message that the feature is recognized but not yet
+    /// implemented.
+    #[fail(display = "not yet implemented: {}", _0)]
+    NotYetImplemented(String),
+
     // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
     // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
     #[fail(display = "SQL error: {}", _0)]
