@@ -8,10 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-// Oh, error_chain.
-#![recursion_limit="128"]
-
-#[macro_use] extern crate error_chain;
+extern crate failure;
+#[macro_use] extern crate failure_derive;
 extern crate indexmap;
 extern crate itertools;
 #[macro_use] extern crate lazy_static;
@@ -31,7 +29,12 @@ use std::iter::repeat;
 
 use itertools::Itertools;
 
-pub use errors::{Error, ErrorKind, ResultExt, Result};
+pub use errors::{
+    DbError,
+    Result,
+    SchemaConstraintViolation,
+};
+#[macro_use] pub mod errors;
 
 mod add_retract_alter_set;
 pub mod cache;
@@ -39,7 +42,6 @@ pub mod db;
 mod bootstrap;
 pub mod debug;
 pub mod entids;
-pub mod errors;
 pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod metadata;
 mod schema;
@@ -114,8 +116,7 @@ pub fn to_namespaced_keyword(s: &str) -> Result<symbols::Keyword> {
         _ => None,
     };
 
-    // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-    nsk.ok_or(ErrorKind::NotYetImplemented(format!("InvalidKeyword: {}", s)).into())
+    nsk.ok_or(DbError::NotYetImplemented(format!("InvalidKeyword: {}", s)).into())
 }
 
 /// Prepare an SQL `VALUES` block, like (?, ?, ?), (?, ?, ?).

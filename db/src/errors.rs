@@ -10,6 +10,13 @@
 
 #![allow(dead_code)]
 
+use failure::{
+    Backtrace,
+    Context,
+    Error,
+    Fail,
+};
+
 use std::collections::{
     BTreeMap,
     BTreeSet,
@@ -29,6 +36,16 @@ use types::{
     ValueType,
 };
 
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => (
+        return Err($e.into());
+    )
+}
+
+pub type Result<T> = ::std::result::Result<T, Error>;
+
+// TODO Error/ErrorKind pair
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CardinalityConflict {
     /// A cardinality one attribute has multiple assertions `[e a v1], [e a v2], ...`.
@@ -46,7 +63,8 @@ pub enum CardinalityConflict {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+// TODO Error/ErrorKind pair
+#[derive(Clone, Debug, Eq, PartialEq, Fail)]
 pub enum SchemaConstraintViolation {
     /// A transaction tried to assert datoms where one tempid upserts to two (or more) distinct
     /// entids.
@@ -125,95 +143,145 @@ impl ::std::fmt::Display for InputError {
     }
 }
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
+#[derive(Debug, Fail)]
+pub enum DbError {
+    /// We're just not done yet.  Message that the feature is recognized but not yet
+    /// implemented.
+    #[fail(display = "not yet implemented: {}", _0)]
+    NotYetImplemented(String),
+
+    /// We've been given a value that isn't the correct Mentat type.
+    #[fail(display = "value '{}' is not the expected Mentat value type {:?}", _0, _1)]
+    BadValuePair(String, ValueType),
+
+    /// We've got corrupt data in the SQL store: a value and value_type_tag don't line up.
+    /// TODO _1.data_type()
+    #[fail(display = "bad SQL (value_type_tag, value) pair: ({:?}, {:?})", _0, _1)]
+    BadSQLValuePair(rusqlite::types::Value, i32),
+
+    // /// The SQLite store user_version isn't recognized.  This could be an old version of Mentat
+    // /// trying to open a newer version SQLite store; or it could be a corrupt file; or ...
+    // #[fail(display = "bad SQL store user_version: {}", _0)]
+    // BadSQLiteStoreVersion(i32),
+
+    /// A bootstrap definition couldn't be parsed or installed.  This is a programmer error, not
+    /// a runtime error.
+    #[fail(display = "bad bootstrap definition: {}", _0)]
+    BadBootstrapDefinition(String),
+
+    /// A schema assertion couldn't be parsed.
+    #[fail(display = "bad schema assertion: {}", _0)]
+    BadSchemaAssertion(String),
+
+    /// An ident->entid mapping failed.
+    #[fail(display = "no entid found for ident: {}", _0)]
+    UnrecognizedIdent(String),
+
+    /// An entid->ident mapping failed.
+    /// We also use this error if you try to transact an entid that we didn't allocate,
+    /// in part because we blow the stack in error_chain if we define a new enum!
+    #[fail(display = "unrecognized or no ident found for entid: {}", _0)]
+    UnrecognizedEntid(Entid),
+
+    #[fail(display = "unknown attribute for entid: {}", _0)]
+    UnknownAttribute(Entid),
+
+    #[fail(display = "cannot reverse-cache non-unique attribute: {}", _0)]
+    CannotCacheNonUniqueAttributeInReverse(Entid),
+
+    #[fail(display = "schema alteration failed: {}", _0)]
+    SchemaAlterationFailed(String),
+
+    /// A transaction tried to violate a constraint of the schema of the Mentat store.
+    #[fail(display = "schema constraint violation: {}", _0)]
+    SchemaConstraintViolation(SchemaConstraintViolation),
+
+    /// The transaction was malformed in some way (that was not recognized at parse time; for
+    /// example, in a way that is schema-dependent).
+    #[fail(display = "transaction input error: {}", _0)]
+    InputError(InputError),
+
+    #[fail(display = "Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string")]
+    WrongTypeValueForFtsAssertion,
+}
+
+#[derive(Debug)]
+pub struct DbSqlError {
+    inner: Context<DbSqlErrorKind>,
+}
+
+impl Fail for DbSqlError {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
     }
 
-    foreign_links {
-        Rusqlite(rusqlite::Error);
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
     }
+}
 
-    errors {
-        /// We're just not done yet.  Message that the feature is recognized but not yet
-        /// implemented.
-        NotYetImplemented(t: String) {
-            description("not yet implemented")
-            display("not yet implemented: {}", t)
-        }
-
-        /// We've been given a value that isn't the correct Mentat type.
-        BadValuePair(value: String, value_type: ValueType) {
-            description("value is not the expected Mentat value type")
-            display("value '{}' is not the expected Mentat value type {:?}", value, value_type)
-        }
-
-        /// We've got corrupt data in the SQL store: a value and value_type_tag don't line up.
-        BadSQLValuePair(value: rusqlite::types::Value, value_type_tag: i32) {
-            description("bad SQL (value_type_tag, value) pair")
-            display("bad SQL (value_type_tag, value) pair: ({}, {:?})", value_type_tag, value.data_type())
-        }
-
-        // /// The SQLite store user_version isn't recognized.  This could be an old version of Mentat
-        // /// trying to open a newer version SQLite store; or it could be a corrupt file; or ...
-        // BadSQLiteStoreVersion(version: i32) {
-        //     description("bad SQL store user_version")
-        //     display("bad SQL store user_version: {}", version)
-        // }
-
-        /// A bootstrap definition couldn't be parsed or installed.  This is a programmer error, not
-        /// a runtime error.
-        BadBootstrapDefinition(t: String) {
-            description("bad bootstrap definition")
-            display("bad bootstrap definition: {}", t)
-        }
-
-        /// A schema assertion couldn't be parsed.
-        BadSchemaAssertion(t: String) {
-            description("bad schema assertion")
-            display("bad schema assertion: {}", t)
-        }
-
-        /// An ident->entid mapping failed.
-        UnrecognizedIdent(ident: String) {
-            description("no entid found for ident")
-            display("no entid found for ident: {}", ident)
-        }
-
-        /// An entid->ident mapping failed.
-        /// We also use this error if you try to transact an entid that we didn't allocate,
-        /// in part because we blow the stack in error_chain if we define a new enum!
-        UnrecognizedEntid(entid: Entid) {
-            description("unrecognized or no ident found for entid")
-            display("unrecognized or no ident found for entid: {}", entid)
-        }
-
-        UnknownAttribute(attr: Entid) {
-            description("unknown attribute")
-            display("unknown attribute for entid: {}", attr)
-        }
-
-        CannotCacheNonUniqueAttributeInReverse(attr: Entid) {
-            description("cannot reverse-cache non-unique attribute")
-            display("cannot reverse-cache non-unique attribute: {}", attr)
-        }
-
-        SchemaAlterationFailed(t: String) {
-            description("schema alteration failed")
-            display("schema alteration failed: {}", t)
-        }
-
-        /// A transaction tried to violate a constraint of the schema of the Mentat store.
-        SchemaConstraintViolation(violation: SchemaConstraintViolation) {
-            description("schema constraint violation")
-            display("schema constraint violation: {}", violation)
-        }
-
-        /// The transaction was malformed in some way (that was not recognized at parse time; for
-        /// example, in a way that is schema-dependent).
-        InputError(error: InputError) {
-            description("transaction input error")
-            display("transaction input error: {}", error)
-        }
+impl ::std::fmt::Display for DbSqlError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        ::std::fmt::Display::fmt(&self.inner, f)
     }
+}
+
+impl DbSqlError {
+    pub fn kind(&self) -> DbSqlErrorKind {
+        *self.inner.get_context()
+    }
+}
+
+impl From<DbSqlErrorKind> for DbSqlError {
+    fn from(kind: DbSqlErrorKind) -> DbSqlError {
+        DbSqlError { inner: Context::new(kind) }
+    }
+}
+
+impl From<Context<DbSqlErrorKind>> for DbSqlError {
+    fn from(inner: Context<DbSqlErrorKind>) -> DbSqlError {
+        DbSqlError { inner: inner }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
+pub enum DbSqlErrorKind {
+    #[fail(display = "Could not set_user_version")]
+    CouldNotSetVersionPragma,
+
+    #[fail(display = "Could not get_user_version")]
+    CouldNotGetVersionPragma,
+
+    #[fail(display = "Could not search!")]
+    CouldNotSearch,
+
+    #[fail(display = "Could not insert transaction: failed to add datoms not already present")]
+    TxInsertFailedToAddMissingDatoms,
+
+    #[fail(display = "Could not insert transaction: failed to retract datoms already present")]
+    TxInsertFailedToRetractDatoms,
+
+    #[fail(display = "Could not update datoms: failed to retract datoms already present")]
+    DatomsUpdateFailedToRetract,
+
+    #[fail(display = "Could not update datoms: failed to add datoms not already present")]
+    DatomsUpdateFailedToAdd,
+
+    #[fail(display = "Failed to create temporary tables")]
+    FailedToCreateTempTables,
+
+    #[fail(display = "Could not insert non-fts one statements into temporary search table!")]
+    NonFtsInsertionIntoTempSearchTableFailed,
+
+    #[fail(display = "Could not insert fts values into fts table!")]
+    FtsInsertionFailed,
+
+    #[fail(display = "Could not insert FTS statements into temporary search table!")]
+    FtsInsertionIntoTempSearchTableFailed,
+
+    #[fail(display = "Could not drop FTS search ids!")]
+    FtsFailedToDropSearchIds,
+
+    #[fail(display = "Could not update partition map")]
+    FailedToUpdatePartitionMap,
 }
