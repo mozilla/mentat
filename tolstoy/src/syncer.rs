@@ -189,14 +189,13 @@ impl Syncer {
         Ok(())
     }
 
-    pub fn flow(sqlite: &mut rusqlite::Connection, server_uri: &String, user_uuid: &Uuid) -> Result<()> {
+    pub fn flow(db_tx: &mut rusqlite::Transaction, server_uri: &String, user_uuid: &Uuid) -> Result<()> {
         d(&format!("sync flowing"));
 
-        ensure_current_version(sqlite)?;
+        ensure_current_version(db_tx)?;
         
         // TODO configure this sync with some auth data
         let remote_client = RemoteClient::new(server_uri.clone(), user_uuid.clone());
-        let mut db_tx = sqlite.transaction()?;
 
         let remote_head = remote_client.get_head()?;
         d(&format!("remote head {:?}", remote_head));
@@ -212,7 +211,7 @@ impl Syncer {
         let mut inquiring_tx_receiver = InquiringTxReceiver::new();
         // TODO don't just start from the beginning... but then again, we should do this
         // without walking the table at all, and use the tx index.
-        Processor::process(&db_tx, None, &mut inquiring_tx_receiver)?;
+        Processor::process(db_tx, None, &mut inquiring_tx_receiver)?;
         if !inquiring_tx_receiver.is_done {
             bail!(ErrorKind::TxProcessorUnfinished);
         }
@@ -229,7 +228,7 @@ impl Syncer {
         // Check if the server is empty - populate it.
         if remote_head == Uuid::nil() {
             d(&format!("empty server!"));
-            Syncer::upload_ours(&mut db_tx, None, &remote_client, &remote_head)?;
+            Syncer::upload_ours(db_tx, None, &remote_client, &remote_head)?;
         
         // Check if the server is the same as us, and if our HEAD moved.
         } else if locally_known_remote_head == remote_head {
@@ -246,7 +245,7 @@ impl Syncer {
             // our sync becomes just bumping our local head. AFAICT below would currently fail.
             if let Some(upload_from_tx) = TxMapper::get_tx_for_uuid(&db_tx, &locally_known_remote_head)? {
                 d(&format!("Fast-forwarding the server."));
-                Syncer::upload_ours(&mut db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
+                Syncer::upload_ours(db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
             } else {
                 d(&format!("Unable to fast-forward the server; missing local tx mapping"));
                 bail!(ErrorKind::TxIncorrectlyMapped(0));
@@ -262,9 +261,7 @@ impl Syncer {
             ));
         }
 
-        // Commit everything, if there's anything to commit!
-        // Any new tx->uuid mappings and the new HEAD. We're synced!
-        db_tx.commit()?;
+        // Our caller will commit the tx with our changes when it's done.
 
         Ok(())
     }

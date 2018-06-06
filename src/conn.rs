@@ -687,7 +687,11 @@ pub enum CacheAction {
 impl Syncable for Store {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
         let uuid = Uuid::parse_str(&user_uuid)?;
-        Ok(Syncer::flow(&mut self.sqlite, server_uri, &uuid)?)
+        let mut db_tx = self.sqlite.transaction()?;
+        Syncer::flow(&mut db_tx, server_uri, &uuid)?;
+        db_tx.commit()?;
+
+        Ok(())
     }
 }
 
