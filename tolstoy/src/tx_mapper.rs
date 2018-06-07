@@ -14,7 +14,7 @@ use uuid::Uuid;
 use mentat_core::Entid;
 
 use errors::{
-    ErrorKind,
+    TolstoyError,
     Result,
 };
 
@@ -59,7 +59,7 @@ impl TxMapper {
         if txs.len() == 0 {
             return Ok(None);
         } else if txs.len() > 1 {
-            bail!(ErrorKind::TxIncorrectlyMapped(txs.len()));
+            bail!(TolstoyError::TxIncorrectlyMapped(txs.len()));
         }
         Ok(Some(txs.remove(0)?))
     }
@@ -79,7 +79,7 @@ impl TxMapper {
         if uuids.len() == 0 {
             return Ok(None);
         } else if uuids.len() > 1 {
-            bail!(ErrorKind::TxIncorrectlyMapped(uuids.len()));
+            bail!(TolstoyError::TxIncorrectlyMapped(uuids.len()));
         }
         Ok(Some(uuids.remove(0)?))
     }

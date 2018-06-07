@@ -5,6 +5,8 @@ workspace = ".."
 authors = ["Grisha Kruglov <gkruglov@mozilla.com>"]
 
 [dependencies]
+failure = "0.1.1"
+failure_derive = "0.1.1"
 futures = "0.1"
 hyper = "0.11"
 tokio-core = "0.1"
@@ -14,8 +16,6 @@ serde_cbor = "0.8.2"
 serde_derive = "1.0"
 lazy_static = "0.2"
 uuid = { version = "0.5", features = ["v4", "serde"] }
-
-error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
 [dependencies.mentat_core]
 path = "../core"
