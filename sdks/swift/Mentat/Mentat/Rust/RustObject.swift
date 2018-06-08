@@ -21,29 +21,33 @@ protocol Destroyable {
  that inherit from it will have their `OpaquePointer` destroyed when the Swift wrapper is destroyed.
  If a class does not override `cleanup` then a `fatalError` is thrown.
  */
-public class RustObject: Destroyable {
+open class RustObject: Destroyable {
     var raw: OpaquePointer
 
-    init(raw: OpaquePointer) {
+    public init(raw: OpaquePointer) {
         self.raw = raw
     }
 
-    init(raw: UnsafeMutableRawPointer) {
+    public init(raw: UnsafeMutableRawPointer) {
         self.raw = OpaquePointer(raw)
     }
 
-    init?(raw: OpaquePointer?) {
+    public init?(raw: OpaquePointer?) {
         guard let r = raw else {
             return nil
         }
         self.raw = r
+    }
+    
+    public func getRaw() -> OpaquePointer {
+        return self.raw
     }
 
     deinit {
         self.cleanup(pointer: self.raw)
     }
     
-    func cleanup(pointer: OpaquePointer) {
+    open func cleanup(pointer: OpaquePointer) {
         fatalError("\(cleanup) is not implemented.")
     }
 }

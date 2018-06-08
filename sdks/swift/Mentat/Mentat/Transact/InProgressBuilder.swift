@@ -58,7 +58,7 @@ import MentatStore
  }
  ```
  */
-class InProgressBuilder: OptionalRustObject {
+open class InProgressBuilder: OptionalRustObject {
 
     /**
      Asserts the value of attribute `keyword` to be the provided `value` for entity `entid`.
@@ -72,7 +72,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/long`.
      */
-    func add(entid: Entid, keyword: String, long value: Int64) throws {
+    open func add(entid: Entid, keyword: String, long value: Int64) throws {
         try in_progress_builder_add_long(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -88,7 +88,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/ref`.
      */
-    func add(entid: Entid, keyword: String, reference value: Entid) throws {
+    open func add(entid: Entid, keyword: String, reference value: Entid) throws {
         try in_progress_builder_add_ref(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -104,7 +104,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/keyword`.
      */
-    func add(entid: Entid, keyword: String, keyword value: String) throws {
+    open func add(entid: Entid, keyword: String, keyword value: String) throws {
         try in_progress_builder_add_keyword(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -120,7 +120,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/boolean`.
      */
-    func add(entid: Entid, keyword: String, boolean value: Bool) throws {
+    open func add(entid: Entid, keyword: String, boolean value: Bool) throws {
         try in_progress_builder_add_boolean(try self.validPointer(), entid, keyword, value ? 1 : 0).pointee.tryUnwrap()
     }
 
@@ -136,7 +136,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/double`.
      */
-    func add(entid: Entid, keyword: String, double value: Double) throws {
+    open func add(entid: Entid, keyword: String, double value: Double) throws {
         try in_progress_builder_add_double(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -152,7 +152,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/instant`.
      */
-    func add(entid: Entid, keyword: String, date value: Date) throws {
+    open func add(entid: Entid, keyword: String, date value: Date) throws {
         try in_progress_builder_add_timestamp(try self.validPointer(), entid, keyword, value.toMicroseconds()).pointee.tryUnwrap()
     }
 
@@ -168,7 +168,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/string`.
      */
-    func add(entid: Entid, keyword: String, string value: String) throws {
+    open func add(entid: Entid, keyword: String, string value: String) throws {
         try in_progress_builder_add_string(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -184,7 +184,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/uuid`.
      */
-    func add(entid: Entid, keyword: String, uuid value: UUID) throws {
+    open func add(entid: Entid, keyword: String, uuid value: UUID) throws {
         var rawUuid = value.uuid
         let _ = try withUnsafePointer(to: &rawUuid) { uuidPtr in
             try in_progress_builder_add_uuid(try self.validPointer(), entid, keyword, uuidPtr).pointee.tryUnwrap()
@@ -203,7 +203,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/long`.
      */
-    func retract(entid: Entid, keyword: String, long value: Int64) throws {
+    open func retract(entid: Entid, keyword: String, long value: Int64) throws {
         try in_progress_builder_retract_long(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -219,7 +219,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/ref`.
      */
-    func retract(entid: Entid, keyword: String, reference value: Entid) throws {
+    open func retract(entid: Entid, keyword: String, reference value: Entid) throws {
         try in_progress_builder_retract_ref(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -235,7 +235,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/keyword`.
      */
-    func retract(entid: Entid, keyword: String, keyword value: String) throws {
+    open func retract(entid: Entid, keyword: String, keyword value: String) throws {
         try in_progress_builder_retract_keyword(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -251,7 +251,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/boolean`.
      */
-    func retract(entid: Entid, keyword: String, boolean value: Bool) throws {
+    open func retract(entid: Entid, keyword: String, boolean value: Bool) throws {
         try in_progress_builder_retract_boolean(try self.validPointer(), entid, keyword, value ? 1 : 0).pointee.tryUnwrap()
     }
 
@@ -267,7 +267,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/double`.
      */
-    func retract(entid: Entid, keyword: String, double value: Double) throws {
+    open func retract(entid: Entid, keyword: String, double value: Double) throws {
         try in_progress_builder_retract_double(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -283,7 +283,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/instant`.
      */
-    func retract(entid: Entid, keyword: String, date value: Date) throws {
+    open func retract(entid: Entid, keyword: String, date value: Date) throws {
         try in_progress_builder_retract_timestamp(try self.validPointer(), entid, keyword, value.toMicroseconds()).pointee.tryUnwrap()
     }
 
@@ -299,7 +299,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/string`.
      */
-    func retract(entid: Entid, keyword: String, string value: String) throws {
+    open func retract(entid: Entid, keyword: String, string value: String) throws {
         try in_progress_builder_retract_string(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
     }
 
@@ -315,7 +315,7 @@ class InProgressBuilder: OptionalRustObject {
      - Throws: `ResultError.error` if the attribute is not present in the schema or the attribute value type
      is not `:db.type/uuid`.
      */
-    func retract(entid: Entid, keyword: String, uuid value: UUID) throws {
+    open func retract(entid: Entid, keyword: String, uuid value: UUID) throws {
         var rawUuid = value.uuid
         let _ = try withUnsafePointer(to: &rawUuid) { uuidPtr in
             try in_progress_builder_retract_uuid(try self.validPointer(), entid, keyword, uuidPtr).pointee.tryUnwrap()
@@ -336,7 +336,7 @@ class InProgressBuilder: OptionalRustObject {
 
      - Returns: The current `InProgress` and the `TxReport` generated by the transact.
      */
-    func transact() throws -> (InProgress, TxReport?) {
+    open func transact() throws -> (InProgress, TxReport?) {
         defer {
             self.raw = nil
         }
@@ -359,14 +359,14 @@ class InProgressBuilder: OptionalRustObject {
 
      - Returns: The `TxReport` generated by the transact.
      */
-    func commit() throws -> TxReport {
+    open func commit() throws -> TxReport {
         defer {
             self.raw = nil
         }
         return TxReport(raw: try in_progress_builder_commit(try self.validPointer()).pointee.unwrap())
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         in_progress_builder_destroy(pointer)
     }
 }

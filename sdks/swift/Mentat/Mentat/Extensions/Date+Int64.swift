@@ -10,7 +10,7 @@
 
 import Foundation
 
-extension Date {
+public extension Date {
     /**
     This `Date` as microseconds.
 

@@ -27,7 +27,7 @@ import MentatStore
  - `String`
  - `UUID`.
  */
-class TupleResult: OptionalRustObject {
+open class TupleResult: OptionalRustObject {
 
     /**
      Return the `TypedValue` at the specified index.
@@ -37,7 +37,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `TypedValue` at that index.
      */
-    func get(index: Int) -> TypedValue {
+    open func get(index: Int) -> TypedValue {
         return TypedValue(raw: value_at_index(self.raw!, Int32(index)))
     }
 
@@ -50,7 +50,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `Int64` at that index.
      */
-    func asLong(index: Int) -> Int64 {
+    open func asLong(index: Int) -> Int64 {
         return value_at_index_into_long(self.raw!, Int32(index))
     }
 
@@ -63,7 +63,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `Entid` at that index.
      */
-    func asEntid(index: Int) -> Entid {
+    open func asEntid(index: Int) -> Entid {
         return value_at_index_into_entid(self.raw!, Int32(index))
     }
 
@@ -76,7 +76,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The keyword `String` at that index.
      */
-    func asKeyword(index: Int) -> String {
+    open func asKeyword(index: Int) -> String {
         return String(cString: value_at_index_into_kw(self.raw!, Int32(index)))
     }
 
@@ -89,7 +89,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `Bool` at that index.
      */
-    func asBool(index: Int) -> Bool {
+    open func asBool(index: Int) -> Bool {
         return value_at_index_into_boolean(self.raw!, Int32(index)) == 0 ? false : true
     }
 
@@ -102,7 +102,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `Double` at that index.
      */
-    func asDouble(index: Int) -> Double {
+    open func asDouble(index: Int) -> Double {
         return value_at_index_into_double(self.raw!, Int32(index))
     }
 
@@ -115,7 +115,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `Date` at that index.
      */
-    func asDate(index: Int) -> Date {
+    open func asDate(index: Int) -> Date {
         return Date(timeIntervalSince1970: TimeInterval(value_at_index_into_timestamp(self.raw!, Int32(index))))
     }
 
@@ -128,7 +128,7 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `String` at that index.
      */
-    func asString(index: Int) -> String {
+    open func asString(index: Int) -> String {
         return String(cString: value_at_index_into_string(self.raw!, Int32(index)))
     }
 
@@ -141,11 +141,11 @@ class TupleResult: OptionalRustObject {
 
      - Returns: The `UUID` at that index.
      */
-    func asUUID(index: Int) -> UUID? {
+    open func asUUID(index: Int) -> UUID? {
         return UUID(uuid: value_at_index_into_uuid(self.raw!, Int32(index)).pointee)
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         typed_value_list_destroy(pointer)
     }
 }
@@ -166,7 +166,7 @@ class TupleResult: OptionalRustObject {
  - `String`
  - `UUID`.
  */
-class ColResult: TupleResult {
+open class ColResult: TupleResult {
 }
 
 /**
@@ -183,14 +183,14 @@ class ColResult: TupleResult {
 
  Note that iteration is consuming and can only be done once.
  */
-class ColResultIterator: OptionalRustObject, IteratorProtocol  {
-    typealias Element = TypedValue
+open class ColResultIterator: OptionalRustObject, IteratorProtocol  {
+    public typealias Element = TypedValue
 
     init(iter: OpaquePointer?) {
         super.init(raw: iter)
     }
 
-    func next() -> Element? {
+    open func next() -> Element? {
         guard let iter = self.raw,
             let rowPtr = typed_value_list_iter_next(iter) else {
                 return nil
@@ -198,13 +198,13 @@ class ColResultIterator: OptionalRustObject, IteratorProtocol  {
         return TypedValue(raw: rowPtr)
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         typed_value_list_iter_destroy(pointer)
     }
 }
 
 extension ColResult: Sequence {
-    func makeIterator() -> ColResultIterator {
+    open func makeIterator() -> ColResultIterator {
         defer {
             self.raw = nil
         }

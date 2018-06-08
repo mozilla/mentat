@@ -29,15 +29,15 @@ import MentatStore
  let aEntid = report.entid(forTempId: "a")
  ```
  */
-class TxReport: RustObject {
+open class TxReport: RustObject {
 
     // The identifier for the transaction.
-    public var txId: Entid {
+    open var txId: Entid {
         return tx_report_get_entid(self.raw)
     }
 
     // The time that the transaction occured.
-    public var txInstant: Date {
+    open var txInstant: Date {
         return Date(timeIntervalSince1970: TimeInterval(tx_report_get_tx_instant(self.raw)))
     }
 
@@ -48,14 +48,14 @@ class TxReport: RustObject {
 
      - Returns: The `Entid` for the temporary identifier, if present, otherwise `nil`.
     */
-    public func entid(forTempId tempId: String) -> Entid? {
+    open func entid(forTempId tempId: String) -> Entid? {
         guard let entidPtr = tx_report_entity_for_temp_id(self.raw, tempId) else {
             return nil
         }
         return entidPtr.pointee
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         tx_report_destroy(pointer)
     }
 }

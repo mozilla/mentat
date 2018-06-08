@@ -93,7 +93,7 @@ import MentatStore
      }
  ```
  */
-class Query: OptionalRustObject {
+open class Query: OptionalRustObject {
 
     /**
      Binds a `Int64` value to the provided variable name.
@@ -105,7 +105,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toLong value: Int64) throws -> Query {
+    open func bind(varName: String, toLong value: Int64) throws -> Query {
         query_builder_bind_long(try! self.validPointer(), varName, value)
         return self
     }
@@ -120,7 +120,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toReference value: Entid) throws -> Query {
+    open func bind(varName: String, toReference value: Entid) throws -> Query {
         query_builder_bind_ref(try! self.validPointer(), varName, value)
         return self
     }
@@ -136,7 +136,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toReference value: String) throws -> Query {
+    open func bind(varName: String, toReference value: String) throws -> Query {
         query_builder_bind_ref_kw(try! self.validPointer(), varName, value)
         return self
     }
@@ -152,7 +152,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toKeyword value: String) throws -> Query {
+    open func bind(varName: String, toKeyword value: String) throws -> Query {
         query_builder_bind_kw(try! self.validPointer(), varName, value)
         return self
     }
@@ -167,7 +167,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toBoolean value: Bool) throws -> Query {
+    open func bind(varName: String, toBoolean value: Bool) throws -> Query {
         query_builder_bind_boolean(try! self.validPointer(), varName, value ? 1 : 0)
         return self
     }
@@ -182,7 +182,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toDouble value: Double) throws -> Query {
+    open func bind(varName: String, toDouble value: Double) throws -> Query {
         query_builder_bind_double(try! self.validPointer(), varName, value)
         return self
     }
@@ -197,7 +197,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toDate value: Date) throws -> Query {
+    open func bind(varName: String, toDate value: Date) throws -> Query {
         query_builder_bind_timestamp(try! self.validPointer(), varName, value.toMicroseconds())
         return self
     }
@@ -212,7 +212,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toString value: String) throws -> Query {
+    open func bind(varName: String, toString value: String) throws -> Query {
         query_builder_bind_string(try! self.validPointer(), varName, value)
         return self
     }
@@ -227,7 +227,7 @@ class Query: OptionalRustObject {
 
      - Returns: This `Query` such that further function can be called.
      */
-    func bind(varName: String, toUuid value: UUID) throws -> Query {
+    open func bind(varName: String, toUuid value: UUID) throws -> Query {
         var rawUuid = value.uuid
         withUnsafePointer(to: &rawUuid) { uuidPtr in
             query_builder_bind_uuid(try! self.validPointer(), varName, uuidPtr)
@@ -244,7 +244,7 @@ class Query: OptionalRustObject {
      variable we incorrectly bound, or that the query provided was not `Rel`.
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
-    func run(callback: @escaping (RelResult?) -> Void) throws {
+    open func run(callback: @escaping (RelResult?) -> Void) throws {
         let result = query_builder_execute(try! self.validPointer())
         self.raw = nil
 
@@ -268,7 +268,7 @@ class Query: OptionalRustObject {
      variable we incorrectly bound, or that the query provided was not `Scalar`.
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
-    func runScalar(callback: @escaping (TypedValue?) -> Void) throws {
+    open func runScalar(callback: @escaping (TypedValue?) -> Void) throws {
         let result = query_builder_execute_scalar(try! self.validPointer())
         self.raw = nil
 
@@ -292,7 +292,7 @@ class Query: OptionalRustObject {
      variable we incorrectly bound, or that the query provided was not `Coll`.
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
-    func runColl(callback: @escaping (ColResult?) -> Void) throws {
+    open func runColl(callback: @escaping (ColResult?) -> Void) throws {
         let result = query_builder_execute_coll(try! self.validPointer())
         self.raw = nil
 
@@ -316,7 +316,7 @@ class Query: OptionalRustObject {
      variable we incorrectly bound, or that the query provided was not `Tuple`.
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
-    func runTuple(callback: @escaping (TupleResult?) -> Void) throws {
+    open func runTuple(callback: @escaping (TupleResult?) -> Void) throws {
         let result = query_builder_execute_tuple(try! self.validPointer())
         self.raw = nil
 
@@ -331,7 +331,7 @@ class Query: OptionalRustObject {
         callback(TupleResult(raw: OpaquePointer(results)))
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         query_builder_destroy(pointer)
     }
 }

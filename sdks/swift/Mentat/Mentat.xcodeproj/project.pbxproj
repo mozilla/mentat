@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7B45C8BE20CA982800BC83C0 /* libmentat_ffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B45C8BD20CA982800BC83C0 /* libmentat_ffi.a */; };
 		7B64E44D209094520063909F /* InProgressBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B64E44A209094510063909F /* InProgressBuilder.swift */; };
 		7B64E44E209094520063909F /* EntityBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B64E44B209094510063909F /* EntityBuilder.swift */; };
 		7B64E44F209094520063909F /* InProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B64E44C209094520063909F /* InProgress.swift */; };
 		7B74483D208DF667006CFFB0 /* Result+Unwrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B74483C208DF667006CFFB0 /* Result+Unwrap.swift */; };
-		7BAE75A22089020E00895D37 /* libmentat_ffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */; };
 		7BAE75A42089022B00895D37 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BAE75A32089022B00895D37 /* libsqlite3.tbd */; };
 		7BDB96942077C299009D0651 /* Mentat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BDB968A2077C299009D0651 /* Mentat.framework */; };
 		7BDB96992077C299009D0651 /* MentatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96982077C299009D0651 /* MentatTests.swift */; };
@@ -41,12 +41,24 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		7B45C8B420CA926D00BC83C0 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 12;
+			dstPath = "";
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		7B45C8BD20CA982800BC83C0 /* libmentat_ffi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat_ffi.a; path = "External-Dependencies/libmentat_ffi.a"; sourceTree = "<group>"; };
 		7B64E44A209094510063909F /* InProgressBuilder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InProgressBuilder.swift; sourceTree = "<group>"; };
 		7B64E44B209094510063909F /* EntityBuilder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EntityBuilder.swift; sourceTree = "<group>"; };
 		7B64E44C209094520063909F /* InProgress.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InProgress.swift; sourceTree = "<group>"; };
 		7B74483C208DF667006CFFB0 /* Result+Unwrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Result+Unwrap.swift"; path = "Mentat/Extensions/Result+Unwrap.swift"; sourceTree = SOURCE_ROOT; };
-		7B911E1A2085081D000998CB /* libtoodle.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtoodle.a; path = "../../../../sync-storage-prototype/rust/target/universal/release/libtoodle.a"; sourceTree = "<group>"; };
 		7BAE75A32089022B00895D37 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		7BDB968A2077C299009D0651 /* Mentat.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mentat.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7BDB968D2077C299009D0651 /* Mentat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mentat.h; sourceTree = "<group>"; };
@@ -62,13 +74,11 @@
 		7BDB96AB2077C38E009D0651 /* OptionalRustObject.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OptionalRustObject.swift; sourceTree = "<group>"; };
 		7BDB96AC2077C38E009D0651 /* TupleResult.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TupleResult.swift; sourceTree = "<group>"; };
 		7BDB96AE2077C38E009D0651 /* TypedValue.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TypedValue.swift; sourceTree = "<group>"; };
-		7BDB96BF2077CD7A009D0651 /* libmentat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat.a; path = ../../../target/universal/release/libmentat.a; sourceTree = "<group>"; };
 		7BDB96C12077CD98009D0651 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
 		7BDB96C32077D090009D0651 /* module.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.map; sourceTree = "<group>"; };
 		7BDB96C52077D346009D0651 /* Date+Int64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Date+Int64.swift"; sourceTree = "<group>"; };
 		7BDB96C8207B735A009D0651 /* fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fixtures; path = ../../../../fixtures; sourceTree = "<group>"; };
 		7BDB96CB207B7684009D0651 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Errors.swift; sourceTree = "<group>"; };
-		7BEB7D21207BDDEF000369AD /* libtoodle.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtoodle.a; path = ../../../target/universal/release/libtoodle.a; sourceTree = "<group>"; };
 		7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat_ffi.a; path = ../../../target/universal/release/libmentat_ffi.a; sourceTree = "<group>"; };
 		7BEB7D2B207D03DA000369AD /* TxReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TxReport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -78,9 +88,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B45C8BE20CA982800BC83C0 /* libmentat_ffi.a in Frameworks */,
 				7BAE75A42089022B00895D37 /* libsqlite3.tbd in Frameworks */,
 				7BDB96C22077CD98009D0651 /* libresolv.tbd in Frameworks */,
-				7BAE75A22089020E00895D37 /* libmentat_ffi.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,12 +182,10 @@
 		7BDB96BE2077CD7A009D0651 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				7B45C8BD20CA982800BC83C0 /* libmentat_ffi.a */,
 				7BAE75A32089022B00895D37 /* libsqlite3.tbd */,
-				7B911E1A2085081D000998CB /* libtoodle.a */,
 				7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */,
-				7BEB7D21207BDDEF000369AD /* libtoodle.a */,
 				7BDB96C12077CD98009D0651 /* libresolv.tbd */,
-				7BDB96BF2077CD7A009D0651 /* libmentat.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -229,6 +237,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7BDB969E2077C299009D0651 /* Build configuration list for PBXNativeTarget "Mentat" */;
 			buildPhases = (
+				7B45C8B420CA926D00BC83C0 /* CopyFiles */,
 				7BDB96852077C299009D0651 /* Sources */,
 				7BDB96862077C299009D0651 /* Frameworks */,
 				7BDB96872077C299009D0651 /* Headers */,
@@ -409,7 +418,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.3;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = "-fembed-bitcode";
@@ -470,7 +479,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.3;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "";
@@ -496,6 +505,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Mentat/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -503,7 +513,11 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../target/universal/release";
+				LIBRARY_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../../../target/universal/release",
+					"$(PROJECT_DIR)/Mentat",
+					"$(PROJECT_DIR)/External-Dependencies",
+				);
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mozilla.Mentat;
@@ -528,6 +542,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_BITCODE = NO;
 				ENABLE_TESTABILITY = NO;
 				INFOPLIST_FILE = Mentat/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -536,7 +551,11 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../target/universal/release";
+				LIBRARY_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../../../target/universal/release",
+					"$(PROJECT_DIR)/Mentat",
+					"$(PROJECT_DIR)/External-Dependencies",
+				);
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mozilla.Mentat;

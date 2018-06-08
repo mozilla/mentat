@@ -11,7 +11,7 @@
 import Foundation
 import MentatStore
 
-extension Result {
+public extension Result {
     /**
      Force unwraps a result.
      Expects there to be a value attached and throws an error is there is not.

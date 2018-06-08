@@ -36,7 +36,7 @@ import MentatStore
 
  Note that iteration is consuming and can only be done once.
  */
-class RelResult: OptionalRustObject {
+open class RelResult: OptionalRustObject {
 
     /**
      Fetch the row at the requested index.
@@ -47,14 +47,14 @@ class RelResult: OptionalRustObject {
 
      - Returns: The row at the requested index as a `TupleResult`, if present, or nil if there is no row at that index.
      */
-    func row(index: Int32) throws -> TupleResult? {
+    open func row(index: Int32) throws -> TupleResult? {
         guard let row = row_at_index(try self.validPointer(), index) else {
             return nil
         }
         return TupleResult(raw: row)
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         destroy(UnsafeMutableRawPointer(pointer))
     }
 }
@@ -73,14 +73,14 @@ class RelResult: OptionalRustObject {
 
  Note that iteration is consuming and can only be done once.
  */
-class RelResultIterator: OptionalRustObject, IteratorProtocol  {
-    typealias Element = TupleResult
+open class RelResultIterator: OptionalRustObject, IteratorProtocol  {
+    public typealias Element = TupleResult
 
     init(iter: OpaquePointer?) {
         super.init(raw: iter)
     }
 
-    func next() -> Element? {
+    open func next() -> Element? {
         guard let iter = self.raw,
             let rowPtr = typed_value_result_set_iter_next(iter) else {
             return nil
@@ -88,13 +88,13 @@ class RelResultIterator: OptionalRustObject, IteratorProtocol  {
         return TupleResult(raw: rowPtr)
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         typed_value_result_set_iter_destroy(pointer)
     }
 }
 
 extension RelResult: Sequence {
-    func makeIterator() -> RelResultIterator {
+    open func makeIterator() -> RelResultIterator {
         do {
             let rowIter = typed_value_result_set_into_iter(try self.validPointer())
             self.raw = nil

@@ -21,7 +21,7 @@ import MentatStore
  Also, due to the consuming nature of the FFI layer, this class also manages it's raw pointer, nilling it after calling the
  FFI conversion function so that the underlying base class can manage cleanup.
  */
-class TypedValue: OptionalRustObject {
+open class TypedValue: OptionalRustObject {
 
     private var value: Any?
 
@@ -43,7 +43,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a `Int64`
     */
-    func asLong() -> Int64 {
+    open func asLong() -> Int64 {
         defer {
             self.raw = nil
         }
@@ -59,7 +59,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as an `Entid`
      */
-    func asEntid() -> Entid {
+    open func asEntid() -> Entid {
         defer {
             self.raw = nil
         }
@@ -76,7 +76,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a keyword `String`
      */
-    func asKeyword() -> String {
+    open func asKeyword() -> String {
         defer {
             self.raw = nil
         }
@@ -93,7 +93,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a `Bool`
      */
-    func asBool() -> Bool {
+    open func asBool() -> Bool {
         defer {
             self.raw = nil
         }
@@ -111,7 +111,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a `Double`
      */
-    func asDouble() -> Double {
+    open func asDouble() -> Double {
         defer {
             self.raw = nil
         }
@@ -128,7 +128,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a `Date`
      */
-    func asDate() -> Date {
+    open func asDate() -> Date {
         defer {
             self.raw = nil
         }
@@ -146,7 +146,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a `String`
      */
-    func asString() -> String {
+    open func asString() -> String {
         defer {
             self.raw = nil
         }
@@ -163,7 +163,7 @@ class TypedValue: OptionalRustObject {
 
      - Returns: the value of this `TypedValue` as a `UUID?`. If the `UUID` is not valid then this function returns nil.
      */
-    func asUUID() -> UUID? {
+    open func asUUID() -> UUID? {
         defer {
             self.raw = nil
         }
@@ -175,7 +175,7 @@ class TypedValue: OptionalRustObject {
         return self.value as! UUID?
     }
 
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         typed_value_destroy(pointer)
     }
 }

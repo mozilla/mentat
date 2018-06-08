@@ -12,24 +12,24 @@ import Foundation
 
 import MentatStore
 
-typealias Entid = Int64
+public typealias Entid = Int64
 
 /**
  Protocol to be implemented by any object that wishes to register for transaction observation
  */
-protocol Observing {
+public protocol Observing {
     func transactionDidOccur(key: String, reports: [TxChange])
 }
 
 /**
  Protocol to be implemented by any object that provides an interface to Mentat's transaction observers.
  */
-protocol Observable {
+public protocol Observable {
     func register(key: String, observer: Observing, attributes: [String])
     func unregister(key: String)
 }
 
-enum CacheDirection {
+public enum CacheDirection {
     case forward;
     case reverse;
     case both;
@@ -40,14 +40,14 @@ enum CacheDirection {
  This class provides all of the basic API that can be found in Mentat's Store struct.
  The raw pointer it holds is a pointer to a Store.
 */
-class Mentat: RustObject {
+open class Mentat: RustObject {
     fileprivate static var observers = [String: Observing]()
 
     /**
      Create a new Mentat with the provided pointer to a Mentat Store
      - Parameter raw: A pointer to a Mentat Store.
     */
-    required override init(raw: OpaquePointer) {
+    public required override init(raw: OpaquePointer) {
         super.init(raw: raw)
     }
 
@@ -58,7 +58,7 @@ class Mentat: RustObject {
      - Parameter storeURI: The URI as a String of the store to open.
         If no store URI is provided, an in-memory store will be opened.
     */
-    convenience init(storeURI: String = "") {
+    public convenience init(storeURI: String = "") {
         self.init(raw: store_open(storeURI))
     }
 
@@ -76,7 +76,7 @@ class Mentat: RustObject {
 
      - Throws: `ResultError.error` if an error occured while trying to cache the attribute.
      */
-    func cache(attribute: String, direction: CacheDirection) throws {
+    open func cache(attribute: String, direction: CacheDirection) throws {
         switch direction {
         case .forward:
             try store_cache_attribute_forward(self.raw, attribute).pointee.tryUnwrap()
@@ -95,7 +95,7 @@ class Mentat: RustObject {
 
      - Returns: The `TxReport` of the completed transaction
     */
-    func transact(transaction: String) throws -> TxReport {
+    open func transact(transaction: String) throws -> TxReport {
         let result = store_transact(self.raw, transaction).pointee
         return TxReport(raw: try result.unwrap())
     }
@@ -108,7 +108,7 @@ class Mentat: RustObject {
 
      - Returns: The `InProgress` used to manage the transaction
      */
-    func beginTransaction() throws -> InProgress {
+    open func beginTransaction() throws -> InProgress {
         let result = store_begin_transaction(self.raw).pointee;
         return InProgress(raw: try result.unwrap())
     }
@@ -121,7 +121,7 @@ class Mentat: RustObject {
 
      - Returns: an `InProgressBuilder` for this `InProgress`
      */
-    func entityBuilder() throws -> InProgressBuilder {
+    open func entityBuilder() throws -> InProgressBuilder {
         let result = store_in_progress_builder(self.raw).pointee
         return InProgressBuilder(raw: try result.unwrap())
     }
@@ -137,7 +137,7 @@ class Mentat: RustObject {
 
      - Returns: an `EntityBuilder` for this `InProgress`
      */
-    func entityBuilder(forEntid entid: Entid) throws -> EntityBuilder {
+    open func entityBuilder(forEntid entid: Entid) throws -> EntityBuilder {
         let result = store_entity_builder_from_entid(self.raw, entid).pointee
         return EntityBuilder(raw: try result.unwrap())
     }
@@ -153,7 +153,7 @@ class Mentat: RustObject {
 
      - Returns: an `EntityBuilder` for this `InProgress`
      */
-    func entityBuilder(forTempId tempId: String) throws -> EntityBuilder {
+    open func entityBuilder(forTempId tempId: String) throws -> EntityBuilder {
         let result = store_entity_builder_from_temp_id(self.raw, tempId).pointee
         return EntityBuilder(raw: try result.unwrap())
     }
@@ -166,7 +166,7 @@ class Mentat: RustObject {
 
      - Returns: The `Entid` associated with the attribute.
      */
-    func entidForAttribute(attribute: String) -> Entid {
+    open func entidForAttribute(attribute: String) -> Entid {
         return Entid(store_entid_for_attribute(self.raw, attribute))
     }
 
@@ -176,7 +176,7 @@ class Mentat: RustObject {
 
      - Returns: The `Query` representing the query that can be executed.
      */
-    func query(query: String) -> Query {
+    open func query(query: String) -> Query {
         return Query(raw: store_query(self.raw, query))
     }
 
@@ -188,13 +188,13 @@ class Mentat: RustObject {
 
      - Returns: The `TypedValue` containing the value of the attribute for the entity.
      */
-    func value(forAttribute attribute: String, ofEntity entid: Entid) throws -> TypedValue? {
+    open func value(forAttribute attribute: String, ofEntity entid: Entid) throws -> TypedValue? {
         let result = store_value_for_attribute(self.raw, entid, attribute).pointee
         return TypedValue(raw: try result.unwrap())
     }
 
     // Destroys the pointer by passing it back into Rust to be cleaned up
-    override func cleanup(pointer: OpaquePointer) {
+    override open func cleanup(pointer: OpaquePointer) {
         store_destroy(pointer)
     }
 }
@@ -214,7 +214,7 @@ extension Mentat: Observable {
      - Parameter attributes: An `Array` of `Strings` representing the attributes that the `Observing`
      wishes to be notified about if they are referenced in a transaction.
      */
-    func register(key: String, observer: Observing, attributes: [String]) {
+    open func register(key: String, observer: Observing, attributes: [String]) {
         let attrEntIds = attributes.map({ (kw) -> Entid in
             let entid = Entid(self.entidForAttribute(attribute: kw));
             return entid
@@ -240,7 +240,7 @@ extension Mentat: Observable {
 
      - Parameter key: `String` representing an identifier for the `Observing`.
      */
-    func unregister(key: String) {
+    open func unregister(key: String) {
         Mentat.observers.removeValue(forKey: key)
         store_unregister_observer(self.raw, key)
     }

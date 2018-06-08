@@ -23,21 +23,21 @@ import MentatStore
  The optional pointer is managed here such that is the pointer is nil, then the cleanup function is not called
  ensuring that we do not double free the pointer on exit.
  */
-class OptionalRustObject: Destroyable {
+open class OptionalRustObject: Destroyable {
     var raw: OpaquePointer?
     lazy var uniqueId: ObjectIdentifier = {
          ObjectIdentifier(self)
     }()
 
-    init(raw: UnsafeMutableRawPointer) {
+    public init(raw: UnsafeMutableRawPointer) {
         self.raw = OpaquePointer(raw)
     }
 
-    init(raw: OpaquePointer?) {
+    public init(raw: OpaquePointer?) {
         self.raw = raw
     }
 
-    func intoRaw() -> OpaquePointer? {
+    public func getRaw() -> OpaquePointer? {
         return self.raw
     }
 
@@ -53,7 +53,7 @@ class OptionalRustObject: Destroyable {
 
     - Returns: the raw `OpaquePointer` wrapped by this class.
     */
-    func validPointer() throws -> OpaquePointer {
+    public func validPointer() throws -> OpaquePointer {
         guard let r = self.raw else {
             throw PointerError.pointerConsumed
         }
@@ -61,7 +61,7 @@ class OptionalRustObject: Destroyable {
         return r
     }
 
-    func cleanup(pointer: OpaquePointer) {
+    open func cleanup(pointer: OpaquePointer) {
         fatalError("\(cleanup) is not implemented.")
     }
 }
