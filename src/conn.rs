@@ -204,6 +204,45 @@ impl Store {
         ip.commit()?;
         Ok(report)
     }
+
+    /// Variant of `open` that allows a key (for encryption/decryption) to be
+    /// supplied. Fails unless linked against sqlcipher (or something else that
+    /// supports the Sqlite Encryption Extension).
+    pub fn open_with_key(path: &str, key: &str) -> Result<Store> {
+        let mut connection = ::new_connection_with_key(path, key)?;
+        let conn = Conn::connect(&mut connection)?;
+        Ok(Store {
+            conn: conn,
+            sqlite: connection,
+        })
+    }
+
+    /// Variant of `open_empty` that allows a key (for encryption/decryption) to
+    /// be supplied. Fails unless linked against sqlcipher (or something else
+    /// that supports the Sqlite Encryption Extension).
+    pub fn open_empty_with_key(path: &str, key: &str) -> Result<Store> {
+        if !path.is_empty() {
+            if Path::new(path).exists() {
+                bail!(ErrorKind::PathAlreadyExists(path.to_string()));
+            }
+        }
+
+        let mut connection = ::new_connection_with_key(path, key)?;
+        let conn = Conn::empty(&mut connection)?;
+        Ok(Store {
+            conn: conn,
+            sqlite: connection,
+        })
+    }
+
+    /// Change the key for a database that was opened using `open_with_key` or
+    /// `open_empty_with_key` (using `PRAGMA rekey`). Fails unless linked
+    /// against sqlcipher (or something else that supports the Sqlite Encryption
+    /// Extension).
+    pub fn change_key(&mut self, new_key: &str) -> Result<()> {
+        ::change_encryption_key(&self.sqlite, new_key)?;
+        Ok(())
+    }
 }
 
 pub trait Queryable {

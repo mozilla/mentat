@@ -3,6 +3,10 @@ name = "mentat_db"
 version = "0.0.1"
 workspace = ".."
 
+[features]
+default = []
+sqlcipher = []
+
 [dependencies]
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 indexmap = "1"

@@ -57,6 +57,8 @@ pub use mentat_db::{
     TxObserver,
     TxReport,
     new_connection,
+    new_connection_with_key,
+    change_encryption_key,
 };
 
 /// Produce the appropriate `Variable` for the provided valid ?-prefixed name.

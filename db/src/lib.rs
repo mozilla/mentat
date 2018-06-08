@@ -75,6 +75,8 @@ pub use entids::{
 pub use db::{
     TypedSQLValue,
     new_connection,
+    new_connection_with_key,
+    change_encryption_key,
 };
 
 pub use watcher::{

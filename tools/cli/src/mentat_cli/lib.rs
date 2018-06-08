@@ -50,6 +50,7 @@ pub fn run() -> i32 {
     let mut opts = Options::new();
 
     opts.optopt("d", "", "The path to a database to open", "DATABASE");
+    opts.optopt("k", "key", "The key to use to open the database (only available when using sqlcipher)", "KEY");
     opts.optflag("h", "help", "Print this help message and exit");
     opts.optmulti("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
     opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
@@ -74,12 +75,19 @@ pub fn run() -> i32 {
         return 0;
     }
 
+    let key = matches.opt_str("key");
+
     let mut last_arg: Option<&str> = None;
+
     let cmds:Vec<command_parser::Command> = args.iter().filter_map(|arg| {
         match last_arg {
             Some("-d") => {
                 last_arg = None;
-                Some(command_parser::Command::Open(arg.clone()))
+                if let Some(k) = &key {
+                    Some(command_parser::Command::OpenEncrypted(arg.clone(), k.clone()))
+                } else {
+                    Some(command_parser::Command::Open(arg.clone()))
+                }
             },
             Some("-q") => {
                 last_arg = None;

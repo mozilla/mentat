@@ -71,10 +71,40 @@ use watcher::{
     NullWatcher,
 };
 
-pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
-    let conn = match uri.as_ref().to_string_lossy().len() {
+// In PRAGMA foo='bar', `'bar'` must be a constant string (it cannot be a
+// bound parameter), so we need to escape manually. According to
+// https://www.sqlite.org/faq.html, the only character that must be escaped is
+// the single quote, which is escaped by placing two single quotes in a row.
+fn escape_string_for_pragma(s: &str) -> String {
+    s.replace("'", "''")
+}
+
+fn make_connection(uri: &Path, maybe_key: Option<&str>) -> Result<rusqlite::Connection> {
+    let conn = match uri.to_string_lossy().len() {
         0 => rusqlite::Connection::open_in_memory()?,
         _ => rusqlite::Connection::open(uri)?,
+    };
+
+    let page_size = 32768;
+
+    let initial_pragmas = if let Some(key) = maybe_key {
+        if !cfg!(feature = "sqlcipher") {
+            // Note: SQLite ignores unknown pragmas, so it's important we detect
+            // this explicitly, or a user may think they're using an encrypted
+            // database when they are not.
+            bail!(ErrorKind::SqlCipherMissing);
+        }
+
+        // Important: The `cipher_page_size` cannot be changed without breaking
+        // the ability to open databases that were written when using a
+        // different `cipher_page_size`. Additionally, it (AFAICT) must be a
+        // positive multiple of `page_size`. We use the same value for both here.
+        format!("
+            PRAGMA key='{}';
+            PRAGMA cipher_page_size={};
+        ", escape_string_for_pragma(key), page_size)
+    } else {
+        String::new()
     };
 
     // See https://github.com/mozilla/mentat/issues/505 for details on temp_store
@@ -83,16 +113,36 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
     // Some of the platforms we support do not have a tmp partition (e.g. Android)
     // necessary to store temp files on disk. Ideally, consumers should be able to
     // override this behaviour (see issue 505).
-    conn.execute_batch("
-        PRAGMA page_size=32768;
+    conn.execute_batch(&format!("
+        {}
+        PRAGMA page_size={};
         PRAGMA journal_mode=wal;
         PRAGMA wal_autocheckpoint=32;
         PRAGMA journal_size_limit=3145728;
         PRAGMA foreign_keys=ON;
         PRAGMA temp_store=2;
-    ")?;
+    ", initial_pragmas, page_size))?;
 
     Ok(conn)
+}
+
+pub fn new_connection<T>(uri: T) -> Result<rusqlite::Connection> where T: AsRef<Path> {
+    make_connection(uri.as_ref(), None)
+}
+
+pub fn new_connection_with_key(uri: impl AsRef<Path>, key: impl AsRef<str>) -> Result<rusqlite::Connection> {
+    make_connection(uri.as_ref(), Some(key.as_ref()))
+}
+
+pub fn change_encryption_key(conn: &rusqlite::Connection, key: impl AsRef<str>) -> Result<()> {
+    if !cfg!(feature = "sqlcipher") {
+        bail!(ErrorKind::SqlCipherMissing);
+    }
+    let escaped = escape_string_for_pragma(key.as_ref());
+    // `conn.execute` complains that this returns a result, and using a query
+    // for it requires more boilerplate.
+    conn.execute_batch(&format!("PRAGMA rekey = '{}';", escaped))?;
+    Ok(())
 }
 
 /// Version history:

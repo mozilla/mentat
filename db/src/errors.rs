@@ -215,5 +215,11 @@ error_chain! {
             description("transaction input error")
             display("transaction input error: {}", error)
         }
+
+        /// Attempted to perform an operation on the database that requires sqlcipher support.
+        SqlCipherMissing {
+            description("sqlcipher support required to use a database key, but this build does not have it")
+            display("sqlcipher support required to use a database key, but this build does not have it")
+        }
     }
 }

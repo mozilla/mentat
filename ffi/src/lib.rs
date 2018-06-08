@@ -248,6 +248,17 @@ pub extern "C" fn store_open(uri: *const c_char) -> *mut Store {
     Box::into_raw(Box::new(store))
 }
 
+/// Variant of store_open that opens an encrypted database.
+///
+/// This will fail unless mentat was compiled with sqlcipher support.
+#[no_mangle]
+pub extern "C" fn store_open_encrypted(uri: *const c_char, key: *const c_char) -> *mut Store {
+    let uri = c_char_to_string(uri);
+    let key = c_char_to_string(key);
+    let store = Store::open_with_key(&uri, &key).expect("expected a store");
+    Box::into_raw(Box::new(store))
+}
+
 // TODO: open empty
 
 // TODO: dismantle

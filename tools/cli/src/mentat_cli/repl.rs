@@ -52,6 +52,9 @@ use command_parser::{
     COMMAND_HELP,
     COMMAND_IMPORT_LONG,
     COMMAND_OPEN,
+    COMMAND_OPEN_EMPTY,
+    COMMAND_OPEN_EMPTY_ENCRYPTED,
+    COMMAND_OPEN_ENCRYPTED,
     COMMAND_QUERY_LONG,
     COMMAND_QUERY_SHORT,
     COMMAND_QUERY_EXPLAIN_LONG,
@@ -81,6 +84,10 @@ lazy_static! {
             (COMMAND_EXIT_SHORT, "Shortcut for `.exit`. Close the current database and exit the REPL."),
 
             (COMMAND_OPEN, "Open a database at path."),
+            (COMMAND_OPEN_EMPTY, "Open an empty database at path."),
+
+            (COMMAND_OPEN_ENCRYPTED, "Open an encrypted database at path using the provided key (requires sqlcipher)."),
+            (COMMAND_OPEN_EMPTY_ENCRYPTED, "Open an empty encrypted database at path using the provided key (requires sqlcipher)."),
 
             (COMMAND_SCHEMA, "Output the schema for the current open database."),
 
@@ -267,6 +274,18 @@ impl Repl {
                     Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
+            Command::OpenEncrypted(db, key) => {
+                match self.open_with_key(db, &key) {
+                    Ok(_) => println!("Database {:?} opened with key {:?}", self.db_name(), key),
+                    Err(e) => eprintln!("{}", e.to_string()),
+                }
+            },
+            Command::OpenEmptyEncrypted(db, key) => {
+                match self.open_empty_with_key(db, &key) {
+                    Ok(_) => println!("Empty database {:?} opened with key {:?}", self.db_name(), key),
+                    Err(e) => eprintln!("{}", e.to_string()),
+                }
+            },
             Command::Query(query) => {
                 self.store
                     .q_once(query.as_str(), None)
@@ -345,11 +364,24 @@ impl Repl {
         }
     }
 
-    fn open<T>(&mut self, path: T) -> ::mentat::errors::Result<()>
-    where T: Into<String> {
-        let path = path.into();
+    fn open_common(
+        &mut self,
+        empty: bool,
+        path: String,
+        key: Option<&str>
+    ) -> ::mentat::errors::Result<()> {
         if self.path.is_empty() || path != self.path {
-            let next = Store::open(path.as_str())?;
+            let next = if let Some(k) = key {
+                if empty {
+                    Store::open_empty_with_key(path.as_str(), k)?
+                } else {
+                    Store::open_with_key(path.as_str(), k)?
+                }
+            } else if empty {
+                Store::open_empty(path.as_str())?
+            } else {
+                Store::open(path.as_str())?
+            };
             self.path = path;
             self.store = next;
         }
@@ -357,16 +389,23 @@ impl Repl {
         Ok(())
     }
 
-    fn open_empty<T>(&mut self, path: T) -> ::mentat::errors::Result<()>
-    where T: Into<String> {
-        let path = path.into();
-        if self.path.is_empty() || path != self.path {
-            let next = Store::open_empty(path.as_str())?;
-            self.path = path;
-            self.store = next;
-        }
+    fn open(&mut self, path: impl Into<String>) -> ::mentat::errors::Result<()> {
+        self.open_common(false, path.into(), None)
+    }
 
-        Ok(())
+    fn open_empty(&mut self, path: impl Into<String>)
+    -> ::mentat::errors::Result<()> {
+        self.open_common(true, path.into(), None)
+    }
+
+    fn open_with_key(&mut self, path: impl Into<String>, key: impl AsRef<str>)
+    -> ::mentat::errors::Result<()> {
+        self.open_common(false, path.into(), Some(key.as_ref()))
+    }
+
+    fn open_empty_with_key(&mut self, path: impl Into<String>, key: impl AsRef<str>)
+    -> ::mentat::errors::Result<()> {
+        self.open_common(true, path.into(), Some(key.as_ref()))
     }
 
     // Close the current store by opening a new in-memory store in its place.

@@ -7,8 +7,14 @@ authors = ["Emily Toop <etoop@mozilla.com>"]
 name = "mentat_ffi"
 crate-type = ["lib", "staticlib", "cdylib"]
 
+[features]
+default = ["bundled_sqlite3"]
+sqlcipher = ["mentat/sqlcipher"]
+bundled_sqlite3 = ["mentat/bundled_sqlite3"]
+
 [dependencies]
 libc = "0.2"
 
 [dependencies.mentat]
 path = "../"
+default-features = false

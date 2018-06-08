@@ -2,6 +2,12 @@
 name = "mentat_cli"
 version = "0.0.1"
 
+# Forward mentat's features.
+[features]
+default = ["bundled_sqlite3"]
+sqlcipher = ["mentat/sqlcipher"]
+bundled_sqlite3 = ["mentat/bundled_sqlite3"]
+
 [lib]
 name = "mentat_cli"
 path = "src/mentat_cli/lib.rs"
@@ -30,6 +36,7 @@ features = ["limits"]
 
 [dependencies.mentat]
 path = "../.."
+default-features = false
 
 [dependencies.mentat_parser_utils]
 path = "../../parser-utils"
