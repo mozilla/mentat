@@ -49,11 +49,6 @@ error_chain! {
             display("encountered unexpected state: {}", t)
         }
 
-        NotYetImplemented(t: String) {
-            description("not yet implemented")
-            display("not yet implemented: {}", t)
-        }
-
         DuplicateMetadata(k: String) {
             description("encountered more than one metadata value for key")
             display("encountered more than one metadata value for key: {}", k)

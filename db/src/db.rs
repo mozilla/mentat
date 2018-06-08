@@ -1051,6 +1051,7 @@ pub trait PartitionMapping {
     fn allocate_entid<S: ?Sized + Ord + Display>(&mut self, partition: &S) -> i64 where String: Borrow<S>;
     fn allocate_entids<S: ?Sized + Ord + Display>(&mut self, partition: &S, n: usize) -> Range<i64> where String: Borrow<S>;
     fn contains_entid(&self, entid: Entid) -> bool;
+    fn expand_up_to<S: ?Sized + Ord + Display>(&mut self, partition: &S, entid: i64) where String: Borrow<S>;
 }
 
 impl PartitionMapping for PartitionMap {
@@ -1069,6 +1070,23 @@ impl PartitionMapping for PartitionMap {
             },
             // This is a programming error.
             None => panic!("Cannot allocate entid from unknown partition: {}", partition),
+        }
+    }
+
+    fn expand_up_to<S: ?Sized + Ord + Display>(&mut self, partition: &S, entid: i64) where String: Borrow<S> {
+        match self.get_mut(partition) {
+            Some(partition) => {
+                // Don't honour requests to shrink the partition.
+                if partition.index > entid {
+                    return ()
+                }
+                let new_index = entid + 1;
+                if partition.index != new_index {
+                    partition.index = new_index;
+                }
+            },
+            // This is a programming error.
+            None => panic!("Cannot expand unknown partition: {}", partition),
         }
     }
 

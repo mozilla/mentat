@@ -33,13 +33,17 @@ extern crate mentat_core;
 extern crate rusqlite;
 extern crate uuid;
 
+mod remote_client;
+
 pub mod schema;
 pub mod metadata;
 pub mod tx_processor;
 pub mod errors;
 pub mod syncer;
 pub mod tx_mapper;
+pub use tx_mapper::TxMapper;
 pub use syncer::Syncer;
+pub use metadata::SyncMetadataClient;
 pub use errors::{
     Error,
     ErrorKind,

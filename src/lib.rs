@@ -29,6 +29,8 @@ extern crate mentat_query_projector;
 extern crate mentat_query_pull;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
+
+#[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
 
 pub use mentat_core::{
@@ -103,6 +105,14 @@ pub mod query;
 pub mod entity_builder;
 pub mod query_builder;
 
+#[cfg(feature = "syncable")]
+pub mod sync;
+
+#[cfg(feature = "syncable")]
+pub use sync::{
+    Syncable,
+};
+
 pub use query::{
     IntoResult,
     PlainSymbol,
@@ -129,7 +139,6 @@ pub use conn::{
     Metadata,
     Pullable,
     Queryable,
-    Syncable,
     Store,
 };
 
