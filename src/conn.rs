@@ -204,7 +204,10 @@ impl Store {
         ip.commit()?;
         Ok(report)
     }
+}
 
+#[cfg(feature = "sqlcipher")]
+impl Store {
     /// Variant of `open` that allows a key (for encryption/decryption) to be
     /// supplied. Fails unless linked against sqlcipher (or something else that
     /// supports the Sqlite Encryption Extension).

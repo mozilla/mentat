@@ -50,7 +50,9 @@ pub fn run() -> i32 {
     let mut opts = Options::new();
 
     opts.optopt("d", "", "The path to a database to open", "DATABASE");
-    opts.optopt("k", "key", "The key to use to open the database (only available when using sqlcipher)", "KEY");
+    if cfg!(feature = "sqlcipher") {
+        opts.optopt("k", "key", "The key to use to open the database (only available when using sqlcipher)", "KEY");
+    }
     opts.optflag("h", "help", "Print this help message and exit");
     opts.optmulti("q", "query", "Execute a query on startup. Queries are executed after any transacts.", "QUERY");
     opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
@@ -75,7 +77,12 @@ pub fn run() -> i32 {
         return 0;
     }
 
+    // It's still possible to pass this in even if it's not a documented flag above.
     let key = matches.opt_str("key");
+    if key.is_some() && !cfg!(feature = "sqlcipher") {
+        eprintln!("Decryption key provided, but this build does not have sqlcipher support");
+        return 1;
+    }
 
     let mut last_arg: Option<&str> = None;
 

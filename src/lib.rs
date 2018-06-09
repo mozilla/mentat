@@ -57,6 +57,10 @@ pub use mentat_db::{
     TxObserver,
     TxReport,
     new_connection,
+};
+
+#[cfg(feature = "sqlcipher")]
+pub use mentat_db::{
     new_connection_with_key,
     change_encryption_key,
 };

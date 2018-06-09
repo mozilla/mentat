@@ -53,8 +53,6 @@ use command_parser::{
     COMMAND_IMPORT_LONG,
     COMMAND_OPEN,
     COMMAND_OPEN_EMPTY,
-    COMMAND_OPEN_EMPTY_ENCRYPTED,
-    COMMAND_OPEN_ENCRYPTED,
     COMMAND_QUERY_LONG,
     COMMAND_QUERY_SHORT,
     COMMAND_QUERY_EXPLAIN_LONG,
@@ -65,6 +63,16 @@ use command_parser::{
     COMMAND_TIMER_LONG,
     COMMAND_TRANSACT_LONG,
     COMMAND_TRANSACT_SHORT,
+};
+
+// These are still defined when this feature is disabled (so that we can
+// give decent error messages when a user tries open_encrypted when
+// we weren't compiled with sqlcipher), but they're unused, since we
+// omit them from help message (since they wouldn't work).
+#[cfg(feature = "sqlcipher")]
+use command_parser::{
+    COMMAND_OPEN_EMPTY_ENCRYPTED,
+    COMMAND_OPEN_ENCRYPTED,
 };
 
 use input::InputReader;
@@ -86,8 +94,10 @@ lazy_static! {
             (COMMAND_OPEN, "Open a database at path."),
             (COMMAND_OPEN_EMPTY, "Open an empty database at path."),
 
-            (COMMAND_OPEN_ENCRYPTED, "Open an encrypted database at path using the provided key (requires sqlcipher)."),
-            (COMMAND_OPEN_EMPTY_ENCRYPTED, "Open an empty encrypted database at path using the provided key (requires sqlcipher)."),
+            #[cfg(feature = "sqlcipher")]
+            (COMMAND_OPEN_ENCRYPTED, "Open an encrypted database at path using the provided key."),
+            #[cfg(feature = "sqlcipher")]
+            (COMMAND_OPEN_EMPTY_ENCRYPTED, "Open an empty encrypted database at path using the provided key."),
 
             (COMMAND_SCHEMA, "Output the schema for the current open database."),
 
@@ -371,11 +381,18 @@ impl Repl {
         key: Option<&str>
     ) -> ::mentat::errors::Result<()> {
         if self.path.is_empty() || path != self.path {
-            let next = if let Some(k) = key {
-                if empty {
-                    Store::open_empty_with_key(path.as_str(), k)?
-                } else {
-                    Store::open_with_key(path.as_str(), k)?
+            let next = if let Some(_k) = key {
+                #[cfg(not(feature = "sqlcipher"))]
+                {
+                    bail!(".open_encrypted and .empty_encrypted require builds with sqlcipher support");
+                }
+                #[cfg(feature = "sqlcipher")]
+                {
+                    if empty {
+                        Store::open_empty_with_key(path.as_str(), _k)?
+                    } else {
+                        Store::open_with_key(path.as_str(), _k)?
+                    }
                 }
             } else if empty {
                 Store::open_empty(path.as_str())?

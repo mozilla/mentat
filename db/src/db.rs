@@ -88,13 +88,8 @@ fn make_connection(uri: &Path, maybe_key: Option<&str>) -> Result<rusqlite::Conn
     let page_size = 32768;
 
     let initial_pragmas = if let Some(key) = maybe_key {
-        if !cfg!(feature = "sqlcipher") {
-            // Note: SQLite ignores unknown pragmas, so it's important we detect
-            // this explicitly, or a user may think they're using an encrypted
-            // database when they are not.
-            bail!(ErrorKind::SqlCipherMissing);
-        }
-
+        assert!(cfg!(feature = "sqlcipher"),
+                "This function shouldn't be called with a key unless we have sqlcipher support");
         // Important: The `cipher_page_size` cannot be changed without breaking
         // the ability to open databases that were written when using a
         // different `cipher_page_size`. Additionally, it (AFAICT) must be a
@@ -130,14 +125,13 @@ pub fn new_connection<T>(uri: T) -> Result<rusqlite::Connection> where T: AsRef<
     make_connection(uri.as_ref(), None)
 }
 
+#[cfg(feature = "sqlcipher")]
 pub fn new_connection_with_key(uri: impl AsRef<Path>, key: impl AsRef<str>) -> Result<rusqlite::Connection> {
     make_connection(uri.as_ref(), Some(key.as_ref()))
 }
 
+#[cfg(feature = "sqlcipher")]
 pub fn change_encryption_key(conn: &rusqlite::Connection, key: impl AsRef<str>) -> Result<()> {
-    if !cfg!(feature = "sqlcipher") {
-        bail!(ErrorKind::SqlCipherMissing);
-    }
     let escaped = escape_string_for_pragma(key.as_ref());
     // `conn.execute` complains that this returns a result, and using a query
     // for it requires more boilerplate.
