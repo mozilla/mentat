@@ -5,7 +5,7 @@ workspace = ".."
 
 [features]
 default = []
-sqlcipher = []
+sqlcipher = ["rusqlite/sqlcipher"]
 
 [dependencies]
 error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }

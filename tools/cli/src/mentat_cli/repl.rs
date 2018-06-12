@@ -284,15 +284,15 @@ impl Repl {
                     Err(e) => eprintln!("{}", e.to_string()),
                 };
             },
-            Command::OpenEncrypted(db, key) => {
-                match self.open_with_key(db, &key) {
-                    Ok(_) => println!("Database {:?} opened with key {:?}", self.db_name(), key),
+            Command::OpenEncrypted(db, encryption_key) => {
+                match self.open_with_key(db, &encryption_key) {
+                    Ok(_) => println!("Database {:?} opened with key {:?}", self.db_name(), encryption_key),
                     Err(e) => eprintln!("{}", e.to_string()),
                 }
             },
-            Command::OpenEmptyEncrypted(db, key) => {
-                match self.open_empty_with_key(db, &key) {
-                    Ok(_) => println!("Empty database {:?} opened with key {:?}", self.db_name(), key),
+            Command::OpenEmptyEncrypted(db, encryption_key) => {
+                match self.open_empty_with_key(db, &encryption_key) {
+                    Ok(_) => println!("Empty database {:?} opened with key {:?}", self.db_name(), encryption_key),
                     Err(e) => eprintln!("{}", e.to_string()),
                 }
             },
@@ -378,26 +378,27 @@ impl Repl {
         &mut self,
         empty: bool,
         path: String,
-        key: Option<&str>
+        encryption_key: Option<&str>
     ) -> ::mentat::errors::Result<()> {
         if self.path.is_empty() || path != self.path {
-            let next = if let Some(_k) = key {
+            let next = match encryption_key {
                 #[cfg(not(feature = "sqlcipher"))]
-                {
-                    bail!(".open_encrypted and .empty_encrypted require builds with sqlcipher support");
-                }
+                Some(_) => bail!(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature"),
                 #[cfg(feature = "sqlcipher")]
-                {
+                Some(k) => {
                     if empty {
-                        Store::open_empty_with_key(path.as_str(), _k)?
+                        Store::open_empty_with_key(path.as_str(), k)?
                     } else {
-                        Store::open_with_key(path.as_str(), _k)?
+                        Store::open_with_key(path.as_str(), k)?
+                    }
+                },
+                _ => {
+                    if empty {
+                        Store::open_empty(path.as_str())?
+                    } else {
+                        Store::open(path.as_str())?
                     }
                 }
-            } else if empty {
-                Store::open_empty(path.as_str())?
-            } else {
-                Store::open(path.as_str())?
             };
             self.path = path;
             self.store = next;
@@ -415,14 +416,14 @@ impl Repl {
         self.open_common(true, path.into(), None)
     }
 
-    fn open_with_key(&mut self, path: impl Into<String>, key: impl AsRef<str>)
+    fn open_with_key(&mut self, path: impl Into<String>, encryption_key: impl AsRef<str>)
     -> ::mentat::errors::Result<()> {
-        self.open_common(false, path.into(), Some(key.as_ref()))
+        self.open_common(false, path.into(), Some(encryption_key.as_ref()))
     }
 
-    fn open_empty_with_key(&mut self, path: impl Into<String>, key: impl AsRef<str>)
+    fn open_empty_with_key(&mut self, path: impl Into<String>, encryption_key: impl AsRef<str>)
     -> ::mentat::errors::Result<()> {
-        self.open_common(true, path.into(), Some(key.as_ref()))
+        self.open_common(true, path.into(), Some(encryption_key.as_ref()))
     }
 
     // Close the current store by opening a new in-memory store in its place.

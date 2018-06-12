@@ -79,7 +79,7 @@ fn escape_string_for_pragma(s: &str) -> String {
     s.replace("'", "''")
 }
 
-fn make_connection(uri: &Path, maybe_key: Option<&str>) -> Result<rusqlite::Connection> {
+fn make_connection(uri: &Path, maybe_encryption_key: Option<&str>) -> rusqlite::Result<rusqlite::Connection> {
     let conn = match uri.to_string_lossy().len() {
         0 => rusqlite::Connection::open_in_memory()?,
         _ => rusqlite::Connection::open(uri)?,
@@ -87,7 +87,7 @@ fn make_connection(uri: &Path, maybe_key: Option<&str>) -> Result<rusqlite::Conn
 
     let page_size = 32768;
 
-    let initial_pragmas = if let Some(key) = maybe_key {
+    let initial_pragmas = if let Some(encryption_key) = maybe_encryption_key {
         assert!(cfg!(feature = "sqlcipher"),
                 "This function shouldn't be called with a key unless we have sqlcipher support");
         // Important: The `cipher_page_size` cannot be changed without breaking
@@ -97,7 +97,7 @@ fn make_connection(uri: &Path, maybe_key: Option<&str>) -> Result<rusqlite::Conn
         format!("
             PRAGMA key='{}';
             PRAGMA cipher_page_size={};
-        ", escape_string_for_pragma(key), page_size)
+        ", escape_string_for_pragma(encryption_key), page_size)
     } else {
         String::new()
     };
@@ -110,33 +110,31 @@ fn make_connection(uri: &Path, maybe_key: Option<&str>) -> Result<rusqlite::Conn
     // override this behaviour (see issue 505).
     conn.execute_batch(&format!("
         {}
-        PRAGMA page_size={};
         PRAGMA journal_mode=wal;
         PRAGMA wal_autocheckpoint=32;
         PRAGMA journal_size_limit=3145728;
         PRAGMA foreign_keys=ON;
         PRAGMA temp_store=2;
-    ", initial_pragmas, page_size))?;
+    ", initial_pragmas))?;
 
     Ok(conn)
 }
 
-pub fn new_connection<T>(uri: T) -> Result<rusqlite::Connection> where T: AsRef<Path> {
+pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where T: AsRef<Path> {
     make_connection(uri.as_ref(), None)
 }
 
 #[cfg(feature = "sqlcipher")]
-pub fn new_connection_with_key(uri: impl AsRef<Path>, key: impl AsRef<str>) -> Result<rusqlite::Connection> {
-    make_connection(uri.as_ref(), Some(key.as_ref()))
+pub fn new_connection_with_key(uri: impl AsRef<Path>, encryption_key: impl AsRef<str>) -> rusqlite::Result<rusqlite::Connection> {
+    make_connection(uri.as_ref(), Some(encryption_key.as_ref()))
 }
 
 #[cfg(feature = "sqlcipher")]
-pub fn change_encryption_key(conn: &rusqlite::Connection, key: impl AsRef<str>) -> Result<()> {
-    let escaped = escape_string_for_pragma(key.as_ref());
+pub fn change_encryption_key(conn: &rusqlite::Connection, encryption_key: impl AsRef<str>) -> rusqlite::Result<()> {
+    let escaped = escape_string_for_pragma(encryption_key.as_ref());
     // `conn.execute` complains that this returns a result, and using a query
     // for it requires more boilerplate.
-    conn.execute_batch(&format!("PRAGMA rekey = '{}';", escaped))?;
-    Ok(())
+    conn.execute_batch(&format!("PRAGMA rekey = '{}';", escaped))
 }
 
 /// Version history:
@@ -1272,11 +1270,8 @@ mod tests {
         fn fulltext_values(&self) -> edn::Value {
             debug::fulltext_values(&self.sqlite).expect("fulltext_values").into_edn()
         }
-    }
 
-    impl Default for TestConn {
-        fn default() -> TestConn {
-            let mut conn = new_connection("").expect("Couldn't open in-memory db");
+        fn with_sqlite(mut conn: rusqlite::Connection) -> TestConn {
             let db = ensure_current_version(&mut conn).unwrap();
 
             // Does not include :db/txInstant.
@@ -1310,6 +1305,12 @@ mod tests {
         }
     }
 
+    impl Default for TestConn {
+        fn default() -> TestConn {
+            TestConn::with_sqlite(new_connection("").expect("Couldn't open in-memory db"))
+        }
+    }
+
     fn tempids(report: &TxReport) -> edn::Value {
         let mut map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
         for (tempid, &entid) in report.tempids.iter() {
@@ -1318,10 +1319,7 @@ mod tests {
         edn::Value::Map(map)
     }
 
-    #[test]
-    fn test_add() {
-        let mut conn = TestConn::default();
-
+    fn run_test_add(mut conn: TestConn) {
         // Test inserting :db.cardinality/one elements.
         assert_transact!(conn, "[[:db/add 100 :db.schema/version 1]
                                  [:db/add 101 :db.schema/version 2]]");
@@ -1384,6 +1382,11 @@ mod tests {
                           [101 :db.schema/version 22]
                           [200 :db.schema/attribute 100]
                           [200 :db.schema/attribute 101]]");
+    }
+
+    #[test]
+    fn test_add() {
+        run_test_add(TestConn::default());
     }
 
     #[test]
@@ -2737,5 +2740,49 @@ mod tests {
             [:db/retract 100 :test/many 8]
         ]"#,
         Err("schema constraint violation: cardinality conflicts:\n  AddRetractConflict { e: 100, a: 200, vs: {Long(7)} }\n  AddRetractConflict { e: 100, a: 201, vs: {Long(8)} }\n"));
+    }
+
+    #[test]
+    #[cfg(feature = "sqlcipher")]
+    fn test_sqlcipher_openable() {
+        let secret_key = "key";
+        let sqlite = new_connection_with_key("../fixtures/v1encrypted.db", secret_key).expect("Failed to find test DB");
+        sqlite.query_row("SELECT COUNT(*) FROM sqlite_master", &[], |row| row.get::<_, i64>(0))
+            .expect("Failed to execute sql query on encrypted DB");
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    fn test_open_fail(opener: impl FnOnce() -> rusqlite::Result<rusqlite::Connection>) {
+        let err = opener().expect_err("Should fail to open encrypted DB");
+        match err {
+            rusqlite::Error::SqliteFailure(err, ..) => {
+                assert_eq!(err.extended_code, 26, "Should get error code 26 (not a database).");
+            },
+            err => {
+                panic!("Wrong error type! {}", err);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "sqlcipher")]
+    fn test_sqlcipher_requires_key() {
+        // Don't use a key.
+        test_open_fail(|| new_connection("../fixtures/v1encrypted.db"));
+    }
+
+    #[test]
+    #[cfg(feature = "sqlcipher")]
+    fn test_sqlcipher_requires_correct_key() {
+        // Use a key, but the wrong one.
+        test_open_fail(|| new_connection_with_key("../fixtures/v1encrypted.db", "wrong key"));
+    }
+
+    #[test]
+    #[cfg(feature = "sqlcipher")]
+    fn test_sqlcipher_some_transactions() {
+        let sqlite = new_connection_with_key("", "hunter2").expect("Failed to create encrypted connection");
+        // Run a basic test as a sanity check.
+        run_test_add(TestConn::with_sqlite(sqlite));
     }
 }
