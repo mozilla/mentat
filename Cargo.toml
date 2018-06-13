@@ -18,6 +18,7 @@ build = "build/version.rs"
 [features]
 default = ["bundled_sqlite3"]
 bundled_sqlite3 = ["rusqlite/bundled"]
+sqlcipher = ["rusqlite/sqlcipher", "mentat_db/sqlcipher"]
 
 [workspace]
 members = ["tools/cli", "ffi"]

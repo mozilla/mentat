@@ -59,6 +59,12 @@ pub use mentat_db::{
     new_connection,
 };
 
+#[cfg(feature = "sqlcipher")]
+pub use mentat_db::{
+    new_connection_with_key,
+    change_encryption_key,
+};
+
 /// Produce the appropriate `Variable` for the provided valid ?-prefixed name.
 /// This lives here because we can't re-export macros:
 /// https://github.com/rust-lang/rust/issues/29638.

@@ -77,6 +77,12 @@ pub use db::{
     new_connection,
 };
 
+#[cfg(feature = "sqlcipher")]
+pub use db::{
+    new_connection_with_key,
+    change_encryption_key,
+};
+
 pub use watcher::{
     TransactWatcher,
 };

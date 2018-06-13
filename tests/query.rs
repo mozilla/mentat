@@ -1474,10 +1474,7 @@ fn test_tx_ids() {
     assert_tx_id_range(&store, tx2, tx3 + 1, vec![TypedValue::Ref(tx2), TypedValue::Ref(tx3)]);
 }
 
-#[test]
-fn test_tx_data() {
-    let mut store = Store::open("").expect("opened");
-
+fn run_tx_data_test(mut store: Store) {
     store.transact(r#"[
         [:db/add "a" :db/ident :foo/term]
         [:db/add "a" :db/valueType :db.type/string]
@@ -1533,4 +1530,17 @@ fn test_tx_data() {
 
     assert_tx_data(&store, &tx1, "1".into());
     assert_tx_data(&store, &tx2, "2".into());
+}
+
+#[test]
+fn test_tx_data() {
+    run_tx_data_test(Store::open("").expect("opened"));
+}
+
+#[cfg(feature = "sqlite")]
+#[test]
+fn test_encrypted() {
+    // We expect this to blow up completely if something is wrong with the encryption,
+    // so the specific test we use doesn't matter that much.
+    run_tx_data_test(Store::open_with_key("", "secret").expect("opened"));
 }
