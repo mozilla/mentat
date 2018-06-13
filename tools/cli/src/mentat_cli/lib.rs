@@ -90,7 +90,7 @@ pub fn run() -> i32 {
         match last_arg {
             Some("-d") => {
                 last_arg = None;
-                if let Some(k) = &key {
+                if let &Some(ref k) = &key {
                     Some(command_parser::Command::OpenEncrypted(arg.clone(), k.clone()))
                 } else {
                     Some(command_parser::Command::Open(arg.clone()))

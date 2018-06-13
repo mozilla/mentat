@@ -407,22 +407,22 @@ impl Repl {
         Ok(())
     }
 
-    fn open(&mut self, path: impl Into<String>) -> ::mentat::errors::Result<()> {
+    fn open<T>(&mut self, path: T) -> ::mentat::errors::Result<()> where T: Into<String> {
         self.open_common(false, path.into(), None)
     }
 
-    fn open_empty(&mut self, path: impl Into<String>)
-    -> ::mentat::errors::Result<()> {
+    fn open_empty<T>(&mut self, path: T)
+    -> ::mentat::errors::Result<()> where T: Into<String> {
         self.open_common(true, path.into(), None)
     }
 
-    fn open_with_key(&mut self, path: impl Into<String>, encryption_key: impl AsRef<str>)
-    -> ::mentat::errors::Result<()> {
+    fn open_with_key<T, U>(&mut self, path: T, encryption_key: U)
+    -> ::mentat::errors::Result<()> where T: Into<String>, U: AsRef<str> {
         self.open_common(false, path.into(), Some(encryption_key.as_ref()))
     }
 
-    fn open_empty_with_key(&mut self, path: impl Into<String>, encryption_key: impl AsRef<str>)
-    -> ::mentat::errors::Result<()> {
+    fn open_empty_with_key<T, U>(&mut self, path: T, encryption_key: U)
+    -> ::mentat::errors::Result<()> where T: Into<String>, U: AsRef<str> {
         self.open_common(true, path.into(), Some(encryption_key.as_ref()))
     }
 
