@@ -1,4 +1,9 @@
 language: rust
+# We use OSX so that we can get a reasonably up to date version of SQLCipher.
+# (The version in Travis's default Ubuntu Trusty is much too old).
+os: osx
+before_install:
+  - brew install sqlcipher --with-fts
 rust:
   - 1.25.0  # Must align with `build/version.rs`.
   - stable
@@ -10,4 +15,12 @@ matrix:
   fast_finish: true
 script:
   - cargo test --verbose --all
+  # We can't pick individual features out with `cargo test --all` (At the time of this writing, this
+  # works but does the wrong thing because of a bug in cargo, but it's fix will be to disallow doing
+  # this all-together, see https://github.com/rust-lang/cargo/issues/5364 for more information). To
+  # work around this, we run individual tests for each subcrate individually.
+  - |
+    for manifest in $(find . -type f -name Cargo.toml); do
+      cargo test --manifest-path $manifest --verbose --no-default-features --features sqlcipher
+    done
 cache: cargo
