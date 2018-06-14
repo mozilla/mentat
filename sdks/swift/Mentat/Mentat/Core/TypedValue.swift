@@ -82,7 +82,7 @@ open class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            self.value = String(cString: typed_value_into_kw(self.raw!))
+            self.value = String(destroyingMentatString: typed_value_into_kw(self.raw!))
         }
         return self.value as! String
     }
@@ -152,7 +152,7 @@ open class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            self.value = String(cString: typed_value_into_string(self.raw!))
+            self.value = String(destroyingMentatString: typed_value_into_string(self.raw!));
         }
         return self.value as! String
     }
@@ -169,8 +169,9 @@ open class TypedValue: OptionalRustObject {
         }
 
         if !self.isConsumed() {
-            let bytes = typed_value_into_uuid(self.raw!).pointee
-            self.value = UUID(uuid: bytes)
+            let bytes = typed_value_into_uuid(self.raw!);
+            defer { destroy(bytes); }
+            self.value = UUID(uuid: bytes.pointee)
         }
         return self.value as! UUID?
     }

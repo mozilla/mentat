@@ -84,6 +84,7 @@ use std::sync::{
     Arc,
 };
 use std::vec;
+use std::ffi::CString;
 
 pub use mentat::{
     Binding,
@@ -1582,10 +1583,10 @@ pub unsafe extern "C" fn value_at_index_into_entid(values: *mut Vec<Binding>, in
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_into_kw(values: *mut Vec<Binding>, index: c_int) -> *const c_char {
+pub unsafe extern "C" fn value_at_index_into_kw(values: *mut Vec<Binding>, index: c_int) -> *mut c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    unwrap_conversion(value.clone().into_kw_c_string(), ValueType::Keyword) as *const c_char
+    unwrap_conversion(value.clone().into_kw_c_string(), ValueType::Keyword) as *mut c_char
 }
 
 /// Returns the value of the [Binding](mentat::Binding) at `index` as a boolean represented by a `i32`.
@@ -1644,10 +1645,10 @@ pub unsafe extern "C" fn value_at_index_into_timestamp(values: *mut Vec<Binding>
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn value_at_index_into_string(values: *mut Vec<Binding>, index: c_int) -> *const c_char {
+pub unsafe extern "C" fn value_at_index_into_string(values: *mut Vec<Binding>, index: c_int) -> *mut c_char {
     let result = &*values;
     let value = result.get(index as usize).expect("No value at index");
-    unwrap_conversion(value.clone().into_c_string(), ValueType::String) as *const c_char
+    unwrap_conversion(value.clone().into_c_string(), ValueType::String) as *mut c_char
 }
 
 /// Returns the value of the [Binding](mentat::Binding) at `index` as a UUID byte slice of length 16.
@@ -1786,6 +1787,13 @@ pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut TransactionChange, 
     let tx_report = &*tx_report;
     let index = index as usize;
     tx_report.changes[index].clone()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn destroy_mentat_string(s: *mut c_char) {
+    if !s.is_null() {
+        let _ = CString::from_raw(s);
+    }
 }
 
 /// Creates a function with a given `$name` that releases the memory for a type `$t`.

@@ -246,10 +246,12 @@ open class Query: OptionalRustObject {
      */
     open func run(callback: @escaping (RelResult?) -> Void) throws {
         let result = query_builder_execute(try! self.validPointer())
+        defer { destroy(result); }
         self.raw = nil
 
         if let err = result.pointee.err {
             let message = String(cString: err)
+            destroy_mentat_string(err);
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {
@@ -294,11 +296,13 @@ open class Query: OptionalRustObject {
      */
     open func runColl(callback: @escaping (ColResult?) -> Void) throws {
         let result = query_builder_execute_coll(try! self.validPointer())
+        defer { destroy(result); }
         self.raw = nil
 
         if let err = result.pointee.err {
             let message = String(cString: err)
-             throw QueryError.executionFailed(message: message)
+            destroy_mentat_string(err);
+            throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {
             callback(nil)
@@ -318,10 +322,12 @@ open class Query: OptionalRustObject {
      */
     open func runTuple(callback: @escaping (TupleResult?) -> Void) throws {
         let result = query_builder_execute_tuple(try! self.validPointer())
+        defer { destroy(result); }
         self.raw = nil
 
         if let err = result.pointee.err {
             let message = String(cString: err)
+            destroy_mentat_string(err);
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {

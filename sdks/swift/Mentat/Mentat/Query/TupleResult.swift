@@ -77,7 +77,9 @@ open class TupleResult: OptionalRustObject {
      - Returns: The keyword `String` at that index.
      */
     open func asKeyword(index: Int) -> String {
-        return String(cString: value_at_index_into_kw(self.raw!, Int32(index)))
+        let str = value_at_index_into_kw(self.raw!, Int32(index));
+        defer { destroy_mentat_string(str); }
+        return String(cString: str);
     }
 
     /**
@@ -129,7 +131,9 @@ open class TupleResult: OptionalRustObject {
      - Returns: The `String` at that index.
      */
     open func asString(index: Int) -> String {
-        return String(cString: value_at_index_into_string(self.raw!, Int32(index)))
+        let str = value_at_index_into_string(self.raw!, Int32(index));
+        defer { destroy_mentat_string(str); }
+        return String(cString: str)
     }
 
     /**
@@ -142,7 +146,9 @@ open class TupleResult: OptionalRustObject {
      - Returns: The `UUID` at that index.
      */
     open func asUUID(index: Int) -> UUID? {
-        return UUID(uuid: value_at_index_into_uuid(self.raw!, Int32(index)).pointee)
+        let uuid = value_at_index_into_uuid(self.raw!, Int32(index));
+        defer { destroy(uuid); }
+        return UUID(uuid: uuid.pointee)
     }
 
     override open func cleanup(pointer: OpaquePointer) {

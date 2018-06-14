@@ -38,7 +38,7 @@ open class RustObject: Destroyable {
         }
         self.raw = r
     }
-    
+
     public func getRaw() -> OpaquePointer {
         return self.raw
     }
@@ -46,7 +46,7 @@ open class RustObject: Destroyable {
     deinit {
         self.cleanup(pointer: self.raw)
     }
-    
+
     open func cleanup(pointer: OpaquePointer) {
         fatalError("\(cleanup) is not implemented.")
     }

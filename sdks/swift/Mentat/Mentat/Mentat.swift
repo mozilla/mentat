@@ -79,11 +79,11 @@ open class Mentat: RustObject {
     open func cache(attribute: String, direction: CacheDirection) throws {
         switch direction {
         case .forward:
-            try store_cache_attribute_forward(self.raw, attribute).pointee.tryUnwrap()
+            try store_cache_attribute_forward(self.raw, attribute).tryUnwrap()
         case .reverse:
-            try store_cache_attribute_reverse(self.raw, attribute).pointee.tryUnwrap()
+            try store_cache_attribute_reverse(self.raw, attribute).tryUnwrap()
         case .both:
-            try store_cache_attribute_bi_directional(self.raw, attribute).pointee.tryUnwrap()
+            try store_cache_attribute_bi_directional(self.raw, attribute).tryUnwrap()
         }
     }
 
@@ -96,7 +96,7 @@ open class Mentat: RustObject {
      - Returns: The `TxReport` of the completed transaction
     */
     open func transact(transaction: String) throws -> TxReport {
-        let result = store_transact(self.raw, transaction).pointee
+        let result = store_transact(self.raw, transaction)
         return TxReport(raw: try result.unwrap())
     }
 
@@ -109,7 +109,7 @@ open class Mentat: RustObject {
      - Returns: The `InProgress` used to manage the transaction
      */
     open func beginTransaction() throws -> InProgress {
-        let result = store_begin_transaction(self.raw).pointee;
+        let result = store_begin_transaction(self.raw);
         return InProgress(raw: try result.unwrap())
     }
 
@@ -122,7 +122,7 @@ open class Mentat: RustObject {
      - Returns: an `InProgressBuilder` for this `InProgress`
      */
     open func entityBuilder() throws -> InProgressBuilder {
-        let result = store_in_progress_builder(self.raw).pointee
+        let result = store_in_progress_builder(self.raw)
         return InProgressBuilder(raw: try result.unwrap())
     }
 
@@ -138,7 +138,7 @@ open class Mentat: RustObject {
      - Returns: an `EntityBuilder` for this `InProgress`
      */
     open func entityBuilder(forEntid entid: Entid) throws -> EntityBuilder {
-        let result = store_entity_builder_from_entid(self.raw, entid).pointee
+        let result = store_entity_builder_from_entid(self.raw, entid)
         return EntityBuilder(raw: try result.unwrap())
     }
 
@@ -154,7 +154,7 @@ open class Mentat: RustObject {
      - Returns: an `EntityBuilder` for this `InProgress`
      */
     open func entityBuilder(forTempId tempId: String) throws -> EntityBuilder {
-        let result = store_entity_builder_from_temp_id(self.raw, tempId).pointee
+        let result = store_entity_builder_from_temp_id(self.raw, tempId)
         return EntityBuilder(raw: try result.unwrap())
     }
 
@@ -189,7 +189,7 @@ open class Mentat: RustObject {
      - Returns: The `TypedValue` containing the value of the attribute for the entity.
      */
     open func value(forAttribute attribute: String, ofEntity entid: Entid) throws -> TypedValue? {
-        let result = store_value_for_attribute(self.raw, entid, attribute).pointee
+        let result = store_value_for_attribute(self.raw, entid, attribute)
         return TypedValue(raw: try result.unwrap())
     }
 

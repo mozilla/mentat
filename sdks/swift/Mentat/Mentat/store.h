@@ -113,7 +113,7 @@ void typed_value_result_set_iter_destroy(struct QueryRowsIterator* _Nullable obj
 void in_progress_destroy(struct InProgress* _Nullable obj);
 void in_progress_builder_destroy(struct InProgressBuilder* _Nullable obj);
 void entity_builder_destroy(struct EntityBuilder* _Nullable obj);
-
+void destroy_mentat_string(char *_Nullable s);
 // caching
 struct Result*_Nonnull store_cache_attribute_forward(struct Store*_Nonnull store, const char* _Nonnull attribute);
 struct Result*_Nonnull store_cache_attribute_reverse(struct Store*_Nonnull store, const char* _Nonnull attribute);
@@ -121,7 +121,7 @@ struct Result*_Nonnull store_cache_attribute_bi_directional(struct Store*_Nonnul
 
 // transact
 struct Result*_Nonnull store_transact(struct Store*_Nonnull store, const char* _Nonnull transaction);
-const int64_t* _Nullable tx_report_entity_for_temp_id(const struct TxReport* _Nonnull report, const char* _Nonnull tempid);
+int64_t* _Nullable tx_report_entity_for_temp_id(const struct TxReport* _Nonnull report, const char* _Nonnull tempid);
 int64_t tx_report_get_entid(const struct TxReport* _Nonnull report);
 int64_t tx_report_get_tx_instant(const struct TxReport* _Nonnull report);
 struct Result*_Nonnull store_begin_transaction(struct Store*_Nonnull store);
@@ -210,12 +210,12 @@ struct Result*_Nonnull query_builder_execute_tuple(struct Query*_Nonnull query);
 // Query Result Processing
 int64_t typed_value_into_long(struct TypedValue*_Nonnull  value);
 int64_t typed_value_into_entid(struct TypedValue*_Nonnull  value);
-const char* _Nonnull typed_value_into_kw(struct TypedValue*_Nonnull  value);
+char* _Nonnull typed_value_into_kw(struct TypedValue*_Nonnull  value);
 int32_t typed_value_into_boolean(struct TypedValue*_Nonnull  value);
 double typed_value_into_double(struct TypedValue*_Nonnull  value);
 int64_t typed_value_into_timestamp(struct TypedValue*_Nonnull  value);
-const char* _Nonnull typed_value_into_string(struct TypedValue*_Nonnull  value);
-const uuid_t* _Nonnull typed_value_into_uuid(struct TypedValue*_Nonnull  value);
+char* _Nonnull typed_value_into_string(struct TypedValue*_Nonnull  value);
+uuid_t* _Nonnull typed_value_into_uuid(struct TypedValue*_Nonnull  value);
 enum ValueType typed_value_value_type(struct TypedValue*_Nonnull value);
 
 struct QueryResultRow* _Nullable row_at_index(struct QueryResultRows* _Nonnull rows, const int32_t index);
@@ -227,12 +227,12 @@ struct TypedValue* _Nullable typed_value_list_iter_next(struct QueryRowIterator*
 struct TypedValue* _Nonnull value_at_index(struct QueryResultRow* _Nonnull row, const int32_t index);
 int64_t value_at_index_into_long(struct QueryResultRow* _Nonnull row, const int32_t index);
 int64_t value_at_index_into_entid(struct QueryResultRow* _Nonnull row, const int32_t index);
-const char* _Nonnull value_at_index_into_kw(struct QueryResultRow* _Nonnull row, const int32_t index);
+char* _Nonnull value_at_index_into_kw(struct QueryResultRow* _Nonnull row, const int32_t index);
 int32_t value_at_index_into_boolean(struct QueryResultRow* _Nonnull row, const int32_t index);
 double value_at_index_into_double(struct QueryResultRow* _Nonnull row, const int32_t index);
 int64_t value_at_index_into_timestamp(struct QueryResultRow* _Nonnull row, const int32_t index);
-const char* _Nonnull value_at_index_into_string(struct QueryResultRow* _Nonnull row, const int32_t index);
-const uuid_t* _Nonnull value_at_index_into_uuid(struct QueryResultRow* _Nonnull row, const int32_t index);
+char* _Nonnull value_at_index_into_string(struct QueryResultRow* _Nonnull row, const int32_t index);
+uuid_t* _Nonnull value_at_index_into_uuid(struct QueryResultRow* _Nonnull row, const int32_t index);
 
 // Transaction change lists
 const struct TxChange* _Nullable tx_change_list_entry_at(const struct TxChangeList* _Nonnull list, size_t index);

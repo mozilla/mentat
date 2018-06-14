@@ -11,37 +11,43 @@
 import Foundation
 import MentatStore
 
-public extension Result {
+extension UnsafeMutablePointer where Pointee == Result {
     /**
-     Force unwraps a result.
-     Expects there to be a value attached and throws an error is there is not.
-
+     Unwraps an optional result, yielding either a successful value or a nil.
+     
+     Frees the Result afterwards, but not the object held in the `ok` property (which is what you want)
+     
      - Throws: `ResultError.error` if the result contains an error
-     - Throws: `ResultError.empty` if the result contains no error but also no result.
-
-     - Returns: The pointer to the successful result value.
+     
+     - Returns: The pointer to the successful result value, or nil if no value is present.
      */
-    @discardableResult public func unwrap() throws -> UnsafeMutableRawPointer {
-        guard let success = self.ok else {
-            if let error = self.err {
-                throw ResultError.error(message: String(cString: error))
+    @discardableResult
+    public func unwrap() throws -> UnsafeMutableRawPointer {
+        defer { destroy(self); }
+        guard let success = self.pointee.ok else {
+            if let error = self.pointee.err {
+                throw ResultError.error(message: String(destroyingMentatString: error))
             }
             throw ResultError.empty
         }
         return success
     }
-
+    
     /**
      Unwraps an optional result, yielding either a successful value or a nil.
-
+     
+     Frees the Result afterwards, but not the object held in the `ok` property (which is what you want)
+     
      - Throws: `ResultError.error` if the result contains an error
-
+     
      - Returns: The pointer to the successful result value, or nil if no value is present.
      */
-    @discardableResult public func tryUnwrap() throws -> UnsafeMutableRawPointer? {
-        guard let success = self.ok else {
-            if let error = self.err {
-                throw ResultError.error(message: String(cString: error))
+    @discardableResult
+    public func tryUnwrap() throws -> UnsafeMutableRawPointer? {
+        defer { destroy(self); }
+        guard let success = self.pointee.ok else {
+            if let error = self.pointee.err {
+                throw ResultError.error(message: String(destroyingMentatString: error))
             }
             return nil
         }
