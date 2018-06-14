@@ -125,12 +125,14 @@ pub fn new_connection<T>(uri: T) -> rusqlite::Result<rusqlite::Connection> where
 }
 
 #[cfg(feature = "sqlcipher")]
-pub fn new_connection_with_key(uri: impl AsRef<Path>, encryption_key: impl AsRef<str>) -> rusqlite::Result<rusqlite::Connection> {
+pub fn new_connection_with_key<P, S>(uri: P, encryption_key: S) -> rusqlite::Result<rusqlite::Connection>
+where P: AsRef<Path>, S: AsRef<str> {
     make_connection(uri.as_ref(), Some(encryption_key.as_ref()))
 }
 
 #[cfg(feature = "sqlcipher")]
-pub fn change_encryption_key(conn: &rusqlite::Connection, encryption_key: impl AsRef<str>) -> rusqlite::Result<()> {
+pub fn change_encryption_key<S>(conn: &rusqlite::Connection, encryption_key: S) -> rusqlite::Result<()>
+where S: AsRef<str> {
     let escaped = escape_string_for_pragma(encryption_key.as_ref());
     // `conn.execute` complains that this returns a result, and using a query
     // for it requires more boilerplate.
@@ -2752,7 +2754,7 @@ mod tests {
     }
 
     #[cfg(feature = "sqlcipher")]
-    fn test_open_fail(opener: impl FnOnce() -> rusqlite::Result<rusqlite::Connection>) {
+    fn test_open_fail<F>(opener: F) where F: FnOnce() -> rusqlite::Result<rusqlite::Connection> {
         let err = opener().expect_err("Should fail to open encrypted DB");
         match err {
             rusqlite::Error::SqliteFailure(err, ..) => {
