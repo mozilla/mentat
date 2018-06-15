@@ -246,14 +246,13 @@ open class Query: OptionalRustObject {
      */
     open func run(callback: @escaping (RelResult?) -> Void) throws {
         let result = query_builder_execute(try! self.validPointer())
-        defer { destroy(result); }
         self.raw = nil
 
-        if let err = result.pointee.err {
+        if let err = result.err {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.pointee.ok else {
+        guard let results = result.ok else {
             callback(nil)
             return
         }
@@ -271,14 +270,13 @@ open class Query: OptionalRustObject {
      */
     open func runScalar(callback: @escaping (TypedValue?) -> Void) throws {
         let result = query_builder_execute_scalar(try! self.validPointer())
-        defer { destroy(result); }
         self.raw = nil
 
-        if let err = result.pointee.err {
+        if let err = result.err {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.pointee.ok else {
+        guard let results = result.ok else {
             callback(nil)
             return
         }
@@ -296,14 +294,13 @@ open class Query: OptionalRustObject {
      */
     open func runColl(callback: @escaping (ColResult?) -> Void) throws {
         let result = query_builder_execute_coll(try! self.validPointer())
-        defer { destroy(result); }
         self.raw = nil
 
-        if let err = result.pointee.err {
+        if let err = result.err {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.pointee.ok else {
+        guard let results = result.ok else {
             callback(nil)
             return
         }
@@ -321,14 +318,13 @@ open class Query: OptionalRustObject {
      */
     open func runTuple(callback: @escaping (TupleResult?) -> Void) throws {
         let result = query_builder_execute_tuple(try! self.validPointer())
-        defer { destroy(result); }
         self.raw = nil
 
-        if let err = result.pointee.err {
+        if let err = result.err {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.pointee.ok else {
+        guard let results = result.ok else {
             callback(nil)
             return
         }

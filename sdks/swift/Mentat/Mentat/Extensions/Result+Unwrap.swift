@@ -11,7 +11,7 @@
 import Foundation
 import MentatStore
 
-extension UnsafeMutablePointer where Pointee == Result {
+extension Result {
     /**
      Unwraps an optional result, yielding either a successful value or a nil.
      
@@ -23,16 +23,15 @@ extension UnsafeMutablePointer where Pointee == Result {
      */
     @discardableResult
     public func unwrap() throws -> UnsafeMutableRawPointer {
-        defer { destroy(self); }
-        guard let success = self.pointee.ok else {
-            if let error = self.pointee.err {
+        guard let success = self.ok else {
+            if let error = self.err {
                 throw ResultError.error(message: String(destroyingMentatString: error))
             }
             throw ResultError.empty
         }
         return success
     }
-    
+
     /**
      Unwraps an optional result, yielding either a successful value or a nil.
      
@@ -44,9 +43,8 @@ extension UnsafeMutablePointer where Pointee == Result {
      */
     @discardableResult
     public func tryUnwrap() throws -> UnsafeMutableRawPointer? {
-        defer { destroy(self); }
-        guard let success = self.pointee.ok else {
-            if let error = self.pointee.err {
+        guard let success = self.ok else {
+            if let error = self.err {
                 throw ResultError.error(message: String(destroyingMentatString: error))
             }
             return nil

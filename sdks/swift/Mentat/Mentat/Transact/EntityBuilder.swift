@@ -324,9 +324,8 @@ open class EntityBuilder: OptionalRustObject {
             self.raw = nil
         }
         let result = entity_builder_transact(try self.validPointer());
-        defer { destroy(result); }
-        let inProgress = InProgress(raw: result.pointee.inProgress)
-        guard let report = try result.pointee.result.tryUnwrap() else {
+        let inProgress = InProgress(raw: result.inProgress)
+        guard let report = try result.result.tryUnwrap() else {
             return (inProgress, nil)
         }
         return (inProgress, TxReport(raw: report))
