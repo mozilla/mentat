@@ -20,6 +20,7 @@ pub mod strings {
     };
 
     pub fn c_char_to_string(cchar: *const c_char) -> &'static str {
+        assert!(!cchar.is_null());
         let c_str = unsafe { CStr::from_ptr(cchar) };
         c_str.to_str().unwrap_or("")
     }
