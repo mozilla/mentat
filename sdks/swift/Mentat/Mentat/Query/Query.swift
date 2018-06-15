@@ -250,8 +250,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = result.pointee.err {
-            let message = String(cString: err)
-            destroy_mentat_string(err);
+            let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {
@@ -272,10 +271,11 @@ open class Query: OptionalRustObject {
      */
     open func runScalar(callback: @escaping (TypedValue?) -> Void) throws {
         let result = query_builder_execute_scalar(try! self.validPointer())
+        defer { destroy(result); }
         self.raw = nil
 
         if let err = result.pointee.err {
-            let message = String(cString: err)
+            let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {
@@ -300,8 +300,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = result.pointee.err {
-            let message = String(cString: err)
-            destroy_mentat_string(err);
+            let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {
@@ -326,8 +325,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = result.pointee.err {
-            let message = String(cString: err)
-            destroy_mentat_string(err);
+            let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result.pointee.ok else {

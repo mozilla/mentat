@@ -78,8 +78,7 @@ open class TupleResult: OptionalRustObject {
      */
     open func asKeyword(index: Int) -> String {
         let str = value_at_index_into_kw(self.raw!, Int32(index));
-        defer { destroy_mentat_string(str); }
-        return String(cString: str);
+        return String(destroyingMentatString: str);
     }
 
     /**
@@ -132,8 +131,7 @@ open class TupleResult: OptionalRustObject {
      */
     open func asString(index: Int) -> String {
         let str = value_at_index_into_string(self.raw!, Int32(index));
-        defer { destroy_mentat_string(str); }
-        return String(cString: str)
+        return String(destroyingMentatString: str)
     }
 
     /**
