@@ -33,8 +33,6 @@ abstract class RustObject implements AutoCloseable {
 
     RustObject(Pointer p) {
         rawPointer = p;
-        Log.d("RustObject", "Created " + this.getClass() + " " + p.toString());
-        Log.d("RustObject", Log.getStackTraceString(new Error()));
     }
 
     /**
@@ -60,7 +58,6 @@ abstract class RustObject implements AutoCloseable {
         this.validate();
         Pointer p = this.rawPointer;
         this.rawPointer = null;
-        Log.d("RustObject", "Consumed " + this.getClass() + " " + p.toString());
         return p;
     }
 
@@ -105,9 +102,7 @@ abstract class RustObject implements AutoCloseable {
     @Override
     public void close() {
         if (this.rawPointer != null) {
-            Log.d("RustObject", "Destroying " + this.getClass() + " " + this.rawPointer.toString());
             this.destroyPointer(this.consumePointer());
-            Log.d("RustObject", "Destroyed " + this.getClass());
         }
     }
 
