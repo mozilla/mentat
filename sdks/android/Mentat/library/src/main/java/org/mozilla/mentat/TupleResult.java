@@ -38,7 +38,7 @@ import java.util.UUID;
 public class TupleResult extends RustObject {
 
     public TupleResult(Pointer pointer) {
-        this.rawPointer = pointer;
+        super(pointer);
     }
 
     /**
@@ -48,8 +48,7 @@ public class TupleResult extends RustObject {
      * @return  The {@link TypedValue} at that index.
      */
     public TypedValue get(Integer index) {
-        this.validate();
-        Pointer pointer = JNA.INSTANCE.value_at_index(this.rawPointer, index);
+        Pointer pointer = JNA.INSTANCE.value_at_index(this.validPointer(), index);
         if (pointer == null) {
             return null;
         }
@@ -64,8 +63,7 @@ public class TupleResult extends RustObject {
      * @return  The {@link Long} at that index.
      */
     public Long asLong(Integer index) {
-        this.validate();
-        return JNA.INSTANCE.value_at_index_into_long(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_long(this.validPointer(), index);
     }
 
     /**
@@ -76,8 +74,7 @@ public class TupleResult extends RustObject {
      * @return  The Entid at that index.
      */
     public Long asEntid(Integer index) {
-        this.validate();
-        return JNA.INSTANCE.value_at_index_into_entid(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_entid(this.validPointer(), index);
     }
 
     /**
@@ -88,8 +85,7 @@ public class TupleResult extends RustObject {
      * @return  The keyword at that index.
      */
     public String asKeyword(Integer index) {
-        this.validate();
-        return JNA.INSTANCE.value_at_index_into_kw(this.rawPointer, index);
+        return getAndConsumeMentatString(JNA.INSTANCE.value_at_index_into_kw(this.validPointer(), index));
     }
 
     /**
@@ -100,8 +96,7 @@ public class TupleResult extends RustObject {
      * @return  The {@link Boolean} at that index.
      */
     public Boolean asBool(Integer index) {
-        this.validate();
-        return JNA.INSTANCE.value_at_index_into_boolean(this.rawPointer, index) == 0 ? false : true;
+        return JNA.INSTANCE.value_at_index_into_boolean(this.validPointer(), index) == 0 ? false : true;
     }
 
     /**
@@ -112,8 +107,7 @@ public class TupleResult extends RustObject {
      * @return  The {@link Double} at that index.
      */
     public Double asDouble(Integer index) {
-        this.validate();
-        return JNA.INSTANCE.value_at_index_into_double(this.rawPointer, index);
+        return JNA.INSTANCE.value_at_index_into_double(this.validPointer(), index);
     }
 
     /**
@@ -124,8 +118,7 @@ public class TupleResult extends RustObject {
      * @return  The {@link Date} at that index.
      */
     public Date asDate(Integer index) {
-        this.validate();
-        return new Date(JNA.INSTANCE.value_at_index_into_timestamp(this.rawPointer, index) * 1_000);
+        return new Date(JNA.INSTANCE.value_at_index_into_timestamp(this.validPointer(), index) * 1_000);
     }
 
     /**
@@ -136,8 +129,8 @@ public class TupleResult extends RustObject {
      * @return  The {@link String} at that index.
      */
     public String asString(Integer index) {
-        this.validate();
-        return JNA.INSTANCE.value_at_index_into_string(this.rawPointer, index);
+            return getAndConsumeMentatString(
+                    JNA.INSTANCE.value_at_index_into_string(this.validPointer(), index));
     }
 
     /**
@@ -148,14 +141,12 @@ public class TupleResult extends RustObject {
      * @return  The {@link UUID} at that index.
      */
     public UUID asUUID(Integer index) {
-        this.validate();
-        return getUUIDFromPointer(JNA.INSTANCE.value_at_index_into_uuid(this.rawPointer, index));
+        return getAndConsumeUUIDPointer(
+                JNA.INSTANCE.value_at_index_into_uuid(this.validPointer(), index));
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_list_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(Pointer p) {
+        JNA.INSTANCE.typed_value_list_destroy(p);
     }
 }

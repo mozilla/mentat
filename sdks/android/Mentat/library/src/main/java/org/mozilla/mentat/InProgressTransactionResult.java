@@ -15,12 +15,10 @@ import android.util.Log;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class InProgressTransactionResult extends Structure implements Closeable {
+public class InProgressTransactionResult extends Structure {
     public static class ByReference extends InProgressTransactionResult implements Structure.ByReference {
     }
 
@@ -36,22 +34,29 @@ public class InProgressTransactionResult extends Structure implements Closeable 
     }
 
     public InProgress getInProgress() {
-        return new InProgress(this.inProgress);
+        if (this.inProgress == null) {
+            throw new NullPointerException("Already consumed InProgress");
+        }
+        InProgress ip = new InProgress(this.inProgress);
+        this.inProgress = null;
+        return ip;
+
     }
-    
+
     public TxReport getReport() {
         if (this.result.isFailure()) {
-            Log.e("InProgressTransactRes", this.result.err);
+            Log.e("InProgressTransactRes", this.result.getError());
             return null;
         }
 
-        return new TxReport(this.result.ok);
+        return new TxReport(this.result.consumeSuccess());
     }
 
     @Override
-    public void close() throws IOException {
-        if (this.getPointer() != null) {
-            JNA.INSTANCE.destroy(this.getPointer());
+    protected void finalize() {
+        if (this.inProgress != null) {
+            Log.w("InProgressResult", "InProgressResult.inProgress is still present during finalization, leaking memory!");
         }
+        JNA.INSTANCE.destroy(this.getPointer());
     }
 }

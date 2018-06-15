@@ -13,7 +13,6 @@ package org.mozilla.mentat;
 import com.sun.jna.Structure;
 import com.sun.jna.ptr.IntByReference;
 
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,7 +20,7 @@ import java.util.List;
  * Represents a C struct of a list of Strings containing attributes in the format
  * `:namespace/name`.
  */
-public class AttributeList extends Structure implements Closeable {
+public class AttributeList extends Structure {
     public static class ByReference extends AttributeList implements Structure.ByReference {
     }
 
@@ -39,10 +38,5 @@ public class AttributeList extends Structure implements Closeable {
         return Arrays.asList("attributes", "numberOfItems", "len");
     }
 
-    @Override
-    public void close() {
-        if (this.getPointer() != null) {
-            JNA.INSTANCE.destroy(this.getPointer());
-        }
-    }
+    // TODO: where is this object returned, who owns it's memory, who should be freeing it?
 }

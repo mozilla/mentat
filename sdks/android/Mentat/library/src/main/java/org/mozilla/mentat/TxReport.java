@@ -40,7 +40,7 @@ public class TxReport extends RustObject {
 
 
     public TxReport(Pointer pointer) {
-        this.rawPointer = pointer;
+        super(pointer);
     }
 
     /**
@@ -76,14 +76,15 @@ public class TxReport extends RustObject {
         if (longPointer == null) {
             return null;
         }
-
-        return longPointer.getLong(0);
+        try {
+            return longPointer.getLong(0);
+        } finally {
+            JNA.INSTANCE.destroy(longPointer);
+        }
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.tx_report_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(Pointer p) {
+        JNA.INSTANCE.tx_report_destroy(p);
     }
 }

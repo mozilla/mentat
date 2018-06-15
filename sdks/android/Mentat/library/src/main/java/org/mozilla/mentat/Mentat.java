@@ -32,21 +32,21 @@ public class Mentat extends RustObject {
      * @param dbPath    The URI as a String of the store to open.
      */
     public Mentat(String dbPath) {
-        this.rawPointer = JNA.INSTANCE.store_open(dbPath);
+        this(JNA.INSTANCE.store_open(dbPath));
     }
 
     /**
      * Open a connection to an in-memory Store.
      */
     public Mentat() {
-        this.rawPointer = JNA.INSTANCE.store_open("");
+        this(JNA.INSTANCE.store_open(""));
     }
 
     /**
      * Create a new Mentat with the provided pointer to a Mentat Store
      * @param rawPointer    A pointer to a Mentat Store.
      */
-    public Mentat(Pointer rawPointer) { this.rawPointer = rawPointer; }
+    public Mentat(Pointer rawPointer) { super(rawPointer); }
 
     /**
      * Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
@@ -67,14 +67,15 @@ public class Mentat extends RustObject {
         switch (direction) {
             case FORWARD:
                 result = JNA.INSTANCE.store_cache_attribute_forward(this.rawPointer, attribute);
+                break;
             case REVERSE:
                 result = JNA.INSTANCE.store_cache_attribute_reverse(this.rawPointer, attribute);
+                break;
             case BOTH:
                 result = JNA.INSTANCE.store_cache_attribute_bi_directional(this.rawPointer, attribute);
+                break;
         }
-        if (result.isFailure()) {
-            Log.e("Mentat", result.err);
-        }
+        result.logIfFailure("Mentat");
     }
 
     /**
@@ -84,14 +85,11 @@ public class Mentat extends RustObject {
      * @return  The {@link TxReport} of the completed transaction
      */
     public TxReport transact(String transaction) {
-        RustResult result = JNA.INSTANCE.store_transact(this.rawPointer, transaction);
-        if (result.isFailure()) {
-            Log.e("Mentat", result.err);
-            return null;
-        }
+        RustResult result = JNA.INSTANCE.store_transact(this.validPointer(), transaction);
+        result.logIfFailure("Mentat");
 
         if (result.isSuccess()) {
-            return new TxReport(result.ok);
+            return new TxReport(result.consumeSuccess());
         } else {
             return null;
         }
@@ -103,7 +101,7 @@ public class Mentat extends RustObject {
      * @return  The `Entid` associated with the attribute.
      */
     public long entIdForAttribute(String attribute) {
-        return JNA.INSTANCE.store_entid_for_attribute(this.rawPointer, attribute);
+        return JNA.INSTANCE.store_entid_for_attribute(this.validPointer(), attribute);
     }
 
     /**
@@ -112,7 +110,7 @@ public class Mentat extends RustObject {
      * @return  The {@link Query} representing the query that can be executed.
      */
     public Query query(String query) {
-        return new Query(JNA.INSTANCE.store_query(this.rawPointer, query));
+        return new Query(JNA.INSTANCE.store_query(this.validPointer(), query));
     }
 
     /**
@@ -123,16 +121,13 @@ public class Mentat extends RustObject {
      * @return  The {@link TypedValue} containing the value of the attribute for the entity.
      */
     public TypedValue valueForAttributeOfEntity(String attribute, long entid) {
-        RustResult result = JNA.INSTANCE.store_value_for_attribute(this.rawPointer, entid, attribute);
+        RustResult result = JNA.INSTANCE.store_value_for_attribute(this.validPointer(), entid, attribute);
 
         if (result.isSuccess()) {
-            return new TypedValue(result.ok);
+            return new TypedValue(result.consumeSuccess());
         }
 
-        if (result.isFailure()) {
-            Log.e("Mentat", result.err);
-        }
-
+        result.logIfFailure("Mentat");
         return null;
     }
 
@@ -149,11 +144,11 @@ public class Mentat extends RustObject {
         // turn string array into int array
         long[] attrEntids = new long[attributes.length];
         for(int i = 0; i < attributes.length; i++) {
-            attrEntids[i] = JNA.INSTANCE.store_entid_for_attribute(this.rawPointer, attributes[i]);
+            attrEntids[i] = JNA.INSTANCE.store_entid_for_attribute(this.validPointer(), attributes[i]);
         }
         final Pointer entidsNativeArray = new Memory(8 * attrEntids.length);
         entidsNativeArray.write(0, attrEntids, 0, attrEntids.length);
-        JNA.INSTANCE.store_register_observer(rawPointer, key, entidsNativeArray, attrEntids.length, callback);
+        JNA.INSTANCE.store_register_observer(validPointer(), key, entidsNativeArray, attrEntids.length, callback);
     }
 
     /**
@@ -164,9 +159,8 @@ public class Mentat extends RustObject {
      * @param key   String representing an identifier for the observer.
      */
     public void unregisterObserver(String key) {
-        JNA.INSTANCE.store_unregister_observer(rawPointer, key);
+        JNA.INSTANCE.store_unregister_observer(validPointer(), key);
     }
-
 
     /**
      * Start a new transaction
@@ -176,15 +170,14 @@ public class Mentat extends RustObject {
      * @return The {@link InProgress} used to manage the transaction
      */
     public InProgress beginTransaction() {
-        RustResult result = JNA.INSTANCE.store_begin_transaction(this.rawPointer);
+        RustResult result = JNA.INSTANCE.store_begin_transaction(this.validPointer());
         if (result.isSuccess()) {
-            return new InProgress(result.ok);
+            return new InProgress(result.consumeSuccess());
         }
 
         if (result.isFailure()) {
-            Log.i("Mentat", result.err);
+            Log.i("Mentat", result.getError());
         }
-
         return null;
     }
 
@@ -197,15 +190,12 @@ public class Mentat extends RustObject {
      * @return  an {@link InProgressBuilder} for a new transaction.
      */
     public InProgressBuilder entityBuilder() {
-        RustResult result = JNA.INSTANCE.store_in_progress_builder(this.rawPointer);
+        RustResult result = JNA.INSTANCE.store_in_progress_builder(this.validPointer());
         if (result.isSuccess()) {
-            return new InProgressBuilder(result.ok);
+            return new InProgressBuilder(result.consumeSuccess());
         }
 
-        if (result.isFailure()) {
-            Log.i("Mentat", result.err);
-        }
-
+        result.logIfFailure("Mentat");
         return null;
     }
 
@@ -219,15 +209,12 @@ public class Mentat extends RustObject {
      * @return  an {@link EntityBuilder} for a new transaction.
      */
     public EntityBuilder entityBuilder(long entid) {
-        RustResult result = JNA.INSTANCE.store_entity_builder_from_entid(this.rawPointer, entid);
+        RustResult result = JNA.INSTANCE.store_entity_builder_from_entid(this.validPointer(), entid);
         if (result.isSuccess()) {
-            return new EntityBuilder(result.ok);
+            return new EntityBuilder(result.consumeSuccess());
         }
 
-        if (result.isFailure()) {
-            Log.i("Mentat", result.err);
-        }
-
+        result.logIfFailure("Mentat");
         return null;
     }
 
@@ -241,22 +228,17 @@ public class Mentat extends RustObject {
      * @return  an {@link EntityBuilder} for a new transaction.
      */
     public EntityBuilder entityBuilder(String tempId) {
-        RustResult result = JNA.INSTANCE.store_entity_builder_from_temp_id(this.rawPointer, tempId);
+        RustResult result = JNA.INSTANCE.store_entity_builder_from_temp_id(this.validPointer(), tempId);
         if (result.isSuccess()) {
-            return new EntityBuilder(result.ok);
+            return new EntityBuilder(result.consumeSuccess());
         }
 
-        if (result.isFailure()) {
-            Log.i("Mentat", result.err);
-        }
-
+        result.logIfFailure("Mentat");
         return null;
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.store_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(Pointer p) {
+        JNA.INSTANCE.store_destroy(p);
     }
 }

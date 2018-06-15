@@ -12,43 +12,27 @@ package org.mozilla.mentat;
 
 import com.sun.jna.Pointer;
 
-import java.util.Iterator;
 /**
  * Iterator for a {@link RelResult}
  */
-public class RelResultIterator extends RustObject implements Iterator {
-
-    Pointer nextPointer;
+public class RelResultIterator extends RustIterator<TupleResult> {
 
     RelResultIterator(Pointer iterator) {
-        this.rawPointer = iterator;
-    }
-
-    private Pointer getNextPointer() {
-        return JNA.INSTANCE.typed_value_result_set_iter_next(this.rawPointer);
+        super(iterator);
     }
 
     @Override
-    public boolean hasNext() {
-        this.nextPointer = getNextPointer();
-        return this.nextPointer != null;
+    protected Pointer advanceIterator() {
+        return JNA.INSTANCE.typed_value_result_set_iter_next(this.validPointer());
     }
 
     @Override
-    public TupleResult next() {
-        Pointer next = this.nextPointer == null ? getNextPointer() : this.nextPointer;
-        if (next == null) {
-            return null;
-        }
-
-        return new TupleResult(next);
+    protected TupleResult constructItem(Pointer p) {
+        return new TupleResult(p);
     }
 
-
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_result_set_iter_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(Pointer p) {
+        JNA.INSTANCE.typed_value_result_set_iter_destroy(p);
     }
 }

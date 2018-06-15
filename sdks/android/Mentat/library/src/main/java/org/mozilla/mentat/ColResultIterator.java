@@ -12,43 +12,27 @@ package org.mozilla.mentat;
 
 import com.sun.jna.Pointer;
 
-import java.util.Iterator;
-
 /**
  * Iterator for a {@link CollResult}
  */
-public class ColResultIterator extends RustObject implements Iterator {
-
-    Pointer nextPointer;
+public class ColResultIterator extends RustIterator<TypedValue> {
 
     ColResultIterator(Pointer iterator) {
-        this.rawPointer = iterator;
-    }
-
-    private Pointer getNextPointer() {
-        return JNA.INSTANCE.typed_value_list_iter_next(this.rawPointer);
+        super(iterator);
     }
 
     @Override
-    public boolean hasNext() {
-        this.nextPointer = getNextPointer();
-        return this.nextPointer != null;
+    protected Pointer advanceIterator() {
+        return JNA.INSTANCE.typed_value_list_iter_next(this.validPointer());
     }
 
     @Override
-    public TypedValue next() {
-        Pointer next = this.nextPointer == null ? getNextPointer() : this.nextPointer;
-        if (next == null) {
-            return null;
-        }
-
-        return new TypedValue(next);
+    protected TypedValue constructItem(Pointer p) {
+        return new TypedValue(p);
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_list_iter_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(Pointer p) {
+        JNA.INSTANCE.typed_value_list_iter_destroy(p);
     }
 }

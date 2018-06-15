@@ -12,14 +12,13 @@ package org.mozilla.mentat;
 
 import com.sun.jna.Structure;
 
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * Represents a C struct containing a list of {@link TxChange}s that occured.
  */
-public class TxChangeList extends Structure implements Closeable {
+public class TxChangeList extends Structure {
     public static class ByReference extends TxChangeList implements Structure.ByReference {
     }
 
@@ -46,11 +45,5 @@ public class TxChangeList extends Structure implements Closeable {
         return Arrays.asList("reports", "numberOfItems", "len");
     }
 
-    @Override
-    public void close() {
-        final TxChange[] nativeReports = (TxChange[]) reports.toArray(numberOfItems);
-        for (TxChange nativeReport : nativeReports) {
-            nativeReport.close();
-        }
-    }
+    // Note: Rust has ownership of this data.
 }

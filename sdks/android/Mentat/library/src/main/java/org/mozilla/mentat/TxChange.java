@@ -13,7 +13,6 @@ package org.mozilla.mentat;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,7 +21,7 @@ import java.util.List;
  * These changes contain the transaction identifier, a {@link Pointer} to a list of affected attribute
  * Entids and the number of items that the list contains.
  */
-public class TxChange extends Structure implements Closeable {
+public class TxChange extends Structure {
     public static class ByReference extends TxChange implements Structure.ByReference {
     }
 
@@ -55,10 +54,5 @@ public class TxChange extends Structure implements Closeable {
         return Arrays.asList("txid", "changes", "changes_len", "numberOfItems");
     }
 
-    @Override
-    public void close() {
-        if (this.getPointer() != null) {
-            JNA.INSTANCE.destroy(this.getPointer());
-        }
-    }
+    // Note: Rust has ownership of this data.
 }

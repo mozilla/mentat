@@ -40,6 +40,7 @@ public interface JNA extends Library {
     void in_progress_destroy(Pointer obj);
     void in_progress_builder_destroy(Pointer obj);
     void entity_builder_destroy(Pointer obj);
+    void destroy_mentat_string(Pointer str);
 
     // caching
     RustResult store_cache_attribute_forward(Pointer store, String attribute);
@@ -134,8 +135,8 @@ public interface JNA extends Library {
     // Query Result Processing
     long typed_value_into_long(Pointer value);
     long typed_value_into_entid(Pointer value);
-    String typed_value_into_kw(Pointer value);
-    String typed_value_into_string(Pointer value);
+    Pointer typed_value_into_kw(Pointer value);
+    Pointer typed_value_into_string(Pointer value);
     Pointer typed_value_into_uuid(Pointer value);
     int typed_value_into_boolean(Pointer value);
     double typed_value_into_double(Pointer value);
@@ -152,8 +153,8 @@ public interface JNA extends Library {
     Pointer value_at_index(Pointer rows, int index);
     long value_at_index_into_long(Pointer rows, int index);
     long value_at_index_into_entid(Pointer rows, int index);
-    String value_at_index_into_kw(Pointer rows, int index);
-    String value_at_index_into_string(Pointer rows, int index);
+    Pointer value_at_index_into_kw(Pointer rows, int index);
+    Pointer value_at_index_into_string(Pointer rows, int index);
     Pointer value_at_index_into_uuid(Pointer rows, int index);
     int value_at_index_into_boolean(Pointer rows, int index);
     double value_at_index_into_double(Pointer rows, int index);

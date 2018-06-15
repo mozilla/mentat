@@ -10,6 +10,8 @@
 
 package org.mozilla.mentat;
 
+import android.support.annotation.NonNull;
+
 import com.sun.jna.Pointer;
 
 /**
@@ -47,7 +49,7 @@ import com.sun.jna.Pointer;
 public class RelResult extends RustObject implements Iterable<TupleResult> {
 
     public RelResult(Pointer pointer) {
-        this.rawPointer = pointer;
+        super(pointer);
     }
 
     /**
@@ -58,7 +60,7 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
      */
     public TupleResult rowAtIndex(int index) {
         this.validate();
-        Pointer pointer = JNA.INSTANCE.row_at_index(this.rawPointer, index);
+        Pointer pointer = JNA.INSTANCE.row_at_index(this.validPointer(), index);
         if (pointer == null) {
             return null;
         }
@@ -68,19 +70,12 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
 
     @Override
     public RelResultIterator iterator() {
-        this.validate();
-        Pointer iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.rawPointer);
-        this.rawPointer = null;
-        if (iterPointer == null) {
-            return null;
-        }
+        Pointer iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.consumePointer());
         return new RelResultIterator(iterPointer);
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_result_set_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(Pointer p) {
+        JNA.INSTANCE.typed_value_result_set_destroy(p);
     }
 }
