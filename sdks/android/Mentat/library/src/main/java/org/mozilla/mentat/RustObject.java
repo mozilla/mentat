@@ -27,9 +27,7 @@ import java.util.UUID;
 abstract class RustObject implements AutoCloseable {
     // This should probably be private to let us better prevent usage mistakes (which lead to
     // memory-unsafety).
-    protected Pointer rawPointer;
-    // If this is set to true, we don't destroy this object. Right now this is used for TypedValueAtIndex
-    boolean notOwned = false;
+    private Pointer rawPointer;
 
     RustObject(Pointer p) {
         rawPointer = p;

@@ -66,13 +66,13 @@ public class Mentat extends RustObject {
         RustResult result = null;
         switch (direction) {
             case FORWARD:
-                result = JNA.INSTANCE.store_cache_attribute_forward(this.rawPointer, attribute);
+                result = JNA.INSTANCE.store_cache_attribute_forward(this.validPointer(), attribute);
                 break;
             case REVERSE:
-                result = JNA.INSTANCE.store_cache_attribute_reverse(this.rawPointer, attribute);
+                result = JNA.INSTANCE.store_cache_attribute_reverse(this.validPointer(), attribute);
                 break;
             case BOTH:
-                result = JNA.INSTANCE.store_cache_attribute_bi_directional(this.rawPointer, attribute);
+                result = JNA.INSTANCE.store_cache_attribute_bi_directional(this.validPointer(), attribute);
                 break;
         }
         result.logIfFailure("Mentat");
