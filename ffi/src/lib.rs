@@ -1824,11 +1824,11 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
         let reports: Vec<(Entid, Vec<Entid>)> = batch.into_iter().map(|(tx_id, changes)| {
             (*tx_id, changes.into_iter().map(|eid| *eid as c_longlong).collect())
         }).collect();
-        let extern_reports = reports.iter().map(|(txid, changes)| {
+        let extern_reports = reports.iter().map(|item| {
             TransactionChange {
-                txid: *txid,
-                changes: changes.as_ptr(),
-                changes_len: changes.len() as c_ulonglong
+                txid: item.0,
+                changes: item.1.as_ptr(),
+                changes_len: item.1.len() as c_ulonglong
             }
         }).collect::<Vec<_>>();
         let len = extern_reports.len();
