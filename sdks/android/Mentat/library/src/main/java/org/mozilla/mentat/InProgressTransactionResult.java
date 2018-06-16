@@ -26,7 +26,7 @@ public class InProgressTransactionResult extends Structure {
     }
 
     public Pointer inProgress;
-    public RustResult.ByReference result;
+    public RustResult result;
 
     @Override
     protected List<String> getFieldOrder() {
@@ -50,13 +50,5 @@ public class InProgressTransactionResult extends Structure {
         }
 
         return new TxReport(this.result.consumeSuccess());
-    }
-
-    @Override
-    protected void finalize() {
-        if (this.inProgress != null) {
-            Log.w("InProgressResult", "InProgressResult.inProgress is still present during finalization, leaking memory!");
-        }
-        JNA.INSTANCE.destroy(this.getPointer());
     }
 }

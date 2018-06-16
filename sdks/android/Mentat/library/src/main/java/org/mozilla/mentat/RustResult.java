@@ -75,16 +75,4 @@ public class RustResult extends Structure {
     protected List<String> getFieldOrder() {
         return Arrays.asList("ok", "err");
     }
-
-    @Override
-    protected void finalize() {
-        if (this.err != null) {
-            JNA.INSTANCE.destroy_mentat_string(this.err);
-            this.err = null;
-        }
-        if (this.ok != null) {
-            Log.w("RustResult", "RustResult.ok is still present during finalization, leaking memory!");
-        }
-        JNA.INSTANCE.destroy(this.getPointer());
-    }
 }
