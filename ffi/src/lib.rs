@@ -77,6 +77,7 @@ use std::os::raw::{
     c_char,
     c_int,
     c_longlong,
+    c_ulonglong,
     c_void,
 };
 use std::slice;
@@ -154,8 +155,8 @@ macro_rules! assert_not_null {
 #[derive(Debug, Clone)]
 pub struct TransactionChange {
     pub txid: Entid,
-    pub changes_len: usize,
-    pub changes: Box<[Entid]>,
+    pub changes: *const c_longlong,
+    pub changes_len: c_ulonglong,
 }
 
  /// A C representation of the list of changes provided by the transaction observers.
@@ -169,8 +170,8 @@ pub struct TransactionChange {
 #[repr(C)]
 #[derive(Debug)]
 pub struct TxChangeList {
-    pub reports: Box<[TransactionChange]>,
-    pub len: usize,
+    pub reports: *const TransactionChange,
+    pub len: c_ulonglong,
 }
 
 /// A C representation Rust's [Option](std::option::Option).
@@ -1820,22 +1821,23 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
     attribute_set.extend(slice.iter());
     let key = c_char_to_string(key);
     let tx_observer = Arc::new(TxObserver::new(attribute_set, move |obs_key, batch| {
-        let extern_reports: Vec<TransactionChange> = batch.into_iter().map(|(tx_id, changes)| {
-            let changes: Vec<Entid> = changes.into_iter().map(|i|*i).collect();
-            let len = changes.len();
-            TransactionChange {
-                txid: *tx_id,
-                changes: changes.into_boxed_slice(),
-                changes_len: len,
-            }
+        let reports: Vec<(Entid, Vec<Entid>)> = batch.into_iter().map(|(tx_id, changes)| {
+            (*tx_id, changes.into_iter().map(|eid| *eid as c_longlong).collect())
         }).collect();
+        let extern_reports = reports.iter().map(|(txid, changes)| {
+            TransactionChange {
+                txid: *txid,
+                changes: changes.as_ptr(),
+                changes_len: changes.len() as c_ulonglong
+            }
+        }).collect::<Vec<_>>();
         let len = extern_reports.len();
-        let reports = TxChangeList {
-            reports: extern_reports.into_boxed_slice(),
-            len: len,
+        let change_list = TxChangeList {
+            reports: extern_reports.as_ptr(),
+            len: len as c_ulonglong,
         };
         let s = string_to_c_char(obs_key);
-        callback(s, &reports);
+        callback(s, &change_list);
         destroy_mentat_string(s);
     }));
     store.register_observer(key.to_string(), tx_observer);
@@ -1881,9 +1883,8 @@ pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *con
 pub unsafe extern "C" fn tx_change_list_entry_at(tx_report_list: *mut TxChangeList, index: c_int) -> *const TransactionChange {
     assert_not_null!(tx_report_list);
     let tx_report_list = &*tx_report_list;
-    let index = index as usize;
-    let report = Box::new(tx_report_list.reports[index].clone());
-    Box::into_raw(report)
+    assert!(0 <= index && (index as usize) < (tx_report_list.len as usize));
+    tx_report_list.reports.offset(index as isize)
 }
 
 /// Returns the value at the provided `index` as a [Entid](mentat::Entid) .
@@ -1895,8 +1896,8 @@ pub unsafe extern "C" fn tx_change_list_entry_at(tx_report_list: *mut TxChangeLi
 pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut TransactionChange, index: c_int) -> Entid {
     assert_not_null!(tx_report);
     let tx_report = &*tx_report;
-    let index = index as usize;
-    tx_report.changes[index].clone()
+    assert!(0 <= index && (index as usize) < (tx_report.changes_len as usize));
+    std::ptr::read(tx_report.changes.offset(index as isize))
 }
 
 #[no_mangle]

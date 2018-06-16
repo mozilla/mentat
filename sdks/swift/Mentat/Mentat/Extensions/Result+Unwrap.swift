@@ -14,11 +14,11 @@ import MentatStore
 extension Result {
     /**
      Unwraps an optional result, yielding either a successful value or a nil.
-     
+
      Frees the Result afterwards, but not the object held in the `ok` property (which is what you want)
-     
+
      - Throws: `ResultError.error` if the result contains an error
-     
+
      - Returns: The pointer to the successful result value, or nil if no value is present.
      */
     @discardableResult
@@ -34,11 +34,11 @@ extension Result {
 
     /**
      Unwraps an optional result, yielding either a successful value or a nil.
-     
+
      Frees the Result afterwards, but not the object held in the `ok` property (which is what you want)
-     
+
      - Throws: `ResultError.error` if the result contains an error
-     
+
      - Returns: The pointer to the successful result value, or nil if no value is present.
      */
     @discardableResult

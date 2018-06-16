@@ -28,20 +28,17 @@ public class TxChange extends Structure {
     public static class ByValue extends TxChange implements Structure.ByValue {
     }
 
-    public int txid;
+    public long txid;
     public Pointer changes;
-    public int numberOfItems;
-    // Used by the Swift counterpart, JNA does this for us automagically.
-    // But we still need it here so that the number of fields and their order is correct
-    public int changes_len;
+    public long changes_len;
 
     /**
      * Get the affected attributes for this transaction
      * @return  The changes as a list of Entids of affected attributes
      */
     public List<Long> getChanges() {
-        final long[] array = (long[]) changes.getLongArray(0, numberOfItems);
-        Long[] longArray = new Long[numberOfItems];
+        final long[] array = (long[]) changes.getLongArray(0, (int)changes_len);
+        Long[] longArray = new Long[(int)changes_len];
         int idx = 0;
         for (long change: array) {
             longArray[idx++] = change;
@@ -51,7 +48,7 @@ public class TxChange extends Structure {
 
     @Override
     protected List<String> getFieldOrder() {
-        return Arrays.asList("txid", "changes", "changes_len", "numberOfItems");
+        return Arrays.asList("txid", "changes", "changes_len");
     }
 
     // Note: Rust has ownership of this data.

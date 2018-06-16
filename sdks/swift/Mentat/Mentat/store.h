@@ -22,28 +22,29 @@
  */
 
 /*
- A mapping of the TxChange repr(C) Rust object.
- The memory for this is managed by Swift.
+ A mapping of the TransactionChange repr(C) Rust object.
+ The memory for this is managed by Rust.
  */
 struct TxChange {
     int64_t txid;
-    int64_t*_Nonnull* _Nonnull changes;
+    int64_t* _Nonnull changes;
     uint64_t len;
 };
 
 /*
  A mapping of the TxChangeList repr(C) Rust object.
- The memory for this is managed by Swift.
+ The memory for this is managed by Rust.
  */
 struct TxChangeList {
-    struct TxChange*_Nonnull* _Nonnull reports;
+    struct TxChange* _Nonnull reports;
     uint64_t len;
 };
 typedef struct TxChangeList TxChangeList;
 
 /*
  A mapping of the ExternResult repr(C) Rust object.
- The memory for this is managed by Swift.
+ These are not allocated on the heap, but the memory for `ok` and `err`
+ is managed by Swift.
  */
 struct Result {
     void* _Nullable ok;
@@ -52,17 +53,9 @@ struct Result {
 typedef struct Result Result;
 
 /*
- A mapping of the ExternOption repr(C) Rust object.
- The memory for this is managed by Swift.
- */
-struct Option {
-    void* _Nullable value;
-};
-typedef struct Option Option;
-
-/*
  A mapping of the InProgressTransactResult repr(C) Rust object.
- The memory for this is managed by Swift.
+ These are not allocated on the heap, but the memory for `inProgress`,
+ as well as `result.ok` and `result.err`, are managed by Swift.
  */
 struct InProgressTransactResult {
     struct InProgress*_Nonnull inProgress;
@@ -235,6 +228,6 @@ char* _Nonnull value_at_index_into_string(struct QueryResultRow* _Nonnull row, c
 uuid_t* _Nonnull value_at_index_into_uuid(struct QueryResultRow* _Nonnull row, const int32_t index);
 
 // Transaction change lists
-const struct TxChange* _Nullable tx_change_list_entry_at(const struct TxChangeList* _Nonnull list, size_t index);
+const struct TxChange* _Nonnull tx_change_list_entry_at(const struct TxChangeList* _Nonnull list, size_t index);
 
 #endif /* store_h */
