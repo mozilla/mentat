@@ -78,11 +78,10 @@ pub fn run() -> i32 {
     }
 
     // It's still possible to pass this in even if it's not a documented flag above.
-    let key = matches.opt_str("key");
-    if key.is_some() && !cfg!(feature = "sqlcipher") {
-        eprintln!("Decryption key provided, but this build does not have sqlcipher support");
-        return 1;
-    }
+    let key = match cfg!(feature = "sqlcipher") {
+        true => matches.opt_str("key"),
+        false => None,
+    };
 
     let mut last_arg: Option<&str> = None;
 
