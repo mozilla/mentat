@@ -86,7 +86,7 @@ fn test_simple_pull() {
                                       .expect("hoods")
                                       .into_iter()
                                       .map(|b| {
-                                          b.val().and_then(|tv| tv.into_entid()).expect("scalar")
+                                          b.into_scalar().and_then(|tv| tv.into_entid()).expect("scalar")
                                       })
                                       .collect();
 

@@ -350,7 +350,7 @@ fn av(row: Vec<Binding>) -> (KnownEntid, TypedValue) {
     let mut row = row.into_iter();
     match (row.next(), row.next()) {
         (Some(Binding::Scalar(TypedValue::Ref(a))), Some(v)) => {
-            (KnownEntid(a), v.val().unwrap())
+            (KnownEntid(a), v.into_scalar().unwrap())
         },
         _ => panic!("Incorrect query shape for 'av' helper."),
     }

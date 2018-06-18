@@ -8,6 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use ::std::convert::{
+    AsRef,
+};
+
 use ::std::ffi::{
     CString,
 };
@@ -282,9 +286,44 @@ impl From<Vec<Binding>> for Binding {
 }
 
 impl Binding {
-    pub fn val(self) -> Option<TypedValue> {
+    pub fn into_scalar(self) -> Option<TypedValue> {
         match self {
             Binding::Scalar(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_vec(self) -> Option<ValueRc<Vec<Binding>>> {
+        match self {
+            Binding::Vec(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_map(self) -> Option<ValueRc<StructuredMap>> {
+        match self {
+            Binding::Map(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_scalar(&self) -> Option<&TypedValue> {
+        match self {
+            &Binding::Scalar(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_vec(&self) -> Option<&Vec<Binding>> {
+        match self {
+            &Binding::Vec(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_map(&self) -> Option<&StructuredMap> {
+        match self {
+            &Binding::Map(ref v) => Some(v),
             _ => None,
         }
     }
@@ -379,15 +418,15 @@ impl TypedValue {
     /// Construct a new `TypedValue::Keyword` instance by cloning the provided
     /// values and wrapping them in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
-    pub fn typed_ns_keyword(ns: &str, name: &str) -> TypedValue {
-        Keyword::namespaced(ns, name).into()
+    pub fn typed_ns_keyword<S: AsRef<str>, T: AsRef<str>>(ns: S, name: T) -> TypedValue {
+        Keyword::namespaced(ns.as_ref(), name.as_ref()).into()
     }
 
     /// Construct a new `TypedValue::String` instance by cloning the provided
     /// value and wrapping it in a new `ValueRc`. This is expensive, so this might
     /// be best limited to tests.
-    pub fn typed_string(s: &str) -> TypedValue {
-        s.into()
+    pub fn typed_string<S: AsRef<str>>(s: S) -> TypedValue {
+        s.as_ref().into()
     }
 
     pub fn current_instant() -> TypedValue {
@@ -733,6 +772,62 @@ impl Binding {
     pub fn into_uuid_c_string(self) -> Option<*mut c_char> {
         match self {
             Binding::Scalar(v) => v.into_uuid_c_string(),
+            _ => None,
+        }
+    }
+
+    pub fn as_entid(&self) -> Option<&Entid> {
+        match self {
+            &Binding::Scalar(TypedValue::Ref(ref v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_kw(&self) -> Option<&ValueRc<Keyword>> {
+        match self {
+            &Binding::Scalar(TypedValue::Keyword(ref v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_boolean(&self) -> Option<&bool> {
+        match self {
+            &Binding::Scalar(TypedValue::Boolean(ref v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_long(&self) -> Option<&i64> {
+        match self {
+            &Binding::Scalar(TypedValue::Long(ref v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_double(&self) -> Option<&f64> {
+        match self {
+            &Binding::Scalar(TypedValue::Double(ref v)) => Some(&v.0),
+            _ => None,
+        }
+    }
+
+    pub fn as_instant(&self) -> Option<&DateTime<Utc>> {
+        match self {
+            &Binding::Scalar(TypedValue::Instant(ref v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_string(&self) -> Option<&ValueRc<String>> {
+        match self {
+            &Binding::Scalar(TypedValue::String(ref v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_uuid(&self) -> Option<&Uuid> {
+        match self {
+            &Binding::Scalar(TypedValue::Uuid(ref v)) => Some(v),
             _ => None,
         }
     }
