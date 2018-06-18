@@ -15,6 +15,11 @@ use ::std::convert::{
 use ::std::ffi::{
     CString,
 };
+
+use ::std::ops::{
+    Deref,
+};
+
 use ::std::os::raw::c_char;
 
 use ::std::rc::{
@@ -341,6 +346,14 @@ impl Binding {
 /// using a different keyword only.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StructuredMap(pub IndexMap<ValueRc<Keyword>, Binding>);
+
+impl Deref for StructuredMap {
+    type Target = IndexMap<ValueRc<Keyword>, Binding>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl StructuredMap {
     pub fn insert<N, B>(&mut self, name: N, value: B) where N: Into<ValueRc<Keyword>>, B: Into<Binding> {
