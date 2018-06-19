@@ -57,9 +57,11 @@ pub use parse::ParseError;
 pub use uuid::ParseError as UuidParseError;
 pub use types::{
     FromMicros,
+    FromMillis,
     Span,
     SpannedValue,
     ToMicros,
+    ToMillis,
     Value,
     ValueAndSpan,
 };
