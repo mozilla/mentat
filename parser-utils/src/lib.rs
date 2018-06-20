@@ -13,8 +13,7 @@ extern crate edn;
 extern crate itertools;
 
 /// A `ValueParseError` is a `combine::primitives::ParseError`-alike that implements the `Debug`,
-/// `Display`, and `std::error::Error` traits.  In addition, it doesn't capture references, making
-/// it possible to store `ValueParseError` instances in local links with the `error-chain` crate.
+/// `Display`, and `std::error::Error` traits.  In addition, it doesn't capture references.
 ///
 /// This is achieved by wrapping slices of type `&'a [edn::Value]` in an owning type that implements
 /// `Display`; rather than introducing a newtype like `DisplayVec`, we re-use `edn::Value::Vector`.
