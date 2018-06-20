@@ -30,9 +30,7 @@ use mentat_query_pull::{
     Puller,
 };
 
-use errors::{
-    Result,
-};
+use errors::Result;
 
 use super::{
     Index,

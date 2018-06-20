@@ -67,8 +67,11 @@
 //! propogation. These types have implemented [From](std::convert::From) such that conversion from the Rust type
 //! to the C type is as painless as possible.
 
+extern crate core;
 extern crate libc;
 extern crate mentat;
+
+use core::fmt::Display;
 
 use std::collections::{
     BTreeSet,
@@ -204,7 +207,7 @@ pub struct ExternResult {
     pub err: *const c_char,
 }
 
-impl<T, E> From<Result<T, E>> for ExternResult where E: std::error::Error {
+impl<T, E> From<Result<T, E>> for ExternResult where E: Display {
     fn from(result: Result<T, E>) -> Self {
         match result {
             Ok(value) => {

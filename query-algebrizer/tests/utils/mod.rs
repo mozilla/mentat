@@ -13,6 +13,9 @@
 // this module will get warnings otherwise).
 #![allow(dead_code)]
 
+extern crate failure;
+use self::failure::Error;
+
 use mentat_core::{
     Attribute,
     Entid,
@@ -26,7 +29,6 @@ use mentat_query::{
 
 use mentat_query_algebrizer::{
     ConjoiningClauses,
-    Error,
     Known,
     QueryInputs,
     algebrize,

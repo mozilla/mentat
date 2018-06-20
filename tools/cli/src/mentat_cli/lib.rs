@@ -10,12 +10,13 @@
 
 #![crate_name = "mentat_cli"]
 
+#[macro_use] extern crate failure_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
-#[macro_use] extern crate error_chain;
 
 extern crate combine;
 extern crate env_logger;
+extern crate failure;
 extern crate getopts;
 extern crate linefeed;
 extern crate rusqlite;
@@ -41,7 +42,12 @@ static GREEN: color::Rgb = color::Rgb(0x77, 0xFF, 0x99);
 pub mod command_parser;
 pub mod input;
 pub mod repl;
-pub mod errors;
+
+#[derive(Debug, Fail)]
+pub enum CliError {
+    #[fail(display = "{}", _0)]
+    CommandParse(String),
+}
 
 pub fn run() -> i32 {
     env_logger::init();

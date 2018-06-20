@@ -34,7 +34,7 @@ use ::{
 };
 
 use errors::{
-    ErrorKind,
+    MentatError,
     Result,
 };
 
@@ -56,7 +56,7 @@ impl<'a> QueryBuilder<'a> {
     }
 
     pub fn bind_ref_from_kw(&mut self, var: &str, value: Keyword) -> Result<&mut Self> {
-        let entid = self.store.conn().current_schema().get_entid(&value).ok_or(ErrorKind::UnknownAttribute(value.to_string()))?;
+        let entid = self.store.conn().current_schema().get_entid(&value).ok_or(MentatError::UnknownAttribute(value.to_string()))?;
         self.values.insert(Variable::from_valid_name(var), TypedValue::Ref(entid.into()));
         Ok(self)
     }

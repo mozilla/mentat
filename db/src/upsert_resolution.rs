@@ -21,8 +21,10 @@ use std::collections::{
 use indexmap;
 use petgraph::unionfind;
 
-use errors;
-use errors::ErrorKind;
+use errors::{
+    DbError,
+    Result,
+};
 use types::{
     AVPair,
 };
@@ -100,11 +102,11 @@ pub(crate) struct FinalPopulations {
 impl Generation {
     /// Split entities into a generation of populations that need to evolve to have their tempids
     /// resolved or allocated, and a population of inert entities that do not reference tempids.
-    pub(crate) fn from<I>(terms: I, schema: &Schema) -> errors::Result<(Generation, Population)> where I: IntoIterator<Item=TermWithTempIds> {
+    pub(crate) fn from<I>(terms: I, schema: &Schema) -> Result<(Generation, Population)> where I: IntoIterator<Item=TermWithTempIds> {
         let mut generation = Generation::default();
         let mut inert = vec![];
 
-        let is_unique = |a: Entid| -> errors::Result<bool> {
+        let is_unique = |a: Entid| -> Result<bool> {
             let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
             Ok(attribute.unique == Some(attribute::Unique::Identity))
         };
@@ -223,7 +225,7 @@ impl Generation {
     }
 
     /// Evolve potential upserts that haven't resolved into allocations.
-    pub(crate) fn allocate_unresolved_upserts(&mut self) -> errors::Result<()> {
+    pub(crate) fn allocate_unresolved_upserts(&mut self) -> Result<()> {
         let mut upserts_ev = vec![];
         ::std::mem::swap(&mut self.upserts_ev, &mut upserts_ev);
 
@@ -236,7 +238,7 @@ impl Generation {
     ///
     /// Some of the tempids may be identified, so we also provide a map from tempid to a dense set
     /// of contiguous integer labels.
-    pub(crate) fn temp_ids_in_allocations(&self, schema: &Schema) -> errors::Result<BTreeMap<TempIdHandle, usize>> {
+    pub(crate) fn temp_ids_in_allocations(&self, schema: &Schema) -> Result<BTreeMap<TempIdHandle, usize>> {
         assert!(self.upserts_e.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
         assert!(self.upserts_ev.is_empty(), "All upserts should have been upserted, resolved, or moved to the allocated population!");
 
@@ -313,7 +315,7 @@ impl Generation {
 
     /// After evolution is complete, use the provided allocated entids to segment `self` into
     /// populations, each with no references to tempids.
-    pub(crate) fn into_final_populations(self, temp_id_map: &TempIdMap) -> errors::Result<FinalPopulations> {
+    pub(crate) fn into_final_populations(self, temp_id_map: &TempIdMap) -> Result<FinalPopulations> {
         assert!(self.upserts_e.is_empty());
         assert!(self.upserts_ev.is_empty());
 
@@ -329,21 +331,21 @@ impl Generation {
                     match (op, temp_id_map.get(&*t1), temp_id_map.get(&*t2)) {
                         (op, Some(&n1), Some(&n2)) => Term::AddOrRetract(op, n1, a, TypedValue::Ref(n2.0)),
                         (OpType::Add, _, _) => unreachable!(), // This is a coding error -- every tempid in a :db/add entity should resolve or be allocated.
-                        (OpType::Retract, _, _) => bail!(ErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: one of {}, {}", t1, t2))),
+                        (OpType::Retract, _, _) => bail!(DbError::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: one of {}, {}", t1, t2))),
                     }
                 },
                 Term::AddOrRetract(op, Right(t), a, Left(v)) => {
                     match (op, temp_id_map.get(&*t)) {
                         (op, Some(&n)) => Term::AddOrRetract(op, n, a, v),
                         (OpType::Add, _) => unreachable!(), // This is a coding error.
-                        (OpType::Retract, _) => bail!(ErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
+                        (OpType::Retract, _) => bail!(DbError::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
                     }
                 },
                 Term::AddOrRetract(op, Left(e), a, Right(t)) => {
                     match (op, temp_id_map.get(&*t)) {
                         (op, Some(&n)) => Term::AddOrRetract(op, e, a, TypedValue::Ref(n.0)),
                         (OpType::Add, _) => unreachable!(), // This is a coding error.
-                        (OpType::Retract, _) => bail!(ErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
+                        (OpType::Retract, _) => bail!(DbError::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
                     }
                 },
                 Term::AddOrRetract(_, Left(_), _, Left(_)) => unreachable!(), // This is a coding error -- these should not be in allocations.

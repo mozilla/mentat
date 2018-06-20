@@ -7,9 +7,9 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+extern crate failure;
 
-#[macro_use]
-extern crate error_chain;
+#[macro_use] extern crate failure_derive;
 extern crate ordered_float;
 extern crate rusqlite;
 
@@ -29,25 +29,16 @@ use mentat_core::{
 
 pub use rusqlite::types::Value;
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+#[derive(Debug, Fail)]
+pub enum SQLError {
+    #[fail(display = "invalid parameter name: {}", _0)]
+    InvalidParameterName(String),
 
-    errors {
-        InvalidParameterName(name: String) {
-            description("invalid parameter name")
-            display("invalid parameter name: '{}'", name)
-        }
-
-        BindParamCouldBeGenerated(name: String) {
-            description("parameter name could be generated")
-            display("parameter name could be generated: '{}'", name)
-        }
-    }
+    #[fail(display = "parameter name could be generated: '{}'", _0)]
+    BindParamCouldBeGenerated(String)
 }
 
-pub type BuildQueryResult = Result<()>;
+pub type BuildQueryResult = Result<(), SQLError>;
 
 /// We want to accumulate values that will later be substituted into a SQL statement execution.
 /// This struct encapsulates the generated string and the _initial_ argument list.
@@ -213,12 +204,12 @@ impl QueryBuilder for SQLiteQueryBuilder {
         // Do some validation first.
         // This is not free, but it's probably worth it for now.
         if !name.chars().all(|c| char::is_alphanumeric(c) || c == '_') {
-            bail!(ErrorKind::InvalidParameterName(name.to_string()));
+            return Err(SQLError::InvalidParameterName(name.to_string()))
         }
 
         if name.starts_with(self.arg_prefix.as_str()) &&
            name.chars().skip(self.arg_prefix.len()).all(char::is_numeric) {
-               bail!(ErrorKind::BindParamCouldBeGenerated(name.to_string()));
+               return Err(SQLError::BindParamCouldBeGenerated(name.to_string()))
         }
 
         self.push_sql("$");

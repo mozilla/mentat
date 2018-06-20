@@ -61,8 +61,7 @@ use mentat::query::q_uncached;
 use mentat::conn::Conn;
 
 use mentat::errors::{
-    Error,
-    ErrorKind,
+    MentatError,
 };
 
 #[test]
@@ -234,11 +233,11 @@ fn test_unbound_inputs() {
     let results = q_uncached(&c, &db.schema,
                              "[:find ?i . :in ?e :where [?e :db/ident ?i]]", inputs);
 
-    match results {
-        Result::Err(Error(ErrorKind::UnboundVariables(vars), _)) => {
+    match results.expect_err("expected unbound variables").downcast().expect("expected specific error") {
+        MentatError::UnboundVariables(vars) => {
             assert_eq!(vars, vec!["?e".to_string()].into_iter().collect());
         },
-        _ => panic!("Expected unbound variables."),
+        _ => panic!("Expected UnboundVariables variant."),
     }
 }
 
@@ -412,8 +411,8 @@ fn test_fulltext() {
                     [?a :foo/term ?term]
                     ]"#;
     let r = conn.q_once(&mut c, query, None);
-    match r {
-        Err(Error(ErrorKind::QueryError(mentat_query_algebrizer::ErrorKind::InvalidArgument(PlainSymbol(s), ty, i)), _)) => {
+    match r.expect_err("expected query to fail").downcast() {
+        Ok(mentat_query_algebrizer::AlgebrizerError::InvalidArgument(PlainSymbol(s), ty, i)) => {
             assert_eq!(s, "fulltext");
             assert_eq!(ty, "string");
             assert_eq!(i, 2);
@@ -427,8 +426,8 @@ fn test_fulltext() {
                     [?a :foo/term ?term]
                     [(fulltext $ :foo/fts ?a) [[?x ?val]]]]"#;
     let r = conn.q_once(&mut c, query, None);
-    match r {
-        Err(Error(ErrorKind::QueryError(mentat_query_algebrizer::ErrorKind::InvalidArgument(PlainSymbol(s), ty, i)), _)) => {
+    match r.expect_err("expected query to fail").downcast() {
+        Ok(mentat_query_algebrizer::AlgebrizerError::InvalidArgument(PlainSymbol(s), ty, i)) => {
             assert_eq!(s, "fulltext");
             assert_eq!(ty, "string");
             assert_eq!(i, 2);
@@ -583,42 +582,25 @@ fn test_aggregates_type_handling() {
     // No type limits => can't do it.
     let r = store.q_once(r#"[:find (sum ?v) . :where [_ _ ?v]]"#, None);
     let all_types = ValueTypeSet::any();
-    match r {
-        Result::Err(
-            Error(
-                ErrorKind::TranslatorError(
-                    ::mentat_query_translator::ErrorKind::ProjectorError(
-                        ::mentat_query_projector::errors::ErrorKind::CannotApplyAggregateOperationToTypes(
-                            SimpleAggregationOp::Sum,
-                            types
-                        ),
-                    )
-                ),
-                _)) => {
-                    assert_eq!(types, all_types);
-                },
-        r => panic!("Unexpected: {:?}", r),
+    match r.expect_err("expected query to fail").downcast() {
+        Ok(::mentat_query_projector::errors::ProjectorError::CannotApplyAggregateOperationToTypes(
+            SimpleAggregationOp::Sum, types)) => {
+                assert_eq!(types, all_types);
+        },
+        e => panic!("Unexpected error type {:?}", e),
     }
 
     // You can't sum instants.
     let r = store.q_once(r#"[:find (sum ?v) .
                              :where [_ _ ?v] [(type ?v :db.type/instant)]]"#,
                          None);
-    match r {
-        Result::Err(
-            Error(
-                ErrorKind::TranslatorError(
-                    ::mentat_query_translator::ErrorKind::ProjectorError(
-                        ::mentat_query_projector::errors::ErrorKind::CannotApplyAggregateOperationToTypes(
-                            SimpleAggregationOp::Sum,
-                            types
-                        ),
-                    )
-                ),
-                _)) => {
-                    assert_eq!(types, ValueTypeSet::of_one(ValueType::Instant));
-                },
-        r => panic!("Unexpected: {:?}", r),
+    match r.expect_err("expected query to fail").downcast() {
+        Ok(::mentat_query_projector::errors::ProjectorError::CannotApplyAggregateOperationToTypes(
+            SimpleAggregationOp::Sum,
+            types)) => {
+                assert_eq!(types, ValueTypeSet::of_one(ValueType::Instant));
+        },
+        e => panic!("Unexpected error type {:?}", e),
     }
 
     // But you can count them.
@@ -1354,19 +1336,13 @@ fn test_aggregation_implicit_grouping() {
                                [?person :foo/play ?game]
                                [?person :foo/is-vegetarian true]
                                [?person :foo/name ?name]]"#, None);
-    match res {
-        Result::Err(
-            Error(
-                ErrorKind::TranslatorError(
-                    ::mentat_query_translator::ErrorKind::ProjectorError(
-                        ::mentat_query_projector::errors::ErrorKind::AmbiguousAggregates(mmc, cc)
-                    )
-            ), _)) => {
+    match res.expect_err("expected query to fail").downcast() {
+        Ok(::mentat_query_projector::errors::ProjectorError::AmbiguousAggregates(mmc, cc)) => {
             assert_eq!(mmc, 2);
             assert_eq!(cc, 1);
         },
-        r => {
-            panic!("Unexpected result {:?}.", r);
+        e => {
+            panic!("Unexpected error type {:?}.", e);
         },
     }
 

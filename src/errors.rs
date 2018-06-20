@@ -10,102 +10,63 @@
 
 #![allow(dead_code)]
 
-use rusqlite;
-
-use uuid;
+use std; // To refer to std::result::Result.
 
 use std::collections::BTreeSet;
 
-use edn;
+use failure::Error;
+
 use mentat_core::{
     Attribute,
     ValueType,
 };
-use mentat_db;
+
 use mentat_query;
-use mentat_query_algebrizer;
-use mentat_query_projector;
-use mentat_query_pull;
-use mentat_query_translator;
-use mentat_sql;
-use mentat_tolstoy;
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+pub type Result<T> = std::result::Result<T, Error>;
 
-    foreign_links {
-        EdnParseError(edn::ParseError);
-        Rusqlite(rusqlite::Error);
-        UuidParseError(uuid::ParseError);
-        IoError(::std::io::Error);
-    }
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => (
+        return Err($e.into());
+    )
+}
 
-    links {
-        DbError(mentat_db::Error, mentat_db::ErrorKind);
-        QueryError(mentat_query_algebrizer::Error, mentat_query_algebrizer::ErrorKind);   // Let's not leak the term 'algebrizer'.
-        ProjectorError(mentat_query_projector::errors::Error, mentat_query_projector::errors::ErrorKind);
-        PullError(mentat_query_pull::errors::Error, mentat_query_pull::errors::ErrorKind);
-        TranslatorError(mentat_query_translator::Error, mentat_query_translator::ErrorKind);
-        SqlError(mentat_sql::Error, mentat_sql::ErrorKind);
-        SyncError(mentat_tolstoy::Error, mentat_tolstoy::ErrorKind);
-    }
+#[derive(Debug, Fail)]
+pub enum MentatError {
+    #[fail(display = "path {} already exists", _0)]
+    PathAlreadyExists(String),
 
-    errors {
-        PathAlreadyExists(path: String) {
-            description("path already exists")
-            display("path {} already exists", path)
-        }
+    #[fail(display = "variables {:?} unbound at query execution time", _0)]
+    UnboundVariables(BTreeSet<String>),
 
-        UnboundVariables(names: BTreeSet<String>) {
-            description("unbound variables at query execution time")
-            display("variables {:?} unbound at query execution time", names)
-        }
+    #[fail(display = "invalid argument name: '{}'", _0)]
+    InvalidArgumentName(String),
 
-        InvalidArgumentName(name: String) {
-            description("invalid argument name")
-            display("invalid argument name: '{}'", name)
-        }
+    #[fail(display = "unknown attribute: '{}'", _0)]
+    UnknownAttribute(String),
 
-        UnknownAttribute(name: String) {
-            description("unknown attribute")
-            display("unknown attribute: '{}'", name)
-        }
+    #[fail(display = "invalid vocabulary version")]
+    InvalidVocabularyVersion,
 
-        InvalidVocabularyVersion {
-            description("invalid vocabulary version")
-            display("invalid vocabulary version")
-        }
+    #[fail(display = "vocabulary {}/{} already has attribute {}, and the requested definition differs", _0, _1, _2)]
+    ConflictingAttributeDefinitions(String, ::vocabulary::Version, String, Attribute, Attribute),
 
-        ConflictingAttributeDefinitions(vocabulary: String, version: ::vocabulary::Version, attribute: String, current: Attribute, requested: Attribute) {
-            description("conflicting attribute definitions")
-            display("vocabulary {}/{} already has attribute {}, and the requested definition differs", vocabulary, version, attribute)
-        }
+    #[fail(display = "existing vocabulary {} too new: wanted {}, got {}", _0, _1, _2)]
+    ExistingVocabularyTooNew(String, ::vocabulary::Version, ::vocabulary::Version),
 
-        ExistingVocabularyTooNew(name: String, existing: ::vocabulary::Version, ours: ::vocabulary::Version) {
-            description("existing vocabulary too new")
-            display("existing vocabulary too new: wanted {}, got {}", ours, existing)
-        }
+    #[fail(display = "core schema: wanted {}, got {:?}", _0, _1)]
+    UnexpectedCoreSchema(::vocabulary::Version, Option<::vocabulary::Version>),
 
-        UnexpectedCoreSchema(version: Option<::vocabulary::Version>) {
-            description("unexpected core schema version")
-            display("core schema: wanted {}, got {:?}", mentat_db::CORE_SCHEMA_VERSION, version)
-        }
+    #[fail(display = "Lost the transact() race!")]
+    UnexpectedLostTransactRace,
 
-        MissingCoreVocabulary(kw: mentat_query::Keyword) {
-            description("missing core vocabulary")
-            display("missing core attribute {}", kw)
-        }
+    #[fail(display = "missing core attribute {}", _0)]
+    MissingCoreVocabulary(mentat_query::Keyword),
 
-        PreparedQuerySchemaMismatch {
-            description("schema changed since query was prepared")
-            display("schema changed since query was prepared")
-        }
+    #[fail(display = "schema changed since query was prepared")]
+    PreparedQuerySchemaMismatch,
 
-        ValueTypeMismatch(provided: ValueType, expected: ValueType) {
-            description("provided value doesn't match value type")
-            display("provided value of type {} doesn't match attribute value type {}", provided, expected)
-        }
-    }
+    #[fail(display = "provided value of type {} doesn't match attribute value type {}", _0, _1)]
+    ValueTypeMismatch(ValueType, ValueType),
 }

@@ -10,63 +10,34 @@
 
 #![allow(dead_code)]
 
-use std;
-use hyper;
-use rusqlite;
-use uuid;
-use mentat_db;
-use serde_cbor;
-use serde_json;
+use failure::Error;
 
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => (
+        return Err($e.into());
+    )
+}
 
-    foreign_links {
-        IOError(std::io::Error);
-        HttpError(hyper::Error);
-        HyperUriError(hyper::error::UriError);
-        SqlError(rusqlite::Error);
-        UuidParseError(uuid::ParseError);
-        Utf8Error(std::str::Utf8Error);
-        JsonError(serde_json::Error);
-        CborError(serde_cbor::error::Error);
-    }
+pub type Result<T> = ::std::result::Result<T, Error>;
 
-    links {
-        DbError(mentat_db::Error, mentat_db::ErrorKind);
-    }
+#[derive(Debug, Fail)]
+pub enum TolstoyError {
+    #[fail(display = "Received bad response from the server: {}", _0)]
+    BadServerResponse(String),
 
-    errors {
-        TxIncorrectlyMapped(n: usize) {
-            description("encountered more than one uuid mapping for tx")
-            display("expected one, found {} uuid mappings for tx", n)
-        }
+    #[fail(display = "encountered more than one metadata value for key: {}", _0)]
+    DuplicateMetadata(String),
 
-        UnexpectedState(t: String) {
-            description("encountered unexpected state")
-            display("encountered unexpected state: {}", t)
-        }
+    #[fail(display = "transaction processor didn't say it was done")]
+    TxProcessorUnfinished,
 
-        NotYetImplemented(t: String) {
-            description("not yet implemented")
-            display("not yet implemented: {}", t)
-        }
+    #[fail(display = "expected one, found {} uuid mappings for tx", _0)]
+    TxIncorrectlyMapped(usize),
 
-        DuplicateMetadata(k: String) {
-            description("encountered more than one metadata value for key")
-            display("encountered more than one metadata value for key: {}", k)
-        }
+    #[fail(display = "encountered unexpected state: {}", _0)]
+    UnexpectedState(String),
 
-        TxProcessorUnfinished {
-            description("Tx processor couldn't finish")
-            display("Tx processor couldn't finish")
-        }
-
-        BadServerResponse(s: String) {
-            description("Received bad response from the server")
-            display("Received bad response from the server: {}", s)
-        }
-    }
+    #[fail(display = "not yet implemented: {}", _0)]
+    NotYetImplemented(String),
 }

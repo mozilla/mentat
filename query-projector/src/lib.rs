@@ -8,8 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate failure;
+
 #[macro_use]
-extern crate error_chain;
+extern crate failure_derive;
 extern crate indexmap;
 extern crate rusqlite;
 
@@ -67,12 +69,14 @@ use mentat_query_sql::{
     Projection,
 };
 
+#[macro_use]
+pub mod errors;
+
 mod aggregates;
 mod project;
 mod projectors;
 mod pull;
 mod relresult;
-pub mod errors;
 
 pub use aggregates::{
     SimpleAggregationOp,
@@ -109,7 +113,7 @@ pub use relresult::{
 };
 
 use errors::{
-    ErrorKind,
+    ProjectorError,
     Result,
 };
 
@@ -296,35 +300,35 @@ impl QueryResults {
     pub fn into_scalar(self) -> Result<Option<Binding>> {
         match self {
             QueryResults::Scalar(o) => Ok(o),
-            QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "scalar")),
-            QueryResults::Tuple(_) => bail!(ErrorKind::UnexpectedResultsType("tuple", "scalar")),
-            QueryResults::Rel(_) => bail!(ErrorKind::UnexpectedResultsType("rel", "scalar")),
+            QueryResults::Coll(_) => bail!(ProjectorError::UnexpectedResultsType("coll", "scalar")),
+            QueryResults::Tuple(_) => bail!(ProjectorError::UnexpectedResultsType("tuple", "scalar")),
+            QueryResults::Rel(_) => bail!(ProjectorError::UnexpectedResultsType("rel", "scalar")),
         }
     }
 
     pub fn into_coll(self) -> Result<Vec<Binding>> {
         match self {
-            QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "coll")),
+            QueryResults::Scalar(_) => bail!(ProjectorError::UnexpectedResultsType("scalar", "coll")),
             QueryResults::Coll(c) => Ok(c),
-            QueryResults::Tuple(_) => bail!(ErrorKind::UnexpectedResultsType("tuple", "coll")),
-            QueryResults::Rel(_) => bail!(ErrorKind::UnexpectedResultsType("rel", "coll")),
+            QueryResults::Tuple(_) => bail!(ProjectorError::UnexpectedResultsType("tuple", "coll")),
+            QueryResults::Rel(_) => bail!(ProjectorError::UnexpectedResultsType("rel", "coll")),
         }
     }
 
     pub fn into_tuple(self) -> Result<Option<Vec<Binding>>> {
         match self {
-            QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "tuple")),
-            QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "tuple")),
+            QueryResults::Scalar(_) => bail!(ProjectorError::UnexpectedResultsType("scalar", "tuple")),
+            QueryResults::Coll(_) => bail!(ProjectorError::UnexpectedResultsType("coll", "tuple")),
             QueryResults::Tuple(t) => Ok(t),
-            QueryResults::Rel(_) => bail!(ErrorKind::UnexpectedResultsType("rel", "tuple")),
+            QueryResults::Rel(_) => bail!(ProjectorError::UnexpectedResultsType("rel", "tuple")),
         }
     }
 
     pub fn into_rel(self) -> Result<RelResult<Binding>> {
         match self {
-            QueryResults::Scalar(_) => bail!(ErrorKind::UnexpectedResultsType("scalar", "rel")),
-            QueryResults::Coll(_) => bail!(ErrorKind::UnexpectedResultsType("coll", "rel")),
-            QueryResults::Tuple(_) => bail!(ErrorKind::UnexpectedResultsType("tuple", "rel")),
+            QueryResults::Scalar(_) => bail!(ProjectorError::UnexpectedResultsType("scalar", "rel")),
+            QueryResults::Coll(_) => bail!(ProjectorError::UnexpectedResultsType("coll", "rel")),
+            QueryResults::Tuple(_) => bail!(ProjectorError::UnexpectedResultsType("tuple", "rel")),
             QueryResults::Rel(r) => Ok(r),
         }
     }

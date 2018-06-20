@@ -106,7 +106,7 @@ use db::{
 };
 
 use errors::{
-    ErrorKind,
+    DbError,
     Result,
 };
 
@@ -1155,15 +1155,14 @@ impl CachedAttributes for AttributeCaches {
 }
 
 impl UpdateableCache for AttributeCaches {
-    type Error = ::errors::Error;
-    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> ::std::result::Result<(), Self::Error>
+    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         self.update_with_fallback(None, schema, retractions, assertions)
     }
 }
 
 impl AttributeCaches {
-    fn update_with_fallback<I>(&mut self, fallback: Option<&AttributeCaches>, schema: &Schema, retractions: I, assertions: I) -> ::std::result::Result<(), ::errors::Error>
+    fn update_with_fallback<I>(&mut self, fallback: Option<&AttributeCaches>, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         let r_aevs = retractions.peekable();
         self.accumulate_into_cache(fallback, schema, r_aevs, AccumulationBehavior::Remove)?;
@@ -1237,7 +1236,7 @@ impl SQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| ErrorKind::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
         let caches = self.make_mut();
         caches.forward_cached_attributes.insert(a);
         caches.repopulate(schema, sqlite, a)
@@ -1248,7 +1247,7 @@ impl SQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| ErrorKind::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
 
         let caches = self.make_mut();
         caches.reverse_cached_attributes.insert(a);
@@ -1278,8 +1277,7 @@ impl SQLiteAttributeCache {
 }
 
 impl UpdateableCache for SQLiteAttributeCache {
-    type Error = ::errors::Error;
-    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> ::std::result::Result<(), Self::Error>
+    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         self.make_mut().update(schema, retractions, assertions)
     }
@@ -1356,7 +1354,7 @@ impl InProgressSQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| ErrorKind::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
 
         if self.is_attribute_cached_forward(a) {
             return Ok(());
@@ -1372,7 +1370,7 @@ impl InProgressSQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| ErrorKind::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
 
         if self.is_attribute_cached_reverse(a) {
             return Ok(());
@@ -1388,7 +1386,7 @@ impl InProgressSQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| ErrorKind::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
 
         // TODO: reverse-index unique by default?
         let reverse_done = self.is_attribute_cached_reverse(a);
@@ -1427,8 +1425,7 @@ impl InProgressSQLiteAttributeCache {
 }
 
 impl UpdateableCache for InProgressSQLiteAttributeCache {
-    type Error = ::errors::Error;
-    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> ::std::result::Result<(), Self::Error>
+    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         self.overlay.update_with_fallback(Some(&self.inner), schema, retractions, assertions)
     }

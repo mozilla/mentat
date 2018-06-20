@@ -25,8 +25,9 @@ use clauses::{
 };
 
 use errors::{
+    AlgebrizerError,
     BindingError,
-    ErrorKind,
+    InvalidBinding,
     Result,
 };
 
@@ -60,17 +61,17 @@ impl ConjoiningClauses {
     // transactions that impact one of the given attributes.
     pub(crate) fn apply_tx_ids(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 3 {
-            bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
+            bail!(AlgebrizerError::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
         }
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         // We should have exactly one binding. Destructure it now.
@@ -78,7 +79,7 @@ impl ConjoiningClauses {
             Binding::BindRel(bindings) => {
                 let bindings_count = bindings.len();
                 if bindings_count != 1 {
-                    bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(),
+                    bail!(InvalidBinding::new(where_fn.operator.clone(),
                                                     BindingError::InvalidNumberOfBindings {
                                                         number: bindings_count,
                                                         expected: 1,
@@ -92,7 +93,7 @@ impl ConjoiningClauses {
             Binding::BindColl(v) => v,
             Binding::BindScalar(_) |
             Binding::BindTuple(_) => {
-                bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRelOrBindColl))
+                bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::ExpectedBindRelOrBindColl))
             },
         };
 
@@ -101,7 +102,7 @@ impl ConjoiningClauses {
         // TODO: process source variables.
         match args.next().unwrap() {
             FnArg::SrcVar(SrcVar::DefaultSrc) => {},
-            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
+            _ => bail!(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
         }
 
         let tx1 = self.resolve_tx_argument(&known.schema, &where_fn.operator, 1, args.next().unwrap())?;
@@ -138,17 +139,17 @@ impl ConjoiningClauses {
 
     pub(crate) fn apply_tx_data(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 2 {
-            bail!(ErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 2));
+            bail!(AlgebrizerError::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 2));
         }
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         // We should have at most five bindings. Destructure them now.
@@ -156,7 +157,7 @@ impl ConjoiningClauses {
             Binding::BindRel(bindings) => {
                 let bindings_count = bindings.len();
                 if bindings_count < 1 || bindings_count > 5 {
-                    bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(),
+                    bail!(InvalidBinding::new(where_fn.operator.clone(),
                                                     BindingError::InvalidNumberOfBindings {
                                                         number: bindings.len(),
                                                         expected: 5,
@@ -166,7 +167,7 @@ impl ConjoiningClauses {
             },
             Binding::BindScalar(_) |
             Binding::BindTuple(_) |
-            Binding::BindColl(_) => bail!(ErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
+            Binding::BindColl(_) => bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
         };
         let mut bindings = bindings.into_iter();
         let b_e = bindings.next().unwrap_or(VariableOrPlaceholder::Placeholder);
@@ -180,7 +181,7 @@ impl ConjoiningClauses {
         // TODO: process source variables.
         match args.next().unwrap() {
             FnArg::SrcVar(SrcVar::DefaultSrc) => {},
-            _ => bail!(ErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
+            _ => bail!(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
         }
 
         let tx = self.resolve_tx_argument(&known.schema, &where_fn.operator, 1, args.next().unwrap())?;

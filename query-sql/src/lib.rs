@@ -42,6 +42,7 @@ use mentat_sql::{
     BuildQueryResult,
     QueryBuilder,
     QueryFragment,
+    SQLError,
     SQLiteQueryBuilder,
     SQLQuery,
 };
@@ -629,7 +630,7 @@ impl QueryFragment for SelectQuery {
 }
 
 impl SelectQuery {
-    pub fn to_sql_query(&self) -> mentat_sql::Result<SQLQuery> {
+    pub fn to_sql_query(&self) -> Result<SQLQuery, SQLError> {
         let mut builder = SQLiteQueryBuilder::new();
         self.push_sql(&mut builder).map(|_| builder.finish())
     }

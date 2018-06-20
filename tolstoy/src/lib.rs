@@ -8,11 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-// For error_chain:
-#![recursion_limit="128"]
-
+extern crate failure;
 #[macro_use]
-extern crate error_chain;
+extern crate failure_derive;
 
 #[macro_use]
 extern crate lazy_static;
@@ -33,16 +31,15 @@ extern crate mentat_core;
 extern crate rusqlite;
 extern crate uuid;
 
+#[macro_use]
+pub mod errors;
 pub mod schema;
 pub mod metadata;
 pub mod tx_processor;
-pub mod errors;
 pub mod syncer;
 pub mod tx_mapper;
 pub use syncer::Syncer;
 pub use errors::{
-    Error,
-    ErrorKind,
+    TolstoyError,
     Result,
-    ResultExt,
 };

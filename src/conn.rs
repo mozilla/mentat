@@ -93,7 +93,10 @@ use entity_builder::{
     TermBuilder,
 };
 
-use errors::*;
+use errors::{
+    Result,
+    MentatError,
+};
 
 use query::{
     Known,
@@ -474,7 +477,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
             // Retrying is tracked by https://github.com/mozilla/mentat/issues/357.
             // This should not occur -- an attempt to take a competing IMMEDIATE transaction
             // will fail with `SQLITE_BUSY`, causing this function to abort.
-            bail!("Lost the transact() race!");
+            bail!(MentatError::UnexpectedLostTransactRace);
         }
 
         // Commit the SQLite transaction while we hold the mutex.
@@ -506,7 +509,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
                  cache_action: CacheAction) -> Result<()> {
         let attribute_entid: Entid = self.schema
                                          .attribute_for_ident(&attribute)
-                                         .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?.1.into();
+                                         .ok_or_else(|| MentatError::UnknownAttribute(attribute.to_string()))?.1.into();
 
         match cache_action {
             CacheAction::Register => {
@@ -579,17 +582,16 @@ impl Conn {
     /// Prepare the provided SQLite handle for use as a Mentat store. Creates tables but
     /// _does not_ write the bootstrap schema. This constructor should only be used by
     /// consumers that expect to populate raw transaction data themselves.
+
     pub(crate) fn empty(sqlite: &mut rusqlite::Connection) -> Result<Conn> {
-        let (tx, db) = db::create_empty_current_version(sqlite)
-            .chain_err(|| "Unable to initialize Mentat store")?;
+        let (tx, db) = db::create_empty_current_version(sqlite)?;
         tx.commit()?;
         Ok(Conn::new(db.partition_map, db.schema))
     }
 
 
     pub fn connect(sqlite: &mut rusqlite::Connection) -> Result<Conn> {
-        let db = db::ensure_current_version(sqlite)
-            .chain_err(|| "Unable to initialize Mentat store")?;
+        let db = db::ensure_current_version(sqlite)?;
         Ok(Conn::new(db.partition_map, db.schema))
     }
 
@@ -801,7 +803,7 @@ impl Conn {
         {
             attribute_entid = metadata.schema
                                       .attribute_for_ident(&attribute)
-                                      .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.to_string()))?.1.into();
+                                      .ok_or_else(|| MentatError::UnknownAttribute(attribute.to_string()))?.1.into();
         }
 
         let cache = &mut metadata.attribute_cache;
@@ -869,11 +871,11 @@ mod tests {
                        .partition_map[":db.part/user"].index;
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next + 1);
 
-        match conn.transact(&mut sqlite, t.as_str()).unwrap_err() {
-            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::UnrecognizedEntid(e)), _) => {
+        match conn.transact(&mut sqlite, t.as_str()).expect_err("expected transact error").downcast() {
+            Ok(::mentat_db::DbError::UnrecognizedEntid(e)) => {
                 assert_eq!(e, next + 1);
             },
-            x => panic!("expected transact error, got {:?}", x),
+            x => panic!("expected db error, got {:?}", x),
         }
 
         // Transact two more tempids.
@@ -896,12 +898,12 @@ mod tests {
         // we should reject this, because the first ID was provided by the user!
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next);
 
-        match conn.transact(&mut sqlite, t.as_str()).unwrap_err() {
-            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::UnrecognizedEntid(e)), _) => {
+        match conn.transact(&mut sqlite, t.as_str()).expect_err("expected transact error").downcast() {
+            Ok(::mentat_db::DbError::UnrecognizedEntid(e)) => {
                 // All this, despite this being the ID we were about to allocate!
                 assert_eq!(e, next);
             },
-            x => panic!("expected transact error, got {:?}", x),
+            x => panic!("expected db error, got {:?}", x),
         }
 
         // And if we subsequently transact in a way that allocates one ID, we _will_ use that one.
@@ -1057,9 +1059,9 @@ mod tests {
 
         // Bad EDN: missing closing ']'.
         let report = conn.transact(&mut sqlite, "[[:db/add \"t\" :db/ident :a/keyword]");
-        match report.unwrap_err() {
-            Error(ErrorKind::EdnParseError(_), _) => { },
-            x => panic!("expected EDN parse error, got {:?}", x),
+        match report.expect_err("expected transact to fail for bad edn").downcast() {
+            Ok(edn::ParseError { .. }) => { },
+            Err(x) => panic!("expected EDN parse error, got {:?}", x),
         }
 
         // Good EDN.
@@ -1068,9 +1070,9 @@ mod tests {
 
         // Bad transaction data: missing leading :db/add.
         let report = conn.transact(&mut sqlite, "[[\"t\" :db/ident :b/keyword]]");
-        match report.unwrap_err() {
-            Error(ErrorKind::EdnParseError(_), _) => { },
-            x => panic!("expected EDN parse error, got {:?}", x),
+        match report.expect_err("expected transact error").downcast() {
+            Ok(edn::ParseError { .. }) => { },
+            Err(x) => panic!("expected EDN parse error, got {:?}", x),
         }
 
         // Good transaction data.
@@ -1080,8 +1082,8 @@ mod tests {
         // Bad transaction based on state of store: conflicting upsert.
         let report = conn.transact(&mut sqlite, "[[:db/add \"u\" :db/ident :a/keyword]
                                                   [:db/add \"u\" :db/ident :b/keyword]]");
-        match report.unwrap_err() {
-            Error(ErrorKind::DbError(::mentat_db::errors::ErrorKind::SchemaConstraintViolation(_)), _) => { },
+        match report.expect_err("expected transact error").downcast() {
+            Ok(::mentat_db::DbError::SchemaConstraintViolation(_)) => { },
             x => panic!("expected schema constraint violation, got {:?}", x),
         }
     }
@@ -1099,8 +1101,8 @@ mod tests {
         let kw = kw!(:foo/bat);
         let schema = conn.current_schema();
         let res = conn.cache(&mut sqlite, &schema, &kw, CacheDirection::Forward, CacheAction::Register);
-        match res.unwrap_err() {
-            Error(ErrorKind::UnknownAttribute(msg), _) => assert_eq!(msg, ":foo/bat"),
+        match res.expect_err("expected cache to fail").downcast() {
+            Ok(MentatError::UnknownAttribute(msg)) => assert_eq!(msg, ":foo/bat"),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
         }
     }
