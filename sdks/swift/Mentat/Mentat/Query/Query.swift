@@ -250,7 +250,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = error.message {
-            let message = String(destroyingMentatString: err)
+            let message = String(destroyingRustString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result else {
@@ -275,7 +275,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = error.message {
-            let message = String(destroyingMentatString: err)
+            let message = String(destroyingRustString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result else {
@@ -300,7 +300,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = error.message {
-            let message = String(destroyingMentatString: err)
+            let message = String(destroyingRustString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result else {
@@ -325,7 +325,7 @@ open class Query: OptionalRustObject {
         self.raw = nil
 
         if let err = error.message {
-            let message = String(destroyingMentatString: err)
+            let message = String(destroyingRustString: err)
             throw QueryError.executionFailed(message: message)
         }
         guard let results = result else {

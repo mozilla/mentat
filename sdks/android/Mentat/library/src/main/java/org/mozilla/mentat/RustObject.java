@@ -80,7 +80,7 @@ abstract class RustObject<T extends PointerType> implements AutoCloseable {
             long low = bb.getLong();
             return new UUID(high, low);
         } finally {
-            JNA.INSTANCE.destroy(uuidPtr);
+            JNA.INSTANCE.uuid_destroy(uuidPtr);
         }
     }
 
@@ -92,7 +92,7 @@ abstract class RustObject<T extends PointerType> implements AutoCloseable {
         try {
             return stringPtr.getString(0, "utf8");
         } finally {
-            JNA.INSTANCE.destroy_mentat_string(stringPtr);
+            JNA.INSTANCE.rust_c_string_destroy(stringPtr);
         }
     }
 

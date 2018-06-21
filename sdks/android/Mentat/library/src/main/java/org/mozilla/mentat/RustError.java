@@ -51,7 +51,7 @@ public class RustError extends Structure {
     public String consumeErrorMessage() {
         String result = this.getErrorMessage();
         if (this.message != null) {
-            JNA.INSTANCE.destroy_mentat_string(this.message);
+            JNA.INSTANCE.rust_c_string_destroy(this.message);
             this.message = null;
         }
         return result;
@@ -72,7 +72,7 @@ public class RustError extends Structure {
     @Override
     protected void finalize() {
         if (this.message != null) {
-            JNA.INSTANCE.destroy_mentat_string(this.message);
+            JNA.INSTANCE.rust_c_string_destroy(this.message);
             this.message = null;
         }
     }

@@ -374,7 +374,7 @@ open class InProgressBuilder: OptionalRustObject {
         }
         let result = in_progress_builder_transact(try self.validPointer())
         if let errorMessage = result.error.message {
-            throw ResultError.error(message: String(destroyingMentatString: errorMessage))
+            throw ResultError.error(message: String(destroyingRustString: errorMessage))
         }
         let inProgress = InProgress(raw: result.inProgress);
         guard let report = result.txReport else {

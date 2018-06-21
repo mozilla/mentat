@@ -18,7 +18,7 @@ extension RustError {
         var err = RustError(message: nil)
         guard let result = try callback(&err) else {
             if let message = err.message {
-                throw ResultError.error(message: String(destroyingMentatString: message))
+                throw ResultError.error(message: String(destroyingRustString: message))
             }
             throw ResultError.empty
         }
@@ -30,7 +30,7 @@ extension RustError {
         var err = RustError(message: nil)
         guard let result = try callback(&err) else {
             if let message = err.message {
-                throw ResultError.error(message: String(destroyingMentatString: message))
+                throw ResultError.error(message: String(destroyingRustString: message))
             }
             return nil
         }
@@ -41,7 +41,7 @@ extension RustError {
         var err = RustError(message: nil)
         try callback(&err);
         if let message = err.message {
-            throw ResultError.error(message: String(destroyingMentatString: message))
+            throw ResultError.error(message: String(destroyingRustString: message))
         }
     }
 }

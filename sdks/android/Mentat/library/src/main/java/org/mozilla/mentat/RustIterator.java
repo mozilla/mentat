@@ -26,7 +26,7 @@ abstract class RustIterator<T extends PointerType, ItemPtr extends PointerType, 
         super(pointer);
     }
 
-    /** Implement by calling `JNI.INSTANCE.whatever_iter_next(this.validPointer());` */
+    /** Implement by calling `JNA.INSTANCE.whatever_iter_next(this.validPointer());` */
     abstract protected ItemPtr advanceIterator();
     // Generally should be implemented as `new E(p)`.
     abstract protected E constructItem(ItemPtr p);

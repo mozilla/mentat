@@ -12,10 +12,10 @@
 import Foundation
 import MentatStore
 
-public extension String {
-    /** Helper to construct a String from a Rust string without leaking it. */
-    public init(destroyingRustString rustCString: UnsafeMutablePointer<CChar>) {
-        defer { rust_c_string_destroy(rustCString); }
-        self.init(cString: rustCString)
+public extension UUID {
+    /** Helper to construct a UUID from a Rust [u8; 16] without leaking it. */
+    public init(destroyingRustUUID rawUUID: UnsafeMutablePointer<uuid_t>) {
+        defer { uuid_destroy(rawUUID); }
+        self.init(uuid: rawUUID.pointee)
     }
 }

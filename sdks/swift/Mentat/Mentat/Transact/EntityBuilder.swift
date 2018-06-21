@@ -358,7 +358,7 @@ open class EntityBuilder: OptionalRustObject {
         let result = entity_builder_transact(try self.validPointer());
         let inProgress = InProgress(raw: result.inProgress)
         if let errorMessage = result.error.message {
-            throw ResultError.error(message: String(destroyingMentatString: errorMessage))
+            throw ResultError.error(message: String(destroyingRustString: errorMessage))
         }
         guard let report = result.txReport else {
             return (inProgress, nil)

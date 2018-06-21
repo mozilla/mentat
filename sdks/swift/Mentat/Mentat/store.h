@@ -60,7 +60,7 @@ typedef struct TxChangeList TxChangeList;
 /* Representation of the `ExternError` Rust type.
 
    If `message` is not null, an error occur occurred (and we're responsible for freeing `message`,
-   using `destroy_mentat_string`).
+   using `rust_c_string_destroy`).
 */
 struct RustError {
     char *message;
@@ -106,6 +106,7 @@ struct Store*_Nonnull store_open(const char*_Nonnull uri);
 
 // Destructors.
 void destroy(void* _Nullable obj);
+void uuid_destroy(uuid_t* _Nullable obj);
 void query_builder_destroy(struct Query* _Nullable obj);
 void store_destroy(struct Store* _Nonnull obj);
 void tx_report_destroy(struct TxReport* _Nonnull obj);
@@ -117,7 +118,7 @@ void typed_value_result_set_iter_destroy(struct QueryRowsIterator* _Nullable obj
 void in_progress_destroy(struct InProgress* _Nullable obj);
 void in_progress_builder_destroy(struct InProgressBuilder* _Nullable obj);
 void entity_builder_destroy(struct EntityBuilder* _Nullable obj);
-void destroy_mentat_string(char *_Nullable s);
+void rust_c_string_destroy(char *_Nullable s);
 // caching
 void store_cache_attribute_forward(struct Store*_Nonnull store, const char* _Nonnull attribute, struct RustError* _Nonnull error);
 void store_cache_attribute_reverse(struct Store*_Nonnull store, const char* _Nonnull attribute, struct RustError* _Nonnull error);
@@ -182,7 +183,7 @@ void entity_builder_retract_double(struct EntityBuilder*_Nonnull builder, const 
 void entity_builder_retract_timestamp(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const int64_t value, struct RustError* _Nonnull error);
 void entity_builder_retract_uuid(struct EntityBuilder*_Nonnull builder, const char*_Nonnull kw, const uuid_t* _Nonnull value, struct RustError* _Nonnull error);
 
-struct InProgressTransactResult entity_builder_transact(struct InProgressBuilder*_Nonnull builder);
+struct InProgressTransactResult entity_builder_transact(struct EntityBuilder*_Nonnull builder);
 struct TxReport*_Nullable entity_builder_commit(struct EntityBuilder*_Nonnull builder, struct RustError* _Nonnull error);
 
 // Observers

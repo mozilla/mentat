@@ -1621,7 +1621,7 @@ pub unsafe extern "C" fn typed_value_into_timestamp(typed_value: *mut Binding) -
 /// Consumes a [Binding](mentat::Binding) and returns the value as a C `String`.
 ///
 /// The caller is responsible for freeing the pointer returned from this function using
-/// `destroy_mentat_string`.
+/// `rust_c_string_destroy`.
 ///
 /// # Panics
 ///
@@ -1948,7 +1948,7 @@ pub unsafe extern "C" fn store_register_observer(store: *mut Store,
         };
         let s = string_to_c_char(obs_key);
         callback(s, &change_list);
-        destroy_mentat_string(s);
+        rust_c_string_destroy(s);
     }));
     store.register_observer(key.to_string(), tx_observer);
 }
@@ -2006,7 +2006,7 @@ pub unsafe extern "C" fn changelist_entry_at(tx_report: *mut TransactionChange, 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_mentat_string(s: *mut c_char) {
+pub unsafe extern "C" fn rust_c_string_destroy(s: *mut c_char) {
     if !s.is_null() {
         let _ = CString::from_raw(s);
     }
@@ -2044,6 +2044,9 @@ macro_rules! define_destructor_with_lifetimes (
 
 /// destroy function for releasing the memory for `repr(C)` structs.
 define_destructor!(destroy, c_void);
+
+/// destroy function for releasing the memory of UUIDs
+define_destructor!(uuid_destroy, [u8; 16]);
 
 /// Destructor for releasing the memory of [InProgressBuilder](mentat::InProgressBuilder).
 define_destructor_with_lifetimes!(in_progress_builder_destroy, InProgressBuilder<'a, 'c>);

@@ -30,6 +30,7 @@
 		7BDB96CC207B7684009D0651 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDB96CB207B7684009D0651 /* Errors.swift */; };
 		7BEB7D2C207D03DA000369AD /* TxReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEB7D2B207D03DA000369AD /* TxReport.swift */; };
 		D53A75B820D2DD3D00BAD7EA /* String+Destroying.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53A75B720D2DD3D00BAD7EA /* String+Destroying.swift */; };
+		D574353420DC26C7007C92EB /* UUID+Destroying.swift in Sources */ = {isa = PBXBuildFile; fileRef = D574353320DC26C7007C92EB /* UUID+Destroying.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -83,6 +84,7 @@
 		7BEB7D23207BE2AF000369AD /* libmentat_ffi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmentat_ffi.a; path = ../../../target/universal/release/libmentat_ffi.a; sourceTree = "<group>"; };
 		7BEB7D2B207D03DA000369AD /* TxReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TxReport.swift; sourceTree = "<group>"; };
 		D53A75B720D2DD3D00BAD7EA /* String+Destroying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Destroying.swift"; sourceTree = "<group>"; };
+		D574353320DC26C7007C92EB /* UUID+Destroying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UUID+Destroying.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -196,6 +198,7 @@
 			isa = PBXGroup;
 			children = (
 				7B74483C208DF667006CFFB0 /* RustError+Unwrap.swift */,
+				D574353320DC26C7007C92EB /* UUID+Destroying.swift */,
 				7BDB96C52077D346009D0651 /* Date+Int64.swift */,
 				D53A75B720D2DD3D00BAD7EA /* String+Destroying.swift */,
 			);
@@ -343,6 +346,7 @@
 				7BDB96CC207B7684009D0651 /* Errors.swift in Sources */,
 				7BDB96B02077C38E009D0651 /* Mentat.swift in Sources */,
 				7BDB96B72077C38E009D0651 /* TypedValue.swift in Sources */,
+				D574353420DC26C7007C92EB /* UUID+Destroying.swift in Sources */,
 				7B64E44E209094520063909F /* EntityBuilder.swift in Sources */,
 				7B64E44D209094520063909F /* InProgressBuilder.swift in Sources */,
 				7BDB96B52077C38E009D0651 /* TupleResult.swift in Sources */,

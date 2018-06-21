@@ -78,7 +78,7 @@ open class TupleResult: OptionalRustObject {
      */
     open func asKeyword(index: Int) -> String {
         let str = value_at_index_into_kw(self.raw!, Int32(index));
-        return String(destroyingMentatString: str);
+        return String(destroyingRustString: str);
     }
 
     /**
@@ -131,7 +131,7 @@ open class TupleResult: OptionalRustObject {
      */
     open func asString(index: Int) -> String {
         let str = value_at_index_into_string(self.raw!, Int32(index));
-        return String(destroyingMentatString: str)
+        return String(destroyingRustString: str)
     }
 
     /**
@@ -145,8 +145,7 @@ open class TupleResult: OptionalRustObject {
      */
     open func asUUID(index: Int) -> UUID? {
         let uuid = value_at_index_into_uuid(self.raw!, Int32(index));
-        defer { destroy(uuid); }
-        return UUID(uuid: uuid.pointee)
+        return UUID(destroyingRustUUID: uuid)
     }
 
     override open func cleanup(pointer: OpaquePointer) {

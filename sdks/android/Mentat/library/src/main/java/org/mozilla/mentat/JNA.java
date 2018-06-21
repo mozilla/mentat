@@ -45,6 +45,7 @@ public interface JNA extends Library {
     Store store_open(String dbPath);
 
     void destroy(Pointer obj);
+    void uuid_destroy(Pointer obj);
     void query_builder_destroy(QueryBuilder obj);
     void store_destroy(Store obj);
     void typed_value_destroy(TypedValue obj);
@@ -56,7 +57,7 @@ public interface JNA extends Library {
     void in_progress_destroy(InProgress obj);
     void in_progress_builder_destroy(InProgressBuilder obj);
     void entity_builder_destroy(EntityBuilder obj);
-    void destroy_mentat_string(Pointer str);
+    void rust_c_string_destroy(Pointer str);
 
     // caching
     void store_cache_attribute_forward(Store store, String attribute, RustError.ByReference err);
