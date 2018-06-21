@@ -64,6 +64,7 @@ pub fn run() -> i32 {
     opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
     opts.optmulti("i", "import", "Execute an import on startup. Imports are executed before queries.", "PATH");
     opts.optflag("v", "version", "Print version and exit");
+    opts.optflag("", "no-tty", "Don't try to use a TTY for readline-like input processing");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -121,13 +122,15 @@ pub fn run() -> i32 {
         }
     }).collect();
 
-    let repl = repl::Repl::new();
-    if repl.is_ok() {
-        repl.unwrap().run(Some(cmds));
+    let mut repl = match repl::Repl::new(!matches.opt_present("no-tty")) {
+        Ok(repl) => repl,
+        Err(e) => {
+            println!("{}", e);
+            return 1
+        }
+    };
 
-    } else {
-        println!("{}", repl.err().unwrap());
-    }
+    repl.run(Some(cmds));
 
     0
 }

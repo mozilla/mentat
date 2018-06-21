@@ -8,11 +8,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std::io::stdin;
+use std::io::{
+    stdin,
+    stdout,
+    Write,
+};
 
 use linefeed::{
     DefaultTerminal,
-    Reader,
+    Interface,
     ReadResult,
     Signal,
 };
@@ -52,7 +56,7 @@ pub enum InputResult {
 /// Reads input from `stdin`
 pub struct InputReader {
     buffer: String,
-    reader: Option<Reader<DefaultTerminal>>,
+    interface: Option<Interface<DefaultTerminal>>,
     in_process_cmd: Option<Command>,
 }
 
@@ -71,27 +75,24 @@ enum UserAction {
 
 impl InputReader {
     /// Constructs a new `InputReader` reading from `stdin`.
-    pub fn new() -> InputReader {
-        let r = match Reader::new("mentat") {
-            Ok(mut r) => {
-                // Handle SIGINT (Ctrl-C)
-                r.set_report_signal(Signal::Interrupt, true);
-                r.set_word_break_chars(" \t\n!\"#$%&'(){}*+,-./:;<=>?@[\\]^`");
-                Some(r)
-            },
-            Err(_) => None,
-        };
+    pub fn new(interface: Option<Interface<DefaultTerminal>>) -> InputReader {
+        if let Some(ref interface) = interface {
+            let mut r = interface.lock_reader();
+            // Handle SIGINT (Ctrl-C)
+            r.set_report_signal(Signal::Interrupt, true);
+            r.set_word_break_chars(" \t\n!\"#$%&'(){}*+,-./:;<=>?@[\\]^`");
+        }
 
         InputReader{
             buffer: String::new(),
-            reader: r,
+            interface,
             in_process_cmd: None,
         }
     }
 
     /// Returns whether the `InputReader` is reading from a TTY.
     pub fn is_tty(&self) -> bool {
-        self.reader.is_some()
+        self.interface.is_some()
     }
 
     /// Reads a single command, item, or statement from `stdin`.
@@ -179,7 +180,7 @@ impl InputReader {
     }
 
     fn read_line(&mut self, prompt: &str) -> UserAction {
-        match self.reader {
+        match self.interface {
             Some(ref mut r) => {
                 r.set_prompt(prompt);
                 r.read_line().ok().map_or(UserAction::Quit, |line|
@@ -191,7 +192,13 @@ impl InputReader {
                     })
 
             },
-            None => self.read_stdin()
+            None => {
+                print!("{}", prompt);
+                if stdout().flush().is_err() {
+                    return UserAction::Quit;
+                }
+                self.read_stdin()
+            },
         }
     }
 
@@ -200,13 +207,19 @@ impl InputReader {
 
         match stdin().read_line(&mut s) {
             Ok(0) | Err(_) => UserAction::Quit,
-            Ok(_) => UserAction::TextInput(s)
+            Ok(_) => {
+                if s.ends_with("\n") {
+                    let len = s.len() - 1;
+                    s.truncate(len);
+                }
+                UserAction::TextInput(s)
+            },
         }
     }
 
-    fn add_history(&mut self, line: String) {
-        if let Some(ref mut r) = self.reader {
-            r.add_history(line);
+    fn add_history(&self, line: String) {
+        if let Some(ref interface) = self.interface {
+            interface.add_history(line);
         }
     }
 }

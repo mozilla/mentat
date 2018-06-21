@@ -16,6 +16,10 @@ use failure::{
     Error,
 };
 
+use linefeed::{
+    Interface,
+};
+
 use tabwriter::TabWriter;
 
 use termion::{
@@ -185,6 +189,7 @@ fn format_time(duration: Duration) {
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
+    input_reader: InputReader,
     path: String,
     store: Store,
     timer_on: bool,
@@ -200,19 +205,26 @@ impl Repl {
     }
 
     /// Constructs a new `Repl`.
-    pub fn new() -> Result<Repl, String> {
+    pub fn new(tty: bool) -> Result<Repl, String> {
+        let interface = if tty {
+            Some(Interface::new("mentat").map_err(|_| "failed to create tty interface; try --no-tty")?)
+        } else {
+            None
+        };
+
+        let input_reader = InputReader::new(interface);
+
         let store = Store::open("").map_err(|e| e.to_string())?;
         Ok(Repl {
+            input_reader,
             path: "".to_string(),
-            store: store,
+            store,
             timer_on: false,
         })
     }
 
     /// Runs the REPL interactively.
     pub fn run(&mut self, startup_commands: Option<Vec<Command>>) {
-        let mut input = InputReader::new();
-
         if let Some(cmds) = startup_commands {
             for command in cmds.iter() {
                 println!("{}", command.output());
@@ -221,7 +233,7 @@ impl Repl {
         }
 
         loop {
-            let res = input.read_input();
+            let res = self.input_reader.read_input();
 
             match res {
                 Ok(MetaCommand(cmd)) => {
@@ -231,7 +243,7 @@ impl Repl {
                 Ok(Empty) |
                 Ok(More) => (),
                 Ok(Eof) => {
-                    if input.is_tty() {
+                    if self.input_reader.is_tty() {
                         println!();
                     }
                     break;
