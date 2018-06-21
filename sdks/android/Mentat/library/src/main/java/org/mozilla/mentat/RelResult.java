@@ -46,9 +46,9 @@ import com.sun.jna.Pointer;
  * </p>
  * Note that iteration is consuming and can only be done once.
  */
-public class RelResult extends RustObject implements Iterable<TupleResult> {
+public class RelResult extends RustObject<JNA.RelResult> implements Iterable<TupleResult> {
 
-    public RelResult(Pointer pointer) {
+    public RelResult(JNA.RelResult pointer) {
         super(pointer);
     }
 
@@ -60,7 +60,7 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
      */
     public TupleResult rowAtIndex(int index) {
         this.validate();
-        Pointer pointer = JNA.INSTANCE.row_at_index(this.validPointer(), index);
+        JNA.TypedValueList pointer = JNA.INSTANCE.row_at_index(this.validPointer(), index);
         if (pointer == null) {
             return null;
         }
@@ -70,12 +70,12 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
 
     @Override
     public RelResultIterator iterator() {
-        Pointer iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.consumePointer());
+        JNA.RelResultIter iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.consumePointer());
         return new RelResultIterator(iterPointer);
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.RelResult p) {
         JNA.INSTANCE.typed_value_result_set_destroy(p);
     }
 }

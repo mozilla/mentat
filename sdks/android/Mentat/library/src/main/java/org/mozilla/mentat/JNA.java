@@ -14,6 +14,9 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Pointer;
+import com.sun.jna.PointerType;
+
+import java.lang.reflect.Type;
 
 /**
  * JNA interface for FFI to Mentat's Rust library
@@ -26,137 +29,147 @@ public interface JNA extends Library {
 
     JNA INSTANCE = (JNA) Native.loadLibrary(JNA_LIBRARY_NAME, JNA.class);
 
-    Pointer store_open(String dbPath);
+
+    class Store extends PointerType {}
+    class QueryBuilder extends PointerType {}
+    class TypedValue extends PointerType {}
+    class TypedValueList extends PointerType {}
+    class TypedValueListIter extends PointerType {}
+    class RelResult extends PointerType {}
+    class RelResultIter extends PointerType {}
+    class TxReport extends PointerType {}
+    class InProgress extends PointerType {}
+    class InProgressBuilder extends PointerType {}
+    class EntityBuilder extends PointerType {}
+
+    Store store_open(String dbPath);
 
     void destroy(Pointer obj);
-    void query_builder_destroy(Pointer obj);
-    void store_destroy(Pointer obj);
-    void typed_value_destroy(Pointer obj);
-    void typed_value_list_destroy(Pointer obj);
-    void typed_value_list_iter_destroy(Pointer obj);
-    void typed_value_result_set_destroy(Pointer obj);
-    void typed_value_result_set_iter_destroy(Pointer obj);
-    void tx_report_destroy(Pointer obj);
-    void in_progress_destroy(Pointer obj);
-    void in_progress_builder_destroy(Pointer obj);
-    void entity_builder_destroy(Pointer obj);
+    void query_builder_destroy(QueryBuilder obj);
+    void store_destroy(Store obj);
+    void typed_value_destroy(TypedValue obj);
+    void typed_value_list_destroy(TypedValueList obj);
+    void typed_value_list_iter_destroy(TypedValueListIter obj);
+    void typed_value_result_set_destroy(RelResult obj);
+    void typed_value_result_set_iter_destroy(RelResultIter obj);
+    void tx_report_destroy(TxReport obj);
+    void in_progress_destroy(InProgress obj);
+    void in_progress_builder_destroy(InProgressBuilder obj);
+    void entity_builder_destroy(EntityBuilder obj);
     void destroy_mentat_string(Pointer str);
 
     // caching
-    RustResult.ByValue store_cache_attribute_forward(Pointer store, String attribute);
-    RustResult.ByValue store_cache_attribute_reverse(Pointer store, String attribute);
-    RustResult.ByValue store_cache_attribute_bi_directional(Pointer store, String attribute);
+    void store_cache_attribute_forward(Store store, String attribute, RustError.ByReference err);
+    void store_cache_attribute_reverse(Store store, String attribute, RustError.ByReference err);
+    void store_cache_attribute_bi_directional(Store store, String attribute, RustError.ByReference err);
 
     // transact
-    RustResult.ByValue store_transact(Pointer store, String transaction);
-    Pointer tx_report_entity_for_temp_id(Pointer report, String tempid);
-    long tx_report_get_entid(Pointer report);
-    long tx_report_get_tx_instant(Pointer report);
-    RustResult.ByValue store_begin_transaction(Pointer store);
+    TxReport store_transact(Store store, String transaction, RustError.ByReference err);
+    Pointer tx_report_entity_for_temp_id(TxReport report, String tempid); // returns a pointer to a 64 bit int on the heap
+    long tx_report_get_entid(TxReport report);
+    long tx_report_get_tx_instant(TxReport report);
+    InProgress store_begin_transaction(Store store, RustError.ByReference error);
 
     // in progress
-    RustResult.ByValue in_progress_transact(Pointer in_progress, String transaction);
-    RustResult.ByValue in_progress_commit(Pointer in_progress);
-    RustResult.ByValue in_progress_rollback(Pointer in_progress);
-    Pointer in_progress_builder(Pointer in_progress);
-    Pointer in_progress_entity_builder_from_temp_id(Pointer in_progress, String temp_id);
-    Pointer in_progress_entity_builder_from_entid(Pointer in_progress, long entid);
+    TxReport in_progress_transact(InProgress in_progress, String transaction, RustError.ByReference err);
+    void in_progress_commit(InProgress in_progress, RustError.ByReference err);
+    void in_progress_rollback(InProgress in_progress, RustError.ByReference err);
+    InProgressBuilder in_progress_builder(InProgress in_progress);
+    EntityBuilder in_progress_entity_builder_from_temp_id(InProgress in_progress, String temp_id);
+    EntityBuilder in_progress_entity_builder_from_entid(InProgress in_progress, long entid);
 
     // in_progress entity building
-    RustResult.ByValue store_in_progress_builder(Pointer store);
-    RustResult.ByValue in_progress_builder_add_string(Pointer builder, long entid, String kw, String value);
-    RustResult.ByValue in_progress_builder_add_long(Pointer builder, long entid, String kw, long value);
-    RustResult.ByValue in_progress_builder_add_ref(Pointer builder, long entid, String kw, long value);
-    RustResult.ByValue in_progress_builder_add_keyword(Pointer builder, long entid, String kw, String value);
-    RustResult.ByValue in_progress_builder_add_timestamp(Pointer builder, long entid, String kw, long value);
-    RustResult.ByValue in_progress_builder_add_boolean(Pointer builder, long entid, String kw, int value);
-    RustResult.ByValue in_progress_builder_add_double(Pointer builder, long entid, String kw, double value);
-    RustResult.ByValue in_progress_builder_add_uuid(Pointer builder, long entid, String kw, Pointer value);
-    RustResult.ByValue in_progress_builder_retract_string(Pointer builder, long entid, String kw, String value);
-    RustResult.ByValue in_progress_builder_retract_long(Pointer builder, long entid, String kw, long value);
-    RustResult.ByValue in_progress_builder_retract_ref(Pointer builder, long entid, String kw, long value);
-    RustResult.ByValue in_progress_builder_retract_keyword(Pointer builder, long entid, String kw, String value);
-    RustResult.ByValue in_progress_builder_retract_timestamp(Pointer builder, long entid, String kw, long value);
-    RustResult.ByValue in_progress_builder_retract_boolean(Pointer builder, long entid, String kw, int value);
-    RustResult.ByValue in_progress_builder_retract_double(Pointer builder, long entid, String kw, double value);
-    RustResult.ByValue in_progress_builder_retract_uuid(Pointer builder, long entid, String kw, Pointer value);
-    InProgressTransactionResult.ByValue in_progress_builder_transact(Pointer builder);
-    RustResult.ByValue in_progress_builder_commit(Pointer builder);
+    InProgressBuilder store_in_progress_builder(Store store, RustError.ByReference err);
+    void in_progress_builder_add_string(InProgressBuilder builder, long entid, String kw, String value, RustError.ByReference err);
+    void in_progress_builder_add_long(InProgressBuilder builder, long entid, String kw, long value, RustError.ByReference err);
+    void in_progress_builder_add_ref(InProgressBuilder builder, long entid, String kw, long value, RustError.ByReference err);
+    void in_progress_builder_add_keyword(InProgressBuilder builder, long entid, String kw, String value, RustError.ByReference err);
+    void in_progress_builder_add_timestamp(InProgressBuilder builder, long entid, String kw, long value, RustError.ByReference err);
+    void in_progress_builder_add_boolean(InProgressBuilder builder, long entid, String kw, int value, RustError.ByReference err);
+    void in_progress_builder_add_double(InProgressBuilder builder, long entid, String kw, double value, RustError.ByReference err);
+    void in_progress_builder_add_uuid(InProgressBuilder builder, long entid, String kw, Pointer value, RustError.ByReference err);
+    void in_progress_builder_retract_string(InProgressBuilder builder, long entid, String kw, String value, RustError.ByReference err);
+    void in_progress_builder_retract_long(InProgressBuilder builder, long entid, String kw, long value, RustError.ByReference err);
+    void in_progress_builder_retract_ref(InProgressBuilder builder, long entid, String kw, long value, RustError.ByReference err);
+    void in_progress_builder_retract_keyword(InProgressBuilder builder, long entid, String kw, String value, RustError.ByReference err);
+    void in_progress_builder_retract_timestamp(InProgressBuilder builder, long entid, String kw, long value, RustError.ByReference err);
+    void in_progress_builder_retract_boolean(InProgressBuilder builder, long entid, String kw, int value, RustError.ByReference err);
+    void in_progress_builder_retract_double(InProgressBuilder builder, long entid, String kw, double value, RustError.ByReference err);
+    void in_progress_builder_retract_uuid(InProgressBuilder builder, long entid, String kw, Pointer value, RustError.ByReference err);
+    InProgressTransactionResult.ByValue in_progress_builder_transact(InProgressBuilder builder);
+    TxReport in_progress_builder_commit(InProgressBuilder builder, RustError.ByReference err);
 
     // entity building
-    RustResult.ByValue store_entity_builder_from_temp_id(Pointer store, String temp_id);
-    RustResult.ByValue store_entity_builder_from_entid(Pointer store, long entid);
-    RustResult.ByValue entity_builder_add_string(Pointer builder, String kw, String value);
-    RustResult.ByValue entity_builder_add_long(Pointer builder, String kw, long value);
-    RustResult.ByValue entity_builder_add_ref(Pointer builder, String kw, long value);
-    RustResult.ByValue entity_builder_add_keyword(Pointer builder, String kw, String value);
-    RustResult.ByValue entity_builder_add_boolean(Pointer builder, String kw, int value);
-    RustResult.ByValue entity_builder_add_double(Pointer builder, String kw, double value);
-    RustResult.ByValue entity_builder_add_timestamp(Pointer builder, String kw, long value);
-    RustResult.ByValue entity_builder_add_uuid(Pointer builder, String kw, Pointer value);
-    RustResult.ByValue entity_builder_retract_string(Pointer builder, String kw, String value);
-    RustResult.ByValue entity_builder_retract_long(Pointer builder, String kw, long value);
-    RustResult.ByValue entity_builder_retract_ref(Pointer builder, String kw, long value);
-    RustResult.ByValue entity_builder_retract_keyword(Pointer builder, String kw, String value);
-    RustResult.ByValue entity_builder_retract_boolean(Pointer builder, String kw, int value);
-    RustResult.ByValue entity_builder_retract_double(Pointer builder, String kw, double value);
-    RustResult.ByValue entity_builder_retract_timestamp(Pointer builder, String kw, long value);
-    RustResult.ByValue entity_builder_retract_uuid(Pointer builder, String kw, Pointer value);
-    InProgressTransactionResult.ByValue entity_builder_transact(Pointer builder);
-    RustResult.ByValue entity_builder_commit(Pointer builder);
-
-    // sync
-    RustResult.ByValue store_sync(Pointer store, String userUuid, String serverUri);
+    EntityBuilder store_entity_builder_from_temp_id(Store store, String temp_id, RustError.ByReference err);
+    EntityBuilder store_entity_builder_from_entid(Store store, long entid, RustError.ByReference err);
+    void entity_builder_add_string(EntityBuilder builder, String kw, String value, RustError.ByReference err);
+    void entity_builder_add_long(EntityBuilder builder, String kw, long value, RustError.ByReference err);
+    void entity_builder_add_ref(EntityBuilder builder, String kw, long value, RustError.ByReference err);
+    void entity_builder_add_keyword(EntityBuilder builder, String kw, String value, RustError.ByReference err);
+    void entity_builder_add_boolean(EntityBuilder builder, String kw, int value, RustError.ByReference err);
+    void entity_builder_add_double(EntityBuilder builder, String kw, double value, RustError.ByReference err);
+    void entity_builder_add_timestamp(EntityBuilder builder, String kw, long value, RustError.ByReference err);
+    void entity_builder_add_uuid(EntityBuilder builder, String kw, Pointer value, RustError.ByReference err);
+    void entity_builder_retract_string(EntityBuilder builder, String kw, String value, RustError.ByReference err);
+    void entity_builder_retract_long(EntityBuilder builder, String kw, long value, RustError.ByReference err);
+    void entity_builder_retract_ref(EntityBuilder builder, String kw, long value, RustError.ByReference err);
+    void entity_builder_retract_keyword(EntityBuilder builder, String kw, String value, RustError.ByReference err);
+    void entity_builder_retract_boolean(EntityBuilder builder, String kw, int value, RustError.ByReference err);
+    void entity_builder_retract_double(EntityBuilder builder, String kw, double value, RustError.ByReference err);
+    void entity_builder_retract_timestamp(EntityBuilder builder, String kw, long value, RustError.ByReference err);
+    void entity_builder_retract_uuid(EntityBuilder builder, String kw, Pointer value, RustError.ByReference err);
+    InProgressTransactionResult.ByValue entity_builder_transact(EntityBuilder builder);
+    TxReport entity_builder_commit(EntityBuilder builder, RustError.ByReference err);
 
     // observers
-    void store_register_observer(Pointer store, String key, Pointer attributes, int len, TxObserverCallback callback);
-    void store_unregister_observer(Pointer store, String key);
-    long store_entid_for_attribute(Pointer store, String attr);
+    void store_register_observer(Store store, String key, Pointer attributes, int len, TxObserverCallback callback);
+    void store_unregister_observer(Store store, String key);
+    long store_entid_for_attribute(Store store, String attr);
 
     // Query Building
-    Pointer store_query(Pointer store, String query);
-    RustResult.ByValue store_value_for_attribute(Pointer store, long entid, String attribute);
-    void query_builder_bind_long(Pointer query, String var, long value);
-    void query_builder_bind_ref(Pointer query, String var, long value);
-    void query_builder_bind_ref_kw(Pointer query, String var, String value);
-    void query_builder_bind_kw(Pointer query, String var, String value);
-    void query_builder_bind_boolean(Pointer query, String var, int value);
-    void query_builder_bind_double(Pointer query, String var, double value);
-    void query_builder_bind_timestamp(Pointer query, String var, long value);
-    void query_builder_bind_string(Pointer query, String var, String value);
-    void query_builder_bind_uuid(Pointer query, String var, Pointer value);
+    QueryBuilder store_query(Store store, String query);
+    TypedValue store_value_for_attribute(Store store, long entid, String attribute, RustError.ByReference err);
+    void query_builder_bind_long(QueryBuilder query, String var, long value);
+    void query_builder_bind_ref(QueryBuilder query, String var, long value);
+    void query_builder_bind_ref_kw(QueryBuilder query, String var, String value);
+    void query_builder_bind_kw(QueryBuilder query, String var, String value);
+    void query_builder_bind_boolean(QueryBuilder query, String var, int value);
+    void query_builder_bind_double(QueryBuilder query, String var, double value);
+    void query_builder_bind_timestamp(QueryBuilder query, String var, long value);
+    void query_builder_bind_string(QueryBuilder query, String var, String value);
+    void query_builder_bind_uuid(QueryBuilder query, String var, Pointer value);
 
     // Query Execution
-    RustResult.ByValue query_builder_execute(Pointer query);
-    RustResult.ByValue query_builder_execute_scalar(Pointer query);
-    RustResult.ByValue query_builder_execute_coll(Pointer query);
-    RustResult.ByValue query_builder_execute_tuple(Pointer query);
+    RelResult query_builder_execute(QueryBuilder query, RustError.ByReference err);
+    TypedValue query_builder_execute_scalar(QueryBuilder query, RustError.ByReference err);
+    TypedValueList query_builder_execute_coll(QueryBuilder query, RustError.ByReference err);
+    TypedValueList query_builder_execute_tuple(QueryBuilder query, RustError.ByReference err);
 
     // Query Result Processing
-    long typed_value_into_long(Pointer value);
-    long typed_value_into_entid(Pointer value);
-    Pointer typed_value_into_kw(Pointer value);
-    Pointer typed_value_into_string(Pointer value);
-    Pointer typed_value_into_uuid(Pointer value);
-    int typed_value_into_boolean(Pointer value);
-    double typed_value_into_double(Pointer value);
-    long typed_value_into_timestamp(Pointer value);
-    Pointer typed_value_value_type(Pointer value);
+    long typed_value_into_long(TypedValue value);
+    long typed_value_into_entid(TypedValue value);
+    Pointer typed_value_into_kw(TypedValue value);
+    Pointer typed_value_into_string(TypedValue value);
+    Pointer typed_value_into_uuid(TypedValue value);
+    int typed_value_into_boolean(TypedValue value);
+    double typed_value_into_double(TypedValue value);
+    long typed_value_into_timestamp(TypedValue value);
+    int typed_value_value_type(TypedValue value);
 
-    Pointer row_at_index(Pointer rows, int index);
-    Pointer typed_value_result_set_into_iter(Pointer rows);
-    Pointer typed_value_result_set_iter_next(Pointer iter);
+    TypedValueList row_at_index(RelResult rows, int index);
+    RelResultIter typed_value_result_set_into_iter(RelResult rows);
+    TypedValueList typed_value_result_set_iter_next(RelResultIter iter);
 
-    Pointer typed_value_list_into_iter(Pointer rows);
-    Pointer typed_value_list_iter_next(Pointer iter);
+    TypedValueListIter typed_value_list_into_iter(TypedValueList rows);
+    TypedValue typed_value_list_iter_next(TypedValueListIter iter);
 
-    Pointer value_at_index(Pointer rows, int index);
-    long value_at_index_into_long(Pointer rows, int index);
-    long value_at_index_into_entid(Pointer rows, int index);
-    Pointer value_at_index_into_kw(Pointer rows, int index);
-    Pointer value_at_index_into_string(Pointer rows, int index);
-    Pointer value_at_index_into_uuid(Pointer rows, int index);
-    int value_at_index_into_boolean(Pointer rows, int index);
-    double value_at_index_into_double(Pointer rows, int index);
-    long value_at_index_into_timestamp(Pointer rows, int index);
+    TypedValue value_at_index(TypedValueList rows, int index);
+    long value_at_index_into_long(TypedValueList rows, int index);
+    long value_at_index_into_entid(TypedValueList rows, int index);
+    Pointer value_at_index_into_kw(TypedValueList rows, int index);
+    Pointer value_at_index_into_string(TypedValueList rows, int index);
+    Pointer value_at_index_into_uuid(TypedValueList rows, int index);
+    int value_at_index_into_boolean(TypedValueList rows, int index);
+    double value_at_index_into_double(TypedValueList rows, int index);
+    long value_at_index_into_timestamp(TypedValueList rows, int index);
 }

@@ -11,30 +11,31 @@
 package org.mozilla.mentat;
 
 import com.sun.jna.Pointer;
+import com.sun.jna.PointerType;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 // Common factored-out code shared by both RelResultIterator and CollResultIterator (and possibly
 // others in the future). This code is a bit error-prone so it's worth avoiding the duplication.
-abstract class RustIterator<E extends RustObject> extends RustObject implements Iterator<E> {
+abstract class RustIterator<T extends PointerType, ItemPtr extends PointerType, E extends RustObject<ItemPtr>> extends RustObject<T> implements Iterator<E> {
     // We own this if it is not null!
-    private Pointer nextPointer;
+    private ItemPtr nextPointer;
 
-    RustIterator(Pointer pointer) {
+    RustIterator(T pointer) {
         super(pointer);
     }
 
     /** Implement by calling `JNI.INSTANCE.whatever_iter_next(this.validPointer());` */
-    abstract protected Pointer advanceIterator();
+    abstract protected ItemPtr advanceIterator();
     // Generally should be implemented as `new E(p)`.
-    abstract protected E constructItem(Pointer p);
+    abstract protected E constructItem(ItemPtr p);
 
-    private Pointer consumeNextPointer() {
+    private ItemPtr consumeNextPointer() {
         if (this.nextPointer == null) {
             throw new NullPointerException(this.getClass() + " nextPointer already consumed");
         }
-        Pointer p = this.nextPointer;
+        ItemPtr p = this.nextPointer;
         this.nextPointer = null;
         return p;
     }
@@ -50,7 +51,7 @@ abstract class RustIterator<E extends RustObject> extends RustObject implements 
 
     @Override
     public E next() {
-        Pointer next = this.nextPointer == null ? advanceIterator() : this.consumeNextPointer();
+        ItemPtr next = this.nextPointer == null ? advanceIterator() : this.consumeNextPointer();
         if (next == null) {
             throw new NoSuchElementException();
         }

@@ -106,9 +106,9 @@ import java.util.UUID;
  * });
  *}</pre>
  */
-public class Query extends RustObject {
+public class Query extends RustObject<JNA.QueryBuilder> {
 
-    public Query(Pointer pointer) {
+    public Query(JNA.QueryBuilder pointer) {
         super(pointer);
     }
 
@@ -229,12 +229,13 @@ public class Query extends RustObject {
      * @param handler   the handler to call with the results of this query
      */
     public void run(final RelResultHandler handler) {
-        RustResult result = JNA.INSTANCE.query_builder_execute(this.consumePointer());
-        if (result.isFailure()) {
-            Log.e("Query", result.getError());
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.RelResult relResult = JNA.INSTANCE.query_builder_execute(this.consumePointer(), error);
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
-        handler.handleRows(new RelResult(result.consumeSuccess()));
+        handler.handleRows(new RelResult(relResult));
     }
 
     /**
@@ -244,15 +245,16 @@ public class Query extends RustObject {
      * @param handler   the handler to call with the results of this query
      */
     public void run(final ScalarResultHandler handler) {
-        RustResult result = JNA.INSTANCE.query_builder_execute_scalar(consumePointer());
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TypedValue valOrNull = JNA.INSTANCE.query_builder_execute_scalar(consumePointer(), error);
 
-        if (result.isFailure()) {
-            Log.e("Query", result.getError());
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
 
-        if (result.isSuccess()) {
-            handler.handleValue(new TypedValue(result.consumeSuccess()));
+        if (valOrNull != null) {
+            handler.handleValue(new TypedValue(valOrNull));
         } else {
             handler.handleValue(null);
         }
@@ -265,13 +267,14 @@ public class Query extends RustObject {
      * @param handler   the handler to call with the results of this query
      */
     public void run(final CollResultHandler handler) {
-        RustResult result = JNA.INSTANCE.query_builder_execute_coll(this.consumePointer());
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TypedValueList collResult = JNA.INSTANCE.query_builder_execute_coll(this.consumePointer(), error);
 
-        if (result.isFailure()) {
-            Log.e("Query", result.getError());
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
-        handler.handleList(new CollResult(result.consumeSuccess()));
+        handler.handleList(new CollResult(collResult));
     }
 
     /**
@@ -281,22 +284,23 @@ public class Query extends RustObject {
      * @param handler   the handler to call with the results of this query
      */
     public void run(final TupleResultHandler handler) {
-        RustResult result = JNA.INSTANCE.query_builder_execute_tuple(this.consumePointer());
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TypedValueList tuple = JNA.INSTANCE.query_builder_execute_tuple(this.consumePointer(), error);
 
-        if (result.isFailure()) {
-            Log.e("Query", result.getError());
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
 
-        if (result.isSuccess()) {
-            handler.handleRow(new TupleResult(result.consumeSuccess()));
+        if (tuple != null) {
+            handler.handleRow(new TupleResult(tuple));
         } else {
             handler.handleRow(null);
         }
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.QueryBuilder p) {
         JNA.INSTANCE.query_builder_destroy(p);
     }
 }

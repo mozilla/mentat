@@ -35,9 +35,9 @@ import java.util.UUID;
  * <p>
  * To iterate over the result set use standard iteration flows.
  */
-public class TupleResult extends RustObject {
+public class TupleResult extends RustObject<JNA.TypedValueList> {
 
-    public TupleResult(Pointer pointer) {
+    public TupleResult(JNA.TypedValueList pointer) {
         super(pointer);
     }
 
@@ -48,7 +48,7 @@ public class TupleResult extends RustObject {
      * @return  The {@link TypedValue} at that index.
      */
     public TypedValue get(Integer index) {
-        Pointer pointer = JNA.INSTANCE.value_at_index(this.validPointer(), index);
+        JNA.TypedValue pointer = JNA.INSTANCE.value_at_index(this.validPointer(), index);
         if (pointer == null) {
             return null;
         }
@@ -146,7 +146,7 @@ public class TupleResult extends RustObject {
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.TypedValueList p) {
         JNA.INSTANCE.typed_value_list_destroy(p);
     }
 }

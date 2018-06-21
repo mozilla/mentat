@@ -25,11 +25,11 @@ import java.util.UUID;
  * Also, due to the consuming nature of the FFI layer, this class also manages it's raw pointer, nilling it after calling the
  * FFI conversion function so that the underlying base class can manage cleanup.
  */
-public class TypedValue extends RustObject {
+public class TypedValue extends RustObject<JNA.TypedValue> {
 
     private Object value;
 
-    public TypedValue(Pointer pointer) {
+    public TypedValue(JNA.TypedValue pointer) {
         super(pointer);
     }
 
@@ -132,7 +132,7 @@ public class TypedValue extends RustObject {
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.TypedValue p) {
         JNA.INSTANCE.typed_value_destroy(p);
     }
 }

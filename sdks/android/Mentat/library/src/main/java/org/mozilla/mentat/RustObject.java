@@ -14,6 +14,7 @@ import android.util.Log;
 
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
+import com.sun.jna.PointerType;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
@@ -24,12 +25,12 @@ import java.util.UUID;
  * subclasses to implement it. This ensures that all classes that inherit from RustObject
  * will have their {@link Pointer} destroyed when the Java wrapper is destroyed.
  */
-abstract class RustObject implements AutoCloseable {
+abstract class RustObject<T extends PointerType> implements AutoCloseable {
     // This should probably be private to let us better prevent usage mistakes (which lead to
     // memory-unsafety).
-    private Pointer rawPointer;
+    private T rawPointer;
 
-    RustObject(Pointer p) {
+    RustObject(T p) {
         rawPointer = p;
     }
 
@@ -37,12 +38,12 @@ abstract class RustObject implements AutoCloseable {
      * Throws a {@link NullPointerException} if the underlying {@link Pointer} is null.
      */
     void validate() {
-        if (this.rawPointer == null) {
+        if (this.isConsumed()) {
             throw new NullPointerException(this.getClass() + " consumed");
         }
     }
 
-    Pointer validPointer() {
+    T validPointer() {
         this.validate();
         return this.rawPointer;
     }
@@ -52,9 +53,9 @@ abstract class RustObject implements AutoCloseable {
     }
 
     /* package-local */
-    Pointer consumePointer() {
+    T consumePointer() {
         this.validate();
-        Pointer p = this.rawPointer;
+        T p = this.rawPointer;
         this.rawPointer = null;
         return p;
     }
@@ -95,7 +96,7 @@ abstract class RustObject implements AutoCloseable {
         }
     }
 
-    abstract protected void destroyPointer(Pointer p);
+    abstract protected void destroyPointer(T p);
 
     @Override
     public void close() {

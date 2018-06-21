@@ -15,24 +15,24 @@ import com.sun.jna.Pointer;
 /**
  * Iterator for a {@link CollResult}
  */
-public class ColResultIterator extends RustIterator<TypedValue> {
+public class ColResultIterator extends RustIterator<JNA.TypedValueListIter, JNA.TypedValue, TypedValue> {
 
-    ColResultIterator(Pointer iterator) {
+    ColResultIterator(JNA.TypedValueListIter iterator) {
         super(iterator);
     }
 
     @Override
-    protected Pointer advanceIterator() {
+    protected JNA.TypedValue advanceIterator() {
         return JNA.INSTANCE.typed_value_list_iter_next(this.validPointer());
     }
 
     @Override
-    protected TypedValue constructItem(Pointer p) {
+    protected TypedValue constructItem(JNA.TypedValue p) {
         return new TypedValue(p);
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.TypedValueListIter p) {
         JNA.INSTANCE.typed_value_list_iter_destroy(p);
     }
 }

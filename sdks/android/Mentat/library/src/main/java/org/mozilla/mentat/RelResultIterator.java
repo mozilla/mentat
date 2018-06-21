@@ -15,24 +15,24 @@ import com.sun.jna.Pointer;
 /**
  * Iterator for a {@link RelResult}
  */
-public class RelResultIterator extends RustIterator<TupleResult> {
+public class RelResultIterator extends RustIterator<JNA.RelResultIter, JNA.TypedValueList, TupleResult> {
 
-    RelResultIterator(Pointer iterator) {
+    RelResultIterator(JNA.RelResultIter iterator) {
         super(iterator);
     }
 
     @Override
-    protected Pointer advanceIterator() {
+    protected JNA.TypedValueList advanceIterator() {
         return JNA.INSTANCE.typed_value_result_set_iter_next(this.validPointer());
     }
 
     @Override
-    protected TupleResult constructItem(Pointer p) {
+    protected TupleResult constructItem(JNA.TypedValueList p) {
         return new TupleResult(p);
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.RelResultIter p) {
         JNA.INSTANCE.typed_value_result_set_iter_destroy(p);
     }
 }

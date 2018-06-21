@@ -33,13 +33,13 @@ import java.util.Date;
  * long aEntid = report.getEntidForTempId("a");
  *}</pre>
  */
-public class TxReport extends RustObject {
+public class TxReport extends RustObject<JNA.TxReport> {
 
     private Long txId;
     private Date txInstant;
 
 
-    public TxReport(Pointer pointer) {
+    public TxReport(JNA.TxReport pointer) {
         super(pointer);
     }
 
@@ -84,7 +84,7 @@ public class TxReport extends RustObject {
     }
 
     @Override
-    protected void destroyPointer(Pointer p) {
+    protected void destroyPointer(JNA.TxReport p) {
         JNA.INSTANCE.tx_report_destroy(p);
     }
 }
