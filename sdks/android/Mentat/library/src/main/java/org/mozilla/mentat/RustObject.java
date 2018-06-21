@@ -37,14 +37,14 @@ abstract class RustObject<T extends PointerType> implements AutoCloseable {
     /**
      * Throws a {@link NullPointerException} if the underlying {@link Pointer} is null.
      */
-    void validate() {
+    void assertValidPointer() {
         if (this.isConsumed()) {
             throw new NullPointerException(this.getClass() + " consumed");
         }
     }
 
     T validPointer() {
-        this.validate();
+        this.assertValidPointer();
         return this.rawPointer;
     }
 
@@ -54,7 +54,7 @@ abstract class RustObject<T extends PointerType> implements AutoCloseable {
 
     /* package-local */
     T consumePointer() {
-        this.validate();
+        this.assertValidPointer();
         T p = this.rawPointer;
         this.rawPointer = null;
         return p;

@@ -61,7 +61,7 @@ abstract class RustIterator<T extends PointerType, ItemPtr extends PointerType, 
     @Override
     public void close() {
         if (this.nextPointer != null) {
-            // clean up the next pointer by delegating to the iterated item -- this simplifies
+            // Clean up the next pointer by delegating to the iterated item -- this simplifies
             // iterator implementations, and keeps the cleanup code in one place.
             this.constructItem(this.consumeNextPointer());
         }

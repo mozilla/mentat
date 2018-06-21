@@ -10,10 +10,6 @@
 
 package org.mozilla.mentat;
 
-import android.support.annotation.NonNull;
-
-import com.sun.jna.Pointer;
-
 /**
  * Wraps a `Rel` result from a Mentat query.
  * A `Rel` result is a list of rows of `TypedValues`.
@@ -59,7 +55,7 @@ public class RelResult extends RustObject<JNA.RelResult> implements Iterable<Tup
      * @return  The row at the requested index as a `TupleResult`, if present, or nil if there is no row at that index.
      */
     public TupleResult rowAtIndex(int index) {
-        this.validate();
+        this.assertValidPointer();
         JNA.TypedValueList pointer = JNA.INSTANCE.row_at_index(this.validPointer(), index);
         if (pointer == null) {
             return null;

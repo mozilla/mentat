@@ -12,8 +12,6 @@ package org.mozilla.mentat;
 
 import android.util.Log;
 
-import com.sun.jna.Pointer;
-
 import java.util.Date;
 import java.util.UUID;
 
@@ -120,7 +118,7 @@ public class Query extends RustObject<JNA.QueryBuilder> {
      * @return  This {@link Query} such that further function can be called.
      */
     public Query bind(String varName, long value) {
-        this.validate();
+        this.assertValidPointer();
         JNA.INSTANCE.query_builder_bind_long(this.validPointer(), varName, value);
         return this;
     }

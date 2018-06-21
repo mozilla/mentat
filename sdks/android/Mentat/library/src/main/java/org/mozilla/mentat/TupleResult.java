@@ -129,8 +129,8 @@ public class TupleResult extends RustObject<JNA.TypedValueList> {
      * @return  The {@link String} at that index.
      */
     public String asString(Integer index) {
-            return getAndConsumeMentatString(
-                    JNA.INSTANCE.value_at_index_into_string(this.validPointer(), index));
+        return getAndConsumeMentatString(
+            JNA.INSTANCE.value_at_index_into_string(this.validPointer(), index));
     }
 
     /**
