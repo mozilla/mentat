@@ -1,3 +1,9 @@
+---
+layout: post
+title:  "Worked examples of modeling data using Mentat"
+date:   2018-04-17 16:07:37 +0100
+categories: mentat examples
+---
 # Worked examples of modeling data using Mentat
 
 Used correctly, Mentat makes it easy for you to grow to accommodate new kinds of data, for data to synchronize between devices, for multiple consumers to share data, and even for errors to be fixed.
