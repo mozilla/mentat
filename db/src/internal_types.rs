@@ -31,7 +31,7 @@ use edn::{
 
 use errors;
 use errors::{
-    ErrorKind,
+    DbError,
     Result,
 };
 use schema::{
@@ -69,7 +69,7 @@ impl TransactableValue for ValueAndSpan {
                     Ok(EntityPlace::Entid(entities::Entid::Ident(v)))
                 } else {
                     // We only allow namespaced idents.
-                    bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace))
+                    bail!(DbError::InputError(errors::InputError::BadEntityPlace))
                 }
             },
             Text(v) => Ok(EntityPlace::TempId(TempId::External(v))),
@@ -86,10 +86,10 @@ impl TransactableValue for ValueAndSpan {
                             EntityPlace::Entid(a) => Ok(EntityPlace::LookupRef(entities::LookupRef { a: entities::AttributePlace::Entid(a), v: v.clone() })),
                             EntityPlace::TempId(_) |
                             EntityPlace::TxFunction(_) |
-                            EntityPlace::LookupRef(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+                            EntityPlace::LookupRef(_) => bail!(DbError::InputError(errors::InputError::BadEntityPlace)),
                         }
                     },
-                    _ => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+                    _ => bail!(DbError::InputError(errors::InputError::BadEntityPlace)),
                 }
             },
             Nil |
@@ -102,7 +102,7 @@ impl TransactableValue for ValueAndSpan {
             NamespacedSymbol(_) |
             Vector(_) |
             Set(_) |
-            Map(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+            Map(_) => bail!(DbError::InputError(errors::InputError::BadEntityPlace)),
         }
     }
 
@@ -114,7 +114,7 @@ impl TransactableValue for ValueAndSpan {
 impl TransactableValue for TypedValue {
     fn into_typed_value(self, _schema: &Schema, value_type: ValueType) -> Result<TypedValue> {
         if self.value_type() != value_type {
-            bail!(ErrorKind::BadValuePair(format!("{:?}", self), value_type));
+            bail!(DbError::BadValuePair(format!("{:?}", self), value_type));
         }
         Ok(self)
     }
@@ -128,7 +128,7 @@ impl TransactableValue for TypedValue {
             TypedValue::Long(_) |
             TypedValue::Double(_) |
             TypedValue::Instant(_) |
-            TypedValue::Uuid(_) => bail!(ErrorKind::InputError(errors::InputError::BadEntityPlace)),
+            TypedValue::Uuid(_) => bail!(DbError::InputError(errors::InputError::BadEntityPlace)),
         }
     }
 
@@ -199,7 +199,7 @@ pub fn replace_lookup_ref<T, U>(lookup_map: &AVMap, desired_or: Either<T, Lookup
                 LookupRefOrTempId::LookupRef(av) => lookup_map.get(&*av)
                     .map(|x| lift(*x)).map(Left)
                     // XXX TODO: fix this error kind!
-                    .ok_or_else(|| ErrorKind::UnrecognizedIdent(format!("couldn't lookup [a v]: {:?}", (*av).clone())).into()),
+                    .ok_or_else(|| DbError::UnrecognizedIdent(format!("couldn't lookup [a v]: {:?}", (*av).clone())).into()),
             }
         }
     }

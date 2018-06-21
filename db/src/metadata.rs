@@ -24,6 +24,8 @@
 //!
 //! This module recognizes, validates, applies, and reports on these mutations.
 
+use failure::ResultExt;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
 
@@ -33,9 +35,8 @@ use add_retract_alter_set::{
 use edn::symbols;
 use entids;
 use errors::{
-    ErrorKind,
+    DbError,
     Result,
-    ResultExt,
 };
 use mentat_core::{
     attribute,
@@ -131,7 +132,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                         builder.component(false);
                     },
                     v => {
-                        bail!(ErrorKind::BadSchemaAssertion(format!("Attempted to retract :db/isComponent with the wrong value {:?}.", v)));
+                        bail!(DbError::BadSchemaAssertion(format!("Attempted to retract :db/isComponent with the wrong value {:?}.", v)));
                     },
                 }
             },
@@ -146,15 +147,15 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                                 builder.non_unique();
                             },
                             v => {
-                                bail!(ErrorKind::BadSchemaAssertion(format!("Attempted to retract :db/unique with the wrong value {}.", v)));
+                                bail!(DbError::BadSchemaAssertion(format!("Attempted to retract :db/unique with the wrong value {}.", v)));
                             },
                         }
                     },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [:db/retract _ :db/unique :db.unique/_] but got [:db/retract {} :db/unique {:?}]", entid, value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [:db/retract _ :db/unique :db.unique/_] but got [:db/retract {} :db/unique {:?}]", entid, value)))
                 }
             },
             _ => {
-                bail!(ErrorKind::BadSchemaAssertion(format!("Retracting attribute {} for entity {} not permitted.", attr, entid)));
+                bail!(DbError::BadSchemaAssertion(format!("Retracting attribute {} for entity {} not permitted.", attr, entid)));
             },
         }
     }
@@ -168,7 +169,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
             entids::DB_DOC => {
                 match *value {
                     TypedValue::String(_) => {},
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/doc \"string value\"] but got [... :db/doc {:?}] for entid {} and attribute {}", value, entid, attr)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/doc \"string value\"] but got [... :db/doc {:?}] for entid {} and attribute {}", value, entid, attr)))
                 }
             },
 
@@ -182,7 +183,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                     TypedValue::Ref(entids::DB_TYPE_REF)     => { builder.value_type(ValueType::Ref); },
                     TypedValue::Ref(entids::DB_TYPE_STRING)  => { builder.value_type(ValueType::String); },
                     TypedValue::Ref(entids::DB_TYPE_UUID)    => { builder.value_type(ValueType::Uuid); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid {} and attribute {}", value, entid, attr)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid {} and attribute {}", value, entid, attr)))
                 }
             },
 
@@ -190,7 +191,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                 match *value {
                     TypedValue::Ref(entids::DB_CARDINALITY_MANY) => { builder.multival(true); },
                     TypedValue::Ref(entids::DB_CARDINALITY_ONE) => { builder.multival(false); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]", value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]", value)))
                 }
             },
 
@@ -198,40 +199,40 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                 match *value {
                     TypedValue::Ref(entids::DB_UNIQUE_VALUE) => { builder.unique(attribute::Unique::Value); },
                     TypedValue::Ref(entids::DB_UNIQUE_IDENTITY) => { builder.unique(attribute::Unique::Identity); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]", value)))
                 }
             },
 
             entids::DB_INDEX => {
                 match *value {
                     TypedValue::Boolean(x) => { builder.index(x); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/index true|false] but got [... :db/index {:?}]", value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/index true|false] but got [... :db/index {:?}]", value)))
                 }
             },
 
             entids::DB_FULLTEXT => {
                 match *value {
                     TypedValue::Boolean(x) => { builder.fulltext(x); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]", value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]", value)))
                 }
             },
 
             entids::DB_IS_COMPONENT => {
                 match *value {
                     TypedValue::Boolean(x) => { builder.component(x); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]", value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]", value)))
                 }
             },
 
             entids::DB_NO_HISTORY => {
                 match *value {
                     TypedValue::Boolean(x) => { builder.no_history(x); },
-                    _ => bail!(ErrorKind::BadSchemaAssertion(format!("Expected [... :db/noHistory true|false] but got [... :db/noHistory {:?}]", value)))
+                    _ => bail!(DbError::BadSchemaAssertion(format!("Expected [... :db/noHistory true|false] but got [... :db/noHistory {:?}]", value)))
                 }
             },
 
             _ => {
-                bail!(ErrorKind::BadSchemaAssertion(format!("Do not recognize attribute {} for entid {}", attr, entid)))
+                bail!(DbError::BadSchemaAssertion(format!("Do not recognize attribute {} for entid {}", attr, entid)))
             }
         }
     };
@@ -243,8 +244,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
         match attribute_map.entry(entid) {
             Entry::Vacant(entry) => {
                 // Validate once…
-                builder.validate_install_attribute()
-                       .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for new attribute with entid {} is not valid", entid)))?;
+                builder.validate_install_attribute().context(DbError::BadSchemaAssertion(format!("Schema alteration for new attribute with entid {} is not valid", entid)))?;
 
                 // … and twice, now we have the Attribute.
                 let a = builder.build();
@@ -254,8 +254,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
             },
 
             Entry::Occupied(mut entry) => {
-                builder.validate_alter_attribute()
-                       .chain_err(|| ErrorKind::BadSchemaAssertion(format!("Schema alteration for existing attribute with entid {} is not valid", entid)))?;
+                builder.validate_alter_attribute().context(DbError::BadSchemaAssertion(format!("Schema alteration for existing attribute with entid {} is not valid", entid)))?;
                 let mutations = builder.mutate(entry.get_mut());
                 attributes_altered.insert(entid, mutations);
             },

@@ -20,6 +20,8 @@ test = false
 [dependencies]
 combine = "2.2.2"
 env_logger = "0.5"
+failure = "0.1.1"
+failure_derive = "0.1.1"
 getopts = "0.2"
 lazy_static = "0.2"
 linefeed = "0.4"
@@ -28,7 +30,6 @@ tabwriter = "1"
 tempfile = "1.1"
 termion = "1"
 time = "0.1"
-error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
 
 [dependencies.rusqlite]
 version = "0.13"

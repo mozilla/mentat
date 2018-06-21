@@ -67,7 +67,7 @@ pub mod error {
     use super::strings::string_to_c_char;
     use std::os::raw::c_char;
     use std::boxed::Box;
-    use std::error::Error;
+    use std::fmt::Display;
     use std::ptr;
 
     /// Represents an error that occurred on the mentat side. Many mentat FFI functions take a
@@ -108,7 +108,7 @@ pub mod error {
     ///   message (which was allocated on the heap and should eventually be freed) into
     ///   `error.message`
     pub unsafe fn translate_result<T, E>(result: Result<T, E>, error: *mut ExternError) -> *mut T
-    where E: Error {
+    where E: Display {
         // TODO: can't unwind across FFI...
         assert!(!error.is_null(), "Error output parameter is not optional");
         let error = &mut *error;
@@ -132,7 +132,7 @@ pub mod error {
     ///   message (which was allocated on the heap and should eventually be freed) into
     ///   `error.message`
     pub unsafe fn translate_opt_result<T, E>(result: Result<Option<T>, E>, error: *mut ExternError) -> *mut T
-    where E: Error {
+    where E: Display {
         assert!(!error.is_null(), "Error output parameter is not optional");
         let error = &mut *error;
         error.message = ptr::null_mut();
@@ -148,7 +148,7 @@ pub mod error {
 
     /// Identical to `translate_result`, but with additional type checking for the case that we have
     /// a `Result<(), E>` (which we're about to drop on the floor).
-    pub unsafe fn translate_void_result<E>(result: Result<(), E>, error: *mut ExternError) where E: Error {
+    pub unsafe fn translate_void_result<E>(result: Result<(), E>, error: *mut ExternError) where E: Display {
         // Note that Box<T> guarantees that if T is zero sized, it's not heap allocated. So not
         // only do we never need to free the return value of this, it would be a problem if someone did.
         translate_result(result, error);

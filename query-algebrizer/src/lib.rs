@@ -8,10 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![recursion_limit="128"]
+extern crate failure;
 
-#[macro_use]
-extern crate error_chain;
+#[macro_use] extern crate failure_derive;
 
 extern crate mentat_core;
 extern crate mentat_query;
@@ -20,6 +19,7 @@ use std::collections::BTreeSet;
 use std::ops::Sub;
 use std::rc::Rc;
 
+#[macro_use]
 mod errors;
 mod types;
 mod validate;
@@ -48,10 +48,10 @@ use mentat_query::{
 };
 
 pub use errors::{
+    AlgebrizerError,
     BindingError,
-    Error,
-    ErrorKind,
     Result,
+    InvalidBinding,
 };
 
 pub use clauses::{
@@ -216,7 +216,7 @@ fn validate_and_simplify_order(cc: &ConjoiningClauses, order: Option<Vec<Order>>
 
                 // Fail if the var isn't bound by the query.
                 if !cc.column_bindings.contains_key(&var) {
-                    bail!(ErrorKind::UnboundVariable(var.name()));
+                    bail!(AlgebrizerError::UnboundVariable(var.name()))
                 }
 
                 // Otherwise, determine if we also need to order by type…
@@ -242,14 +242,14 @@ fn simplify_limit(mut query: AlgebraicQuery) -> Result<AlgebraicQuery> {
                     Some(TypedValue::Long(n)) => {
                         if n <= 0 {
                             // User-specified limits should always be natural numbers (> 0).
-                            bail!(ErrorKind::InvalidLimit(n.to_string(), ValueType::Long));
+                            bail!(AlgebrizerError::InvalidLimit(n.to_string(), ValueType::Long))
                         } else {
                             Some(Limit::Fixed(n as u64))
                         }
                     },
                     Some(val) => {
                         // Same.
-                        bail!(ErrorKind::InvalidLimit(format!("{:?}", val), val.value_type()));
+                        bail!(AlgebrizerError::InvalidLimit(format!("{:?}", val), val.value_type()))
                     },
                     None => {
                         // We know that the limit variable is mentioned in `:in`.
@@ -357,7 +357,7 @@ impl FindQuery {
 
             for var in parsed.in_vars.into_iter() {
                 if !set.insert(var.clone()) {
-                    bail!(ErrorKind::DuplicateVariableError(var.name(), ":in"));
+                    bail!(AlgebrizerError::DuplicateVariableError(var.name(), ":in"));
                 }
             }
 
@@ -369,7 +369,7 @@ impl FindQuery {
 
             for var in parsed.with.into_iter() {
                 if !set.insert(var.clone()) {
-                    bail!(ErrorKind::DuplicateVariableError(var.name(), ":with"));
+                    bail!(AlgebrizerError::DuplicateVariableError(var.name(), ":with"));
                 }
             }
 
@@ -379,7 +379,7 @@ impl FindQuery {
         // Make sure that if we have `:limit ?x`, `?x` appears in `:in`.
         if let Limit::Variable(ref v) = parsed.limit {
             if !in_vars.contains(v) {
-                bail!(ErrorKind::UnknownLimitVar(v.name()));
+                bail!(AlgebrizerError::UnknownLimitVar(v.name()));
             }
         }
 

@@ -8,7 +8,8 @@ default = []
 sqlcipher = ["rusqlite/sqlcipher"]
 
 [dependencies]
-error-chain = { git = "https://github.com/rnewman/error-chain", branch = "rnewman/sync" }
+failure = "0.1.1"
+failure_derive = "0.1.1"
 indexmap = "1"
 itertools = "0.7"
 lazy_static = "0.2"

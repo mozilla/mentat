@@ -68,8 +68,12 @@
 //! `Result<T, E>` as a `*mut T` while writing any error to the `ExternError` are provided as
 //! `translate_result`, `translate_opt_result` (for `Result<Option<T>>`) and `translate_void_result`
 //! (for `Result<(), T>`). Callers are responsible for freeing the `message` field of `ExternError`.
+
+extern crate core;
 extern crate libc;
 extern crate mentat;
+
+use core::fmt::Display;
 
 use std::collections::{
     BTreeSet,
@@ -170,7 +174,6 @@ pub struct TxChangeList {
     pub len: c_ulonglong,
 }
 
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct InProgressTransactResult<'a, 'c> {
@@ -182,7 +185,7 @@ pub struct InProgressTransactResult<'a, 'c> {
 
 impl<'a, 'c> InProgressTransactResult<'a, 'c> {
     // This takes a tuple so that we can pass the result of `transact()` into it directly.
-    unsafe fn from_transact<E: std::error::Error>(tuple: (InProgress<'a, 'c>, Result<TxReport, E>)) -> Self {
+    unsafe fn from_transact<E: Display>(tuple: (InProgress<'a, 'c>, Result<TxReport, E>)) -> Self {
         let (in_progress, tx_result) = tuple;
         let mut err = ExternError::default();
         let tx_report = translate_result(tx_result, (&mut err) as *mut ExternError);

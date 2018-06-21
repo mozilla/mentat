@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use schema;
 use errors::{
-    ErrorKind,
+    TolstoyError,
     Result,
 };
 
@@ -42,7 +42,7 @@ impl HeadTrackable for SyncMetadataClient {
         let updated = tx.execute("UPDATE tolstoy_metadata SET value = ? WHERE key = ?",
             &[&uuid_bytes, &schema::REMOTE_HEAD_KEY])?;
         if updated != 1 {
-            bail!(ErrorKind::DuplicateMetadata(schema::REMOTE_HEAD_KEY.into()));
+            bail!(TolstoyError::DuplicateMetadata(schema::REMOTE_HEAD_KEY.into()));
         }
         Ok(())
     }

@@ -33,7 +33,7 @@ use mentat_query_sql::{
 };
 
 use errors::{
-    ErrorKind,
+    ProjectorError,
     Result,
 };
 
@@ -79,7 +79,7 @@ impl SimpleAggregationOp {
     pub(crate) fn is_applicable_to_types(&self, possibilities: ValueTypeSet) -> Result<ValueType> {
         use self::SimpleAggregationOp::*;
         if possibilities.is_empty() {
-            bail!(ErrorKind::CannotProjectImpossibleBinding(*self))
+            bail!(ProjectorError::CannotProjectImpossibleBinding(*self))
         }
 
         match self {
@@ -92,7 +92,7 @@ impl SimpleAggregationOp {
                     // The mean of a set of numeric values will always, for our purposes, be a double.
                     Ok(ValueType::Double)
                 } else {
-                    bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                    bail!(ProjectorError::CannotApplyAggregateOperationToTypes(*self, possibilities))
                 }
             },
             &Sum => {
@@ -104,7 +104,7 @@ impl SimpleAggregationOp {
                         Ok(ValueType::Long)
                     }
                 } else {
-                    bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                    bail!(ProjectorError::CannotApplyAggregateOperationToTypes(*self, possibilities))
                 }
             },
 
@@ -124,7 +124,7 @@ impl SimpleAggregationOp {
 
                         // These types are unordered.
                         Keyword | Ref | Uuid => {
-                            bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                            bail!(ProjectorError::CannotApplyAggregateOperationToTypes(*self, possibilities))
                         },
                     }
                 } else {
@@ -139,7 +139,7 @@ impl SimpleAggregationOp {
                             Ok(ValueType::Long)
                         }
                     } else {
-                        bail!(ErrorKind::CannotApplyAggregateOperationToTypes(*self, possibilities))
+                        bail!(ProjectorError::CannotApplyAggregateOperationToTypes(*self, possibilities))
                     }
                 }
             },

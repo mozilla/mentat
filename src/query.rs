@@ -74,7 +74,7 @@ pub use mentat_query_projector::{
 };
 
 use errors::{
-    ErrorKind,
+    MentatError,
     Result,
 };
 
@@ -178,7 +178,7 @@ fn algebrize_query<T>
     // If they aren't, the user has made an error -- perhaps writing the wrong variable in `:in`, or
     // not binding in the `QueryInput`.
     if !unbound.is_empty() {
-        bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
+        bail!(MentatError::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
     }
     Ok(algebrized)
 }
@@ -211,7 +211,7 @@ fn fetch_values<'sqlite>
 
 fn lookup_attribute(schema: &Schema, attribute: &Keyword) -> Result<KnownEntid> {
     schema.get_entid(attribute)
-          .ok_or_else(|| ErrorKind::UnknownAttribute(attribute.name().into()).into())
+          .ok_or_else(|| MentatError::UnknownAttribute(attribute.name().into()).into())
 }
 
 /// Return a single value for the provided entity and attribute.
@@ -398,7 +398,7 @@ pub fn q_prepare<'sqlite, 'schema, 'cache, 'query, T>
     if !unbound.is_empty() {
         // TODO: Allow binding variables at execution time, not just
         // preparation time.
-        bail!(ErrorKind::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
+        bail!(MentatError::UnboundVariables(unbound.into_iter().map(|v| v.to_string()).collect()));
     }
 
     if algebrized.is_known_empty() {

@@ -31,7 +31,7 @@ use metadata::HeadTrackable;
 use schema::ensure_current_version;
 
 use errors::{
-    ErrorKind,
+    TolstoyError,
     Result,
 };
 
@@ -179,7 +179,7 @@ impl Syncer {
         let mut uploader = UploadingTxReceiver::new(remote_client, remote_head);
         Processor::process(db_tx, from_tx, &mut uploader)?;
         if !uploader.is_done {
-            bail!(ErrorKind::TxProcessorUnfinished);
+            bail!(TolstoyError::TxProcessorUnfinished);
         }
         // Last tx uuid uploaded by the tx receiver.
         // It's going to be our new head.
@@ -222,7 +222,7 @@ impl Syncer {
         // without walking the table at all, and use the tx index.
         Processor::process(&db_tx, None, &mut inquiring_tx_receiver)?;
         if !inquiring_tx_receiver.is_done {
-            bail!(ErrorKind::TxProcessorUnfinished);
+            bail!(TolstoyError::TxProcessorUnfinished);
         }
         let have_local_changes = match inquiring_tx_receiver.last_tx {
             Some(tx) => {
@@ -257,7 +257,7 @@ impl Syncer {
                 Syncer::upload_ours(&mut db_tx, Some(upload_from_tx), &remote_client, &remote_head)?;
             } else {
                 d(&format!("Unable to fast-forward the server; missing local tx mapping"));
-                bail!(ErrorKind::TxIncorrectlyMapped(0));
+                bail!(TolstoyError::TxIncorrectlyMapped(0));
             }
             
         // We diverged from the server.
@@ -265,7 +265,7 @@ impl Syncer {
         } else {
             d(&format!("server changed since last sync."));
 
-            bail!(ErrorKind::NotYetImplemented(
+            bail!(TolstoyError::NotYetImplemented(
                 format!("Can't yet sync against changed server. Local head {:?}, remote head {:?}", locally_known_remote_head, remote_head)
             ));
         }

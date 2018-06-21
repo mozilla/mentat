@@ -10,6 +10,8 @@
 
 #![allow(dead_code)]
 
+use failure::ResultExt;
+
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::collections::hash_map::{
@@ -53,7 +55,11 @@ use mentat_core::{
     ValueRc,
 };
 
-use errors::{ErrorKind, Result, ResultExt};
+use errors::{
+    DbError,
+    Result,
+    DbSqlErrorKind,
+};
 use metadata;
 use schema::{
     SchemaBuilding,
@@ -251,8 +257,8 @@ lazy_static! {
 /// documentation](https://www.sqlite.org/pragma.html#pragma_user_version).
 fn set_user_version(conn: &rusqlite::Connection, version: i32) -> Result<()> {
     conn.execute(&format!("PRAGMA user_version = {}", version), &[])
-        .chain_err(|| "Could not set_user_version")
-        .map(|_| ())
+        .context(DbSqlErrorKind::CouldNotSetVersionPragma)?;
+    Ok(())
 }
 
 /// Get the SQLite user version.
@@ -260,10 +266,10 @@ fn set_user_version(conn: &rusqlite::Connection, version: i32) -> Result<()> {
 /// Mentat manages its own SQL schema version using the user version.  See the [SQLite
 /// documentation](https://www.sqlite.org/pragma.html#pragma_user_version).
 fn get_user_version(conn: &rusqlite::Connection) -> Result<i32> {
-    conn.query_row("PRAGMA user_version", &[], |row| {
+    let v = conn.query_row("PRAGMA user_version", &[], |row| {
         row.get(0)
-    })
-        .chain_err(|| "Could not get_user_version")
+    }).context(DbSqlErrorKind::CouldNotGetVersionPragma)?;
+    Ok(v)
 }
 
 /// Do just enough work that either `create_current_version` or sync can populate the DB.
@@ -303,8 +309,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     // TODO: validate metadata mutations that aren't schema related, like additional partitions.
     if let Some(next_schema) = next_schema {
         if next_schema != db.schema {
-            // TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117
-            bail!(ErrorKind::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
+            bail!(DbError::NotYetImplemented(format!("Initial bootstrap transaction did not produce expected bootstrap schema")));
         }
     }
 
@@ -326,7 +331,7 @@ pub fn ensure_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
         CURRENT_VERSION => read_db(conn),
 
         // TODO: support updating an existing store.
-        v => bail!(ErrorKind::NotYetImplemented(format!("Opening databases with Mentat version: {}", v))),
+        v => bail!(DbError::NotYetImplemented(format!("Opening databases with Mentat version: {}", v))),
     }
 }
 
@@ -356,7 +361,7 @@ impl TypedSQLValue for TypedValue {
                 let u = Uuid::from_bytes(x.as_slice());
                 if u.is_err() {
                     // Rather than exposing Uuid's ParseError…
-                    bail!(ErrorKind::BadSQLValuePair(rusqlite::types::Value::Blob(x),
+                    bail!(DbError::BadSQLValuePair(rusqlite::types::Value::Blob(x),
                                                      value_type_tag));
                 }
                 Ok(TypedValue::Uuid(u.unwrap()))
@@ -364,7 +369,7 @@ impl TypedSQLValue for TypedValue {
             (13, rusqlite::types::Value::Text(x)) => {
                 to_namespaced_keyword(&x).map(|k| k.into())
             },
-            (_, value) => bail!(ErrorKind::BadSQLValuePair(value, value_type_tag)),
+            (_, value) => bail!(DbError::BadSQLValuePair(value, value_type_tag)),
         }
     }
 
@@ -447,12 +452,12 @@ fn read_ident_map(conn: &rusqlite::Connection) -> Result<IdentMap> {
     let v = read_materialized_view(conn, "idents")?;
     v.into_iter().map(|(e, a, typed_value)| {
         if a != entids::DB_IDENT {
-            bail!(ErrorKind::NotYetImplemented(format!("bad idents materialized view: expected :db/ident but got {}", a)));
+            bail!(DbError::NotYetImplemented(format!("bad idents materialized view: expected :db/ident but got {}", a)));
         }
         if let TypedValue::Keyword(keyword) = typed_value {
             Ok((keyword.as_ref().clone(), e))
         } else {
-            bail!(ErrorKind::NotYetImplemented(format!("bad idents materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]", typed_value)));
+            bail!(DbError::NotYetImplemented(format!("bad idents materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]", typed_value)));
         }
     }).collect()
 }
@@ -546,9 +551,8 @@ fn search(conn: &rusqlite::Connection) -> Result<()> {
          t.a0 = d.a"#;
 
     let mut stmt = conn.prepare_cached(s)?;
-    stmt.execute(&[])
-        .map(|_c| ())
-        .chain_err(|| "Could not search!")
+    stmt.execute(&[]).context(DbSqlErrorKind::CouldNotSearch)?;
+    Ok(())
 }
 
 /// Insert the new transaction into the `transactions` table.
@@ -570,9 +574,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
       WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
 
     let mut stmt = conn.prepare_cached(s)?;
-    stmt.execute(&[&tx])
-        .map(|_c| ())
-        .chain_err(|| "Could not insert transaction: failed to add datoms not already present")?;
+    stmt.execute(&[&tx]).context(DbSqlErrorKind::TxInsertFailedToAddMissingDatoms)?;
 
     let s = r#"
       INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
@@ -583,9 +585,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
              (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v))"#;
 
     let mut stmt = conn.prepare_cached(s)?;
-    stmt.execute(&[&tx])
-        .map(|_c| ())
-        .chain_err(|| "Could not insert transaction: failed to retract datoms already present")?;
+    stmt.execute(&[&tx]).context(DbSqlErrorKind::TxInsertFailedToRetractDatoms)?;
 
     Ok(())
 }
@@ -607,9 +607,7 @@ fn update_datoms(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
         DELETE FROM datoms WHERE rowid IN ids"#;
 
     let mut stmt = conn.prepare_cached(s)?;
-    stmt.execute(&[])
-        .map(|_c| ())
-        .chain_err(|| "Could not update datoms: failed to retract datoms already present")?;
+    stmt.execute(&[]).context(DbSqlErrorKind::DatomsUpdateFailedToRetract)?;
 
     // Insert datoms that were added and not already present. We also must expand our bitfield into
     // flags.  Since Mentat follows Datomic and treats its input as a set, it is okay to transact
@@ -632,10 +630,7 @@ fn update_datoms(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
       AttributeBitFlags::UniqueValue as u8);
 
     let mut stmt = conn.prepare_cached(&s)?;
-    stmt.execute(&[&tx])
-        .map(|_c| ())
-        .chain_err(|| "Could not update datoms: failed to add datoms not already present")?;
-
+    stmt.execute(&[&tx]).context(DbSqlErrorKind::DatomsUpdateFailedToAdd)?;
     Ok(())
 }
 
@@ -762,9 +757,7 @@ impl MentatStoring for rusqlite::Connection {
 
         for statement in &statements {
             let mut stmt = self.prepare_cached(statement)?;
-            stmt.execute(&[])
-                .map(|_c| ())
-                .chain_err(|| "Failed to create temporary tables")?;
+            stmt.execute(&[]).context(DbSqlErrorKind::FailedToCreateTempTables)?;
         }
 
         Ok(())
@@ -827,8 +820,9 @@ impl MentatStoring for rusqlite::Connection {
             // TODO: consider ensuring we inserted the expected number of rows.
             let mut stmt = self.prepare_cached(s.as_str())?;
             stmt.execute(&params)
+                .context(DbSqlErrorKind::NonFtsInsertionIntoTempSearchTableFailed)
+                .map_err(|e| e.into())
                 .map(|_c| ())
-                .chain_err(|| "Could not insert non-fts one statements into temporary search table!")
         }).collect::<Result<Vec<()>>>();
 
         results.map(|_| ())
@@ -886,7 +880,7 @@ impl MentatStoring for rusqlite::Connection {
                         }
                     },
                     _ => {
-                        bail!("Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string");
+                        bail!(DbError::WrongTypeValueForFtsAssertion);
                     },
                 }
 
@@ -913,9 +907,7 @@ impl MentatStoring for rusqlite::Connection {
 
             // TODO: consider ensuring we inserted the expected number of rows.
             let mut stmt = self.prepare_cached(fts_s.as_str())?;
-            stmt.execute(&fts_params)
-                .map(|_c| ())
-                .chain_err(|| "Could not insert fts values into fts table!")?;
+            stmt.execute(&fts_params).context(DbSqlErrorKind::FtsInsertionFailed)?;
 
             // Second, insert searches.
             // `params` reference computed values in `block`.
@@ -943,17 +935,14 @@ impl MentatStoring for rusqlite::Connection {
 
             // TODO: consider ensuring we inserted the expected number of rows.
             let mut stmt = self.prepare_cached(s.as_str())?;
-            stmt.execute(&params)
+            stmt.execute(&params).context(DbSqlErrorKind::FtsInsertionIntoTempSearchTableFailed)
+                .map_err(|e| e.into())
                 .map(|_c| ())
-                .chain_err(|| "Could not insert FTS statements into temporary search table!")
         }).collect::<Result<Vec<()>>>();
 
         // Finally, clean up temporary searchids.
         let mut stmt = self.prepare_cached("UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL")?;
-        stmt.execute(&[])
-            .map(|_c| ())
-            .chain_err(|| "Could not drop FTS search ids!")?;
-
+        stmt.execute(&[]).context(DbSqlErrorKind::FtsFailedToDropSearchIds)?;
         results.map(|_| ())
     }
 
@@ -985,7 +974,7 @@ pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &Partiti
     let max_vars = conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER) as usize;
     let max_partitions = max_vars / values_per_statement;
     if partition_map.len() > max_partitions {
-        bail!(ErrorKind::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
+        bail!(DbError::NotYetImplemented(format!("No more than {} partitions are supported", max_partitions)));
     }
 
     // Like "UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END".
@@ -1001,9 +990,8 @@ pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &Partiti
     // supported in the Clojure implementation at all, and might not be supported in Mentat soon,
     // so this is very low priority.
     let mut stmt = conn.prepare_cached(s.as_str())?;
-    stmt.execute(&params[..])
-        .map(|_c| ())
-        .chain_err(|| "Could not update partition map")
+    stmt.execute(&params[..]).context(DbSqlErrorKind::FailedToUpdatePartitionMap)?;
+    Ok(())
 }
 
 /// Update the metadata materialized views based on the given metadata report.
@@ -1062,8 +1050,8 @@ SELECT EXISTS
                     // error message in this case.
                     if unique_value_stmt.execute(&[to_bool_ref(attribute.unique.is_some()), &entid as &ToSql]).is_err() {
                         match attribute.unique {
-                            Some(attribute::Unique::Value) => bail!(ErrorKind::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
-                            Some(attribute::Unique::Identity) => bail!(ErrorKind::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
+                            Some(attribute::Unique::Value) => bail!(DbError::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.unique/value", entid))),
+                            Some(attribute::Unique::Identity) => bail!(DbError::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.unique/identity", entid))),
                             None => unreachable!(), // This shouldn't happen, even after we support removing :db/unique.
                         }
                     }
@@ -1077,7 +1065,7 @@ SELECT EXISTS
                     if !attribute.multival {
                         let mut rows = cardinality_stmt.query(&[&entid as &ToSql])?;
                         if rows.next().is_some() {
-                            bail!(ErrorKind::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.cardinality/one", entid)));
+                            bail!(DbError::SchemaAlterationFailed(format!("Cannot alter schema attribute {} to be :db.cardinality/one", entid)));
                         }
                     }
                 },
@@ -2684,8 +2672,8 @@ mod tests {
 
         let report = conn.transact_simple_terms(terms, InternSet::new());
 
-        match report.unwrap_err() {
-            errors::Error(ErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms }), _) => {
+        match report.unwrap_err().downcast() {
+            Ok(DbError::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms })) => {
                 let mut map = BTreeMap::default();
                 map.insert((100, entids::DB_TX_INSTANT, TypedValue::Long(-1)), ValueType::Instant);
                 map.insert((200, entids::DB_IDENT, TypedValue::typed_string("test")), ValueType::Keyword);

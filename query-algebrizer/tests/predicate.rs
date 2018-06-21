@@ -31,8 +31,8 @@ use mentat_query::{
 };
 
 use mentat_query_algebrizer::{
+    AlgebrizerError,
     EmptyBecause,
-    ErrorKind,
     Known,
     QueryInputs,
 };
@@ -78,8 +78,8 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/date ?t]
                     [(> ?t "2017-06-16T00:56:41.257Z")]]"#;
-    match bails(known, query).0 {
-        ErrorKind::InvalidArgumentType(op, why, idx) => {
+    match bails(known, query).downcast().expect("proper cause") {
+        AlgebrizerError::InvalidArgumentType(op, why, idx) => {
             assert_eq!(op, PlainSymbol::plain(">"));
             assert_eq!(why, ValueTypeSet::of_numeric_and_instant_types());
             assert_eq!(idx, 1);
@@ -91,8 +91,8 @@ fn test_instant_predicates_require_instants() {
                     :where
                     [?e :foo/date ?t]
                     [(> "2017-06-16T00:56:41.257Z", ?t)]]"#;
-    match bails(known, query).0 {
-        ErrorKind::InvalidArgumentType(op, why, idx) => {
+    match bails(known, query).downcast().expect("proper cause") {
+        AlgebrizerError::InvalidArgumentType(op, why, idx) => {
             assert_eq!(op, PlainSymbol::plain(">"));
             assert_eq!(why, ValueTypeSet::of_numeric_and_instant_types());
             assert_eq!(idx, 0);                      // We get this right.

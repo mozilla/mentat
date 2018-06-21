@@ -10,12 +10,13 @@
 
 #![crate_name = "mentat_cli"]
 
+#[macro_use] extern crate failure_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
-#[macro_use] extern crate error_chain;
 
 extern crate combine;
 extern crate env_logger;
+extern crate failure;
 extern crate getopts;
 extern crate linefeed;
 extern crate rusqlite;
@@ -41,7 +42,12 @@ static GREEN: color::Rgb = color::Rgb(0x77, 0xFF, 0x99);
 pub mod command_parser;
 pub mod input;
 pub mod repl;
-pub mod errors;
+
+#[derive(Debug, Fail)]
+pub enum CliError {
+    #[fail(display = "{}", _0)]
+    CommandParse(String),
+}
 
 pub fn run() -> i32 {
     env_logger::init();
@@ -78,11 +84,10 @@ pub fn run() -> i32 {
     }
 
     // It's still possible to pass this in even if it's not a documented flag above.
-    let key = matches.opt_str("key");
-    if key.is_some() && !cfg!(feature = "sqlcipher") {
-        eprintln!("Decryption key provided, but this build does not have sqlcipher support");
-        return 1;
-    }
+    let key = match cfg!(feature = "sqlcipher") {
+        true => matches.opt_str("key"),
+        false => None,
+    };
 
     let mut last_arg: Option<&str> = None;
 
