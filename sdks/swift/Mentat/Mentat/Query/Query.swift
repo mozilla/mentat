@@ -245,14 +245,15 @@ open class Query: OptionalRustObject {
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
     open func run(callback: @escaping (RelResult?) -> Void) throws {
-        let result = query_builder_execute(try! self.validPointer())
+        var error = RustError(message: nil)
+        let result = query_builder_execute(try! self.validPointer(), &error);
         self.raw = nil
 
-        if let err = result.err {
+        if let err = error.message {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.ok else {
+        guard let results = result else {
             callback(nil)
             return
         }
@@ -269,18 +270,19 @@ open class Query: OptionalRustObject {
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
     open func runScalar(callback: @escaping (TypedValue?) -> Void) throws {
-        let result = query_builder_execute_scalar(try! self.validPointer())
+        var error = RustError(message: nil)
+        let result = query_builder_execute_scalar(try! self.validPointer(), &error)
         self.raw = nil
 
-        if let err = result.err {
+        if let err = error.message {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.ok else {
+        guard let results = result else {
             callback(nil)
             return
         }
-        callback(TypedValue(raw: OpaquePointer(results)))
+        callback(TypedValue(raw: results))
     }
 
     /**
@@ -293,14 +295,15 @@ open class Query: OptionalRustObject {
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
     open func runColl(callback: @escaping (ColResult?) -> Void) throws {
-        let result = query_builder_execute_coll(try! self.validPointer())
+        var error = RustError(message: nil)
+        let result = query_builder_execute_coll(try! self.validPointer(), &error)
         self.raw = nil
 
-        if let err = result.err {
+        if let err = error.message {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.ok else {
+        guard let results = result else {
             callback(nil)
             return
         }
@@ -317,18 +320,19 @@ open class Query: OptionalRustObject {
      - Throws: `PointerError.pointerConsumed` if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.
      */
     open func runTuple(callback: @escaping (TupleResult?) -> Void) throws {
-        let result = query_builder_execute_tuple(try! self.validPointer())
+        var error = RustError(message: nil)
+        let result = query_builder_execute_tuple(try! self.validPointer(), &error)
         self.raw = nil
 
-        if let err = result.err {
+        if let err = error.message {
             let message = String(destroyingMentatString: err)
             throw QueryError.executionFailed(message: message)
         }
-        guard let results = result.ok else {
+        guard let results = result else {
             callback(nil)
             return
         }
-        callback(TupleResult(raw: OpaquePointer(results)))
+        callback(TupleResult(raw: results))
     }
 
     override open func cleanup(pointer: OpaquePointer) {

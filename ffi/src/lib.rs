@@ -62,11 +62,12 @@
 //! wrapped inside a Rust closure and added to a [TxObserver](mentat::TxObserver) struct. This is then used to
 //! register the observer with the store.
 //!
-//! [Result](std::result::Result) and [Option](std::option::Option) Rust types have `repr(C)` structs that mirror them. This is to provide a more
-//! native access pattern to callers and to enable easier passing of optional types and error
-//! propogation. These types have implemented [From](std::convert::From) such that conversion from the Rust type
-//! to the C type is as painless as possible.
-
+//! Functions that may fail take an out parameter of type `*mut ExternError`. In the event the
+//! function fails, information about the error that occured will be stored inside it (and,
+//! typically, a null pointer will be returned). Convenience functions for unpacking a
+//! `Result<T, E>` as a `*mut T` while writing any error to the `ExternError` are provided as
+//! `translate_result`, `translate_opt_result` (for `Result<Option<T>>`) and `translate_void_result`
+//! (for `Result<(), T>`). Callers are responsible for freeing the `message` field of `ExternError`.
 extern crate libc;
 extern crate mentat;
 
@@ -127,6 +128,13 @@ pub use utils::strings::{
     string_to_c_char,
 };
 
+use utils::error::{
+    ExternError,
+    translate_result,
+    translate_opt_result,
+    translate_void_result,
+};
+
 pub use utils::log;
 
 // type aliases for iterator types.
@@ -145,12 +153,6 @@ macro_rules! assert_not_null {
 /// from a single transact.
 /// Holds a transaction identifier, the changes as a set of affected attributes
 /// and the length of the list of changes.
-///
-/// #Safety
-///
-/// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
-/// pointer type.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct TransactionChange {
@@ -159,14 +161,8 @@ pub struct TransactionChange {
     pub changes_len: c_ulonglong,
 }
 
- /// A C representation of the list of changes provided by the transaction observers.
- /// Provides the list of changes as the length of the list.
-///
-/// #Safety
-///
-/// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
-/// pointer type.
+/// A C representation of the list of changes provided by the transaction observers.
+/// Provides the list of changes as the length of the list.
 #[repr(C)]
 #[derive(Debug)]
 pub struct TxChangeList {
@@ -174,77 +170,35 @@ pub struct TxChangeList {
     pub len: c_ulonglong,
 }
 
-/// A C representation Rust's [Option](std::option::Option).
-/// A value of `Some` results in `value` containing a raw pointer as a `c_void`.
-/// A value of `None` results in `value` containing a null pointer.
-///
-/// #Safety
-///
-/// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
-/// pointer type.
-#[repr(C)]
-#[derive(Debug)]
-pub struct ExternOption {
-    pub value: *mut c_void,
-}
-
-impl<T> From<Option<T>> for ExternOption {
-    fn from(option: Option<T>) -> Self {
-        ExternOption {
-            value: option.map_or(std::ptr::null_mut(), |v| Box::into_raw(Box::new(v)) as *mut _ as *mut c_void)
-        }
-    }
-}
-
-/// A C representation Rust's [Result](std::result::Result).
-/// A value of `Ok` results in `ok` containing a raw pointer as a `c_void`
-/// and `err` containing a null pointer.
-/// A value of `Err` results in `value` containing a null pointer and `err` containing an error message.
-///
-/// #Safety
-///
-/// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
-/// pointer type.
-#[repr(C)]
-#[derive(Debug)]
-pub struct ExternResult {
-    pub ok: *const c_void,
-    pub err: *const c_char,
-}
-
-impl<T, E> From<Result<T, E>> for ExternResult where E: std::error::Error {
-    fn from(result: Result<T, E>) -> Self {
-        match result {
-            Ok(value) => {
-                ExternResult {
-                    err: std::ptr::null(),
-                    ok: Box::into_raw(Box::new(value)) as *const _ as *const c_void,
-                }
-            },
-            Err(e) => {
-                ExternResult {
-                    err: string_to_c_char(e.to_string()),
-                    ok: std::ptr::null(),
-                }
-            }
-        }
-    }
-}
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct InProgressTransactResult<'a, 'c> {
     pub in_progress: *mut InProgress<'a, 'c>,
-    pub result: ExternResult,
+    pub tx_report: *mut TxReport,
+    // TODO: This is a different usage pattern than most uses of ExternError. Is this bad?
+    pub err: ExternError,
+}
+
+impl<'a, 'c> InProgressTransactResult<'a, 'c> {
+    // This takes a tuple so that we can pass the result of `transact()` into it directly.
+    unsafe fn from_transact<E: std::error::Error>(tuple: (InProgress<'a, 'c>, Result<TxReport, E>)) -> Self {
+        let (in_progress, tx_result) = tuple;
+        let mut err = ExternError::default();
+        let tx_report = translate_result(tx_result, (&mut err) as *mut ExternError);
+        InProgressTransactResult {
+            in_progress: Box::into_raw(Box::new(in_progress)),
+            tx_report,
+            err
+        }
+    }
 }
 
 /// A store cannot be opened twice to the same location.
 /// Once created, the reference to the store is held by the caller and not Rust,
-/// therefore the caller is responsible for calling `destroy` to release the memory
+/// therefore the caller is responsible for calling `store_destroy` to release the memory
 /// used by the [Store](mentat::Store) in order to avoid a memory leak.
-// TODO: Start returning `ExternResult`s rather than crashing on error.
+// TODO: Take an `ExternError` parameter, rather than crashing on error.
 ///
 /// # Safety
 ///
@@ -281,28 +235,26 @@ pub extern "C" fn store_open_encrypted(uri: *const c_char, key: *const c_char) -
 /// performed together. This is more efficient than performing
 /// a large set of individual commits.
 ///
-/// Returns a [Result<TxReport>](mentat::TxReport) as an [ExternResult](ExternResult).
-///
 /// # Safety
 ///
 /// Callers must ensure that the pointer to the [Store](mentat::Store) is not dangling.
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `tx_report_destroy` is provided for releasing the memory for this
+/// A destructor `in_progress_destroy` is provided for releasing the memory for this
 /// pointer type.
 ///
 /// TODO: Document the errors that can result from begin_transaction
 #[no_mangle]
-pub unsafe extern "C" fn store_begin_transaction(store: *mut Store) -> ExternResult {
+pub unsafe extern "C" fn store_begin_transaction<'a, 'c>(store: *mut Store, error: *mut ExternError) -> *mut InProgress<'a, 'c> {
     assert_not_null!(store);
     let store = &mut *store;
-    store.begin_transaction().into()
+    translate_result(store.begin_transaction(), error)
 }
 
 /// Perform a single transact operation using the current in progress
 /// transaction. Takes edn as a string to transact.
 ///
-/// Returns a [Result<TxReport>](mentat::TxReport) as an [ExternResult](ExternResult).
+/// Returns a [Result<TxReport>](mentat::TxReport)
 ///
 /// # Safety
 ///
@@ -312,36 +264,33 @@ pub unsafe extern "C" fn store_begin_transaction(store: *mut Store) -> ExternRes
 ///
 /// TODO: Document the errors that can result from transact
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_transact<'m>(in_progress: *mut InProgress<'m, 'm>, transaction: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn in_progress_transact<'m>(in_progress: *mut InProgress<'m, 'm>, transaction: *const c_char, error: *mut ExternError) -> *mut TxReport {
     assert_not_null!(in_progress);
     let in_progress = &mut *in_progress;
     let transaction = c_char_to_string(transaction);
-    in_progress.transact(transaction).into()
+    translate_result(in_progress.transact(transaction), error)
 }
 
 /// Commit all the transacts that have been performed using this
 /// in progress transaction.
 ///
-/// Returns a [Result<()>](std::result::Result) as an [ExternResult](ExternResult).
-///
 /// TODO: Document the errors that can result from transact
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_commit<'m>(in_progress: *mut InProgress<'m, 'm>) -> ExternResult {
+pub unsafe extern "C" fn in_progress_commit<'m>(in_progress: *mut InProgress<'m, 'm>, error: *mut ExternError) {
     assert_not_null!(in_progress);
     let in_progress = Box::from_raw(in_progress);
-    in_progress.commit().into()
+    translate_void_result(in_progress.commit(), error);
 }
 
 /// Rolls back all the transacts that have been performed using this
 /// in progress transaction.
 ///
-/// Returns a [Result<()>](std::result::Result) as an [ExternResult](ExternResult).
-///
 /// TODO: Document the errors that can result from rollback
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_rollback<'m>(in_progress: *mut InProgress<'m, 'm>) -> ExternResult {
+pub unsafe extern "C" fn in_progress_rollback<'m>(in_progress: *mut InProgress<'m, 'm>, error: *mut ExternError) {
+    assert_not_null!(in_progress);
     let in_progress = Box::from_raw(in_progress);
-    in_progress.rollback().into()
+    translate_void_result(in_progress.rollback(), error);
 }
 
 /// Creates a builder using the in progress transaction to allow for programmatic
@@ -399,13 +348,13 @@ pub unsafe extern "C" fn in_progress_entity_builder_from_entid<'m>(in_progress: 
 /// A destructor `in_progress_builder_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn store_in_progress_builder(store: *mut Store) -> ExternResult {
+pub unsafe extern "C" fn store_in_progress_builder<'a, 'c>(store: *mut Store, error: *mut ExternError) -> *mut InProgressBuilder<'a, 'c> {
     assert_not_null!(store);
     let store = &mut *store;
     let result = store.begin_transaction().and_then(|in_progress| {
         Ok(in_progress.builder())
     });
-    result.into()
+    translate_result(result, error)
 }
 
 /// Starts a new transaction and creates a builder for an entity with `tempid`
@@ -417,14 +366,14 @@ pub unsafe extern "C" fn store_in_progress_builder(store: *mut Store) -> ExternR
 /// A destructor `entity_builder_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn store_entity_builder_from_temp_id(store: *mut Store, temp_id: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn store_entity_builder_from_temp_id<'a, 'c>(store: *mut Store, temp_id: *const c_char, error: *mut ExternError) -> *mut EntityBuilder<InProgressBuilder<'a, 'c>> {
     assert_not_null!(store);
     let store = &mut *store;
     let temp_id = c_char_to_string(temp_id);
     let result = store.begin_transaction().and_then(|in_progress| {
         Ok(in_progress.builder().describe_tempid(&temp_id))
     });
-    result.into()
+    translate_result(result, error)
 }
 
 /// Starts a new transaction and creates a builder for an entity with `entid`
@@ -436,13 +385,13 @@ pub unsafe extern "C" fn store_entity_builder_from_temp_id(store: *mut Store, te
 /// A destructor `entity_builder_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn store_entity_builder_from_entid(store: *mut Store, entid: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn store_entity_builder_from_entid<'a, 'c>(store: *mut Store, entid: c_longlong, error: *mut ExternError) -> *mut EntityBuilder<InProgressBuilder<'a, 'c>> {
     assert_not_null!(store);
     let store = &mut *store;
     let result = store.begin_transaction().and_then(|in_progress| {
         Ok(in_progress.builder().describe(&KnownEntid(entid)))
     });
-    result.into()
+    translate_result(result, error)
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -455,12 +404,18 @@ pub unsafe extern "C" fn store_entity_builder_from_entid(store: *mut Store, enti
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_string<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_string<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -472,12 +427,18 @@ pub unsafe extern "C" fn in_progress_builder_add_string<'a, 'c>(builder: *mut In
 /// If the `:db/type` of the attribute described by `kw` is not `:db.type/long`.
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_long<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_long<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -490,12 +451,18 @@ pub unsafe extern "C" fn in_progress_builder_add_long<'a, 'c>(builder: *mut InPr
 /// If the `:db/type` of the attribute described by `kw` is not `:db.type/ref`.
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_ref<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_ref<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -509,12 +476,18 @@ pub unsafe extern "C" fn in_progress_builder_add_ref<'a, 'c>(builder: *mut InPro
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_keyword<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_keyword<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -527,12 +500,18 @@ pub unsafe extern "C" fn in_progress_builder_add_keyword<'a, 'c>(builder: *mut I
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_boolean<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: bool) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_boolean<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: bool,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -545,12 +524,18 @@ pub unsafe extern "C" fn in_progress_builder_add_boolean<'a, 'c>(builder: *mut I
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_double<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: f64) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_double<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: f64,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -563,12 +548,18 @@ pub unsafe extern "C" fn in_progress_builder_add_double<'a, 'c>(builder: *mut In
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_timestamp<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_timestamp<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -581,14 +572,20 @@ pub unsafe extern "C" fn in_progress_builder_add_timestamp<'a, 'c>(builder: *mut
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_add_uuid<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *mut [u8; 16]) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_add_uuid<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: *const [u8; 16],
+    error: *mut ExternError
+) {
     assert_not_null!(builder, value);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    builder.add_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -601,12 +598,18 @@ pub unsafe extern "C" fn in_progress_builder_add_uuid<'a, 'c>(builder: *mut InPr
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_string<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_string<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -619,12 +622,18 @@ pub unsafe extern "C" fn in_progress_builder_retract_string<'a, 'c>(builder: *mu
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_long<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_long<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -637,12 +646,18 @@ pub unsafe extern "C" fn in_progress_builder_retract_long<'a, 'c>(builder: *mut 
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_ref<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_ref<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 
@@ -656,12 +671,18 @@ pub unsafe extern "C" fn in_progress_builder_retract_ref<'a, 'c>(builder: *mut I
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_keyword<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_keyword<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -674,12 +695,18 @@ pub unsafe extern "C" fn in_progress_builder_retract_keyword<'a, 'c>(builder: *m
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_boolean<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: bool) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_boolean<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: bool,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -692,12 +719,18 @@ pub unsafe extern "C" fn in_progress_builder_retract_boolean<'a, 'c>(builder: *m
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_double<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: f64) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_double<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: f64,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -710,12 +743,18 @@ pub unsafe extern "C" fn in_progress_builder_retract_double<'a, 'c>(builder: *mu
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_timestamp<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_timestamp<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -730,14 +769,20 @@ pub unsafe extern "C" fn in_progress_builder_retract_timestamp<'a, 'c>(builder: 
 //
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_retract_uuid<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, entid: c_longlong, kw: *const c_char, value: *mut [u8; 16]) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_retract_uuid<'a, 'c>(
+    builder: *mut InProgressBuilder<'a, 'c>,
+    entid: c_longlong,
+    kw: *const c_char,
+    value: *const [u8; 16],
+    error: *mut ExternError
+) {
     assert_not_null!(builder, value);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    builder.retract_kw(KnownEntid(entid), &kw, value).into()
+    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
 }
 
 /// Transacts and commits all the assertions and retractions that have been performed
@@ -745,14 +790,12 @@ pub unsafe extern "C" fn in_progress_builder_retract_uuid<'a, 'c>(builder: *mut 
 ///
 /// This consumes the builder and the enclosed [InProgress](mentat::InProgress) transaction.
 ///
-/// Returns a [Result<()>(std::result::Result) as an [ExternResult](ExternResult).
-///
 // TODO: Document the errors that can result from transact
 #[no_mangle]
-pub unsafe extern "C" fn in_progress_builder_commit<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>) -> ExternResult {
+pub unsafe extern "C" fn in_progress_builder_commit<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>, error: *mut ExternError) -> *mut TxReport {
     assert_not_null!(builder);
     let builder = Box::from_raw(builder);
-    builder.commit().into()
+    translate_result(builder.commit(), error)
 }
 
 /// Transacts all the assertions and retractions that have been performed
@@ -773,8 +816,7 @@ pub unsafe extern "C" fn in_progress_builder_commit<'a, 'c>(builder: *mut InProg
 pub unsafe extern "C" fn in_progress_builder_transact<'a, 'c>(builder: *mut InProgressBuilder<'a, 'c>) -> InProgressTransactResult<'a, 'c> {
     assert_not_null!(builder);
     let builder = Box::from_raw(builder);
-    let (in_progress, tx_report) = builder.transact();
-    InProgressTransactResult { in_progress: Box::into_raw(Box::new(in_progress)), result: tx_report.into() }
+    InProgressTransactResult::from_transact(builder.transact())
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -787,12 +829,17 @@ pub unsafe extern "C" fn in_progress_builder_transact<'a, 'c>(builder: *mut InPr
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_string<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_string<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -805,12 +852,17 @@ pub unsafe extern "C" fn entity_builder_add_string<'a, 'c>(builder: *mut EntityB
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_long<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_long<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -823,12 +875,17 @@ pub unsafe extern "C" fn entity_builder_add_long<'a, 'c>(builder: *mut EntityBui
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_ref<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_ref<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -841,12 +898,17 @@ pub unsafe extern "C" fn entity_builder_add_ref<'a, 'c>(builder: *mut EntityBuil
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_keyword<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_keyword<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -859,12 +921,17 @@ pub unsafe extern "C" fn entity_builder_add_keyword<'a, 'c>(builder: *mut Entity
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_boolean<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: bool) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_boolean<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: bool,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -877,12 +944,17 @@ pub unsafe extern "C" fn entity_builder_add_boolean<'a, 'c>(builder: *mut Entity
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_double<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: f64) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_double<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: f64,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -895,12 +967,17 @@ pub unsafe extern "C" fn entity_builder_add_double<'a, 'c>(builder: *mut EntityB
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_timestamp<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_timestamp<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -913,14 +990,19 @@ pub unsafe extern "C" fn entity_builder_add_timestamp<'a, 'c>(builder: *mut Enti
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_add_uuid<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *mut [u8; 16]) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_add_uuid<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: *const [u8; 16],
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    builder.add_kw(&kw, value).into()
+    translate_void_result(builder.add_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -933,12 +1015,17 @@ pub unsafe extern "C" fn entity_builder_add_uuid<'a, 'c>(builder: *mut EntityBui
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_string<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_string<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -951,12 +1038,17 @@ pub unsafe extern "C" fn entity_builder_retract_string<'a, 'c>(builder: *mut Ent
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_long<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_long<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -969,12 +1061,17 @@ pub unsafe extern "C" fn entity_builder_retract_long<'a, 'c>(builder: *mut Entit
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_ref<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_ref<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -987,12 +1084,17 @@ pub unsafe extern "C" fn entity_builder_retract_ref<'a, 'c>(builder: *mut Entity
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_keyword<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_keyword<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: *const c_char,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1005,12 +1107,17 @@ pub unsafe extern "C" fn entity_builder_retract_keyword<'a, 'c>(builder: *mut En
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_boolean<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: bool) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_boolean<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: bool,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1023,12 +1130,17 @@ pub unsafe extern "C" fn entity_builder_retract_boolean<'a, 'c>(builder: *mut En
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_double<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: f64) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_double<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: f64,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1041,12 +1153,17 @@ pub unsafe extern "C" fn entity_builder_retract_double<'a, 'c>(builder: *mut Ent
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_timestamp<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: c_longlong) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_timestamp<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: c_longlong,
+    error: *mut ExternError
+) {
     assert_not_null!(builder);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1060,14 +1177,19 @@ pub unsafe extern "C" fn entity_builder_retract_timestamp<'a, 'c>(builder: *mut 
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 // TODO don't panic if the UUID is not valid - return result instead.
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_retract_uuid<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, kw: *const c_char, value: *mut [u8; 16]) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_retract_uuid<'a, 'c>(
+    builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>,
+    kw: *const c_char,
+    value: *const [u8; 16],
+    error: *mut ExternError
+) {
     assert_not_null!(builder, value);
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    builder.retract_kw(&kw, value).into()
+    translate_void_result(builder.retract_kw(&kw, value), error);
 }
 
 /// Transacts all the assertions and retractions that have been performed
@@ -1088,11 +1210,7 @@ pub unsafe extern "C" fn entity_builder_retract_uuid<'a, 'c>(builder: *mut Entit
 pub unsafe extern "C" fn entity_builder_transact<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>) -> InProgressTransactResult<'a, 'c> {
     assert_not_null!(builder);
     let builder = Box::from_raw(builder);
-    let (in_progress, tx_report) = builder.transact();
-    InProgressTransactResult {
-        in_progress: Box::into_raw(Box::new(in_progress)),
-        result: tx_report.into()
-    }
+    InProgressTransactResult::from_transact(builder.transact())
 }
 
 /// Transacts and commits all the assertions and retractions that have been performed
@@ -1100,22 +1218,19 @@ pub unsafe extern "C" fn entity_builder_transact<'a, 'c>(builder: *mut EntityBui
 ///
 /// This consumes the builder and the enclosed [InProgress](mentat::InProgress) transaction.
 ///
-/// Returns a [Result](std::result::Result) as an [ExternResult](::ExternResult).
-///
 /// TODO: Document the errors that can result from transact
 #[no_mangle]
-pub unsafe extern "C" fn entity_builder_commit<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>) -> ExternResult {
+pub unsafe extern "C" fn entity_builder_commit<'a, 'c>(builder: *mut EntityBuilder<InProgressBuilder<'a, 'c>>, error: *mut ExternError) -> *mut TxReport {
     assert_not_null!(builder);
     let builder = Box::from_raw(builder);
-    builder.commit().into()
+    translate_result(builder.commit(), error)
 }
 
 /// Performs a single transaction against the store.
 ///
-/// Returns a [TxReport](mentat::TxReport) as an [ExternResult](::ExternResult).
 /// TODO: Document the errors that can result from transact
 #[no_mangle]
-pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c_char, error: *mut ExternError) -> *mut TxReport {
     assert_not_null!(store);
     let store = &mut *store;
     let transaction = c_char_to_string(transaction);
@@ -1125,7 +1240,7 @@ pub unsafe extern "C" fn store_transact(store: *mut Store, transaction: *const c
                        .map(|_| tx_report)
         })
     });
-    result.into()
+    translate_result(result, error)
 }
 
 /// Fetches the `tx_id` for the given [TxReport](mentat::TxReport)`.
@@ -1146,6 +1261,10 @@ pub unsafe extern "C" fn tx_report_get_tx_instant(tx_report: *mut TxReport) -> c
 
 /// Fetches the [Entid](mentat::Entid) assigned to the `tempid` during the transaction represented
 /// by the given [TxReport](mentat::TxReport).
+///
+/// Note that this reutrns the value as a heap allocated pointer that the caller is responsible for
+/// freeing with `destroy()`.
+// TODO: This is gross and unnecessary
 #[no_mangle]
 pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, tempid: *const c_char) -> *mut c_longlong {
     assert_not_null!(tx_report);
@@ -1162,22 +1281,22 @@ pub unsafe extern "C" fn tx_report_entity_for_temp_id(tx_report: *mut TxReport, 
 /// `store_cache_attribute_forward` caches values for an attribute keyed by entity
 /// (i.e. find values and entities that have this attribute, or find values of attribute for an entity)
 #[no_mangle]
-pub extern "C" fn store_cache_attribute_forward(store: *mut Store, attribute: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn store_cache_attribute_forward(store: *mut Store, attribute: *const c_char, error: *mut ExternError) {
     assert_not_null!(store);
-    let store = unsafe { &mut *store };
+    let store = &mut *store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    store.cache(&kw, CacheDirection::Forward).into()
+    translate_void_result(store.cache(&kw, CacheDirection::Forward), error);
 }
 
 /// Adds an attribute to the cache.
 /// `store_cache_attribute_reverse` caches entities for an attribute keyed by value.
 /// (i.e. find entities that have a particular value for an attribute).
 #[no_mangle]
-pub extern "C" fn store_cache_attribute_reverse(store: *mut Store, attribute: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn store_cache_attribute_reverse(store: *mut Store, attribute: *const c_char, error: *mut ExternError) {
     assert_not_null!(store);
-    let store = unsafe { &mut *store };
+    let store = &mut *store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    store.cache(&kw, CacheDirection::Reverse).into()
+    translate_void_result(store.cache(&kw, CacheDirection::Reverse), error);
 }
 
 /// Adds an attribute to the cache.
@@ -1189,11 +1308,11 @@ pub extern "C" fn store_cache_attribute_reverse(store: *mut Store, attribute: *c
 /// `Reverse` caches entities for an attribute keyed by value.
 /// (i.e. find entities that have a particular value for an attribute).
 #[no_mangle]
-pub extern "C" fn store_cache_attribute_bi_directional(store: *mut Store, attribute: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn store_cache_attribute_bi_directional(store: *mut Store, attribute: *const c_char, error: *mut ExternError) {
     assert_not_null!(store);
-    let store = unsafe { &mut *store };
+    let store = &mut *store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    store.cache(&kw, CacheDirection::Both).into()
+    translate_void_result(store.cache(&kw, CacheDirection::Both), error);
 }
 
 /// Creates a [QueryBuilder](mentat::QueryBuilder) from the given store to execute the provided query.
@@ -1318,7 +1437,7 @@ pub unsafe extern "C" fn query_builder_bind_string(query_builder: *mut QueryBuil
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn query_builder_bind_uuid(query_builder: *mut QueryBuilder, var: *const c_char, value: *mut [u8; 16]) {
+pub unsafe extern "C" fn query_builder_bind_uuid(query_builder: *mut QueryBuilder, var: *const c_char, value: *const [u8; 16]) {
     assert_not_null!(query_builder, value);
     let var = c_char_to_string(var);
     let value = &*value;
@@ -1336,18 +1455,14 @@ pub unsafe extern "C" fn query_builder_bind_uuid(query_builder: *mut QueryBuilde
 /// # Safety
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
+/// A destructor `typed_value_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn query_builder_execute_scalar(query_builder: *mut QueryBuilder) -> ExternResult {
+pub unsafe extern "C" fn query_builder_execute_scalar(query_builder: *mut QueryBuilder, error: *mut ExternError) -> *mut Binding {
     assert_not_null!(query_builder);
     let query_builder = &mut *query_builder;
     let results = query_builder.execute_scalar();
-    match results {
-        Ok(Some(v)) => ExternResult { err: std::ptr::null(), ok: Box::into_raw(Box::new(v)) as *const _ as *const c_void, },
-        Ok(None) => ExternResult { err: std::ptr::null(), ok: std::ptr::null(), },
-        Err(e) => ExternResult { err: string_to_c_char(e.to_string()), ok: std::ptr::null(), }
-    }
+    translate_opt_result(results, error)
 }
 
 /// Executes a query and returns the results as a [Coll](mentat::QueryResults::Coll).
@@ -1359,14 +1474,14 @@ pub unsafe extern "C" fn query_builder_execute_scalar(query_builder: *mut QueryB
 /// # Safety
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
+/// A destructor `typed_value_list_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn query_builder_execute_coll(query_builder: *mut QueryBuilder) -> ExternResult {
+pub unsafe extern "C" fn query_builder_execute_coll(query_builder: *mut QueryBuilder, error: *mut ExternError) -> *mut Vec<Binding> {
     assert_not_null!(query_builder);
     let query_builder = &mut *query_builder;
     let results = query_builder.execute_coll();
-    results.into()
+    translate_result(results, error)
 }
 
 /// Executes a query and returns the results as a [Tuple](mentat::QueryResults::Tuple).
@@ -1378,19 +1493,14 @@ pub unsafe extern "C" fn query_builder_execute_coll(query_builder: *mut QueryBui
 /// # Safety
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
+/// A destructor `typed_value_list_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn query_builder_execute_tuple(query_builder: *mut QueryBuilder) -> ExternResult {
+pub unsafe extern "C" fn query_builder_execute_tuple(query_builder: *mut QueryBuilder, error: *mut ExternError) -> *mut Vec<Binding> {
     assert_not_null!(query_builder);
     let query_builder = &mut *query_builder;
     let results = query_builder.execute_tuple();
-    let extern_result = match results {
-        Ok(Some(v)) => ExternResult { err: std::ptr::null(), ok: Box::into_raw(Box::new(v)) as *const _ as *const c_void, },
-        Ok(None) => ExternResult { err: std::ptr::null(), ok: std::ptr::null(), },
-        Err(e) => ExternResult { err: string_to_c_char(e.to_string()), ok: std::ptr::null(), }
-    };
-    extern_result
+    translate_opt_result(results, error)
 }
 
 /// Executes a query and returns the results as a [Rel](mentat::QueryResults::Rel).
@@ -1402,14 +1512,14 @@ pub unsafe extern "C" fn query_builder_execute_tuple(query_builder: *mut QueryBu
 /// # Safety
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
+/// A destructor `typed_value_result_set_destroy` is provided for releasing the memory for this
 /// pointer type.
 #[no_mangle]
-pub unsafe extern "C" fn query_builder_execute(query_builder: *mut QueryBuilder) -> ExternResult {
+pub unsafe extern "C" fn query_builder_execute(query_builder: *mut QueryBuilder, error: *mut ExternError) -> *mut RelResult<Binding> {
     assert_not_null!(query_builder);
     let query_builder = &mut *query_builder;
     let results = query_builder.execute_rel();
-    results.into()
+    translate_result(results, error)
 }
 
 fn unwrap_conversion<T>(value: Option<T>, expected_type: ValueType) -> T {
@@ -1458,10 +1568,10 @@ pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) -> En
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_into_kw(typed_value: *mut Binding) -> *const c_char {
+pub unsafe extern "C" fn typed_value_into_kw(typed_value: *mut Binding) -> *mut c_char {
     assert_not_null!(typed_value);
     let typed_value = Box::from_raw(typed_value);
-    unwrap_conversion(typed_value.into_kw_c_string(), ValueType::Keyword) as *const c_char
+    unwrap_conversion(typed_value.into_kw_c_string(), ValueType::Keyword)
 }
 
 /// Consumes a [Binding](mentat::Binding) and returns the value as a boolean represented as an `i32`.
@@ -1510,19 +1620,24 @@ pub unsafe extern "C" fn typed_value_into_timestamp(typed_value: *mut Binding) -
 
 /// Consumes a [Binding](mentat::Binding) and returns the value as a C `String`.
 ///
+/// The caller is responsible for freeing the pointer returned from this function using
+/// `destroy_mentat_string`.
+///
 /// # Panics
 ///
 /// If the [ValueType](mentat::ValueType) of the [Binding](mentat::Binding) is not [ValueType::Long](mentat::ValueType::String).
 ///
 // TODO Generalise with macro https://github.com/mozilla/mentat/issues/703
 #[no_mangle]
-pub unsafe extern "C" fn typed_value_into_string(typed_value: *mut Binding) -> *const c_char {
+pub unsafe extern "C" fn typed_value_into_string(typed_value: *mut Binding) -> *mut c_char {
     assert_not_null!(typed_value);
     let typed_value = Box::from_raw(typed_value);
-    unwrap_conversion(typed_value.into_c_string(), ValueType::String) as *const c_char
+    unwrap_conversion(typed_value.into_c_string(), ValueType::String)
 }
 
 /// Consumes a [Binding](mentat::Binding) and returns the value as a UUID byte slice of length 16.
+///
+/// The caller is responsible for freeing the pointer returned from this function using `destroy`.
 ///
 /// # Panics
 ///
@@ -1771,33 +1886,28 @@ pub unsafe extern "C" fn value_at_index_into_uuid(values: *mut Vec<Binding>, ind
     Box::into_raw(Box::new(*uuid.as_bytes()))
 }
 
-/// Returns an [ExternResult](ExternResult) containing the [Binding](mentat::Binding) associated with the `attribute` as `:namespace/name`
-/// for the given `entid`.
-/// If there is a value for that `attribute` on the entity with id `entid` then the value is returned in `ok`.
+/// Returns a pointer to the the [Binding](mentat::Binding) associated with the `attribute` as
+/// `:namespace/name` for the given `entid`.
+/// If there is a value for that `attribute` on the entity with id `entid` then the value is returned.
 /// If there no value for that `attribute` on the entity with id `entid` but the attribute is value,
-/// then a null pointer is returned in `ok`.
-/// If there is no [Attribute](mentat::Attribute) in the [Schema](mentat::Schema) for the given `attribute` then an error is returned in `err`.
+/// then a null pointer is returned.
+/// If there is no [Attribute](mentat::Attribute) in the [Schema](mentat::Schema) for the given
+/// `attribute` then a null pointer is returned and an error is stored in is returned in `error`,
 ///
 /// # Safety
 ///
 /// Callers are responsible for managing the memory for the return value.
-/// A destructor `destroy` is provided for releasing the memory for this
+/// A destructor `typed_value_destroy` is provided for releasing the memory for this
 /// pointer type.
 ///
 /// TODO: list the types of error that can be caused by this function
 #[no_mangle]
-pub unsafe extern "C" fn store_value_for_attribute(store: *mut Store, entid: c_longlong, attribute: *const c_char) -> ExternResult {
+pub unsafe extern "C" fn store_value_for_attribute(store: *mut Store, entid: c_longlong, attribute: *const c_char, error: *mut ExternError) -> *mut Binding {
     assert_not_null!(store);
     let store = &*store;
     let kw = kw_from_string(c_char_to_string(attribute));
-    match store.lookup_value_for_attribute(entid, &kw) {
-        Ok(Some(v)) => {
-            let value: Binding = v.into();
-            ExternResult { ok: Box::into_raw(Box::new(value)) as *const _ as *const c_void, err: std::ptr::null() }
-        },
-        Ok(None) => ExternResult { ok: std::ptr::null(), err: std::ptr::null() },
-        Err(e) => ExternResult { ok: std::ptr::null(), err: string_to_c_char(e.to_string()) },
-    }
+    let result = store.lookup_value_for_attribute(entid, &kw).map(|o| o.map(Binding::from));
+    translate_opt_result(result, error)
 }
 
 /// Registers a [TxObserver](mentat::TxObserver) with the `key` to observe changes to `attributes`
@@ -1874,11 +1984,6 @@ pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *con
 ///
 /// If there is no value present at the `index`.
 ///
-/// # Safety
-///
-/// Callers are responsible for managing the memory for the return value.
-/// A destructor `typed_value_destroy` is provided for releasing the memory for this
-/// pointer type.
 #[no_mangle]
 pub unsafe extern "C" fn tx_change_list_entry_at(tx_report_list: *mut TxChangeList, index: c_int) -> *const TransactionChange {
     assert_not_null!(tx_report_list);

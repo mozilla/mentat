@@ -13,7 +13,7 @@ import Foundation
 import MentatStore
 
 public extension String {
-    /** Helper to construct a String from a mentat string without leaking it */
+    /** Helper to construct a String from a Mentat string without leaking it. */
     public init(destroyingMentatString mentatCString: UnsafeMutablePointer<CChar>) {
         defer { destroy_mentat_string(mentatCString); }
         self.init(cString: mentatCString)
