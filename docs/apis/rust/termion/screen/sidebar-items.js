@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AlternateScreen","A terminal restorer, which wraps a type implementing Write, and causes all writes to be written to an alternate screen."],["ToAlternateScreen","Switch to the alternate screen buffer of the terminal."],["ToMainScreen","Switch to the main screen buffer of the terminal."]]});

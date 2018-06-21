@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `io` mod in crate `tokio_io`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, io">
+
+    <title>tokio_io::io - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module io</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>tokio_io</a></p><script>window.sidebarCurrent = {name: 'io', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>tokio_io</a>::<wbr><a class="mod" href=''>io</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_io/io/mod.rs.html#1-32' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>I/O conveniences when working with primitives in <code>tokio-core</code></p>
+<p>Contains various combinators to work with I/O objects and type definitions
+as well.</p>
+<p>A description of the high-level I/O combinators can be <a href="https://tokio.rs/docs/getting-started/core/">found online</a> in
+addition to a description of the <a href="https://tokio.rs/docs/going-deeper-tokio/core-low-level/">low level details</a>.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.AllowStdIo.html"
+                                  title='struct tokio_io::io::AllowStdIo'>AllowStdIo</a></td>
+                           <td class='docblock-short'>
+                                <p>A simple wrapper type which allows types that only implement
+<code>std::io::Read</code> or <code>std::io::Write</code> to be used in contexts which expect
+an <code>AsyncRead</code> or <code>AsyncWrite</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Copy.html"
+                                  title='struct tokio_io::io::Copy'>Copy</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which will copy all data from a reader into a writer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Flush.html"
+                                  title='struct tokio_io::io::Flush'>Flush</a></td>
+                           <td class='docblock-short'>
+                                <p>A future used to fully flush an I/O object.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Lines.html"
+                                  title='struct tokio_io::io::Lines'>Lines</a></td>
+                           <td class='docblock-short'>
+                                <p>Combinator created by the top-level <code>lines</code> method which is a stream over
+the lines of text on an I/O object.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Read.html"
+                                  title='struct tokio_io::io::Read'>Read</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which can be used to easily read available number of bytes to fill
+a buffer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ReadExact.html"
+                                  title='struct tokio_io::io::ReadExact'>ReadExact</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which can be used to easily read exactly enough bytes to fill
+a buffer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ReadHalf.html"
+                                  title='struct tokio_io::io::ReadHalf'>ReadHalf</a></td>
+                           <td class='docblock-short'>
+                                <p>The readable half of an object returned from <code>AsyncRead::split</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ReadToEnd.html"
+                                  title='struct tokio_io::io::ReadToEnd'>ReadToEnd</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which can be used to easily read the entire contents of a stream
+into a vector.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ReadUntil.html"
+                                  title='struct tokio_io::io::ReadUntil'>ReadUntil</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which can be used to easily read the contents of a stream into a
+vector until the delimiter is reached.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Shutdown.html"
+                                  title='struct tokio_io::io::Shutdown'>Shutdown</a></td>
+                           <td class='docblock-short'>
+                                <p>A future used to fully shutdown an I/O object.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Window.html"
+                                  title='struct tokio_io::io::Window'>Window</a></td>
+                           <td class='docblock-short'>
+                                <p>A owned window around an underlying buffer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.WriteAll.html"
+                                  title='struct tokio_io::io::WriteAll'>WriteAll</a></td>
+                           <td class='docblock-short'>
+                                <p>A future used to write the entire contents of some data to a stream.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.WriteHalf.html"
+                                  title='struct tokio_io::io::WriteHalf'>WriteHalf</a></td>
+                           <td class='docblock-short'>
+                                <p>The writable half of an object returned from <code>AsyncRead::split</code>.</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.copy.html"
+                                  title='fn tokio_io::io::copy'>copy</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which represents copying all the bytes from one object to
+another.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.flush.html"
+                                  title='fn tokio_io::io::flush'>flush</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which will entirely flush an I/O object and then yield the
+object itself.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.lines.html"
+                                  title='fn tokio_io::io::lines'>lines</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a new stream from the I/O object given representing the lines of
+input that are found on <code>A</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.read.html"
+                                  title='fn tokio_io::io::read'>read</a></td>
+                           <td class='docblock-short'>
+                                <p>Tries to read some bytes directly into the given <code>buf</code> in asynchronous
+manner, returning a future type.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.read_exact.html"
+                                  title='fn tokio_io::io::read_exact'>read_exact</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which will read exactly enough bytes to fill <code>buf</code>,
+returning an error if EOF is hit sooner.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.read_to_end.html"
+                                  title='fn tokio_io::io::read_to_end'>read_to_end</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which will read all the bytes associated with the I/O
+object <code>A</code> into the buffer provided.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.read_until.html"
+                                  title='fn tokio_io::io::read_until'>read_until</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which will read all the bytes associated with the I/O
+object <code>A</code> into the buffer provided until the delimiter <code>byte</code> is reached.
+This method is the async equivalent to <a href="https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_until"><code>BufRead::read_until</code></a>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.shutdown.html"
+                                  title='fn tokio_io::io::shutdown'>shutdown</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which will entirely shutdown an I/O object and then yield
+the object itself.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.write_all.html"
+                                  title='fn tokio_io::io::write_all'>write_all</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future that will write the entire contents of the buffer <code>buf</code> to
+the stream <code>a</code> provided.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio_io";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

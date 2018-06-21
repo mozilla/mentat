@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["Cloned",""],["FromRc",""]],"type":[["ValueRc","This type alias exists to allow us to use different boxing mechanisms for values. This type must implement `FromRc` and `Cloned`, and a `From` implementation must exist for `TypedValue`."]]});

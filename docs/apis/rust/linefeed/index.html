@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `linefeed` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, linefeed">
+
+    <title>linefeed - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate linefeed</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'linefeed', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>linefeed</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/linefeed/lib.rs.html#1-55' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Interactive input reader</p>
+<h1 id="basic-example" class="section-header"><a href="#basic-example">Basic example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">linefeed</span>::{<span class="ident">Reader</span>, <span class="ident">ReadResult</span>};
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reader</span> <span class="op">=</span> <span class="ident">Reader</span>::<span class="ident">new</span>(<span class="string">&quot;my-application&quot;</span>).<span class="ident">unwrap</span>();
+
+<span class="ident">reader</span>.<span class="ident">set_prompt</span>(<span class="string">&quot;my-app&gt; &quot;</span>);
+
+<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">ReadResult</span>::<span class="ident">Input</span>(<span class="ident">input</span>)) <span class="op">=</span> <span class="ident">reader</span>.<span class="ident">read_line</span>() {
+    <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;got input {:?}&quot;</span>, <span class="ident">input</span>);
+}
+
+<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Goodbye.&quot;</span>);</pre>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>pub use command::<a class="enum" href="../linefeed/command/enum.Command.html" title="enum linefeed::command::Command">Command</a>;</code></td></tr><tr><td><code>pub use complete::<a class="trait" href="../linefeed/complete/trait.Completer.html" title="trait linefeed::complete::Completer">Completer</a>;</code></td></tr><tr><td><code>pub use complete::<a class="struct" href="../linefeed/complete/struct.Completion.html" title="struct linefeed::complete::Completion">Completion</a>;</code></td></tr><tr><td><code>pub use complete::<a class="enum" href="../linefeed/complete/enum.Suffix.html" title="enum linefeed::complete::Suffix">Suffix</a>;</code></td></tr><tr><td><code>pub use function::<a class="trait" href="../linefeed/function/trait.Function.html" title="trait linefeed::function::Function">Function</a>;</code></td></tr><tr><td><code>pub use reader::<a class="struct" href="../linefeed/reader/struct.Reader.html" title="struct linefeed::reader::Reader">Reader</a>;</code></td></tr><tr><td><code>pub use reader::<a class="enum" href="../linefeed/reader/enum.ReadResult.html" title="enum linefeed::reader::ReadResult">ReadResult</a>;</code></td></tr><tr><td><code>pub use terminal::<a class="type" href="../linefeed/terminal/type.DefaultTerminal.html" title="type linefeed::terminal::DefaultTerminal">DefaultTerminal</a>;</code></td></tr><tr><td><code>pub use terminal::<a class="enum" href="../linefeed/terminal/enum.Signal.html" title="enum linefeed::terminal::Signal">Signal</a>;</code></td></tr><tr><td><code>pub use terminal::<a class="trait" href="../linefeed/terminal/trait.Terminal.html" title="trait linefeed::terminal::Terminal">Terminal</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="chars/index.html"
+                                  title='mod linefeed::chars'>chars</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides utilities for manipulating character values</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="command/index.html"
+                                  title='mod linefeed::command'>command</a></td>
+                           <td class='docblock-short'>
+                                <p>Defines the set of line editing commands</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="complete/index.html"
+                                  title='mod linefeed::complete'>complete</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides utilities for implementing word completion</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="function/index.html"
+                                  title='mod linefeed::function'>function</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides the <code>Function</code> trait for implementing custom <code>Reader</code> commands</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="inputrc/index.html"
+                                  title='mod linefeed::inputrc'>inputrc</a></td>
+                           <td class='docblock-short'>
+                                <p>Parses configuration files in the format of GNU Readline <code>inputrc</code></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="memory/index.html"
+                                  title='mod linefeed::memory'>memory</a></td>
+                           <td class='docblock-short'>
+                                <p>Implements an in-memory <code>Terminal</code> interface</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="reader/index.html"
+                                  title='mod linefeed::reader'>reader</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides high-level line editing interface</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="table/index.html"
+                                  title='mod linefeed::table'>table</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides utilities for formatting strings in a table</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="terminal/index.html"
+                                  title='mod linefeed::terminal'>terminal</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides a low-level terminal interface</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="util/index.html"
+                                  title='mod linefeed::util'>util</a></td>
+                           <td class='docblock-short'>
+                                <p>Provides miscellaneous utilities</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "linefeed";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

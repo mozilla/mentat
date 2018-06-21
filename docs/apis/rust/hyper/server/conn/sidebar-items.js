@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Connection","A future binding a connection with a Service."],["Parts","Deconstructed parts of a `Connection`."]]});

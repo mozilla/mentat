@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AtomicLazyCell","A lazily filled `Cell`, with frozen contents."],["LazyCell","A lazily filled `Cell`, with frozen contents."]]});

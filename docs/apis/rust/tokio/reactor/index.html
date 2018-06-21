@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `reactor` mod in crate `tokio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, reactor">
+
+    <title>tokio::reactor - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module reactor</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li></ul></div><p class='location'><a href='../index.html'>tokio</a></p><script>window.sidebarCurrent = {name: 'reactor', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>tokio</a>::<wbr><a class="mod" href=''>reactor</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio/reactor/mod.rs.html#1-149' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Event loop that drives Tokio I/O resources.</p>
+<p>This module contains <a href="struct.Reactor.html"><code>Reactor</code></a>, which is the event loop that drives all
+Tokio I/O resources. It is the reactor's job to receive events from the
+operating system (<a href="http://man7.org/linux/man-pages/man7/epoll.7.html">epoll</a>, <a href="https://www.freebsd.org/cgi/man.cgi?query=kqueue&amp;sektion=2">kqueue</a>, <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/aa365198(v=vs.85).aspx">IOCP</a>, etc...) and forward them to
+waiting tasks. It is the bridge between operating system and the futures
+model.</p>
+<h1 id="overview" class="section-header"><a href="#overview">Overview</a></h1>
+<p>When using Tokio, all operations are asynchronous and represented by
+futures. These futures, representing the application logic, are scheduled by
+an executor (see <a href="https://tokio.rs/docs/getting-started/runtime-model/">runtime model</a> for more details). Executors wait for
+notifications before scheduling the future for execution time, i.e., nothing
+happens until an event is received indicating that the task can make
+progress.</p>
+<p>The reactor receives events from the operating system and notifies the
+executor.</p>
+<p>Let's start with a basic example, establishing a TCP connection.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">net</span>::<span class="ident">TcpStream</span>;
+
+<span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="string">&quot;93.184.216.34:9243&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+
+<span class="kw">let</span> <span class="ident">connect_future</span> <span class="op">=</span> <span class="ident">TcpStream</span>::<span class="ident">connect</span>(<span class="kw-2">&amp;</span><span class="ident">addr</span>);
+
+<span class="kw">let</span> <span class="ident">task</span> <span class="op">=</span> <span class="ident">connect_future</span>
+    .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">socket</span><span class="op">|</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;successfully connected&quot;</span>);
+        <span class="prelude-val">Ok</span>(())
+    })
+    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;failed to connect; err={:?}&quot;</span>, <span class="ident">e</span>));
+
+<span class="ident">tokio</span>::<span class="ident">run</span>(<span class="ident">task</span>);</pre>
+<p>Establishing a TCP connection usually cannot be completed immediately.
+<a href="../net/struct.TcpStream.html#method.connect"><code>TcpStream::connect</code></a> does not block the current thread. Instead, it
+returns a <a href="../net/struct.ConnectFuture.html">future</a> that resolves once the TCP connection has
+been established. The connect future itself has no way of knowing when the
+TCP connection has been established.</p>
+<p>Before returning the future, <a href="../net/struct.TcpStream.html#method.connect"><code>TcpStream::connect</code></a> registers the socket
+with a reactor. This registration process, handled by <a href="struct.Registration.html"><code>Registration</code></a>, is
+what links the <a href="../net/struct.TcpStream.html"><code>TcpStream</code></a> with the <a href="struct.Reactor.html"><code>Reactor</code></a> instance. At this point,
+the reactor starts listening for connection events from the operating system
+for that socket.</p>
+<p>Once the connect future is passed to <a href="../runtime/fn.run.html"><code>tokio::run</code></a>, it is spawned onto a
+thread pool. The thread pool waits until it is notified that the connection
+has completed.</p>
+<p>When the TCP connection is established, the reactor receives an event from
+the operating system. It then notifies the thread pool, telling it that the
+connect future can complete. At this point, the thread pool will schedule
+the task to run on one of its worker threads. This results in the <code>and_then</code>
+closure to get executed.</p>
+<h2 id="lazy-registration" class="section-header"><a href="#lazy-registration">Lazy registration</a></h2>
+<p>Notice how the snippet above does not explicitly reference a reactor. When
+<a href="../net/struct.TcpStream.html#method.connect"><code>TcpStream::connect</code></a> is called, it registers the socket with a reactor,
+but no reactor is specified. This works because the registration process
+mentioned above is actually lazy. It doesn't <em>actually</em> happen in the
+<a href="../net/struct.TcpStream.html#method.connect"><code>connect</code></a> function. Instead, the registration is established the first
+time that the task is polled (again, see <a href="https://tokio.rs/docs/getting-started/runtime-model/">runtime model</a>).</p>
+<p>A reactor instance is automatically made available when using the Tokio
+<a href="../runtime">runtime</a>, which is done using <a href="../runtime/fn.run.html"><code>tokio::run</code></a>. The Tokio runtime's executor
+sets a thread-local variable referencing the associated <a href="struct.Reactor.html"><code>Reactor</code></a> instance
+and <a href="struct.Handle.html#method.current"><code>Handle::current</code></a> (used by <a href="struct.Registration.html"><code>Registration</code></a>) returns the reference.</p>
+<h2 id="implementation" class="section-header"><a href="#implementation">Implementation</a></h2>
+<p>The reactor implementation uses <a href="https://github.com/carllerche/mio"><code>mio</code></a> to interface with the operating
+system's event queue. A call to <a href="struct.Reactor.html#method.poll"><code>Reactor::poll</code></a> results in in a single
+call to <a href="https://docs.rs/mio/0.6/mio/struct.Poll.html#method.poll"><code>Poll::poll</code></a> which in turn results in a single call to the
+operating system's selector.</p>
+<p>The reactor maintains state for each registered I/O resource. This tracks
+the executor task to notify when events are provided by the operating
+system's selector. This state is stored in a <code>Sync</code> data structure and
+referenced by <a href="struct.Registration.html"><code>Registration</code></a>. When the <a href="struct.Registration.html"><code>Registration</code></a> instance is
+dropped, this state is cleaned up. Because the state is stored in a <code>Sync</code>
+data structure, the <a href="struct.Registration.html"><code>Registration</code></a> instance is able to be moved to other
+threads.</p>
+<p>By default, a runtime's default reactor runs on a background thread. This
+ensures that application code cannot significantly impact the reactor's
+responsiveness.</p>
+<h2 id="integrating-with-the-reactor" class="section-header"><a href="#integrating-with-the-reactor">Integrating with the reactor</a></h2>
+<p>Tokio comes with a number of I/O resources, like TCP and UDP sockets, that
+automatically integrate with the reactor. However, library authors or
+applications may wish to implement their own resources that are also backed
+by the reactor.</p>
+<p>There are a couple of ways to do this.</p>
+<p>If the custom I/O resource implements <a href="https://docs.rs/mio/0.6/mio/trait.Evented.html"><code>mio::Evented</code></a> and implements
+<a href="https://doc.rust-lang.org/std/io/trait.Read.html"><code>std::Read</code></a> and / or <a href="https://doc.rust-lang.org/std/io/trait.Write.html"><code>std::Write</code></a>, then <a href="struct.PollEvented.html"><code>PollEvented</code></a> is the most
+suited.</p>
+<p>Otherwise, <a href="struct.Registration.html"><code>Registration</code></a> can be used directly. This provides the lowest
+level primitive needed for integrating with the reactor: a stream of
+readiness events.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Background.html"
+                                  title='struct tokio::reactor::Background'>Background</a></td>
+                           <td class='docblock-short'>
+                                <p>Handle to the reactor running on a background thread.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Handle.html"
+                                  title='struct tokio::reactor::Handle'>Handle</a></td>
+                           <td class='docblock-short'>
+                                <p>A reference to a reactor.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.PollEvented2.html"
+                                  title='struct tokio::reactor::PollEvented2'>PollEvented2</a></td>
+                           <td class='docblock-short'>
+                                <p>Associates an I/O resource that implements the <a href="https://doc.rust-lang.org/std/io/trait.Read.html"><code>std::Read</code></a> and / or
+<a href="https://doc.rust-lang.org/std/io/trait.Write.html"><code>std::Write</code></a> traits with the reactor that drives it.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Reactor.html"
+                                  title='struct tokio::reactor::Reactor'>Reactor</a></td>
+                           <td class='docblock-short'>
+                                <p>The core reactor, or event loop.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Registration.html"
+                                  title='struct tokio::reactor::Registration'>Registration</a></td>
+                           <td class='docblock-short'>
+                                <p>Associates an I/O resource with the reactor instance that drives it.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Turn.html"
+                                  title='struct tokio::reactor::Turn'>Turn</a></td>
+                           <td class='docblock-short'>
+                                <p>Return value from the <code>turn</code> method on <code>Reactor</code>.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

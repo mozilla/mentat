@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Runtime` struct in crate `tokio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Runtime">
+
+    <title>tokio::runtime::current_thread::Runtime - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle">
+    <script src="../../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Runtime</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.handle">handle</a><a href="#method.spawn">spawn</a><a href="#method.block_on">block_on</a><a href="#method.run">run</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">!Send</a><a href="#impl-Sync">!Sync</a></div></div><p class='location'><a href='../../index.html'>tokio</a>::<wbr><a href='../index.html'>runtime</a>::<wbr><a href='index.html'>current_thread</a></p><script>window.sidebarCurrent = {name: 'Runtime', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Struct <a href='../../index.html'>tokio</a>::<wbr><a href='../index.html'>runtime</a>::<wbr><a href='index.html'>current_thread</a>::<wbr><a class="struct" href=''>Runtime</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#21-26' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'>pub struct Runtime { /* fields omitted */ }</pre></div><div class='docblock'><p>Single-threaded runtime provides a way to start reactor
+and executor on the current thread.</p>
+<p>See <a href="index.html">module level</a> documentation for more details.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="struct" href="../../../tokio/runtime/current_thread/struct.Runtime.html" title="struct tokio::runtime::current_thread::Runtime">Runtime</a></code><a href='#impl' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#51-185' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class="type" href="../../../tokio/io/type.Result.html" title="type tokio::io::Result">Result</a>&lt;<a class="struct" href="../../../tokio/runtime/current_thread/struct.Runtime.html" title="struct tokio::runtime::current_thread::Runtime">Runtime</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#53-55' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a new runtime initialized with default configuration values.</p>
+</div><h4 id='method.handle' class="method"><span id='handle.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.handle' class='fnname'>handle</a>(&amp;self) -&gt; <a class="struct" href="../../../tokio/runtime/current_thread/struct.Handle.html" title="struct tokio::runtime::current_thread::Handle">Handle</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#75-77' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Get a new handle to spawn futures on the single-threaded Tokio runtime</p>
+<p>Different to the runtime itself, the handle can be sent to different
+threads.</p>
+</div><h4 id='method.spawn' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</h3><code class="content"><span class="where fmt-newline">impl&lt;'a, R&gt; <a class="trait" href="../../../tokio/prelude/trait.Read.html" title="trait tokio::prelude::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="../../../tokio/prelude/trait.Read.html" title="trait tokio::prelude::Read">Read</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, W&gt; <a class="trait" href="../../../tokio/prelude/trait.Write.html" title="trait tokio::prelude::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>W <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;W: <a class="trait" href="../../../tokio/prelude/trait.Write.html" title="trait tokio::prelude::Write">Write</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>I <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &lt;I as <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item" title="type core::iter::iterator::Iterator::Item">Item</a>;</span></code></div></div><span id='spawn.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.spawn' class='fnname'>spawn</a>&lt;F&gt;(&amp;mut self, future: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="../../../tokio/prelude/future/trait.Future.html" title="trait tokio::prelude::future::Future">Future</a>&lt;Item = <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, Error = <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt; + 'static,&nbsp;</span></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#110-115' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Spawn a future onto the single-threaded Tokio runtime.</p>
+<p>See <a href="index.html">module level</a> documentation for more details.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">current_thread</span>::<span class="ident">Runtime</span>;
+
+<span class="comment">// Create the runtime</span>
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
+
+<span class="comment">// Spawn a future onto the runtime</span>
+<span class="ident">rt</span>.<span class="ident">spawn</span>(<span class="ident">future</span>::<span class="ident">lazy</span>(<span class="op">||</span> {
+    <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;running on the runtime&quot;</span>);
+    <span class="prelude-val">Ok</span>(())
+}));</pre>
+<h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
+<p>This function panics if the spawn fails. Failure occurs if the executor
+is currently at capacity and is unable to spawn a new future.</p>
+</div><h4 id='method.block_on' class="method"><span id='block_on.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.block_on' class='fnname'>block_on</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;F::<a class="type" href="../../../tokio/prelude/future/trait.Future.html#associatedtype.Item" title="type tokio::prelude::future::Future::Item">Item</a>, F::<a class="type" href="../../../tokio/prelude/future/trait.Future.html#associatedtype.Error" title="type tokio::prelude::future::Future::Error">Error</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="../../../tokio/prelude/future/trait.Future.html" title="trait tokio::prelude::future::Future">Future</a>,&nbsp;</span></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#133-141' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Runs the provided future, blocking the current thread until the future
+completes.</p>
+<p>This function can be used to synchronously block the current thread
+until the provided <code>future</code> has resolved either successfully or with an
+error. The result of the future is then returned from this function
+call.</p>
+<p>Note that this function will <strong>also</strong> execute any spawned futures on the
+current thread, but will <strong>not</strong> block until these other spawned futures
+have completed. Once the function returns, any uncompleted futures
+remain pending in the <code>Runtime</code> instance. These futures will not run
+until <code>block_on</code> or <code>run</code> is called again.</p>
+<p>The caller is responsible for ensuring that other spawned futures
+complete execution by calling <code>block_on</code> or <code>run</code>.</p>
+</div><h4 id='method.run' class="method"><span id='run.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.run' class='fnname'>run</a>(&amp;mut self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, RunError&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#145-150' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Run the executor to completion, blocking the thread until <strong>all</strong>
+spawned futures have completed.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+            <div id='implementations-list'>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../../../tokio/runtime/current_thread/struct.Runtime.html" title="struct tokio::runtime::current_thread::Runtime">Runtime</a></code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#20' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../../src/tokio/runtime/current_thread/runtime.rs.html#20' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></div>
+                <h2 id='synthetic-implementations' class='small-section-header'>
+                  Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>
+                </h2>
+                <div id='synthetic-implementations-list'>
+            <h3 id='impl-Send' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl !<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="../../../tokio/runtime/current_thread/struct.Runtime.html" title="struct tokio::runtime::current_thread::Runtime">Runtime</a></code><a href='#impl-Send' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl !<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="../../../tokio/runtime/current_thread/struct.Runtime.html" title="struct tokio::runtime::current_thread::Runtime">Runtime</a></code><a href='#impl-Sync' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../../";
+        window.currentCrate = "tokio";
+    </script>
+    <script src="../../../main.js"></script>
+    <script defer src="../../../search-index.js"></script>
+</body>
+</html>

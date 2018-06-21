@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["DEFAULT_SIZE","Default size of a `MemoryTerminal` buffer"]],"struct":[["Lines","Iterator over lines in a `MemoryTerminal` buffer."],["MemoryTerminal","Implements an in-memory `Terminal` interface"]]});

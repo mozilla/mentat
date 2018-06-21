@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `event` mod in crate `nix`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, event">
+
+    <title>nix::sys::event - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle">
+    <script src="../../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module event</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#constants">Constants</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../../index.html'>nix</a>::<wbr><a href='../index.html'>sys</a></p><script>window.sidebarCurrent = {name: 'event', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../../index.html'>nix</a>::<wbr><a href='../index.html'>sys</a>::<wbr><a class="mod" href=''>event</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../../src/nix/sys/event.rs.html#4-366' title='goto source code'>[src]</a></span></h1><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.EventFlag.html"
+                                  title='struct nix::sys::event::EventFlag'>EventFlag</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.FilterFlag.html"
+                                  title='struct nix::sys::event::FilterFlag'>FilterFlag</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.KEvent.html"
+                                  title='struct nix::sys::event::KEvent'>KEvent</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.EventFilter.html"
+                                  title='enum nix::sys::event::EventFilter'>EventFilter</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_ADD.html"
+                                  title='constant nix::sys::event::EV_ADD'>EV_ADD</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_CLEAR.html"
+                                  title='constant nix::sys::event::EV_CLEAR'>EV_CLEAR</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_DELETE.html"
+                                  title='constant nix::sys::event::EV_DELETE'>EV_DELETE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_DISABLE.html"
+                                  title='constant nix::sys::event::EV_DISABLE'>EV_DISABLE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_DISPATCH.html"
+                                  title='constant nix::sys::event::EV_DISPATCH'>EV_DISPATCH</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_ENABLE.html"
+                                  title='constant nix::sys::event::EV_ENABLE'>EV_ENABLE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_EOF.html"
+                                  title='constant nix::sys::event::EV_EOF'>EV_EOF</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_ERROR.html"
+                                  title='constant nix::sys::event::EV_ERROR'>EV_ERROR</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_FLAG0.html"
+                                  title='constant nix::sys::event::EV_FLAG0'>EV_FLAG0</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_FLAG1.html"
+                                  title='constant nix::sys::event::EV_FLAG1'>EV_FLAG1</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_ONESHOT.html"
+                                  title='constant nix::sys::event::EV_ONESHOT'>EV_ONESHOT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_OOBAND.html"
+                                  title='constant nix::sys::event::EV_OOBAND'>EV_OOBAND</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_POLL.html"
+                                  title='constant nix::sys::event::EV_POLL'>EV_POLL</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_RECEIPT.html"
+                                  title='constant nix::sys::event::EV_RECEIPT'>EV_RECEIPT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.EV_SYSFLAGS.html"
+                                  title='constant nix::sys::event::EV_SYSFLAGS'>EV_SYSFLAGS</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_ABSOLUTE.html"
+                                  title='constant nix::sys::event::NOTE_ABSOLUTE'>NOTE_ABSOLUTE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_APPACTIVE.html"
+                                  title='constant nix::sys::event::NOTE_APPACTIVE'>NOTE_APPACTIVE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_APPALLSTATES.html"
+                                  title='constant nix::sys::event::NOTE_APPALLSTATES'>NOTE_APPALLSTATES</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_APPBACKGROUND.html"
+                                  title='constant nix::sys::event::NOTE_APPBACKGROUND'>NOTE_APPBACKGROUND</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_APPINACTIVE.html"
+                                  title='constant nix::sys::event::NOTE_APPINACTIVE'>NOTE_APPINACTIVE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_APPNONUI.html"
+                                  title='constant nix::sys::event::NOTE_APPNONUI'>NOTE_APPNONUI</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_ATTRIB.html"
+                                  title='constant nix::sys::event::NOTE_ATTRIB'>NOTE_ATTRIB</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_CHILD.html"
+                                  title='constant nix::sys::event::NOTE_CHILD'>NOTE_CHILD</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_DELETE.html"
+                                  title='constant nix::sys::event::NOTE_DELETE'>NOTE_DELETE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_EXEC.html"
+                                  title='constant nix::sys::event::NOTE_EXEC'>NOTE_EXEC</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_EXIT.html"
+                                  title='constant nix::sys::event::NOTE_EXIT'>NOTE_EXIT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_EXITSTATUS.html"
+                                  title='constant nix::sys::event::NOTE_EXITSTATUS'>NOTE_EXITSTATUS</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_EXIT_REPARENTED.html"
+                                  title='constant nix::sys::event::NOTE_EXIT_REPARENTED'>NOTE_EXIT_REPARENTED</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_EXTEND.html"
+                                  title='constant nix::sys::event::NOTE_EXTEND'>NOTE_EXTEND</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FFAND.html"
+                                  title='constant nix::sys::event::NOTE_FFAND'>NOTE_FFAND</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FFCOPY.html"
+                                  title='constant nix::sys::event::NOTE_FFCOPY'>NOTE_FFCOPY</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FFCTRLMASK.html"
+                                  title='constant nix::sys::event::NOTE_FFCTRLMASK'>NOTE_FFCTRLMASK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FFLAGSMASK.html"
+                                  title='constant nix::sys::event::NOTE_FFLAGSMASK'>NOTE_FFLAGSMASK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FFNOP.html"
+                                  title='constant nix::sys::event::NOTE_FFNOP'>NOTE_FFNOP</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FFOR.html"
+                                  title='constant nix::sys::event::NOTE_FFOR'>NOTE_FFOR</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_FORK.html"
+                                  title='constant nix::sys::event::NOTE_FORK'>NOTE_FORK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_LINK.html"
+                                  title='constant nix::sys::event::NOTE_LINK'>NOTE_LINK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_LOWAT.html"
+                                  title='constant nix::sys::event::NOTE_LOWAT'>NOTE_LOWAT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_NONE.html"
+                                  title='constant nix::sys::event::NOTE_NONE'>NOTE_NONE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_NSECONDS.html"
+                                  title='constant nix::sys::event::NOTE_NSECONDS'>NOTE_NSECONDS</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_PCTRLMASK.html"
+                                  title='constant nix::sys::event::NOTE_PCTRLMASK'>NOTE_PCTRLMASK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_PDATAMASK.html"
+                                  title='constant nix::sys::event::NOTE_PDATAMASK'>NOTE_PDATAMASK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_REAP.html"
+                                  title='constant nix::sys::event::NOTE_REAP'>NOTE_REAP</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_RENAME.html"
+                                  title='constant nix::sys::event::NOTE_RENAME'>NOTE_RENAME</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_RESOURCEEND.html"
+                                  title='constant nix::sys::event::NOTE_RESOURCEEND'>NOTE_RESOURCEEND</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_REVOKE.html"
+                                  title='constant nix::sys::event::NOTE_REVOKE'>NOTE_REVOKE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_SECONDS.html"
+                                  title='constant nix::sys::event::NOTE_SECONDS'>NOTE_SECONDS</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_SIGNAL.html"
+                                  title='constant nix::sys::event::NOTE_SIGNAL'>NOTE_SIGNAL</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_TRACK.html"
+                                  title='constant nix::sys::event::NOTE_TRACK'>NOTE_TRACK</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_TRACKERR.html"
+                                  title='constant nix::sys::event::NOTE_TRACKERR'>NOTE_TRACKERR</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_TRIGGER.html"
+                                  title='constant nix::sys::event::NOTE_TRIGGER'>NOTE_TRIGGER</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_USECONDS.html"
+                                  title='constant nix::sys::event::NOTE_USECONDS'>NOTE_USECONDS</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_VM_ERROR.html"
+                                  title='constant nix::sys::event::NOTE_VM_ERROR'>NOTE_VM_ERROR</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_VM_PRESSURE.html"
+                                  title='constant nix::sys::event::NOTE_VM_PRESSURE'>NOTE_VM_PRESSURE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_VM_PRESSURE_SUDDEN_TERMINATE.html"
+                                  title='constant nix::sys::event::NOTE_VM_PRESSURE_SUDDEN_TERMINATE'>NOTE_VM_PRESSURE_SUDDEN_TERMINATE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_VM_PRESSURE_TERMINATE.html"
+                                  title='constant nix::sys::event::NOTE_VM_PRESSURE_TERMINATE'>NOTE_VM_PRESSURE_TERMINATE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.NOTE_WRITE.html"
+                                  title='constant nix::sys::event::NOTE_WRITE'>NOTE_WRITE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.ev_set.html"
+                                  title='fn nix::sys::event::ev_set'>ev_set</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.kevent.html"
+                                  title='fn nix::sys::event::kevent'>kevent</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.kevent_ts.html"
+                                  title='fn nix::sys::event::kevent_ts'>kevent_ts</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.kqueue.html"
+                                  title='fn nix::sys::event::kqueue'>kqueue</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../../";
+        window.currentCrate = "nix";
+    </script>
+    <script src="../../../main.js"></script>
+    <script defer src="../../../search-index.js"></script>
+</body>
+</html>

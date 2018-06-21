@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Category","Describes the category of a command"],["Command","Represents a command to modify `Reader` state"]],"static":[["COMMANDS","List of all command names"]]});

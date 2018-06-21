@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["longest_common_prefix","Returns the longest common prefix of a set of strings."]],"trait":[["RangeArgument","Implemented for built-in range types"]]});

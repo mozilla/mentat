@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source to the Rust file `/Users/emilytoop/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.6.1/src/lib.rs`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang">
+
+    <title>lib.rs.html -- source</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc source">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+</pre><pre class="rust ">
+<span class="comment">// Copyright 2018 The Rust Project Developers. See the COPYRIGHT</span>
+<span class="comment">// file at the top-level directory of this distribution and at</span>
+<span class="comment">// http://rust-lang.org/COPYRIGHT.</span>
+<span class="comment">//</span>
+<span class="comment">// Licensed under the Apache License, Version 2.0 &lt;LICENSE-APACHE or</span>
+<span class="comment">// http://www.apache.org/licenses/LICENSE-2.0&gt; or the MIT license</span>
+<span class="comment">// &lt;LICENSE-MIT or http://opensource.org/licenses/MIT&gt;, at your</span>
+<span class="comment">// option. This file may not be copied, modified, or distributed</span>
+<span class="comment">// except according to those terms.</span>
+
+<span class="doccomment">/*!
+This crate provides a robust regular expression parser.
+
+This crate defines two primary types:
+
+* [`Ast`](ast/enum.Ast.html) is the abstract syntax of a regular expression.
+  An abstract syntax corresponds to a *structured representation* of the
+  concrete syntax of a regular expression, where the concrete syntax is the
+  pattern string itself (e.g., `foo(bar)+`). Given some abstract syntax, it
+  can be converted back to the original concrete syntax (modulo some details,
+  like whitespace). To a first approximation, the abstract syntax is complex
+  and difficult to analyze.
+* [`Hir`](hir/struct.Hir.html) is the high-level intermediate representation
+  (&quot;HIR&quot; or &quot;high-level IR&quot; for short) of regular expression. It corresponds to
+  an intermediate state of a regular expression that sits between the abstract
+  syntax and the low level compiled opcodes that are eventually responsible for
+  executing a regular expression search. Given some high-level IR, it is not
+  possible to produce the original concrete syntax (although it is possible to
+  produce an equivalent conrete syntax, but it will likely scarcely resemble
+  the original pattern). To a first approximation, the high-level IR is simple
+  and easy to analyze.
+
+These two types come with conversion routines:
+
+* An [`ast::parse::Parser`](ast/parse/struct.Parser.html) converts concrete
+  syntax (a `&amp;str`) to an [`Ast`](ast/enum.Ast.html).
+* A [`hir::translate::Translator`](hir/translate/struct.Translator.html)
+  converts an [`Ast`](ast/enum.Ast.html) to a [`Hir`](hir/struct.Hir.html).
+
+As a convenience, the above two conversion routines are combined into one via
+the top-level [`Parser`](struct.Parser.html) type. This `Parser` will first
+convert your pattern to an `Ast` and then convert the `Ast` to an `Hir`.
+
+
+# Example
+
+This example shows how to parse a pattern string into its HIR:
+
+```
+use regex_syntax::Parser;
+use regex_syntax::hir::{self, Hir};
+
+let hir = Parser::new().parse(&quot;a|b&quot;).unwrap();
+assert_eq!(hir, Hir::alternation(vec![
+    Hir::literal(hir::Literal::Unicode(&#39;a&#39;)),
+    Hir::literal(hir::Literal::Unicode(&#39;b&#39;)),
+]));
+```
+
+
+# Concrete syntax supported
+
+The concrete syntax is documented as part of the public API of the
+[`regex` crate](https://docs.rs/regex/%2A/regex/#syntax).
+
+
+# Input safety
+
+A key feature of this library is that it is safe to use with end user facing
+input. This plays a significant role in the internal implementation. In
+particular:
+
+1. Parsers provide a `nest_limit` option that permits callers to control how
+   deeply nested a regular expression is allowed to be. This makes it possible
+   to do case analysis over an `Ast` or an `Hir` using recursion without
+   worrying about stack overflow.
+2. Since relying on a particular stack size is brittle, this crate goes to
+   great lengths to ensure that all interactions with both the `Ast` and the
+   `Hir` do not use recursion. Namely, they use constant stack space and heap
+   space proportional to the size of the original pattern string (in bytes).
+   This includes the type&#39;s corresponding destructors. (One exception to this
+   is literal extraction, but this will eventually get fixed.)
+
+
+# Error reporting
+
+The `Display` implementations on all `Error` types exposed in this library
+provide nice human readable errors that are suitable for showing to end users
+in a monospace font.
+
+
+# Literal extraction
+
+This crate provides limited support for
+[literal extraction from `Hir` values](hir/literal/struct.Literals.html).
+Be warned that literal extraction currently uses recursion, and therefore,
+stack size proportional to the size of the `Hir`.
+
+The purpose of literal extraction is to speed up searches. That is, if you
+know a regular expression must match a prefix or suffix literal, then it is
+often quicker to search for instances of that literal, and then confirm or deny
+the match using the full regular expression engine. These optimizations are
+done automatically in the `regex` crate.
+*/</span>
+
+<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">missing_docs</span>)]</span>
+
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">ucd_util</span>;
+
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">parser</span>::{<span class="ident">Parser</span>, <span class="ident">ParserBuilder</span>};
+
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">ast</span>;
+<span class="kw">mod</span> <span class="ident">either</span>;
+<span class="kw">mod</span> <span class="ident">error</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">hir</span>;
+<span class="kw">mod</span> <span class="ident">parser</span>;
+<span class="kw">mod</span> <span class="ident">unicode</span>;
+<span class="kw">mod</span> <span class="ident">unicode_tables</span>;
+
+<span class="doccomment">/// Escapes all regular expression meta characters in `text`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The string returned may be safely used as a literal in a regular</span>
+<span class="doccomment">/// expression.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">escape</span>(<span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="ident">String</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">quoted</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">with_capacity</span>(<span class="ident">text</span>.<span class="ident">len</span>());
+    <span class="ident">escape_into</span>(<span class="ident">text</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">quoted</span>);
+    <span class="ident">quoted</span>
+}
+
+<span class="doccomment">/// Escapes all meta characters in `text` and writes the result into `buf`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This will append escape characters into the given buffer. The characters</span>
+<span class="doccomment">/// that are appended are safe to use as a literal in a regular expression.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">escape_into</span>(<span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">String</span>) {
+    <span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="ident">text</span>.<span class="ident">chars</span>() {
+        <span class="kw">if</span> <span class="ident">is_meta_character</span>(<span class="ident">c</span>) {
+            <span class="ident">buf</span>.<span class="ident">push</span>(<span class="string">&#39;\\&#39;</span>);
+        }
+        <span class="ident">buf</span>.<span class="ident">push</span>(<span class="ident">c</span>);
+    }
+}
+
+<span class="doccomment">/// Returns true if the give character has significance in a regex.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// These are the only characters that are allowed to be escaped, with one</span>
+<span class="doccomment">/// exception: an ASCII space character may be escaped when extended mode (with</span>
+<span class="doccomment">/// the `x` flag) is enabld. In particular, `is_meta_character(&#39; &#39;)` returns</span>
+<span class="doccomment">/// `false`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Note that the set of characters for which this function returns `true` or</span>
+<span class="doccomment">/// `false` is fixed and won&#39;t change in a semver compatible release.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_meta_character</span>(<span class="ident">c</span>: <span class="ident">char</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">match</span> <span class="ident">c</span> {
+        <span class="string">&#39;\\&#39;</span> <span class="op">|</span> <span class="string">&#39;.&#39;</span> <span class="op">|</span> <span class="string">&#39;+&#39;</span> <span class="op">|</span> <span class="string">&#39;*&#39;</span> <span class="op">|</span> <span class="string">&#39;?&#39;</span> <span class="op">|</span> <span class="string">&#39;(&#39;</span> <span class="op">|</span> <span class="string">&#39;)&#39;</span> <span class="op">|</span> <span class="string">&#39;|&#39;</span> <span class="op">|</span>
+        <span class="string">&#39;[&#39;</span> <span class="op">|</span> <span class="string">&#39;]&#39;</span> <span class="op">|</span> <span class="string">&#39;{&#39;</span> <span class="op">|</span> <span class="string">&#39;}&#39;</span> <span class="op">|</span> <span class="string">&#39;^&#39;</span> <span class="op">|</span> <span class="string">&#39;$&#39;</span> <span class="op">|</span> <span class="string">&#39;#&#39;</span> <span class="op">|</span> <span class="string">&#39;&amp;&#39;</span> <span class="op">|</span> <span class="string">&#39;-&#39;</span> <span class="op">|</span> <span class="string">&#39;~&#39;</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+    }
+}
+
+<span class="doccomment">/// Returns true if and only if the given character is a Unicode word</span>
+<span class="doccomment">/// character.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// A Unicode word character is defined by</span>
+<span class="doccomment">/// [UTS#18 Annex C](http://unicode.org/reports/tr18/#Compatibility_Properties).</span>
+<span class="doccomment">/// In particular, a character</span>
+<span class="doccomment">/// is considered a word character if it is in either of the `Alphabetic` or</span>
+<span class="doccomment">/// `Join_Control` properties, or is in one of the `Decimal_Number`, `Mark`</span>
+<span class="doccomment">/// or `Connector_Punctuation` general categories.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_word_character</span>(<span class="ident">c</span>: <span class="ident">char</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
+    <span class="kw">use</span> <span class="ident">unicode_tables</span>::<span class="ident">perl_word</span>::<span class="ident">PERL_WORD</span>;
+
+    <span class="kw">if</span> <span class="ident">c</span> <span class="op">&lt;=</span> <span class="number">0x7F</span> <span class="kw">as</span> <span class="ident">char</span> <span class="op">&amp;&amp;</span> <span class="ident">is_word_byte</span>(<span class="ident">c</span> <span class="kw">as</span> <span class="ident">u8</span>) {
+        <span class="kw">return</span> <span class="bool-val">true</span>;
+    }
+    <span class="ident">PERL_WORD</span>
+        .<span class="ident">binary_search_by</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="ident">start</span>, <span class="ident">end</span>)<span class="op">|</span> {
+            <span class="kw">if</span> <span class="ident">start</span> <span class="op">&lt;=</span> <span class="ident">c</span> <span class="op">&amp;&amp;</span> <span class="ident">c</span> <span class="op">&lt;=</span> <span class="ident">end</span> {
+                <span class="ident">Ordering</span>::<span class="ident">Equal</span>
+            } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">start</span> <span class="op">&gt;</span> <span class="ident">c</span> {
+                <span class="ident">Ordering</span>::<span class="ident">Greater</span>
+            } <span class="kw">else</span> {
+                <span class="ident">Ordering</span>::<span class="ident">Less</span>
+            }
+        }).<span class="ident">is_ok</span>()
+}
+
+<span class="doccomment">/// Returns true if and only if the given character is an ASCII word character.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// An ASCII word character is defined by the following character class:</span>
+<span class="doccomment">/// `[_0-9a-zA-Z]&#39;.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_word_byte</span>(<span class="ident">c</span>: <span class="ident">u8</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">match</span> <span class="ident">c</span> {
+        <span class="string">b&#39;_&#39;</span> <span class="op">|</span> <span class="string">b&#39;0&#39;</span> ... <span class="string">b&#39;9&#39;</span> <span class="op">|</span> <span class="string">b&#39;a&#39;</span> ... <span class="string">b&#39;z&#39;</span> <span class="op">|</span> <span class="string">b&#39;A&#39;</span> ... <span class="string">b&#39;Z&#39;</span>  <span class="op">=&gt;</span> <span class="bool-val">true</span>,
+        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">tests</span> {
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">escape_meta</span>() {
+        <span class="macro">assert_eq</span><span class="macro">!</span>(
+            <span class="ident">escape</span>(<span class="string">r&quot;\.+*?()|[]{}^$#&amp;-~&quot;</span>),
+            <span class="string">r&quot;\\\.\+\*\?\(\)\|\[\]\{\}\^\$\#\&amp;\-\~&quot;</span>.<span class="ident">to_string</span>());
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">word</span>() {
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_byte</span>(<span class="string">b&#39;a&#39;</span>));
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">is_word_byte</span>(<span class="string">b&#39;-&#39;</span>));
+
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;a&#39;</span>), <span class="string">&quot;ASCII&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;à&#39;</span>), <span class="string">&quot;Latin-1&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;β&#39;</span>), <span class="string">&quot;Greek&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;\u{11011}&#39;</span>), <span class="string">&quot;Brahmi (Unicode 6.0)&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;\u{11611}&#39;</span>), <span class="string">&quot;Modi (Unicode 7.0)&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;\u{11711}&#39;</span>), <span class="string">&quot;Ahom (Unicode 8.0)&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;\u{17828}&#39;</span>), <span class="string">&quot;Tangut (Unicode 9.0)&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;\u{1B1B1}&#39;</span>), <span class="string">&quot;Nushu (Unicode 10.0)&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">is_word_character</span>(<span class="string">&#39;\u{16E40}&#39;</span>), <span class="string">&quot;Medefaidrin (Unicode 11.0)&quot;</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">is_word_character</span>(<span class="string">&#39;-&#39;</span>));
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">is_word_character</span>(<span class="string">&#39;☃&#39;</span>));
+    }
+}
+</pre>
+</section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "regex_syntax";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

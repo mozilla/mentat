@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["channel","Create a new channel to send a message."]],"struct":[["Canceled","Represents that the `Sender` dropped before sending a message."],["Receiver","The receiver end of the channel."],["Sender","The Sender portion of a channel."],["Waiting","A `Future` waiting for interest to be registered on the `Receiver`."]]});

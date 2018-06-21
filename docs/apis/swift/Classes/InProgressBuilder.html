@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>InProgressBuilder Class Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset='utf-8'>
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+  </head>
+  <body>
+    <a name="//apple_ref/swift/Class/InProgressBuilder" class="dashAnchor"></a>
+    <a title="InProgressBuilder Class Reference"></a>
+    <header>
+      <div class="content-wrapper">
+        <p><a href="../index.html"> Docs</a> (74% documented)</p>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <p id="breadcrumbs">
+        <a href="../index.html"> Reference</a>
+        <img id="carat" src="../img/carat.png" />
+        InProgressBuilder Class Reference
+      </p>
+    </div>
+    <div class="content-wrapper">
+      <nav class="sidebar">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a href="../Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Classes/ColResult.html">ColResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/ColResultIterator.html">ColResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/EntityBuilder.html">EntityBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgress.html">InProgress</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgressBuilder.html">InProgressBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Mentat.html">Mentat</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/OptionalRustObject.html">OptionalRustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Query.html">Query</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResult.html">RelResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResultIterator.html">RelResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RustObject.html">RustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TupleResult.html">TupleResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TxReport.html">TxReport</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TypedValue.html">TypedValue</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Enums.html">Enumerations</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Enums/CacheDirection.html">CacheDirection</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/PointerError.html">PointerError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/QueryError.html">QueryError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/ResultError.html">ResultError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Extensions.html">Extensions</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Extensions/Date.html">Date</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Extensions/Result.html">Result</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Protocols.html">Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Protocols/Observable.html">Observable</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Protocols/Observing.html">Observing</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Structs.html">Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Structs.html#/s:6Mentat0A5ErrorV">MentatError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Typealiases.html">Type Aliases</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+        <section>
+          <section class="section">
+            <h1>InProgressBuilder</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">InProgressBuilder</span> <span class="p">:</span> <span class="kt"><a href="../Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                </div>
+              </div>
+            <p>This class wraps a raw pointer that points to a Rust <code>InProgressBuilder</code> object.</p>
+
+<p><code>InProgressBuilder</code> provides a programmatic interface to performing assertions for entities.
+It provides functions for adding and retracting values for attributes for an entity within
+an in progress transaction.</p>
+
+<p>The <code>transact</code> function will transact the assertions that have been added to the <code>InProgressBuilder</code>
+and pass back the <code><a href="../Classes/TxReport.html">TxReport</a></code> that was generated by this transact and the <code><a href="../Classes/InProgress.html">InProgress</a></code> that was
+used to perform the transact. This enables you to perform further transacts on the same <code><a href="../Classes/InProgress.html">InProgress</a></code>
+before committing.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+<span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+<span class="k">do</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">entityBuilder</span><span class="p">()</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">bEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+    <span class="k">let</span> <span class="p">(</span><span class="nv">inProgress</span><span class="p">,</span> <span class="nv">report</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">transact</span><span class="p">()</span>
+    <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add </span><span class="se">\(</span><span class="n">aEntid</span><span class="se">)</span><span class="s"> :foo/long 22]]"</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+    <span class="o">...</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+   <span class="o">...</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>The <code>commit</code> function will transact and commit the assertions that have been added to the <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code>.
+It will consume the <code><a href="../Classes/InProgress.html">InProgress</a></code> used to perform the transact. It returns the <code><a href="../Classes/TxReport.html">TxReport</a></code> generated by
+the transact. After calling <code>commit</code>, a new transaction must be started by calling <code><a href="../Classes/Mentat.html#/s:6MentatAAC16beginTransactionAA10InProgressCyKF">Mentat.beginTransaction()</a></code>
+in order to perform further actions.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+<span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+<span class="k">do</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">entityBuilder</span><span class="p">(</span><span class="nv">forEntid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">bEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">report</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+   <span class="o">...</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+   <span class="o">...</span>
+<span class="p">}</span>
+</code></pre>
+
+          </section>
+          <section class="section task-group-section">
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordAF4longtKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:long:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordAF4longtKF">add(entid:keyword:long:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/long</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">long</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordAF9referencetKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:reference:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordAF9referencetKF">add(entid:keyword:reference:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/ref</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">reference</span> <span class="nv">value</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSSAHtKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:keyword:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSSAHtKF">add(entid:keyword:keyword:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/keyword</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">keyword</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSb7booleantKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:boolean:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSb7booleantKF">add(entid:keyword:boolean:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/boolean</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">boolean</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Bool</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSd6doubletKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:double:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSd6doubletKF">add(entid:keyword:double:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/double</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">double</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Double</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keyword10Foundation4DateV4datetKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:date:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keyword10Foundation4DateV4datetKF">add(entid:keyword:date:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/instant</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">date</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Date</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSS6stringtKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:string:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keywordSS6stringtKF">add(entid:keyword:string:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/string</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">string</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keyword10Foundation4UUIDV4uuidtKF"></a>
+                    <a name="//apple_ref/swift/Method/add(entid:keyword:uuid:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC3addys5Int64V5entid_SS7keyword10Foundation4UUIDV4uuidtKF">add(entid:keyword:uuid:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Asserts the value of attribute <code>keyword</code> to be the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/uuid</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">uuid</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">UUID</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be asserted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordAF4longtKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:long:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordAF4longtKF">retract(entid:keyword:long:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/long</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">long</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordAF9referencetKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:reference:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordAF9referencetKF">retract(entid:keyword:reference:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/ref</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">reference</span> <span class="nv">value</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSSAHtKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:keyword:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSSAHtKF">retract(entid:keyword:keyword:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/keyword</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">keyword</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSb7booleantKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:boolean:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSb7booleantKF">retract(entid:keyword:boolean:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/boolean</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">boolean</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Bool</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSd6doubletKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:double:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSd6doubletKF">retract(entid:keyword:double:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/double</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">double</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Double</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keyword10Foundation4DateV4datetKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:date:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keyword10Foundation4DateV4datetKF">retract(entid:keyword:date:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/instant</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">date</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Date</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSS6stringtKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:string:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keywordSS6stringtKF">retract(entid:keyword:string:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/string</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">string</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keyword10Foundation4UUIDV4uuidtKF"></a>
+                    <a name="//apple_ref/swift/Method/retract(entid:keyword:uuid:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7retractys5Int64V5entid_SS7keyword10Foundation4UUIDV4uuidtKF">retract(entid:keyword:uuid:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retracts the value of attribute <code>keyword</code> from the provided <code>value</code> for entity <code>entid</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the attribute is not present in the schema or the attribute value type
+is not <code>:db.type/uuid</code>.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">retract</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">uuid</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">UUID</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity to be touched.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>keyword</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the attribute in the format <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be retracted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC8transactAA0bC0C_AA8TxReportCSgtyKF"></a>
+                    <a name="//apple_ref/swift/Method/transact()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC8transactAA0bC0C_AA8TxReportCSgtyKF">transact()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Transacts the added assertions. This consumes the pointer associated with this <code>InProgressBuilder</code>
+such that no further assertions can be added after the <code>transact</code> has completed. To perform
+further assertions, use the <code><a href="../Classes/InProgress.html">InProgress</a></code> returned from this function.</p>
+
+<p>This does not commit the transaction. In order to do so, <code>commit</code> can be called on the <code><a href="../Classes/InProgress.html">InProgress</a></code> returned
+from this function.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if an error occured during the execution of the transact.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">transact</span><span class="p">()</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="kt"><a href="../Classes/InProgress.html">InProgress</a></span><span class="p">,</span> <span class="kt"><a href="../Classes/TxReport.html">TxReport</a></span><span class="p">?)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The current <code><a href="../Classes/InProgress.html">InProgress</a></code> and the <code><a href="../Classes/TxReport.html">TxReport</a></code> generated by the transact.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC6commitAA8TxReportCyKF"></a>
+                    <a name="//apple_ref/swift/Method/commit()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC6commitAA8TxReportCyKF">commit()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Transacts the added assertions and commits. This consumes the pointer associated with this <code>InProgressBuilder</code>
+and the associated <code><a href="../Classes/InProgress.html">InProgress</a></code> such that no further assertions can be added after the <code>commit</code> has completed.
+To perform further assertions, a new <code><a href="../Classes/InProgress.html">InProgress</a></code> or <code>InProgressBuilder</code> should be created.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the builder
+has already been transacted or committed.
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if an error occured during the execution of the transact.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">commit</span><span class="p">()</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/TxReport.html">TxReport</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The <code><a href="../Classes/TxReport.html">TxReport</a></code> generated by the transact.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC7cleanupys13OpaquePointerV7pointer_tF"></a>
+                    <a name="//apple_ref/swift/Method/cleanup(pointer:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC7cleanupys13OpaquePointerV7pointer_tF">cleanup(pointer:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Undocumented</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">override</span> <span class="kd">open</span> <span class="kd">func</span> <span class="nf">cleanup</span><span class="p">(</span><span class="nv">pointer</span><span class="p">:</span> <span class="kt">OpaquePointer</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+        <section id="footer">
+          <p>&copy; 2018 <a class="link" href="" target="_blank" rel="external"></a>. All rights reserved. (Last updated: 2018-06-21)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.9.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+        </section>
+      </article>
+    </div>
+  </body>
+</div>
+</html>

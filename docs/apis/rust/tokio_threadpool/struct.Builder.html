@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Builder` struct in crate `tokio_threadpool`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Builder">
+
+    <title>tokio_threadpool::Builder - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Builder</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.pool_size">pool_size</a><a href="#method.max_blocking">max_blocking</a><a href="#method.keep_alive">keep_alive</a><a href="#method.name_prefix">name_prefix</a><a href="#method.stack_size">stack_size</a><a href="#method.around_worker">around_worker</a><a href="#method.after_start">after_start</a><a href="#method.before_stop">before_stop</a><a href="#method.custom_park">custom_park</a><a href="#method.build">build</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">!Send</a><a href="#impl-Sync">!Sync</a></div></div><p class='location'><a href='index.html'>tokio_threadpool</a></p><script>window.sidebarCurrent = {name: 'Builder', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>tokio_threadpool</a>::<wbr><a class="struct" href=''>Builder</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#59-72' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'>pub struct Builder { /* fields omitted */ }</pre></div><div class='docblock'><p>Builds a thread pool with custom configuration values.</p>
+<p>Methods can be chained in order to set the configuration values. The thread
+pool is constructed by calling <a href="#method.build"><code>build</code></a>.</p>
+<p>New instances of <code>Builder</code> are obtained via <a href="#method.new"><code>Builder::new</code></a>.</p>
+<p>See function level documentation for details on the various configuration
+settings.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">future</span>::{<span class="ident">Future</span>, <span class="ident">lazy</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">pool_size</span>(<span class="number">4</span>)
+    .<span class="ident">keep_alive</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">30</span>)))
+    .<span class="ident">build</span>();
+
+<span class="ident">thread_pool</span>.<span class="ident">spawn</span>(<span class="ident">lazy</span>(<span class="op">||</span> {
+    <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;called from a worker thread&quot;</span>);
+    <span class="prelude-val">Ok</span>(())
+}));
+
+<span class="comment">// Gracefully shutdown the threadpool</span>
+<span class="ident">thread_pool</span>.<span class="ident">shutdown</span>().<span class="ident">wait</span>().<span class="ident">unwrap</span>();</pre>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="struct" href="../tokio_threadpool/struct.Builder.html" title="struct tokio_threadpool::Builder">Builder</a></code><a href='#impl' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#74-437' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class="struct" href="../tokio_threadpool/struct.Builder.html" title="struct tokio_threadpool::Builder">Builder</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#96-117' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a new thread pool builder initialized with default configuration
+values.</p>
+<p>Configuration methods can be chained on the return value.</p>
+<h1 id="examples-1" class="section-header"><a href="#examples-1">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">pool_size</span>(<span class="number">4</span>)
+    .<span class="ident">keep_alive</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">30</span>)))
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.pool_size' class="method"><span id='pool_size.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.pool_size' class='fnname'>pool_size</a>(&amp;mut self, val: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#140-146' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Set the maximum number of worker threads for the thread pool instance.</p>
+<p>This must be a number between 1 and 32,768 though it is advised to keep
+this value on the smaller side.</p>
+<p>The default value is the number of cores available to the system.</p>
+<h1 id="examples-2" class="section-header"><a href="#examples-2">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">pool_size</span>(<span class="number">4</span>)
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.max_blocking' class="method"><span id='max_blocking.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.max_blocking' class='fnname'>max_blocking</a>(&amp;mut self, val: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#173-177' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Set the maximum number of concurrent blocking sections.</p>
+<p>When the maximum concurrent <code>blocking</code> calls is reached, any further
+calls to <code>blocking</code> will return <code>NotReady</code> and the task is notified once
+previously in-flight calls to <code>blocking</code> return.</p>
+<p>This must be a number between 1 and 32,768 though it is advised to keep
+this value on the smaller side.</p>
+<p>The default value is 100.</p>
+<h1 id="examples-3" class="section-header"><a href="#examples-3">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">max_blocking</span>(<span class="number">200</span>)
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.keep_alive' class="method"><span id='keep_alive.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.keep_alive' class='fnname'>keep_alive</a>(&amp;mut self, val: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/core/time/struct.Duration.html" title="struct core::time::Duration">Duration</a>&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#205-208' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Set the worker thread keep alive duration</p>
+<p>If set, a worker thread will wait for up to the specified duration for
+work, at which point the thread will shutdown. When work becomes
+available, a new thread will eventually be spawned to replace the one
+that shut down.</p>
+<p>When the value is <code>None</code>, the thread will wait for work forever.</p>
+<p>The default value is <code>None</code>.</p>
+<h1 id="examples-4" class="section-header"><a href="#examples-4">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">keep_alive</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">30</span>)))
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.name_prefix' class="method"><span id='name_prefix.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.name_prefix' class='fnname'>name_prefix</a>&lt;S:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;&gt;(&amp;mut self, val: S) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#233-236' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Set name prefix of threads spawned by the scheduler</p>
+<p>Thread name prefix is used for generating thread names. For example, if
+prefix is <code>my-pool-</code>, then threads in the pool will get names like
+<code>my-pool-1</code> etc.</p>
+<p>If this configuration is not set, then the thread will use the system
+default naming scheme.</p>
+<h1 id="examples-5" class="section-header"><a href="#examples-5">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">name_prefix</span>(<span class="string">&quot;my-pool-&quot;</span>)
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.stack_size' class="method"><span id='stack_size.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.stack_size' class='fnname'>stack_size</a>(&amp;mut self, val: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#260-263' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Set the stack size (in bytes) for worker threads.</p>
+<p>The actual stack size may be greater than this value if the platform
+specifies minimal stack size.</p>
+<p>The default stack size for spawned threads is 2 MiB, though this
+particular stack size is subject to change in the future.</p>
+<h1 id="examples-6" class="section-header"><a href="#examples-6">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">stack_size</span>(<span class="number">32</span> <span class="op">*</span> <span class="number">1024</span>)
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.around_worker' class="method"><span id='around_worker.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.around_worker' class='fnname'>around_worker</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;<a class="struct" href="../tokio_threadpool/struct.Worker.html" title="struct tokio_threadpool::Worker">Worker</a>, &amp;mut <a class="struct" href="../tokio_executor/enter/struct.Enter.html" title="struct tokio_executor::enter::Enter">Enter</a>) + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,&nbsp;</span></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#289-294' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Execute function <code>f</code> on each worker thread.</p>
+<p>This function is provided a handle to the worker and is expected to call
+<code>Worker::run</code>, otherwise the worker thread will shutdown without doing
+any work.</p>
+<h1 id="examples-7" class="section-header"><a href="#examples-7">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">around_worker</span>(<span class="op">|</span><span class="ident">worker</span>, <span class="kw">_</span><span class="op">|</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;worker is starting up&quot;</span>);
+        <span class="ident">worker</span>.<span class="ident">run</span>();
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;worker is shutting down&quot;</span>);
+    })
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.after_start' class="method"><span id='after_start.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.after_start' class='fnname'>after_start</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,&nbsp;</span></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#317-322' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Execute function <code>f</code> after each thread is started but before it starts
+doing work.</p>
+<p>This is intended for bookkeeping and monitoring use cases.</p>
+<h1 id="examples-8" class="section-header"><a href="#examples-8">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">after_start</span>(<span class="op">||</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;thread started&quot;</span>);
+    })
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.before_stop' class="method"><span id='before_stop.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.before_stop' class='fnname'>before_stop</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,&nbsp;</span></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#344-349' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Execute function <code>f</code> before each thread stops.</p>
+<p>This is intended for bookkeeping and monitoring use cases.</p>
+<h1 id="examples-9" class="section-header"><a href="#examples-9">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">before_stop</span>(<span class="op">||</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;thread stopping&quot;</span>);
+    })
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.custom_park' class="method"><span id='custom_park.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.custom_park' class='fnname'>custom_park</a>&lt;F, P&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;WorkerId) -&gt; P + 'static,<br>&nbsp;&nbsp;&nbsp;&nbsp;P: <a class="trait" href="../tokio_executor/park/trait.Park.html" title="trait tokio_executor::park::Park">Park</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 'static,<br>&nbsp;&nbsp;&nbsp;&nbsp;P::<a class="type" href="../tokio_executor/park/trait.Park.html#associatedtype.Error" title="type tokio_executor::park::Park::Error">Error</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a>,&nbsp;</span></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#381-391' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Customize the <code>park</code> instance used by each worker thread.</p>
+<p>The provided closure <code>f</code> is called once per worker and returns a <code>Park</code>
+instance that is used by the worker to put itself to sleep.</p>
+<h1 id="examples-10" class="section-header"><a href="#examples-10">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">custom_park</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+        <span class="kw">use</span> <span class="ident">tokio_threadpool</span>::<span class="ident">park</span>::<span class="ident">DefaultPark</span>;
+
+        <span class="comment">// This is the default park type that the worker would use if we</span>
+        <span class="comment">// did not customize it.</span>
+        <span class="kw">let</span> <span class="ident">park</span> <span class="op">=</span> <span class="ident">DefaultPark</span>::<span class="ident">new</span>();
+
+        <span class="comment">// Decorate the `park` instance, allowing us to customize work</span>
+        <span class="comment">// that happens when a worker thread goes to sleep.</span>
+        <span class="ident">decorate</span>(<span class="ident">park</span>)
+    })
+    .<span class="ident">build</span>();</pre>
+</div><h4 id='method.build' class="method"><span id='build.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.build' class='fnname'>build</a>(&amp;self) -&gt; <a class="struct" href="../tokio_threadpool/struct.ThreadPool.html" title="struct tokio_threadpool::ThreadPool">ThreadPool</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#410-436' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Create the configured <code>ThreadPool</code>.</p>
+<p>The returned <code>ThreadPool</code> instance is ready to spawn tasks.</p>
+<h1 id="examples-11" class="section-header"><a href="#examples-11">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+
+<span class="comment">// Create a thread pool with default configuration values</span>
+<span class="kw">let</span> <span class="ident">thread_pool</span> <span class="op">=</span> <span class="ident">Builder</span>::<span class="ident">new</span>()
+    .<span class="ident">build</span>();</pre>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+            <div id='implementations-list'>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../tokio_threadpool/struct.Builder.html" title="struct tokio_threadpool::Builder">Builder</a></code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#439-447' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, fmt: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/tokio_threadpool/builder.rs.html#440-446' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></div>
+                <h2 id='synthetic-implementations' class='small-section-header'>
+                  Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>
+                </h2>
+                <div id='synthetic-implementations-list'>
+            <h3 id='impl-Send' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl !<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="../tokio_threadpool/struct.Builder.html" title="struct tokio_threadpool::Builder">Builder</a></code><a href='#impl-Send' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl !<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="../tokio_threadpool/struct.Builder.html" title="struct tokio_threadpool::Builder">Builder</a></code><a href='#impl-Sync' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tokio_threadpool";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

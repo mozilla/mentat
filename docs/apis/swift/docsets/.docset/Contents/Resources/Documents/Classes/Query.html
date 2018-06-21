@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Query Class Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset='utf-8'>
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+  </head>
+  <body>
+    <a name="//apple_ref/swift/Class/Query" class="dashAnchor"></a>
+    <a title="Query Class Reference"></a>
+    <header>
+      <div class="content-wrapper">
+        <p><a href="../index.html"> Docs</a> (74% documented)</p>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <p id="breadcrumbs">
+        <a href="../index.html"> Reference</a>
+        <img id="carat" src="../img/carat.png" />
+        Query Class Reference
+      </p>
+    </div>
+    <div class="content-wrapper">
+      <nav class="sidebar">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a href="../Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Classes/ColResult.html">ColResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/ColResultIterator.html">ColResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/EntityBuilder.html">EntityBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgress.html">InProgress</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgressBuilder.html">InProgressBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Mentat.html">Mentat</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/OptionalRustObject.html">OptionalRustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Query.html">Query</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResult.html">RelResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResultIterator.html">RelResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RustObject.html">RustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TupleResult.html">TupleResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TxReport.html">TxReport</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TypedValue.html">TypedValue</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Enums.html">Enumerations</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Enums/CacheDirection.html">CacheDirection</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/PointerError.html">PointerError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/QueryError.html">QueryError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/ResultError.html">ResultError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Extensions.html">Extensions</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Extensions/Date.html">Date</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Extensions/Result.html">Result</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Protocols.html">Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Protocols/Observable.html">Observable</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Protocols/Observing.html">Observing</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Structs.html">Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Structs.html#/s:6Mentat0A5ErrorV">MentatError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Typealiases.html">Type Aliases</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+        <section>
+          <section class="section">
+            <h1>Query</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">Query</span> <span class="p">:</span> <span class="kt"><a href="../Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                </div>
+              </div>
+            <p>This class allows you to construct a query, bind values to variables and run those queries against a mentat DB.</p>
+
+<p>This class cannot be created directly, but must be created through <code>Mentat.query(String:)</code>.</p>
+
+<p>The types of values you can bind are</p>
+
+<ul>
+<li><code>Int64</code></li>
+<li><code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code></li>
+<li><code>Keyword</code></li>
+<li><code>Bool</code></li>
+<li><code>Double</code></li>
+<li><code>Date</code></li>
+<li><code>String</code></li>
+<li><code>UUID</code>.</li>
+</ul>
+
+<p>Each bound variable must have a corresponding value in the query string used to create this query.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">query</span> <span class="o">=</span> <span class="s">"""
+           [:find ?name ?cat
+            :in ?type
+            :where
+            [?c :community/name ?name]
+            [?c :community/type ?type]
+            [?c :community/category ?cat]]
+           """</span>
+<span class="n">mentat</span><span class="o">.</span><span class="nf">query</span><span class="p">(</span><span class="nv">query</span><span class="p">:</span> <span class="n">query</span><span class="p">)</span>
+       <span class="o">.</span><span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="s">"?type"</span><span class="p">,</span> <span class="nv">toKeyword</span><span class="p">:</span> <span class="s">":community.type/website"</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">run</span> <span class="p">{</span> <span class="n">result</span> <span class="k">in</span>
+            <span class="o">...</span>
+        <span class="p">}</span>
+</code></pre>
+
+<p>Queries can be run and the results returned in a number of different formats. Individual result values are returned as <code>TypedValues</code> and
+the format differences relate to the number and structure of those values. The result format is related to the format provided in the query string.</p>
+
+<ul>
+<li><code>Rel</code> - This is the default <code>run</code> function and returns a list of rows of values. Queries that wish to have <code>Rel</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find ?a ?b ?c
+         : where ... ]
+       &quot;&quot;&quot;
+mentat.query(query: query)
+.run { result in
+   ...
+}
+</code></li>
+<li><code>Scalar</code> - This returns a single value as a result. This can be optional, as the value may not be present. Queries that wish to have <code>Scalar</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find ?a .
+         : where ... ]
+        &quot;&quot;&quot;
+mentat.query(query: query)
+.runScalar { result in
+   ...
+}
+</code></li>
+<li><code>Coll</code> - This returns a list of single values as a result.  Queries that wish to have <code>Coll</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find [?a ...]
+         : where ... ]
+        &quot;&quot;&quot;
+mentat.query(query: query)
+    .runColl { result in
+       ...
+    }
+</code></li>
+<li><code>Tuple</code> - This returns a single row of values.  Queries that wish to have <code>Tuple</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find [?a ?b ?c]
+         : where ... ]
+       &quot;&quot;&quot;
+mentat.query(query: query)
+.runTuple { result in
+   ...
+}
+</code></li>
+</ul>
+
+          </section>
+          <section class="section task-group-section">
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_s5Int64V6toLongtKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toLong:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_s5Int64V6toLongtKF">bind(varName:toLong:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>Int64</code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toLong</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_s5Int64V11toReferencetKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toReference:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_s5Int64V11toReferencetKF">bind(varName:toReference:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toReference</span> <span class="nv">value</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_SS11toReferencetKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toReference:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_SS11toReferencetKF">bind(varName:toReference:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>String</code> value representing a keyword for an attribute to the provided variable name.
+Keywords take the format <code>:namespace/name</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toReference</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_SS9toKeywordtKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toKeyword:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_SS9toKeywordtKF">bind(varName:toKeyword:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a keyword <code>String</code> value to the provided variable name.
+Keywords take the format <code>:namespace/name</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toKeyword</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_Sb9toBooleantKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toBoolean:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_Sb9toBooleantKF">bind(varName:toBoolean:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>Bool</code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toBoolean</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Bool</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_Sd8toDoubletKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toDouble:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_Sd8toDoubletKF">bind(varName:toDouble:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>Double</code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toDouble</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Double</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_10Foundation4DateV02toG0tKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toDate:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_10Foundation4DateV02toG0tKF">bind(varName:toDate:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>Date</code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toDate</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Date</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_SS8toStringtKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toString:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_SS8toStringtKF">bind(varName:toString:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>String</code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toString</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC4bindACSS7varName_10Foundation4UUIDV6toUuidtKF"></a>
+                    <a name="//apple_ref/swift/Method/bind(varName:toUuid:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC4bindACSS7varName_10Foundation4UUIDV6toUuidtKF">bind(varName:toUuid:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Binds a <code>UUID</code> value to the provided variable name.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has already been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">toUuid</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">UUID</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">Query</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>varName</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The name of the variable in the format <code>?name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>value</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The value to be bound</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>This <code>Query</code> such that further function can be called.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC3runyyAA9RelResultCSgc8callback_tKF"></a>
+                    <a name="//apple_ref/swift/Method/run(callback:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC3runyyAA9RelResultCSgc8callback_tKF">run(callback:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the query with the values bound associated with this <code>Query</code> and call the provided callback function with the results as a list of rows of <code>TypedValues</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/QueryError.html#/s:6Mentat10QueryErrorO15executionFailedACSS7message_tcACmF">QueryError.executionFailed</a></code> if the query fails to execute. This could be because the provided query did not parse, or that
+variable we incorrectly bound, or that the query provided was not <code>Rel</code>.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">run</span><span class="p">(</span><span class="nv">callback</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">(</span><span class="kt"><a href="../Classes/RelResult.html">RelResult</a></span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>callback</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>the function to call with the results of this query</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC9runScalaryyAA10TypedValueCSgc8callback_tKF"></a>
+                    <a name="//apple_ref/swift/Method/runScalar(callback:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC9runScalaryyAA10TypedValueCSgc8callback_tKF">runScalar(callback:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the query with the values bound associated with this <code>Query</code> and call the provided callback function with the result as a single <code><a href="../Classes/TypedValue.html">TypedValue</a></code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/QueryError.html#/s:6Mentat10QueryErrorO15executionFailedACSS7message_tcACmF">QueryError.executionFailed</a></code> if the query fails to execute. This could be because the provided query did not parse, that
+variable we incorrectly bound, or that the query provided was not <code>Scalar</code>.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">runScalar</span><span class="p">(</span><span class="nv">callback</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">(</span><span class="kt"><a href="../Classes/TypedValue.html">TypedValue</a></span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>callback</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>the function to call with the results of this query</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC7runCollyyAA9ColResultCSgc8callback_tKF"></a>
+                    <a name="//apple_ref/swift/Method/runColl(callback:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC7runCollyyAA9ColResultCSgc8callback_tKF">runColl(callback:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the query with the values bound associated with this <code>Query</code> and call the provided callback function with the result as a list of single <code>TypedValues</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/QueryError.html#/s:6Mentat10QueryErrorO15executionFailedACSS7message_tcACmF">QueryError.executionFailed</a></code> if the query fails to execute. This could be because the provided query did not parse, that
+variable we incorrectly bound, or that the query provided was not <code>Coll</code>.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">runColl</span><span class="p">(</span><span class="nv">callback</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">(</span><span class="kt"><a href="../Classes/ColResult.html">ColResult</a></span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>callback</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>the function to call with the results of this query</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC8runTupleyyAA0D6ResultCSgc8callback_tKF"></a>
+                    <a name="//apple_ref/swift/Method/runTuple(callback:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC8runTupleyyAA0D6ResultCSgc8callback_tKF">runTuple(callback:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the query with the values bound associated with this <code>Query</code> and call the provided callback function with the result as a list of single <code>TypedValues</code>.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/QueryError.html#/s:6Mentat10QueryErrorO15executionFailedACSS7message_tcACmF">QueryError.executionFailed</a></code> if the query fails to execute. This could be because the provided query did not parse, that
+variable we incorrectly bound, or that the query provided was not <code>Tuple</code>.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/PointerError.html#/s:6Mentat12PointerErrorO15pointerConsumedA2CmF">PointerError.pointerConsumed</a></code> if the underlying raw pointer has already consumed, which will occur if the query has previously been executed.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">runTuple</span><span class="p">(</span><span class="nv">callback</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">(</span><span class="kt"><a href="../Classes/TupleResult.html">TupleResult</a></span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>callback</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>the function to call with the results of this query</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC7cleanupys13OpaquePointerV7pointer_tF"></a>
+                    <a name="//apple_ref/swift/Method/cleanup(pointer:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC7cleanupys13OpaquePointerV7pointer_tF">cleanup(pointer:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Undocumented</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">override</span> <span class="kd">open</span> <span class="kd">func</span> <span class="nf">cleanup</span><span class="p">(</span><span class="nv">pointer</span><span class="p">:</span> <span class="kt">OpaquePointer</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+        <section id="footer">
+          <p>&copy; 2018 <a class="link" href="" target="_blank" rel="external"></a>. All rights reserved. (Last updated: 2018-06-21)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.9.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+        </section>
+      </article>
+    </div>
+  </body>
+</div>
+</html>

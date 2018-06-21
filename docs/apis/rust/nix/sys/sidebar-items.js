@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["event",""],["ioctl","Provide helpers for making ioctl system calls"],["mman",""],["select",""],["signal",""],["socket","Socket interface functions"],["stat",""],["statvfs","FFI for statvfs functions"],["termios",""],["time",""],["uio",""],["wait",""]]});

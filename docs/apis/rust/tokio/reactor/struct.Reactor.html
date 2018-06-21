@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Reactor` struct in crate `tokio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Reactor">
+
+    <title>tokio::reactor::Reactor - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Reactor</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.handle">handle</a><a href="#method.set_fallback">set_fallback</a><a href="#method.turn">turn</a><a href="#method.is_idle">is_idle</a><a href="#method.background">background</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Park">Park</a><a href="#impl-Debug">Debug</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">Send</a><a href="#impl-Sync">Sync</a></div></div><p class='location'><a href='../index.html'>tokio</a>::<wbr><a href='index.html'>reactor</a></p><script>window.sidebarCurrent = {name: 'Reactor', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>tokio</a>::<wbr><a href='index.html'>reactor</a>::<wbr><a class="struct" href=''>Reactor</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#82-90' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'>pub struct Reactor { /* fields omitted */ }</pre></div><div class='docblock'><p>The core reactor, or event loop.</p>
+<p>The event loop is the main source of blocking in an application which drives
+all other I/O events and notifications happening. Each event loop can have
+multiple handles pointing to it, each of which can then be used to create
+various I/O objects to interact with the event loop in interesting ways.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a></code><a href='#impl' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#235-431' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#238-257' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Creates a new event loop, returning any error that happened during the
+creation.</p>
+</div><h4 id='method.handle' class="method"><span id='handle.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.handle' class='fnname'>handle</a>(&amp;self) -&gt; <a class="struct" href="../../tokio/reactor/struct.Handle.html" title="struct tokio::reactor::Handle">Handle</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#265-271' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a handle to this event loop which can be sent across threads
+and can be used as a proxy to the event loop itself.</p>
+<p>Handles are cloneable and clones always refer to the same event loop.
+This handle is typically passed into functions that create I/O objects
+to bind them to this event loop.</p>
+</div><h4 id='method.set_fallback' class="method"><span id='set_fallback.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.set_fallback' class='fnname'>set_fallback</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="../../tokio_reactor/struct.SetFallbackError.html" title="struct tokio_reactor::SetFallbackError">SetFallbackError</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#296-298' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Configures the fallback handle to be returned from <code>Handle::default</code>.</p>
+<p>The <code>Handle::default()</code> function will by default lazily spin up a global
+thread and run a reactor on this global thread. This behavior is not
+always desirable in all applications, however, and sometimes a different
+fallback reactor is desired.</p>
+<p>This function will attempt to globally alter the return value of
+<code>Handle::default()</code> to return the <code>handle</code> specified rather than a
+lazily initialized global thread. If successful then all future calls to
+<code>Handle::default()</code> which would otherwise fall back to the global thread
+will instead return a clone of the handle specified.</p>
+<h1 id="errors" class="section-header"><a href="#errors">Errors</a></h1>
+<p>This function may not always succeed in configuring the fallback handle.
+If this function was previously called (or perhaps concurrently called
+on many threads) only the <em>first</em> invocation of this function will
+succeed. All other invocations will return an error.</p>
+<p>Additionally if the global reactor thread has already been initialized
+then this function will also return an error. (aka if <code>Handle::default</code>
+has been called previously in this program).</p>
+</div><h4 id='method.turn' class="method"><span id='turn.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.turn' class='fnname'>turn</a>(&amp;mut self, max_wait: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/core/time/struct.Duration.html" title="struct core::time::Duration">Duration</a>&gt;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../../tokio/reactor/struct.Turn.html" title="struct tokio::reactor::Turn">Turn</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#326-329' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Performs one iteration of the event loop, blocking on waiting for events
+for at most <code>max_wait</code> (forever if <code>None</code>).</p>
+<p>This method is the primary method of running this reactor and processing
+I/O events that occur. This method executes one iteration of an event
+loop, blocking at most once waiting for events to happen.</p>
+<p>If a <code>max_wait</code> is specified then the method should block no longer than
+the duration specified, but this shouldn't be used as a super-precise
+timer but rather a &quot;ballpark approximation&quot;</p>
+<h1 id="return-value" class="section-header"><a href="#return-value">Return value</a></h1>
+<p>This function returns an instance of <code>Turn</code></p>
+<p><code>Turn</code> as of today has no extra information with it and can be safely
+discarded.  In the future <code>Turn</code> may contain information about what
+happened while this reactor blocked.</p>
+<h1 id="errors-1" class="section-header"><a href="#errors-1">Errors</a></h1>
+<p>This function may also return any I/O error which occurs when polling
+for readiness of I/O objects with the OS. This is quite unlikely to
+arise and typically mean that things have gone horribly wrong at that
+point. Currently this is primarily only known to happen for internal
+bugs to <code>tokio</code> itself.</p>
+</div><h4 id='method.is_idle' class="method"><span id='is_idle.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.is_idle' class='fnname'>is_idle</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#335-339' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns true if the reactor is currently idle.</p>
+<p>Idle is defined as all tasks that have been spawned have completed,
+either successfully or with an error.</p>
+</div><h4 id='method.background' class="method"><span id='background.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.background' class='fnname'>background</a>(self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../../tokio/reactor/struct.Background.html" title="struct tokio::reactor::Background">Background</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#347-349' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Run this reactor on a background thread.</p>
+<p>This function takes ownership, spawns a new thread, and moves the
+reactor to this new thread. It then runs the reactor, driving all
+associated I/O resources, until the <code>Background</code> handle is dropped or
+explicitly shutdown.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+            <div id='implementations-list'>
+        <h3 id='impl-Park' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="../../tokio_executor/park/trait.Park.html" title="trait tokio_executor::park::Park">Park</a> for <a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a></code><a href='#impl-Park' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#433-450' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='associatedtype.Unpark' class="type"><span id='Unpark.t' class='invisible'><code>type <a href='../../tokio_executor/park/trait.Park.html#associatedtype.Unpark' class="type">Unpark</a> = <a class="struct" href="../../tokio/reactor/struct.Handle.html" title="struct tokio::reactor::Handle">Handle</a></code></span></h4>
+<div class='docblock'><p>Unpark handle type for the <code>Park</code> implementation.</p>
+</div><h4 id='associatedtype.Error' class="type"><span id='Error.t' class='invisible'><code>type <a href='../../tokio_executor/park/trait.Park.html#associatedtype.Error' class="type">Error</a> = <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a></code></span></h4>
+<div class='docblock'><p>Error returned by <code>park</code></p>
+</div><h4 id='method.unpark' class="method"><span id='unpark.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='../../tokio_executor/park/trait.Park.html#tymethod.unpark' class='fnname'>unpark</a>(&amp;self) -&gt; &lt;<a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a> as <a class="trait" href="../../tokio_executor/park/trait.Park.html" title="trait tokio_executor::park::Park">Park</a>&gt;::<a class="type" href="../../tokio_executor/park/trait.Park.html#associatedtype.Unpark" title="type tokio_executor::park::Park::Unpark">Unpark</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#437-439' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Get a new <code>Unpark</code> handle associated with this <code>Park</code> instance.</p>
+</div><h4 id='method.park' class="method"><span id='park.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='../../tokio_executor/park/trait.Park.html#tymethod.park' class='fnname'>park</a>(&amp;mut self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#441-444' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Block the current thread unless or until the token is available. <a href="../../tokio_executor/park/trait.Park.html#tymethod.park">Read more</a></p>
+</div><h4 id='method.park_timeout' class="method"><span id='park_timeout.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='../../tokio_executor/park/trait.Park.html#tymethod.park_timeout' class='fnname'>park_timeout</a>(&amp;mut self, duration: <a class="struct" href="https://doc.rust-lang.org/nightly/core/time/struct.Duration.html" title="struct core::time::Duration">Duration</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#446-449' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Park the current thread for at most <code>duration</code>. <a href="../../tokio_executor/park/trait.Park.html#tymethod.park_timeout">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a></code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#452-456' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Error.html" title="struct core::fmt::Error">Error</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/lib.rs.html#453-455' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></div>
+                <h2 id='synthetic-implementations' class='small-section-header'>
+                  Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>
+                </h2>
+                <div id='synthetic-implementations-list'>
+            <h3 id='impl-Send' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a></code><a href='#impl-Send' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="../../tokio/reactor/struct.Reactor.html" title="struct tokio::reactor::Reactor">Reactor</a></code><a href='#impl-Sync' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

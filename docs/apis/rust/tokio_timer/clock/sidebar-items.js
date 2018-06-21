@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["now","Returns an `Instant` corresponding to \"now\"."],["with_default","Set the default clock for the duration of the closure."]],"struct":[["Clock","A handle to a source of time."]],"trait":[["Now","Returns `Instant` values representing the current instant in time."]]});

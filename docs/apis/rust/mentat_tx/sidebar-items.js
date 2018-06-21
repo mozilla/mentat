@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["entities","This module defines core types that support the transaction processor."]]});

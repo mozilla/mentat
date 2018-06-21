@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Observing Protocol Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset='utf-8'>
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+  </head>
+  <body>
+    <a name="//apple_ref/swift/Protocol/Observing" class="dashAnchor"></a>
+    <a title="Observing Protocol Reference"></a>
+    <header>
+      <div class="content-wrapper">
+        <p><a href="../index.html"> Docs</a> (74% documented)</p>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <p id="breadcrumbs">
+        <a href="../index.html"> Reference</a>
+        <img id="carat" src="../img/carat.png" />
+        Observing Protocol Reference
+      </p>
+    </div>
+    <div class="content-wrapper">
+      <nav class="sidebar">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a href="../Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Classes/ColResult.html">ColResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/ColResultIterator.html">ColResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/EntityBuilder.html">EntityBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgress.html">InProgress</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgressBuilder.html">InProgressBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Mentat.html">Mentat</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/OptionalRustObject.html">OptionalRustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Query.html">Query</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResult.html">RelResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResultIterator.html">RelResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RustObject.html">RustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TupleResult.html">TupleResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TxReport.html">TxReport</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TypedValue.html">TypedValue</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Enums.html">Enumerations</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Enums/CacheDirection.html">CacheDirection</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/PointerError.html">PointerError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/QueryError.html">QueryError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/ResultError.html">ResultError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Extensions.html">Extensions</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Extensions/Date.html">Date</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Extensions/Result.html">Result</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Protocols.html">Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Protocols/Observable.html">Observable</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Protocols/Observing.html">Observing</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Structs.html">Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Structs.html#/s:6Mentat0A5ErrorV">MentatError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Typealiases.html">Type Aliases</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+        <section>
+          <section class="section">
+            <h1>Observing</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">protocol</span> <span class="kt">Observing</span></code></pre>
+
+                </div>
+              </div>
+            <p>Protocol to be implemented by any object that wishes to register for transaction observation</p>
+
+          </section>
+          <section class="section task-group-section">
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat9ObservingP19transactionDidOccurySS3key_SaySC8TxChangeVG7reportstF"></a>
+                    <a name="//apple_ref/swift/Method/transactionDidOccur(key:reports:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat9ObservingP19transactionDidOccurySS3key_SaySC8TxChangeVG7reportstF">transactionDidOccur(key:reports:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Undocumented</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">func</span> <span class="nf">transactionDidOccur</span><span class="p">(</span><span class="nv">key</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">reports</span><span class="p">:</span> <span class="p">[</span><span class="kt">TxChange</span><span class="p">])</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+        <section id="footer">
+          <p>&copy; 2018 <a class="link" href="" target="_blank" rel="external"></a>. All rights reserved. (Last updated: 2018-06-21)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.9.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+        </section>
+      </article>
+    </div>
+  </body>
+</div>
+</html>

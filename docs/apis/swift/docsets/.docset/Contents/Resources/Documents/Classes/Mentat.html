@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Mentat Class Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset='utf-8'>
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+  </head>
+  <body>
+    <a name="//apple_ref/swift/Class/Mentat" class="dashAnchor"></a>
+    <a title="Mentat Class Reference"></a>
+    <header>
+      <div class="content-wrapper">
+        <p><a href="../index.html"> Docs</a> (74% documented)</p>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <p id="breadcrumbs">
+        <a href="../index.html"> Reference</a>
+        <img id="carat" src="../img/carat.png" />
+        Mentat Class Reference
+      </p>
+    </div>
+    <div class="content-wrapper">
+      <nav class="sidebar">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a href="../Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Classes/ColResult.html">ColResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/ColResultIterator.html">ColResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/EntityBuilder.html">EntityBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgress.html">InProgress</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/InProgressBuilder.html">InProgressBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Mentat.html">Mentat</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/OptionalRustObject.html">OptionalRustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/Query.html">Query</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResult.html">RelResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RelResultIterator.html">RelResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/RustObject.html">RustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TupleResult.html">TupleResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TxReport.html">TxReport</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TypedValue.html">TypedValue</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Enums.html">Enumerations</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Enums/CacheDirection.html">CacheDirection</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/PointerError.html">PointerError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/QueryError.html">QueryError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/ResultError.html">ResultError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Extensions.html">Extensions</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Extensions/Date.html">Date</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Extensions/Result.html">Result</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Protocols.html">Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Protocols/Observable.html">Observable</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Protocols/Observing.html">Observing</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Structs.html">Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Structs.html#/s:6Mentat0A5ErrorV">MentatError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Typealiases.html">Type Aliases</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+        <section>
+          <section class="section">
+            <h1>Mentat</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">Mentat</span> <span class="p">:</span> <span class="kt"><a href="../Classes/RustObject.html">RustObject</a></span></code></pre>
+
+                </div>
+              </div>
+            <p>The primary class for accessing Mentat&rsquo;s API.
+This class provides all of the basic API that can be found in Mentat&rsquo;s Store struct.
+The raw pointer it holds is a pointer to a Store.</p>
+
+          </section>
+          <section class="section task-group-section">
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAACABs13OpaquePointerV3raw_tcfc"></a>
+                    <a name="//apple_ref/swift/Method/init(raw:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAACABs13OpaquePointerV3raw_tcfc">init(raw:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Create a new Mentat with the provided pointer to a Mentat Store</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">required</span> <span class="k">override</span> <span class="nf">init</span><span class="p">(</span><span class="nv">raw</span><span class="p">:</span> <span class="kt">OpaquePointer</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>raw</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>A pointer to a Mentat Store.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAACABSS8storeURI_tcfc"></a>
+                    <a name="//apple_ref/swift/Method/init(storeURI:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAACABSS8storeURI_tcfc">init(storeURI:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Open a connection to a Store in a given location.
+If the store does not already exist, one will be created.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="n">convenience</span> <span class="nf">init</span><span class="p">(</span><span class="nv">storeURI</span><span class="p">:</span> <span class="kt">String</span> <span class="o">=</span> <span class="s">""</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>storeURI</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The URI as a String of the store to open.
+If no store URI is provided, an in-memory store will be opened.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC5cacheySS9attribute_AA14CacheDirectionO9directiontKF"></a>
+                    <a name="//apple_ref/swift/Method/cache(attribute:direction:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC5cacheySS9attribute_AA14CacheDirectionO9directiontKF">cache(attribute:direction:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
+looked up.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if an error occured while trying to cache the attribute.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">cache</span><span class="p">(</span><span class="nv">attribute</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">direction</span><span class="p">:</span> <span class="kt"><a href="../Enums/CacheDirection.html">CacheDirection</a></span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>attribute</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The attribute to cache</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>direction</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The direction the attribute should be keyed.
+<code>forward</code> caches values for an attribute keyed by entity
+(i.e. find values and entities that have this attribute, or find values of attribute for an entity)
+<code>reverse</code> caches entities for an attribute keyed by value.
+(i.e. find entities that have a particular value for an attribute).
+<code>both</code> adds an attribute such that it is cached in both directions.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC8transactAA8TxReportCSS11transaction_tKF"></a>
+                    <a name="//apple_ref/swift/Method/transact(transaction:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC8transactAA8TxReportCSS11transaction_tKF">transact(transaction:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Simple transact of an EDN string.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the an error occured during the transaction, or the TxReport is nil.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/TxReport.html">TxReport</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>transaction</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The string, as EDN, to be transacted</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The <code><a href="../Classes/TxReport.html">TxReport</a></code> of the completed transaction</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC16beginTransactionAA10InProgressCyKF"></a>
+                    <a name="//apple_ref/swift/Method/beginTransaction()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC16beginTransactionAA10InProgressCyKF">beginTransaction()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Start a new transaction.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the creation of the transaction fails.
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5emptyA2CmF">ResultError.empty</a></code> if no <code><a href="../Classes/InProgress.html">InProgress</a></code> is created.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">beginTransaction</span><span class="p">()</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/InProgress.html">InProgress</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The <code><a href="../Classes/InProgress.html">InProgress</a></code> used to manage the transaction</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC13entityBuilderAA010InProgressC0CyKF"></a>
+                    <a name="//apple_ref/swift/Method/entityBuilder()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC13entityBuilderAA010InProgressC0CyKF">entityBuilder()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Creates a new transaction (<code><a href="../Classes/InProgress.html">InProgress</a></code>) and returns an <code><a href="../Classes/InProgressBuilder.html">InProgressBuilder</a></code> for that transaction.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the creation of the transaction fails.
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5emptyA2CmF">ResultError.empty</a></code> if no <code><a href="../Classes/InProgressBuilder.html">InProgressBuilder</a></code> is created.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">entityBuilder</span><span class="p">()</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/InProgressBuilder.html">InProgressBuilder</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>an <code><a href="../Classes/InProgressBuilder.html">InProgressBuilder</a></code> for this <code><a href="../Classes/InProgress.html">InProgress</a></code></p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC13entityBuilderAA06EntityC0Cs5Int64V8forEntid_tKF"></a>
+                    <a name="//apple_ref/swift/Method/entityBuilder(forEntid:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC13entityBuilderAA06EntityC0Cs5Int64V8forEntid_tKF">entityBuilder(forEntid:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Creates a new transaction (<code><a href="../Classes/InProgress.html">InProgress</a></code>) and returns an <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code> for the entity with <code>entid</code>
+for that transaction.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the creation of the transaction fails.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5emptyA2CmF">ResultError.empty</a></code> if no <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code> is created.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">entityBuilder</span><span class="p">(</span><span class="n">forEntid</span> <span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/EntityBuilder.html">EntityBuilder</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> for this entity.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>an <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code> for this <code><a href="../Classes/InProgress.html">InProgress</a></code></p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC13entityBuilderAA06EntityC0CSS9forTempId_tKF"></a>
+                    <a name="//apple_ref/swift/Method/entityBuilder(forTempId:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC13entityBuilderAA06EntityC0CSS9forTempId_tKF">entityBuilder(forTempId:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Creates a new transaction (<code><a href="../Classes/InProgress.html">InProgress</a></code>) and returns an <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code> for a new entity with <code>tempId</code>
+for that transaction.</p>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5errorACSS7message_tcACmF">ResultError.error</a></code> if the creation of the transaction fails.</p>
+
+</div>
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    <p><code><a href="../Enums/ResultError.html#/s:6Mentat11ResultErrorO5emptyA2CmF">ResultError.empty</a></code> if no <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code> is created.</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">entityBuilder</span><span class="p">(</span><span class="n">forTempId</span> <span class="nv">tempId</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/EntityBuilder.html">EntityBuilder</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>tempId</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The temporary identifier for this entity.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>an <code><a href="../Classes/EntityBuilder.html">EntityBuilder</a></code> for this <code><a href="../Classes/InProgress.html">InProgress</a></code></p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC17entidForAttributes5Int64VSS9attribute_tF"></a>
+                    <a name="//apple_ref/swift/Method/entidForAttribute(attribute:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC17entidForAttributes5Int64VSS9attribute_tF">entidForAttribute(attribute:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Get the the <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the attribute.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">entidForAttribute</span><span class="p">(</span><span class="nv">attribute</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>attribute</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The string represeting the attribute whose <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> we are after.
+The string is represented as <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> associated with the attribute.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC5queryAA5QueryCSSAC_tF"></a>
+                    <a name="//apple_ref/swift/Method/query(query:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC5queryAA5QueryCSSAC_tF">query(query:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Start a query.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">query</span><span class="p">(</span><span class="nv">query</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/Query.html">Query</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>query</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The string represeting the the query to be executed.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The <code><a href="../Classes/Query.html">Query</a></code> representing the query that can be executed.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC5valueAA10TypedValueCSgSS12forAttribute_s5Int64V8ofEntitytKF"></a>
+                    <a name="//apple_ref/swift/Method/value(forAttribute:ofEntity:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC5valueAA10TypedValueCSgSS12forAttribute_s5Int64V8ofEntitytKF">value(forAttribute:ofEntity:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Retrieve a single value of an attribute for an Entity</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">value</span><span class="p">(</span><span class="n">forAttribute</span> <span class="nv">attribute</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="n">ofEntity</span> <span class="nv">entid</span><span class="p">:</span> <span class="kt"><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt"><a href="../Classes/TypedValue.html">TypedValue</a></span><span class="p">?</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>attribute</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The string the attribute whose value is to be returned.
+The string is represented as <code>:namespace/name</code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>entid</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Typealiases.html#/s:6Mentat5Entida">Entid</a></code> of the entity we want the value from.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The <code><a href="../Classes/TypedValue.html">TypedValue</a></code> containing the value of the attribute for the entity.</p>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC7cleanupys13OpaquePointerV7pointer_tF"></a>
+                    <a name="//apple_ref/swift/Method/cleanup(pointer:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC7cleanupys13OpaquePointerV7pointer_tF">cleanup(pointer:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Undocumented</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">override</span> <span class="kd">open</span> <span class="kd">func</span> <span class="nf">cleanup</span><span class="p">(</span><span class="nv">pointer</span><span class="p">:</span> <span class="kt">OpaquePointer</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC8registerySS3key_AA9Observing_p8observerSaySSG10attributestF"></a>
+                    <a name="//apple_ref/swift/Method/register(key:observer:attributes:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC8registerySS3key_AA9Observing_p8observerSaySSG10attributestF">register(key:observer:attributes:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Register an <code><a href="../Protocols/Observing.html">Observing</a></code> and a set of attributes to observer for transaction observation.
+The <code>transactionDidOccur(String: [TxChange]:)</code> function is called when a transaction
+occurs in the <code>Store</code> that this <code>Mentat</code> is connected to that affects the attributes that an
+<code><a href="../Protocols/Observing.html">Observing</a></code> has registered for.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">register</span><span class="p">(</span><span class="nv">key</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">observer</span><span class="p">:</span> <span class="kt"><a href="../Protocols/Observing.html">Observing</a></span><span class="p">,</span> <span class="nv">attributes</span><span class="p">:</span> <span class="p">[</span><span class="kt">String</span><span class="p">])</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>key</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p><code>String</code> representing an identifier for the <code><a href="../Protocols/Observing.html">Observing</a></code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>observer</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>The <code><a href="../Protocols/Observing.html">Observing</a></code> to be notified when a transaction occurs.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>attributes</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>An <code>Array</code> of <code>Strings</code> representing the attributes that the <code><a href="../Protocols/Observing.html">Observing</a></code>
+wishes to be notified about if they are referenced in a transaction.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC10unregisterySS3key_tF"></a>
+                    <a name="//apple_ref/swift/Method/unregister(key:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC10unregisterySS3key_tF">unregister(key:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Unregister the <code><a href="../Protocols/Observing.html">Observing</a></code> that was registered with the provided key such that it will no longer be called
+if a transaction occurs that affects the attributes that <code><a href="../Protocols/Observing.html">Observing</a></code> was registered to observe.</p>
+
+<p>The <code><a href="../Protocols/Observing.html">Observing</a></code> will need to re-register if it wants to start observing again.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">func</span> <span class="nf">unregister</span><span class="p">(</span><span class="nv">key</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>key</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p><code>String</code> representing an identifier for the <code><a href="../Protocols/Observing.html">Observing</a></code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+        <section id="footer">
+          <p>&copy; 2018 <a class="link" href="" target="_blank" rel="external"></a>. All rights reserved. (Last updated: 2018-06-21)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.9.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+        </section>
+      </article>
+    </div>
+  </body>
+</div>
+</html>

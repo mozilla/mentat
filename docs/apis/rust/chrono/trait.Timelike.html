@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Timelike` trait in crate `chrono`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Timelike">
+
+    <title>chrono::Timelike - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait Timelike</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.hour">hour</a><a href="#tymethod.minute">minute</a><a href="#tymethod.second">second</a><a href="#tymethod.nanosecond">nanosecond</a><a href="#tymethod.with_hour">with_hour</a><a href="#tymethod.with_minute">with_minute</a><a href="#tymethod.with_second">with_second</a><a href="#tymethod.with_nanosecond">with_nanosecond</a></div><a class="sidebar-title" href="#provided-methods">Provided Methods</a><div class="sidebar-links"><a href="#method.hour12">hour12</a><a href="#method.num_seconds_from_midnight">num_seconds_from_midnight</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='index.html'>chrono</a></p><script>window.sidebarCurrent = {name: 'Timelike', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>chrono</a>::<wbr><a class="trait" href=''>Timelike</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/chrono/lib.rs.html#891-947' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust trait'>pub trait Timelike: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> {
+    fn <a href='#tymethod.hour' class='fnname'>hour</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.minute' class='fnname'>minute</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.second' class='fnname'>second</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.nanosecond' class='fnname'>nanosecond</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.with_hour' class='fnname'>with_hour</a>(&amp;self, hour: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.with_minute' class='fnname'>with_minute</a>(&amp;self, min: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.with_second' class='fnname'>with_second</a>(&amp;self, sec: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.with_nanosecond' class='fnname'>with_nanosecond</a>(&amp;self, nano: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;;
+
+    fn <a href='#method.hour12' class='fnname'>hour12</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a> { ... }
+<div class='item-spacer'></div>    fn <a href='#method.num_seconds_from_midnight' class='fnname'>num_seconds_from_midnight</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a> { ... }
+}</pre></div><div class='docblock'><p>The common set of methods for time component.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.hour' class='method'><span id='hour.v' class='invisible'><code>fn <a href='#tymethod.hour' class='fnname'>hour</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a></code></span></h3><div class='docblock'><p>Returns the hour number from 0 to 23.</p>
+</div><h3 id='tymethod.minute' class='method'><span id='minute.v' class='invisible'><code>fn <a href='#tymethod.minute' class='fnname'>minute</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a></code></span></h3><div class='docblock'><p>Returns the minute number from 0 to 59.</p>
+</div><h3 id='tymethod.second' class='method'><span id='second.v' class='invisible'><code>fn <a href='#tymethod.second' class='fnname'>second</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a></code></span></h3><div class='docblock'><p>Returns the second number from 0 to 59.</p>
+</div><h3 id='tymethod.nanosecond' class='method'><span id='nanosecond.v' class='invisible'><code>fn <a href='#tymethod.nanosecond' class='fnname'>nanosecond</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a></code></span></h3><div class='docblock'><p>Returns the number of nanoseconds since the whole non-leap second.
+The range from 1,000,000,000 to 1,999,999,999 represents
+the <a href="./naive/struct.NaiveTime.html#leap-second-handling">leap second</a>.</p>
+</div><h3 id='tymethod.with_hour' class='method'><span id='with_hour.v' class='invisible'><code>fn <a href='#tymethod.with_hour' class='fnname'>with_hour</a>(&amp;self, hour: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;</code></span></h3><div class='docblock'><p>Makes a new value with the hour number changed.</p>
+<p>Returns <code>None</code> when the resulting value would be invalid.</p>
+</div><h3 id='tymethod.with_minute' class='method'><span id='with_minute.v' class='invisible'><code>fn <a href='#tymethod.with_minute' class='fnname'>with_minute</a>(&amp;self, min: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;</code></span></h3><div class='docblock'><p>Makes a new value with the minute number changed.</p>
+<p>Returns <code>None</code> when the resulting value would be invalid.</p>
+</div><h3 id='tymethod.with_second' class='method'><span id='with_second.v' class='invisible'><code>fn <a href='#tymethod.with_second' class='fnname'>with_second</a>(&amp;self, sec: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;</code></span></h3><div class='docblock'><p>Makes a new value with the second number changed.</p>
+<p>Returns <code>None</code> when the resulting value would be invalid.
+As with the <a href="#tymethod.second"><code>second</code></a> method,
+the input range is restricted to 0 through 59.</p>
+</div><h3 id='tymethod.with_nanosecond' class='method'><span id='with_nanosecond.v' class='invisible'><code>fn <a href='#tymethod.with_nanosecond' class='fnname'>with_nanosecond</a>(&amp;self, nano: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;</code></span></h3><div class='docblock'><p>Makes a new value with nanoseconds since the whole non-leap second changed.</p>
+<p>Returns <code>None</code> when the resulting value would be invalid.
+As with the <a href="#tymethod.nanosecond"><code>nanosecond</code></a> method,
+the input range can exceed 1,000,000,000 for leap seconds.</p>
+</div></div>
+            <h2 id='provided-methods' class='small-section-header'>
+              Provided Methods<a href='#provided-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='method.hour12' class='method'><span id='hour12.v' class='invisible'><code>fn <a href='#method.hour12' class='fnname'>hour12</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code></span></h3><div class='docblock'><p>Returns the hour number from 1 to 12 with a boolean flag,
+which is false for AM and true for PM.</p>
+</div><h3 id='method.num_seconds_from_midnight' class='method'><span id='num_seconds_from_midnight.v' class='invisible'><code>fn <a href='#method.num_seconds_from_midnight' class='fnname'>num_seconds_from_midnight</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a></code></span></h3><div class='docblock'><p>Returns the number of non-leap seconds past the last midnight.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><table class='table-display'><tbody><tr><td><code>impl Timelike for <a class="struct" href="../chrono/naive/struct.NaiveTime.html" title="struct chrono::naive::NaiveTime">NaiveTime</a></code><td><div class='out-of-band'><a class='srclink' href='../src/chrono/naive/time.rs.html#779-978' title='goto source code'>[src]</a></div></td></tr></tbody></table></li>
+<li><table class='table-display'><tbody><tr><td><code>impl Timelike for <a class="struct" href="../chrono/naive/struct.NaiveDateTime.html" title="struct chrono::naive::NaiveDateTime">NaiveDateTime</a></code><td><div class='out-of-band'><a class='srclink' href='../src/chrono/naive/datetime.rs.html#988-1154' title='goto source code'>[src]</a></div></td></tr></tbody></table></li>
+<li><table class='table-display'><tbody><tr><td><code>impl&lt;Tz:&nbsp;<a class="trait" href="../chrono/offset/trait.TimeZone.html" title="trait chrono::offset::TimeZone">TimeZone</a>&gt; Timelike for <a class="struct" href="../chrono/struct.DateTime.html" title="struct chrono::DateTime">DateTime</a>&lt;Tz&gt;</code><td><div class='out-of-band'><a class='srclink' href='../src/chrono/datetime.rs.html#444-469' title='goto source code'>[src]</a></div></td></tr></tbody></table></li>
+</ul><script type="text/javascript">window.inlined_types=new Set([]);</script><script type="text/javascript" async
+                         src="../implementors/chrono/trait.Timelike.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "chrono";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

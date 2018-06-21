@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `park` mod in crate `tokio_executor`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, park">
+
+    <title>tokio_executor::park - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module park</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#traits">Traits</a></li></ul></div><p class='location'><a href='../index.html'>tokio_executor</a></p><script>window.sidebarCurrent = {name: 'park', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>tokio_executor</a>::<wbr><a class="mod" href=''>park</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_executor/park.rs.html#1-300' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Abstraction over blocking and unblocking the current thread.</p>
+<p>Provides an abstraction over blocking the current thread. This is similar to
+the park / unpark constructs provided by <a href="https://doc.rust-lang.org/std/thread/fn.park.html"><code>std</code></a> but made generic. This
+allows embedding custom functionality to perform when the thread is blocked.</p>
+<p>A blocked <a href="trait.Park.html"><code>Park</code></a> instance is unblocked by calling <a href="trait.Unpark.html#tymethod.unpark"><code>unpark</code></a> on its
+<a href="trait.Unpark.html"><code>Unpark</code></a> handle.</p>
+<p>The <a href="struct.ParkThread.html"><code>ParkThread</code></a> struct implements <a href="trait.Park.html"><code>Park</code></a> using
+<a href="https://doc.rust-lang.org/std/thread/fn.park.html"><code>thread::park</code></a> to put the thread to sleep. The Tokio reactor also
+implements park, but uses <a href="https://docs.rs/mio/0.6.13/mio/struct.Poll.html"><code>mio::Poll</code></a> to block the thread instead.</p>
+<p>The <a href="trait.Park.html"><code>Park</code></a> trait is composable. A timer implementation might decorate a
+<a href="trait.Park.html"><code>Park</code></a> implementation by checking if any timeouts have elapsed after
+the inner <a href="trait.Park.html"><code>Park</code></a> implementation unblocks.</p>
+<h1 id="model" class="section-header"><a href="#model">Model</a></h1>
+<p>Conceptually, each <a href="trait.Park.html"><code>Park</code></a> instance has an associated token, which is
+initially not present:</p>
+<ul>
+<li>The <a href="trait.Park.html#tymethod.park"><code>park</code></a> method blocks the current thread unless or until the token
+is available, at which point it atomically consumes the token.</li>
+<li>The <a href="trait.Unpark.html#tymethod.unpark"><code>unpark</code></a> method atomically makes the token available if it wasn't
+already.</li>
+</ul>
+<p>Some things to note:</p>
+<ul>
+<li>If <a href="trait.Unpark.html#tymethod.unpark"><code>unpark</code></a> is called before <a href="trait.Park.html#tymethod.park"><code>park</code></a>, the next call to <a href="trait.Park.html#tymethod.park"><code>park</code></a> will
+<strong>not</strong> block the thread.</li>
+<li><strong>Spurious</strong> wakeups are permited, i.e., the <a href="trait.Park.html#tymethod.park"><code>park</code></a> method may unblock
+even if <a href="trait.Unpark.html#tymethod.unpark"><code>unpark</code></a> was not called.</li>
+<li><a href="trait.Park.html#tymethod.park_timeout"><code>park_timeout</code></a> does the same as <a href="trait.Park.html#tymethod.park"><code>park</code></a> but allows specifying a maximum
+time to block the thread for.</li>
+</ul>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ParkError.html"
+                                  title='struct tokio_executor::park::ParkError'>ParkError</a></td>
+                           <td class='docblock-short'>
+                                <p>Error returned by <a href="struct.ParkThread.html"><code>ParkThread</code></a></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ParkThread.html"
+                                  title='struct tokio_executor::park::ParkThread'>ParkThread</a></td>
+                           <td class='docblock-short'>
+                                <p>Blocks the current thread using a condition variable.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.UnparkThread.html"
+                                  title='struct tokio_executor::park::UnparkThread'>UnparkThread</a></td>
+                           <td class='docblock-short'>
+                                <p>Unblocks a thread that was blocked by <code>ParkThread</code>.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Park.html"
+                                  title='trait tokio_executor::park::Park'>Park</a></td>
+                           <td class='docblock-short'>
+                                <p>Block the current thread.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Unpark.html"
+                                  title='trait tokio_executor::park::Unpark'>Unpark</a></td>
+                           <td class='docblock-short'>
+                                <p>Unblock a thread blocked by the associated <a href="trait.Park.html"><code>Park</code></a> instance.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio_executor";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["format_columns","Formats a series of strings into columns, fitting within a given screen width. Returns the size of each resulting column, including spacing."]],"struct":[["Line","Represents a single line of the table"],["Table","Represents a table of strings, formatted into rows and columns"]]});

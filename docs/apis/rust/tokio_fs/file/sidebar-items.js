@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CreateFuture","Future returned by `File::create` and resolves to a `File` instance."],["File","A reference to an open file on the filesystem."],["OpenFuture","Future returned by `File::open` and resolves to a `File` instance."],["OpenOptions","Options and flags which can be used to configure how a file is opened."]]});

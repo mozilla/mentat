@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `ioctl` mod in crate `nix`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, ioctl">
+
+    <title>nix::sys::ioctl - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle">
+    <script src="../../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module ioctl</p><div class="sidebar-elems"><p class='location'><a href='../../index.html'>nix</a>::<wbr><a href='../index.html'>sys</a></p><script>window.sidebarCurrent = {name: 'ioctl', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../../index.html'>nix</a>::<wbr><a href='../index.html'>sys</a>::<wbr><a class="mod" href=''>ioctl</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../../src/nix/sys/ioctl/mod.rs.html#1-147' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Provide helpers for making ioctl system calls</p>
+<p>Currently supports Linux on all architectures. Other platforms welcome!</p>
+<p>This library is pretty low-level and messy. <code>ioctl</code> is not fun.</p>
+<h1 id="what-is-an-ioctl" class="section-header"><a href="#what-is-an-ioctl">What is an <code>ioctl</code>?</a></h1>
+<p>The <code>ioctl</code> syscall is the grab-bag syscall on POSIX systems. Don't want
+to add a new syscall? Make it an <code>ioctl</code>! <code>ioctl</code> refers to both the syscall,
+and the commands that can be send with it. <code>ioctl</code> stands for &quot;IO control&quot;,
+and the commands are always sent to a file descriptor.</p>
+<p>It is common to see <code>ioctl</code>s used for the following purposes:</p>
+<ul>
+<li>Provide read/write access to out-of-band data related
+to a device such as configuration (for instance, setting
+serial port options)</li>
+<li>Provide a mechanism for performing full-duplex data
+transfers (for instance, xfer on SPI devices).</li>
+<li>Provide access to control functions on a device (for example,
+on Linux you can send commands like pause, resume, and eject
+to the CDROM device.</li>
+<li>Do whatever else the device driver creator thought made most sense.</li>
+</ul>
+<p><code>ioctl</code>s are synchronous system calls and are similar to read and
+write calls in that regard.</p>
+<h1 id="what-does-this-module-support" class="section-header"><a href="#what-does-this-module-support">What does this module support?</a></h1>
+<p>This library provides the <code>ioctl!</code> macro, for binding <code>ioctl</code>s.
+Here's a few examples of how that can work for SPI under Linux
+from <a href="https://github.com/posborne/rust-spidev">rust-spidev</a>.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">nix</span>;
+
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_camel_case_types</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">spi_ioc_transfer</span> {
+    <span class="kw">pub</span> <span class="ident">tx_buf</span>: <span class="ident">u64</span>,
+    <span class="kw">pub</span> <span class="ident">rx_buf</span>: <span class="ident">u64</span>,
+    <span class="kw">pub</span> <span class="ident">len</span>: <span class="ident">u32</span>,
+
+    <span class="comment">// optional overrides</span>
+    <span class="kw">pub</span> <span class="ident">speed_hz</span>: <span class="ident">u32</span>,
+    <span class="kw">pub</span> <span class="ident">delay_usecs</span>: <span class="ident">u16</span>,
+    <span class="kw">pub</span> <span class="ident">bits_per_word</span>: <span class="ident">u8</span>,
+    <span class="kw">pub</span> <span class="ident">cs_change</span>: <span class="ident">u8</span>,
+    <span class="kw">pub</span> <span class="ident">pad</span>: <span class="ident">u32</span>,
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">linux</span>)]</span>
+<span class="kw">mod</span> <span class="ident">ioctl</span> {
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+
+    <span class="kw">const</span> <span class="ident">SPI_IOC_MAGIC</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="string">&#39;k&#39;</span> <span class="kw">as</span> <span class="ident">u8</span>;
+    <span class="kw">const</span> <span class="ident">SPI_IOC_NR_TRANSFER</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">0</span>;
+    <span class="kw">const</span> <span class="ident">SPI_IOC_NR_MODE</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">1</span>;
+    <span class="kw">const</span> <span class="ident">SPI_IOC_NR_LSB_FIRST</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">2</span>;
+    <span class="kw">const</span> <span class="ident">SPI_IOC_NR_BITS_PER_WORD</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">3</span>;
+    <span class="kw">const</span> <span class="ident">SPI_IOC_NR_MAX_SPEED_HZ</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">4</span>;
+    <span class="kw">const</span> <span class="ident">SPI_IOC_NR_MODE32</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">5</span>;
+
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">read</span>  <span class="ident">get_mode_u8</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_MODE</span>; <span class="ident">u8</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">read</span>  <span class="ident">get_mode_u32</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_MODE</span>; <span class="ident">u32</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">set_mode_u8</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_MODE</span>; <span class="ident">u8</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">set_mode_u32</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_MODE32</span>; <span class="ident">u32</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">read</span>  <span class="ident">get_lsb_first</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_LSB_FIRST</span>; <span class="ident">u8</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">set_lsb_first</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_LSB_FIRST</span>; <span class="ident">u8</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">read</span>  <span class="ident">get_bits_per_word</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_BITS_PER_WORD</span>; <span class="ident">u8</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">set_bits_per_word</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_BITS_PER_WORD</span>; <span class="ident">u8</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">read</span>  <span class="ident">get_max_speed_hz</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_MAX_SPEED_HZ</span>; <span class="ident">u32</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">set_max_speed_hz</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_MAX_SPEED_HZ</span>; <span class="ident">u32</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">spidev_transfer</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_TRANSFER</span>; <span class="ident">spi_ioc_transfer</span>);
+    <span class="macro">ioctl</span><span class="macro">!</span>(<span class="ident">write</span> <span class="ident">buf</span> <span class="ident">spidev_transfer_buf</span> <span class="ident">with</span> <span class="ident">SPI_IOC_MAGIC</span>, <span class="ident">SPI_IOC_NR_TRANSFER</span>; <span class="ident">spi_ioc_transfer</span>);
+}
+
+<span class="comment">// doctest workaround</span>
+<span class="kw">fn</span> <span class="ident">main</span>() {}</pre>
+<p>Spidev uses the <code>_IOC</code> macros that are encouraged (as far as
+<code>ioctl</code> can be encouraged at all) for newer drivers.  Many
+drivers, however, just use magic numbers with no attached
+semantics.  For those, the <code>ioctl!(bad ...)</code> variant should be
+used (the &quot;bad&quot; terminology is from the Linux kernel).</p>
+<h1 id="how-do-i-get-the-magic-numbers" class="section-header"><a href="#how-do-i-get-the-magic-numbers">How do I get the magic numbers?</a></h1>
+<p>For Linux, look at your system's headers. For example, <code>/usr/include/linxu/input.h</code> has a lot
+of lines defining macros which use <code>_IOR</code>, <code>_IOW</code>, <code>_IOC</code>, and <code>_IORW</code>.  These macros
+correspond to the <code>ior!</code>, <code>iow!</code>, <code>ioc!</code>, and <code>iorw!</code> macros defined in this crate.
+Additionally, there is the <code>ioctl!</code> macro for creating a wrapper around <code>ioctl</code> that is
+somewhat more type-safe.</p>
+<p>Most <code>ioctl</code>s have no or little documentation. You'll need to scrounge through
+the source to figure out what they do and how they should be used.</p>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../../";
+        window.currentCrate = "nix";
+    </script>
+    <script src="../../../main.js"></script>
+    <script defer src="../../../search-index.js"></script>
+</body>
+</html>

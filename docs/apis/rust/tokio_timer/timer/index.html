@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `timer` mod in crate `tokio_timer`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, timer">
+
+    <title>tokio_timer::timer - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module timer</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>tokio_timer</a></p><script>window.sidebarCurrent = {name: 'timer', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>tokio_timer</a>::<wbr><a class="mod" href=''>timer</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_timer/timer/mod.rs.html#1-652' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Timer implementation.</p>
+<p>This module contains the types needed to run a timer.</p>
+<p>The <a href="struct.Timer.html"><code>Timer</code></a> type runs the timer logic. It holds all the necessary state
+to track all associated <a href="../struct.Delay.html"><code>Delay</code></a> instances and delivering notifications
+once the deadlines are reached.</p>
+<p>The <a href="struct.Handle.html"><code>Handle</code></a> type is a reference to a <a href="struct.Timer.html"><code>Timer</code></a> instance. This type is
+<code>Clone</code>, <code>Send</code>, and <code>Sync</code>. This type is used to create instances of
+<a href="../struct.Delay.html"><code>Delay</code></a>.</p>
+<p>The <a href="trait.Now.html"><code>Now</code></a> trait describes how to get an <code>Instance</code> representing the
+current moment in time. [<code>SystemNow</code>] is the default implementation, where
+<a href="trait.Now.html#method.now"><code>Now::now</code></a> is implemented by calling <code>Instant::now</code>.</p>
+<p><a href="struct.Timer.html"><code>Timer</code></a> is generic over <a href="trait.Now.html"><code>Now</code></a>. This allows the source of time to be
+customized. This ability is especially useful in tests and any environment
+where determinism is necessary.</p>
+<p>Note, when using the Tokio runtime, the <code>Timer</code> does not need to be manually
+setup as the runtime comes pre-configured with a <code>Timer</code> instance.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Handle.html"
+                                  title='struct tokio_timer::timer::Handle'>Handle</a></td>
+                           <td class='docblock-short'>
+                                <p>Handle to timer instance.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.SystemNow.html"
+                                  title='struct tokio_timer::timer::SystemNow'>SystemNow</a></td>
+                           <td class='docblock-short'>
+                                <p>A handle to a source of time.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Timer.html"
+                                  title='struct tokio_timer::timer::Timer'>Timer</a></td>
+                           <td class='docblock-short'>
+                                <p>Timer implementation that drives <a href="../struct.Delay.html"><code>Delay</code></a>, <a href="../struct.Interval.html"><code>Interval</code></a>, and <a href="../struct.Deadline.html"><code>Deadline</code></a>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Turn.html"
+                                  title='struct tokio_timer::timer::Turn'>Turn</a></td>
+                           <td class='docblock-short'>
+                                <p>Return value from the <code>turn</code> method on <code>Timer</code>.</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.with_default.html"
+                                  title='fn tokio_timer::timer::with_default'>with_default</a></td>
+                           <td class='docblock-short'>
+                                <p>Set the default timer for the duration of the closure.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio_timer";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

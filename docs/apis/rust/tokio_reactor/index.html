@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `tokio_reactor` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, tokio_reactor">
+
+    <title>tokio_reactor - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate tokio_reactor</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'tokio_reactor', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>tokio_reactor</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tokio_reactor/lib.rs.html#1-774' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Event loop that drives Tokio I/O resources.</p>
+<p>The reactor is the engine that drives asynchronous I/O resources (like TCP and
+UDP sockets). It is backed by <a href="http://github.com/carllerche/mio"><code>mio</code></a> and acts as a bridge between <a href="http://github.com/carllerche/mio"><code>mio</code></a> and
+<a href="http://github.com/rust-lang-nursery/futures-rs"><code>futures</code></a>.</p>
+<p>The crate provides:</p>
+<ul>
+<li>
+<p><a href="struct.Reactor.html"><code>Reactor</code></a> is the main type of this crate. It performs the event loop logic.</p>
+</li>
+<li>
+<p><a href="struct.Handle.html"><code>Handle</code></a> provides a reference to a reactor instance.</p>
+</li>
+<li>
+<p><a href="struct.Registration.html"><code>Registration</code></a> and <a href="struct.PollEvented.html"><code>PollEvented</code></a> allow third parties to implement I/O
+resources that are driven by the reactor.</p>
+</li>
+</ul>
+<p>Application authors will not use this crate directly. Instead, they will use the
+<code>tokio</code> crate. Library authors should only depend on <code>tokio-reactor</code> if they
+are building a custom I/O resource.</p>
+<p>For more details, see <a href="https://docs.rs/tokio/0.1/tokio/reactor/index.html">reactor module</a> documentation in the Tokio crate.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Background.html"
+                                  title='struct tokio_reactor::Background'>Background</a></td>
+                           <td class='docblock-short'>
+                                <p>Handle to the reactor running on a background thread.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Handle.html"
+                                  title='struct tokio_reactor::Handle'>Handle</a></td>
+                           <td class='docblock-short'>
+                                <p>A reference to a reactor.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.PollEvented.html"
+                                  title='struct tokio_reactor::PollEvented'>PollEvented</a></td>
+                           <td class='docblock-short'>
+                                <p>Associates an I/O resource that implements the <a href="https://doc.rust-lang.org/std/io/trait.Read.html"><code>std::Read</code></a> and / or
+<a href="https://doc.rust-lang.org/std/io/trait.Write.html"><code>std::Write</code></a> traits with the reactor that drives it.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Reactor.html"
+                                  title='struct tokio_reactor::Reactor'>Reactor</a></td>
+                           <td class='docblock-short'>
+                                <p>The core reactor, or event loop.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Registration.html"
+                                  title='struct tokio_reactor::Registration'>Registration</a></td>
+                           <td class='docblock-short'>
+                                <p>Associates an I/O resource with the reactor instance that drives it.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.SetFallbackError.html"
+                                  title='struct tokio_reactor::SetFallbackError'>SetFallbackError</a></td>
+                           <td class='docblock-short'>
+                                <p>Error returned from <code>Handle::set_fallback</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Turn.html"
+                                  title='struct tokio_reactor::Turn'>Turn</a></td>
+                           <td class='docblock-short'>
+                                <p>Return value from the <code>turn</code> method on <code>Reactor</code>.</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.with_default.html"
+                                  title='fn tokio_reactor::with_default'>with_default</a></td>
+                           <td class='docblock-short'>
+                                <p>Set the default reactor for the duration of the closure</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tokio_reactor";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

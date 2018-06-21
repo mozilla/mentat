@@ -1,0 +1,285 @@
+{
+  "warnings": [
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Core/TypedValue.swift",
+      "line": 178,
+      "symbol": "TypedValue.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 13,
+      "symbol": "QueryError",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 14,
+      "symbol": "QueryError.invalidKeyword",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 15,
+      "symbol": "QueryError.executionFailed",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 18,
+      "symbol": "MentatError",
+      "symbol_kind": "source.lang.swift.decl.struct",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 22,
+      "symbol": "PointerError",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 23,
+      "symbol": "PointerError.pointerConsumed",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 26,
+      "symbol": "ResultError",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 27,
+      "symbol": "ResultError.error",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Errors/Errors.swift",
+      "line": 28,
+      "symbol": "ResultError.empty",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 15,
+      "symbol": "Entid",
+      "symbol_kind": "source.lang.swift.decl.typealias",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 21,
+      "symbol": "Observing.transactionDidOccur(key:reports:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 28,
+      "symbol": "Observable.register(key:observer:attributes:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 29,
+      "symbol": "Observable.unregister(key:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 32,
+      "symbol": "CacheDirection",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 33,
+      "symbol": "CacheDirection.forward",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 34,
+      "symbol": "CacheDirection.reverse",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 35,
+      "symbol": "CacheDirection.both",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Mentat.swift",
+      "line": 197,
+      "symbol": "Mentat.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Query/Query.swift",
+      "line": 334,
+      "symbol": "Query.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Query/RelResult.swift",
+      "line": 57,
+      "symbol": "RelResult.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Query/RelResult.swift",
+      "line": 91,
+      "symbol": "RelResultIterator.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Query/TupleResult.swift",
+      "line": 148,
+      "symbol": "TupleResult.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Query/TupleResult.swift",
+      "line": 201,
+      "symbol": "ColResultIterator.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/OptionalRustObject.swift",
+      "line": 32,
+      "symbol": "OptionalRustObject.init(raw:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/OptionalRustObject.swift",
+      "line": 36,
+      "symbol": "OptionalRustObject.init(raw:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/OptionalRustObject.swift",
+      "line": 40,
+      "symbol": "OptionalRustObject.getRaw()",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/OptionalRustObject.swift",
+      "line": 64,
+      "symbol": "OptionalRustObject.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/RustObject.swift",
+      "line": 27,
+      "symbol": "RustObject.init(raw:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/RustObject.swift",
+      "line": 31,
+      "symbol": "RustObject.init(raw:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/RustObject.swift",
+      "line": 35,
+      "symbol": "RustObject.init(raw:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/RustObject.swift",
+      "line": 42,
+      "symbol": "RustObject.getRaw()",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Rust/RustObject.swift",
+      "line": 50,
+      "symbol": "RustObject.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Transact/EntityBuilder.swift",
+      "line": 352,
+      "symbol": "EntityBuilder.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Transact/InProgress.swift",
+      "line": 181,
+      "symbol": "InProgress.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Transact/InProgressBuilder.swift",
+      "line": 369,
+      "symbol": "InProgressBuilder.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Transact/TxReport.swift",
+      "line": 35,
+      "symbol": "TxReport.txId",
+      "symbol_kind": "source.lang.swift.decl.var.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Transact/TxReport.swift",
+      "line": 40,
+      "symbol": "TxReport.txInstant",
+      "symbol_kind": "source.lang.swift.decl.var.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/Transact/TxReport.swift",
+      "line": 58,
+      "symbol": "TxReport.cleanup(pointer:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat/Mentat/store.h",
+      "line": null,
+      "symbol": "Result",
+      "symbol_kind": "source.lang.swift.decl.extension",
+      "warning": "undocumented"
+    }
+  ],
+  "source_directory": "/Users/emilytoop/Development/mentat/sdks/swift/Mentat"
+}

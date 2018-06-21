@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `mentat_core` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, mentat_core">
+
+    <title>mentat_core - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate mentat_core</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'mentat_core', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>mentat_core</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/mentat_core/lib.rs.html#11-551' title='goto source code'>[src]</a></span></h1><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="attribute/index.html"
+                                  title='mod mentat_core::attribute'>attribute</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="counter/index.html"
+                                  title='mod mentat_core::counter'>counter</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="intern_set/index.html"
+                                  title='mod mentat_core::intern_set'>intern_set</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="util/index.html"
+                                  title='mod mentat_core::util'>util</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="values/index.html"
+                                  title='mod mentat_core::values'>values</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.interpose.html"
+                                  title='macro mentat_core::interpose'>interpose</a></td>
+                           <td class='docblock-short'>
+                                <p>A helper macro to sequentially process an iterable sequence,
+evaluating a block between each pair of items.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.interpose_iter.html"
+                                  title='macro mentat_core::interpose_iter'>interpose_iter</a></td>
+                           <td class='docblock-short'>
+                                <p>A helper to bind <code>name</code> to values in <code>across</code>, running <code>body</code> for each value,
+and running <code>inter</code> between each value. See <code>interpose</code> for examples.</p>
+
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Attribute.html"
+                                  title='struct mentat_core::Attribute'>Attribute</a></td>
+                           <td class='docblock-short'>
+                                <p>A Mentat schema attribute has a value type and several other flags determining how assertions
+with the attribute are interpreted.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.DateTime.html"
+                                  title='struct mentat_core::DateTime'>DateTime</a></td>
+                           <td class='docblock-short'>
+                                <p>ISO 8601 combined date and time with time zone.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.EdnParseError.html"
+                                  title='struct mentat_core::EdnParseError'>EdnParseError</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Keyword.html"
+                                  title='struct mentat_core::Keyword'>Keyword</a></td>
+                           <td class='docblock-short'>
+                                <p>A keyword is a symbol, optionally with a namespace, that prints with a leading colon.
+This concept is imported from Clojure, as it features in EDN and the query
+syntax that we use.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.KnownEntid.html"
+                                  title='struct mentat_core::KnownEntid'>KnownEntid</a></td>
+                           <td class='docblock-short'>
+                                <p>An entid that's either already in the store, or newly allocated to a tempid.
+TODO: we'd like to link this in some way to the lifetime of a particular PartitionMap.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Schema.html"
+                                  title='struct mentat_core::Schema'>Schema</a></td>
+                           <td class='docblock-short'>
+                                <p>Represents a Mentat schema.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.StructuredMap.html"
+                                  title='struct mentat_core::StructuredMap'>StructuredMap</a></td>
+                           <td class='docblock-short'>
+                                <p>A pull expression expands a binding into a structure. The returned structure
+associates attributes named in the input or retrieved from the store with values.
+This association is a <code>StructuredMap</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Utc.html"
+                                  title='struct mentat_core::Utc'>Utc</a></td>
+                           <td class='docblock-short'>
+                                <p>The UTC time zone. This is the most efficient time zone when you don't need the local time.
+It is also used as an offset (which is also a dummy type).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Uuid.html"
+                                  title='struct mentat_core::Uuid'>Uuid</a></td>
+                           <td class='docblock-short'>
+                                <p>A Universally Unique Identifier (UUID).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ValueTypeSet.html"
+                                  title='struct mentat_core::ValueTypeSet'>ValueTypeSet</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.AttributeBitFlags.html"
+                                  title='enum mentat_core::AttributeBitFlags'>AttributeBitFlags</a></td>
+                           <td class='docblock-short'>
+                                <p>Bit flags used in <code>flags0</code> column in temporary tables created during search,
+such as the <code>search_results</code>, <code>inexact_searches</code> and <code>exact_searches</code> tables.
+When moving to a more concrete table, such as <code>datoms</code>, they are expanded out
+via these flags and put into their own column rather than a bit field.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Binding.html"
+                                  title='enum mentat_core::Binding'>Binding</a></td>
+                           <td class='docblock-short'>
+                                <p>The values bound in a query specification can be:</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.SQLTypeAffinity.html"
+                                  title='enum mentat_core::SQLTypeAffinity'>SQLTypeAffinity</a></td>
+                           <td class='docblock-short'>
+                                <p>Type safe representation of the possible return values from SQLite's <code>typeof</code></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.TypedValue.html"
+                                  title='enum mentat_core::TypedValue'>TypedValue</a></td>
+                           <td class='docblock-short'>
+                                <p>Represents a value that can be stored in a Mentat store.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.ValueType.html"
+                                  title='enum mentat_core::ValueType'>ValueType</a></td>
+                           <td class='docblock-short'>
+                                <p>The attribute of each Mentat assertion has a :db/valueType constraining the value to a
+particular set.  Mentat recognizes the following :db/valueType values.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.CachedAttributes.html"
+                                  title='trait mentat_core::CachedAttributes'>CachedAttributes</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Cloned.html"
+                                  title='trait mentat_core::Cloned'>Cloned</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FromMicros.html"
+                                  title='trait mentat_core::FromMicros'>FromMicros</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FromRc.html"
+                                  title='trait mentat_core::FromRc'>FromRc</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.HasSchema.html"
+                                  title='trait mentat_core::HasSchema'>HasSchema</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.SQLValueType.html"
+                                  title='trait mentat_core::SQLValueType'>SQLValueType</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.SQLValueTypeSet.html"
+                                  title='trait mentat_core::SQLValueTypeSet'>SQLValueTypeSet</a></td>
+                           <td class='docblock-short'>
+                                <p>We have an enum of types, <code>ValueType</code>. It can be collected into a set, <code>ValueTypeSet</code>. Each type
+is associated with a type tag, which is how a type is represented in, e.g., SQL storage. Types
+can share type tags, because backing SQL storage is able to differentiate between some types
+(e.g., longs and doubles), and so distinct tags aren't necessary. That association is defined by
+<code>SQLValueType</code>. That trait similarly extends to <code>ValueTypeSet</code>, which maps a collection of types
+into a collection of tags.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Timelike.html"
+                                  title='trait mentat_core::Timelike'>Timelike</a></td>
+                           <td class='docblock-short'>
+                                <p>The common set of methods for time component.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.ToMicros.html"
+                                  title='trait mentat_core::ToMicros'>ToMicros</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.UpdateableCache.html"
+                                  title='trait mentat_core::UpdateableCache'>UpdateableCache</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.now.html"
+                                  title='fn mentat_core::now'>now</a></td>
+                           <td class='docblock-short'>
+                                <p>Return the current time as a UTC <code>DateTime</code> instance with microsecond precision.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.parse_query.html"
+                                  title='fn mentat_core::parse_query'>parse_query</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.AttributeMap.html"
+                                  title='type mentat_core::AttributeMap'>AttributeMap</a></td>
+                           <td class='docblock-short'>
+                                <p>Map attribute entids to <code>Attribute</code> instances.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.Entid.html"
+                                  title='type mentat_core::Entid'>Entid</a></td>
+                           <td class='docblock-short'>
+                                <p>Represents one entid in the entid space.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.EntidMap.html"
+                                  title='type mentat_core::EntidMap'>EntidMap</a></td>
+                           <td class='docblock-short'>
+                                <p>Map positive integer entids (<code>1</code>) to <code>Keyword</code> idents (<code>:db/ident</code>).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.IdentMap.html"
+                                  title='type mentat_core::IdentMap'>IdentMap</a></td>
+                           <td class='docblock-short'>
+                                <p>Map <code>Keyword</code> idents (<code>:db/ident</code>) to positive integer entids (<code>1</code>).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.ValueRc.html"
+                                  title='type mentat_core::ValueRc'>ValueRc</a></td>
+                           <td class='docblock-short'>
+                                <p>This type alias exists to allow us to use different boxing mechanisms for values.
+This type must implement <code>FromRc</code> and <code>Cloned</code>, and a <code>From</code> implementation must exist for
+<code>TypedValue</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.ValueTypeTag.html"
+                                  title='type mentat_core::ValueTypeTag'>ValueTypeTag</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mentat_core";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

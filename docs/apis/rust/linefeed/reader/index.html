@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `reader` mod in crate `linefeed`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, reader">
+
+    <title>linefeed::reader - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module reader</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#constants">Constants</a></li></ul></div><p class='location'><a href='../index.html'>linefeed</a></p><script>window.sidebarCurrent = {name: 'reader', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>linefeed</a>::<wbr><a class="mod" href=''>reader</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/linefeed/reader.rs.html#1-3593' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Provides high-level line editing interface</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.BindingIter.html"
+                                  title='struct linefeed::reader::BindingIter'>BindingIter</a></td>
+                           <td class='docblock-short'>
+                                <p>Iterator over <code>Reader</code> bindings</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.HistoryIter.html"
+                                  title='struct linefeed::reader::HistoryIter'>HistoryIter</a></td>
+                           <td class='docblock-short'>
+                                <p>Iterator over <code>Reader</code> history entries</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.LogSender.html"
+                                  title='struct linefeed::reader::LogSender'>LogSender</a></td>
+                           <td class='docblock-short'>
+                                <p>A handle that allows other threads to send messages to a Reader without
+causing display errors in a currently open prompt.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Reader.html"
+                                  title='struct linefeed::reader::Reader'>Reader</a></td>
+                           <td class='docblock-short'>
+                                <p>Interactively reads user input</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.VariableIter.html"
+                                  title='struct linefeed::reader::VariableIter'>VariableIter</a></td>
+                           <td class='docblock-short'>
+                                <p>Iterator over <code>Reader</code> variable values</p>
+
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.ReadResult.html"
+                                  title='enum linefeed::reader::ReadResult'>ReadResult</a></td>
+                           <td class='docblock-short'>
+                                <p>The result of <code>Reader::read_line</code></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Variable.html"
+                                  title='enum linefeed::reader::Variable'>Variable</a></td>
+                           <td class='docblock-short'>
+                                <p>Represents a <code>Reader</code> variable of a given type</p>
+
+                           </td>
+                       </tr></table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.BLINK_TIMEOUT_MS.html"
+                                  title='constant linefeed::reader::BLINK_TIMEOUT_MS'>BLINK_TIMEOUT_MS</a></td>
+                           <td class='docblock-short'>
+                                <p>Timeout, in milliseconds, to wait for input when &quot;blinking&quot;</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.END_INVISIBLE.html"
+                                  title='constant linefeed::reader::END_INVISIBLE'>END_INVISIBLE</a></td>
+                           <td class='docblock-short'>
+                                <p>Indicates the end of a series of invisible characters in the prompt</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.KEYSEQ_TIMEOUT_MS.html"
+                                  title='constant linefeed::reader::KEYSEQ_TIMEOUT_MS'>KEYSEQ_TIMEOUT_MS</a></td>
+                           <td class='docblock-short'>
+                                <p>Default <code>keyseq_timeout</code>, in milliseconds</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.MAX_HISTORY.html"
+                                  title='constant linefeed::reader::MAX_HISTORY'>MAX_HISTORY</a></td>
+                           <td class='docblock-short'>
+                                <p>Default maximum size of history</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.POLL_LOG_INTERVAL_MS.html"
+                                  title='constant linefeed::reader::POLL_LOG_INTERVAL_MS'>POLL_LOG_INTERVAL_MS</a></td>
+                           <td class='docblock-short'>
+                                <p>Default intervals at which the <code>Reader</code> will check for log messages.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.START_INVISIBLE.html"
+                                  title='constant linefeed::reader::START_INVISIBLE'>START_INVISIBLE</a></td>
+                           <td class='docblock-short'>
+                                <p>Indicates the start of a series of invisible characters in the prompt</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.STRING_CHARS.html"
+                                  title='constant linefeed::reader::STRING_CHARS'>STRING_CHARS</a></td>
+                           <td class='docblock-short'>
+                                <p>Default set of string characters</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.WORD_BREAK_CHARS.html"
+                                  title='constant linefeed::reader::WORD_BREAK_CHARS'>WORD_BREAK_CHARS</a></td>
+                           <td class='docblock-short'>
+                                <p>Default set of word break characters</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "linefeed";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>
