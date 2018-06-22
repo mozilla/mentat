@@ -10,6 +10,10 @@
 
 #![crate_name = "mentat_cli"]
 
+use std::path::{
+    PathBuf,
+};
+
 #[macro_use] extern crate failure_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
@@ -35,6 +39,17 @@ use getopts::Options;
 use termion::{
     color,
 };
+
+static HISTORY_FILE_PATH: &str = ".mentat_history";
+
+/// The Mentat CLI stores input history in a readline-compatible file like "~/.mentat_history".
+/// This accords with main other tools which prefix with "." and suffix with "_history": lein,
+/// node_repl, python, and sqlite, at least.
+pub(crate) fn history_file_path() -> PathBuf {
+    let mut p = ::std::env::home_dir().unwrap_or_default();
+    p.push(::HISTORY_FILE_PATH);
+    p
+}
 
 static BLUE: color::Rgb = color::Rgb(0x99, 0xaa, 0xFF);
 static GREEN: color::Rgb = color::Rgb(0x77, 0xFF, 0x99);

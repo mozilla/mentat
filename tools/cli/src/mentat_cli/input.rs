@@ -77,6 +77,11 @@ impl InputReader {
     /// Constructs a new `InputReader` reading from `stdin`.
     pub fn new(interface: Option<Interface<DefaultTerminal>>) -> InputReader {
         if let Some(ref interface) = interface {
+            // It's fine to fail to load history.
+            let p = ::history_file_path();
+            let loaded = interface.load_history(&p);
+            debug!("history read from {}: {}", p.display(), loaded.is_ok());
+
             let mut r = interface.lock_reader();
             // Handle SIGINT (Ctrl-C)
             r.set_report_signal(Signal::Interrupt, true);
@@ -220,6 +225,16 @@ impl InputReader {
     fn add_history(&self, line: String) {
         if let Some(ref interface) = self.interface {
             interface.add_history(line);
+        }
+        self.save_history();
+    }
+
+    pub fn save_history(&self) -> () {
+        if let Some(ref interface) = self.interface {
+            let p = ::history_file_path();
+            // It's okay to fail to save history.
+            let saved = interface.save_history(&p);
+            debug!("history saved to {}: {}", p.display(), saved.is_ok());
         }
     }
 }

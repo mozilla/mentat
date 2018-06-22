@@ -252,6 +252,8 @@ impl Repl {
                 Err(e) => eprintln!("{}", e.to_string()),
             }
         }
+
+        self.input_reader.save_history();
     }
 
     fn cache(&mut self, attr: String, direction: CacheDirection) {
