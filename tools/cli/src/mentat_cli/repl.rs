@@ -9,7 +9,6 @@
 // specific language governing permissions and limitations under the License.
 
 use std::io::Write;
-use std::process;
 
 use failure::{
     err_msg,
@@ -238,7 +237,9 @@ impl Repl {
             match res {
                 Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);
-                    self.handle_command(cmd);
+                    if !self.handle_command(cmd) {
+                        break;
+                    }
                 },
                 Ok(Empty) |
                 Ok(More) => (),
@@ -265,7 +266,7 @@ impl Repl {
     }
 
     /// Runs a single command input.
-    fn handle_command(&mut self, cmd: Command) {
+    fn handle_command(&mut self, cmd: Command) -> bool {
         let should_print_times = self.timer_on && cmd.is_timed();
 
         let mut start = PreciseTime::now();
@@ -279,9 +280,8 @@ impl Repl {
                 self.close();
             },
             Command::Exit => {
-                self.close();
                 eprintln!("Exiting…");
-                process::exit(0);
+                return false;
             },
             Command::Help(args) => {
                 self.help_command(args);
@@ -378,6 +378,8 @@ impl Repl {
             eprint!(": ");
             format_time(start.to(end));
         }
+
+        return true;
     }
 
     fn execute_import<T>(&mut self, path: T)
