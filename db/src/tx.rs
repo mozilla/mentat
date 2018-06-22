@@ -714,7 +714,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         let mut aev_trie = into_aev_trie(&self.schema, final_populations, inert_terms)?;
 
         let tx_instant;
-        { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
         // Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
@@ -787,7 +786,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         self.store.commit_transaction(self.tx_id)?;
-        }
 
         db::update_partition_map(self.store, &self.partition_map)?;
         self.watcher.done(&self.tx_id, self.schema)?;
