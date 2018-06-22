@@ -10,6 +10,10 @@
 
 #![crate_name = "mentat_cli"]
 
+use std::path::{
+    PathBuf,
+};
+
 #[macro_use] extern crate failure_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
@@ -35,6 +39,17 @@ use getopts::Options;
 use termion::{
     color,
 };
+
+static HISTORY_FILE_PATH: &str = ".mentat_history";
+
+/// The Mentat CLI stores input history in a readline-compatible file like "~/.mentat_history".
+/// This accords with main other tools which prefix with "." and suffix with "_history": lein,
+/// node_repl, python, and sqlite, at least.
+pub(crate) fn history_file_path() -> PathBuf {
+    let mut p = ::std::env::home_dir().unwrap_or_default();
+    p.push(::HISTORY_FILE_PATH);
+    p
+}
 
 static BLUE: color::Rgb = color::Rgb(0x99, 0xaa, 0xFF);
 static GREEN: color::Rgb = color::Rgb(0x77, 0xFF, 0x99);
@@ -64,6 +79,7 @@ pub fn run() -> i32 {
     opts.optmulti("t", "transact", "Execute a transact on startup. Transacts are executed before queries.", "TRANSACT");
     opts.optmulti("i", "import", "Execute an import on startup. Imports are executed before queries.", "PATH");
     opts.optflag("v", "version", "Print version and exit");
+    opts.optflag("", "no-tty", "Don't try to use a TTY for readline-like input processing");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -121,13 +137,15 @@ pub fn run() -> i32 {
         }
     }).collect();
 
-    let repl = repl::Repl::new();
-    if repl.is_ok() {
-        repl.unwrap().run(Some(cmds));
+    let mut repl = match repl::Repl::new(!matches.opt_present("no-tty")) {
+        Ok(repl) => repl,
+        Err(e) => {
+            println!("{}", e);
+            return 1
+        }
+    };
 
-    } else {
-        println!("{}", repl.err().unwrap());
-    }
+    repl.run(Some(cmds));
 
     0
 }

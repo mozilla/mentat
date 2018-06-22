@@ -9,11 +9,14 @@
 // specific language governing permissions and limitations under the License.
 
 use std::io::Write;
-use std::process;
 
 use failure::{
     err_msg,
     Error,
+};
+
+use linefeed::{
+    Interface,
 };
 
 use tabwriter::TabWriter;
@@ -185,6 +188,7 @@ fn format_time(duration: Duration) {
 
 /// Executes input and maintains state of persistent items.
 pub struct Repl {
+    input_reader: InputReader,
     path: String,
     store: Store,
     timer_on: bool,
@@ -200,19 +204,26 @@ impl Repl {
     }
 
     /// Constructs a new `Repl`.
-    pub fn new() -> Result<Repl, String> {
+    pub fn new(tty: bool) -> Result<Repl, String> {
+        let interface = if tty {
+            Some(Interface::new("mentat").map_err(|_| "failed to create tty interface; try --no-tty")?)
+        } else {
+            None
+        };
+
+        let input_reader = InputReader::new(interface);
+
         let store = Store::open("").map_err(|e| e.to_string())?;
         Ok(Repl {
+            input_reader,
             path: "".to_string(),
-            store: store,
+            store,
             timer_on: false,
         })
     }
 
     /// Runs the REPL interactively.
     pub fn run(&mut self, startup_commands: Option<Vec<Command>>) {
-        let mut input = InputReader::new();
-
         if let Some(cmds) = startup_commands {
             for command in cmds.iter() {
                 println!("{}", command.output());
@@ -221,17 +232,19 @@ impl Repl {
         }
 
         loop {
-            let res = input.read_input();
+            let res = self.input_reader.read_input();
 
             match res {
                 Ok(MetaCommand(cmd)) => {
                     debug!("read command: {:?}", cmd);
-                    self.handle_command(cmd);
+                    if !self.handle_command(cmd) {
+                        break;
+                    }
                 },
                 Ok(Empty) |
                 Ok(More) => (),
                 Ok(Eof) => {
-                    if input.is_tty() {
+                    if self.input_reader.is_tty() {
                         println!();
                     }
                     break;
@@ -239,6 +252,8 @@ impl Repl {
                 Err(e) => eprintln!("{}", e.to_string()),
             }
         }
+
+        self.input_reader.save_history();
     }
 
     fn cache(&mut self, attr: String, direction: CacheDirection) {
@@ -253,7 +268,7 @@ impl Repl {
     }
 
     /// Runs a single command input.
-    fn handle_command(&mut self, cmd: Command) {
+    fn handle_command(&mut self, cmd: Command) -> bool {
         let should_print_times = self.timer_on && cmd.is_timed();
 
         let mut start = PreciseTime::now();
@@ -267,9 +282,8 @@ impl Repl {
                 self.close();
             },
             Command::Exit => {
-                self.close();
                 eprintln!("Exiting…");
-                process::exit(0);
+                return false;
             },
             Command::Help(args) => {
                 self.help_command(args);
@@ -366,6 +380,8 @@ impl Repl {
             eprint!(": ");
             format_time(start.to(end));
         }
+
+        return true;
     }
 
     fn execute_import<T>(&mut self, path: T)
