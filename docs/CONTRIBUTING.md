@@ -1,3 +1,9 @@
+---
+layout: page
+title: Contributing
+permalink: /contributing/
+---
+
 # How to contribute to Project Mentat
 
 This project is very new, so we'll probably revise these guidelines. Please

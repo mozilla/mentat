@@ -1,8 +1,9 @@
 ---
 layout: post
-title:  "Worked examples of modeling data using Mentat"
+list_title: Examples
+title:  "Modeling data using Mentat"
 date:   2018-04-17 16:07:37 +0100
-categories: mentat examples
+category: examples
 ---
 # Worked examples of modeling data using Mentat
 
