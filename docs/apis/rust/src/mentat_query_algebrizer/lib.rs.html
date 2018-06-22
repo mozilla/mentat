@@ -469,10 +469,9 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
-<span class="attribute">#![<span class="ident">recursion_limit</span><span class="op">=</span><span class="string">&quot;128&quot;</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
 
-<span class="attribute">#[<span class="ident">macro_use</span>]</span>
-<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">error_chain</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure_derive</span>;
 
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_core</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query</span>;
@@ -481,6 +480,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Sub</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
 
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">mod</span> <span class="ident">errors</span>;
 <span class="kw">mod</span> <span class="ident">types</span>;
 <span class="kw">mod</span> <span class="ident">validate</span>;
@@ -509,10 +509,10 @@
 };
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">errors</span>::{
+    <span class="ident">AlgebrizerError</span>,
     <span class="ident">BindingError</span>,
-    <span class="ident">Error</span>,
-    <span class="ident">ErrorKind</span>,
     <span class="prelude-ty">Result</span>,
+    <span class="ident">InvalidBinding</span>,
 };
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">clauses</span>::{
@@ -677,7 +677,7 @@
 
                 <span class="comment">// Fail if the var isn&#39;t bound by the query.</span>
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">cc</span>.<span class="ident">column_bindings</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">var</span>) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>()));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>()))
                 }
 
                 <span class="comment">// Otherwise, determine if we also need to order by type…</span>
@@ -703,14 +703,14 @@
                     <span class="prelude-val">Some</span>(<span class="ident">TypedValue</span>::<span class="ident">Long</span>(<span class="ident">n</span>)) <span class="op">=&gt;</span> {
                         <span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;=</span> <span class="number">0</span> {
                             <span class="comment">// User-specified limits should always be natural numbers (&gt; 0).</span>
-                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidLimit</span>(<span class="ident">n</span>.<span class="ident">to_string</span>(), <span class="ident">ValueType</span>::<span class="ident">Long</span>));
+                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidLimit</span>(<span class="ident">n</span>.<span class="ident">to_string</span>(), <span class="ident">ValueType</span>::<span class="ident">Long</span>))
                         } <span class="kw">else</span> {
                             <span class="prelude-val">Some</span>(<span class="ident">Limit</span>::<span class="ident">Fixed</span>(<span class="ident">n</span> <span class="kw">as</span> <span class="ident">u64</span>))
                         }
                     },
                     <span class="prelude-val">Some</span>(<span class="ident">val</span>) <span class="op">=&gt;</span> {
                         <span class="comment">// Same.</span>
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidLimit</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">val</span>), <span class="ident">val</span>.<span class="ident">value_type</span>()));
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidLimit</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">val</span>), <span class="ident">val</span>.<span class="ident">value_type</span>()))
                     },
                     <span class="prelude-val">None</span> <span class="op">=&gt;</span> {
                         <span class="comment">// We know that the limit variable is mentioned in `:in`.</span>
@@ -818,7 +818,7 @@
 
             <span class="kw">for</span> <span class="ident">var</span> <span class="kw">in</span> <span class="ident">parsed</span>.<span class="ident">in_vars</span>.<span class="ident">into_iter</span>() {
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">set</span>.<span class="ident">insert</span>(<span class="ident">var</span>.<span class="ident">clone</span>()) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">DuplicateVariableError</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="string">&quot;:in&quot;</span>));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">DuplicateVariableError</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="string">&quot;:in&quot;</span>));
                 }
             }
 
@@ -830,7 +830,7 @@
 
             <span class="kw">for</span> <span class="ident">var</span> <span class="kw">in</span> <span class="ident">parsed</span>.<span class="ident">with</span>.<span class="ident">into_iter</span>() {
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">set</span>.<span class="ident">insert</span>(<span class="ident">var</span>.<span class="ident">clone</span>()) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">DuplicateVariableError</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="string">&quot;:with&quot;</span>));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">DuplicateVariableError</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="string">&quot;:with&quot;</span>));
                 }
             }
 
@@ -840,7 +840,7 @@
         <span class="comment">// Make sure that if we have `:limit ?x`, `?x` appears in `:in`.</span>
         <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Limit</span>::<span class="ident">Variable</span>(<span class="kw-2">ref</span> <span class="ident">v</span>) <span class="op">=</span> <span class="ident">parsed</span>.<span class="ident">limit</span> {
             <span class="kw">if</span> <span class="op">!</span><span class="ident">in_vars</span>.<span class="ident">contains</span>(<span class="ident">v</span>) {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnknownLimitVar</span>(<span class="ident">v</span>.<span class="ident">name</span>()));
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnknownLimitVar</span>(<span class="ident">v</span>.<span class="ident">name</span>()));
             }
         }
 

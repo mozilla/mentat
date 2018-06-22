@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Entry","A handle to an occupied slot in the `Slab`"],["Iter","An iterator over the values stored in the `Slab`"],["IterMut","A mutable iterator over the values stored in the `Slab`"],["Slab","A preallocated chunk of memory for storing objects of the same type."],["VacantEntry","A handle to a vacant slot in the `Slab`"]]});

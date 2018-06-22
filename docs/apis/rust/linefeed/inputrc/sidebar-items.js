@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Directive","Parsed configuration directive"]],"fn":[["parse_file","Parses the named file and returns contained directives."],["parse_text","Parses some text and returns contained directives."]]});

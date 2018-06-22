@@ -120,20 +120,6 @@
 <span id="63">63</span>
 <span id="64">64</span>
 <span id="65">65</span>
-<span id="66">66</span>
-<span id="67">67</span>
-<span id="68">68</span>
-<span id="69">69</span>
-<span id="70">70</span>
-<span id="71">71</span>
-<span id="72">72</span>
-<span id="73">73</span>
-<span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -145,74 +131,60 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
-<span class="kw">use</span> <span class="ident">rusqlite</span>;
+<span class="kw">use</span> <span class="ident">std</span>; <span class="comment">// To refer to std::result::Result.</span>
+
+<span class="kw">use</span> <span class="ident">failure</span>::{
+    <span class="ident">Error</span>,
+};
 
 <span class="kw">use</span> <span class="ident">mentat_core</span>::{
     <span class="ident">ValueTypeSet</span>,
 };
 
-<span class="kw">use</span> <span class="ident">mentat_db</span>;
-
 <span class="kw">use</span> <span class="ident">mentat_query</span>::{
     <span class="ident">PlainSymbol</span>,
 };
-
-<span class="kw">use</span> <span class="ident">mentat_query_pull</span>;
 
 <span class="kw">use</span> <span class="ident">aggregates</span>::{
     <span class="ident">SimpleAggregationOp</span>,
 };
 
-<span class="macro">error_chain</span><span class="macro">!</span> {
-    <span class="ident">types</span> {
-        <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">ResultExt</span>, <span class="prelude-ty">Result</span>;
-    }
+<span class="attribute">#[<span class="ident">macro_export</span>]</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bail</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) <span class="op">=&gt;</span> (
+        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>.<span class="ident">into</span>());
+    )
+}
 
-    <span class="ident">errors</span> {
-        <span class="doccomment">/// We&#39;re just not done yet.  Message that the feature is recognized but not yet</span>
-        <span class="doccomment">/// implemented.</span>
-        <span class="ident">NotYetImplemented</span>(<span class="ident">t</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;not yet implemented&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;not yet implemented: {}&quot;</span>, <span class="ident">t</span>)
-        }
-        <span class="ident">CannotProjectImpossibleBinding</span>(<span class="ident">op</span>: <span class="ident">SimpleAggregationOp</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;no possible types for variable in projection list&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;no possible types for value provided to {:?}&quot;</span>, <span class="ident">op</span>)
-        }
-        <span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="ident">op</span>: <span class="ident">SimpleAggregationOp</span>, <span class="ident">types</span>: <span class="ident">ValueTypeSet</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;cannot apply projection operation to types&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;cannot apply projection operation {:?} to types {:?}&quot;</span>, <span class="ident">op</span>, <span class="ident">types</span>)
-        }
-        <span class="ident">InvalidProjection</span>(<span class="ident">t</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;invalid projection&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid projection: {}&quot;</span>, <span class="ident">t</span>)
-        }
-        <span class="ident">UnboundVariable</span>(<span class="ident">var</span>: <span class="ident">PlainSymbol</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;cannot project unbound variable&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;cannot project unbound variable {:?}&quot;</span>, <span class="ident">var</span>)
-        }
-        <span class="ident">NoTypeAvailableForVariable</span>(<span class="ident">var</span>: <span class="ident">PlainSymbol</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;cannot find type for variable&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;cannot find type for variable {:?}&quot;</span>, <span class="ident">var</span>)
-        }
-        <span class="ident">UnexpectedResultsType</span>(<span class="ident">actual</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">expected</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;unexpected query results type&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;expected {}, got {}&quot;</span>, <span class="ident">expected</span>, <span class="ident">actual</span>)
-        }
-        <span class="ident">AmbiguousAggregates</span>(<span class="ident">min_max_count</span>: <span class="ident">usize</span>, <span class="ident">corresponding_count</span>: <span class="ident">usize</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;ambiguous aggregates&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;min/max expressions: {} (max 1), corresponding: {}&quot;</span>, <span class="ident">min_max_count</span>, <span class="ident">corresponding_count</span>)
-        }
-    }
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
 
-    <span class="ident">foreign_links</span> {
-        <span class="ident">Rusqlite</span>(<span class="ident">rusqlite</span>::<span class="ident">Error</span>);
-    }
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ProjectorError</span> {
+    <span class="doccomment">/// We&#39;re just not done yet.  Message that the feature is recognized but not yet</span>
+    <span class="doccomment">/// implemented.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;not yet implemented: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">NotYetImplemented</span>(<span class="ident">String</span>),
 
-    <span class="ident">links</span> {
-        <span class="ident">DbError</span>(<span class="ident">mentat_db</span>::<span class="ident">Error</span>, <span class="ident">mentat_db</span>::<span class="ident">ErrorKind</span>);
-        <span class="ident">PullError</span>(<span class="ident">mentat_query_pull</span>::<span class="ident">errors</span>::<span class="ident">Error</span>, <span class="ident">mentat_query_pull</span>::<span class="ident">errors</span>::<span class="ident">ErrorKind</span>);
-    }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;no possible types for value provided to {:?}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">CannotProjectImpossibleBinding</span>(<span class="ident">SimpleAggregationOp</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;cannot apply projection operation {:?} to types {:?}&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="ident">SimpleAggregationOp</span>, <span class="ident">ValueTypeSet</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;invalid projection: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">InvalidProjection</span>(<span class="ident">String</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;cannot project unbound variable {:?}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnboundVariable</span>(<span class="ident">PlainSymbol</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;cannot find type for variable {:?}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">NoTypeAvailableForVariable</span>(<span class="ident">PlainSymbol</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;expected {}, got {}&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">UnexpectedResultsType</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;min/max expressions: {} (max 1), corresponding: {}&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">AmbiguousAggregates</span>(<span class="ident">usize</span>, <span class="ident">usize</span>),
 }
 </pre>
 </section>

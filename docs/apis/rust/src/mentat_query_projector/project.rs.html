@@ -635,7 +635,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">ProjectorError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -707,14 +707,14 @@
           <span class="kw">let</span> <span class="ident">type_name</span> <span class="op">=</span> <span class="ident">VariableColumn</span>::<span class="ident">VariableTypeTag</span>(<span class="ident">var</span>.<span class="ident">clone</span>()).<span class="ident">column_name</span>();
           (<span class="ident">ColumnOrExpression</span>::<span class="ident">Column</span>(<span class="ident">alias</span>), <span class="ident">type_name</span>)
       })
-      .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>()).<span class="ident">into</span>())
+      .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ProjectorError</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>()).<span class="ident">into</span>())
 }
 
 <span class="kw">fn</span> <span class="ident">cc_column</span>(<span class="ident">cc</span>: <span class="kw-2">&amp;</span><span class="ident">ConjoiningClauses</span>, <span class="ident">var</span>: <span class="kw-2">&amp;</span><span class="ident">Variable</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">QualifiedAlias</span><span class="op">&gt;</span> {
     <span class="ident">cc</span>.<span class="ident">column_bindings</span>
       .<span class="ident">get</span>(<span class="ident">var</span>)
       .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">cols</span><span class="op">|</span> <span class="ident">cols</span>.<span class="ident">get</span>(<span class="number">0</span>).<span class="ident">cloned</span>())
-      .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>()).<span class="ident">into</span>())
+      .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ProjectorError</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>()).<span class="ident">into</span>())
 }
 
 <span class="kw">fn</span> <span class="ident">candidate_column</span>(<span class="ident">cc</span>: <span class="kw-2">&amp;</span><span class="ident">ConjoiningClauses</span>, <span class="ident">var</span>: <span class="kw-2">&amp;</span><span class="ident">Variable</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">ColumnOrExpression</span>, <span class="ident">Name</span>)<span class="op">&gt;</span> {
@@ -791,18 +791,18 @@
         <span class="kw">match</span> <span class="ident">e</span> {
             <span class="kw-2">&amp;</span><span class="ident">Element</span>::<span class="ident">Variable</span>(<span class="kw-2">ref</span> <span class="ident">var</span>) <span class="op">=&gt;</span> {
                 <span class="kw">if</span> <span class="ident">outer_variables</span>.<span class="ident">contains</span>(<span class="ident">var</span>) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Duplicate variable {} in query.&quot;</span>, <span class="ident">var</span>)));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Duplicate variable {} in query.&quot;</span>, <span class="ident">var</span>)));
                 }
                 <span class="kw">if</span> <span class="ident">corresponded_variables</span>.<span class="ident">contains</span>(<span class="ident">var</span>) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Can&#39;t project both {} and `(the {})` from a query.&quot;</span>, <span class="ident">var</span>, <span class="ident">var</span>)));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Can&#39;t project both {} and `(the {})` from a query.&quot;</span>, <span class="ident">var</span>, <span class="ident">var</span>)));
                 }
             },
             <span class="kw-2">&amp;</span><span class="ident">Element</span>::<span class="ident">Corresponding</span>(<span class="kw-2">ref</span> <span class="ident">var</span>) <span class="op">=&gt;</span> {
                 <span class="kw">if</span> <span class="ident">outer_variables</span>.<span class="ident">contains</span>(<span class="ident">var</span>) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Can&#39;t project both {} and `(the {})` from a query.&quot;</span>, <span class="ident">var</span>, <span class="ident">var</span>)));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Can&#39;t project both {} and `(the {})` from a query.&quot;</span>, <span class="ident">var</span>, <span class="ident">var</span>)));
                 }
                 <span class="kw">if</span> <span class="ident">corresponded_variables</span>.<span class="ident">contains</span>(<span class="ident">var</span>) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;`(the {})` appears twice in query.&quot;</span>, <span class="ident">var</span>)));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">InvalidProjection</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;`(the {})` appears twice in query.&quot;</span>, <span class="ident">var</span>)));
                 }
             },
             <span class="kw-2">&amp;</span><span class="ident">Element</span>::<span class="ident">Aggregate</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
@@ -926,7 +926,7 @@
                     <span class="ident">i</span> <span class="op">+=</span> <span class="number">1</span>;
                 } <span class="kw">else</span> {
                     <span class="comment">// TODO: complex aggregates.</span>
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="string">&quot;complex aggregates&quot;</span>.<span class="ident">into</span>()));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">NotYetImplemented</span>(<span class="string">&quot;complex aggregates&quot;</span>.<span class="ident">into</span>()));
                 }
             },
         }
@@ -935,13 +935,13 @@
     <span class="kw">match</span> (<span class="ident">min_max_count</span>, <span class="ident">corresponded_variables</span>.<span class="ident">len</span>()) {
         (<span class="number">0</span>, <span class="number">0</span>) <span class="op">|</span> (<span class="kw">_</span>, <span class="number">0</span>) <span class="op">=&gt;</span> {},
         (<span class="number">0</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidProjection</span>(<span class="string">&quot;Warning: used `the` without `min` or `max`.&quot;</span>.<span class="ident">to_string</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">InvalidProjection</span>(<span class="string">&quot;Warning: used `the` without `min` or `max`.&quot;</span>.<span class="ident">to_string</span>()));
         },
         (<span class="number">1</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> {
             <span class="comment">// This is the success case!</span>
         },
         (<span class="ident">n</span>, <span class="ident">c</span>) <span class="op">=&gt;</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">AmbiguousAggregates</span>(<span class="ident">n</span>, <span class="ident">c</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">AmbiguousAggregates</span>(<span class="ident">n</span>, <span class="ident">c</span>));
         },
     }
 
@@ -1045,7 +1045,7 @@
                                     .<span class="ident">extracted_types</span>
                                     .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">var</span>)
                                     .<span class="ident">cloned</span>()
-                                    .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">NoTypeAvailableForVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>().<span class="ident">clone</span>()))<span class="question-mark">?</span>;
+                                    .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ProjectorError</span>::<span class="ident">NoTypeAvailableForVariable</span>(<span class="ident">var</span>.<span class="ident">name</span>().<span class="ident">clone</span>()))<span class="question-mark">?</span>;
                 <span class="ident">inner_projection</span>.<span class="ident">push</span>(<span class="ident">ProjectedColumn</span>(<span class="ident">ColumnOrExpression</span>::<span class="ident">Column</span>(<span class="ident">type_col</span>), <span class="ident">type_name</span>.<span class="ident">clone</span>()));
             }
             <span class="kw">if</span> <span class="ident">group</span> {

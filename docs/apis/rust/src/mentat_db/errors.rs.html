@@ -274,6 +274,74 @@
 <span id="217">217</span>
 <span id="218">218</span>
 <span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -286,6 +354,13 @@
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
+
+<span class="kw">use</span> <span class="ident">failure</span>::{
+    <span class="ident">Backtrace</span>,
+    <span class="ident">Context</span>,
+    <span class="ident">Error</span>,
+    <span class="ident">Fail</span>,
+};
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{
     <span class="ident">BTreeMap</span>,
@@ -306,6 +381,16 @@
     <span class="ident">ValueType</span>,
 };
 
+<span class="attribute">#[<span class="ident">macro_export</span>]</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bail</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) <span class="op">=&gt;</span> (
+        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>.<span class="ident">into</span>());
+    )
+}
+
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+
+<span class="comment">// TODO Error/ErrorKind pair</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CardinalityConflict</span> {
     <span class="doccomment">/// A cardinality one attribute has multiple assertions `[e a v1], [e a v2], ...`.</span>
@@ -323,7 +408,8 @@
     },
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="comment">// TODO Error/ErrorKind pair</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SchemaConstraintViolation</span> {
     <span class="doccomment">/// A transaction tried to assert datoms where one tempid upserts to two (or more) distinct</span>
     <span class="doccomment">/// entids.</span>
@@ -402,97 +488,147 @@
     }
 }
 
-<span class="macro">error_chain</span><span class="macro">!</span> {
-    <span class="ident">types</span> {
-        <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">ResultExt</span>, <span class="prelude-ty">Result</span>;
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DbError</span> {
+    <span class="doccomment">/// We&#39;re just not done yet.  Message that the feature is recognized but not yet</span>
+    <span class="doccomment">/// implemented.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;not yet implemented: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">NotYetImplemented</span>(<span class="ident">String</span>),
+
+    <span class="doccomment">/// We&#39;ve been given a value that isn&#39;t the correct Mentat type.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;value &#39;{}&#39; is not the expected Mentat value type {:?}&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">BadValuePair</span>(<span class="ident">String</span>, <span class="ident">ValueType</span>),
+
+    <span class="doccomment">/// We&#39;ve got corrupt data in the SQL store: a value and value_type_tag don&#39;t line up.</span>
+    <span class="doccomment">/// TODO _1.data_type()</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;bad SQL (value_type_tag, value) pair: ({:?}, {:?})&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">BadSQLValuePair</span>(<span class="ident">rusqlite</span>::<span class="ident">types</span>::<span class="ident">Value</span>, <span class="ident">i32</span>),
+
+    <span class="comment">// /// The SQLite store user_version isn&#39;t recognized.  This could be an old version of Mentat</span>
+    <span class="comment">// /// trying to open a newer version SQLite store; or it could be a corrupt file; or ...</span>
+    <span class="comment">// #[fail(display = &quot;bad SQL store user_version: {}&quot;, _0)]</span>
+    <span class="comment">// BadSQLiteStoreVersion(i32),</span>
+
+    <span class="doccomment">/// A bootstrap definition couldn&#39;t be parsed or installed.  This is a programmer error, not</span>
+    <span class="doccomment">/// a runtime error.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;bad bootstrap definition: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">BadBootstrapDefinition</span>(<span class="ident">String</span>),
+
+    <span class="doccomment">/// A schema assertion couldn&#39;t be parsed.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;bad schema assertion: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">BadSchemaAssertion</span>(<span class="ident">String</span>),
+
+    <span class="doccomment">/// An ident-&gt;entid mapping failed.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;no entid found for ident: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnrecognizedIdent</span>(<span class="ident">String</span>),
+
+    <span class="doccomment">/// An entid-&gt;ident mapping failed.</span>
+    <span class="doccomment">/// We also use this error if you try to transact an entid that we didn&#39;t allocate,</span>
+    <span class="doccomment">/// in part because we blow the stack in error_chain if we define a new enum!</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;unrecognized or no ident found for entid: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnrecognizedEntid</span>(<span class="ident">Entid</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;unknown attribute for entid: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnknownAttribute</span>(<span class="ident">Entid</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;cannot reverse-cache non-unique attribute: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">CannotCacheNonUniqueAttributeInReverse</span>(<span class="ident">Entid</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;schema alteration failed: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">SchemaAlterationFailed</span>(<span class="ident">String</span>),
+
+    <span class="doccomment">/// A transaction tried to violate a constraint of the schema of the Mentat store.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;schema constraint violation: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">SchemaConstraintViolation</span>(<span class="ident">SchemaConstraintViolation</span>),
+
+    <span class="doccomment">/// The transaction was malformed in some way (that was not recognized at parse time; for</span>
+    <span class="doccomment">/// example, in a way that is schema-dependent).</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;transaction input error: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">InputError</span>(<span class="ident">InputError</span>),
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string&quot;</span>)]</span>
+    <span class="ident">WrongTypeValueForFtsAssertion</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DbSqlError</span> {
+    <span class="ident">inner</span>: <span class="ident">Context</span><span class="op">&lt;</span><span class="ident">DbSqlErrorKind</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">Fail</span> <span class="kw">for</span> <span class="ident">DbSqlError</span> {
+    <span class="kw">fn</span> <span class="ident">cause</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Fail</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">cause</span>()
     }
 
-    <span class="ident">foreign_links</span> {
-        <span class="ident">Rusqlite</span>(<span class="ident">rusqlite</span>::<span class="ident">Error</span>);
+    <span class="kw">fn</span> <span class="ident">backtrace</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Backtrace</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">backtrace</span>()
     }
+}
 
-    <span class="ident">errors</span> {
-        <span class="doccomment">/// We&#39;re just not done yet.  Message that the feature is recognized but not yet</span>
-        <span class="doccomment">/// implemented.</span>
-        <span class="ident">NotYetImplemented</span>(<span class="ident">t</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;not yet implemented&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;not yet implemented: {}&quot;</span>, <span class="ident">t</span>)
-        }
-
-        <span class="doccomment">/// We&#39;ve been given a value that isn&#39;t the correct Mentat type.</span>
-        <span class="ident">BadValuePair</span>(<span class="ident">value</span>: <span class="ident">String</span>, <span class="ident">value_type</span>: <span class="ident">ValueType</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;value is not the expected Mentat value type&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;value &#39;{}&#39; is not the expected Mentat value type {:?}&quot;</span>, <span class="ident">value</span>, <span class="ident">value_type</span>)
-        }
-
-        <span class="doccomment">/// We&#39;ve got corrupt data in the SQL store: a value and value_type_tag don&#39;t line up.</span>
-        <span class="ident">BadSQLValuePair</span>(<span class="ident">value</span>: <span class="ident">rusqlite</span>::<span class="ident">types</span>::<span class="ident">Value</span>, <span class="ident">value_type_tag</span>: <span class="ident">i32</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;bad SQL (value_type_tag, value) pair&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;bad SQL (value_type_tag, value) pair: ({}, {:?})&quot;</span>, <span class="ident">value_type_tag</span>, <span class="ident">value</span>.<span class="ident">data_type</span>())
-        }
-
-        <span class="comment">// /// The SQLite store user_version isn&#39;t recognized.  This could be an old version of Mentat</span>
-        <span class="comment">// /// trying to open a newer version SQLite store; or it could be a corrupt file; or ...</span>
-        <span class="comment">// BadSQLiteStoreVersion(version: i32) {</span>
-        <span class="comment">//     description(&quot;bad SQL store user_version&quot;)</span>
-        <span class="comment">//     display(&quot;bad SQL store user_version: {}&quot;, version)</span>
-        <span class="comment">// }</span>
-
-        <span class="doccomment">/// A bootstrap definition couldn&#39;t be parsed or installed.  This is a programmer error, not</span>
-        <span class="doccomment">/// a runtime error.</span>
-        <span class="ident">BadBootstrapDefinition</span>(<span class="ident">t</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;bad bootstrap definition&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;bad bootstrap definition: {}&quot;</span>, <span class="ident">t</span>)
-        }
-
-        <span class="doccomment">/// A schema assertion couldn&#39;t be parsed.</span>
-        <span class="ident">BadSchemaAssertion</span>(<span class="ident">t</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;bad schema assertion&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;bad schema assertion: {}&quot;</span>, <span class="ident">t</span>)
-        }
-
-        <span class="doccomment">/// An ident-&gt;entid mapping failed.</span>
-        <span class="ident">UnrecognizedIdent</span>(<span class="ident">ident</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;no entid found for ident&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;no entid found for ident: {}&quot;</span>, <span class="ident">ident</span>)
-        }
-
-        <span class="doccomment">/// An entid-&gt;ident mapping failed.</span>
-        <span class="doccomment">/// We also use this error if you try to transact an entid that we didn&#39;t allocate,</span>
-        <span class="doccomment">/// in part because we blow the stack in error_chain if we define a new enum!</span>
-        <span class="ident">UnrecognizedEntid</span>(<span class="ident">entid</span>: <span class="ident">Entid</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;unrecognized or no ident found for entid&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;unrecognized or no ident found for entid: {}&quot;</span>, <span class="ident">entid</span>)
-        }
-
-        <span class="ident">UnknownAttribute</span>(<span class="ident">attr</span>: <span class="ident">Entid</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;unknown attribute&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;unknown attribute for entid: {}&quot;</span>, <span class="ident">attr</span>)
-        }
-
-        <span class="ident">CannotCacheNonUniqueAttributeInReverse</span>(<span class="ident">attr</span>: <span class="ident">Entid</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;cannot reverse-cache non-unique attribute&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;cannot reverse-cache non-unique attribute: {}&quot;</span>, <span class="ident">attr</span>)
-        }
-
-        <span class="ident">SchemaAlterationFailed</span>(<span class="ident">t</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;schema alteration failed&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;schema alteration failed: {}&quot;</span>, <span class="ident">t</span>)
-        }
-
-        <span class="doccomment">/// A transaction tried to violate a constraint of the schema of the Mentat store.</span>
-        <span class="ident">SchemaConstraintViolation</span>(<span class="ident">violation</span>: <span class="ident">SchemaConstraintViolation</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;schema constraint violation&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;schema constraint violation: {}&quot;</span>, <span class="ident">violation</span>)
-        }
-
-        <span class="doccomment">/// The transaction was malformed in some way (that was not recognized at parse time; for</span>
-        <span class="doccomment">/// example, in a way that is schema-dependent).</span>
-        <span class="ident">InputError</span>(<span class="ident">error</span>: <span class="ident">InputError</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;transaction input error&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;transaction input error: {}&quot;</span>, <span class="ident">error</span>)
-        }
+<span class="kw">impl</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">DbSqlError</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        ::<span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>::<span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">inner</span>, <span class="ident">f</span>)
     }
+}
+
+<span class="kw">impl</span> <span class="ident">DbSqlError</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">kind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">DbSqlErrorKind</span> {
+        <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">get_context</span>()
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">DbSqlErrorKind</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">DbSqlError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">kind</span>: <span class="ident">DbSqlErrorKind</span>) <span class="op">-&gt;</span> <span class="ident">DbSqlError</span> {
+        <span class="ident">DbSqlError</span> { <span class="ident">inner</span>: <span class="ident">Context</span>::<span class="ident">new</span>(<span class="ident">kind</span>) }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Context</span><span class="op">&lt;</span><span class="ident">DbSqlErrorKind</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">DbSqlError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">inner</span>: <span class="ident">Context</span><span class="op">&lt;</span><span class="ident">DbSqlErrorKind</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">DbSqlError</span> {
+        <span class="ident">DbSqlError</span> { <span class="ident">inner</span>: <span class="ident">inner</span> }
+    }
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DbSqlErrorKind</span> {
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not set_user_version&quot;</span>)]</span>
+    <span class="ident">CouldNotSetVersionPragma</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not get_user_version&quot;</span>)]</span>
+    <span class="ident">CouldNotGetVersionPragma</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not search!&quot;</span>)]</span>
+    <span class="ident">CouldNotSearch</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not insert transaction: failed to add datoms not already present&quot;</span>)]</span>
+    <span class="ident">TxInsertFailedToAddMissingDatoms</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not insert transaction: failed to retract datoms already present&quot;</span>)]</span>
+    <span class="ident">TxInsertFailedToRetractDatoms</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not update datoms: failed to retract datoms already present&quot;</span>)]</span>
+    <span class="ident">DatomsUpdateFailedToRetract</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not update datoms: failed to add datoms not already present&quot;</span>)]</span>
+    <span class="ident">DatomsUpdateFailedToAdd</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Failed to create temporary tables&quot;</span>)]</span>
+    <span class="ident">FailedToCreateTempTables</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not insert non-fts one statements into temporary search table!&quot;</span>)]</span>
+    <span class="ident">NonFtsInsertionIntoTempSearchTableFailed</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not insert fts values into fts table!&quot;</span>)]</span>
+    <span class="ident">FtsInsertionFailed</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not insert FTS statements into temporary search table!&quot;</span>)]</span>
+    <span class="ident">FtsInsertionIntoTempSearchTableFailed</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not drop FTS search ids!&quot;</span>)]</span>
+    <span class="ident">FtsFailedToDropSearchIds</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;Could not update partition map&quot;</span>)]</span>
+    <span class="ident">FailedToUpdatePartitionMap</span>,
 }
 </pre>
 </section>

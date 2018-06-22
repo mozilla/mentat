@@ -34,7 +34,7 @@
     <nav class="sidebar">
         <div class="sidebar-menu">&#9776;</div>
         
-        <p class='location'>Crate mentat_query_algebrizer</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'mentat_query_algebrizer', ty: 'mod', relpath: '../'};</script></div>
+        <p class='location'>Crate mentat_query_algebrizer</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'mentat_query_algebrizer', ty: 'mod', relpath: '../'};</script></div>
     </nav>
 
     <div class="theme-picker">
@@ -59,7 +59,15 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#11-403' title='goto source code'>[src]</a></span></h1><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+               </span><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#11-403' title='goto source code'>[src]</a></span></h1><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.bail.html"
+                                  title='macro mentat_query_algebrizer::bail'>bail</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                        <tr class=' module-item'>
                            <td><a class="struct" href="struct.AlgebraicQuery.html"
@@ -96,19 +104,18 @@ The topmost form in a query is a <code>ConjoiningClauses</code>.</p>
                            </td>
                        </tr>
                        <tr class=' module-item'>
-                           <td><a class="struct" href="struct.Error.html"
-                                  title='struct mentat_query_algebrizer::Error'>Error</a></td>
-                           <td class='docblock-short'>
-                                <p>The Error type.</p>
-
-                           </td>
-                       </tr>
-                       <tr class=' module-item'>
                            <td><a class="struct" href="struct.FindQuery.html"
                                   title='struct mentat_query_algebrizer::FindQuery'>FindQuery</a></td>
                            <td class='docblock-short'>
                                 <p>A <code>FindQuery</code> represents a valid query to the query algebrizer.</p>
 
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.InvalidBinding.html"
+                                  title='struct mentat_query_algebrizer::InvalidBinding'>InvalidBinding</a></td>
+                           <td class='docblock-short'>
+                                
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -161,6 +168,13 @@ When built correctly, <code>types</code> is guaranteed to contain the types of <
                            </td>
                        </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
 <table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.AlgebrizerError.html"
+                                  title='enum mentat_query_algebrizer::AlgebrizerError'>AlgebrizerError</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
                        <tr class=' module-item'>
                            <td><a class="enum" href="enum.BindingError.html"
                                   title='enum mentat_query_algebrizer::BindingError'>BindingError</a></td>
@@ -219,14 +233,6 @@ tables and two views -- and computed tables defined in the enclosing CC.</p>
                                   title='enum mentat_query_algebrizer::EmptyBecause'>EmptyBecause</a></td>
                            <td class='docblock-short'>
                                 
-                           </td>
-                       </tr>
-                       <tr class=' module-item'>
-                           <td><a class="enum" href="enum.ErrorKind.html"
-                                  title='enum mentat_query_algebrizer::ErrorKind'>ErrorKind</a></td>
-                           <td class='docblock-short'>
-                                <p>The kind of an error.</p>
-
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -293,8 +299,7 @@ tables and two views -- and computed tables defined in the enclosing CC.</p>
                            <td><a class="type" href="type.Result.html"
                                   title='type mentat_query_algebrizer::Result'>Result</a></td>
                            <td class='docblock-short'>
-                                <p>Convenient wrapper around <code>std::Result</code>.</p>
-
+                                
                            </td>
                        </tr>
                        <tr class=' module-item'>

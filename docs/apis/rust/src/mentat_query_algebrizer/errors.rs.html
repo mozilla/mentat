@@ -192,6 +192,16 @@
 <span id="135">135</span>
 <span id="136">136</span>
 <span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -205,8 +215,18 @@
 
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query</span>;
 
+<span class="kw">use</span> <span class="ident">std</span>; <span class="comment">// To refer to std::result::Result.</span>
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>;
+
+<span class="kw">use</span> <span class="ident">failure</span>::{
+    <span class="ident">Backtrace</span>,
+    <span class="ident">Context</span>,
+    <span class="ident">Error</span>,
+    <span class="ident">Fail</span>,
+};
+
 <span class="kw">use</span> <span class="ident">mentat_core</span>::{
-    <span class="ident">EdnParseError</span>,
     <span class="ident">ValueType</span>,
     <span class="ident">ValueTypeSet</span>,
 };
@@ -215,7 +235,53 @@
     <span class="ident">PlainSymbol</span>,
 };
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+
+<span class="attribute">#[<span class="ident">macro_export</span>]</span>
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bail</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) <span class="op">=&gt;</span> (
+        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>.<span class="ident">into</span>());
+    )
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">InvalidBinding</span> {
+    <span class="kw">pub</span> <span class="ident">function</span>: <span class="ident">PlainSymbol</span>,
+    <span class="kw">pub</span> <span class="ident">inner</span>: <span class="ident">Context</span><span class="op">&lt;</span><span class="ident">BindingError</span><span class="op">&gt;</span>
+}
+
+<span class="kw">impl</span> <span class="ident">InvalidBinding</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">function</span>: <span class="ident">PlainSymbol</span>, <span class="ident">inner</span>: <span class="ident">BindingError</span>) <span class="op">-&gt;</span> <span class="ident">InvalidBinding</span> {
+        <span class="ident">InvalidBinding</span> {
+            <span class="ident">function</span>: <span class="ident">function</span>,
+            <span class="ident">inner</span>: <span class="ident">Context</span>::<span class="ident">new</span>(<span class="ident">inner</span>)
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Fail</span> <span class="kw">for</span> <span class="ident">InvalidBinding</span> {
+    <span class="kw">fn</span> <span class="ident">cause</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Fail</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">cause</span>()
+    }
+
+    <span class="kw">fn</span> <span class="ident">backtrace</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Backtrace</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">backtrace</span>()
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">InvalidBinding</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;invalid binding for {}: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">function</span>, <span class="self">self</span>.<span class="ident">inner</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">BindingError</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;BindingError: {:?}&quot;</span>, <span class="self">self</span>)
+    }
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BindingError</span> {
     <span class="ident">NoBoundVariable</span>,
     <span class="ident">UnexpectedBinding</span>,
@@ -235,101 +301,55 @@
     <span class="ident">InvalidNumberOfBindings</span> { <span class="ident">number</span>: <span class="ident">usize</span>, <span class="ident">expected</span>: <span class="ident">usize</span> },
 }
 
-<span class="macro">error_chain</span><span class="macro">!</span> {
-    <span class="ident">types</span> {
-        <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">ResultExt</span>, <span class="prelude-ty">Result</span>;
-    }
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AlgebrizerError</span> {
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;{} var {} is duplicated&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">DuplicateVariableError</span>(<span class="ident">PlainSymbol</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
 
-    <span class="ident">foreign_links</span> {
-        <span class="ident">EdnParseError</span>(<span class="ident">EdnParseError</span>);
-    }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;unexpected FnArg&quot;</span>)]</span>
+    <span class="ident">UnsupportedArgument</span>,
 
-    <span class="ident">errors</span> {
-        <span class="ident">UnsupportedArgument</span> {
-            <span class="ident">description</span>(<span class="string">&quot;unexpected FnArg&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;unexpected FnArg&quot;</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;value of type {} provided for var {}, expected {}&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>, <span class="ident">_2</span>)]</span>
+    <span class="ident">InputTypeDisagreement</span>(<span class="ident">PlainSymbol</span>, <span class="ident">ValueType</span>, <span class="ident">ValueType</span>),
 
-        <span class="ident">InputTypeDisagreement</span>(<span class="ident">var</span>: <span class="ident">PlainSymbol</span>, <span class="ident">declared</span>: <span class="ident">ValueType</span>, <span class="ident">provided</span>: <span class="ident">ValueType</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;input type disagreement&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;value of type {} provided for var {}, expected {}&quot;</span>, <span class="ident">provided</span>, <span class="ident">var</span>, <span class="ident">declared</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;invalid number of arguments to {}: expected {}, got {}.&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>, <span class="ident">_2</span>)]</span>
+    <span class="ident">InvalidNumberOfArguments</span>(<span class="ident">PlainSymbol</span>, <span class="ident">usize</span>, <span class="ident">usize</span>),
 
-        <span class="ident">UnrecognizedIdent</span>(<span class="ident">ident</span>: <span class="ident">String</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;no entid found for ident&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;no entid found for ident: {}&quot;</span>, <span class="ident">ident</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;invalid argument to {}: expected {} in position {}.&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>, <span class="ident">_2</span>)]</span>
+    <span class="ident">InvalidArgument</span>(<span class="ident">PlainSymbol</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">usize</span>),
 
-        <span class="ident">UnknownFunction</span>(<span class="ident">name</span>: <span class="ident">PlainSymbol</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;no such function&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;no function named {}&quot;</span>, <span class="ident">name</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;invalid argument to {}: expected one of {:?} in position {}.&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>, <span class="ident">_2</span>)]</span>
+    <span class="ident">InvalidArgumentType</span>(<span class="ident">PlainSymbol</span>, <span class="ident">ValueTypeSet</span>, <span class="ident">usize</span>),
 
-        <span class="ident">InvalidNumberOfArguments</span>(<span class="ident">function</span>: <span class="ident">PlainSymbol</span>, <span class="ident">number</span>: <span class="ident">usize</span>, <span class="ident">expected</span>: <span class="ident">usize</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;invalid number of arguments&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid number of arguments to {}: expected {}, got {}.&quot;</span>, <span class="ident">function</span>, <span class="ident">expected</span>, <span class="ident">number</span>)
-        }
+    <span class="comment">// TODO: flesh this out.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;invalid expression in ground constant&quot;</span>)]</span>
+    <span class="ident">InvalidGroundConstant</span>,
 
-        <span class="ident">UnboundVariable</span>(<span class="ident">name</span>: <span class="ident">PlainSymbol</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;unbound variable in order clause or function call&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;unbound variable: {}&quot;</span>, <span class="ident">name</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;invalid limit {} of type {}: expected natural number.&quot;</span>, <span class="ident">_0</span>, <span class="ident">_1</span>)]</span>
+    <span class="ident">InvalidLimit</span>(<span class="ident">String</span>, <span class="ident">ValueType</span>),
 
-        <span class="ident">InvalidBinding</span>(<span class="ident">function</span>: <span class="ident">PlainSymbol</span>, <span class="ident">binding_error</span>: <span class="ident">BindingError</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;invalid binding&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid binding for {}: {:?}.&quot;</span>, <span class="ident">function</span>, <span class="ident">binding_error</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;mismatched bindings in ground&quot;</span>)]</span>
+    <span class="ident">GroundBindingsMismatch</span>,
 
-        <span class="ident">GroundBindingsMismatch</span> {
-            <span class="ident">description</span>(<span class="string">&quot;mismatched bindings in ground&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;mismatched bindings in ground&quot;</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;no entid found for ident: {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnrecognizedIdent</span>(<span class="ident">String</span>),
 
-        <span class="ident">InvalidGroundConstant</span> {
-            <span class="comment">// TODO: flesh this out.</span>
-            <span class="ident">description</span>(<span class="string">&quot;invalid expression in ground constant&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid expression in ground constant&quot;</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;no function named {}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnknownFunction</span>(<span class="ident">PlainSymbol</span>),
 
-        <span class="ident">InvalidArgument</span>(<span class="ident">function</span>: <span class="ident">PlainSymbol</span>, <span class="ident">expected</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">position</span>: <span class="ident">usize</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;invalid argument&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid argument to {}: expected {} in position {}.&quot;</span>, <span class="ident">function</span>, <span class="ident">expected</span>, <span class="ident">position</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;:limit var {} not present in :in&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnknownLimitVar</span>(<span class="ident">PlainSymbol</span>),
 
-        <span class="ident">InvalidArgumentType</span>(<span class="ident">function</span>: <span class="ident">PlainSymbol</span>, <span class="ident">expected_types</span>: <span class="ident">ValueTypeSet</span>, <span class="ident">position</span>: <span class="ident">usize</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;invalid argument&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid argument to {}: expected one of {:?} in position {}.&quot;</span>, <span class="ident">function</span>, <span class="ident">expected_types</span>, <span class="ident">position</span>)
-        }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;unbound variable {} in order clause or function call&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnboundVariable</span>(<span class="ident">PlainSymbol</span>),
 
-        <span class="ident">InvalidLimit</span>(<span class="ident">val</span>: <span class="ident">String</span>, <span class="ident">kind</span>: <span class="ident">ValueType</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;invalid limit&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;invalid limit {} of type {}: expected natural number.&quot;</span>, <span class="ident">val</span>, <span class="ident">kind</span>)
-        }
+    <span class="comment">// TODO: flesh out.</span>
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;non-matching variables in &#39;or&#39; clause&quot;</span>)]</span>
+    <span class="ident">NonMatchingVariablesInOrClause</span>,
 
-        <span class="ident">NonMatchingVariablesInOrClause</span> {
-            <span class="comment">// TODO: flesh out.</span>
-            <span class="ident">description</span>(<span class="string">&quot;non-matching variables in &#39;or&#39; clause&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;non-matching variables in &#39;or&#39; clause&quot;</span>)
-        }
-
-        <span class="ident">NonMatchingVariablesInNotClause</span> {
-            <span class="comment">// TODO: flesh out.</span>
-            <span class="ident">description</span>(<span class="string">&quot;non-matching variables in &#39;not&#39; clause&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;non-matching variables in &#39;not&#39; clause&quot;</span>)
-        }
-
-        <span class="ident">DuplicateVariableError</span>(<span class="ident">name</span>: <span class="ident">PlainSymbol</span>, <span class="ident">clause</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>)  {
-            <span class="ident">description</span>(<span class="string">&quot;duplicate variables&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;{} var {} is duplicated&quot;</span>, <span class="ident">clause</span>, <span class="ident">name</span>)
-        }
-
-        <span class="ident">UnknownLimitVar</span>(<span class="ident">name</span>: <span class="ident">PlainSymbol</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;:limit var not present in :in&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;:limit var {} not present in :in&quot;</span>, <span class="ident">name</span>)
-        }
-    }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;non-matching variables in &#39;not&#39; clause&quot;</span>)]</span>
+    <span class="ident">NonMatchingVariablesInNotClause</span>,
 }
-
 </pre>
 </section>
     <section id='search' class="content hidden"></section>

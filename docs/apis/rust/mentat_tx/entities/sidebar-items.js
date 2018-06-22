@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["AtomOrLookupRefOrVectorOrMapNotation",""],["Entid",""],["EntidOrLookupRefOrTempId",""],["Entity",""],["OpType",""],["TempId","A tempid, either an external tempid given in a transaction (usually as an `edn::Value::Text`), or an internal tempid allocated by Mentat itself."]],"struct":[["LookupRef",""]],"type":[["MapNotation",""]]});

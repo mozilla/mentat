@@ -1139,7 +1139,7 @@
 };
 
 <span class="kw">use</span> ::<span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">MentatError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -1393,17 +1393,17 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">HasCoreSchema</span> <span class="kw">for</span> <span class="ident">T</span> <span class="kw">where</span> <span class="ident">T</span>: <span class="ident">HasSchema</span> {
     <span class="kw">fn</span> <span class="ident">core_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">t</span>: <span class="ident">ValueType</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">KnownEntid</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">entid_for_type</span>(<span class="ident">t</span>)
-            .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">MissingCoreVocabulary</span>(<span class="ident">DB_SCHEMA_VERSION</span>.<span class="ident">clone</span>()).<span class="ident">into</span>())
+            .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">MentatError</span>::<span class="ident">MissingCoreVocabulary</span>(<span class="ident">DB_SCHEMA_VERSION</span>.<span class="ident">clone</span>()).<span class="ident">into</span>())
     }
 
     <span class="kw">fn</span> <span class="ident">core_entid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ident</span>: <span class="kw-2">&amp;</span><span class="ident">Keyword</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">KnownEntid</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">get_entid</span>(<span class="ident">ident</span>)
-            .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">MissingCoreVocabulary</span>(<span class="ident">DB_SCHEMA_VERSION</span>.<span class="ident">clone</span>()).<span class="ident">into</span>())
+            .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">MentatError</span>::<span class="ident">MissingCoreVocabulary</span>(<span class="ident">DB_SCHEMA_VERSION</span>.<span class="ident">clone</span>()).<span class="ident">into</span>())
     }
 
     <span class="kw">fn</span> <span class="ident">core_attribute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ident</span>: <span class="kw-2">&amp;</span><span class="ident">Keyword</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">KnownEntid</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">attribute_for_ident</span>(<span class="ident">ident</span>)
-            .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">MissingCoreVocabulary</span>(<span class="ident">DB_SCHEMA_VERSION</span>.<span class="ident">clone</span>()).<span class="ident">into</span>())
+            .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">MentatError</span>::<span class="ident">MissingCoreVocabulary</span>(<span class="ident">DB_SCHEMA_VERSION</span>.<span class="ident">clone</span>()).<span class="ident">into</span>())
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">e</span>)<span class="op">|</span> <span class="ident">e</span>)
     }
 }
@@ -1586,7 +1586,7 @@
                                 <span class="comment">// We have two vocabularies with the same name, same version, and</span>
                                 <span class="comment">// different definitions for an attribute. That&#39;s a coding error.</span>
                                 <span class="comment">// We can&#39;t accept this vocabulary.</span>
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">ConflictingAttributeDefinitions</span>(
+                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">ConflictingAttributeDefinitions</span>(
                                           <span class="ident">definition</span>.<span class="ident">name</span>.<span class="ident">to_string</span>(),
                                           <span class="ident">definition</span>.<span class="ident">version</span>,
                                           <span class="ident">pair</span>.<span class="number">0</span>.<span class="ident">to_string</span>(),
@@ -1633,13 +1633,13 @@
     <span class="kw">fn</span> <span class="ident">verify_core_schema</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">core</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_vocabulary_named</span>(<span class="kw-2">&amp;</span><span class="ident">DB_SCHEMA_CORE</span>)<span class="question-mark">?</span> {
             <span class="kw">if</span> <span class="ident">core</span>.<span class="ident">version</span> <span class="op">!=</span> <span class="ident">CORE_SCHEMA_VERSION</span> {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedCoreSchema</span>(<span class="prelude-val">Some</span>(<span class="ident">core</span>.<span class="ident">version</span>)));
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">UnexpectedCoreSchema</span>(<span class="ident">CORE_SCHEMA_VERSION</span>, <span class="prelude-val">Some</span>(<span class="ident">core</span>.<span class="ident">version</span>)));
             }
 
             <span class="comment">// TODO: check things other than the version.</span>
         } <span class="kw">else</span> {
             <span class="comment">// This would be seriously messed up.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedCoreSchema</span>(<span class="prelude-val">None</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">UnexpectedCoreSchema</span>(<span class="ident">CORE_SCHEMA_VERSION</span>, <span class="prelude-val">None</span>));
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1700,7 +1700,7 @@
             <span class="ident">VocabularyCheck</span>::<span class="ident">NotPresent</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">install_vocabulary</span>(<span class="ident">definition</span>),
             <span class="ident">VocabularyCheck</span>::<span class="ident">PresentButNeedsUpdate</span> { <span class="ident">older_version</span> } <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">upgrade_vocabulary</span>(<span class="ident">definition</span>, <span class="ident">older_version</span>),
             <span class="ident">VocabularyCheck</span>::<span class="ident">PresentButMissingAttributes</span> { <span class="ident">attributes</span> } <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">install_attributes_for</span>(<span class="ident">definition</span>, <span class="ident">attributes</span>),
-            <span class="ident">VocabularyCheck</span>::<span class="ident">PresentButTooNew</span> { <span class="ident">newer_version</span> } <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ErrorKind</span>::<span class="ident">ExistingVocabularyTooNew</span>(<span class="ident">definition</span>.<span class="ident">name</span>.<span class="ident">to_string</span>(), <span class="ident">newer_version</span>.<span class="ident">version</span>, <span class="ident">definition</span>.<span class="ident">version</span>).<span class="ident">into</span>()),
+            <span class="ident">VocabularyCheck</span>::<span class="ident">PresentButTooNew</span> { <span class="ident">newer_version</span> } <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">MentatError</span>::<span class="ident">ExistingVocabularyTooNew</span>(<span class="ident">definition</span>.<span class="ident">name</span>.<span class="ident">to_string</span>(), <span class="ident">newer_version</span>.<span class="ident">version</span>, <span class="ident">definition</span>.<span class="ident">version</span>).<span class="ident">into</span>()),
         }
     }
 
@@ -1719,7 +1719,7 @@
                     <span class="ident">out</span>.<span class="ident">insert</span>(<span class="ident">definition</span>.<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">VocabularyOutcome</span>::<span class="ident">Existed</span>);
                 },
                 <span class="ident">VocabularyCheck</span>::<span class="ident">PresentButTooNew</span> { <span class="ident">newer_version</span> } <span class="op">=&gt;</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">ExistingVocabularyTooNew</span>(<span class="ident">definition</span>.<span class="ident">name</span>.<span class="ident">to_string</span>(), <span class="ident">newer_version</span>.<span class="ident">version</span>, <span class="ident">definition</span>.<span class="ident">version</span>));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">ExistingVocabularyTooNew</span>(<span class="ident">definition</span>.<span class="ident">name</span>.<span class="ident">to_string</span>(), <span class="ident">newer_version</span>.<span class="ident">version</span>, <span class="ident">definition</span>.<span class="ident">version</span>));
                 },
 
                 <span class="ident">c</span> @ <span class="ident">VocabularyCheck</span>::<span class="ident">NotPresent</span> <span class="op">|</span>
@@ -1886,7 +1886,7 @@
                             <span class="ident">attributes</span>: <span class="ident">attributes</span>,
                         }))
                     },
-                <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidVocabularyVersion</span>),
+                <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">InvalidVocabularyVersion</span>),
             }
         } <span class="kw">else</span> {
             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)

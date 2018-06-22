@@ -452,7 +452,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">AlgebrizerError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -489,7 +489,7 @@
                 <span class="kw">let</span> <span class="ident">template</span> <span class="op">=</span> <span class="ident">clauses</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>().<span class="ident">collect_mentioned_variables</span>();
                 <span class="kw">for</span> <span class="ident">clause</span> <span class="kw">in</span> <span class="ident">clauses</span> {
                     <span class="kw">if</span> <span class="ident">template</span> <span class="op">!=</span> <span class="ident">clause</span>.<span class="ident">collect_mentioned_variables</span>() {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NonMatchingVariablesInOrClause</span>);
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">NonMatchingVariablesInOrClause</span>)
                     }
                 }
                 <span class="prelude-val">Ok</span>(())
@@ -500,7 +500,7 @@
             <span class="kw">let</span> <span class="ident">var_set</span>: <span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">Variable</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">vars</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>();
             <span class="kw">for</span> <span class="ident">clause</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">or_join</span>.<span class="ident">clauses</span> {
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">var_set</span>.<span class="ident">is_subset</span>(<span class="kw-2">&amp;</span><span class="ident">clause</span>.<span class="ident">collect_mentioned_variables</span>()) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NonMatchingVariablesInOrClause</span>);
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">NonMatchingVariablesInOrClause</span>)
                 }
             }
             <span class="prelude-val">Ok</span>(())
@@ -518,7 +518,7 @@
             <span class="comment">// The joined vars must each appear somewhere in the clause&#39;s mentioned variables.</span>
             <span class="kw">let</span> <span class="ident">var_set</span>: <span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">Variable</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">vars</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>();
             <span class="kw">if</span> <span class="op">!</span><span class="ident">var_set</span>.<span class="ident">is_subset</span>(<span class="kw-2">&amp;</span><span class="ident">not_join</span>.<span class="ident">collect_mentioned_variables</span>()) {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NonMatchingVariablesInNotClause</span>);
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">NonMatchingVariablesInNotClause</span>)
             }
             <span class="prelude-val">Ok</span>(())
         },

@@ -200,7 +200,7 @@
 <span class="kw">use</span> <span class="ident">mentat_core</span>::<span class="ident">Entid</span>;
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">TolstoyError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -245,7 +245,7 @@
         <span class="kw">if</span> <span class="ident">txs</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">txs</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">TxIncorrectlyMapped</span>(<span class="ident">txs</span>.<span class="ident">len</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">TolstoyError</span>::<span class="ident">TxIncorrectlyMapped</span>(<span class="ident">txs</span>.<span class="ident">len</span>()));
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">txs</span>.<span class="ident">remove</span>(<span class="number">0</span>)<span class="question-mark">?</span>))
     }
@@ -265,7 +265,7 @@
         <span class="kw">if</span> <span class="ident">uuids</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">uuids</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">TxIncorrectlyMapped</span>(<span class="ident">uuids</span>.<span class="ident">len</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">TolstoyError</span>::<span class="ident">TxIncorrectlyMapped</span>(<span class="ident">uuids</span>.<span class="ident">len</span>()));
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">uuids</span>.<span class="ident">remove</span>(<span class="number">0</span>)<span class="question-mark">?</span>))
     }

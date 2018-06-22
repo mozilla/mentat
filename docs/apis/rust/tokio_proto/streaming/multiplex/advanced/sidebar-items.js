@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Multiplex","Task that drives multiplexed protocols"],["MultiplexMessage","Message used to communicate through the multiplex dispatch"]],"trait":[["Dispatch","Dispatch messages from the transport to the service"]]});

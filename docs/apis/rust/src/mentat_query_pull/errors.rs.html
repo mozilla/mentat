@@ -85,11 +85,6 @@
 <span id="28">28</span>
 <span id="29">29</span>
 <span id="30">30</span>
-<span id="31">31</span>
-<span id="32">32</span>
-<span id="33">33</span>
-<span id="34">34</span>
-<span id="35">35</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -101,30 +96,25 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
+<span class="kw">use</span> <span class="ident">std</span>; <span class="comment">// To refer to std::result::Result.</span>
+
 <span class="kw">use</span> <span class="ident">mentat_core</span>::{
     <span class="ident">Entid</span>,
 };
 
-<span class="macro">error_chain</span><span class="macro">!</span> {
-    <span class="ident">types</span> {
-        <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">ResultExt</span>, <span class="prelude-ty">Result</span>;
-    }
+<span class="kw">use</span> <span class="ident">failure</span>::{
+    <span class="ident">Error</span>,
+};
 
-    <span class="ident">errors</span> {
-        <span class="ident">UnnamedAttribute</span>(<span class="ident">id</span>: <span class="ident">Entid</span>) {
-            <span class="ident">description</span>(<span class="string">&quot;unnamed attribute&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;attribute {:?} has no name&quot;</span>, <span class="ident">id</span>)
-        }
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
 
-        <span class="ident">RepeatedDbId</span> {
-            <span class="ident">description</span>(<span class="string">&quot;:db/id repeated&quot;</span>)
-            <span class="ident">display</span>(<span class="string">&quot;:db/id repeated&quot;</span>)
-        }
-    }
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PullError</span> {
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;attribute {:?} has no name&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">UnnamedAttribute</span>(<span class="ident">Entid</span>),
 
-    <span class="ident">links</span> {
-        <span class="ident">DbError</span>(::<span class="ident">mentat_db</span>::<span class="ident">Error</span>, ::<span class="ident">mentat_db</span>::<span class="ident">ErrorKind</span>);
-    }
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;:db/id repeated&quot;</span>)]</span>
+    <span class="ident">RepeatedDbId</span>,
 }
 </pre>
 </section>

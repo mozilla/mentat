@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["DisplayError","Errors that can occur initializing a Base64Display."]],"struct":[["Base64Display","A convenience wrapper for base64'ing bytes into a format string without heap allocation."]]});

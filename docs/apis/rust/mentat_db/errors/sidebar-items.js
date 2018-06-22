@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["CardinalityConflict",""],["ErrorKind","The kind of an error."],["InputError",""],["SchemaConstraintViolation",""]],"struct":[["Error","The Error type."]],"trait":[["ResultExt","Additional methods for `Result`, for easy interaction with this crate."]],"type":[["Result","Convenient wrapper around `std::Result`."]]});
+initSidebarItems({"enum":[["CardinalityConflict",""],["DbError",""],["DbSqlErrorKind",""],["InputError",""],["SchemaConstraintViolation",""]],"struct":[["DbSqlError",""]],"type":[["Result",""]]});

@@ -1906,6 +1906,9 @@
 <span id="1849">1849</span>
 <span id="1850">1850</span>
 <span id="1851">1851</span>
+<span id="1852">1852</span>
+<span id="1853">1853</span>
+<span id="1854">1854</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -1976,8 +1979,11 @@
 <span class="doccomment">//! propogation. These types have implemented [From](std::convert::From) such that conversion from the Rust type</span>
 <span class="doccomment">//! to the C type is as painless as possible.</span>
 
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">core</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">libc</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat</span>;
+
+<span class="kw">use</span> <span class="ident">core</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::{
     <span class="ident">BTreeSet</span>,
@@ -2113,7 +2119,7 @@
     <span class="kw">pub</span> <span class="ident">err</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_char</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">ExternResult</span> <span class="kw">where</span> <span class="ident">E</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">ExternResult</span> <span class="kw">where</span> <span class="ident">E</span>: <span class="ident">Display</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">result</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
         <span class="kw">match</span> <span class="ident">result</span> {
             <span class="prelude-val">Ok</span>(<span class="ident">value</span>) <span class="op">=&gt;</span> {

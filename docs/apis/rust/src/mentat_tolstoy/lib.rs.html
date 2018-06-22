@@ -100,9 +100,6 @@
 <span id="43">43</span>
 <span id="44">44</span>
 <span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
-<span id="48">48</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -114,11 +111,9 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
-<span class="comment">// For error_chain:</span>
-<span class="attribute">#![<span class="ident">recursion_limit</span><span class="op">=</span><span class="string">&quot;128&quot;</span>]</span>
-
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
-<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">error_chain</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure_derive</span>;
 
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">lazy_static</span>;
@@ -139,18 +134,17 @@
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">rusqlite</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">uuid</span>;
 
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">schema</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">metadata</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">tx_processor</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">syncer</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">tx_mapper</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">syncer</span>::<span class="ident">Syncer</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">Error</span>,
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">TolstoyError</span>,
     <span class="prelude-ty">Result</span>,
-    <span class="ident">ResultExt</span>,
 };
 </pre>
 </section>

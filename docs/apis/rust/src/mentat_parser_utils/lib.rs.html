@@ -127,7 +127,6 @@
 <span id="70">70</span>
 <span id="71">71</span>
 <span id="72">72</span>
-<span id="73">73</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -144,8 +143,7 @@
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">itertools</span>;
 
 <span class="doccomment">/// A `ValueParseError` is a `combine::primitives::ParseError`-alike that implements the `Debug`,</span>
-<span class="doccomment">/// `Display`, and `std::error::Error` traits.  In addition, it doesn&#39;t capture references, making</span>
-<span class="doccomment">/// it possible to store `ValueParseError` instances in local links with the `error-chain` crate.</span>
+<span class="doccomment">/// `Display`, and `std::error::Error` traits.  In addition, it doesn&#39;t capture references.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This is achieved by wrapping slices of type `&amp;&#39;a [edn::Value]` in an owning type that implements</span>
 <span class="doccomment">/// `Display`; rather than introducing a newtype like `DisplayVec`, we re-use `edn::Value::Vector`.</span>

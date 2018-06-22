@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["CONTROL_SEQUENCE_TIMEOUT","The timeout of an escape code control sequence, in milliseconds."]],"struct":[["RawTerminal","A terminal restorer, which keeps the previous state of the terminal, and restores it, when dropped."]],"trait":[["IntoRawMode","Types which can be converted into \"raw mode\"."]]});

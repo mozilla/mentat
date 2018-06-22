@@ -88,16 +88,6 @@
 <span id="31">31</span>
 <span id="32">32</span>
 <span id="33">33</span>
-<span id="34">34</span>
-<span id="35">35</span>
-<span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -109,14 +99,15 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
-<span class="attribute">#[<span class="ident">macro_use</span>]</span>
-<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">error_chain</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_core</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query_algebrizer</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query_projector</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query_sql</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_sql</span>;
+
+<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 
 <span class="kw">mod</span> <span class="ident">translate</span>;
 
@@ -130,18 +121,7 @@
     <span class="ident">query_to_select</span>,
 };
 
-<span class="macro">error_chain</span><span class="macro">!</span> {
-    <span class="ident">types</span> {
-        <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">ResultExt</span>, <span class="prelude-ty">Result</span>;
-    }
-
-    <span class="ident">foreign_links</span> {
-    }
-
-    <span class="ident">links</span> {
-        <span class="ident">ProjectorError</span>(<span class="ident">mentat_query_projector</span>::<span class="ident">errors</span>::<span class="ident">Error</span>, <span class="ident">mentat_query_projector</span>::<span class="ident">errors</span>::<span class="ident">ErrorKind</span>);
-    }
-}
+<span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
 </pre>
 </section>
     <section id='search' class="content hidden"></section>

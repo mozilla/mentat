@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Difference",""],["Drain",""],["IndexSet","A hash set where the iteration order of the values is independent of their hash values."],["Intersection",""],["IntoIter",""],["Iter",""],["SymmetricDifference",""],["Union",""]]});

@@ -159,7 +159,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">AlgebrizerError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -211,7 +211,7 @@
             <span class="kw">let</span> <span class="ident">old</span> <span class="op">=</span> <span class="ident">types</span>.<span class="ident">insert</span>(<span class="ident">var</span>.<span class="ident">clone</span>(), <span class="ident">t</span>);
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">old</span>) <span class="op">=</span> <span class="ident">old</span> {
                 <span class="kw">if</span> <span class="ident">old</span> <span class="op">!=</span> <span class="ident">t</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InputTypeDisagreement</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="ident">old</span>, <span class="ident">t</span>));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InputTypeDisagreement</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="ident">old</span>, <span class="ident">t</span>));
                 }
             }
         }

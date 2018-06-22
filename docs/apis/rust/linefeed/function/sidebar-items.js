@@ -1,1 +1,0 @@
-initSidebarItems({"trait":[["Function","Implements custom functionality for a `Reader` command"]]});

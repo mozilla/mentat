@@ -680,6 +680,11 @@
 <span id="623">623</span>
 <span id="624">624</span>
 <span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2017 Mozilla</span>
 <span class="comment">//</span>
@@ -693,6 +698,11 @@
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Write</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">process</span>;
+
+<span class="kw">use</span> <span class="ident">failure</span>::{
+    <span class="ident">err_msg</span>,
+    <span class="ident">Error</span>,
+};
 
 <span class="kw">use</span> <span class="ident">tabwriter</span>::<span class="ident">TabWriter</span>;
 
@@ -1066,7 +1076,7 @@
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">is_empty</span>() <span class="op">||</span> <span class="ident">path</span> <span class="op">!=</span> <span class="self">self</span>.<span class="ident">path</span> {
             <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">encryption_key</span> {
                 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;sqlcipher&quot;</span>))]</span>
-                <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;.open_encrypted and .empty_encrypted require the sqlcipher Mentat feature&quot;</span>),
+                <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">err_msg</span>(<span class="string">&quot;.open_encrypted and .empty_encrypted require the sqlcipher Mentat feature&quot;</span>)),
                 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;sqlcipher&quot;</span>)]</span>
                 <span class="prelude-val">Some</span>(<span class="ident">k</span>) <span class="op">=&gt;</span> {
                     <span class="kw">if</span> <span class="ident">empty</span> {
@@ -1150,7 +1160,7 @@
         <span class="ident">output</span>.<span class="ident">flush</span>().<span class="ident">unwrap</span>();
     }
 
-    <span class="kw">fn</span> <span class="ident">print_results</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">query_output</span>: <span class="ident">QueryOutput</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ::<span class="ident">errors</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">print_results</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">query_output</span>: <span class="ident">QueryOutput</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">stdout</span> <span class="op">=</span> ::<span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">stdout</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output</span> <span class="op">=</span> <span class="ident">TabWriter</span>::<span class="ident">new</span>(<span class="ident">stdout</span>.<span class="ident">lock</span>());
 

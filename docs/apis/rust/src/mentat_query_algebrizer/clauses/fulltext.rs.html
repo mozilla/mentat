@@ -434,6 +434,8 @@
 <span id="377">377</span>
 <span id="378">378</span>
 <span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -467,8 +469,9 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
+    <span class="ident">AlgebrizerError</span>,
     <span class="ident">BindingError</span>,
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">InvalidBinding</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -490,17 +493,17 @@
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">apply_fulltext</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">known</span>: <span class="ident">Known</span>, <span class="ident">where_fn</span>: <span class="ident">WhereFn</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">len</span>() <span class="op">!=</span> <span class="number">3</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidNumberOfArguments</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">len</span>(), <span class="number">3</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidNumberOfArguments</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">len</span>(), <span class="number">3</span>));
         }
 
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_empty</span>() {
             <span class="comment">// The binding must introduce at least one bound variable.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
         }
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_valid</span>() {
             <span class="comment">// The binding must not duplicate bound variables.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
         }
 
         <span class="comment">// We should have exactly four bindings. Destructure them now.</span>
@@ -508,17 +511,18 @@
             <span class="ident">Binding</span>::<span class="ident">BindRel</span>(<span class="ident">bindings</span>) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">bindings_count</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">len</span>();
                 <span class="kw">if</span> <span class="ident">bindings_count</span> <span class="op">&lt;</span> <span class="number">1</span> <span class="op">||</span> <span class="ident">bindings_count</span> <span class="op">&gt;</span> <span class="number">4</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
-                                                    <span class="ident">BindingError</span>::<span class="ident">InvalidNumberOfBindings</span> {
-                                                        <span class="ident">number</span>: <span class="ident">bindings</span>.<span class="ident">len</span>(),
-                                                        <span class="ident">expected</span>: <span class="number">4</span>,
-                                                    }));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
+                        <span class="ident">BindingError</span>::<span class="ident">InvalidNumberOfBindings</span> {
+                            <span class="ident">number</span>: <span class="ident">bindings</span>.<span class="ident">len</span>(),
+                            <span class="ident">expected</span>: <span class="number">4</span>,
+                        })
+                    );
                 }
                 <span class="ident">bindings</span>
             },
             <span class="ident">Binding</span>::<span class="ident">BindScalar</span>(<span class="kw">_</span>) <span class="op">|</span>
             <span class="ident">Binding</span>::<span class="ident">BindTuple</span>(<span class="kw">_</span>) <span class="op">|</span>
-            <span class="ident">Binding</span>::<span class="ident">BindColl</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">ExpectedBindRel</span>)),
+            <span class="ident">Binding</span>::<span class="ident">BindColl</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">ExpectedBindRel</span>)),
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bindings</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">into_iter</span>();
         <span class="kw">let</span> <span class="ident">b_entity</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>();
@@ -531,7 +535,7 @@
         <span class="comment">// TODO: process source variables.</span>
         <span class="kw">match</span> <span class="ident">args</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>() {
             <span class="ident">FnArg</span>::<span class="ident">SrcVar</span>(<span class="ident">SrcVar</span>::<span class="ident">DefaultSrc</span>) <span class="op">=&gt;</span> {},
-            <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;source variable&quot;</span>, <span class="number">0</span>)),
+            <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;source variable&quot;</span>, <span class="number">0</span>)),
         }
 
         <span class="kw">let</span> <span class="ident">schema</span> <span class="op">=</span> <span class="ident">known</span>.<span class="ident">schema</span>;
@@ -551,10 +555,10 @@
                 <span class="kw">match</span> <span class="self">self</span>.<span class="ident">bound_value</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>) {
                     <span class="prelude-val">Some</span>(<span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entid</span>)) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">entid</span>),
                     <span class="prelude-val">Some</span>(<span class="ident">tv</span>) <span class="op">=&gt;</span> {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InputTypeDisagreement</span>(<span class="ident">v</span>.<span class="ident">name</span>().<span class="ident">clone</span>(), <span class="ident">ValueType</span>::<span class="ident">Ref</span>, <span class="ident">tv</span>.<span class="ident">value_type</span>()));
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InputTypeDisagreement</span>(<span class="ident">v</span>.<span class="ident">name</span>().<span class="ident">clone</span>(), <span class="ident">ValueType</span>::<span class="ident">Ref</span>, <span class="ident">tv</span>.<span class="ident">value_type</span>()))
                     },
                     <span class="prelude-val">None</span> <span class="op">=&gt;</span> {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">v</span>.<span class="number">0</span>).<span class="ident">clone</span>()));
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">v</span>.<span class="number">0</span>).<span class="ident">clone</span>()))
                     }
                 }
             },
@@ -564,10 +568,10 @@
         <span class="comment">// An unknown ident, or an entity that isn&#39;t present in the store, or isn&#39;t a fulltext</span>
         <span class="comment">// attribute, is likely enough to be a coding error that we choose to bail instead of</span>
         <span class="comment">// marking the pattern as known-empty.</span>
-        <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">ok_or</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;attribute&quot;</span>, <span class="number">1</span>))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">ok_or</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;attribute&quot;</span>, <span class="number">1</span>))<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">attribute</span> <span class="op">=</span> <span class="ident">schema</span>.<span class="ident">attribute_for_entid</span>(<span class="ident">a</span>)
                               .<span class="ident">cloned</span>()
-                              .<span class="ident">ok_or</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
+                              .<span class="ident">ok_or</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
                                                                 <span class="string">&quot;attribute&quot;</span>, <span class="number">1</span>))<span class="question-mark">?</span>;
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">attribute</span>.<span class="ident">fulltext</span> {
@@ -606,18 +610,18 @@
             <span class="ident">FnArg</span>::<span class="ident">Variable</span>(<span class="ident">in_var</span>) <span class="op">=&gt;</span> {
                 <span class="kw">match</span> <span class="self">self</span>.<span class="ident">bound_value</span>(<span class="kw-2">&amp;</span><span class="ident">in_var</span>) {
                     <span class="prelude-val">Some</span>(<span class="ident">t</span> @ <span class="ident">TypedValue</span>::<span class="ident">String</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">Either</span>::<span class="ident">Left</span>(<span class="ident">t</span>),
-                    <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;string&quot;</span>, <span class="number">2</span>)),
+                    <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;string&quot;</span>, <span class="number">2</span>)),
                     <span class="prelude-val">None</span> <span class="op">=&gt;</span> {
                         <span class="comment">// Regardless of whether we&#39;ll be providing a string later, or the value</span>
                         <span class="comment">// comes from a column, it must be a string.</span>
                         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">known_type</span>(<span class="kw-2">&amp;</span><span class="ident">in_var</span>) <span class="op">!=</span> <span class="prelude-val">Some</span>(<span class="ident">ValueType</span>::<span class="ident">String</span>) {
-                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;string&quot;</span>, <span class="number">2</span>));
+                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;string&quot;</span>, <span class="number">2</span>))
                         }
 
                         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">input_variables</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">in_var</span>) {
                             <span class="comment">// Sorry, we haven&#39;t implemented late binding.</span>
                             <span class="comment">// TODO: implement this.</span>
-                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()));
+                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()))
                         } <span class="kw">else</span> {
                             <span class="comment">// It must be bound earlier in the query. We already established that</span>
                             <span class="comment">// it must be a string column.</span>
@@ -626,13 +630,13 @@
                                                        .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bindings</span><span class="op">|</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="number">0</span>).<span class="ident">cloned</span>()) {
                                 <span class="ident">Either</span>::<span class="ident">Right</span>(<span class="ident">binding</span>)
                             } <span class="kw">else</span> {
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()));
+                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()))
                             }
                         }
                     },
                 }
             },
-            <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;string&quot;</span>, <span class="number">2</span>)),
+            <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgument</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="string">&quot;string&quot;</span>, <span class="number">2</span>)),
         };
 
         <span class="kw">let</span> <span class="ident">qv</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">search</span> {
@@ -681,7 +685,7 @@
 
             <span class="comment">// We do not allow the score to be bound.</span>
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">value_bindings</span>.<span class="ident">contains_key</span>(<span class="ident">var</span>) <span class="op">||</span> <span class="self">self</span>.<span class="ident">input_variables</span>.<span class="ident">contains</span>(<span class="ident">var</span>) {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="ident">BindingError</span>::<span class="ident">UnexpectedBinding</span>));
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">var</span>.<span class="ident">name</span>(), <span class="ident">BindingError</span>::<span class="ident">UnexpectedBinding</span>));
             }
 
             <span class="comment">// We bind the value ourselves. This handily takes care of substituting into existing uses.</span>

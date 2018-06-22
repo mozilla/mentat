@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["ObjectKey","A simplified CBOR value containing only types useful for keys."],["Value","An enum over all possible CBOR types."]]});

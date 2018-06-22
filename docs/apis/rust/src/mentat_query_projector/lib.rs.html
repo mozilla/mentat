@@ -568,6 +568,10 @@
 <span id="511">511</span>
 <span id="512">512</span>
 <span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -579,8 +583,10 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
+
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
-<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">error_chain</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure_derive</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">indexmap</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">rusqlite</span>;
 
@@ -638,12 +644,14 @@
     <span class="ident">Projection</span>,
 };
 
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
+
 <span class="kw">mod</span> <span class="ident">aggregates</span>;
 <span class="kw">mod</span> <span class="ident">project</span>;
 <span class="kw">mod</span> <span class="ident">projectors</span>;
 <span class="kw">mod</span> <span class="ident">pull</span>;
 <span class="kw">mod</span> <span class="ident">relresult</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">aggregates</span>::{
     <span class="ident">SimpleAggregationOp</span>,
@@ -680,7 +688,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">ProjectorError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -867,35 +875,35 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_scalar</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Binding</span><span class="op">&gt;&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="ident">o</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">o</span>),
-            <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;coll&quot;</span>, <span class="string">&quot;scalar&quot;</span>)),
-            <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;tuple&quot;</span>, <span class="string">&quot;scalar&quot;</span>)),
-            <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;rel&quot;</span>, <span class="string">&quot;scalar&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;coll&quot;</span>, <span class="string">&quot;scalar&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;tuple&quot;</span>, <span class="string">&quot;scalar&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;rel&quot;</span>, <span class="string">&quot;scalar&quot;</span>)),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_coll</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Binding</span><span class="op">&gt;&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;scalar&quot;</span>, <span class="string">&quot;coll&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;scalar&quot;</span>, <span class="string">&quot;coll&quot;</span>)),
             <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="ident">c</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">c</span>),
-            <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;tuple&quot;</span>, <span class="string">&quot;coll&quot;</span>)),
-            <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;rel&quot;</span>, <span class="string">&quot;coll&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;tuple&quot;</span>, <span class="string">&quot;coll&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;rel&quot;</span>, <span class="string">&quot;coll&quot;</span>)),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_tuple</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Binding</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;scalar&quot;</span>, <span class="string">&quot;tuple&quot;</span>)),
-            <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;coll&quot;</span>, <span class="string">&quot;tuple&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;scalar&quot;</span>, <span class="string">&quot;tuple&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;coll&quot;</span>, <span class="string">&quot;tuple&quot;</span>)),
             <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="ident">t</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">t</span>),
-            <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;rel&quot;</span>, <span class="string">&quot;tuple&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;rel&quot;</span>, <span class="string">&quot;tuple&quot;</span>)),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_rel</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RelResult</span><span class="op">&lt;</span><span class="ident">Binding</span><span class="op">&gt;&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;scalar&quot;</span>, <span class="string">&quot;rel&quot;</span>)),
-            <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;coll&quot;</span>, <span class="string">&quot;rel&quot;</span>)),
-            <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;tuple&quot;</span>, <span class="string">&quot;rel&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Scalar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;scalar&quot;</span>, <span class="string">&quot;rel&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Coll</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;coll&quot;</span>, <span class="string">&quot;rel&quot;</span>)),
+            <span class="ident">QueryResults</span>::<span class="ident">Tuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">UnexpectedResultsType</span>(<span class="string">&quot;tuple&quot;</span>, <span class="string">&quot;rel&quot;</span>)),
             <span class="ident">QueryResults</span>::<span class="ident">Rel</span>(<span class="ident">r</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">r</span>),
         }
     }

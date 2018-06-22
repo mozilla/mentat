@@ -1074,7 +1074,7 @@
 <span class="kw">use</span> <span class="ident">entids</span>;
 <span class="kw">use</span> <span class="ident">errors</span>;
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">DbError</span>,
     <span class="prelude-ty">Result</span>,
 };
 <span class="kw">use</span> <span class="ident">internal_types</span>::{
@@ -1182,7 +1182,7 @@
             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">Atom</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">v</span>.<span class="ident">into_entity_place</span>()<span class="question-mark">?</span>),
             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">Vector</span>(<span class="kw">_</span>) <span class="op">|</span>
             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">MapNotation</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InputError</span>(<span class="ident">errors</span>::<span class="ident">InputError</span>::<span class="ident">BadDbId</span>))
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">InputError</span>(<span class="ident">errors</span>::<span class="ident">InputError</span>::<span class="ident">BadDbId</span>))
             },
         }
     } <span class="kw">else</span> {
@@ -1247,7 +1247,7 @@
         }
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">conflicting_upserts</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">ConflictingUpserts</span> { <span class="ident">conflicting_upserts</span> }));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">ConflictingUpserts</span> { <span class="ident">conflicting_upserts</span> }));
         }
 
         <span class="prelude-val">Ok</span>(<span class="ident">tempids</span>)
@@ -1284,7 +1284,7 @@
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">partition_map</span>.<span class="ident">contains_entid</span>(<span class="ident">e</span>) {
                     <span class="prelude-val">Ok</span>(<span class="ident">KnownEntid</span>(<span class="ident">e</span>))
                 } <span class="kw">else</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">e</span>))
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">e</span>))
                 }
             }
 
@@ -1301,7 +1301,7 @@
 
                 <span class="kw">let</span> <span class="ident">lr_typed_value</span>: <span class="ident">TypedValue</span> <span class="op">=</span> <span class="ident">lookup_ref</span>.<span class="ident">v</span>.<span class="ident">clone</span>().<span class="ident">into_typed_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">schema</span>, <span class="ident">lr_attribute</span>.<span class="ident">value_type</span>)<span class="question-mark">?</span>;
                 <span class="kw">if</span> <span class="ident">lr_attribute</span>.<span class="ident">unique</span>.<span class="ident">is_none</span>() {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot resolve (lookup-ref {} {:?}) with attribute that is not :db/unique&quot;</span>, <span class="ident">lr_a</span>, <span class="ident">lr_typed_value</span>)))
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot resolve (lookup-ref {} {:?}) with attribute that is not :db/unique&quot;</span>, <span class="ident">lr_a</span>, <span class="ident">lr_typed_value</span>)))
                 }
 
                 <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">lookup_refs</span>.<span class="ident">intern</span>((<span class="ident">lr_a</span>, <span class="ident">lr_typed_value</span>)))
@@ -1339,7 +1339,7 @@
                     <span class="ident">entmod</span>::<span class="ident">EntityPlace</span>::<span class="ident">TxFunction</span>(<span class="kw-2">ref</span> <span class="ident">tx_function</span>) <span class="op">=&gt;</span> {
                         <span class="kw">match</span> <span class="ident">tx_function</span>.<span class="ident">op</span>.<span class="number">0</span>.<span class="ident">as_str</span>() {
                             <span class="string">&quot;transaction-tx&quot;</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">Either</span>::<span class="ident">Left</span>(<span class="self">self</span>.<span class="ident">tx_id</span>)),
-                            <span class="ident">unknown</span> @ <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown transaction function {}&quot;</span>, <span class="ident">unknown</span>))),
+                            <span class="ident">unknown</span> @ <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown transaction function {}&quot;</span>, <span class="ident">unknown</span>))),
                         }
                     },
                 }
@@ -1360,13 +1360,13 @@
             <span class="kw">fn</span> <span class="ident">entity_v_into_term_e</span><span class="op">&lt;</span><span class="ident">W</span>: <span class="ident">TransactableValue</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">entmod</span>::<span class="ident">ValuePlace</span><span class="op">&lt;</span><span class="ident">W</span><span class="op">&gt;</span>, <span class="ident">backward_a</span>: <span class="kw-2">&amp;</span><span class="ident">entmod</span>::<span class="ident">Entid</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">KnownEntidOr</span><span class="op">&lt;</span><span class="ident">LookupRefOrTempId</span><span class="op">&gt;&gt;</span> {
                 <span class="kw">match</span> <span class="ident">backward_a</span>.<span class="ident">unreversed</span>() {
                     <span class="prelude-val">None</span> <span class="op">=&gt;</span> {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode map notation value in :attr/_reversed notation for forward attribute&quot;</span>)));
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode map notation value in :attr/_reversed notation for forward attribute&quot;</span>)));
                     },
                     <span class="prelude-val">Some</span>(<span class="ident">forward_a</span>) <span class="op">=&gt;</span> {
                         <span class="kw">let</span> <span class="ident">forward_a</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">entity_a_into_term_a</span>(<span class="ident">forward_a</span>)<span class="question-mark">?</span>;
                         <span class="kw">let</span> <span class="ident">forward_attribute</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">schema</span>.<span class="ident">require_attribute_for_entid</span>(<span class="ident">forward_a</span>)<span class="question-mark">?</span>;
                         <span class="kw">if</span> <span class="ident">forward_attribute</span>.<span class="ident">value_type</span> <span class="op">!=</span> <span class="ident">ValueType</span>::<span class="ident">Ref</span> {
-                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref&quot;</span>, <span class="ident">forward_a</span>)))
+                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref&quot;</span>, <span class="ident">forward_a</span>)))
                         }
 
                         <span class="kw">match</span> <span class="ident">x</span> {
@@ -1381,7 +1381,7 @@
                                             <span class="prelude-val">Ok</span>(<span class="ident">Either</span>::<span class="ident">Left</span>(<span class="ident">KnownEntid</span>(<span class="ident">entid</span>)))
                                         } <span class="kw">else</span> {
                                             <span class="comment">// The given value is expected to be :db.type/ref, so this shouldn&#39;t happen.</span>
-                                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref&quot;</span>, <span class="ident">forward_a</span>)))
+                                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref&quot;</span>, <span class="ident">forward_a</span>)))
                                         }
                                     }
                                 }
@@ -1399,15 +1399,15 @@
                             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">TxFunction</span>(<span class="kw-2">ref</span> <span class="ident">tx_function</span>) <span class="op">=&gt;</span> {
                                 <span class="kw">match</span> <span class="ident">tx_function</span>.<span class="ident">op</span>.<span class="number">0</span>.<span class="ident">as_str</span>() {
                                     <span class="string">&quot;transaction-tx&quot;</span> <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">Either</span>::<span class="ident">Left</span>(<span class="ident">KnownEntid</span>(<span class="self">self</span>.<span class="ident">tx_id</span>.<span class="number">0</span>))),
-                                    <span class="ident">unknown</span> @ <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown transaction function {}&quot;</span>, <span class="ident">unknown</span>))),
+                                    <span class="ident">unknown</span> @ <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown transaction function {}&quot;</span>, <span class="ident">unknown</span>))),
                                 }
                             },
 
                             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">Vector</span>(<span class="kw">_</span>) <span class="op">=&gt;</span>
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode vector value in :attr/_reversed notation for attribute {}&quot;</span>, <span class="ident">forward_a</span>))),
+                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode vector value in :attr/_reversed notation for attribute {}&quot;</span>, <span class="ident">forward_a</span>))),
 
                             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">MapNotation</span>(<span class="kw">_</span>) <span class="op">=&gt;</span>
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode map notation value in :attr/_reversed notation for attribute {}&quot;</span>, <span class="ident">forward_a</span>))),
+                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode map notation value in :attr/_reversed notation for attribute {}&quot;</span>, <span class="ident">forward_a</span>))),
                         }
                     },
                 }
@@ -1478,7 +1478,7 @@
 
                             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">LookupRef</span>(<span class="kw-2">ref</span> <span class="ident">lookup_ref</span>) <span class="op">=&gt;</span> {
                                 <span class="kw">if</span> <span class="ident">attribute</span>.<span class="ident">value_type</span> <span class="op">!=</span> <span class="ident">ValueType</span>::<span class="ident">Ref</span> {
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref&quot;</span>, <span class="ident">a</span>)))
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref&quot;</span>, <span class="ident">a</span>)))
                                 }
 
                                 <span class="ident">Either</span>::<span class="ident">Right</span>(<span class="ident">LookupRefOrTempId</span>::<span class="ident">LookupRef</span>(<span class="ident">in_process</span>.<span class="ident">intern_lookup_ref</span>(<span class="ident">lookup_ref</span>)<span class="question-mark">?</span>))
@@ -1487,7 +1487,7 @@
                             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">TxFunction</span>(<span class="kw-2">ref</span> <span class="ident">tx_function</span>) <span class="op">=&gt;</span> {
                                 <span class="kw">let</span> <span class="ident">typed_value</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">tx_function</span>.<span class="ident">op</span>.<span class="number">0</span>.<span class="ident">as_str</span>() {
                                     <span class="string">&quot;transaction-tx&quot;</span> <span class="op">=&gt;</span> <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="self">self</span>.<span class="ident">tx_id</span>),
-                                    <span class="ident">unknown</span> @ <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown transaction function {}&quot;</span>, <span class="ident">unknown</span>))),
+                                    <span class="ident">unknown</span> @ <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown transaction function {}&quot;</span>, <span class="ident">unknown</span>))),
                                 };
 
                                 <span class="comment">// Here we do schema-aware typechecking: we assert that the computed</span>
@@ -1497,7 +1497,7 @@
                                 <span class="comment">// value can be used where a double is expected.  See also</span>
                                 <span class="comment">// `SchemaTypeChecking.to_typed_value(...)`.</span>
                                 <span class="kw">if</span> <span class="ident">attribute</span>.<span class="ident">value_type</span> <span class="op">!=</span> <span class="ident">typed_value</span>.<span class="ident">value_type</span>() {
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Transaction function {} produced value of type {} but expected type {}&quot;</span>,
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Transaction function {} produced value of type {} but expected type {}&quot;</span>,
                                                                                <span class="ident">tx_function</span>.<span class="ident">op</span>.<span class="number">0</span>.<span class="ident">as_str</span>(), <span class="ident">typed_value</span>.<span class="ident">value_type</span>(), <span class="ident">attribute</span>.<span class="ident">value_type</span>)));
                                 }
 
@@ -1506,7 +1506,7 @@
 
                             <span class="ident">entmod</span>::<span class="ident">ValuePlace</span>::<span class="ident">Vector</span>(<span class="ident">vs</span>) <span class="op">=&gt;</span> {
                                 <span class="kw">if</span> <span class="op">!</span><span class="ident">attribute</span>.<span class="ident">multival</span> {
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many&quot;</span>, <span class="ident">a</span>)));
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many&quot;</span>, <span class="ident">a</span>)));
                                 }
 
                                 <span class="kw">for</span> <span class="ident">vv</span> <span class="kw">in</span> <span class="ident">vs</span> {
@@ -1526,11 +1526,11 @@
                                 <span class="comment">// AddOrRetract, which proliferates types and code, or only handling</span>
                                 <span class="comment">// nested maps rather than map values, like Datomic does.</span>
                                 <span class="kw">if</span> <span class="ident">op</span> <span class="op">!=</span> <span class="ident">OpType</span>::<span class="ident">Add</span> {
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode nested map value in :db/retract for attribute {}&quot;</span>, <span class="ident">a</span>)));
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode nested map value in :db/retract for attribute {}&quot;</span>, <span class="ident">a</span>)));
                                 }
 
                                 <span class="kw">if</span> <span class="ident">attribute</span>.<span class="ident">value_type</span> <span class="op">!=</span> <span class="ident">ValueType</span>::<span class="ident">Ref</span> {
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref&quot;</span>, <span class="ident">a</span>)))
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref&quot;</span>, <span class="ident">a</span>)))
                                 }
 
                                 <span class="comment">// :db/id is optional; if it&#39;s not given, we generate a special internal tempid</span>
@@ -1583,7 +1583,7 @@
                                 }
 
                                 <span class="kw">if</span> <span class="ident">dangling</span> {
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode nested map value that would lead to dangling entity for attribute {}&quot;</span>, <span class="ident">a</span>)));
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot explode nested map value that would lead to dangling entity for attribute {}&quot;</span>, <span class="ident">a</span>)));
                                 }
 
                                 <span class="ident">in_process</span>.<span class="ident">entity_e_into_term_v</span>(<span class="ident">db_id</span>)<span class="question-mark">?</span>
@@ -1671,7 +1671,7 @@
             }
 
             <span class="kw">if</span> <span class="op">!</span><span class="ident">conflicting_upserts</span>.<span class="ident">is_empty</span>() {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">ConflictingUpserts</span> { <span class="ident">conflicting_upserts</span> }));
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">ConflictingUpserts</span> { <span class="ident">conflicting_upserts</span> }));
             }
 
             <span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;tempids {:?}&quot;</span>, <span class="ident">tempids</span>);
@@ -1745,12 +1745,12 @@
 
         <span class="kw">let</span> <span class="ident">errors</span> <span class="op">=</span> <span class="ident">tx_checking</span>::<span class="ident">type_disagreements</span>(<span class="kw-2">&amp;</span><span class="ident">aev_trie</span>);
         <span class="kw">if</span> <span class="op">!</span><span class="ident">errors</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">TypeDisagreements</span> { <span class="ident">conflicting_datoms</span>: <span class="ident">errors</span> }));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">TypeDisagreements</span> { <span class="ident">conflicting_datoms</span>: <span class="ident">errors</span> }));
         }
 
         <span class="kw">let</span> <span class="ident">errors</span> <span class="op">=</span> <span class="ident">tx_checking</span>::<span class="ident">cardinality_conflicts</span>(<span class="kw-2">&amp;</span><span class="ident">aev_trie</span>);
         <span class="kw">if</span> <span class="op">!</span><span class="ident">errors</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">CardinalityConflicts</span> { <span class="ident">conflicts</span>: <span class="ident">errors</span> }));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">CardinalityConflicts</span> { <span class="ident">conflicts</span>: <span class="ident">errors</span> }));
         }
 
         <span class="comment">// Pipeline stage 4: final terms (after rewriting) -&gt; DB insertions.</span>

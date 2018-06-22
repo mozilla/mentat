@@ -60,14 +60,14 @@
                        [<span class='inner'>&#x2212;</span>]
                    </a>
                </span><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#703-712' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'>pub struct FindQuery {
-    pub find_spec: <a class="enum" href="../edn/query/enum.FindSpec.html" title="enum edn::query::FindSpec">FindSpec</a>,
-    pub default_source: <a class="enum" href="../edn/query/enum.SrcVar.html" title="enum edn::query::SrcVar">SrcVar</a>,
-    pub with: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="struct" href="../edn/query/struct.Variable.html" title="struct edn::query::Variable">Variable</a>&gt;,
-    pub in_vars: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="struct" href="../edn/query/struct.Variable.html" title="struct edn::query::Variable">Variable</a>&gt;,
-    pub in_sources: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="enum" href="../edn/query/enum.SrcVar.html" title="enum edn::query::SrcVar">SrcVar</a>&gt;,
-    pub limit: <a class="enum" href="../edn/query/enum.Limit.html" title="enum edn::query::Limit">Limit</a>,
-    pub where_clauses: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../edn/query/enum.WhereClause.html" title="enum edn::query::WhereClause">WhereClause</a>&gt;,
-    pub order: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../edn/query/struct.Order.html" title="struct edn::query::Order">Order</a>&gt;&gt;,
+    pub find_spec: FindSpec,
+    pub default_source: SrcVar,
+    pub with: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;Variable&gt;,
+    pub in_vars: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;Variable&gt;,
+    pub in_sources: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;SrcVar&gt;,
+    pub limit: Limit,
+    pub where_clauses: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;WhereClause&gt;,
+    pub order: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Order&gt;&gt;,
 }</pre></div><div class='docblock'><p>A <code>FindQuery</code> represents a valid query to the query algebrizer.</p>
 <p>We split <code>FindQuery</code> from <code>ParsedQuery</code> because it's not easy to generalize over containers
 (here, <code>Vec</code> and <code>BTreeSet</code>) in Rust.</p>
@@ -75,40 +75,40 @@
                        Fields<a href='#fields' class='anchor'></a></h2><span id="structfield.find_spec" class="structfield small-section-header">
                            <a href="#structfield.find_spec" class="anchor field"></a>
                            <span id="find_spec.v" class='invisible'>
-                           <code>find_spec: <a class="enum" href="../edn/query/enum.FindSpec.html" title="enum edn::query::FindSpec">FindSpec</a></code>
+                           <code>find_spec: FindSpec</code>
                            </span></span><span id="structfield.default_source" class="structfield small-section-header">
                            <a href="#structfield.default_source" class="anchor field"></a>
                            <span id="default_source.v" class='invisible'>
-                           <code>default_source: <a class="enum" href="../edn/query/enum.SrcVar.html" title="enum edn::query::SrcVar">SrcVar</a></code>
+                           <code>default_source: SrcVar</code>
                            </span></span><span id="structfield.with" class="structfield small-section-header">
                            <a href="#structfield.with" class="anchor field"></a>
                            <span id="with.v" class='invisible'>
-                           <code>with: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="struct" href="../edn/query/struct.Variable.html" title="struct edn::query::Variable">Variable</a>&gt;</code>
+                           <code>with: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;Variable&gt;</code>
                            </span></span><span id="structfield.in_vars" class="structfield small-section-header">
                            <a href="#structfield.in_vars" class="anchor field"></a>
                            <span id="in_vars.v" class='invisible'>
-                           <code>in_vars: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="struct" href="../edn/query/struct.Variable.html" title="struct edn::query::Variable">Variable</a>&gt;</code>
+                           <code>in_vars: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;Variable&gt;</code>
                            </span></span><span id="structfield.in_sources" class="structfield small-section-header">
                            <a href="#structfield.in_sources" class="anchor field"></a>
                            <span id="in_sources.v" class='invisible'>
-                           <code>in_sources: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="enum" href="../edn/query/enum.SrcVar.html" title="enum edn::query::SrcVar">SrcVar</a>&gt;</code>
+                           <code>in_sources: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/set/struct.BTreeSet.html" title="struct alloc::btree::set::BTreeSet">BTreeSet</a>&lt;SrcVar&gt;</code>
                            </span></span><span id="structfield.limit" class="structfield small-section-header">
                            <a href="#structfield.limit" class="anchor field"></a>
                            <span id="limit.v" class='invisible'>
-                           <code>limit: <a class="enum" href="../edn/query/enum.Limit.html" title="enum edn::query::Limit">Limit</a></code>
+                           <code>limit: Limit</code>
                            </span></span><span id="structfield.where_clauses" class="structfield small-section-header">
                            <a href="#structfield.where_clauses" class="anchor field"></a>
                            <span id="where_clauses.v" class='invisible'>
-                           <code>where_clauses: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../edn/query/enum.WhereClause.html" title="enum edn::query::WhereClause">WhereClause</a>&gt;</code>
+                           <code>where_clauses: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;WhereClause&gt;</code>
                            </span></span><span id="structfield.order" class="structfield small-section-header">
                            <a href="#structfield.order" class="anchor field"></a>
                            <span id="order.v" class='invisible'>
-                           <code>order: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../edn/query/struct.Order.html" title="struct edn::query::Order">Order</a>&gt;&gt;</code>
+                           <code>order: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Order&gt;&gt;</code>
                            </span></span>
                     <h2 id='methods' class='small-section-header'>
                       Methods<a href='#methods' class='anchor'></a>
                     </h2>
-                <h3 id='impl' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="struct" href="../mentat_query_algebrizer/struct.FindQuery.html" title="struct mentat_query_algebrizer::FindQuery">FindQuery</a></code><a href='#impl' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#340-397' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.simple' class="method"><span id='simple.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.simple' class='fnname'>simple</a>(spec: <a class="enum" href="../edn/query/enum.FindSpec.html" title="enum edn::query::FindSpec">FindSpec</a>, where_clauses: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../edn/query/enum.WhereClause.html" title="enum edn::query::WhereClause">WhereClause</a>&gt;) -&gt; <a class="struct" href="../mentat_query_algebrizer/struct.FindQuery.html" title="struct mentat_query_algebrizer::FindQuery">FindQuery</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#341-352' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.from_parsed_query' class="method"><span id='from_parsed_query.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.from_parsed_query' class='fnname'>from_parsed_query</a>(parsed: <a class="struct" href="../edn/query/struct.ParsedQuery.html" title="struct edn::query::ParsedQuery">ParsedQuery</a>) -&gt; <a class="type" href="../mentat_query_algebrizer/type.Result.html" title="type mentat_query_algebrizer::Result">Result</a>&lt;<a class="struct" href="../mentat_query_algebrizer/struct.FindQuery.html" title="struct mentat_query_algebrizer::FindQuery">FindQuery</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#354-396' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4></div>
+                <h3 id='impl' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="struct" href="../mentat_query_algebrizer/struct.FindQuery.html" title="struct mentat_query_algebrizer::FindQuery">FindQuery</a></code><a href='#impl' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#340-397' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.simple' class="method"><span id='simple.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.simple' class='fnname'>simple</a>(spec: FindSpec, where_clauses: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;WhereClause&gt;) -&gt; <a class="struct" href="../mentat_query_algebrizer/struct.FindQuery.html" title="struct mentat_query_algebrizer::FindQuery">FindQuery</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#341-352' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.from_parsed_query' class="method"><span id='from_parsed_query.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.from_parsed_query' class='fnname'>from_parsed_query</a>(parsed: ParsedQuery) -&gt; <a class="type" href="../mentat_query_algebrizer/type.Result.html" title="type mentat_query_algebrizer::Result">Result</a>&lt;<a class="struct" href="../mentat_query_algebrizer/struct.FindQuery.html" title="struct mentat_query_algebrizer::FindQuery">FindQuery</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/lib.rs.html#354-396' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4></div>
             <h2 id='implementations' class='small-section-header'>
               Trait Implementations<a href='#implementations' class='anchor'></a>
             </h2>

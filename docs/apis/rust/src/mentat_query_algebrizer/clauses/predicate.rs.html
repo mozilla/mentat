@@ -418,8 +418,8 @@
 <span class="kw">use</span> <span class="ident">clauses</span>::<span class="ident">convert</span>::<span class="ident">ValueTypes</span>;
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
+    <span class="ident">AlgebrizerError</span>,
     <span class="prelude-ty">Result</span>,
-    <span class="ident">ErrorKind</span>,
 };
 
 <span class="kw">use</span> <span class="ident">types</span>::{
@@ -445,7 +445,7 @@
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">op</span>) <span class="op">=</span> <span class="ident">Inequality</span>::<span class="ident">from_datalog_operator</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="number">0</span>.<span class="ident">as_str</span>()) {
             <span class="self">self</span>.<span class="ident">apply_inequality</span>(<span class="ident">known</span>, <span class="ident">op</span>, <span class="ident">predicate</span>)
         } <span class="kw">else</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnknownFunction</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>()))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnknownFunction</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>()))
         }
     }
 
@@ -461,7 +461,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">apply_type_anno</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">anno</span>: <span class="kw-2">&amp;</span><span class="ident">TypeAnnotation</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="ident">ValueType</span>::<span class="ident">from_keyword</span>(<span class="kw-2">&amp;</span><span class="ident">anno</span>.<span class="ident">value_type</span>) {
             <span class="prelude-val">Some</span>(<span class="ident">value_type</span>) <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">add_type_requirement</span>(<span class="ident">anno</span>.<span class="ident">variable</span>.<span class="ident">clone</span>(), <span class="ident">ValueTypeSet</span>::<span class="ident">of_one</span>(<span class="ident">value_type</span>)),
-            <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">PlainSymbol</span>::<span class="ident">plain</span>(<span class="string">&quot;type&quot;</span>), <span class="ident">ValueTypeSet</span>::<span class="ident">any</span>(), <span class="number">2</span>)),
+            <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">PlainSymbol</span>::<span class="ident">plain</span>(<span class="string">&quot;type&quot;</span>), <span class="ident">ValueTypeSet</span>::<span class="ident">any</span>(), <span class="number">2</span>)),
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -472,7 +472,7 @@
     <span class="doccomment">/// - Accumulates an `Inequality` constraint into the `wheres` list.</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">apply_inequality</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">known</span>: <span class="ident">Known</span>, <span class="ident">comparison</span>: <span class="ident">Inequality</span>, <span class="ident">predicate</span>: <span class="ident">Predicate</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">predicate</span>.<span class="ident">args</span>.<span class="ident">len</span>() <span class="op">!=</span> <span class="number">2</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidNumberOfArguments</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">predicate</span>.<span class="ident">args</span>.<span class="ident">len</span>(), <span class="number">2</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidNumberOfArguments</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">predicate</span>.<span class="ident">args</span>.<span class="ident">len</span>(), <span class="number">2</span>));
         }
 
         <span class="comment">// Go from arguments -- parser output -- to columns or values.</span>
@@ -489,13 +489,13 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">left_types</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">potential_types</span>(<span class="ident">known</span>.<span class="ident">schema</span>, <span class="kw-2">&amp;</span><span class="ident">left</span>)<span class="question-mark">?</span>
                                  .<span class="ident">intersection</span>(<span class="kw-2">&amp;</span><span class="ident">supported_types</span>);
         <span class="kw">if</span> <span class="ident">left_types</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">supported_types</span>, <span class="number">0</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">supported_types</span>, <span class="number">0</span>));
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">right_types</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">potential_types</span>(<span class="ident">known</span>.<span class="ident">schema</span>, <span class="kw-2">&amp;</span><span class="ident">right</span>)<span class="question-mark">?</span>
                                   .<span class="ident">intersection</span>(<span class="kw-2">&amp;</span><span class="ident">supported_types</span>);
         <span class="kw">if</span> <span class="ident">right_types</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">supported_types</span>, <span class="number">1</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">supported_types</span>, <span class="number">1</span>));
         }
 
         <span class="comment">// We would like to allow longs to compare to doubles.</span>
@@ -542,7 +542,7 @@
             <span class="ident">left_v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">resolve_ref_argument</span>(<span class="ident">known</span>.<span class="ident">schema</span>, <span class="kw-2">&amp;</span><span class="ident">predicate</span>.<span class="ident">operator</span>, <span class="number">0</span>, <span class="ident">left</span>)<span class="question-mark">?</span>;
             <span class="ident">right_v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">resolve_ref_argument</span>(<span class="ident">known</span>.<span class="ident">schema</span>, <span class="kw-2">&amp;</span><span class="ident">predicate</span>.<span class="ident">operator</span>, <span class="number">1</span>, <span class="ident">right</span>)<span class="question-mark">?</span>;
         } <span class="kw">else</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">supported_types</span>, <span class="number">0</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidArgumentType</span>(<span class="ident">predicate</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">supported_types</span>, <span class="number">0</span>));
         }
 
         <span class="comment">// These arguments must be variables or instant/numeric constants.</span>

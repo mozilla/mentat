@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["IntoInnerError","An error returned by `into_inner`."],["TabWriter","TabWriter wraps an arbitrary writer and aligns tabbed output."]]});

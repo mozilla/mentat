@@ -874,6 +874,7 @@
 <span id="817">817</span>
 <span id="818">818</span>
 <span id="819">819</span>
+<span id="820">820</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -919,6 +920,7 @@
     <span class="ident">BuildQueryResult</span>,
     <span class="ident">QueryBuilder</span>,
     <span class="ident">QueryFragment</span>,
+    <span class="ident">SQLError</span>,
     <span class="ident">SQLiteQueryBuilder</span>,
     <span class="ident">SQLQuery</span>,
 };
@@ -1506,7 +1508,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">SelectQuery</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_sql_query</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">mentat_sql</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SQLQuery</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_sql_query</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SQLQuery</span>, <span class="ident">SQLError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">SQLiteQueryBuilder</span>::<span class="ident">new</span>();
         <span class="self">self</span>.<span class="ident">push_sql</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">builder</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">builder</span>.<span class="ident">finish</span>())
     }

@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Take","Cell allowing the inner value to be consumed without a mutable reference."]]});

@@ -120,7 +120,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">AlgebrizerError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -142,7 +142,7 @@
             <span class="string">&quot;ground&quot;</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">apply_ground</span>(<span class="ident">known</span>, <span class="ident">where_fn</span>),
             <span class="string">&quot;tx-data&quot;</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">apply_tx_data</span>(<span class="ident">known</span>, <span class="ident">where_fn</span>),
             <span class="string">&quot;tx-ids&quot;</span> <span class="op">=&gt;</span> <span class="self">self</span>.<span class="ident">apply_tx_ids</span>(<span class="ident">known</span>, <span class="ident">where_fn</span>),
-            <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnknownFunction</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>())),
+            <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnknownFunction</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>())),
         }
     }
 }

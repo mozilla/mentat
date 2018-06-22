@@ -336,6 +336,8 @@
 <span id="279">279</span>
 <span id="280">280</span>
 <span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -396,8 +398,10 @@
 <span class="doccomment">///      [*]))</span>
 <span class="doccomment">///! ```</span>
 
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
+
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
-<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">error_chain</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure_derive</span>;
 
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">rusqlite</span>;
 
@@ -440,7 +444,7 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">PullError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -502,7 +506,7 @@
             <span class="comment">// In the unlikely event that we have an attribute with no name, we bail.</span>
             <span class="ident">schema</span>.<span class="ident">get_ident</span>(<span class="kw-2">*</span><span class="ident">i</span>)
                     .<span class="ident">map</span>(<span class="op">|</span><span class="ident">ident</span><span class="op">|</span> <span class="ident">ValueRc</span>::<span class="ident">new</span>(<span class="ident">ident</span>.<span class="ident">clone</span>()))
-                    .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">ErrorKind</span>::<span class="ident">UnnamedAttribute</span>(<span class="kw-2">*</span><span class="ident">i</span>))
+                    .<span class="ident">ok_or_else</span>(<span class="op">||</span> <span class="ident">PullError</span>::<span class="ident">UnnamedAttribute</span>(<span class="kw-2">*</span><span class="ident">i</span>))
         };
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">names</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">Entid</span>, <span class="ident">ValueRc</span><span class="op">&lt;</span><span class="ident">Keyword</span><span class="op">&gt;&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
@@ -531,7 +535,7 @@
                         <span class="kw-2">&amp;</span><span class="ident">PullConcreteAttribute</span>::<span class="ident">Ident</span>(<span class="kw-2">ref</span> <span class="ident">i</span>) <span class="kw">if</span> <span class="ident">i</span>.<span class="ident">as_ref</span>() <span class="op">==</span> <span class="ident">db_id</span>.<span class="ident">as_ref</span>() <span class="op">=&gt;</span> {
                             <span class="comment">// We only allow :db/id once.</span>
                             <span class="kw">if</span> <span class="ident">db_id_alias</span>.<span class="ident">is_some</span>() {
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">RepeatedDbId</span>);
+                                <span class="prelude-val">Err</span>(<span class="ident">PullError</span>::<span class="ident">RepeatedDbId</span>)<span class="question-mark">?</span>
                             }
                             <span class="ident">db_id_alias</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">alias</span>.<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="ident">db_id</span>.<span class="ident">to_value_rc</span>()));
                         },

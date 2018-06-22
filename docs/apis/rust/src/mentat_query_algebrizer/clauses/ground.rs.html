@@ -447,6 +447,7 @@
 <span id="390">390</span>
 <span id="391">391</span>
 <span id="392">392</span>
+<span id="393">393</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -481,8 +482,9 @@
 <span class="kw">use</span> <span class="ident">clauses</span>::<span class="ident">convert</span>::<span class="ident">ValueConversion</span>;
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
+    <span class="ident">AlgebrizerError</span>,
     <span class="ident">BindingError</span>,
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">InvalidBinding</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -567,19 +569,19 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">apply_ground</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">known</span>: <span class="ident">Known</span>, <span class="ident">where_fn</span>: <span class="ident">WhereFn</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">len</span>() <span class="op">!=</span> <span class="number">1</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidNumberOfArguments</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">len</span>(), <span class="number">1</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidNumberOfArguments</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">len</span>(), <span class="number">1</span>));
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">where_fn</span>.<span class="ident">args</span>.<span class="ident">into_iter</span>();
 
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_empty</span>() {
             <span class="comment">// The binding must introduce at least one bound variable.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
         }
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_valid</span>() {
             <span class="comment">// The binding must not duplicate bound variables.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
         }
 
         <span class="kw">let</span> <span class="ident">schema</span> <span class="op">=</span> <span class="ident">known</span>.<span class="ident">schema</span>;
@@ -595,7 +597,7 @@
                 <span class="comment">// Just the same, but we bind more than one column at a time.</span>
                 <span class="kw">if</span> <span class="ident">children</span>.<span class="ident">len</span>() <span class="op">!=</span> <span class="ident">places</span>.<span class="ident">len</span>() {
                     <span class="comment">// Number of arguments don&#39;t match the number of values. TODO: better error message.</span>
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">GroundBindingsMismatch</span>);
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">GroundBindingsMismatch</span>)
                 }
                 <span class="kw">for</span> (<span class="ident">place</span>, <span class="ident">arg</span>) <span class="kw">in</span> <span class="ident">places</span>.<span class="ident">into_iter</span>().<span class="ident">zip</span>(<span class="ident">children</span>.<span class="ident">into_iter</span>()) {
                     <span class="self">self</span>.<span class="ident">apply_ground_place</span>(<span class="ident">schema</span>, <span class="ident">place</span>, <span class="ident">arg</span>)<span class="question-mark">?</span>  <span class="comment">// TODO: short-circuit on impossible.</span>
@@ -609,7 +611,7 @@
             <span class="comment">// are all in a single structure. That makes it substantially simpler!</span>
             (<span class="ident">Binding</span>::<span class="ident">BindColl</span>(<span class="ident">var</span>), <span class="ident">FnArg</span>::<span class="ident">Vector</span>(<span class="ident">children</span>)) <span class="op">=&gt;</span> {
                 <span class="kw">if</span> <span class="ident">children</span>.<span class="ident">is_empty</span>() {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>);
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>)
                 }
 
                 <span class="comment">// Turn a collection of arguments into a Vec of `TypedValue`s of the same type.</span>
@@ -627,7 +629,7 @@
                                                  <span class="kw">if</span> <span class="ident">accumulated_types</span>.<span class="ident">insert</span>(<span class="ident">tv</span>.<span class="ident">value_type</span>()) <span class="op">&amp;&amp;</span>
                                                     <span class="op">!</span><span class="ident">accumulated_types</span>.<span class="ident">is_unit</span>() {
                                                      <span class="comment">// Values not all of the same type.</span>
-                                                     <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>.<span class="ident">into</span>()))
+                                                     <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>.<span class="ident">into</span>()))
                                                  } <span class="kw">else</span> {
                                                      <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">tv</span>))
                                                  }
@@ -658,7 +660,7 @@
 
             (<span class="ident">Binding</span>::<span class="ident">BindRel</span>(<span class="ident">places</span>), <span class="ident">FnArg</span>::<span class="ident">Vector</span>(<span class="ident">rows</span>)) <span class="op">=&gt;</span> {
                 <span class="kw">if</span> <span class="ident">rows</span>.<span class="ident">is_empty</span>() {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>);
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>)
                 }
 
                 <span class="comment">// Grab the known types to which these args must conform, and track</span>
@@ -679,7 +681,7 @@
 
                 <span class="kw">if</span> <span class="ident">expected_width</span> <span class="op">==</span> <span class="number">0</span> {
                     <span class="comment">// They can&#39;t all be placeholders.</span>
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>);
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>)
                 }
 
                 <span class="comment">// Accumulate values into `matrix` and types into `a_t_f_c`.</span>
@@ -695,7 +697,7 @@
                         <span class="ident">FnArg</span>::<span class="ident">Vector</span>(<span class="ident">cols</span>) <span class="op">=&gt;</span> {
                             <span class="comment">// Make sure that every row is the same length.</span>
                             <span class="kw">if</span> <span class="ident">cols</span>.<span class="ident">len</span>() <span class="op">!=</span> <span class="ident">full_width</span> {
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>);
+                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>)
                             }
 
                             <span class="comment">// TODO: don&#39;t accumulate twice.</span>
@@ -730,13 +732,13 @@
                                 <span class="kw">let</span> <span class="ident">inserted</span> <span class="op">=</span> <span class="ident">acc</span>.<span class="ident">insert</span>(<span class="ident">val</span>.<span class="ident">value_type</span>());
                                 <span class="kw">if</span> <span class="ident">inserted</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">acc</span>.<span class="ident">is_unit</span>() {
                                     <span class="comment">// Heterogeneous types.</span>
-                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>);
+                                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>)
                                 }
                                 <span class="ident">matrix</span>.<span class="ident">push</span>(<span class="ident">val</span>);
                             }
 
                         },
-                        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>),
+                        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>),
                     }
                 }
 
@@ -762,7 +764,7 @@
                 <span class="self">self</span>.<span class="ident">collect_named_bindings</span>(<span class="ident">schema</span>, <span class="ident">names</span>, <span class="ident">types</span>, <span class="ident">matrix</span>);
                 <span class="prelude-val">Ok</span>(())
             },
-            (<span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>),
+            (<span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>),
         }
     }
 }

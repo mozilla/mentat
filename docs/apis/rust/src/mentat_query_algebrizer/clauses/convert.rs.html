@@ -324,7 +324,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">AlgebrizerError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -376,12 +376,12 @@
 
                 <span class="kw-2">&amp;</span><span class="ident">FnArg</span>::<span class="ident">Constant</span>(<span class="ident">NonIntegerConstant</span>::<span class="ident">BigInteger</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> {
                     <span class="comment">// Not yet implemented.</span>
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnsupportedArgument</span>)
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnsupportedArgument</span>)
                 },
 
                 <span class="comment">// These don&#39;t make sense here. TODO: split FnArg into scalar and non-scalar…</span>
                 <span class="kw-2">&amp;</span><span class="ident">FnArg</span>::<span class="ident">Vector</span>(<span class="kw">_</span>) <span class="op">|</span>
-                <span class="kw-2">&amp;</span><span class="ident">FnArg</span>::<span class="ident">SrcVar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnsupportedArgument</span>),
+                <span class="kw-2">&amp;</span><span class="ident">FnArg</span>::<span class="ident">SrcVar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnsupportedArgument</span>),
 
                 <span class="comment">// These are all straightforward.</span>
                 <span class="kw-2">&amp;</span><span class="ident">FnArg</span>::<span class="ident">Constant</span>(<span class="ident">NonIntegerConstant</span>::<span class="ident">Boolean</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">ValueTypeSet</span>::<span class="ident">of_one</span>(<span class="ident">ValueType</span>::<span class="ident">Boolean</span>),
@@ -492,7 +492,7 @@
             <span class="ident">FnArg</span>::<span class="ident">Variable</span>(<span class="ident">in_var</span>) <span class="op">=&gt;</span> {
                 <span class="comment">// TODO: technically you could ground an existing variable inside the query….</span>
                 <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">input_variables</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">in_var</span>) {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()))
                 }
                 <span class="kw">match</span> <span class="self">self</span>.<span class="ident">bound_value</span>(<span class="kw-2">&amp;</span><span class="ident">in_var</span>) {
                     <span class="comment">// The type is already known if it&#39;s a bound variable….</span>
@@ -501,7 +501,7 @@
                         <span class="comment">// The variable is present in `:in`, but it hasn&#39;t yet been provided.</span>
                         <span class="comment">// This is a restriction we will eventually relax: we don&#39;t yet have a way</span>
                         <span class="comment">// to collect variables as part of a computed table or substitution.</span>
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()))
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>((<span class="kw-2">*</span><span class="ident">in_var</span>.<span class="number">0</span>).<span class="ident">clone</span>()))
                     },
                 }
             },
@@ -511,7 +511,7 @@
 
             <span class="comment">// These don&#39;t make sense here.</span>
             <span class="ident">FnArg</span>::<span class="ident">Vector</span>(<span class="kw">_</span>) <span class="op">|</span>
-            <span class="ident">FnArg</span>::<span class="ident">SrcVar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InvalidGroundConstant</span>),
+            <span class="ident">FnArg</span>::<span class="ident">SrcVar</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidGroundConstant</span>),
 
             <span class="comment">// These are all straightforward.</span>
             <span class="ident">FnArg</span>::<span class="ident">Constant</span>(<span class="ident">NonIntegerConstant</span>::<span class="ident">Boolean</span>(<span class="ident">x</span>)) <span class="op">=&gt;</span> {

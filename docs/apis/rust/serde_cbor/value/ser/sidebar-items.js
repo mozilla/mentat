@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["to_value","Convert a `T` into `serde_cbor::Value` which is an enum that can represent any valid CBOR data."]]});

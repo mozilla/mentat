@@ -586,13 +586,6 @@
 <span id="529">529</span>
 <span id="530">530</span>
 <span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
-<span id="537">537</span>
-<span id="538">538</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -681,7 +674,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">MentatError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -873,12 +866,12 @@
                 <span class="kw">let</span> <span class="ident">provided</span> <span class="op">=</span> <span class="ident">tv</span>.<span class="ident">value_type</span>();
                 <span class="kw">let</span> <span class="ident">expected</span> <span class="op">=</span> <span class="ident">attr</span>.<span class="ident">value_type</span>;
                 <span class="kw">if</span> <span class="ident">provided</span> <span class="op">!=</span> <span class="ident">expected</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">ValueTypeMismatch</span>(<span class="ident">provided</span>, <span class="ident">expected</span>));
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">ValueTypeMismatch</span>(<span class="ident">provided</span>, <span class="ident">expected</span>));
                 }
             }
             <span class="ident">attribute</span> <span class="op">=</span> <span class="ident">aa</span>;
         } <span class="kw">else</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">UnknownAttribute</span>(<span class="ident">a</span>.<span class="ident">to_string</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">MentatError</span>::<span class="ident">UnknownAttribute</span>(<span class="ident">a</span>.<span class="ident">to_string</span>()));
         }
         <span class="prelude-val">Ok</span>((<span class="ident">attribute</span>, <span class="ident">v</span>))
     }
@@ -976,15 +969,8 @@
 <span class="kw">mod</span> <span class="ident">testing</span> {
     <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_db</span>;
 
-    <span class="kw">use</span> <span class="ident">errors</span>::{
-        <span class="ident">Error</span>,
-        <span class="ident">ErrorKind</span>,
-    };
-
     <span class="comment">// For matching inside a test.</span>
-    <span class="kw">use</span> <span class="ident">mentat_db</span>::<span class="ident">ErrorKind</span>::{
-        <span class="ident">UnrecognizedEntid</span>,
-    };
+    <span class="kw">use</span> <span class="ident">mentat_db</span>::<span class="ident">DbError</span>;
 
     <span class="kw">use</span> ::{
         <span class="ident">Conn</span>,
@@ -1025,7 +1011,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">in_progress</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">begin_transaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sqlite</span>).<span class="ident">expect</span>(<span class="string">&quot;begun successfully&quot;</span>);
 
         <span class="comment">// This should fail: unrecognized entid.</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>(<span class="ident">ErrorKind</span>::<span class="ident">DbError</span>(<span class="ident">UnrecognizedEntid</span>(<span class="ident">e</span>)), <span class="kw">_</span>)) <span class="op">=</span> <span class="ident">in_progress</span>.<span class="ident">transact_terms</span>(<span class="ident">terms</span>, <span class="ident">tempids</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">e</span>)) <span class="op">=</span> <span class="ident">in_progress</span>.<span class="ident">transact_terms</span>(<span class="ident">terms</span>, <span class="ident">tempids</span>).<span class="ident">expect_err</span>(<span class="string">&quot;expected transact to fail&quot;</span>).<span class="ident">downcast</span>() {
             <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">e</span>, <span class="number">999</span>);
         } <span class="kw">else</span> {
             <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Should have rejected the entid.&quot;</span>);

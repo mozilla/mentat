@@ -324,7 +324,7 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">ErrorKind</span>,
+    <span class="ident">ProjectorError</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -370,7 +370,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_applicable_to_types</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">possibilities</span>: <span class="ident">ValueTypeSet</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ValueType</span><span class="op">&gt;</span> {
         <span class="kw">use</span> <span class="self">self</span>::<span class="ident">SimpleAggregationOp</span>::<span class="kw-2">*</span>;
         <span class="kw">if</span> <span class="ident">possibilities</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">CannotProjectImpossibleBinding</span>(<span class="kw-2">*</span><span class="self">self</span>))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">CannotProjectImpossibleBinding</span>(<span class="kw-2">*</span><span class="self">self</span>))
         }
 
         <span class="kw">match</span> <span class="self">self</span> {
@@ -383,7 +383,7 @@
                     <span class="comment">// The mean of a set of numeric values will always, for our purposes, be a double.</span>
                     <span class="prelude-val">Ok</span>(<span class="ident">ValueType</span>::<span class="ident">Double</span>)
                 } <span class="kw">else</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
                 }
             },
             <span class="kw-2">&amp;</span><span class="ident">Sum</span> <span class="op">=&gt;</span> {
@@ -395,7 +395,7 @@
                         <span class="prelude-val">Ok</span>(<span class="ident">ValueType</span>::<span class="ident">Long</span>)
                     }
                 } <span class="kw">else</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
                 }
             },
 
@@ -415,7 +415,7 @@
 
                         <span class="comment">// These types are unordered.</span>
                         <span class="ident">Keyword</span> <span class="op">|</span> <span class="ident">Ref</span> <span class="op">|</span> <span class="ident">Uuid</span> <span class="op">=&gt;</span> {
-                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
+                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
                         },
                     }
                 } <span class="kw">else</span> {
@@ -430,7 +430,7 @@
                             <span class="prelude-val">Ok</span>(<span class="ident">ValueType</span>::<span class="ident">Long</span>)
                         }
                     } <span class="kw">else</span> {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ProjectorError</span>::<span class="ident">CannotApplyAggregateOperationToTypes</span>(<span class="kw-2">*</span><span class="self">self</span>, <span class="ident">possibilities</span>))
                     }
                 }
             },

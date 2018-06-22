@@ -196,6 +196,7 @@
 <span id="139">139</span>
 <span id="140">140</span>
 <span id="141">141</span>
+<span id="142">142</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -207,10 +208,8 @@
 <span class="comment">// CONDITIONS OF ANY KIND, either express or implied. See the License for the</span>
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
-<span class="comment">// Oh, error_chain.</span>
-<span class="attribute">#![<span class="ident">recursion_limit</span><span class="op">=</span><span class="string">&quot;128&quot;</span>]</span>
-
-<span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">error_chain</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure_derive</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">indexmap</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">itertools</span>;
 <span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">lazy_static</span>;
@@ -230,7 +229,12 @@
 
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">errors</span>::{<span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">ResultExt</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">errors</span>::{
+    <span class="ident">DbError</span>,
+    <span class="prelude-ty">Result</span>,
+    <span class="ident">SchemaConstraintViolation</span>,
+};
+<span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
 
 <span class="kw">mod</span> <span class="ident">add_retract_alter_set</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">cache</span>;
@@ -238,7 +242,6 @@
 <span class="kw">mod</span> <span class="ident">bootstrap</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">debug</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">entids</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">internal_types</span>;    <span class="comment">// pub because we need them for building entities programmatically.</span>
 <span class="kw">mod</span> <span class="ident">metadata</span>;
 <span class="kw">mod</span> <span class="ident">schema</span>;
@@ -313,8 +316,7 @@
         <span class="kw">_</span> <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
     };
 
-    <span class="comment">// TODO Use custom ErrorKind https://github.com/brson/error-chain/issues/117</span>
-    <span class="ident">nsk</span>.<span class="ident">ok_or</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;InvalidKeyword: {}&quot;</span>, <span class="ident">s</span>)).<span class="ident">into</span>())
+    <span class="ident">nsk</span>.<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;InvalidKeyword: {}&quot;</span>, <span class="ident">s</span>)).<span class="ident">into</span>())
 }
 
 <span class="doccomment">/// Prepare an SQL `VALUES` block, like (?, ?, ?), (?, ?, ?).</span>
