@@ -13,7 +13,7 @@
 
 /// Low-level functions for testing.
 
-// Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
+// Macro to parse a `&str` to an `edn::Value` and assert the given `edn::Value` `matches`
 // against it.
 //
 // This is a macro only to give nice line numbers when tests fail.
@@ -21,7 +21,7 @@
 macro_rules! assert_matches {
     ( $input: expr, $expected: expr ) => {{
         // Failure to parse the expected pattern is a coding error, so we unwrap.
-        let pattern_value = edn::parse::value($expected.borrow())
+        let pattern_value = edn::parse::value($expected)
             .expect(format!("to be able to parse expected {}", $expected).as_str())
             .without_spans();
         let input_value = $input.to_edn();

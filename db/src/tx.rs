@@ -742,9 +742,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         let excisions = excision::excisions(&self.partition_map, &self.schema, &aev_trie)?;
-        if !excisions.is_none() {
-            bail!(DbErrorKind::NotYetImplemented(format!("Excision not yet implemented: {:?}", excisions)));
-        }
 
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
@@ -809,10 +806,18 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             // regular transactor code paths, updating the schema and materialized views uniformly.
             // But, belt-and-braces: handle it gracefully.
             if new_schema != *self.schema_for_mutation {
+                if excisions.is_some() {
+                    bail!(DbErrorKind::BadExcision("cannot mutate schema".into()));
+                }
+
                 let old_schema = (*self.schema_for_mutation).clone(); // Clone the original Schema for comparison.
                 *self.schema_for_mutation.to_mut() = new_schema; // Store the new Schema.
                 db::update_metadata(self.store, &old_schema, &*self.schema_for_mutation, &metadata_report)?;
             }
+        }
+
+        if let Some(excisions) = excisions {
+            excision::enqueue_pending_excisions(self.store, self.schema, self.tx_id, excisions)?;
         }
 
         Ok(TxReport {

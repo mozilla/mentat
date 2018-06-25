@@ -14,7 +14,10 @@ use failure::{
     ResultExt,
 };
 
-use std::collections::HashMap;
+use std::collections::{
+    BTreeMap,
+    HashMap,
+};
 use std::collections::hash_map::{
     Entry,
 };
@@ -58,6 +61,15 @@ use mentat_core::{
 use errors::{
     DbErrorKind,
     Result,
+};
+// use excision::{
+//     excisions,
+//     Excision,
+//     ExcisionMap,
+// };
+use internal_types::{
+    AddAndRetract,
+    AEVTrie,
 };
 use metadata;
 use schema::{
@@ -246,6 +258,16 @@ lazy_static! {
         r#"CREATE INDEX idx_schema_unique ON schema (e, a, v, value_type_tag)"#,
         // TODO: store entid instead of ident for partition name.
         r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, end INTEGER NOT NULL, idx INTEGER NOT NULL, allow_excision SMALLINT NOT NULL)"#,
+
+        // Excisions are transacted as data, so they end up in the transactions table; this
+        // materializes that view.  Excisions are never removed from the transactions (or datoms)
+        // table so it's not required to include the `added` column, but let's do it so that if we
+        // grow a more uniform approach to materialized views of the transactions table, this is
+        // close to the shape of that table.
+        //
+        // `status` tracks whether an excision has been applied (0) or is pending (> 0).
+        r#"CREATE TABLE excisions (e INTEGER NOT NULL UNIQUE, target INTEGER NOT NULL, before_tx INTEGER, status INTEGER NOT NULL)"#,
+        r#"CREATE TABLE excision_attrs (e INTEGER NOT NULL, a SMALLINT NOT NULL, FOREIGN KEY (e) REFERENCES excisions(e))"#,
         ]
     };
 }
@@ -437,6 +459,39 @@ pub(crate) fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -
     m
 }
 
+/// Read an arbitrary [e a v value_type_tag tx added] materialized view from the given table in the
+/// SQL store, returing an AEV trie.
+pub(crate) fn read_materialized_transaction_aev_trie<'schema>(conn: &rusqlite::Connection, schema: &'schema Schema, table: &str) -> Result<AEVTrie<'schema>> {
+    let mut stmt: rusqlite::Statement = conn.prepare(format!("SELECT e, a, v, value_type_tag, tx, added FROM {}", table).as_str())?;
+    let m: Result<Vec<_>> = stmt.query_and_then(&[], |row| {
+        let e: Entid = row.get_checked(0)?;
+        let a: Entid = row.get_checked(1)?;
+        let v: rusqlite::types::Value = row.get_checked(2)?;
+        let value_type_tag: i32 = row.get_checked(3)?;
+        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
+        let tx: Entid = row.get_checked(4)?;
+        let added: bool = row.get_checked(5)?;
+        Ok((e, a, typed_value, tx, added))
+    })?.collect();
+
+    let mut trie = AEVTrie::default();
+
+    for (e, a, v, _, added) in m? {
+        let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
+
+        let a_and_r = trie
+            .entry((a, attribute)).or_insert(BTreeMap::default())
+            .entry(e).or_insert(AddAndRetract::default());
+
+        match added {
+            true => a_and_r.add.insert(v),
+            false => a_and_r.retract.insert(v),
+        };
+    }
+
+    Ok(trie)
+}
+
 /// Read the partition map materialized view from the given SQL store.
 fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT part, start, end, idx, allow_excision FROM parts")?;
@@ -494,7 +549,7 @@ pub enum SearchType {
 /// Right now, the only implementation of `MentatStoring` is the SQLite-specific SQL schema.  In the
 /// future, we might consider other SQL engines (perhaps with different fulltext indexing), or
 /// entirely different data stores, say ones shaped like key-value stores.
-pub trait MentatStoring {
+pub(crate) trait MentatStoring {
     /// Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.
     ///
     /// It is assumed that the attribute `a` in each lookup-ref is `:db/unique`, so that at most one
@@ -1107,16 +1162,14 @@ impl PartitionMap {
 mod tests {
     extern crate env_logger;
 
-    use std::borrow::{
-        Borrow,
-    };
-
     use super::*;
     use debug::{
         self,
         TestConn,
         tempids,
     };
+    use errors;
+    use excision;
     use edn::{
         self,
         InternSet,
@@ -1134,7 +1187,6 @@ mod tests {
     use std::collections::{
         BTreeMap,
     };
-    use errors;
     use internal_types::{
         Term,
     };
@@ -2830,5 +2882,117 @@ mod tests {
 
         // TODO: Don't allow anything more than excisions in the excising transaction, except
         // additional facts about the (transaction-tx).
+    }
+
+    #[test]
+    fn test_excision() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+            {:db/id 202 :db/ident :test/ref :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+        ]"#);
+
+        // Simplest case: just a `:db/excise` target, potentially including an inbound ref.
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/one 1000
+             :test/many [2000 2001 2002]}
+            {:db/id 301
+             :test/one 1001
+             :test/ref 300}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/one 1000]
+             [300 :test/many 2000]
+             [300 :test/many 2001]
+             [300 :test/many 2002]
+             [301 :test/one 1001]
+             [301 :test/ref 300]]"#);
+
+        let report = assert_transact!(conn, r#"[
+            {:db/id "e" :db/excise 300}
+        ]"#);
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&report),
+                        "{\"e\" 65536}");
+
+        // After.
+        assert_matches!(conn.datoms(), r#"
+           [[200 :db/ident :test/one]
+            [200 :db/valueType :db.type/long]
+            [200 :db/cardinality :db.cardinality/one]
+            [201 :db/ident :test/many]
+            [201 :db/valueType :db.type/long]
+            [201 :db/cardinality :db.cardinality/many]
+            [202 :db/ident :test/ref]
+            [202 :db/valueType :db.type/ref]
+            [202 :db/cardinality :db.cardinality/one]
+            [301 :test/one 1001]
+            [?e :db/excise 300]]"#);
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            target: 300,
+            attrs: None,
+            before_tx: None,
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[300 :test/one 1000 ?tx2 true]
+              [300 :test/many 2000 ?tx2 true]
+              [300 :test/many 2001 ?tx2 true]
+              [300 :test/many 2002 ?tx2 true]
+              [301 :test/one 1001 ?tx2 true]
+              [301 :test/ref 300 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the target entity of the excision.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[301 :test/one 1001 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
     }
 }
