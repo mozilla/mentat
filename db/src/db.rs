@@ -1097,6 +1097,10 @@ impl PartitionMap {
     pub(crate) fn contains_entid(&self, entid: Entid) -> bool {
         self.values().any(|partition| partition.contains_entid(entid))
     }
+
+    pub(crate) fn partition_for_entid(&self, entid: Entid) -> Option<&str> {
+        self.iter().find(|(_name, partition)| partition.contains_entid(entid)).map(|x| x.0.as_ref())
+    }
 }
 
 #[cfg(test)]
@@ -2767,5 +2771,64 @@ mod tests {
                         "[[100 :db.schema/version 11 ?tx false] ; Not actually applied!
                           [200 :db.schema/attribute 100 ?tx false] ; Not actually applied!
                           [?tx :db/txInstant ?ms ?tx true]]");
+    }
+
+    fn test_excision_bad_excisions() {
+        let mut conn = TestConn::default();
+
+        // Can't specify `:db.excise/before` at all.
+        assert_transact!(conn, r#"[
+            {:db.excise/before #inst "2016-06-06T00:00:00.000Z"}
+        ]"#,
+        Err("bad excision: :db.excise/before"));
+
+        // Must specify `:db/excise`.
+        assert_transact!(conn, r#"[
+            {:db.excise/attrs [:db/ident :db/doc]}
+        ]"#,
+        Err("bad excision: no :db/excise"));
+
+        assert_transact!(conn, r#"[
+            {:db.excise/beforeT (transaction-tx)}
+        ]"#,
+        Err("bad excision: no :db/excise"));
+
+        // Can't retract anything to do with excision.
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :db/excise 101]
+        ]"#,
+        Err("bad excision: retraction"));
+
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :db.excise/beforeT (transaction-tx)]
+        ]"#,
+        Err("bad excision: retraction"));
+
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :db.excise/attrs :db/ident]
+        ]"#,
+        Err("bad excision: retraction"));
+
+        // Can't mutate the schema.  This isn't completely implemented yet; right now, Mentat will
+        // prevent a consumer excising an attribute entity, but not a datom describing an attribute
+        // of an attribute.  That is, you can't excise `:db/txInstant`, but you could remove the
+        // `:db/valueType :db.type/instant` from `:db/txInstant`.
+        assert_transact!(conn, r#"[
+            {:db/excise :db/txInstant}
+        ]"#,
+        Err("bad excision: cannot mutate schema"));
+
+        // Can't excise in the `:db.part/{db,tx}` partitions.
+        // TODO: test that we can't excise in the `:db.part/db` partition.
+        let report = assert_transact!(conn, r#"[
+        ]"#);
+
+        assert_transact!(conn, &format!(r#"[
+            [:db/add "e" :db/excise {}]
+        ]"#, report.tx_id),
+        Err("bad excision: cannot target entity in partition :db.part/tx"));
+
+        // TODO: Don't allow anything more than excisions in the excising transaction, except
+        // additional facts about the (transaction-tx).
     }
 }

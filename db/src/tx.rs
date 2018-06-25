@@ -106,6 +106,7 @@ use edn::entities::{
     OpType,
     TempId,
 };
+use excision;
 use metadata;
 use rusqlite;
 use schema::{
@@ -738,6 +739,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         let errors = tx_checking::cardinality_conflicts(&aev_trie);
         if !errors.is_empty() {
             bail!(DbErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::CardinalityConflicts { conflicts: errors }));
+        }
+
+        let excisions = excision::excisions(&self.partition_map, &self.schema, &aev_trie)?;
+        if !excisions.is_none() {
+            bail!(DbErrorKind::NotYetImplemented(format!("Excision not yet implemented: {:?}", excisions)));
         }
 
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.

@@ -214,3 +214,26 @@ pub(crate) struct AddAndRetract {
 // A trie-like structure mapping a -> e -> v that prefix compresses and makes uniqueness constraint
 // checking more efficient.  BTree* for deterministic errors.
 pub(crate) type AEVTrie<'schema> = BTreeMap<(Entid, &'schema Attribute), BTreeMap<Entid, AddAndRetract>>;
+
+// A trie-like structure mapping e -> a -> v that prefix compresses and makes accumulating fragments
+// (schema fragments, say, or excision fragments) efficient.  BTree* for deterministic errors.
+pub(crate) type EAVTrie<'schema> = BTreeMap<Entid, BTreeMap<(Entid, &'schema Attribute), AddAndRetract>>;
+
+pub(crate) fn filter_aev_to_eav<'schema, P>(aev_trie: &AEVTrie<'schema>, mut attr_pair_predicate: P) -> EAVTrie<'schema>
+where P: FnMut(&(Entid, &'schema Attribute)) -> bool {
+    let mut eav_trie: EAVTrie<'schema> = Default::default();
+
+    for (&a_pair, evs) in aev_trie.iter() {
+        if !attr_pair_predicate(&a_pair) {
+            continue
+        }
+
+        for (&e, ars) in evs {
+            eav_trie
+                .entry(e).or_insert(BTreeMap::default())
+                .insert(a_pair, ars.clone());
+        }
+    }
+
+    eav_trie
+}

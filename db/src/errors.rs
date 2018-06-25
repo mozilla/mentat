@@ -217,6 +217,10 @@ pub enum DbErrorKind {
     #[fail(display = "bad schema assertion: {}", _0)]
     BadSchemaAssertion(String),
 
+    /// A bad excision was transacted.
+    #[fail(display = "bad excision: {}", _0)]
+    BadExcision(String),
+
     /// An ident->entid mapping failed.
     #[fail(display = "no entid found for ident: {}", _0)]
     UnrecognizedIdent(String),
