@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `entids` mod in crate `mentat_db`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, entids">
+
+    <title>mentat_db::entids - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module entids</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#constants">Constants</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>mentat_db</a></p><script>window.sidebarCurrent = {name: 'entids', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>mentat_db</a>::<wbr><a class="mod" href=''>entids</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_db/entids.rs.html#11-114' title='goto source code'>[src]</a></span></h1><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.IDENTS_SQL_LIST.html"
+                                  title='struct mentat_db::entids::IDENTS_SQL_LIST'>IDENTS_SQL_LIST</a></td>
+                           <td class='docblock-short'>
+                                <p>Attributes that are &quot;ident related&quot;.  These might change the &quot;idents&quot; materialized view.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.METADATA_SQL_LIST.html"
+                                  title='struct mentat_db::entids::METADATA_SQL_LIST'>METADATA_SQL_LIST</a></td>
+                           <td class='docblock-short'>
+                                <p>Attributes that are &quot;metadata&quot; related.  These might change one of the materialized views.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.SCHEMA_SQL_LIST.html"
+                                  title='struct mentat_db::entids::SCHEMA_SQL_LIST'>SCHEMA_SQL_LIST</a></td>
+                           <td class='docblock-short'>
+                                <p>Attributes that are &quot;schema related&quot;.  These might change the &quot;schema&quot; materialized view.</p>
+
+                           </td>
+                       </tr></table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_ADD.html"
+                                  title='constant mentat_db::entids::DB_ADD'>DB_ADD</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_ALTER_ATTRIBUTE.html"
+                                  title='constant mentat_db::entids::DB_ALTER_ATTRIBUTE'>DB_ALTER_ATTRIBUTE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_CARDINALITY.html"
+                                  title='constant mentat_db::entids::DB_CARDINALITY'>DB_CARDINALITY</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_CARDINALITY_MANY.html"
+                                  title='constant mentat_db::entids::DB_CARDINALITY_MANY'>DB_CARDINALITY_MANY</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_CARDINALITY_ONE.html"
+                                  title='constant mentat_db::entids::DB_CARDINALITY_ONE'>DB_CARDINALITY_ONE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_DOC.html"
+                                  title='constant mentat_db::entids::DB_DOC'>DB_DOC</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_EXCISE.html"
+                                  title='constant mentat_db::entids::DB_EXCISE'>DB_EXCISE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_EXCISE_ATTRS.html"
+                                  title='constant mentat_db::entids::DB_EXCISE_ATTRS'>DB_EXCISE_ATTRS</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_EXCISE_BEFORE.html"
+                                  title='constant mentat_db::entids::DB_EXCISE_BEFORE'>DB_EXCISE_BEFORE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_EXCISE_BEFORE_T.html"
+                                  title='constant mentat_db::entids::DB_EXCISE_BEFORE_T'>DB_EXCISE_BEFORE_T</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_FULLTEXT.html"
+                                  title='constant mentat_db::entids::DB_FULLTEXT'>DB_FULLTEXT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_IDENT.html"
+                                  title='constant mentat_db::entids::DB_IDENT'>DB_IDENT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_INDEX.html"
+                                  title='constant mentat_db::entids::DB_INDEX'>DB_INDEX</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_INSTALL_ATTRIBUTE.html"
+                                  title='constant mentat_db::entids::DB_INSTALL_ATTRIBUTE'>DB_INSTALL_ATTRIBUTE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_INSTALL_PARTITION.html"
+                                  title='constant mentat_db::entids::DB_INSTALL_PARTITION'>DB_INSTALL_PARTITION</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_INSTALL_VALUE_TYPE.html"
+                                  title='constant mentat_db::entids::DB_INSTALL_VALUE_TYPE'>DB_INSTALL_VALUE_TYPE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_IS_COMPONENT.html"
+                                  title='constant mentat_db::entids::DB_IS_COMPONENT'>DB_IS_COMPONENT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_NO_HISTORY.html"
+                                  title='constant mentat_db::entids::DB_NO_HISTORY'>DB_NO_HISTORY</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_PART_DB.html"
+                                  title='constant mentat_db::entids::DB_PART_DB'>DB_PART_DB</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_PART_TX.html"
+                                  title='constant mentat_db::entids::DB_PART_TX'>DB_PART_TX</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_PART_USER.html"
+                                  title='constant mentat_db::entids::DB_PART_USER'>DB_PART_USER</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_RETRACT.html"
+                                  title='constant mentat_db::entids::DB_RETRACT'>DB_RETRACT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_SCHEMA_ATTRIBUTE.html"
+                                  title='constant mentat_db::entids::DB_SCHEMA_ATTRIBUTE'>DB_SCHEMA_ATTRIBUTE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_SCHEMA_CORE.html"
+                                  title='constant mentat_db::entids::DB_SCHEMA_CORE'>DB_SCHEMA_CORE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_SCHEMA_VERSION.html"
+                                  title='constant mentat_db::entids::DB_SCHEMA_VERSION'>DB_SCHEMA_VERSION</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TX_INSTANT.html"
+                                  title='constant mentat_db::entids::DB_TX_INSTANT'>DB_TX_INSTANT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_BOOLEAN.html"
+                                  title='constant mentat_db::entids::DB_TYPE_BOOLEAN'>DB_TYPE_BOOLEAN</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_BYTES.html"
+                                  title='constant mentat_db::entids::DB_TYPE_BYTES'>DB_TYPE_BYTES</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_DOUBLE.html"
+                                  title='constant mentat_db::entids::DB_TYPE_DOUBLE'>DB_TYPE_DOUBLE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_INSTANT.html"
+                                  title='constant mentat_db::entids::DB_TYPE_INSTANT'>DB_TYPE_INSTANT</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_KEYWORD.html"
+                                  title='constant mentat_db::entids::DB_TYPE_KEYWORD'>DB_TYPE_KEYWORD</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_LONG.html"
+                                  title='constant mentat_db::entids::DB_TYPE_LONG'>DB_TYPE_LONG</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_REF.html"
+                                  title='constant mentat_db::entids::DB_TYPE_REF'>DB_TYPE_REF</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_STRING.html"
+                                  title='constant mentat_db::entids::DB_TYPE_STRING'>DB_TYPE_STRING</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_URI.html"
+                                  title='constant mentat_db::entids::DB_TYPE_URI'>DB_TYPE_URI</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_TYPE_UUID.html"
+                                  title='constant mentat_db::entids::DB_TYPE_UUID'>DB_TYPE_UUID</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_UNIQUE.html"
+                                  title='constant mentat_db::entids::DB_UNIQUE'>DB_UNIQUE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_UNIQUE_IDENTITY.html"
+                                  title='constant mentat_db::entids::DB_UNIQUE_IDENTITY'>DB_UNIQUE_IDENTITY</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_UNIQUE_VALUE.html"
+                                  title='constant mentat_db::entids::DB_UNIQUE_VALUE'>DB_UNIQUE_VALUE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.DB_VALUE_TYPE.html"
+                                  title='constant mentat_db::entids::DB_VALUE_TYPE'>DB_VALUE_TYPE</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.might_update_metadata.html"
+                                  title='fn mentat_db::entids::might_update_metadata'>might_update_metadata</a></td>
+                           <td class='docblock-short'>
+                                <p>Return <code>false</code> if the given attribute will not change the metadata: recognized idents, schema,
+partitions in the partition map.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

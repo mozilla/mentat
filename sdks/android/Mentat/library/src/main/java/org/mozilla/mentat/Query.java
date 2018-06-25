@@ -38,7 +38,7 @@ import java.util.UUID;
  * <p/>
  * Each bound variable must have a corresponding value in the query string used to create this query.
  * <p/>
- * <pre>{@code
+ * <pre>
  * String query = "[:find ?name ?cat\n" +
  *          "        :in ?type\n" +
  *          "        :where\n" +
@@ -51,14 +51,14 @@ import java.util.UUID;
  *          ...
  *      }
  * });
- *}</pre>
+ *</pre>
  * <p/>
  * Queries can be run and the results returned in a number of different formats. Individual result values are returned as `TypedValues` and
  * the format differences relate to the number and structure of those values. The result format is related to the format provided in the query string.
  * <p/>
  * - `Rel` - This is the default `run` function and returns a list of rows of values. Queries that wish to have `Rel` results should format their query strings:
  *
- * <pre>{@code
+ * <pre>
  * String query = "[: find ?a ?b ?c\n" +
  *          "        : where ... ]";
  * mentat.query(query).run(new RelResultHandler() {
@@ -67,11 +67,11 @@ import java.util.UUID;
  *          ...
  *      }
  * });
- *}</pre>
+ *</pre>
  * <p/>
  * - `Scalar` - This returns a single value as a result. This can be optional, as the value may not be present. Queries that wish to have `Scalar` results should format their query strings:
  *
- * <pre>{@code
+ * <pre>
  * String query = "[: find ?a .\n" +
  *          "        : where ... ]";
  * mentat.query(query).run(new ScalarResultHandler() {
@@ -80,10 +80,10 @@ import java.util.UUID;
  *          ...
  *      }
  * });
- *}</pre>
+ *</pre>
  * <p/>
  * - `Coll` - This returns a list of single values as a result.  Queries that wish to have `Coll` results should format their query strings:
- * <pre>{@code
+ * <pre>
  * String query = "[: find [?a ...]\n" +
  *          "        : where ... ]";
  * mentat.query(query).run(new ScalarResultHandler() {
@@ -92,10 +92,10 @@ import java.util.UUID;
  *          ...
  *      }
  * });
- *}</pre>
+ *</pre>
  * <p/>
  * - `Tuple` - This returns a single row of values.  Queries that wish to have `Tuple` results should format their query strings:
- * <pre>{@code
+ * <pre>
  * String query = "[: find [?a ?b ?c]\n" +
  *          "        : where ... ]";
  * mentat.query(query).run(new TupleResultHandler() {
@@ -104,7 +104,7 @@ import java.util.UUID;
  *          ...
  *      }
  * });
- *}</pre>
+ *</pre>
  */
 public class Query extends RustObject {
 

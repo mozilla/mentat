@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `EmptyBecause` enum in crate `mentat_query_algebrizer`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, EmptyBecause">
+
+    <title>mentat_query_algebrizer::EmptyBecause - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum EmptyBecause</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.CachedAttributeHasNoValues">CachedAttributeHasNoValues</a><a href="#variant.CachedAttributeHasNoEntity">CachedAttributeHasNoEntity</a><a href="#variant.ConflictingBindings">ConflictingBindings</a><a href="#variant.TypeMismatch">TypeMismatch</a><a href="#variant.KnownTypeMismatch">KnownTypeMismatch</a><a href="#variant.NoValidTypes">NoValidTypes</a><a href="#variant.NonAttributeArgument">NonAttributeArgument</a><a href="#variant.NonInstantArgument">NonInstantArgument</a><a href="#variant.NonNumericArgument">NonNumericArgument</a><a href="#variant.NonEntityArgument">NonEntityArgument</a><a href="#variant.NonStringFulltextValue">NonStringFulltextValue</a><a href="#variant.NonFulltextAttribute">NonFulltextAttribute</a><a href="#variant.UnresolvedIdent">UnresolvedIdent</a><a href="#variant.InvalidAttributeIdent">InvalidAttributeIdent</a><a href="#variant.InvalidAttributeEntid">InvalidAttributeEntid</a><a href="#variant.InvalidBinding">InvalidBinding</a><a href="#variant.ValueTypeMismatch">ValueTypeMismatch</a><a href="#variant.AttributeLookupFailed">AttributeLookupFailed</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-PartialEq">PartialEq</a><a href="#impl-Clone">Clone</a><a href="#impl-Debug">Debug</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">!Send</a><a href="#impl-Sync">!Sync</a></div></div><p class='location'><a href='index.html'>mentat_query_algebrizer</a></p><script>window.sidebarCurrent = {name: 'EmptyBecause', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Enum <a href='index.html'>mentat_query_algebrizer</a>::<wbr><a class="enum" href=''>EmptyBecause</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#605-628' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust enum'>pub enum EmptyBecause {
+    CachedAttributeHasNoValues {
+        entity: Entid,
+        attr: Entid,
+    },
+    CachedAttributeHasNoEntity {
+        value: TypedValue,
+        attr: Entid,
+    },
+    ConflictingBindings {
+        var: Variable,
+        existing: TypedValue,
+        desired: TypedValue,
+    },
+    TypeMismatch {
+        var: Variable,
+        existing: ValueTypeSet,
+        desired: ValueTypeSet,
+    },
+    KnownTypeMismatch {
+        left: ValueTypeSet,
+        right: ValueTypeSet,
+    },
+    NoValidTypes(Variable),
+    NonAttributeArgument,
+    NonInstantArgument,
+    NonNumericArgument,
+    NonEntityArgument,
+    NonStringFulltextValue,
+    NonFulltextAttribute(Entid),
+    UnresolvedIdent(Keyword),
+    InvalidAttributeIdent(Keyword),
+    InvalidAttributeEntid(Entid),
+    InvalidBinding(<a class="enum" href="../mentat_query_algebrizer/enum.Column.html" title="enum mentat_query_algebrizer::Column">Column</a>,&nbsp;TypedValue),
+    ValueTypeMismatch(ValueType,&nbsp;TypedValue),
+    AttributeLookupFailed,
+}</pre></div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.CachedAttributeHasNoValues" class="variant small-section-header"><a href="#variant.CachedAttributeHasNoValues" class="anchor field"></a><span id='CachedAttributeHasNoValues.v' class='invisible'><code>CachedAttributeHasNoValues</code></span></span><span class='docblock autohide sub-variant' id='variant.CachedAttributeHasNoValues.fields'><h3 class='fields'>Fields of <code>CachedAttributeHasNoValues</code></h3>
+
+                           <table><tr><td id='variant.CachedAttributeHasNoValues.field.entity'><span id='CachedAttributeHasNoValues.v.entity.v' class='invisible'><code>entity:&nbsp;Entid</code></span></td><td></td></tr><tr><td id='variant.CachedAttributeHasNoValues.field.attr'><span id='CachedAttributeHasNoValues.v.attr.v' class='invisible'><code>attr:&nbsp;Entid</code></span></td><td></td></tr></table></span><span id="variant.CachedAttributeHasNoEntity" class="variant small-section-header"><a href="#variant.CachedAttributeHasNoEntity" class="anchor field"></a><span id='CachedAttributeHasNoEntity.v' class='invisible'><code>CachedAttributeHasNoEntity</code></span></span><span class='docblock autohide sub-variant' id='variant.CachedAttributeHasNoEntity.fields'><h3 class='fields'>Fields of <code>CachedAttributeHasNoEntity</code></h3>
+
+                           <table><tr><td id='variant.CachedAttributeHasNoEntity.field.value'><span id='CachedAttributeHasNoEntity.v.value.v' class='invisible'><code>value:&nbsp;TypedValue</code></span></td><td></td></tr><tr><td id='variant.CachedAttributeHasNoEntity.field.attr'><span id='CachedAttributeHasNoEntity.v.attr.v' class='invisible'><code>attr:&nbsp;Entid</code></span></td><td></td></tr></table></span><span id="variant.ConflictingBindings" class="variant small-section-header"><a href="#variant.ConflictingBindings" class="anchor field"></a><span id='ConflictingBindings.v' class='invisible'><code>ConflictingBindings</code></span></span><span class='docblock autohide sub-variant' id='variant.ConflictingBindings.fields'><h3 class='fields'>Fields of <code>ConflictingBindings</code></h3>
+
+                           <table><tr><td id='variant.ConflictingBindings.field.var'><span id='ConflictingBindings.v.var.v' class='invisible'><code>var:&nbsp;Variable</code></span></td><td></td></tr><tr><td id='variant.ConflictingBindings.field.existing'><span id='ConflictingBindings.v.existing.v' class='invisible'><code>existing:&nbsp;TypedValue</code></span></td><td></td></tr><tr><td id='variant.ConflictingBindings.field.desired'><span id='ConflictingBindings.v.desired.v' class='invisible'><code>desired:&nbsp;TypedValue</code></span></td><td></td></tr></table></span><span id="variant.TypeMismatch" class="variant small-section-header"><a href="#variant.TypeMismatch" class="anchor field"></a><span id='TypeMismatch.v' class='invisible'><code>TypeMismatch</code></span></span><span class='docblock autohide sub-variant' id='variant.TypeMismatch.fields'><h3 class='fields'>Fields of <code>TypeMismatch</code></h3>
+
+                           <table><tr><td id='variant.TypeMismatch.field.var'><span id='TypeMismatch.v.var.v' class='invisible'><code>var:&nbsp;Variable</code></span></td><td></td></tr><tr><td id='variant.TypeMismatch.field.existing'><span id='TypeMismatch.v.existing.v' class='invisible'><code>existing:&nbsp;ValueTypeSet</code></span></td><td></td></tr><tr><td id='variant.TypeMismatch.field.desired'><span id='TypeMismatch.v.desired.v' class='invisible'><code>desired:&nbsp;ValueTypeSet</code></span></td><td></td></tr></table></span><span id="variant.KnownTypeMismatch" class="variant small-section-header"><a href="#variant.KnownTypeMismatch" class="anchor field"></a><span id='KnownTypeMismatch.v' class='invisible'><code>KnownTypeMismatch</code></span></span><span class='docblock autohide sub-variant' id='variant.KnownTypeMismatch.fields'><h3 class='fields'>Fields of <code>KnownTypeMismatch</code></h3>
+
+                           <table><tr><td id='variant.KnownTypeMismatch.field.left'><span id='KnownTypeMismatch.v.left.v' class='invisible'><code>left:&nbsp;ValueTypeSet</code></span></td><td></td></tr><tr><td id='variant.KnownTypeMismatch.field.right'><span id='KnownTypeMismatch.v.right.v' class='invisible'><code>right:&nbsp;ValueTypeSet</code></span></td><td></td></tr></table></span><span id="variant.NoValidTypes" class="variant small-section-header"><a href="#variant.NoValidTypes" class="anchor field"></a><span id='NoValidTypes.v' class='invisible'><code>NoValidTypes(Variable)</code></span></span><span id="variant.NonAttributeArgument" class="variant small-section-header"><a href="#variant.NonAttributeArgument" class="anchor field"></a><span id='NonAttributeArgument.v' class='invisible'><code>NonAttributeArgument</code></span></span><span id="variant.NonInstantArgument" class="variant small-section-header"><a href="#variant.NonInstantArgument" class="anchor field"></a><span id='NonInstantArgument.v' class='invisible'><code>NonInstantArgument</code></span></span><span id="variant.NonNumericArgument" class="variant small-section-header"><a href="#variant.NonNumericArgument" class="anchor field"></a><span id='NonNumericArgument.v' class='invisible'><code>NonNumericArgument</code></span></span><span id="variant.NonEntityArgument" class="variant small-section-header"><a href="#variant.NonEntityArgument" class="anchor field"></a><span id='NonEntityArgument.v' class='invisible'><code>NonEntityArgument</code></span></span><span id="variant.NonStringFulltextValue" class="variant small-section-header"><a href="#variant.NonStringFulltextValue" class="anchor field"></a><span id='NonStringFulltextValue.v' class='invisible'><code>NonStringFulltextValue</code></span></span><span id="variant.NonFulltextAttribute" class="variant small-section-header"><a href="#variant.NonFulltextAttribute" class="anchor field"></a><span id='NonFulltextAttribute.v' class='invisible'><code>NonFulltextAttribute(Entid)</code></span></span><span id="variant.UnresolvedIdent" class="variant small-section-header"><a href="#variant.UnresolvedIdent" class="anchor field"></a><span id='UnresolvedIdent.v' class='invisible'><code>UnresolvedIdent(Keyword)</code></span></span><span id="variant.InvalidAttributeIdent" class="variant small-section-header"><a href="#variant.InvalidAttributeIdent" class="anchor field"></a><span id='InvalidAttributeIdent.v' class='invisible'><code>InvalidAttributeIdent(Keyword)</code></span></span><span id="variant.InvalidAttributeEntid" class="variant small-section-header"><a href="#variant.InvalidAttributeEntid" class="anchor field"></a><span id='InvalidAttributeEntid.v' class='invisible'><code>InvalidAttributeEntid(Entid)</code></span></span><span id="variant.InvalidBinding" class="variant small-section-header"><a href="#variant.InvalidBinding" class="anchor field"></a><span id='InvalidBinding.v' class='invisible'><code>InvalidBinding(<a class="enum" href="../mentat_query_algebrizer/enum.Column.html" title="enum mentat_query_algebrizer::Column">Column</a>,&nbsp;TypedValue)</code></span></span><span id="variant.ValueTypeMismatch" class="variant small-section-header"><a href="#variant.ValueTypeMismatch" class="anchor field"></a><span id='ValueTypeMismatch.v' class='invisible'><code>ValueTypeMismatch(ValueType,&nbsp;TypedValue)</code></span></span><span id="variant.AttributeLookupFailed" class="variant small-section-header"><a href="#variant.AttributeLookupFailed" class="anchor field"></a><span id='AttributeLookupFailed.v' class='invisible'><code>AttributeLookupFailed</code></span></span>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+            <div id='implementations-list'>
+        <h3 id='impl-PartialEq' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a></code><a href='#impl-PartialEq' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#604' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#604' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#604' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-Clone' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a></code><a href='#impl-Clone' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#604' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#604' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span></td><td><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#117-119' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a></code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#630-694' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_algebrizer/types.rs.html#631-693' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></div>
+                <h2 id='synthetic-implementations' class='small-section-header'>
+                  Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>
+                </h2>
+                <div id='synthetic-implementations-list'>
+            <h3 id='impl-Send' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl !<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a></code><a href='#impl-Send' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl !<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="enum" href="../mentat_query_algebrizer/enum.EmptyBecause.html" title="enum mentat_query_algebrizer::EmptyBecause">EmptyBecause</a></code><a href='#impl-Sync' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mentat_query_algebrizer";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

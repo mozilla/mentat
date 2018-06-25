@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `MentatStoring` trait in crate `mentat_db`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, MentatStoring">
+
+    <title>mentat_db::db::MentatStoring - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait MentatStoring</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.resolve_avs">resolve_avs</a><a href="#tymethod.begin_tx_application">begin_tx_application</a><a href="#tymethod.insert_non_fts_searches">insert_non_fts_searches</a><a href="#tymethod.insert_fts_searches">insert_fts_searches</a><a href="#tymethod.commit_transaction">commit_transaction</a><a href="#tymethod.committed_metadata_assertions">committed_metadata_assertions</a></div><a class="sidebar-title" href="#foreign-impls">Implementations on Foreign Types</a><div class="sidebar-links"><a href="#impl-MentatStoring">Connection</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>db</a></p><script>window.sidebarCurrent = {name: 'MentatStoring', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>db</a>::<wbr><a class="trait" href=''>MentatStoring</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_db/db.rs.html#498-527' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust trait'>pub trait MentatStoring {
+    fn <a href='#tymethod.resolve_avs' class='fnname'>resolve_avs</a>&lt;'a&gt;(&amp;self, avs: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a>&amp;'a <a class="type" href="../../mentat_db/types/type.AVPair.html" title="type mentat_db::types::AVPair">AVPair</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="type" href="../../mentat_db/types/type.AVMap.html" title="type mentat_db::types::AVMap">AVMap</a>&lt;'a&gt;&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.begin_tx_application' class='fnname'>begin_tx_application</a>(&amp;self) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.insert_non_fts_searches' class='fnname'>insert_non_fts_searches</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;entities: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="type" href="../../mentat_db/db/type.ReducedEntity.html" title="type mentat_db::db::ReducedEntity">ReducedEntity</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;search_type: <a class="enum" href="../../mentat_db/db/enum.SearchType.html" title="enum mentat_db::db::SearchType">SearchType</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.insert_fts_searches' class='fnname'>insert_fts_searches</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;entities: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="type" href="../../mentat_db/db/type.ReducedEntity.html" title="type mentat_db::db::ReducedEntity">ReducedEntity</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;search_type: <a class="enum" href="../../mentat_db/db/enum.SearchType.html" title="enum mentat_db::db::SearchType">SearchType</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.commit_transaction' class='fnname'>commit_transaction</a>(&amp;self, tx_id: <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.committed_metadata_assertions' class='fnname'>committed_metadata_assertions</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tx_id: <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>, <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>, <a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;&gt;;
+}</pre></div><div class='docblock'><p><code>MentatStoring</code> will be the trait that encapsulates the storage layer.  It is consumed by the
+transaction processing layer.</p>
+<p>Right now, the only implementation of <code>MentatStoring</code> is the SQLite-specific SQL schema.  In the
+future, we might consider other SQL engines (perhaps with different fulltext indexing), or
+entirely different data stores, say ones shaped like key-value stores.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.resolve_avs' class='method'><span id='resolve_avs.v' class='invisible'><code>fn <a href='#tymethod.resolve_avs' class='fnname'>resolve_avs</a>&lt;'a&gt;(&amp;self, avs: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a>&amp;'a <a class="type" href="../../mentat_db/types/type.AVPair.html" title="type mentat_db::types::AVPair">AVPair</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="type" href="../../mentat_db/types/type.AVMap.html" title="type mentat_db::types::AVMap">AVMap</a>&lt;'a&gt;&gt;</code></span></h3><div class='docblock'><p>Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.</p>
+<p>It is assumed that the attribute <code>a</code> in each lookup-ref is <code>:db/unique</code>, so that at most one
+matching [e a v] triple exists.  (If this is not true, some matching entid <code>e</code> will be
+chosen non-deterministically, if one exists.)</p>
+<p>Returns a map &amp;(a, v) -&gt; e, to avoid cloning potentially large values.  The keys of the map
+are exactly those (a, v) pairs that have an assertion [e a v] in the store.</p>
+</div><h3 id='tymethod.begin_tx_application' class='method'><span id='begin_tx_application.v' class='invisible'><code>fn <a href='#tymethod.begin_tx_application' class='fnname'>begin_tx_application</a>(&amp;self) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></h3><div class='docblock'><p>Begin (or prepare) the underlying storage layer for a new Mentat transaction.</p>
+<p>Use this to create temporary tables, prepare indices, set pragmas, etc, before the initial
+<code>insert_non_fts_searches</code> invocation.</p>
+</div><h3 id='tymethod.insert_non_fts_searches' class='method'><span id='insert_non_fts_searches.v' class='invisible'><code>fn <a href='#tymethod.insert_non_fts_searches' class='fnname'>insert_non_fts_searches</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entities: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="type" href="../../mentat_db/db/type.ReducedEntity.html" title="type mentat_db::db::ReducedEntity">ReducedEntity</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;search_type: <a class="enum" href="../../mentat_db/db/enum.SearchType.html" title="enum mentat_db::db::SearchType">SearchType</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></h3><h3 id='tymethod.insert_fts_searches' class='method'><span id='insert_fts_searches.v' class='invisible'><code>fn <a href='#tymethod.insert_fts_searches' class='fnname'>insert_fts_searches</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entities: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="type" href="../../mentat_db/db/type.ReducedEntity.html" title="type mentat_db::db::ReducedEntity">ReducedEntity</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;search_type: <a class="enum" href="../../mentat_db/db/enum.SearchType.html" title="enum mentat_db::db::SearchType">SearchType</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></h3><h3 id='tymethod.commit_transaction' class='method'><span id='commit_transaction.v' class='invisible'><code>fn <a href='#tymethod.commit_transaction' class='fnname'>commit_transaction</a>(&amp;self, tx_id: <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></h3><div class='docblock'><p>Finalize the underlying storage layer after a Mentat transaction.</p>
+<p>Use this to finalize temporary tables, complete indices, revert pragmas, etc, after the
+final <code>insert_non_fts_searches</code> invocation.</p>
+</div><h3 id='tymethod.committed_metadata_assertions' class='method'><span id='committed_metadata_assertions.v' class='invisible'><code>fn <a href='#tymethod.committed_metadata_assertions' class='fnname'>committed_metadata_assertions</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;tx_id: <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>, <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>, <a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;&gt;</code></span></h3><div class='docblock'><p>Extract metadata-related [e a typed_value added] datoms committed in the given transaction.</p>
+</div></div>
+                <h2 id='foreign-impls' class='small-section-header'>
+                  Implementations on Foreign Types<a href='#foreign-impls' class='anchor'></a>
+                </h2>
+            <h3 id='impl-MentatStoring' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="../../mentat_db/db/trait.MentatStoring.html" title="trait mentat_db::db::MentatStoring">MentatStoring</a> for Connection</code><a href='#impl-MentatStoring' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#637-968' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><span class='docblock autohide'><div class='impl-items'><h4 id='method.resolve_avs' class="method"><span id='resolve_avs.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.resolve_avs' class='fnname'>resolve_avs</a>&lt;'a&gt;(&amp;self, avs: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a>&amp;'a <a class="type" href="../../mentat_db/types/type.AVPair.html" title="type mentat_db::types::AVPair">AVPair</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="type" href="../../mentat_db/types/type.AVMap.html" title="type mentat_db::types::AVMap">AVMap</a>&lt;'a&gt;&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#638-702' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.begin_tx_application' class="method"><span id='begin_tx_application.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.begin_tx_application' class='fnname'>begin_tx_application</a>(&amp;self) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#705-764' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Create empty temporary tables for search parameters and search results.</p>
+</div><h4 id='method.insert_non_fts_searches' class="method"><span id='insert_non_fts_searches.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.insert_non_fts_searches' class='fnname'>insert_non_fts_searches</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entities: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="type" href="../../mentat_db/db/type.ReducedEntity.html" title="type mentat_db::db::ReducedEntity">ReducedEntity</a>&lt;'a&gt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;search_type: <a class="enum" href="../../mentat_db/db/enum.SearchType.html" title="enum mentat_db::db::SearchType">SearchType</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#770-829' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Insert search rows into temporary search tables.</p>
+<p>Eventually, the details of this approach will be captured in
+https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.</p>
+</div><h4 id='method.insert_fts_searches' class="method"><span id='insert_fts_searches.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.insert_fts_searches' class='fnname'>insert_fts_searches</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entities: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="type" href="../../mentat_db/db/type.ReducedEntity.html" title="type mentat_db::db::ReducedEntity">ReducedEntity</a>&lt;'a&gt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;search_type: <a class="enum" href="../../mentat_db/db/enum.SearchType.html" title="enum mentat_db::db::SearchType">SearchType</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#835-947' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Insert search rows into temporary search tables.</p>
+<p>Eventually, the details of this approach will be captured in
+https://github.com/mozilla/mentat/wiki/Transacting:-entity-to-SQL-translation.</p>
+</div><h4 id='method.commit_transaction' class="method"><span id='commit_transaction.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.commit_transaction' class='fnname'>commit_transaction</a>(&amp;self, tx_id: <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#949-954' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.committed_metadata_assertions' class="method"><span id='committed_metadata_assertions.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.committed_metadata_assertions' class='fnname'>committed_metadata_assertions</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;tx_id: <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>, <a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>, <a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#956-967' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4></div></span>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript">window.inlined_types=new Set([]);</script><script type="text/javascript" async
+                         src="../../implementors/mentat_db/db/trait.MentatStoring.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

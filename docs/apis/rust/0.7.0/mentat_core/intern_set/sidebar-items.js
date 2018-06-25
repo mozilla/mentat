@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["InternSet","An `InternSet` allows to \"intern\" some potentially large values, maintaining a single value instance owned by the `InternSet` and leaving consumers with lightweight ref-counted handles to the large owned value.  This can avoid expensive clone() operations."]]});

@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Classes  Reference</title>
+    <link rel="stylesheet" type="text/css" href="css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="css/highlight.css" />
+    <meta charset='utf-8'>
+    <script src="js/jquery.min.js" defer></script>
+    <script src="js/jazzy.js" defer></script>
+    
+  </head>
+  <body>
+    <a name="//apple_ref/swift/Section/Classes" class="dashAnchor"></a>
+    <a title="Classes  Reference"></a>
+    <header>
+      <div class="content-wrapper">
+        <p><a href="index.html"> Docs</a> (74% documented)</p>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <p id="breadcrumbs">
+        <a href="index.html"> Reference</a>
+        <img id="carat" src="img/carat.png" />
+        Classes  Reference
+      </p>
+    </div>
+    <div class="content-wrapper">
+      <nav class="sidebar">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a href="Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="Classes/ColResult.html">ColResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/ColResultIterator.html">ColResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/EntityBuilder.html">EntityBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/InProgress.html">InProgress</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/InProgressBuilder.html">InProgressBuilder</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/Mentat.html">Mentat</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/OptionalRustObject.html">OptionalRustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/Query.html">Query</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/RelResult.html">RelResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/RelResultIterator.html">RelResultIterator</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/RustObject.html">RustObject</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/TupleResult.html">TupleResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/TxReport.html">TxReport</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Classes/TypedValue.html">TypedValue</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="Enums.html">Enumerations</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="Enums/CacheDirection.html">CacheDirection</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Enums/PointerError.html">PointerError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Enums/QueryError.html">QueryError</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Enums/ResultError.html">ResultError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="Extensions.html">Extensions</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="Extensions/Date.html">Date</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Extensions/Result.html">Result</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="Protocols.html">Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="Protocols/Observable.html">Observable</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Protocols/Observing.html">Observing</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="Structs.html">Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="Structs.html#/s:6Mentat0A5ErrorV">MentatError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="Typealiases.html">Type Aliases</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="Typealiases.html#/s:6Mentat5Entida">Entid</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+        <section>
+          <section class="section">
+            <h1>Classes</h1>
+            <p>The following classes are available globally.</p>
+
+          </section>
+          <section class="section task-group-section">
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat10TypedValueC"></a>
+                    <a name="//apple_ref/swift/Class/TypedValue" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat10TypedValueC">TypedValue</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>A wrapper around Mentat&rsquo;s <code>TypedValue</code> Rust object. This class wraps a raw pointer to a Rust <code>TypedValue</code>
+struct and provides accessors to the values according to expected result type.</p>
+
+<p>As the FFI functions for fetching values are consuming, this class keeps a copy of the result internally after
+fetching so that the value can be referenced several times.</p>
+
+<p>Also, due to the consuming nature of the FFI layer, this class also manages it&rsquo;s raw pointer, nilling it after calling the
+FFI conversion function so that the underlying base class can manage cleanup.</p>
+
+                        <a href="Classes/TypedValue.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">TypedValue</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6MentatAAC"></a>
+                    <a name="//apple_ref/swift/Class/Mentat" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6MentatAAC">Mentat</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>The primary class for accessing Mentat&rsquo;s API.
+This class provides all of the basic API that can be found in Mentat&rsquo;s Store struct.
+The raw pointer it holds is a pointer to a Store.</p>
+
+                        <a href="Classes/Mentat.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">Mentat</span> <span class="p">:</span> <span class="kt"><a href="Classes/RustObject.html">RustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat5QueryC"></a>
+                    <a name="//apple_ref/swift/Class/Query" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat5QueryC">Query</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>This class allows you to construct a query, bind values to variables and run those queries against a mentat DB.</p>
+
+<p>This class cannot be created directly, but must be created through <code>Mentat.query(String:)</code>.</p>
+
+<p>The types of values you can bind are</p>
+
+<ul>
+<li><code>Int64</code></li>
+<li><code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code></li>
+<li><code>Keyword</code></li>
+<li><code>Bool</code></li>
+<li><code>Double</code></li>
+<li><code>Date</code></li>
+<li><code>String</code></li>
+<li><code>UUID</code>.</li>
+</ul>
+
+<p>Each bound variable must have a corresponding value in the query string used to create this query.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">query</span> <span class="o">=</span> <span class="s">"""
+           [:find ?name ?cat
+            :in ?type
+            :where
+            [?c :community/name ?name]
+            [?c :community/type ?type]
+            [?c :community/category ?cat]]
+           """</span>
+<span class="n">mentat</span><span class="o">.</span><span class="nf">query</span><span class="p">(</span><span class="nv">query</span><span class="p">:</span> <span class="n">query</span><span class="p">)</span>
+       <span class="o">.</span><span class="nf">bind</span><span class="p">(</span><span class="nv">varName</span><span class="p">:</span> <span class="s">"?type"</span><span class="p">,</span> <span class="nv">toKeyword</span><span class="p">:</span> <span class="s">":community.type/website"</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">run</span> <span class="p">{</span> <span class="n">result</span> <span class="k">in</span>
+            <span class="o">...</span>
+        <span class="p">}</span>
+</code></pre>
+
+<p>Queries can be run and the results returned in a number of different formats. Individual result values are returned as <code>TypedValues</code> and
+the format differences relate to the number and structure of those values. The result format is related to the format provided in the query string.</p>
+
+<ul>
+<li><code>Rel</code> - This is the default <code>run</code> function and returns a list of rows of values. Queries that wish to have <code>Rel</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find ?a ?b ?c
+         : where ... ]
+       &quot;&quot;&quot;
+mentat.query(query: query)
+.run { result in
+   ...
+}
+</code></li>
+<li><code>Scalar</code> - This returns a single value as a result. This can be optional, as the value may not be present. Queries that wish to have <code>Scalar</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find ?a .
+         : where ... ]
+        &quot;&quot;&quot;
+mentat.query(query: query)
+.runScalar { result in
+   ...
+}
+</code></li>
+<li><code>Coll</code> - This returns a list of single values as a result.  Queries that wish to have <code>Coll</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find [?a ...]
+         : where ... ]
+        &quot;&quot;&quot;
+mentat.query(query: query)
+    .runColl { result in
+       ...
+    }
+</code></li>
+<li><code>Tuple</code> - This returns a single row of values.  Queries that wish to have <code>Tuple</code> results should format their query strings:
+<code>
+let query = &quot;&quot;&quot;
+        [: find [?a ?b ?c]
+         : where ... ]
+       &quot;&quot;&quot;
+mentat.query(query: query)
+.runTuple { result in
+   ...
+}
+</code></li>
+</ul>
+
+                        <a href="Classes/Query.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">Query</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat9RelResultC"></a>
+                    <a name="//apple_ref/swift/Class/RelResult" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat9RelResultC">RelResult</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Wraps a <code>Rel</code> result from a Mentat query.
+A <code>Rel</code> result is a list of rows of <code>TypedValues</code>.
+Individual rows can be fetched or the set can be iterated.</p>
+
+<p>To fetch individual rows from a <code>RelResult</code> use <code>row(Int32)</code>.</p>
+<pre class="highlight swift"><code><span class="n">query</span><span class="o">.</span><span class="n">run</span> <span class="p">{</span> <span class="n">rows</span> <span class="k">in</span>
+   <span class="k">let</span> <span class="nv">row1</span> <span class="o">=</span> <span class="n">rows</span><span class="o">.</span><span class="nf">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+   <span class="k">let</span> <span class="nv">row2</span> <span class="o">=</span> <span class="n">rows</span><span class="o">.</span><span class="nf">row</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>To iterate over the result set use standard iteration flows.</p>
+<pre class="highlight swift"><code><span class="n">query</span><span class="o">.</span><span class="n">run</span> <span class="p">{</span> <span class="n">rows</span> <span class="k">in</span>
+    <span class="n">rows</span><span class="o">.</span><span class="n">forEach</span> <span class="p">{</span> <span class="n">row</span> <span class="k">in</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>Note that iteration is consuming and can only be done once.</p>
+
+                        <a href="Classes/RelResult.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">RelResult</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17RelResultIteratorC"></a>
+                    <a name="//apple_ref/swift/Class/RelResultIterator" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17RelResultIteratorC">RelResultIterator</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Iterator for <code><a href="Classes/RelResult.html">RelResult</a></code>.</p>
+
+<p>To iterate over the result set use standard iteration flows.</p>
+<pre class="highlight swift"><code><span class="n">query</span><span class="o">.</span><span class="n">run</span> <span class="p">{</span> <span class="n">result</span> <span class="k">in</span>
+    <span class="n">rows</span><span class="o">.</span><span class="n">forEach</span> <span class="p">{</span> <span class="n">row</span> <span class="k">in</span>
+       <span class="o">...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>Note that iteration is consuming and can only be done once.</p>
+
+                        <a href="Classes/RelResultIterator.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">RelResultIterator</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span><span class="p">,</span> <span class="kt">IteratorProtocol</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat11TupleResultC"></a>
+                    <a name="//apple_ref/swift/Class/TupleResult" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat11TupleResultC">TupleResult</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Wraps a <code>Tuple</code> result from a Mentat query.
+A <code>Tuple</code> result is a list of <code>TypedValues</code>.
+Individual values can be fetched as <code>TypedValues</code> or converted into a requested type.</p>
+
+<p>Values can be fetched as one of the following types:</p>
+
+<ul>
+<li><code><a href="Classes/TypedValue.html">TypedValue</a></code></li>
+<li><code>Int64</code></li>
+<li><code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code></li>
+<li><code>Keyword</code></li>
+<li><code>Bool</code></li>
+<li><code>Double</code></li>
+<li><code>Date</code></li>
+<li><code>String</code></li>
+<li><code>UUID</code>.</li>
+</ul>
+
+                        <a href="Classes/TupleResult.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">TupleResult</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat9ColResultC"></a>
+                    <a name="//apple_ref/swift/Class/ColResult" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat9ColResultC">ColResult</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Wraps a <code>Coll</code> result from a Mentat query.
+A <code>Coll</code> result is a list of rows of single values of type <code><a href="Classes/TypedValue.html">TypedValue</a></code>.
+Values for individual rows can be fetched as <code><a href="Classes/TypedValue.html">TypedValue</a></code> or converted into a requested type.</p>
+
+<p>Row values can be fetched as one of the following types:</p>
+
+<ul>
+<li><code><a href="Classes/TypedValue.html">TypedValue</a></code></li>
+<li><code>Int64</code></li>
+<li><code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code></li>
+<li><code>Keyword</code></li>
+<li><code>Bool</code></li>
+<li><code>Double</code></li>
+<li><code>Date</code></li>
+<li><code>String</code></li>
+<li><code>UUID</code>.</li>
+</ul>
+
+                        <a href="Classes/ColResult.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">ColResult</span> <span class="p">:</span> <span class="kt"><a href="Classes/TupleResult.html">TupleResult</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17ColResultIteratorC"></a>
+                    <a name="//apple_ref/swift/Class/ColResultIterator" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17ColResultIteratorC">ColResultIterator</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Iterator for <code><a href="Classes/ColResult.html">ColResult</a></code>.</p>
+
+<p>To iterate over the result set use standard iteration flows.</p>
+<pre class="highlight swift"><code><span class="n">query</span><span class="o">.</span><span class="n">runColl</span> <span class="p">{</span> <span class="n">rows</span> <span class="k">in</span>
+    <span class="n">rows</span><span class="o">.</span><span class="n">forEach</span> <span class="p">{</span> <span class="n">value</span> <span class="k">in</span>
+       <span class="o">...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>Note that iteration is consuming and can only be done once.</p>
+
+                        <a href="Classes/ColResultIterator.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">ColResultIterator</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span><span class="p">,</span> <span class="kt">IteratorProtocol</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat18OptionalRustObjectC"></a>
+                    <a name="//apple_ref/swift/Class/OptionalRustObject" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat18OptionalRustObjectC">OptionalRustObject</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Base class that wraps an optional <code>OpaquePointer</code> representing a pointer to a Rust object.
+This class should be used to wrap Rust pointer that point to consuming structs, that is, calling a function
+for that Rust pointer, will cause Rust to destroy the pointer, leaving the Swift pointer dangling.
+These classes are responsible for ensuring that their raw <code>OpaquePointer</code> are <code>nil</code>led after calling a consuming
+FFI function.
+This class provides cleanup functions on deinit, ensuring that all classes
+that inherit from it will have their <code>OpaquePointer</code> destroyed when the Swift wrapper is destroyed.
+If a class does not override <code>cleanup</code> then a <code>fatalError</code> is thrown.
+The optional pointer is managed here such that is the pointer is nil, then the cleanup function is not called
+ensuring that we do not double free the pointer on exit.</p>
+
+                        <a href="Classes/OptionalRustObject.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">OptionalRustObject</span> <span class="p">:</span> <span class="kt">Destroyable</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat10RustObjectC"></a>
+                    <a name="//apple_ref/swift/Class/RustObject" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat10RustObjectC">RustObject</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Base class that wraps an non-optional <code>OpaquePointer</code> representing a pointer to a Rust object.
+This class provides cleanup functions on deinit, ensuring that all classes
+that inherit from it will have their <code>OpaquePointer</code> destroyed when the Swift wrapper is destroyed.
+If a class does not override <code>cleanup</code> then a <code>fatalError</code> is thrown.</p>
+
+                        <a href="Classes/RustObject.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">RustObject</span> <span class="p">:</span> <span class="kt">Destroyable</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat13EntityBuilderC"></a>
+                    <a name="//apple_ref/swift/Class/EntityBuilder" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat13EntityBuilderC">EntityBuilder</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>This class wraps a raw pointer that points to a Rust <code>EntityBuilder&lt;InProgressBuilder&gt;</code> object.</p>
+
+<p><code>EntityBuilder</code> provides a programmatic interface to performing assertions on a specific entity.
+It provides functions for adding and retracting values for attributes for an entity within
+an in progress transaction.</p>
+
+<p>The <code>transact</code> function will transact the assertions that have been added to the <code>EntityBuilder</code>
+and pass back the <code><a href="Classes/TxReport.html">TxReport</a></code> that was generated by this transact and the <code><a href="Classes/InProgress.html">InProgress</a></code> that was
+used to perform the transact. This enables you to perform further transacts on the same <code><a href="Classes/InProgress.html">InProgress</a></code>
+before committing.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+<span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+<span class="k">do</span> <span class="p">{</span>
+   <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">entityBuilder</span><span class="p">(</span><span class="nv">forEntid</span><span class="p">:</span> <span class="n">bEntid</span><span class="p">)</span>
+   <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+   <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+   <span class="k">let</span> <span class="p">(</span><span class="nv">inProgress</span><span class="p">,</span> <span class="nv">report</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">transact</span><span class="p">()</span>
+   <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add </span><span class="se">\(</span><span class="n">aEntid</span><span class="se">)</span><span class="s"> :foo/long 22]]"</span><span class="p">)</span>
+   <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+   <span class="o">...</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>The <code>commit</code> function will transact and commit the assertions that have been added to the <code>EntityBuilder</code>.
+It will consume the <code><a href="Classes/InProgress.html">InProgress</a></code> used to perform the transact. It returns the <code><a href="Classes/TxReport.html">TxReport</a></code> generated by
+the transact. After calling <code>commit</code>, a new transaction must be started by calling <code><a href="Classes/Mentat.html#/s:6MentatAAC16beginTransactionAA10InProgressCyKF">Mentat.beginTransaction()</a></code>
+in order to perform further actions.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+<span class="k">do</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">entityBuilder</span><span class="p">(</span><span class="nv">forEntid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">report</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+    <span class="o">...</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+   <span class="o">...</span>
+<span class="p">}</span>
+</code></pre>
+
+                        <a href="Classes/EntityBuilder.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">EntityBuilder</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat10InProgressC"></a>
+                    <a name="//apple_ref/swift/Class/InProgress" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat10InProgressC">InProgress</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>This class wraps a raw pointer that points to a Rust <code>InProgress</code> object.</p>
+
+<p><code>InProgress</code> allows for multiple transacts to be performed in a single transaction.
+ Each transact performed results in a <code><a href="Classes/TxReport.html">TxReport</a></code> that can be used to gather information
+ to be used in subsequent transacts.</p>
+
+<p>Committing an <code>InProgress</code> commits all the transacts that have been performed using
+ that <code>InProgress</code>.</p>
+
+<p>Rolling back and <code>InProgress</code> rolls back all the transacts that have been performed
+ using that <code>InProgress</code>.</p>
+<pre class="highlight swift"><code> <span class="k">do</span> <span class="p">{</span>
+     <span class="k">let</span> <span class="nv">inProgress</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">beginTransaction</span><span class="p">()</span>
+     <span class="k">let</span> <span class="nv">txReport</span> <span class="o">=</span> <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add "</span><span class="n">a</span><span class="s">" :foo/long 22]]"</span><span class="p">)</span>
+     <span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+     <span class="k">let</span> <span class="nv">report</span> <span class="o">=</span> <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add "</span><span class="n">b</span><span class="s">" :foo/ref </span><span class="se">\(</span><span class="n">aEntid</span><span class="se">)</span><span class="s">] [:db/add "</span><span class="n">b</span><span class="s">" :foo/boolean true]]"</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+ <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="o">...</span>
+ <span class="p">}</span>
+</code></pre>
+
+<p><code>InProgress</code> also provides a number of functions to generating an builder to assert datoms programatically.
+ The two types of builder are <code><a href="Classes/InProgressBuilder.html">InProgressBuilder</a></code> and <code><a href="Classes/EntityBuilder.html">EntityBuilder</a></code>.</p>
+
+<p><code><a href="Classes/InProgressBuilder.html">InProgressBuilder</a></code> takes the current <code>InProgress</code> and provides a programmatic interface to add
+ and retract values from entities for which there exists an <code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code>. The provided <code>InProgress</code>
+ is used to perform the transacts.</p>
+<pre class="highlight swift"><code> <span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+ <span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+ <span class="k">do</span> <span class="p">{</span>
+     <span class="k">let</span> <span class="nv">inProgress</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">beginTransaction</span><span class="p">()</span>
+     <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">builder</span><span class="p">()</span>
+     <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">bEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+     <span class="k">let</span> <span class="p">(</span><span class="nv">inProgress</span><span class="p">,</span> <span class="nv">report</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">transact</span><span class="p">()</span>
+     <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add </span><span class="se">\(</span><span class="n">aEntid</span><span class="se">)</span><span class="s"> :foo/long 22]]"</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+ <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="o">...</span>
+ <span class="p">}</span>
+</code></pre>
+
+<p><code><a href="Classes/EntityBuilder.html">EntityBuilder</a></code> takes the current <code>InProgress</code> and either an <code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code> or a <code>tempid</code> to provide
+ a programmatic interface to add and retract values from a specific entity. The provided <code>InProgress</code>
+ is used to perform the transacts.</p>
+<pre class="highlight swift"><code> <span class="k">do</span> <span class="p">{</span>
+     <span class="k">let</span> <span class="nv">transaction</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">beginTransaction</span><span class="p">()</span>
+     <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">transaction</span><span class="o">.</span><span class="nf">builder</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+     <span class="k">let</span> <span class="p">(</span><span class="nv">inProgress</span><span class="p">,</span> <span class="nv">report</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">transact</span><span class="p">()</span>
+     <span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">report</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add </span><span class="se">\(</span><span class="n">bEntid</span><span class="se">)</span><span class="s"> :foo/long 22]]"</span><span class="p">)</span>
+     <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+ <span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+    <span class="o">...</span>
+ <span class="p">}</span>
+</code></pre>
+
+                        <a href="Classes/InProgress.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">InProgress</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat17InProgressBuilderC"></a>
+                    <a name="//apple_ref/swift/Class/InProgressBuilder" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat17InProgressBuilderC">InProgressBuilder</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>This class wraps a raw pointer that points to a Rust <code>InProgressBuilder</code> object.</p>
+
+<p><code>InProgressBuilder</code> provides a programmatic interface to performing assertions for entities.
+It provides functions for adding and retracting values for attributes for an entity within
+an in progress transaction.</p>
+
+<p>The <code>transact</code> function will transact the assertions that have been added to the <code>InProgressBuilder</code>
+and pass back the <code><a href="Classes/TxReport.html">TxReport</a></code> that was generated by this transact and the <code><a href="Classes/InProgress.html">InProgress</a></code> that was
+used to perform the transact. This enables you to perform further transacts on the same <code><a href="Classes/InProgress.html">InProgress</a></code>
+before committing.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+<span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+<span class="k">do</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">entityBuilder</span><span class="p">()</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">bEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+    <span class="k">let</span> <span class="p">(</span><span class="nv">inProgress</span><span class="p">,</span> <span class="nv">report</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">transact</span><span class="p">()</span>
+    <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="nv">transaction</span><span class="p">:</span> <span class="s">"[[:db/add </span><span class="se">\(</span><span class="n">aEntid</span><span class="se">)</span><span class="s"> :foo/long 22]]"</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">inProgress</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+    <span class="o">...</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+   <span class="o">...</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>The <code>commit</code> function will transact and commit the assertions that have been added to the <code><a href="Classes/EntityBuilder.html">EntityBuilder</a></code>.
+It will consume the <code><a href="Classes/InProgress.html">InProgress</a></code> used to perform the transact. It returns the <code><a href="Classes/TxReport.html">TxReport</a></code> generated by
+the transact. After calling <code>commit</code>, a new transaction must be started by calling <code><a href="Classes/Mentat.html#/s:6MentatAAC16beginTransactionAA10InProgressCyKF">Mentat.beginTransaction()</a></code>
+in order to perform further actions.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+<span class="k">let</span> <span class="nv">bEntid</span> <span class="o">=</span> <span class="n">txReport</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"b"</span><span class="p">)</span>
+<span class="k">do</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">builder</span> <span class="o">=</span> <span class="k">try</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">entityBuilder</span><span class="p">(</span><span class="nv">forEntid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">bEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/boolean"</span><span class="p">,</span> <span class="nv">boolean</span><span class="p">:</span> <span class="kc">true</span><span class="p">)</span>
+    <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">add</span><span class="p">(</span><span class="nv">entid</span><span class="p">:</span> <span class="n">aEntid</span><span class="p">,</span> <span class="nv">keyword</span><span class="p">:</span> <span class="s">":foo/instant"</span><span class="p">,</span> <span class="nv">date</span><span class="p">:</span> <span class="n">newDate</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">report</span> <span class="o">=</span> <span class="k">try</span> <span class="n">builder</span><span class="o">.</span><span class="nf">commit</span><span class="p">()</span>
+   <span class="o">...</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">{</span>
+   <span class="o">...</span>
+<span class="p">}</span>
+</code></pre>
+
+                        <a href="Classes/InProgressBuilder.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">InProgressBuilder</span> <span class="p">:</span> <span class="kt"><a href="Classes/OptionalRustObject.html">OptionalRustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:6Mentat8TxReportC"></a>
+                    <a name="//apple_ref/swift/Class/TxReport" class="dashAnchor"></a>
+                    <a class="token" href="#/s:6Mentat8TxReportC">TxReport</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>This class wraps a raw pointer that points to a Rust <code>TxReport</code> object.</p>
+
+<p>The <code>TxReport</code> contains information about a successful Mentat transaction.</p>
+
+<p>This information includes:</p>
+
+<ul>
+<li><code>txId</code> - the identifier for the transaction.</li>
+<li><code>txInstant</code> - the time that the transaction occured.</li>
+<li>a map of temporary identifiers provided in the transaction and the <code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code>s that they were mapped to,</li>
+</ul>
+
+<p>Access an <code><a href="Typealiases.html#/s:6Mentat5Entida">Entid</a></code> for a temporary identifier that was provided in the transaction can be done through <code>entid(String:)</code>.</p>
+<pre class="highlight swift"><code><span class="k">let</span> <span class="nv">report</span> <span class="o">=</span> <span class="n">mentat</span><span class="o">.</span><span class="nf">transact</span><span class="p">(</span><span class="s">"[[:db/add "</span><span class="n">a</span><span class="s">" :foo/boolean true]]"</span><span class="p">)</span>
+<span class="k">let</span> <span class="nv">aEntid</span> <span class="o">=</span> <span class="n">report</span><span class="o">.</span><span class="nf">entid</span><span class="p">(</span><span class="nv">forTempId</span><span class="p">:</span> <span class="s">"a"</span><span class="p">)</span>
+</code></pre>
+
+                        <a href="Classes/TxReport.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">open</span> <span class="kd">class</span> <span class="kt">TxReport</span> <span class="p">:</span> <span class="kt"><a href="Classes/RustObject.html">RustObject</a></span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+        <section id="footer">
+          <p>&copy; 2018 <a class="link" href="" target="_blank" rel="external"></a>. All rights reserved. (Last updated: 2018-06-21)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.9.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+        </section>
+      </article>
+    </div>
+  </body>
+</div>
+</html>

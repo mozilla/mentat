@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Either",""]],"trait":[["OptionEffect","Side-effect chaining on `Option`."],["ResultEffect","Side-effect chaining on `Result`."]]});

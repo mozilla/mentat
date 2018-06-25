@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["InputResult","Possible results from reading input from `InputReader`"]],"struct":[["InputReader","Reads input from `stdin`"]]});

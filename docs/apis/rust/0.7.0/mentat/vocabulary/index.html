@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `vocabulary` mod in crate `mentat`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, vocabulary">
+
+    <title>mentat::vocabulary - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module vocabulary</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'><a href='../index.html'>mentat</a></p><script>window.sidebarCurrent = {name: 'vocabulary', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>mentat</a>::<wbr><a class="mod" href=''>vocabulary</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat/vocabulary.rs.html#12-960' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>This module exposes an interface for programmatic management of vocabularies.</p>
+<p>A vocabulary is defined by a name, a version number, and a collection of attribute definitions.</p>
+<p>Operations on vocabularies can include migrations between versions. These are defined
+programmatically as a pair of functions, <code>pre</code> and <code>post</code>, that are invoked prior to
+an upgrade.</p>
+<p>A Mentat store exposes, via the <code>HasSchema</code> trait, operations to read
+vocabularies by name or in bulk.</p>
+<p>An in-progress transaction (<code>InProgress</code>) further exposes a trait,
+<code>VersionedStore</code>, which allows for a vocabulary definition to be
+checked for existence in the store, and transacted if needed.</p>
+<p>Typical use is the following:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="attribute">#[<span class="ident">macro_use</span>(<span class="ident">kw</span>)]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat</span>;
+
+<span class="kw">use</span> <span class="ident">mentat</span>::{
+    <span class="ident">Store</span>,
+    <span class="ident">ValueType</span>,
+};
+
+<span class="kw">use</span> <span class="ident">mentat</span>::<span class="ident">vocabulary</span>;
+<span class="kw">use</span> <span class="ident">mentat</span>::<span class="ident">vocabulary</span>::{
+    <span class="ident">Definition</span>,
+    <span class="ident">HasVocabularies</span>,
+    <span class="ident">VersionedStore</span>,
+    <span class="ident">VocabularyOutcome</span>,
+};
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">store</span> <span class="op">=</span> <span class="ident">Store</span>::<span class="ident">open</span>(<span class="string">&quot;&quot;</span>).<span class="ident">expect</span>(<span class="string">&quot;connected&quot;</span>);
+
+    {
+        <span class="comment">// Read the list of installed vocabularies.</span>
+        <span class="kw">let</span> <span class="ident">reader</span> <span class="op">=</span> <span class="ident">store</span>.<span class="ident">begin_read</span>().<span class="ident">expect</span>(<span class="string">&quot;began read&quot;</span>);
+        <span class="kw">let</span> <span class="ident">vocabularies</span> <span class="op">=</span> <span class="ident">reader</span>.<span class="ident">read_vocabularies</span>().<span class="ident">expect</span>(<span class="string">&quot;read&quot;</span>);
+        <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">vocabulary</span>) <span class="kw">in</span> <span class="ident">vocabularies</span>.<span class="ident">iter</span>() {
+            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Vocab {} is at version {}.&quot;</span>, <span class="ident">name</span>, <span class="ident">vocabulary</span>.<span class="ident">version</span>);
+            <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="kw-2">ref</span> <span class="ident">name</span>, <span class="kw-2">ref</span> <span class="ident">attr</span>) <span class="kw">in</span> <span class="ident">vocabulary</span>.<span class="ident">attributes</span>().<span class="ident">iter</span>() {
+                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  &gt;&gt; {} ({})&quot;</span>, <span class="ident">name</span>, <span class="ident">attr</span>.<span class="ident">value_type</span>);
+            }
+        }
+    }
+
+    {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">in_progress</span> <span class="op">=</span> <span class="ident">store</span>.<span class="ident">begin_transaction</span>().<span class="ident">expect</span>(<span class="string">&quot;began transaction&quot;</span>);
+
+        <span class="comment">// Make sure the core vocabulary exists.</span>
+        <span class="ident">in_progress</span>.<span class="ident">verify_core_schema</span>().<span class="ident">expect</span>(<span class="string">&quot;verified&quot;</span>);
+
+        <span class="comment">// Make sure our vocabulary is installed, and install if necessary.</span>
+        <span class="ident">in_progress</span>.<span class="ident">ensure_vocabulary</span>(<span class="kw-2">&amp;</span><span class="ident">Definition</span> {
+            <span class="ident">name</span>: <span class="macro">kw</span><span class="macro">!</span>(:<span class="ident">example</span><span class="op">/</span><span class="ident">links</span>),
+            <span class="ident">version</span>: <span class="number">1</span>,
+            <span class="ident">attributes</span>: <span class="macro">vec</span><span class="macro">!</span>[
+                (<span class="macro">kw</span><span class="macro">!</span>(:<span class="ident">link</span><span class="op">/</span><span class="ident">title</span>),
+                 <span class="ident">vocabulary</span>::<span class="ident">AttributeBuilder</span>::<span class="ident">helpful</span>()
+                   .<span class="ident">value_type</span>(<span class="ident">ValueType</span>::<span class="ident">String</span>)
+                   .<span class="ident">multival</span>(<span class="bool-val">false</span>)
+                   .<span class="ident">fulltext</span>(<span class="bool-val">true</span>)
+                   .<span class="ident">build</span>()),
+            ],
+            <span class="ident">pre</span>: <span class="ident">Definition</span>::<span class="ident">no_op</span>,
+            <span class="ident">post</span>: <span class="ident">Definition</span>::<span class="ident">no_op</span>,
+        }).<span class="ident">expect</span>(<span class="string">&quot;ensured&quot;</span>);
+
+        <span class="comment">// Now we can do stuff.</span>
+        <span class="ident">in_progress</span>.<span class="ident">transact</span>(<span class="string">&quot;[{:link/title \&quot;Title\&quot;}]&quot;</span>).<span class="ident">expect</span>(<span class="string">&quot;transacts&quot;</span>);
+        <span class="ident">in_progress</span>.<span class="ident">commit</span>().<span class="ident">expect</span>(<span class="string">&quot;commits&quot;</span>);
+    }
+}</pre>
+<p>A similar approach is taken using the
+<a href="mentat::vocabulary::VocabularyProvider">VocabularyProvider</a> trait to handle migrations across
+multiple vocabularies.</p>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="attribute/index.html"
+                                  title='mod mentat::vocabulary::attribute'>attribute</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.AttributeBuilder.html"
+                                  title='struct mentat::vocabulary::AttributeBuilder'>AttributeBuilder</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Definition.html"
+                                  title='struct mentat::vocabulary::Definition'>Definition</a></td>
+                           <td class='docblock-short'>
+                                <p>A definition of an attribute that is independent of a particular store.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.SimpleVocabularySource.html"
+                                  title='struct mentat::vocabulary::SimpleVocabularySource'>SimpleVocabularySource</a></td>
+                           <td class='docblock-short'>
+                                <p>A convenience struct to package simple <code>pre</code> and <code>post</code> functions with a collection of
+vocabulary <code>Definition</code>s.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Vocabularies.html"
+                                  title='struct mentat::vocabulary::Vocabularies'>Vocabularies</a></td>
+                           <td class='docblock-short'>
+                                <p>A collection of named <code>Vocabulary</code> instances, as retrieved from the store.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Vocabulary.html"
+                                  title='struct mentat::vocabulary::Vocabulary'>Vocabulary</a></td>
+                           <td class='docblock-short'>
+                                <p>A definition of a vocabulary as retrieved from a particular store.</p>
+
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.VocabularyCheck.html"
+                                  title='enum mentat::vocabulary::VocabularyCheck'>VocabularyCheck</a></td>
+                           <td class='docblock-short'>
+                                <p>This enum captures the various relationships between a particular vocabulary pair — one
+<code>Definition</code> and one <code>Vocabulary</code>, if present.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.VocabularyOutcome.html"
+                                  title='enum mentat::vocabulary::VocabularyOutcome'>VocabularyOutcome</a></td>
+                           <td class='docblock-short'>
+                                <p>This enum captures the outcome of attempting to ensure that a vocabulary definition is present
+and up-to-date in the store.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.HasVocabularies.html"
+                                  title='trait mentat::vocabulary::HasVocabularies'>HasVocabularies</a></td>
+                           <td class='docblock-short'>
+                                <p>This trait captures the ability to retrieve and describe stored vocabularies.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.VersionedStore.html"
+                                  title='trait mentat::vocabulary::VersionedStore'>VersionedStore</a></td>
+                           <td class='docblock-short'>
+                                <p>This trait captures the ability of a store to check and install/upgrade vocabularies.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.VocabularySource.html"
+                                  title='trait mentat::vocabulary::VocabularySource'>VocabularySource</a></td>
+                           <td class='docblock-short'>
+                                <p>Implement <code>VocabularySource</code> to have full programmatic control over how a set of <code>Definition</code>s
+are checked against and transacted into a store.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.VocabularyStatus.html"
+                                  title='trait mentat::vocabulary::VocabularyStatus'>VocabularyStatus</a></td>
+                           <td class='docblock-short'>
+                                <p><code>VocabularyStatus</code> is passed to <code>pre</code> function when attempting to add or upgrade vocabularies
+via <code>ensure_vocabularies</code>. This is how you can find the status and versions of existing
+vocabularies — you can retrieve the requested definition and the resulting <code>VocabularyCheck</code>
+by name.</p>
+
+                           </td>
+                       </tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.Datom.html"
+                                  title='type mentat::vocabulary::Datom'>Datom</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.Version.html"
+                                  title='type mentat::vocabulary::Version'>Version</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `TransactableValue` trait in crate `mentat_db`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, TransactableValue">
+
+    <title>mentat_db::types::TransactableValue - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait TransactableValue</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.into_typed_value">into_typed_value</a><a href="#tymethod.into_entity_place">into_entity_place</a><a href="#tymethod.as_tempid">as_tempid</a></div><a class="sidebar-title" href="#foreign-impls">Implementations on Foreign Types</a><div class="sidebar-links"><a href="#impl-TransactableValue">ValueAndSpan</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>types</a></p><script>window.sidebarCurrent = {name: 'TransactableValue', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>types</a>::<wbr><a class="trait" href=''>TransactableValue</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_db/types.rs.html#118-128' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust trait'>pub trait TransactableValue: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> {
+    fn <a href='#tymethod.into_typed_value' class='fnname'>into_typed_value</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;schema: &amp;<a class="struct" href="../../mentat_db/types/struct.Schema.html" title="struct mentat_db::types::Schema">Schema</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_type: <a class="enum" href="../../mentat_db/types/enum.ValueType.html" title="enum mentat_db::types::ValueType">ValueType</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.into_entity_place' class='fnname'>into_entity_place</a>(self) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="enum" href="../../edn/entities/enum.EntityPlace.html" title="enum edn::entities::EntityPlace">EntityPlace</a>&lt;Self&gt;&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.as_tempid' class='fnname'>as_tempid</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../edn/entities/enum.TempId.html" title="enum edn::entities::TempId">TempId</a>&gt;;
+}</pre></div><div class='docblock'><p>The transactor is tied to <code>edn::ValueAndSpan</code> right now, but in the future we'd like to support
+<code>TypedValue</code> directly for programmatic use.  <code>TransactableValue</code> encapsulates the interface
+value types (i.e., values in the value place) need to support to be transacted.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.into_typed_value' class='method'><span id='into_typed_value.v' class='invisible'><code>fn <a href='#tymethod.into_typed_value' class='fnname'>into_typed_value</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;schema: &amp;<a class="struct" href="../../mentat_db/types/struct.Schema.html" title="struct mentat_db::types::Schema">Schema</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;value_type: <a class="enum" href="../../mentat_db/types/enum.ValueType.html" title="enum mentat_db::types::ValueType">ValueType</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a>&gt;</code></span></h3><div class='docblock'><p>Coerce this value place into the given type.  This is where we perform schema-aware
+coercion, for example coercing an integral value into a ref where appropriate.</p>
+</div><h3 id='tymethod.into_entity_place' class='method'><span id='into_entity_place.v' class='invisible'><code>fn <a href='#tymethod.into_entity_place' class='fnname'>into_entity_place</a>(self) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="enum" href="../../edn/entities/enum.EntityPlace.html" title="enum edn::entities::EntityPlace">EntityPlace</a>&lt;Self&gt;&gt;</code></span></h3><div class='docblock'><p>Make an entity place out of this value place.  This is where we limit values in nested maps
+to valid entity places.</p>
+</div><h3 id='tymethod.as_tempid' class='method'><span id='as_tempid.v' class='invisible'><code>fn <a href='#tymethod.as_tempid' class='fnname'>as_tempid</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../edn/entities/enum.TempId.html" title="enum edn::entities::TempId">TempId</a>&gt;</code></span></h3></div>
+                <h2 id='foreign-impls' class='small-section-header'>
+                  Implementations on Foreign Types<a href='#foreign-impls' class='anchor'></a>
+                </h2>
+            <h3 id='impl-TransactableValue' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="../../mentat_db/types/trait.TransactableValue.html" title="trait mentat_db::types::TransactableValue">TransactableValue</a> for <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a></code><a href='#impl-TransactableValue' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/internal_types.rs.html#58-112' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><span class='docblock autohide'><div class='impl-items'><h4 id='method.into_typed_value' class="method"><span id='into_typed_value.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.into_typed_value' class='fnname'>into_typed_value</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;schema: &amp;<a class="struct" href="../../mentat_db/types/struct.Schema.html" title="struct mentat_db::types::Schema">Schema</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;value_type: <a class="enum" href="../../mentat_db/types/enum.ValueType.html" title="enum mentat_db::types::ValueType">ValueType</a><br>) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/internal_types.rs.html#59-61' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.into_entity_place' class="method"><span id='into_entity_place.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.into_entity_place' class='fnname'>into_entity_place</a>(self) -&gt; <a class="type" href="../../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>&lt;<a class="enum" href="../../edn/entities/enum.EntityPlace.html" title="enum edn::entities::EntityPlace">EntityPlace</a>&lt;Self&gt;&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/internal_types.rs.html#63-107' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.as_tempid' class="method"><span id='as_tempid.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.as_tempid' class='fnname'>as_tempid</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../edn/entities/enum.TempId.html" title="enum edn::entities::TempId">TempId</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/internal_types.rs.html#109-111' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4></div></span>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><table class='table-display'><tbody><tr><td><code>impl TransactableValue for <a class="enum" href="../../mentat_db/types/enum.TypedValue.html" title="enum mentat_db::types::TypedValue">TypedValue</a></code><td><div class='out-of-band'><a class='srclink' href='../../src/mentat_db/internal_types.rs.html#114-141' title='goto source code'>[src]</a></div></td></tr></tbody></table></li>
+</ul><script type="text/javascript">window.inlined_types=new Set([]);</script><script type="text/javascript" async
+                         src="../../implementors/mentat_db/types/trait.TransactableValue.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

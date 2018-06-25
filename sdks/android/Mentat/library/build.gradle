@@ -11,6 +11,9 @@ android {
         targetSdkVersion rootProject.ext.build['targetSdkVersion']
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        versionCode 0
+        versionName "0.1"
     }
     buildTypes {
         release {

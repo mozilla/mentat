@@ -1,0 +1,24 @@
+---
+layout: default
+---
+
+<div class="home">
+  {%- if page.title -%}
+    <h1 class="page-heading">{{ page.title }}</h1>
+  {%- endif -%}
+
+  {{ content }}
+
+  {%- if site.posts.size > 0 -%}
+      {% assign posts_by_cat = site.posts | group_by:"category" %}
+      {% for category in posts_by_cat %}
+        <h2>{{category.name | capitalize}}</h2>
+        <ul class="post-list">
+        {% for post in category.items %}
+          <li><a href="{{post.url | relative_url}}">{{post.title | escape}}</a></li>
+        {% endfor %}
+        </ul>
+      {% endfor %}
+  {%- endif -%}
+
+</div>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `value_and_span` mod in crate `mentat_parser_utils`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, value_and_span">
+
+    <title>mentat_parser_utils::value_and_span - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module value_and_span</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>mentat_parser_utils</a></p><script>window.sidebarCurrent = {name: 'value_and_span', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>mentat_parser_utils</a>::<wbr><a class="mod" href=''>value_and_span</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#11-795' title='goto source code'>[src]</a></span></h1><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.OfExactly.html"
+                                  title='struct mentat_parser_utils::value_and_span::OfExactly'>OfExactly</a></td>
+                           <td class='docblock-short'>
+                                <p><code>OfExactly</code> and <code>of_exactly</code> allow us to express nested parsers naturally.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.SpanPosition.html"
+                                  title='struct mentat_parser_utils::value_and_span::SpanPosition'>SpanPosition</a></td>
+                           <td class='docblock-short'>
+                                <p>A wrapper to let us order <code>edn::Span</code> in whatever way is appropriate for parsing with <code>combine</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Stream.html"
+                                  title='struct mentat_parser_utils::value_and_span::Stream'>Stream</a></td>
+                           <td class='docblock-short'>
+                                <p>A single <code>combine::Stream</code> implementation iterating <code>edn::ValueAndSpan</code> instances.  Equivalent
+to <code>combine::IteratorStream</code> as produced by <code>combine::from_iter</code>, but specialized to
+<code>edn::ValueAndSpan</code>.</p>
+
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Iter.html"
+                                  title='enum mentat_parser_utils::value_and_span::Iter'>Iter</a></td>
+                           <td class='docblock-short'>
+                                <p>An iterator specifically for iterating <code>edn::ValueAndSpan</code> instances in various ways.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Item.html"
+                                  title='trait mentat_parser_utils::value_and_span::Item'>Item</a></td>
+                           <td class='docblock-short'>
+                                <p>Things specific to parsing with <code>combine</code> and our <code>Stream</code> that need a trait to live outside of
+the <code>edn</code> crate.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.OfExactlyParsing.html"
+                                  title='trait mentat_parser_utils::value_and_span::OfExactlyParsing'>OfExactlyParsing</a></td>
+                           <td class='docblock-short'>
+                                <p>We need a trait to define <code>Parser.of</code> and have it live outside of the <code>combine</code> crate.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Streaming.html"
+                                  title='trait mentat_parser_utils::value_and_span::Streaming'>Streaming</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.any_keyword.html"
+                                  title='fn mentat_parser_utils::value_and_span::any_keyword'>any_keyword</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.any_keyword_.html"
+                                  title='fn mentat_parser_utils::value_and_span::any_keyword_'>any_keyword_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.backward_namespaced_keyword.html"
+                                  title='fn mentat_parser_utils::value_and_span::backward_namespaced_keyword'>backward_namespaced_keyword</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.backward_namespaced_keyword_.html"
+                                  title='fn mentat_parser_utils::value_and_span::backward_namespaced_keyword_'>backward_namespaced_keyword_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.forward_any_keyword.html"
+                                  title='fn mentat_parser_utils::value_and_span::forward_any_keyword'>forward_any_keyword</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.forward_any_keyword_.html"
+                                  title='fn mentat_parser_utils::value_and_span::forward_any_keyword_'>forward_any_keyword_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.forward_namespaced_keyword.html"
+                                  title='fn mentat_parser_utils::value_and_span::forward_namespaced_keyword'>forward_namespaced_keyword</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.forward_namespaced_keyword_.html"
+                                  title='fn mentat_parser_utils::value_and_span::forward_namespaced_keyword_'>forward_namespaced_keyword_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.integer.html"
+                                  title='fn mentat_parser_utils::value_and_span::integer'>integer</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.integer_.html"
+                                  title='fn mentat_parser_utils::value_and_span::integer_'>integer_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.is_valid_keyword_map_k_v.html"
+                                  title='fn mentat_parser_utils::value_and_span::is_valid_keyword_map_k_v'>is_valid_keyword_map_k_v</a></td>
+                           <td class='docblock-short'>
+                                <p>A <code>[k v]</code> pair in the map form of a keyword map must have the shape <code>[:k, [v1, v2, ...]]</code>, with
+none of <code>v1</code>, <code>v2</code>, ... a keyword: without loss of generality, we cannot represent the case
+where <code>vn</code> is a keyword <code>:l</code>, since <code>[:k v1 v2 ... :l]</code>, isn't a valid keyword map in vector
+form.  This function tests that a <code>[k v]</code> pair obeys these constraints.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.keyword_map.html"
+                                  title='fn mentat_parser_utils::value_and_span::keyword_map'>keyword_map</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.keyword_map_.html"
+                                  title='fn mentat_parser_utils::value_and_span::keyword_map_'>keyword_map_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.list.html"
+                                  title='fn mentat_parser_utils::value_and_span::list'>list</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.list_.html"
+                                  title='fn mentat_parser_utils::value_and_span::list_'>list_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.map.html"
+                                  title='fn mentat_parser_utils::value_and_span::map'>map</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.map_.html"
+                                  title='fn mentat_parser_utils::value_and_span::map_'>map_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.namespaced_keyword.html"
+                                  title='fn mentat_parser_utils::value_and_span::namespaced_keyword'>namespaced_keyword</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.namespaced_keyword_.html"
+                                  title='fn mentat_parser_utils::value_and_span::namespaced_keyword_'>namespaced_keyword_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.of_exactly.html"
+                                  title='fn mentat_parser_utils::value_and_span::of_exactly'>of_exactly</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.seq.html"
+                                  title='fn mentat_parser_utils::value_and_span::seq'>seq</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.seq_.html"
+                                  title='fn mentat_parser_utils::value_and_span::seq_'>seq_</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.vector.html"
+                                  title='fn mentat_parser_utils::value_and_span::vector'>vector</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.vector_.html"
+                                  title='fn mentat_parser_utils::value_and_span::vector_'>vector_</a></td>
+                           <td class='docblock-short'>
+                                <p>Shorthands, just enough to convert the <code>mentat_db</code> crate for now.  Written using <code>Box</code> for now:
+it's simple and we can address allocation issues if and when they surface.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_parser_utils";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

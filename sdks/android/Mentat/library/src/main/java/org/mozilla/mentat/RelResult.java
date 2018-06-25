@@ -19,7 +19,7 @@ import com.sun.jna.Pointer;
  * </p>
  * To fetch individual rows from a `RelResult` use `row(Int32)`.
  * </p>
- * <pre>{@code
+ * <pre>
  * mentat.query(query).run(new RelResultHandler() {
  *      @Override
  *      public void handleRows(RelResult rows) {
@@ -28,10 +28,10 @@ import com.sun.jna.Pointer;
  *          ...
  *      }
  * });
- *}</pre>
+ *</pre>
  * </p>
  * To iterate over the result set use standard iteration flows.
- * <pre>{@code
+ * <pre>
  * mentat.query(query).run(new RelResultHandler() {
  *      @Override
  *      public void handleRows(RelResult rows) {
@@ -40,7 +40,7 @@ import com.sun.jna.Pointer;
  *          }
  *      }
  * });
- *}</pre>
+ *</pre>
  * </p>
  * Note that iteration is consuming and can only be done once.
  */
