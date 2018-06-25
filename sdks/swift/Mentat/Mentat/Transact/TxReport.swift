@@ -52,7 +52,9 @@ open class TxReport: RustObject {
         guard let entidPtr = tx_report_entity_for_temp_id(self.raw, tempId) else {
             return nil
         }
-        return entidPtr.pointee
+        let entid = entidPtr.pointee;
+        destroy(entidPtr);
+        return entid
     }
 
     override open func cleanup(pointer: OpaquePointer) {

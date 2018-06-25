@@ -10,8 +10,6 @@
 
 package org.mozilla.mentat;
 
-import com.sun.jna.Pointer;
-
 /**
  * Wraps a `Rel` result from a Mentat query.
  * A `Rel` result is a list of rows of `TypedValues`.
@@ -44,10 +42,10 @@ import com.sun.jna.Pointer;
  * </p>
  * Note that iteration is consuming and can only be done once.
  */
-public class RelResult extends RustObject implements Iterable<TupleResult> {
+public class RelResult extends RustObject<JNA.RelResult> implements Iterable<TupleResult> {
 
-    public RelResult(Pointer pointer) {
-        this.rawPointer = pointer;
+    public RelResult(JNA.RelResult pointer) {
+        super(pointer);
     }
 
     /**
@@ -57,8 +55,8 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
      * @return  The row at the requested index as a `TupleResult`, if present, or nil if there is no row at that index.
      */
     public TupleResult rowAtIndex(int index) {
-        this.validate();
-        Pointer pointer = JNA.INSTANCE.row_at_index(this.rawPointer, index);
+        this.assertValidPointer();
+        JNA.TypedValueList pointer = JNA.INSTANCE.row_at_index(this.validPointer(), index);
         if (pointer == null) {
             return null;
         }
@@ -68,19 +66,12 @@ public class RelResult extends RustObject implements Iterable<TupleResult> {
 
     @Override
     public RelResultIterator iterator() {
-        this.validate();
-        Pointer iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.rawPointer);
-        this.rawPointer = null;
-        if (iterPointer == null) {
-            return null;
-        }
+        JNA.RelResultIter iterPointer = JNA.INSTANCE.typed_value_result_set_into_iter(this.consumePointer());
         return new RelResultIterator(iterPointer);
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_result_set_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(JNA.RelResult p) {
+        JNA.INSTANCE.typed_value_result_set_destroy(p);
     }
 }

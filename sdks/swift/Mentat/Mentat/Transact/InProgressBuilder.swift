@@ -73,7 +73,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/long`.
      */
     open func add(entid: Entid, keyword: String, long value: Int64) throws {
-        try in_progress_builder_add_long(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_long(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -89,7 +91,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/ref`.
      */
     open func add(entid: Entid, keyword: String, reference value: Entid) throws {
-        try in_progress_builder_add_ref(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_ref(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -105,7 +109,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/keyword`.
      */
     open func add(entid: Entid, keyword: String, keyword value: String) throws {
-        try in_progress_builder_add_keyword(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_keyword(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -121,7 +127,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/boolean`.
      */
     open func add(entid: Entid, keyword: String, boolean value: Bool) throws {
-        try in_progress_builder_add_boolean(try self.validPointer(), entid, keyword, value ? 1 : 0).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_boolean(try self.validPointer(), entid, keyword, value ? 1 : 0, err)
+        })
     }
 
     /**
@@ -137,7 +145,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/double`.
      */
     open func add(entid: Entid, keyword: String, double value: Double) throws {
-        try in_progress_builder_add_double(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_double(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -153,7 +163,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/instant`.
      */
     open func add(entid: Entid, keyword: String, date value: Date) throws {
-        try in_progress_builder_add_timestamp(try self.validPointer(), entid, keyword, value.toMicroseconds()).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_timestamp(try self.validPointer(), entid, keyword, value.toMicroseconds(), err)
+        })
     }
 
     /**
@@ -169,7 +181,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/string`.
      */
     open func add(entid: Entid, keyword: String, string value: String) throws {
-        try in_progress_builder_add_string(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_add_string(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -187,7 +201,9 @@ open class InProgressBuilder: OptionalRustObject {
     open func add(entid: Entid, keyword: String, uuid value: UUID) throws {
         var rawUuid = value.uuid
         let _ = try withUnsafePointer(to: &rawUuid) { uuidPtr in
-            try in_progress_builder_add_uuid(try self.validPointer(), entid, keyword, uuidPtr).pointee.tryUnwrap()
+            try RustError.withErrorCheck({ err in
+                in_progress_builder_add_uuid(try self.validPointer(), entid, keyword, uuidPtr, err)
+            })
         }
     }
 
@@ -204,7 +220,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/long`.
      */
     open func retract(entid: Entid, keyword: String, long value: Int64) throws {
-        try in_progress_builder_retract_long(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_long(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -220,7 +238,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/ref`.
      */
     open func retract(entid: Entid, keyword: String, reference value: Entid) throws {
-        try in_progress_builder_retract_ref(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_ref(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -236,7 +256,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/keyword`.
      */
     open func retract(entid: Entid, keyword: String, keyword value: String) throws {
-        try in_progress_builder_retract_keyword(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_keyword(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -252,7 +274,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/boolean`.
      */
     open func retract(entid: Entid, keyword: String, boolean value: Bool) throws {
-        try in_progress_builder_retract_boolean(try self.validPointer(), entid, keyword, value ? 1 : 0).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_boolean(try self.validPointer(), entid, keyword, value ? 1 : 0, err)
+        })
     }
 
     /**
@@ -268,7 +292,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/double`.
      */
     open func retract(entid: Entid, keyword: String, double value: Double) throws {
-        try in_progress_builder_retract_double(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_double(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -284,7 +310,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/instant`.
      */
     open func retract(entid: Entid, keyword: String, date value: Date) throws {
-        try in_progress_builder_retract_timestamp(try self.validPointer(), entid, keyword, value.toMicroseconds()).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_timestamp(try self.validPointer(), entid, keyword, value.toMicroseconds(), err)
+        })
     }
 
     /**
@@ -300,7 +328,9 @@ open class InProgressBuilder: OptionalRustObject {
      is not `:db.type/string`.
      */
     open func retract(entid: Entid, keyword: String, string value: String) throws {
-        try in_progress_builder_retract_string(try self.validPointer(), entid, keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            in_progress_builder_retract_string(try self.validPointer(), entid, keyword, value, err)
+        })
     }
 
     /**
@@ -318,7 +348,9 @@ open class InProgressBuilder: OptionalRustObject {
     open func retract(entid: Entid, keyword: String, uuid value: UUID) throws {
         var rawUuid = value.uuid
         let _ = try withUnsafePointer(to: &rawUuid) { uuidPtr in
-            try in_progress_builder_retract_uuid(try self.validPointer(), entid, keyword, uuidPtr).pointee.tryUnwrap()
+            try RustError.withErrorCheck({ err in
+                in_progress_builder_retract_uuid(try self.validPointer(), entid, keyword, uuidPtr, err)
+            })
         }
     }
 
@@ -340,9 +372,12 @@ open class InProgressBuilder: OptionalRustObject {
         defer {
             self.raw = nil
         }
-        let result = in_progress_builder_transact(try self.validPointer()).pointee
-        let inProgress = InProgress(raw: result.inProgress)
-        guard let report = try result.result.pointee.tryUnwrap() else {
+        let result = in_progress_builder_transact(try self.validPointer())
+        if let errorMessage = result.error.message {
+            throw ResultError.error(message: String(destroyingRustString: errorMessage))
+        }
+        let inProgress = InProgress(raw: result.inProgress);
+        guard let report = result.txReport else {
             return (inProgress, nil)
         }
         return (inProgress, TxReport(raw: report))
@@ -363,7 +398,9 @@ open class InProgressBuilder: OptionalRustObject {
         defer {
             self.raw = nil
         }
-        return TxReport(raw: try in_progress_builder_commit(try self.validPointer()).pointee.unwrap())
+        return TxReport(raw: try RustError.unwrap({err in
+            in_progress_builder_commit(try self.validPointer(), err)
+        }));
     }
 
     override open func cleanup(pointer: OpaquePointer) {

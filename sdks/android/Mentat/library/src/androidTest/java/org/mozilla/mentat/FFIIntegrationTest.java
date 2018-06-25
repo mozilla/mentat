@@ -1016,10 +1016,11 @@ public class FFIIntegrationTest {
         builder.addRef(bEntid, ":foo/ref", longEntid);
         InProgressTransactionResult result = builder.transact();
         assertNotNull(result);
-        assertNotNull(result.getInProgress());
+        InProgress inProgress = result.getInProgress();
+        assertNotNull(inProgress);
         assertNotNull(result.getReport());
-        result.getInProgress().transact("[[:db/add "+ aEntid +" :foo/long 22]]");
-        result.getInProgress().commit();
+        inProgress.transact("[[:db/add "+ aEntid +" :foo/long 22]]");
+        inProgress.commit();
 
         // test that the values are as expected
         String query = "[:find [?b ?i ?u ?l ?d ?s ?k ?r]\n" +
@@ -1081,10 +1082,11 @@ public class FFIIntegrationTest {
         builder.addRef(":foo/ref", longEntid);
         InProgressTransactionResult result = builder.transact();
         assertNotNull(result);
-        assertNotNull(result.getInProgress());
+        InProgress inProgress = result.getInProgress();
+        assertNotNull(inProgress);
         assertNotNull(result.getReport());
-        result.getInProgress().transact("[[:db/add "+ aEntid +" :foo/long 22]]");
-        result.getInProgress().commit();
+        inProgress.transact("[[:db/add "+ aEntid +" :foo/long 22]]");
+        inProgress.commit();
 
         // test that the values are as expected
         String query = "[:find [?b ?i ?u ?l ?d ?s ?k ?r]\n" +

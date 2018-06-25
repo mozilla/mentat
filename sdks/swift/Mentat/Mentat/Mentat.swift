@@ -77,14 +77,16 @@ open class Mentat: RustObject {
      - Throws: `ResultError.error` if an error occured while trying to cache the attribute.
      */
     open func cache(attribute: String, direction: CacheDirection) throws {
-        switch direction {
-        case .forward:
-            try store_cache_attribute_forward(self.raw, attribute).pointee.tryUnwrap()
-        case .reverse:
-            try store_cache_attribute_reverse(self.raw, attribute).pointee.tryUnwrap()
-        case .both:
-            try store_cache_attribute_bi_directional(self.raw, attribute).pointee.tryUnwrap()
-        }
+        try RustError.withErrorCheck({err in
+            switch direction {
+            case .forward:
+                store_cache_attribute_forward(self.raw, attribute, err)
+            case .reverse:
+                store_cache_attribute_reverse(self.raw, attribute, err)
+            case .both:
+                store_cache_attribute_bi_directional(self.raw, attribute, err)
+            }
+        });
     }
 
     /**
@@ -96,8 +98,7 @@ open class Mentat: RustObject {
      - Returns: The `TxReport` of the completed transaction
     */
     open func transact(transaction: String) throws -> TxReport {
-        let result = store_transact(self.raw, transaction).pointee
-        return TxReport(raw: try result.unwrap())
+        return TxReport(raw: try RustError.unwrap({err in store_transact(self.raw, transaction, err) }))
     }
 
     /**
@@ -109,8 +110,7 @@ open class Mentat: RustObject {
      - Returns: The `InProgress` used to manage the transaction
      */
     open func beginTransaction() throws -> InProgress {
-        let result = store_begin_transaction(self.raw).pointee;
-        return InProgress(raw: try result.unwrap())
+        return InProgress(raw: try RustError.unwrap({err in store_begin_transaction(self.raw, err) }));
     }
 
     /**
@@ -122,8 +122,7 @@ open class Mentat: RustObject {
      - Returns: an `InProgressBuilder` for this `InProgress`
      */
     open func entityBuilder() throws -> InProgressBuilder {
-        let result = store_in_progress_builder(self.raw).pointee
-        return InProgressBuilder(raw: try result.unwrap())
+        return InProgressBuilder(raw: try RustError.unwrap({err in store_in_progress_builder(self.raw, err) }))
     }
 
     /**
@@ -138,8 +137,8 @@ open class Mentat: RustObject {
      - Returns: an `EntityBuilder` for this `InProgress`
      */
     open func entityBuilder(forEntid entid: Entid) throws -> EntityBuilder {
-        let result = store_entity_builder_from_entid(self.raw, entid).pointee
-        return EntityBuilder(raw: try result.unwrap())
+        return EntityBuilder(raw: try RustError.unwrap({err in
+            store_entity_builder_from_entid(self.raw, entid, err) }))
     }
 
     /**
@@ -154,8 +153,9 @@ open class Mentat: RustObject {
      - Returns: an `EntityBuilder` for this `InProgress`
      */
     open func entityBuilder(forTempId tempId: String) throws -> EntityBuilder {
-        let result = store_entity_builder_from_temp_id(self.raw, tempId).pointee
-        return EntityBuilder(raw: try result.unwrap())
+        return EntityBuilder(raw: try RustError.unwrap({err in
+            store_entity_builder_from_temp_id(self.raw, tempId, err)
+        }))
     }
 
     /**
@@ -189,8 +189,9 @@ open class Mentat: RustObject {
      - Returns: The `TypedValue` containing the value of the attribute for the entity.
      */
     open func value(forAttribute attribute: String, ofEntity entid: Entid) throws -> TypedValue? {
-        let result = store_value_for_attribute(self.raw, entid, attribute).pointee
-        return TypedValue(raw: try result.unwrap())
+        return TypedValue(raw: try RustError.unwrap({err in
+            store_value_for_attribute(self.raw, entid, attribute, err)
+        }));
     }
 
     // Destroys the pointer by passing it back into Rust to be cleaned up

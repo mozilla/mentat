@@ -37,21 +37,13 @@ import java.util.UUID;
  */
 public class CollResult extends TupleResult implements Iterable<TypedValue> {
 
-    public CollResult(Pointer pointer) {
+    public CollResult(JNA.TypedValueList pointer) {
         super(pointer);
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.destroy(this.rawPointer);
-        }
-    }
-
-    @Override
     public ColResultIterator iterator() {
-        Pointer iterPointer = JNA.INSTANCE.typed_value_list_into_iter(this.rawPointer);
-        this.rawPointer = null;
+        JNA.TypedValueListIter iterPointer = JNA.INSTANCE.typed_value_list_into_iter(this.consumePointer());
         if (iterPointer == null) {
             return null;
         }

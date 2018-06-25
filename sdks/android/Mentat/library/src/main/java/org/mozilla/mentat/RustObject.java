@@ -10,32 +10,58 @@
 
 package org.mozilla.mentat;
 
+import android.util.Log;
+
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
+import com.sun.jna.PointerType;
 
-import java.io.Closeable;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
 /**
  * Base class that wraps an non-optional {@link Pointer} representing a pointer to a Rust object.
- * This class implements {@link Closeable} but does not provide an implementation, forcing all
+ * This class implements {@link AutoCloseable} but does not provide an implementation, forcing all
  * subclasses to implement it. This ensures that all classes that inherit from RustObject
  * will have their {@link Pointer} destroyed when the Java wrapper is destroyed.
  */
-abstract class RustObject implements Closeable {
-    Pointer rawPointer;
+abstract class RustObject<T extends PointerType> implements AutoCloseable {
+    // This should probably be private to let us better prevent usage mistakes (which lead to
+    // memory-unsafety).
+    private T rawPointer;
+
+    RustObject(T p) {
+        rawPointer = p;
+    }
 
     /**
      * Throws a {@link NullPointerException} if the underlying {@link Pointer} is null.
      */
-    void validate() {
-        if (this.rawPointer == null) {
+    void assertValidPointer() {
+        if (this.isConsumed()) {
             throw new NullPointerException(this.getClass() + " consumed");
         }
     }
 
-    public Pointer getPointerForUUID(UUID uuid) {
+    T validPointer() {
+        this.assertValidPointer();
+        return this.rawPointer;
+    }
+
+    boolean isConsumed() {
+        return this.rawPointer == null;
+    }
+
+    /* package-local */
+    T consumePointer() {
+        this.assertValidPointer();
+        T p = this.rawPointer;
+        this.rawPointer = null;
+        return p;
+    }
+
+    /* package-local */
+    static Pointer getPointerForUUID(UUID uuid) {
         ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
         bb.putLong(uuid.getMostSignificantBits());
         bb.putLong(uuid.getLeastSignificantBits());
@@ -45,11 +71,46 @@ abstract class RustObject implements Closeable {
         return bytesNativeArray;
     }
 
-    public UUID getUUIDFromPointer(Pointer uuidPtr) {
-        byte[] bytes = uuidPtr.getByteArray(0, 16);
-        ByteBuffer bb = ByteBuffer.wrap(bytes);
-        long high = bb.getLong();
-        long low = bb.getLong();
-        return new UUID(high, low);
+    /* package-local */
+    static UUID getAndConsumeUUIDPointer(Pointer uuidPtr) {
+        try {
+            byte[] bytes = uuidPtr.getByteArray(0, 16);
+            ByteBuffer bb = ByteBuffer.wrap(bytes);
+            long high = bb.getLong();
+            long low = bb.getLong();
+            return new UUID(high, low);
+        } finally {
+            JNA.INSTANCE.uuid_destroy(uuidPtr);
+        }
+    }
+
+    /* package-local */
+    static String getAndConsumeMentatString(Pointer stringPtr) {
+        if (stringPtr == null) {
+            return null;
+        }
+        try {
+            return stringPtr.getString(0, "utf8");
+        } finally {
+            JNA.INSTANCE.rust_c_string_destroy(stringPtr);
+        }
+    }
+
+    abstract protected void destroyPointer(T p);
+
+    @Override
+    public void close() {
+        if (this.rawPointer != null) {
+            this.destroyPointer(this.consumePointer());
+        }
+    }
+
+    @Override
+    protected void finalize() {
+        try {
+            this.close();
+        } catch (Exception e) {
+            Log.e("RustObject", e.toString());
+        }
     }
 }

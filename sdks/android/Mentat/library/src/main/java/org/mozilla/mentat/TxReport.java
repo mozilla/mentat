@@ -33,14 +33,14 @@ import java.util.Date;
  * long aEntid = report.getEntidForTempId("a");
  *}</pre>
  */
-public class TxReport extends RustObject {
+public class TxReport extends RustObject<JNA.TxReport> {
 
     private Long txId;
     private Date txInstant;
 
 
-    public TxReport(Pointer pointer) {
-        this.rawPointer = pointer;
+    public TxReport(JNA.TxReport pointer) {
+        super(pointer);
     }
 
     /**
@@ -49,7 +49,7 @@ public class TxReport extends RustObject {
      */
     public Long getTxId() {
         if (this.txId == null) {
-            this.txId = JNA.INSTANCE.tx_report_get_entid(this.rawPointer);
+            this.txId = JNA.INSTANCE.tx_report_get_entid(this.validPointer());
         }
 
         return this.txId;
@@ -61,7 +61,7 @@ public class TxReport extends RustObject {
      */
     public Date getTxInstant() {
         if (this.txInstant == null) {
-            this.txInstant = new Date(JNA.INSTANCE.tx_report_get_tx_instant(this.rawPointer));
+            this.txInstant = new Date(JNA.INSTANCE.tx_report_get_tx_instant(this.validPointer()));
         }
         return this.txInstant;
     }
@@ -72,18 +72,19 @@ public class TxReport extends RustObject {
      * @return  The `Entid` for the temporary identifier, if present, otherwise `null`.
      */
     public Long getEntidForTempId(String tempId) {
-        Pointer longPointer =  JNA.INSTANCE.tx_report_entity_for_temp_id(this.rawPointer, tempId);
+        Pointer longPointer =  JNA.INSTANCE.tx_report_entity_for_temp_id(this.validPointer(), tempId);
         if (longPointer == null) {
             return null;
         }
-
-        return longPointer.getLong(0);
+        try {
+            return longPointer.getLong(0);
+        } finally {
+            JNA.INSTANCE.destroy(longPointer);
+        }
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.tx_report_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(JNA.TxReport p) {
+        JNA.INSTANCE.tx_report_destroy(p);
     }
 }

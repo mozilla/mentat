@@ -14,7 +14,6 @@ import android.util.Log;
 
 import com.sun.jna.Pointer;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.UUID;
 
@@ -54,10 +53,10 @@ import java.util.UUID;
  * builder.commit();
  * }</pre>
  */
-public class EntityBuilder extends RustObject {
+public class EntityBuilder extends RustObject<JNA.EntityBuilder> {
 
-    public EntityBuilder(Pointer pointer) {
-        this.rawPointer = pointer;
+    public EntityBuilder(JNA.EntityBuilder pointer) {
+        super(pointer);
     }
 
     /**
@@ -66,11 +65,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_long(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_long(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -80,11 +77,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void addRef(String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_ref(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_ref(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -94,11 +89,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void addKeyword(String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_keyword(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_keyword(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -108,11 +101,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(String keyword, boolean value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_boolean(this.rawPointer, keyword, value ? 1 : 0);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_boolean(this.validPointer(), keyword, value ? 1 : 0, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -122,11 +113,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(String keyword, double value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_double(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_double(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -136,11 +125,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(String keyword, Date value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_timestamp(this.rawPointer, keyword, value.getTime() * 1_000);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_timestamp(this.validPointer(), keyword, value.getTime() * 1_000, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -150,11 +137,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_add_string(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_string(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -164,12 +149,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(String keyword, UUID value) {
-        this.validate();
-
-        RustResult result = JNA.INSTANCE.entity_builder_add_uuid(this.rawPointer, keyword, getPointerForUUID(value));
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_add_uuid(this.validPointer(), keyword, getPointerForUUID(value), err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -181,11 +163,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_long(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_long(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
 
@@ -198,11 +178,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retractRef(String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_ref(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_ref(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -214,11 +192,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retractKeyword(String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_keyword(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_keyword(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -230,11 +206,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(String keyword, boolean value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_boolean(this.rawPointer, keyword, value ? 1 : 0);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_boolean(this.validPointer(), keyword, value ? 1 : 0, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -246,11 +220,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(String keyword, double value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_double(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_double(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -262,11 +234,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(String keyword, Date value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_timestamp(this.rawPointer, keyword, value.getTime() * 1_000);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_timestamp(this.validPointer(), keyword, value.getTime() * 1_000, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -278,11 +248,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_string(this.rawPointer, keyword, value);
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_string(this.validPointer(), keyword, value, err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -294,11 +262,9 @@ public class EntityBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(String keyword, UUID value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_retract_uuid(this.rawPointer, keyword, this.getPointerForUUID(value));
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
-        }
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.INSTANCE.entity_builder_retract_uuid(this.validPointer(), keyword, getPointerForUUID(value), err);
+        err.logAndConsumeError("EntityBuilder");
     }
 
     /**
@@ -316,10 +282,7 @@ public class EntityBuilder extends RustObject {
      * the {@link TxReport}  generated by the transact.
      */
     public InProgressTransactionResult transact() {
-        this.validate();
-        InProgressTransactionResult result = JNA.INSTANCE.entity_builder_transact(this.rawPointer);
-        this.rawPointer = null;
-        return result;
+        return JNA.INSTANCE.entity_builder_transact(this.consumePointer());
     }
 
     /**
@@ -335,21 +298,17 @@ public class EntityBuilder extends RustObject {
      * @return The {@link TxReport} generated by the commit.
      */
     public TxReport commit() {
-        this.validate();
-        RustResult result = JNA.INSTANCE.entity_builder_commit(this.rawPointer);
-        this.rawPointer = null;
-        if (result.isFailure()) {
-            Log.e("EntityBuilder", result.err);
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.TxReport report = JNA.INSTANCE.entity_builder_commit(this.consumePointer(), err);
+        if (err.isFailure()) {
+            Log.e("EntityBuilder", err.consumeErrorMessage());
             return null;
         }
-
-        return new TxReport(result.ok);
+        return new TxReport(report);
     }
 
     @Override
-    public void close() throws IOException {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.entity_builder_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(JNA.EntityBuilder p) {
+        JNA.INSTANCE.entity_builder_destroy(p);
     }
 }

@@ -81,7 +81,7 @@ build.xcarchive
 ## Obj-C/Swift specific
 *.hmap
 *.ipa
-
+/sdks/swift/Mentat/External-Dependencies
 
 # Android & IntelliJ
 **/*.iml

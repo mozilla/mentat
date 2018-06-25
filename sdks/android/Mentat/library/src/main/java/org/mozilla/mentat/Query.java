@@ -12,8 +12,6 @@ package org.mozilla.mentat;
 
 import android.util.Log;
 
-import com.sun.jna.Pointer;
-
 import java.util.Date;
 import java.util.UUID;
 
@@ -106,10 +104,10 @@ import java.util.UUID;
  * });
  *</pre>
  */
-public class Query extends RustObject {
+public class Query extends RustObject<JNA.QueryBuilder> {
 
-    public Query(Pointer pointer) {
-        this.rawPointer = pointer;
+    public Query(JNA.QueryBuilder pointer) {
+        super(pointer);
     }
 
     /**
@@ -119,9 +117,9 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bind(String varName, long value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_long(this.rawPointer, varName, value);
+    public Query bind(String varName, long value) {
+        this.assertValidPointer();
+        JNA.INSTANCE.query_builder_bind_long(this.validPointer(), varName, value);
         return this;
     }
 
@@ -132,9 +130,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindEntidReference(String varName, long value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_ref(this.rawPointer, varName, value);
+    public Query bindEntidReference(String varName, long value) {
+        JNA.INSTANCE.query_builder_bind_ref(this.validPointer(), varName, value);
         return this;
     }
 
@@ -145,9 +142,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindKeywordReference(String varName, String value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_ref_kw(this.rawPointer, varName, value);
+    public Query bindKeywordReference(String varName, String value) {
+        JNA.INSTANCE.query_builder_bind_ref_kw(this.validPointer(), varName, value);
         return this;
     }
 
@@ -158,9 +154,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bindKeyword(String varName, String value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_kw(this.rawPointer, varName, value);
+    public Query bindKeyword(String varName, String value) {
+        JNA.INSTANCE.query_builder_bind_kw(this.validPointer(), varName, value);
         return this;
     }
 
@@ -171,9 +166,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bind(String varName, boolean value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_boolean(this.rawPointer, varName, value ? 1 : 0);
+    public Query bind(String varName, boolean value) {
+        JNA.INSTANCE.query_builder_bind_boolean(this.validPointer(), varName, value ? 1 : 0);
         return this;
     }
 
@@ -184,9 +178,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bind(String varName, double value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_double(this.rawPointer, varName, value);
+    public Query bind(String varName, double value) {
+        JNA.INSTANCE.query_builder_bind_double(this.validPointer(), varName, value);
         return this;
     }
 
@@ -197,10 +190,9 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bind(String varName, Date value) {
-        this.validate();
+    public Query bind(String varName, Date value) {
         long timestamp = value.getTime() * 1000;
-        JNA.INSTANCE.query_builder_bind_timestamp(this.rawPointer, varName, timestamp);
+        JNA.INSTANCE.query_builder_bind_timestamp(this.validPointer(), varName, timestamp);
         return this;
     }
 
@@ -211,9 +203,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bind(String varName, String value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_string(this.rawPointer, varName, value);
+    public Query bind(String varName, String value) {
+        JNA.INSTANCE.query_builder_bind_string(this.validPointer(), varName, value);
         return this;
     }
 
@@ -224,9 +215,8 @@ public class Query extends RustObject {
      * @param value The value to be bound
      * @return  This {@link Query} such that further function can be called.
      */
-    Query bind(String varName, UUID value) {
-        this.validate();
-        JNA.INSTANCE.query_builder_bind_uuid(this.rawPointer, varName, getPointerForUUID(value));
+    public Query bind(String varName, UUID value) {
+        JNA.INSTANCE.query_builder_bind_uuid(this.validPointer(), varName, getPointerForUUID(value));
         return this;
     }
 
@@ -236,16 +226,14 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void run(final RelResultHandler handler) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.query_builder_execute(rawPointer);
-        rawPointer = null;
-
-        if (result.isFailure()) {
-            Log.e("Query", result.err);
+    public void run(final RelResultHandler handler) {
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.RelResult relResult = JNA.INSTANCE.query_builder_execute(this.consumePointer(), error);
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
-        handler.handleRows(new RelResult(result.ok));
+        handler.handleRows(new RelResult(relResult));
     }
 
     /**
@@ -254,18 +242,17 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void run(final ScalarResultHandler handler) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.query_builder_execute_scalar(rawPointer);
-        rawPointer = null;
+    public void run(final ScalarResultHandler handler) {
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TypedValue valOrNull = JNA.INSTANCE.query_builder_execute_scalar(consumePointer(), error);
 
-        if (result.isFailure()) {
-            Log.e("Query", result.err);
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
 
-        if (result.isSuccess()) {
-            handler.handleValue(new TypedValue(result.ok));
+        if (valOrNull != null) {
+            handler.handleValue(new TypedValue(valOrNull));
         } else {
             handler.handleValue(null);
         }
@@ -277,16 +264,15 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void run(final CollResultHandler handler) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.query_builder_execute_coll(rawPointer);
-        rawPointer = null;
+    public void run(final CollResultHandler handler) {
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TypedValueList collResult = JNA.INSTANCE.query_builder_execute_coll(this.consumePointer(), error);
 
-        if (result.isFailure()) {
-            Log.e("Query", result.err);
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
-        handler.handleList(new CollResult(result.ok));
+        handler.handleList(new CollResult(collResult));
     }
 
     /**
@@ -295,28 +281,24 @@ public class Query extends RustObject {
      * TODO: Throw an exception if the query raw pointer has been consumed or the query fails to execute
      * @param handler   the handler to call with the results of this query
      */
-    void run(final TupleResultHandler handler) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.query_builder_execute_tuple(rawPointer);
-        rawPointer = null;
+    public void run(final TupleResultHandler handler) {
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TypedValueList tuple = JNA.INSTANCE.query_builder_execute_tuple(this.consumePointer(), error);
 
-        if (result.isFailure()) {
-            Log.e("Query", result.err);
+        if (error.isFailure()) {
+            Log.e("Query", error.consumeErrorMessage());
             return;
         }
 
-        if (result.isSuccess()) {
-            handler.handleRow(new TupleResult(result.ok));
+        if (tuple != null) {
+            handler.handleRow(new TupleResult(tuple));
         } else {
             handler.handleRow(null);
         }
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer == null) {
-            return;
-        }
-        JNA.INSTANCE.query_builder_destroy(this.rawPointer);
+    protected void destroyPointer(JNA.QueryBuilder p) {
+        JNA.INSTANCE.query_builder_destroy(p);
     }
 }

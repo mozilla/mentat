@@ -25,16 +25,12 @@ import java.util.UUID;
  * Also, due to the consuming nature of the FFI layer, this class also manages it's raw pointer, nilling it after calling the
  * FFI conversion function so that the underlying base class can manage cleanup.
  */
-public class TypedValue extends RustObject {
+public class TypedValue extends RustObject<JNA.TypedValue> {
 
     private Object value;
 
-    private boolean isConsumed() {
-        return this.rawPointer == null;
-    }
-
-    public TypedValue(Pointer pointer) {
-        this.rawPointer = pointer;
+    public TypedValue(JNA.TypedValue pointer) {
+        super(pointer);
     }
 
     /**
@@ -44,8 +40,7 @@ public class TypedValue extends RustObject {
      */
     public Long asLong() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_into_long(this.rawPointer);
-            this.rawPointer = null;
+            this.value = JNA.INSTANCE.typed_value_into_long(this.consumePointer());
         }
         return (Long)value;
     }
@@ -57,8 +52,7 @@ public class TypedValue extends RustObject {
      */
     public Long asEntid() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_into_entid(this.rawPointer);
-            this.rawPointer = null;
+            this.value = JNA.INSTANCE.typed_value_into_entid(this.consumePointer());
         }
         return (Long)value;
     }
@@ -70,8 +64,7 @@ public class TypedValue extends RustObject {
      */
     public String asKeyword() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_into_kw(this.rawPointer);
-            this.rawPointer = null;
+            this.value = getAndConsumeMentatString(JNA.INSTANCE.typed_value_into_kw(this.consumePointer()));
         }
         return (String)value;
     }
@@ -83,9 +76,8 @@ public class TypedValue extends RustObject {
      */
     public Boolean asBoolean() {
         if (!this.isConsumed()) {
-            long value = JNA.INSTANCE.typed_value_into_boolean(this.rawPointer);
+            long value = JNA.INSTANCE.typed_value_into_boolean(this.consumePointer());
             this.value = value == 0 ? false : true;
-            this.rawPointer = null;
         }
         return (Boolean) this.value;
     }
@@ -97,8 +89,7 @@ public class TypedValue extends RustObject {
      */
     public Double asDouble() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_into_double(this.rawPointer);
-            this.rawPointer = null;
+            this.value = JNA.INSTANCE.typed_value_into_double(this.consumePointer());
         }
         return (Double)value;
     }
@@ -110,8 +101,7 @@ public class TypedValue extends RustObject {
      */
     public Date asDate() {
         if (!this.isConsumed()) {
-            this.value = new Date(JNA.INSTANCE.typed_value_into_timestamp(this.rawPointer) * 1_000);
-            this.rawPointer = null;
+            this.value = new Date(JNA.INSTANCE.typed_value_into_timestamp(this.consumePointer()) * 1_000);
         }
         return (Date)this.value;
     }
@@ -123,8 +113,8 @@ public class TypedValue extends RustObject {
      */
     public String asString() {
         if (!this.isConsumed()) {
-            this.value = JNA.INSTANCE.typed_value_into_string(this.rawPointer);
-            this.rawPointer = null;
+            this.value = getAndConsumeMentatString(
+                    JNA.INSTANCE.typed_value_into_string(this.consumePointer()));
         }
         return (String)value;
     }
@@ -136,16 +126,13 @@ public class TypedValue extends RustObject {
      */
     public UUID asUUID() {
         if (!this.isConsumed()) {
-            this.value = getUUIDFromPointer(JNA.INSTANCE.typed_value_into_uuid(this.rawPointer));
-            this.rawPointer = null;
+            this.value = getAndConsumeUUIDPointer(JNA.INSTANCE.typed_value_into_uuid(this.consumePointer()));
         }
         return (UUID)this.value;
     }
 
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(JNA.TypedValue p) {
+        JNA.INSTANCE.typed_value_destroy(p);
     }
 }

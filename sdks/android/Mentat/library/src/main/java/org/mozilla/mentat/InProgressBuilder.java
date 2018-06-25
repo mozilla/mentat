@@ -14,7 +14,6 @@ import android.util.Log;
 
 import com.sun.jna.Pointer;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.UUID;
 
@@ -56,10 +55,10 @@ import java.util.UUID;
  * builder.commit();
  * }</pre>
  */
-public class InProgressBuilder extends RustObject {
+public class InProgressBuilder extends RustObject<JNA.InProgressBuilder> {
 
-    public InProgressBuilder(Pointer pointer) {
-        this.rawPointer = pointer;
+    public InProgressBuilder(JNA.InProgressBuilder pointer) {
+        super(pointer);
     }
     /**
      * Asserts the value of attribute `keyword` to be the provided `value`.
@@ -71,11 +70,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(long entid, String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_long(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_long(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -87,11 +84,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void addRef(long entid, String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_ref(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_ref(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -103,11 +98,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void addKeyword(long entid, String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_keyword(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_keyword(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -119,11 +112,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(long entid, String keyword, boolean value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_boolean(this.rawPointer, entid, keyword, value ? 1 : 0);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_boolean(this.validPointer(), entid, keyword, value ? 1 : 0, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -135,11 +126,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(long entid, String keyword, double value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_double(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_double(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -151,11 +140,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(long entid, String keyword, Date value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_timestamp(this.rawPointer, entid, keyword, value.getTime() * 1_000);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_timestamp(this.validPointer(), entid, keyword, value.getTime() * 1_000, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -167,11 +154,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(long entid, String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_string(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_string(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -183,12 +168,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be asserted
      */
     public void add(long entid, String keyword, UUID value) {
-        this.validate();
-
-        RustResult result = JNA.INSTANCE.in_progress_builder_add_uuid(this.rawPointer, entid, keyword, getPointerForUUID(value));
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_add_uuid(this.validPointer(), entid, keyword, getPointerForUUID(value), error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -201,11 +183,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(long entid, String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_long(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_long(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
 
@@ -219,11 +199,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retractRef(long entid, String keyword, long value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_ref(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_ref(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -236,11 +214,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retractKeyword(long entid, String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_keyword(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_keyword(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -253,11 +229,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(long entid, String keyword, boolean value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_boolean(this.rawPointer, entid, keyword, value ? 1 : 0);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_boolean(this.validPointer(), entid, keyword, value ? 1 : 0, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -270,11 +244,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(long entid, String keyword, double value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_double(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_double(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -287,11 +259,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(long entid, String keyword, Date value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_timestamp(this.rawPointer, entid, keyword, value.getTime() * 1_000);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_timestamp(this.validPointer(), entid, keyword, value.getTime() * 1_000, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -304,11 +274,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(long entid, String keyword, String value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_string(this.rawPointer, entid, keyword, value);
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_string(this.validPointer(), entid, keyword, value, error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -321,11 +289,9 @@ public class InProgressBuilder extends RustObject {
      * @param value The value to be retracted
      */
     public void retract(long entid, String keyword, UUID value) {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_retract_uuid(this.rawPointer, entid, keyword, this.getPointerForUUID(value));
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
-        }
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.INSTANCE.in_progress_builder_retract_uuid(this.validPointer(), entid, keyword, this.getPointerForUUID(value), error);
+        error.logAndConsumeError("InProgressBuilder");
     }
 
     /**
@@ -343,9 +309,7 @@ public class InProgressBuilder extends RustObject {
      * the {@link TxReport}  generated by the transact.
      */
     public InProgressTransactionResult transact() {
-        this.validate();
-        InProgressTransactionResult result = JNA.INSTANCE.in_progress_builder_transact(this.rawPointer);
-        this.rawPointer = null;
+        InProgressTransactionResult result = JNA.INSTANCE.in_progress_builder_transact(this.consumePointer());
         return result;
     }
 
@@ -362,21 +326,17 @@ public class InProgressBuilder extends RustObject {
      * @return The {@link TxReport} generated by the commit.
      */
     public TxReport commit() {
-        this.validate();
-        RustResult result = JNA.INSTANCE.in_progress_builder_commit(this.rawPointer);
-        this.rawPointer = null;
-        if (result.isFailure()) {
-            Log.e("InProgressBuilder", result.err);
+        RustError.ByReference error = new RustError.ByReference();
+        JNA.TxReport result = JNA.INSTANCE.in_progress_builder_commit(this.consumePointer(), error);
+        if (error.isFailure()) {
+            Log.e("InProgressBuilder", error.consumeErrorMessage());
             return null;
         }
-
-        return new TxReport(result.ok);
+        return new TxReport(result);
     }
 
     @Override
-    public void close() throws IOException {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.in_progress_builder_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(JNA.InProgressBuilder p) {
+        JNA.INSTANCE.in_progress_builder_destroy(p);
     }
 }

@@ -69,7 +69,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/long`.
      */
     open func add(keyword: String, long value: Int64) throws {
-        try entity_builder_add_long(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_long(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -84,7 +86,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/ref`.
      */
     open func add(keyword: String, reference value: Int64) throws {
-        try entity_builder_add_ref(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_ref(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -99,7 +103,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/keyword`.
      */
     open func add(keyword: String, keyword value: String) throws {
-        try entity_builder_add_keyword(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_keyword(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -114,7 +120,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/boolean`.
      */
     open func add(keyword: String, boolean value: Bool) throws {
-        try entity_builder_add_boolean(try self.validPointer(), keyword, value ? 1 : 0).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_boolean(try self.validPointer(), keyword, value ? 1 : 0, err)
+        })
     }
 
     /**
@@ -129,7 +137,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/double`.
      */
     open func add(keyword: String, double value: Double) throws {
-        try entity_builder_add_double(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_double(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -145,7 +155,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/instant`.
      */
     open func add(keyword: String, date value: Date) throws {
-        try entity_builder_add_timestamp(try self.validPointer(), keyword, value.toMicroseconds()).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_timestamp(try self.validPointer(), keyword, value.toMicroseconds(), err)
+        })
     }
 
     /**
@@ -160,7 +172,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/string`.
      */
     open func add(keyword: String, string value: String) throws {
-        try entity_builder_add_string(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_add_string(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -177,7 +191,9 @@ open class EntityBuilder: OptionalRustObject {
     open func add(keyword: String, uuid value: UUID) throws {
         var rawUuid = value.uuid
         let _ = try withUnsafePointer(to: &rawUuid) { uuidPtr in
-            try entity_builder_add_uuid(try self.validPointer(), keyword, uuidPtr).pointee.tryUnwrap()
+            try RustError.withErrorCheck({ err in
+                entity_builder_add_uuid(try self.validPointer(), keyword, uuidPtr, err)
+            })
         }
     }
 
@@ -193,7 +209,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/long`.
      */
     open func retract(keyword: String, long value: Int64) throws {
-        try entity_builder_retract_long(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_long(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -208,7 +226,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/ref`.
      */
     open func retract(keyword: String, reference value: Int64) throws {
-        try entity_builder_retract_ref(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_ref(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -223,7 +243,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/keyword`.
      */
     open func retract(keyword: String, keyword value: String) throws {
-        try entity_builder_retract_keyword(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_keyword(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -238,7 +260,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/boolean`.
      */
     open func retract(keyword: String, boolean value: Bool) throws {
-        try entity_builder_retract_boolean(try self.validPointer(), keyword, value ? 1 : 0).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_boolean(try self.validPointer(), keyword, value ? 1 : 0, err)
+        })
     }
 
     /**
@@ -253,7 +277,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/double`.
      */
     open func retract(keyword: String, double value: Double) throws {
-        try entity_builder_retract_double(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_double(try self.validPointer(), keyword, value, err)
+        })
     }
 
     /**
@@ -268,7 +294,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/instant`.
      */
     open func retract(keyword: String, date value: Date) throws {
-        try entity_builder_retract_timestamp(try self.validPointer(), keyword, value.toMicroseconds()).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_timestamp(try self.validPointer(), keyword, value.toMicroseconds(), err)
+        })
     }
 
     /**
@@ -283,7 +311,9 @@ open class EntityBuilder: OptionalRustObject {
      is not `:db.type/string`.
      */
     open func retract(keyword: String, string value: String) throws {
-        try entity_builder_retract_string(try self.validPointer(), keyword, value).pointee.tryUnwrap()
+        try RustError.withErrorCheck({ err in
+            entity_builder_retract_string(try self.validPointer(), keyword, value, err)
+        })
     }
 
 
@@ -301,7 +331,9 @@ open class EntityBuilder: OptionalRustObject {
     open func retract(keyword: String, uuid value: UUID) throws {
         var rawUuid = value.uuid
         let _ = try withUnsafePointer(to: &rawUuid) { uuidPtr in
-            try entity_builder_retract_uuid(try self.validPointer(), keyword, uuidPtr).pointee.tryUnwrap()
+            try RustError.withErrorCheck({ err in
+                entity_builder_retract_uuid(try self.validPointer(), keyword, uuidPtr, err)
+            })
         }
     }
 
@@ -323,9 +355,12 @@ open class EntityBuilder: OptionalRustObject {
         defer {
             self.raw = nil
         }
-        let result = entity_builder_transact(try self.validPointer()).pointee
+        let result = entity_builder_transact(try self.validPointer());
         let inProgress = InProgress(raw: result.inProgress)
-        guard let report = try result.result.pointee.tryUnwrap() else {
+        if let errorMessage = result.error.message {
+            throw ResultError.error(message: String(destroyingRustString: errorMessage))
+        }
+        guard let report = result.txReport else {
             return (inProgress, nil)
         }
         return (inProgress, TxReport(raw: report))
@@ -346,9 +381,11 @@ open class EntityBuilder: OptionalRustObject {
         defer {
             self.raw = nil
         }
-        return TxReport(raw: try entity_builder_commit(try self.validPointer()).pointee.unwrap())
+        return TxReport(raw: try RustError.unwrap({ err in
+            entity_builder_commit(try self.validPointer(), err)
+        }))
     }
-    
+
     override open func cleanup(pointer: OpaquePointer) {
         entity_builder_destroy(pointer)
     }

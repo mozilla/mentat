@@ -12,43 +12,27 @@ package org.mozilla.mentat;
 
 import com.sun.jna.Pointer;
 
-import java.util.Iterator;
 /**
  * Iterator for a {@link RelResult}
  */
-public class RelResultIterator extends RustObject implements Iterator {
+public class RelResultIterator extends RustIterator<JNA.RelResultIter, JNA.TypedValueList, TupleResult> {
 
-    Pointer nextPointer;
-
-    RelResultIterator(Pointer iterator) {
-        this.rawPointer = iterator;
-    }
-
-    private Pointer getNextPointer() {
-        return JNA.INSTANCE.typed_value_result_set_iter_next(this.rawPointer);
+    RelResultIterator(JNA.RelResultIter iterator) {
+        super(iterator);
     }
 
     @Override
-    public boolean hasNext() {
-        this.nextPointer = getNextPointer();
-        return this.nextPointer != null;
+    protected JNA.TypedValueList advanceIterator() {
+        return JNA.INSTANCE.typed_value_result_set_iter_next(this.validPointer());
     }
 
     @Override
-    public TupleResult next() {
-        Pointer next = this.nextPointer == null ? getNextPointer() : this.nextPointer;
-        if (next == null) {
-            return null;
-        }
-
-        return new TupleResult(next);
+    protected TupleResult constructItem(JNA.TypedValueList p) {
+        return new TupleResult(p);
     }
 
-
     @Override
-    public void close() {
-        if (this.rawPointer != null) {
-            JNA.INSTANCE.typed_value_result_set_iter_destroy(this.rawPointer);
-        }
+    protected void destroyPointer(JNA.RelResultIter p) {
+        JNA.INSTANCE.typed_value_result_set_iter_destroy(p);
     }
 }

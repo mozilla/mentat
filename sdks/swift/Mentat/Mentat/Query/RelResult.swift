@@ -55,7 +55,7 @@ open class RelResult: OptionalRustObject {
     }
 
     override open func cleanup(pointer: OpaquePointer) {
-        destroy(UnsafeMutableRawPointer(pointer))
+        typed_value_result_set_destroy(pointer)
     }
 }
 

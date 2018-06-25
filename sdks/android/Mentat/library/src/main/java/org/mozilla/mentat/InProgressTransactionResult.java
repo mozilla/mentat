@@ -15,43 +15,57 @@ import android.util.Log;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class InProgressTransactionResult extends Structure implements Closeable {
+public class InProgressTransactionResult extends Structure {
     public static class ByReference extends InProgressTransactionResult implements Structure.ByReference {
     }
 
     public static class ByValue extends InProgressTransactionResult implements Structure.ByValue {
     }
 
-    public Pointer inProgress;
-    public RustResult.ByReference result;
+    public JNA.InProgress inProgress;
+    public JNA.TxReport txReport;
+    public RustError error;
 
     @Override
     protected List<String> getFieldOrder() {
-        return Arrays.asList("inProgress", "result");
+        return Arrays.asList("inProgress", "txReport", "error");
     }
 
     public InProgress getInProgress() {
-        return new InProgress(this.inProgress);
+        if (this.inProgress == null) {
+            throw new NullPointerException("Already consumed InProgress");
+        }
+        InProgress ip = new InProgress(this.inProgress);
+        this.inProgress = null;
+        return ip;
+
     }
-    
+
     public TxReport getReport() {
-        if (this.result.isFailure()) {
-            Log.e("InProgressTransactRes", this.result.err);
+        if (this.error.isFailure()) {
+            Log.e("InProgressTransactRes", this.error.consumeErrorMessage());
             return null;
         }
-
-        return new TxReport(this.result.ok);
+        if (this.txReport == null) {
+            throw new NullPointerException("Already consumed TxReport");
+        }
+        JNA.TxReport report = this.txReport;
+        this.txReport = null;
+        return new TxReport(report);
     }
 
     @Override
-    public void close() throws IOException {
-        if (this.getPointer() != null) {
-            JNA.INSTANCE.destroy(this.getPointer());
+    protected void finalize() {
+        if (this.txReport != null) {
+            JNA.INSTANCE.tx_report_destroy(this.txReport);
+            this.txReport = null;
+        }
+        if (this.inProgress != null) {
+            JNA.INSTANCE.in_progress_destroy(this.inProgress);
+            this.inProgress = null;
         }
     }
 }

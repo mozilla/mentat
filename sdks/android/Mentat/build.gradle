@@ -10,7 +10,7 @@ buildscript {
     ext.build = [
             compileSdkVersion: 27,
             targetSdkVersion: 27,
-            minSdkVersion: 16
+            minSdkVersion: 19
     ]
 
     repositories {
