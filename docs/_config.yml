@@ -26,7 +26,7 @@ list_title: Examples
 
 # Build settings
 markdown: kramdown
-theme: minima
+theme: jekyll-theme-tactile
 plugins:
   - jekyll-feed
 
