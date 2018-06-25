@@ -484,12 +484,12 @@ impl TestConn {
 
         // Does not include :db/txInstant.
         let datoms = datoms_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(datoms.len(), 94);
+        assert_eq!(datoms.len(), 106);
 
         // Includes :db/txInstant.
         let transactions = transactions_after(&conn, &db.schema, 0).unwrap();
         assert_eq!(transactions.len(), 1);
-        assert_eq!(transactions[0].len(), 95);
+        assert_eq!(transactions[0].len(), datoms.len() + 1);
 
         let mut parts = db.partition_map;
 
