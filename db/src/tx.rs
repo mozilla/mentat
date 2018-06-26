@@ -168,7 +168,7 @@ pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
 /// something suitable for the entity position rather than something suitable for a value position.
 pub fn remove_db_id<V: TransactableValue>(map: &mut entmod::MapNotation<V>) -> Result<Option<entmod::EntityPlace<V>>> {
     // TODO: extract lazy defined constant.
-    let db_id_key = entmod::Entid::Ident(Keyword::namespaced("db", "id"));
+    let db_id_key = entmod::EntidOrIdent::Ident(Keyword::namespaced("db", "id"));
 
     let db_id: Option<entmod::EntityPlace<V>> = if let Some(id) = map.remove(&db_id_key) {
         match id {
@@ -291,8 +291,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
             fn intern_lookup_ref<W: TransactableValue>(&mut self, lookup_ref: &entmod::LookupRef<W>) -> Result<LookupRef> {
                 let lr_a: i64 = match lookup_ref.a {
-                    AttributePlace::Entid(entmod::Entid::Entid(ref a)) => *a,
-                    AttributePlace::Entid(entmod::Entid::Ident(ref a)) => self.schema.require_entid(&a)?.into(),
+                    AttributePlace::Entid(entmod::EntidOrIdent::Entid(ref a)) => *a,
+                    AttributePlace::Entid(entmod::EntidOrIdent::Ident(ref a)) => self.schema.require_entid(&a)?.into(),
                 };
                 let lr_attribute: &Attribute = self.schema.require_attribute_for_entid(lr_a)?;
 
@@ -319,8 +319,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 match x {
                     entmod::EntityPlace::Entid(e) => {
                         let e = match e {
-                            entmod::Entid::Entid(ref e) => self.ensure_entid_exists(*e)?,
-                            entmod::Entid::Ident(ref e) => self.ensure_ident_exists(&e)?,
+                            entmod::EntidOrIdent::Entid(ref e) => self.ensure_entid_exists(*e)?,
+                            entmod::EntidOrIdent::Ident(ref e) => self.ensure_ident_exists(&e)?,
                         };
                         Ok(Either::Left(e))
                     },
@@ -342,10 +342,10 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 }
             }
 
-            fn entity_a_into_term_a(&mut self, x: entmod::Entid) -> Result<Entid> {
+            fn entity_a_into_term_a(&mut self, x: entmod::EntidOrIdent) -> Result<Entid> {
                 let a = match x {
-                    entmod::Entid::Entid(ref a) => *a,
-                    entmod::Entid::Ident(ref a) => self.schema.require_entid(&a)?.into(),
+                    entmod::EntidOrIdent::Entid(ref a) => *a,
+                    entmod::EntidOrIdent::Ident(ref a) => self.schema.require_entid(&a)?.into(),
                 };
                 Ok(a)
             }
@@ -354,7 +354,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 self.entity_e_into_term_e(x).map(|r| r.map_left(|ke| TypedValue::Ref(ke.0)))
             }
 
-            fn entity_v_into_term_e<W: TransactableValue>(&mut self, x: entmod::ValuePlace<W>, backward_a: &entmod::Entid) -> Result<KnownEntidOr<LookupRefOrTempId>> {
+            fn entity_v_into_term_e<W: TransactableValue>(&mut self, x: entmod::ValuePlace<W>, backward_a: &entmod::EntidOrIdent) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match backward_a.unreversed() {
                     None => {
                         bail!(DbError::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
@@ -510,7 +510,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                     deque.push_front(Entity::AddOrRetract {
                                         op: op.clone(),
                                         e: e.clone(),
-                                        a: AttributePlace::Entid(entmod::Entid::Entid(a)),
+                                        a: AttributePlace::Entid(entmod::EntidOrIdent::Entid(a)),
                                         v: vv,
                                     });
                                 }
@@ -573,7 +573,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                         deque.push_front(Entity::AddOrRetract {
                                             op: OpType::Add,
                                             e: db_id.clone(),
-                                            a: AttributePlace::Entid(entmod::Entid::Entid(inner_a)),
+                                            a: AttributePlace::Entid(entmod::EntidOrIdent::Entid(inner_a)),
                                             v: inner_v,
                                         });
                                     }

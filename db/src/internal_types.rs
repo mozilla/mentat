@@ -63,10 +63,10 @@ impl TransactableValue for ValueAndSpan {
     fn into_entity_place(self) -> Result<EntityPlace<Self>> {
         use self::SpannedValue::*;
         match self.inner {
-            Integer(v) => Ok(EntityPlace::Entid(entities::Entid::Entid(v))),
+            Integer(v) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Entid(v))),
             Keyword(v) => {
                 if v.is_namespaced() {
-                    Ok(EntityPlace::Entid(entities::Entid::Ident(v)))
+                    Ok(EntityPlace::Entid(entities::EntidOrIdent::Ident(v)))
                 } else {
                     // We only allow namespaced idents.
                     bail!(DbError::InputError(errors::InputError::BadEntityPlace))
@@ -121,8 +121,8 @@ impl TransactableValue for TypedValue {
 
     fn into_entity_place(self) -> Result<EntityPlace<Self>> {
         match self {
-            TypedValue::Ref(x) => Ok(EntityPlace::Entid(entities::Entid::Entid(x))),
-            TypedValue::Keyword(x) => Ok(EntityPlace::Entid(entities::Entid::Ident((*x).clone()))),
+            TypedValue::Ref(x) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Entid(x))),
+            TypedValue::Keyword(x) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Ident((*x).clone()))),
             TypedValue::String(x) => Ok(EntityPlace::TempId(TempId::External((*x).clone()))),
             TypedValue::Boolean(_) |
             TypedValue::Long(_) |

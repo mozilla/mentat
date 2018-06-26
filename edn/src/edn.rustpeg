@@ -238,18 +238,18 @@ raw_forward_namespaced_keyword -> Keyword
 raw_backward_namespaced_keyword -> Keyword
     = v:raw_namespaced_keyword {? if v.is_backward() { Ok(v) } else { Err("expected namespaced :backward/_keyword") } }
 
-entid -> Entid
-    = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { Entid::Entid(v) }
-    / v:raw_namespaced_keyword { Entid::Ident(v) }
+entid -> EntidOrIdent
+    = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { EntidOrIdent::Entid(v) }
+    / v:raw_namespaced_keyword { EntidOrIdent::Ident(v) }
     / #expected("entid")
 
-forward_entid -> Entid
-    = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { Entid::Entid(v) }
-    / v:raw_forward_namespaced_keyword { Entid::Ident(v) }
+forward_entid -> EntidOrIdent
+    = v:( raw_basedinteger / raw_hexinteger / raw_octalinteger / raw_integer ) { EntidOrIdent::Entid(v) }
+    / v:raw_forward_namespaced_keyword { EntidOrIdent::Ident(v) }
     / #expected("forward entid")
 
-backward_entid -> Entid
-    = v:raw_backward_namespaced_keyword { Entid::Ident(v.to_reversed()) }
+backward_entid -> EntidOrIdent
+    = v:raw_backward_namespaced_keyword { EntidOrIdent::Ident(v.to_reversed()) }
     / #expected("backward entid")
 
 lookup_ref -> LookupRef<ValueAndSpan>
@@ -265,7 +265,7 @@ entity_place -> EntityPlace<ValueAndSpan>
     / v:lookup_ref { EntityPlace::LookupRef(v) }
     / v:tx_function { EntityPlace::TxFunction(v) }
 
-value_place_pair -> (Entid, ValuePlace<ValueAndSpan>)
+value_place_pair -> (EntidOrIdent, ValuePlace<ValueAndSpan>)
     = k:(entid) __ v:(value_place) { (k, v) }
 
 map_notation -> MapNotation<ValueAndSpan>

@@ -106,7 +106,6 @@ macro_rules! kw {
 pub mod errors;
 pub mod conn;
 pub mod entity_builder;
-pub mod ident;
 pub mod query;
 pub mod query_builder;
 pub mod store;
