@@ -13,6 +13,8 @@ use std::collections::{
     BTreeMap,
 };
 
+use itertools::Itertools;
+
 use rusqlite;
 
 use mentat_core::{
@@ -129,42 +131,71 @@ pub(crate) fn excisions<'schema>(partition_map: &'schema PartitionMap, schema: &
     }
 }
 
-pub(crate) fn enqueue_pending_excisions(conn: &rusqlite::Connection, schema: &Schema, tx_id: Entid, excisions: ExcisionMap) -> Result<()> {
-    // excisions.into_iter().map(|(entid, excision)| enqueue_pending_excision(self, entid, excision)).collect().and(Ok(()))
-
-    // if !excisions.is_none() {
-    //     bail!(DbError::NotYetImplemented(format!("Excision not yet implemented: {:?}", excisions)));
-    // }
-
-    let mut stmt1: rusqlite::Statement = conn.prepare("INSERT INTO excisions VALUES (?, ?, ?, ?)")?;
-    let mut stmt2: rusqlite::Statement = conn.prepare("INSERT INTO excision_attrs VALUES (?, ?)")?;
-
-    for (entid, excision) in excisions {
-        stmt1.execute(&[&entid, &excision.target, &excision.before_tx, &excision.before_tx.unwrap_or(tx_id)])?; // XXX
-        if let Some(attrs) = excision.attrs {
-            // println!("attrs {:?}", attrs);
-            for attr in attrs {
-                stmt2.execute(&[&entid, &attr])?;
-            }
-        }
+fn excise_datoms(conn: &rusqlite::Connection, excision: &Excision) -> Result<()> {
+    match excision.attrs {
+        Some(ref attrs) => {
+            let s = attrs.iter().join(", ");
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.a IN ({})) DELETE FROM datoms WHERE rowid IN ids",
+                                 excision.target, s).as_ref(), &[])?;
+        },
+        None => {
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE (d.e IS {} OR (d.v IS {} AND d.a IS NOT {}))) DELETE FROM datoms WHERE rowid IN ids",
+                                 excision.target, excision.target, entids::DB_EXCISE).as_ref(), &[])?;
+        },
     }
-
-    // TODO: filter by attrs.
-    let mut stmt: rusqlite::Statement = conn.prepare(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d, excisions AS e WHERE e.status > 0 AND (e.target IS d.e OR (e.target IS d.v AND d.a IS NOT {}))) DELETE FROM datoms WHERE rowid IN ids", entids::DB_EXCISE).as_ref())?;
-
-    stmt.execute(&[])?;
 
     Ok(())
 }
 
-pub(crate) fn pending_excisions(conn: &rusqlite::Connection, partition_map: &PartitionMap, schema: &Schema) -> Result<ExcisionMap> {
+fn excise_transactions_before_tx(conn: &rusqlite::Connection, excision: &Excision, before_tx: Entid) -> Result<()> {
+    match excision.attrs {
+        Some(ref attrs) => {
+            let s = attrs.iter().join(", ");
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.a IN ({})) DELETE FROM transactions WHERE rowid IN ids",
+                                 excision.target, s).as_ref(), &[])?;
+        },
+        None => {
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.tx <= {} AND (t.e IS {} OR (t.v IS {} AND t.a IS NOT {}))) DELETE FROM transactions WHERE rowid IN ids",
+                                 before_tx, excision.target, excision.target, entids::DB_EXCISE).as_ref(), &[])?;
+        },
+    }
+
+    Ok(())
+}
+
+pub(crate) fn enqueue_pending_excisions(conn: &rusqlite::Connection, schema: &Schema, tx_id: Entid, excisions: &ExcisionMap) -> Result<()> {
+    let mut stmt1: rusqlite::Statement = conn.prepare("INSERT INTO excisions VALUES (?, ?, ?, ?)")?;
+    let mut stmt2: rusqlite::Statement = conn.prepare("INSERT INTO excision_attrs VALUES (?, ?)")?;
+
+    for (entid, excision) in excisions {
+        let status = excision.before_tx.unwrap_or(tx_id);
+        stmt1.execute(&[entid, &excision.target, &excision.before_tx, &status])?;
+
+        if let Some(ref attrs) = excision.attrs {
+            for attr in attrs {
+                stmt2.execute(&[entid, attr])?;
+            }
+        }
+    }
+
+    // Might as well not interleave writes to "excisions" and "excision_attrs" with writes to
+    // "datoms".  This also leaves open the door for a more efficient bulk operation.
+    for (_entid, excision) in excisions {
+        excise_datoms(conn, &excision)?;
+    }
+
+    Ok(())
+}
+
+fn pending_excision_list(conn: &rusqlite::Connection, partition_map: &PartitionMap, schema: &Schema) -> Result<Vec<(Entid, Excision, Entid)>> {
     let mut stmt1: rusqlite::Statement = conn.prepare("SELECT e, target, before_tx, status FROM excisions WHERE status > 0 ORDER BY e")?;
     let mut stmt2: rusqlite::Statement = conn.prepare("SELECT a FROM excision_attrs WHERE e IS ?")?;
 
-    let m: Result<ExcisionMap> = stmt1.query_and_then(&[], |row| {
+    let m: Result<Vec<(Entid, Excision, Entid)>> = stmt1.query_and_then(&[], |row| {
         let e: Entid = row.get_checked(0)?;
         let target: Entid = row.get_checked(1)?;
         let before_tx: Option<Entid> = row.get_checked(2)?;
+        let status: Entid = row.get_checked(3)?;
 
         let attrs: Result<BTreeSet<Entid>> = stmt2.query_and_then(&[&e], |row| {
             let a: Entid = row.get_checked(0)?;
@@ -184,52 +215,25 @@ pub(crate) fn pending_excisions(conn: &rusqlite::Connection, partition_map: &Par
             attrs,
         };
 
-        Ok((e, excision))
+        Ok((e, excision, status))
     })?.collect();
 
     m
-
-    // let aev_trie = read_materialized_transaction_aev_trie(&conn, schema, "excisions")?;
-
-    // excisions(&partition_map, &schema, &aev_trie).map(|o| o.unwrap_or_default())
 }
 
-pub(crate) fn ensure_no_pending_excisions(conn: &rusqlite::Connection) -> Result<()> {
-    // let pending = pending_excisions(self)?;
-
-        // WITH ids AS (SELECT rid
-        //              FROM temp.search_results
-        //              WHERE rid IS NOT NULL AND
-        //                    ((added0 IS 0) OR
-        //                     (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v)))
-        // DELETE FROM datoms WHERE rowid IN ids"#;
-
-    // TODO: filter by attrs.
-    let mut stmt: rusqlite::Statement = conn.prepare(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t, excisions AS e WHERE e.status > 0 AND t.tx <= e.status AND (e.target IS t.e OR (e.target IS t.v AND t.a IS NOT {}))) DELETE FROM transactions WHERE rowid IN ids", entids::DB_EXCISE).as_ref())?;
-
-    stmt.execute(&[])?;
-
-    let mut stmt: rusqlite::Statement = conn.prepare("UPDATE excisions SET status = 0")?;
-
-    stmt.execute(&[])?;
-
-    // let relevant_tx_ids: Result<Vec<Entid>> = stmt.query_and_then(&[], |row| {
-    //     let e: Entid = row.get_checked(0)?;
-    //     let target:
-    //     Ok(tx)
-    // })?.collect();
-
-    // println!("relevant_tx_ids: {:?}", relevant_tx_ids?);
-
-    // let mut stmt: rusqlite::Statement = conn.prepare(format!("DELETE FROM transactions AS t WHERE t.tx = ? AND (t.e = ? OR (t.v = ? AND t.a != {}))", entids::DB_EXCISE).as_str());
-
-    // for tx_id in relevant_tx_ids {
-
-    // }
-
-    Ok(())
+pub(crate) fn pending_excisions(conn: &rusqlite::Connection, partition_map: &PartitionMap, schema: &Schema) -> Result<ExcisionMap> {
+    let list = pending_excision_list(conn, partition_map, schema)?;
+    Ok(list.into_iter().map(|(entity, excision, _status)| (entity, excision)).collect())
 }
 
-// fn enqueue_pending_excision(conn: &rusqlite::Connection, excision: Excision) -> Result<()> {
-//     Ok(())
-// }
+pub(crate) fn ensure_no_pending_excisions(conn: &rusqlite::Connection, partition_map: &PartitionMap, schema: &Schema) -> Result<ExcisionMap> {
+    let list = pending_excision_list(conn, partition_map, schema)?;
+
+    for (_entid, excision, status) in &list {
+        excise_transactions_before_tx(conn, &excision, *status)?;
+    }
+
+    conn.execute("UPDATE excisions SET status = 0", &[])?;
+
+    Ok(list.into_iter().map(|(entity, excision, _status)| (entity, excision)).collect())
+}

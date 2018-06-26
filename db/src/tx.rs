@@ -817,7 +817,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         if let Some(excisions) = excisions {
-            excision::enqueue_pending_excisions(self.store, self.schema, self.tx_id, excisions)?;
+            excision::enqueue_pending_excisions(self.store, self.schema, self.tx_id, &excisions)?;
         }
 
         Ok(TxReport {
