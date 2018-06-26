@@ -32,7 +32,7 @@ use mentat_core::{
     ValueType,
 };
 use edn::entities::{
-    Entid,
+    EntidOrIdent,
 };
 use schema::{
     SchemaBuilding,
@@ -43,8 +43,8 @@ use types::Schema;
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub(crate) struct Datom {
     // TODO: generalize this.
-    e: Entid,
-    a: Entid,
+    e: EntidOrIdent,
+    a: EntidOrIdent,
     v: edn::Value,
     tx: i64,
     added: Option<bool>,
@@ -70,10 +70,10 @@ pub(crate) struct FulltextValues(pub Vec<(i64, String)>);
 
 impl Datom {
     pub(crate) fn into_edn(&self) -> edn::Value {
-        let f = |entid: &Entid| -> edn::Value {
+        let f = |entid: &EntidOrIdent| -> edn::Value {
             match *entid {
-                Entid::Entid(ref y) => edn::Value::Integer(y.clone()),
-                Entid::Ident(ref y) => edn::Value::Keyword(y.clone()),
+                EntidOrIdent::Entid(ref y) => edn::Value::Integer(y.clone()),
+                EntidOrIdent::Ident(ref y) => edn::Value::Keyword(y.clone()),
             }
         };
 
@@ -121,8 +121,8 @@ impl ToIdent for TypedValue {
 }
 
 /// Convert a numeric entid to an ident `Entid` if possible, otherwise a numeric `Entid`.
-fn to_entid(schema: &Schema, entid: i64) -> Entid {
-    schema.get_ident(entid).map_or(Entid::Entid(entid), |ident| Entid::Ident(ident.clone()))
+fn to_entid(schema: &Schema, entid: i64) -> EntidOrIdent {
+    schema.get_ident(entid).map_or(EntidOrIdent::Entid(entid), |ident| EntidOrIdent::Ident(ident.clone()))
 }
 
 /// Return the set of datoms in the store, ordered by (e, a, v, tx), but not including any datoms of
@@ -160,7 +160,7 @@ pub(crate) fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schem
         let tx: i64 = row.get_checked(4)?;
 
         Ok(Some(Datom {
-            e: Entid::Entid(e),
+            e: EntidOrIdent::Entid(e),
             a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,
@@ -197,7 +197,7 @@ pub(crate) fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection,
         let added: bool = row.get_checked(5)?;
 
         Ok(Datom {
-            e: Entid::Entid(e),
+            e: EntidOrIdent::Entid(e),
             a: to_entid(borrowed_schema, a),
             v: value,
             tx: tx,

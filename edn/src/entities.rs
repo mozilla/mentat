@@ -45,16 +45,16 @@ impl fmt::Display for TempId {
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-pub enum Entid {
+pub enum EntidOrIdent {
     Entid(i64),
     Ident(Keyword),
 }
 
-impl Entid {
-    pub fn unreversed(&self) -> Option<Entid> {
+impl EntidOrIdent {
+    pub fn unreversed(&self) -> Option<EntidOrIdent> {
         match self {
-            &Entid::Entid(_) => None,
-            &Entid::Ident(ref a) => a.unreversed().map(Entid::Ident),
+            &EntidOrIdent::Entid(_) => None,
+            &EntidOrIdent::Ident(ref a) => a.unreversed().map(EntidOrIdent::Ident),
         }
     }
 }
@@ -84,13 +84,13 @@ pub struct TxFunction {
     pub op: PlainSymbol,
 }
 
-pub type MapNotation<V> = BTreeMap<Entid, ValuePlace<V>>;
+pub type MapNotation<V> = BTreeMap<EntidOrIdent, ValuePlace<V>>;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum ValuePlace<V> {
     // We never know at parse-time whether an integer or ident is really an entid, but we will often
     // know when building entities programmatically.
-    Entid(Entid),
+    Entid(EntidOrIdent),
     // We never know at parse-time whether a string is really a tempid, but we will often know when
     // building entities programmatically.
     TempId(TempId),
@@ -103,7 +103,7 @@ pub enum ValuePlace<V> {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntityPlace<V> {
-    Entid(Entid),
+    Entid(EntidOrIdent),
     TempId(TempId),
     LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
@@ -111,7 +111,7 @@ pub enum EntityPlace<V> {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum AttributePlace {
-    Entid(Entid),
+    Entid(EntidOrIdent),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
