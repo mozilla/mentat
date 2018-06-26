@@ -132,13 +132,22 @@ pub(crate) fn excisions<'schema>(partition_map: &'schema PartitionMap, schema: &
 }
 
 fn excise_datoms(conn: &rusqlite::Connection, excision: &Excision) -> Result<()> {
-    match excision.attrs {
-        Some(ref attrs) => {
+    match (excision.before_tx, &excision.attrs) {
+        (Some(before_tx), Some(ref attrs)) => {
+            let s = attrs.iter().join(", ");
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.a IN ({}) AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
+                                 excision.target, s, before_tx).as_ref(), &[])?;
+        },
+        (Some(before_tx), None) => {
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
+                                 excision.target, before_tx).as_ref(), &[])?;
+        },
+        (None, Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
             conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.a IN ({})) DELETE FROM datoms WHERE rowid IN ids",
                                  excision.target, s).as_ref(), &[])?;
         },
-        None => {
+        (None, None) => {
             conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE (d.e IS {} OR (d.v IS {} AND d.a IS NOT {}))) DELETE FROM datoms WHERE rowid IN ids",
                                  excision.target, excision.target, entids::DB_EXCISE).as_ref(), &[])?;
         },
@@ -148,13 +157,22 @@ fn excise_datoms(conn: &rusqlite::Connection, excision: &Excision) -> Result<()>
 }
 
 fn excise_transactions_before_tx(conn: &rusqlite::Connection, excision: &Excision, before_tx: Entid) -> Result<()> {
-    match excision.attrs {
-        Some(ref attrs) => {
+    match (excision.before_tx, &excision.attrs) {
+        (Some(before_tx), Some(ref attrs)) => {
+            let s = attrs.iter().join(", ");
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.a IN ({}) AND t.tx <= {}) DELETE FROM transactions WHERE rowid IN ids",
+                                 excision.target, s, before_tx).as_ref(), &[])?;
+        },
+        (Some(before_tx), None) => {
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.tx <= {}) DELETE FROM transactions WHERE rowid IN ids",
+                                 excision.target, before_tx).as_ref(), &[])?;
+        },
+        (None, Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
             conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.a IN ({})) DELETE FROM transactions WHERE rowid IN ids",
                                  excision.target, s).as_ref(), &[])?;
         },
-        None => {
+        (None, None) => {
             conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.tx <= {} AND (t.e IS {} OR (t.v IS {} AND t.a IS NOT {}))) DELETE FROM transactions WHERE rowid IN ids",
                                  before_tx, excision.target, excision.target, entids::DB_EXCISE).as_ref(), &[])?;
         },
