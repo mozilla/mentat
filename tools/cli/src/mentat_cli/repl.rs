@@ -11,7 +11,6 @@
 use std::io::Write;
 
 use failure::{
-    err_msg,
     Error,
 };
 
@@ -404,7 +403,8 @@ impl Repl {
         if self.path.is_empty() || path != self.path {
             let next = match encryption_key {
                 #[cfg(not(feature = "sqlcipher"))]
-                Some(_) => return Err(err_msg(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature")),
+                Some(_) => return Err(::mentat::MentatError::RusqliteError(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature".into())),
+
                 #[cfg(feature = "sqlcipher")]
                 Some(k) => {
                     if empty {

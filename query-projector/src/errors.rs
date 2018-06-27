@@ -10,17 +10,16 @@
 
 use std; // To refer to std::result::Result.
 
-use failure::{
-    Error,
-};
+use rusqlite;
 
 use mentat_core::{
     ValueTypeSet,
 };
-
+use mentat_db;
 use mentat_query::{
     PlainSymbol,
 };
+use mentat_query_pull;
 
 use aggregates::{
     SimpleAggregationOp,
@@ -33,7 +32,7 @@ macro_rules! bail {
     )
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, ProjectorError>;
 
 #[derive(Debug, Fail)]
 pub enum ProjectorError {
@@ -62,4 +61,33 @@ pub enum ProjectorError {
 
     #[fail(display = "min/max expressions: {} (max 1), corresponding: {}", _0, _1)]
     AmbiguousAggregates(usize, usize),
+
+    // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
+    // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
+    #[fail(display = "SQL error: _0")]
+    RusqliteError(String),
+
+    #[fail(display = "{}", _0)]
+    DbError(#[cause] mentat_db::DbError),
+
+    #[fail(display = "{}", _0)]
+    PullError(#[cause] mentat_query_pull::PullError),
+}
+
+impl From<rusqlite::Error> for ProjectorError {
+    fn from(error: rusqlite::Error) -> ProjectorError {
+        ProjectorError::RusqliteError(error.to_string())
+    }
+}
+
+impl From<mentat_db::DbError> for ProjectorError {
+    fn from(error: mentat_db::DbError) -> ProjectorError {
+        ProjectorError::DbError(error)
+    }
+}
+
+impl From<mentat_query_pull::PullError> for ProjectorError {
+    fn from(error: mentat_query_pull::PullError) -> ProjectorError {
+        ProjectorError::PullError(error)
+    }
 }

@@ -10,15 +10,15 @@
 
 use std; // To refer to std::result::Result.
 
+use mentat_db::{
+    DbError,
+};
+
 use mentat_core::{
     Entid,
 };
 
-use failure::{
-    Error,
-};
-
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, PullError>;
 
 #[derive(Debug, Fail)]
 pub enum PullError {
@@ -27,4 +27,13 @@ pub enum PullError {
 
     #[fail(display = ":db/id repeated")]
     RepeatedDbId,
+
+    #[fail(display = "{}", _0)]
+    DbError(#[cause] DbError),
+}
+
+impl From<DbError> for PullError {
+    fn from(error: DbError) -> PullError {
+        PullError::DbError(error)
+    }
 }

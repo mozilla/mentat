@@ -31,6 +31,7 @@ use itertools::Itertools;
 
 pub use errors::{
     DbError,
+    DbErrorKind,
     Result,
     SchemaConstraintViolation,
 };
@@ -116,7 +117,7 @@ pub fn to_namespaced_keyword(s: &str) -> Result<symbols::Keyword> {
         _ => None,
     };
 
-    nsk.ok_or(DbError::NotYetImplemented(format!("InvalidKeyword: {}", s)).into())
+    nsk.ok_or(DbErrorKind::NotYetImplemented(format!("InvalidKeyword: {}", s)).into())
 }
 
 /// Prepare an SQL `VALUES` block, like (?, ?, ?), (?, ?, ?).

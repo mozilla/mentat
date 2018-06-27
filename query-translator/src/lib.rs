@@ -9,14 +9,13 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate failure;
+
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
-
-use failure::Error;
 
 mod translate;
 
@@ -30,4 +29,6 @@ pub use translate::{
     query_to_select,
 };
 
-type Result<T> = std::result::Result<T, Error>;
+// query-translator could be folded into query-projector; for now, just type alias the errors.
+pub type TranslatorError = mentat_query_projector::ProjectorError;
+pub type Result<T> = std::result::Result<T, TranslatorError>;

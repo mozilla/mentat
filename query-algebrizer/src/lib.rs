@@ -51,7 +51,6 @@ pub use errors::{
     AlgebrizerError,
     BindingError,
     Result,
-    InvalidBinding,
 };
 
 pub use clauses::{

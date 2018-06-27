@@ -10,8 +10,6 @@
 
 /// Cache traits.
 
-use failure;
-
 use std::collections::{
     BTreeSet,
 };
@@ -35,7 +33,7 @@ pub trait CachedAttributes {
     fn get_entids_for_value(&self, attribute: Entid, value: &TypedValue) -> Option<&BTreeSet<Entid>>;
 }
 
-pub trait UpdateableCache<Error=failure::Error> {
-    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<(), Error>
+pub trait UpdateableCache<E> {
+    fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<(), E>
     where I: Iterator<Item=(Entid, Entid, TypedValue)>;
 }

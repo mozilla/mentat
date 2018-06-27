@@ -12,7 +12,7 @@
 
 use edn;
 use errors::{
-    DbError,
+    DbErrorKind,
     Result,
 };
 use edn::types::Value;
@@ -159,7 +159,7 @@ lazy_static! {
                         :db/cardinality :db.cardinality/many}}"#;
         edn::parse::value(s)
             .map(|v| v.without_spans())
-            .map_err(|_| DbError::BadBootstrapDefinition("Unable to parse V1_SYMBOLIC_SCHEMA".into()))
+            .map_err(|_| DbErrorKind::BadBootstrapDefinition("Unable to parse V1_SYMBOLIC_SCHEMA".into()))
             .unwrap()
     };
 }
@@ -210,14 +210,14 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
             for (ident, mp) in m {
                 let ident = match ident {
                     &Value::Keyword(ref ident) => ident,
-                    _ => bail!(DbError::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident))),
+                    _ => bail!(DbErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for ident but got '{:?}'", ident))),
                 };
                 match *mp {
                     Value::Map(ref mpp) => {
                         for (attr, value) in mpp {
                             let attr = match attr {
                                 &Value::Keyword(ref attr) => attr,
-                                _ => bail!(DbError::BadBootstrapDefinition(format!("Expected namespaced keyword for attr but got '{:?}'", attr))),
+                                _ => bail!(DbErrorKind::BadBootstrapDefinition(format!("Expected namespaced keyword for attr but got '{:?}'", attr))),
                         };
 
                             // We have symbolic idents but the transactor handles entids.  Ad-hoc
@@ -232,20 +232,20 @@ fn symbolic_schema_to_triples(ident_map: &IdentMap, symbolic_schema: &Value) -> 
                                 Some(TypedValue::Keyword(ref k)) => {
                                     ident_map.get(k)
                                         .map(|entid| TypedValue::Ref(*entid))
-                                        .ok_or(DbError::UnrecognizedIdent(k.to_string()))?
+                                        .ok_or(DbErrorKind::UnrecognizedIdent(k.to_string()))?
                                 },
                                 Some(v) => v,
-                                _ => bail!(DbError::BadBootstrapDefinition(format!("Expected Mentat typed value for value but got '{:?}'", value)))
+                                _ => bail!(DbErrorKind::BadBootstrapDefinition(format!("Expected Mentat typed value for value but got '{:?}'", value)))
                             };
 
                             triples.push((ident.clone(), attr.clone(), typed_value));
                         }
                     },
-                    _ => bail!(DbError::BadBootstrapDefinition("Expected {:db/ident {:db/attr value ...} ...}".into()))
+                    _ => bail!(DbErrorKind::BadBootstrapDefinition("Expected {:db/ident {:db/attr value ...} ...}".into()))
                 }
             }
         },
-        _ => bail!(DbError::BadBootstrapDefinition("Expected {...}".into()))
+        _ => bail!(DbErrorKind::BadBootstrapDefinition("Expected {...}".into()))
     }
     Ok(triples)
 }
@@ -266,11 +266,11 @@ fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> 
                                                                value.clone()]));
                         }
                     },
-                    _ => bail!(DbError::BadBootstrapDefinition("Expected {:db/ident {:db/attr value ...} ...}".into()))
+                    _ => bail!(DbErrorKind::BadBootstrapDefinition("Expected {:db/ident {:db/attr value ...} ...}".into()))
                 }
             }
         },
-        _ => bail!(DbError::BadBootstrapDefinition("Expected {...}".into()))
+        _ => bail!(DbErrorKind::BadBootstrapDefinition("Expected {...}".into()))
     }
     Ok(assertions)
 }
