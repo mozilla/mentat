@@ -4,6 +4,7 @@ language: rust
 os: osx
 before_install:
   - brew install sqlcipher --with-fts
+  - gem install jazzy
 rust:
   - 1.25.0  # Must align with `build/version.rs`.
   - stable
@@ -23,4 +24,9 @@ script:
     for manifest in $(find . -type f -name Cargo.toml); do
       cargo test --manifest-path $manifest --verbose --no-default-features --features sqlcipher
     done
+  # build the rust documentation - the output directory must match the Mentat version
+  - cargo doc --all --no-deps --release && cp -r target/doc/* docs/apis/rust/0.7.0
+  # build the rust documentation - the output directory must match the Xcode version
+  - sudo jazzy --source-directory sdks/swift/Mentat/ -o ../../../docs/apis/swift/0.1
+
 cache: cargo
