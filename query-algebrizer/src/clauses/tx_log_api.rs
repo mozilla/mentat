@@ -27,7 +27,6 @@ use clauses::{
 use errors::{
     AlgebrizerError,
     BindingError,
-    InvalidBinding,
     Result,
 };
 
@@ -66,12 +65,12 @@ impl ConjoiningClauses {
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         // We should have exactly one binding. Destructure it now.
@@ -79,7 +78,7 @@ impl ConjoiningClauses {
             Binding::BindRel(bindings) => {
                 let bindings_count = bindings.len();
                 if bindings_count != 1 {
-                    bail!(InvalidBinding::new(where_fn.operator.clone(),
+                    bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(),
                                                     BindingError::InvalidNumberOfBindings {
                                                         number: bindings_count,
                                                         expected: 1,
@@ -93,7 +92,7 @@ impl ConjoiningClauses {
             Binding::BindColl(v) => v,
             Binding::BindScalar(_) |
             Binding::BindTuple(_) => {
-                bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::ExpectedBindRelOrBindColl))
+                bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRelOrBindColl))
             },
         };
 
@@ -144,12 +143,12 @@ impl ConjoiningClauses {
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         // We should have at most five bindings. Destructure them now.
@@ -157,7 +156,7 @@ impl ConjoiningClauses {
             Binding::BindRel(bindings) => {
                 let bindings_count = bindings.len();
                 if bindings_count < 1 || bindings_count > 5 {
-                    bail!(InvalidBinding::new(where_fn.operator.clone(),
+                    bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(),
                                                     BindingError::InvalidNumberOfBindings {
                                                         number: bindings.len(),
                                                         expected: 5,
@@ -167,7 +166,7 @@ impl ConjoiningClauses {
             },
             Binding::BindScalar(_) |
             Binding::BindTuple(_) |
-            Binding::BindColl(_) => bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
+            Binding::BindColl(_) => bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
         };
         let mut bindings = bindings.into_iter();
         let b_e = bindings.next().unwrap_or(VariableOrPlaceholder::Placeholder);
