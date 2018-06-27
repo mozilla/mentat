@@ -108,6 +108,14 @@ pub use errors::{
     MentatError,
     Result,
 };
+
+pub use edn::ParseError;
+pub use mentat_db::DbError;
+pub use mentat_query_algebrizer::AlgebrizerError;
+pub use mentat_query_projector::ProjectorError;
+pub use mentat_query_pull::PullError;
+pub use mentat_sql::SQLError;
+
 pub mod conn;
 pub mod entity_builder;
 pub mod query;
