@@ -71,7 +71,7 @@ use edn::{
 use entids;
 use errors;
 use errors::{
-    DbError,
+    DbErrorKind,
     Result,
 };
 use internal_types::{
@@ -179,7 +179,7 @@ pub fn remove_db_id<V: TransactableValue>(map: &mut entmod::MapNotation<V>) -> R
             entmod::ValuePlace::Atom(v) => Some(v.into_entity_place()?),
             entmod::ValuePlace::Vector(_) |
             entmod::ValuePlace::MapNotation(_) => {
-                bail!(DbError::InputError(errors::InputError::BadDbId))
+                bail!(DbErrorKind::InputError(errors::InputError::BadDbId))
             },
         }
     } else {
@@ -244,7 +244,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         if !conflicting_upserts.is_empty() {
-            bail!(DbError::SchemaConstraintViolation(errors::SchemaConstraintViolation::ConflictingUpserts { conflicting_upserts }));
+            bail!(DbErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::ConflictingUpserts { conflicting_upserts }));
         }
 
         Ok(tempids)
@@ -281,7 +281,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 if self.partition_map.contains_entid(e) {
                     Ok(KnownEntid(e))
                 } else {
-                    bail!(DbError::UnrecognizedEntid(e))
+                    bail!(DbErrorKind::UnrecognizedEntid(e))
                 }
             }
 
@@ -298,7 +298,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                 let lr_typed_value: TypedValue = lookup_ref.v.clone().into_typed_value(&self.schema, lr_attribute.value_type)?;
                 if lr_attribute.unique.is_none() {
-                    bail!(DbError::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {:?}) with attribute that is not :db/unique", lr_a, lr_typed_value)))
+                    bail!(DbErrorKind::NotYetImplemented(format!("Cannot resolve (lookup-ref {} {:?}) with attribute that is not :db/unique", lr_a, lr_typed_value)))
                 }
 
                 Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
@@ -336,7 +336,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     entmod::EntityPlace::TxFunction(ref tx_function) => {
                         match tx_function.op.0.as_str() {
                             "transaction-tx" => Ok(Either::Left(self.tx_id)),
-                            unknown @ _ => bail!(DbError::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
+                            unknown @ _ => bail!(DbErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
                         }
                     },
                 }
@@ -357,13 +357,13 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             fn entity_v_into_term_e<W: TransactableValue>(&mut self, x: entmod::ValuePlace<W>, backward_a: &entmod::EntidOrIdent) -> Result<KnownEntidOr<LookupRefOrTempId>> {
                 match backward_a.unreversed() {
                     None => {
-                        bail!(DbError::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
+                        bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for forward attribute")));
                     },
                     Some(forward_a) => {
                         let forward_a = self.entity_a_into_term_a(forward_a)?;
                         let forward_attribute = self.schema.require_attribute_for_entid(forward_a)?;
                         if forward_attribute.value_type != ValueType::Ref {
-                            bail!(DbError::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref", forward_a)))
+                            bail!(DbErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} that is not :db/valueType :db.type/ref", forward_a)))
                         }
 
                         match x {
@@ -378,7 +378,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                             Ok(Either::Left(KnownEntid(entid)))
                                         } else {
                                             // The given value is expected to be :db.type/ref, so this shouldn't happen.
-                                            bail!(DbError::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
+                                            bail!(DbErrorKind::NotYetImplemented(format!("Cannot use :attr/_reversed notation for attribute {} with value that is not :db.valueType :db.type/ref", forward_a)))
                                         }
                                     }
                                 }
@@ -396,15 +396,15 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                             entmod::ValuePlace::TxFunction(ref tx_function) => {
                                 match tx_function.op.0.as_str() {
                                     "transaction-tx" => Ok(Either::Left(KnownEntid(self.tx_id.0))),
-                                    unknown @ _ => bail!(DbError::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
+                                    unknown @ _ => bail!(DbErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
                                 }
                             },
 
                             entmod::ValuePlace::Vector(_) =>
-                                bail!(DbError::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", forward_a))),
+                                bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode vector value in :attr/_reversed notation for attribute {}", forward_a))),
 
                             entmod::ValuePlace::MapNotation(_) =>
-                                bail!(DbError::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", forward_a))),
+                                bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode map notation value in :attr/_reversed notation for attribute {}", forward_a))),
                         }
                     },
                 }
@@ -475,7 +475,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                             entmod::ValuePlace::LookupRef(ref lookup_ref) => {
                                 if attribute.value_type != ValueType::Ref {
-                                    bail!(DbError::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
+                                    bail!(DbErrorKind::NotYetImplemented(format!("Cannot resolve value lookup ref for attribute {} that is not :db/valueType :db.type/ref", a)))
                                 }
 
                                 Either::Right(LookupRefOrTempId::LookupRef(in_process.intern_lookup_ref(lookup_ref)?))
@@ -484,7 +484,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                             entmod::ValuePlace::TxFunction(ref tx_function) => {
                                 let typed_value = match tx_function.op.0.as_str() {
                                     "transaction-tx" => TypedValue::Ref(self.tx_id),
-                                    unknown @ _ => bail!(DbError::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
+                                    unknown @ _ => bail!(DbErrorKind::NotYetImplemented(format!("Unknown transaction function {}", unknown))),
                                 };
 
                                 // Here we do schema-aware typechecking: we assert that the computed
@@ -494,7 +494,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 // value can be used where a double is expected.  See also
                                 // `SchemaTypeChecking.to_typed_value(...)`.
                                 if attribute.value_type != typed_value.value_type() {
-                                    bail!(DbError::NotYetImplemented(format!("Transaction function {} produced value of type {} but expected type {}",
+                                    bail!(DbErrorKind::NotYetImplemented(format!("Transaction function {} produced value of type {} but expected type {}",
                                                                                tx_function.op.0.as_str(), typed_value.value_type(), attribute.value_type)));
                                 }
 
@@ -503,7 +503,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
                             entmod::ValuePlace::Vector(vs) => {
                                 if !attribute.multival {
-                                    bail!(DbError::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
+                                    bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode vector value for attribute {} that is not :db.cardinality :db.cardinality/many", a)));
                                 }
 
                                 for vv in vs {
@@ -523,11 +523,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 // AddOrRetract, which proliferates types and code, or only handling
                                 // nested maps rather than map values, like Datomic does.
                                 if op != OpType::Add {
-                                    bail!(DbError::NotYetImplemented(format!("Cannot explode nested map value in :db/retract for attribute {}", a)));
+                                    bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode nested map value in :db/retract for attribute {}", a)));
                                 }
 
                                 if attribute.value_type != ValueType::Ref {
-                                    bail!(DbError::NotYetImplemented(format!("Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref", a)))
+                                    bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode nested map value for attribute {} that is not :db/valueType :db.type/ref", a)))
                                 }
 
                                 // :db/id is optional; if it's not given, we generate a special internal tempid
@@ -580,7 +580,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 }
 
                                 if dangling {
-                                    bail!(DbError::NotYetImplemented(format!("Cannot explode nested map value that would lead to dangling entity for attribute {}", a)));
+                                    bail!(DbErrorKind::NotYetImplemented(format!("Cannot explode nested map value that would lead to dangling entity for attribute {}", a)));
                                 }
 
                                 in_process.entity_e_into_term_v(db_id)?
@@ -668,7 +668,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             }
 
             if !conflicting_upserts.is_empty() {
-                bail!(DbError::SchemaConstraintViolation(errors::SchemaConstraintViolation::ConflictingUpserts { conflicting_upserts }));
+                bail!(DbErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::ConflictingUpserts { conflicting_upserts }));
             }
 
             debug!("tempids {:?}", tempids);
@@ -742,12 +742,12 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
         let errors = tx_checking::type_disagreements(&aev_trie);
         if !errors.is_empty() {
-            bail!(DbError::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms: errors }));
+            bail!(DbErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::TypeDisagreements { conflicting_datoms: errors }));
         }
 
         let errors = tx_checking::cardinality_conflicts(&aev_trie);
         if !errors.is_empty() {
-            bail!(DbError::SchemaConstraintViolation(errors::SchemaConstraintViolation::CardinalityConflicts { conflicts: errors }));
+            bail!(DbErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::CardinalityConflicts { conflicts: errors }));
         }
 
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.

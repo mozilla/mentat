@@ -872,8 +872,8 @@ mod tests {
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next + 1);
 
         match conn.transact(&mut sqlite, t.as_str()).expect_err("expected transact error").downcast() {
-            Ok(::mentat_db::DbError::UnrecognizedEntid(e)) => {
-                assert_eq!(e, next + 1);
+            Ok(e @ ::mentat_db::DbError { .. }) => {
+                assert_eq!(e.kind(), ::mentat_db::DbErrorKind::UnrecognizedEntid(next + 1));
             },
             x => panic!("expected db error, got {:?}", x),
         }
@@ -899,9 +899,9 @@ mod tests {
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next);
 
         match conn.transact(&mut sqlite, t.as_str()).expect_err("expected transact error").downcast() {
-            Ok(::mentat_db::DbError::UnrecognizedEntid(e)) => {
+            Ok(e @ ::mentat_db::DbError { .. }) => {
                 // All this, despite this being the ID we were about to allocate!
-                assert_eq!(e, next);
+                assert_eq!(e.kind(), ::mentat_db::DbErrorKind::UnrecognizedEntid(next));
             },
             x => panic!("expected db error, got {:?}", x),
         }
@@ -1083,8 +1083,13 @@ mod tests {
         let report = conn.transact(&mut sqlite, "[[:db/add \"u\" :db/ident :a/keyword]
                                                   [:db/add \"u\" :db/ident :b/keyword]]");
         match report.expect_err("expected transact error").downcast() {
-            Ok(::mentat_db::DbError::SchemaConstraintViolation(_)) => { },
-            x => panic!("expected schema constraint violation, got {:?}", x),
+            Ok(e @ ::mentat_db::DbError { .. }) => {
+                match e.kind() {
+                    ::mentat_db::DbErrorKind::SchemaConstraintViolation(_) => {},
+                    _ => panic!("expected SchemaConstraintViolation"),
+                }
+            },
+            x => panic!("expected db error, got {:?}", x),
         }
     }
 

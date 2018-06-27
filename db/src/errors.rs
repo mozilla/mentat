@@ -13,7 +13,6 @@
 use failure::{
     Backtrace,
     Context,
-    Error,
     Fail,
 };
 
@@ -43,7 +42,7 @@ macro_rules! bail {
     )
 }
 
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = ::std::result::Result<T, DbError>;
 
 // TODO Error/ErrorKind pair
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -119,7 +118,7 @@ impl ::std::fmt::Display for SchemaConstraintViolation {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
 pub enum InputError {
     /// Map notation included a bad `:db/id` value.
     BadDbId,
@@ -143,8 +142,53 @@ impl ::std::fmt::Display for InputError {
     }
 }
 
-#[derive(Debug, Fail)]
-pub enum DbError {
+#[derive(Debug)]
+pub struct DbError {
+    inner: Context<DbErrorKind>,
+}
+
+impl ::std::fmt::Display for DbError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        ::std::fmt::Display::fmt(&self.inner, f)
+    }
+}
+
+impl Fail for DbError {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
+    }
+}
+
+impl DbError {
+    pub fn kind(&self) -> DbErrorKind {
+        self.inner.get_context().clone()
+    }
+}
+
+impl From<DbErrorKind> for DbError {
+    fn from(kind: DbErrorKind) -> DbError {
+        DbError { inner: Context::new(kind) }
+    }
+}
+
+impl From<Context<DbErrorKind>> for DbError {
+    fn from(inner: Context<DbErrorKind>) -> DbError {
+        DbError { inner: inner }
+    }
+}
+
+impl From<rusqlite::Error> for DbError {
+    fn from(error: rusqlite::Error) -> DbError {
+        DbError { inner: Context::new(DbErrorKind::RusqliteError(error.to_string())) }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Fail)]
+pub enum DbErrorKind {
     /// We're just not done yet.  Message that the feature is recognized but not yet
     /// implemented.
     #[fail(display = "not yet implemented: {}", _0)]
@@ -203,49 +247,11 @@ pub enum DbError {
 
     #[fail(display = "Cannot transact a fulltext assertion with a typed value that is not :db/valueType :db.type/string")]
     WrongTypeValueForFtsAssertion,
-}
 
-#[derive(Debug)]
-pub struct DbSqlError {
-    inner: Context<DbSqlErrorKind>,
-}
+    // SQL errors.
+    #[fail(display = "could not update a cache")]
+    CacheUpdateFailed,
 
-impl Fail for DbSqlError {
-    fn cause(&self) -> Option<&Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
-impl ::std::fmt::Display for DbSqlError {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        ::std::fmt::Display::fmt(&self.inner, f)
-    }
-}
-
-impl DbSqlError {
-    pub fn kind(&self) -> DbSqlErrorKind {
-        *self.inner.get_context()
-    }
-}
-
-impl From<DbSqlErrorKind> for DbSqlError {
-    fn from(kind: DbSqlErrorKind) -> DbSqlError {
-        DbSqlError { inner: Context::new(kind) }
-    }
-}
-
-impl From<Context<DbSqlErrorKind>> for DbSqlError {
-    fn from(inner: Context<DbSqlErrorKind>) -> DbSqlError {
-        DbSqlError { inner: inner }
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
-pub enum DbSqlErrorKind {
     #[fail(display = "Could not set_user_version")]
     CouldNotSetVersionPragma,
 
@@ -284,4 +290,9 @@ pub enum DbSqlErrorKind {
 
     #[fail(display = "Could not update partition map")]
     FailedToUpdatePartitionMap,
+
+    // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
+    // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
+    #[fail(display = "SQL error: _0")]
+    RusqliteError(String),
 }

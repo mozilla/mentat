@@ -22,7 +22,7 @@ use indexmap;
 use petgraph::unionfind;
 
 use errors::{
-    DbError,
+    DbErrorKind,
     Result,
 };
 use types::{
@@ -331,21 +331,21 @@ impl Generation {
                     match (op, temp_id_map.get(&*t1), temp_id_map.get(&*t2)) {
                         (op, Some(&n1), Some(&n2)) => Term::AddOrRetract(op, n1, a, TypedValue::Ref(n2.0)),
                         (OpType::Add, _, _) => unreachable!(), // This is a coding error -- every tempid in a :db/add entity should resolve or be allocated.
-                        (OpType::Retract, _, _) => bail!(DbError::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: one of {}, {}", t1, t2))),
+                        (OpType::Retract, _, _) => bail!(DbErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: one of {}, {}", t1, t2))),
                     }
                 },
                 Term::AddOrRetract(op, Right(t), a, Left(v)) => {
                     match (op, temp_id_map.get(&*t)) {
                         (op, Some(&n)) => Term::AddOrRetract(op, n, a, v),
                         (OpType::Add, _) => unreachable!(), // This is a coding error.
-                        (OpType::Retract, _) => bail!(DbError::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
+                        (OpType::Retract, _) => bail!(DbErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
                     }
                 },
                 Term::AddOrRetract(op, Left(e), a, Right(t)) => {
                     match (op, temp_id_map.get(&*t)) {
                         (op, Some(&n)) => Term::AddOrRetract(op, e, a, TypedValue::Ref(n.0)),
                         (OpType::Add, _) => unreachable!(), // This is a coding error.
-                        (OpType::Retract, _) => bail!(DbError::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
+                        (OpType::Retract, _) => bail!(DbErrorKind::NotYetImplemented(format!("[:db/retract ...] entity referenced tempid that did not upsert: {}", t))),
                     }
                 },
                 Term::AddOrRetract(_, Left(_), _, Left(_)) => unreachable!(), // This is a coding error -- these should not be in allocations.

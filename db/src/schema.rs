@@ -13,7 +13,7 @@
 use db::TypedSQLValue;
 use edn;
 use errors::{
-    DbError,
+    DbErrorKind,
     Result,
 };
 use edn::symbols;
@@ -42,19 +42,19 @@ pub trait AttributeValidation {
 impl AttributeValidation for Attribute {
     fn validate<F>(&self, ident: F) -> Result<()> where F: Fn() -> String {
         if self.unique == Some(attribute::Unique::Value) && !self.index {
-            bail!(DbError::BadSchemaAssertion(format!(":db/unique :db/unique_value without :db/index true for entid: {}", ident())))
+            bail!(DbErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_value without :db/index true for entid: {}", ident())))
         }
         if self.unique == Some(attribute::Unique::Identity) && !self.index {
-            bail!(DbError::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/index true for entid: {}", ident())))
+            bail!(DbErrorKind::BadSchemaAssertion(format!(":db/unique :db/unique_identity without :db/index true for entid: {}", ident())))
         }
         if self.fulltext && self.value_type != ValueType::String {
-            bail!(DbError::BadSchemaAssertion(format!(":db/fulltext true without :db/valueType :db.type/string for entid: {}", ident())))
+            bail!(DbErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/valueType :db.type/string for entid: {}", ident())))
         }
         if self.fulltext && !self.index {
-            bail!(DbError::BadSchemaAssertion(format!(":db/fulltext true without :db/index true for entid: {}", ident())))
+            bail!(DbErrorKind::BadSchemaAssertion(format!(":db/fulltext true without :db/index true for entid: {}", ident())))
         }
         if self.component && self.value_type != ValueType::Ref {
-            bail!(DbError::BadSchemaAssertion(format!(":db/isComponent true without :db/valueType :db.type/ref for entid: {}", ident())))
+            bail!(DbErrorKind::BadSchemaAssertion(format!(":db/isComponent true without :db/valueType :db.type/ref for entid: {}", ident())))
         }
         // TODO: consider warning if we have :db/index true for :db/valueType :db.type/string,
         // since this may be inefficient.  More generally, we should try to drive complex
@@ -153,17 +153,17 @@ impl AttributeBuilder {
 
     pub fn validate_install_attribute(&self) -> Result<()> {
         if self.value_type.is_none() {
-            bail!(DbError::BadSchemaAssertion("Schema attribute for new attribute does not set :db/valueType".into()));
+            bail!(DbErrorKind::BadSchemaAssertion("Schema attribute for new attribute does not set :db/valueType".into()));
         }
         Ok(())
     }
 
     pub fn validate_alter_attribute(&self) -> Result<()> {
         if self.value_type.is_some() {
-            bail!(DbError::BadSchemaAssertion("Schema alteration must not set :db/valueType".into()));
+            bail!(DbErrorKind::BadSchemaAssertion("Schema alteration must not set :db/valueType".into()));
         }
         if self.fulltext.is_some() {
-            bail!(DbError::BadSchemaAssertion("Schema alteration must not set :db/fulltext".into()));
+            bail!(DbErrorKind::BadSchemaAssertion("Schema alteration must not set :db/fulltext".into()));
         }
         Ok(())
     }
@@ -250,15 +250,15 @@ pub trait SchemaBuilding {
 
 impl SchemaBuilding for Schema {
     fn require_ident(&self, entid: Entid) -> Result<&symbols::Keyword> {
-        self.get_ident(entid).ok_or(DbError::UnrecognizedEntid(entid).into())
+        self.get_ident(entid).ok_or(DbErrorKind::UnrecognizedEntid(entid).into())
     }
 
     fn require_entid(&self, ident: &symbols::Keyword) -> Result<KnownEntid> {
-        self.get_entid(&ident).ok_or(DbError::UnrecognizedIdent(ident.to_string()).into())
+        self.get_entid(&ident).ok_or(DbErrorKind::UnrecognizedIdent(ident.to_string()).into())
     }
 
     fn require_attribute_for_entid(&self, entid: Entid) -> Result<&Attribute> {
-        self.attribute_for_entid(entid).ok_or(DbError::UnrecognizedEntid(entid).into())
+        self.attribute_for_entid(entid).ok_or(DbErrorKind::UnrecognizedEntid(entid).into())
     }
 
     /// Create a valid `Schema` from the constituent maps.
@@ -274,8 +274,8 @@ impl SchemaBuilding for Schema {
         where U: IntoIterator<Item=(symbols::Keyword, symbols::Keyword, TypedValue)>{
 
         let entid_assertions: Result<Vec<(Entid, Entid, TypedValue)>> = assertions.into_iter().map(|(symbolic_ident, symbolic_attr, value)| {
-            let ident: i64 = *ident_map.get(&symbolic_ident).ok_or(DbError::UnrecognizedIdent(symbolic_ident.to_string()))?;
-            let attr: i64 = *ident_map.get(&symbolic_attr).ok_or(DbError::UnrecognizedIdent(symbolic_attr.to_string()))?;
+            let ident: i64 = *ident_map.get(&symbolic_ident).ok_or(DbErrorKind::UnrecognizedIdent(symbolic_ident.to_string()))?;
+            let attr: i64 = *ident_map.get(&symbolic_attr).ok_or(DbErrorKind::UnrecognizedIdent(symbolic_attr.to_string()))?;
             Ok((ident, attr, value))
         }).collect();
 
@@ -308,7 +308,7 @@ impl SchemaTypeChecking for Schema {
         // wrapper function.
         match TypedValue::from_edn_value(&value.clone().without_spans()) {
             // We don't recognize this EDN at all.  Get out!
-            None => bail!(DbError::BadValuePair(format!("{}", value), value_type)),
+            None => bail!(DbErrorKind::BadValuePair(format!("{}", value), value_type)),
             Some(typed_value) => match (value_type, typed_value) {
                 // Most types don't coerce at all.
                 (ValueType::Boolean, tv @ TypedValue::Boolean(_)) => Ok(tv),
@@ -334,7 +334,7 @@ impl SchemaTypeChecking for Schema {
                 (vt @ ValueType::Instant, _) |
                 (vt @ ValueType::Keyword, _) |
                 (vt @ ValueType::Ref, _)
-                => bail!(DbError::BadValuePair(format!("{}", value), vt)),
+                => bail!(DbErrorKind::BadValuePair(format!("{}", value), vt)),
             }
         }
     }
@@ -434,13 +434,8 @@ mod test {
             no_history: false,
         });
 
-        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
-        assert!(err.is_some());
-
-        match err.unwrap().downcast() {
-            Ok(DbError::BadSchemaAssertion(message)) => { assert_eq!(message, ":db/unique :db/unique_value without :db/index true for entid: :foo/bar"); },
-            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
-        }
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err().map(|e| e.kind());
+        assert_eq!(err, Some(DbErrorKind::BadSchemaAssertion(":db/unique :db/unique_value without :db/index true for entid: :foo/bar".into())));
     }
 
     #[test]
@@ -457,13 +452,8 @@ mod test {
             no_history: false,
         });
 
-        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
-        assert!(err.is_some());
-
-        match err.unwrap().downcast() {
-            Ok(DbError::BadSchemaAssertion(message)) => { assert_eq!(message, ":db/unique :db/unique_identity without :db/index true for entid: :foo/bar"); },
-            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
-        }
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err().map(|e| e.kind());
+        assert_eq!(err, Some(DbErrorKind::BadSchemaAssertion(":db/unique :db/unique_identity without :db/index true for entid: :foo/bar".into())));
     }
 
     #[test]
@@ -480,13 +470,8 @@ mod test {
             no_history: false,
         });
 
-        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
-        assert!(err.is_some());
-
-        match err.unwrap().downcast() {
-            Ok(DbError::BadSchemaAssertion(message)) => { assert_eq!(message, ":db/isComponent true without :db/valueType :db.type/ref for entid: :foo/bar"); },
-            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
-        }
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err().map(|e| e.kind());
+        assert_eq!(err, Some(DbErrorKind::BadSchemaAssertion(":db/isComponent true without :db/valueType :db.type/ref for entid: :foo/bar".into())));
     }
 
     #[test]
@@ -503,13 +488,8 @@ mod test {
             no_history: false,
         });
 
-        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
-        assert!(err.is_some());
-
-        match err.unwrap().downcast() {
-            Ok(DbError::BadSchemaAssertion(message)) => { assert_eq!(message, ":db/fulltext true without :db/index true for entid: :foo/bar"); },
-            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
-        }
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err().map(|e| e.kind());
+        assert_eq!(err, Some(DbErrorKind::BadSchemaAssertion(":db/fulltext true without :db/index true for entid: :foo/bar".into())));
     }
 
     fn invalid_schema_fulltext_index_not_string() {
@@ -525,12 +505,7 @@ mod test {
             no_history: false,
         });
 
-        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err();
-        assert!(err.is_some());
-
-        match err.unwrap().downcast() {
-            Ok(DbError::BadSchemaAssertion(message)) => { assert_eq!(message, ":db/fulltext true without :db/valueType :db.type/string for entid: :foo/bar"); },
-            x => panic!("expected Bad Schema Assertion error, got {:?}", x),
-        }
+        let err = validate_attribute_map(&schema.entid_map, &schema.attribute_map).err().map(|e| e.kind());
+        assert_eq!(err, Some(DbErrorKind::BadSchemaAssertion(":db/fulltext true without :db/valueType :db.type/string for entid: :foo/bar".into())));
     }
 }
