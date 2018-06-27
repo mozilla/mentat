@@ -185,7 +185,7 @@ pub trait Pullable {
 }
 
 pub trait Syncable {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
+    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> ::std::result::Result<(), ::failure::Error>;
 }
 
 /// Represents an in-progress, not yet committed, set of changes to the store.
@@ -871,8 +871,8 @@ mod tests {
                        .partition_map[":db.part/user"].index;
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next + 1);
 
-        match conn.transact(&mut sqlite, t.as_str()).expect_err("expected transact error").downcast() {
-            Ok(e @ ::mentat_db::DbError { .. }) => {
+        match conn.transact(&mut sqlite, t.as_str()) {
+            Err(MentatError::DbError(e)) => {
                 assert_eq!(e.kind(), ::mentat_db::DbErrorKind::UnrecognizedEntid(next + 1));
             },
             x => panic!("expected db error, got {:?}", x),
@@ -898,8 +898,8 @@ mod tests {
         // we should reject this, because the first ID was provided by the user!
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next);
 
-        match conn.transact(&mut sqlite, t.as_str()).expect_err("expected transact error").downcast() {
-            Ok(e @ ::mentat_db::DbError { .. }) => {
+        match conn.transact(&mut sqlite, t.as_str()) {
+            Err(MentatError::DbError(e)) => {
                 // All this, despite this being the ID we were about to allocate!
                 assert_eq!(e.kind(), ::mentat_db::DbErrorKind::UnrecognizedEntid(next));
             },
@@ -1059,9 +1059,9 @@ mod tests {
 
         // Bad EDN: missing closing ']'.
         let report = conn.transact(&mut sqlite, "[[:db/add \"t\" :db/ident :a/keyword]");
-        match report.expect_err("expected transact to fail for bad edn").downcast() {
-            Ok(edn::ParseError { .. }) => { },
-            Err(x) => panic!("expected EDN parse error, got {:?}", x),
+        match report.expect_err("expected transact to fail for bad edn") {
+            MentatError::EdnParseError(_) => { },
+            x => panic!("expected EDN parse error, got {:?}", x),
         }
 
         // Good EDN.
@@ -1070,9 +1070,9 @@ mod tests {
 
         // Bad transaction data: missing leading :db/add.
         let report = conn.transact(&mut sqlite, "[[\"t\" :db/ident :b/keyword]]");
-        match report.expect_err("expected transact error").downcast() {
-            Ok(edn::ParseError { .. }) => { },
-            Err(x) => panic!("expected EDN parse error, got {:?}", x),
+        match report.expect_err("expected transact error") {
+            MentatError::EdnParseError(_) => { },
+            x => panic!("expected EDN parse error, got {:?}", x),
         }
 
         // Good transaction data.
@@ -1082,8 +1082,8 @@ mod tests {
         // Bad transaction based on state of store: conflicting upsert.
         let report = conn.transact(&mut sqlite, "[[:db/add \"u\" :db/ident :a/keyword]
                                                   [:db/add \"u\" :db/ident :b/keyword]]");
-        match report.expect_err("expected transact error").downcast() {
-            Ok(e @ ::mentat_db::DbError { .. }) => {
+        match report.expect_err("expected transact error") {
+            MentatError::DbError(e) => {
                 match e.kind() {
                     ::mentat_db::DbErrorKind::SchemaConstraintViolation(_) => {},
                     _ => panic!("expected SchemaConstraintViolation"),
@@ -1106,8 +1106,8 @@ mod tests {
         let kw = kw!(:foo/bat);
         let schema = conn.current_schema();
         let res = conn.cache(&mut sqlite, &schema, &kw, CacheDirection::Forward, CacheAction::Register);
-        match res.expect_err("expected cache to fail").downcast() {
-            Ok(MentatError::UnknownAttribute(msg)) => assert_eq!(msg, ":foo/bat"),
+        match res.expect_err("expected cache to fail") {
+            MentatError::UnknownAttribute(msg) => assert_eq!(msg, ":foo/bat"),
             x => panic!("expected UnknownAttribute error, got {:?}", x),
         }
     }

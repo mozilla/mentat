@@ -286,8 +286,8 @@ fn test_add_vocab() {
     // Scoped borrow of `conn`.
     {
         let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
-        match in_progress.ensure_vocabulary(&foo_v1_malformed).expect_err("expected vocabulary to fail").downcast() {
-            Ok(MentatError::ConflictingAttributeDefinitions(vocab, version, attr, theirs, ours)) => {
+        match in_progress.ensure_vocabulary(&foo_v1_malformed).expect_err("expected vocabulary to fail") {
+            MentatError::ConflictingAttributeDefinitions(vocab, version, attr, theirs, ours) => {
                 assert_eq!(vocab.as_str(), ":org.mozilla/foo");
                 assert_eq!(attr.as_str(), ":foo/baz");
                 assert_eq!(version, 1);

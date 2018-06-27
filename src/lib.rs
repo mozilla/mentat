@@ -104,6 +104,10 @@ macro_rules! kw {
 
 #[macro_use]
 pub mod errors;
+pub use errors::{
+    MentatError,
+    Result,
+};
 pub mod conn;
 pub mod entity_builder;
 pub mod query;
