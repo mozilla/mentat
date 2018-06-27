@@ -38,6 +38,7 @@ use errors;
 
 /// Represents one partition of the entid space.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[cfg_attr(feature = "syncable", derive(Serialize,Deserialize))]
 pub struct Partition {
     /// The first entid in the partition.
     pub start: i64,
