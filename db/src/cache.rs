@@ -72,8 +72,6 @@ use std::sync::Arc;
 
 use std::iter::Peekable;
 
-use num;
-
 use rusqlite;
 
 use mentat_core::{
@@ -123,17 +121,10 @@ trait Remove<T> where T: PartialEq {
 
 impl<T> Remove<T> for Vec<T> where T: PartialEq {
     /// Remove all occurrences from a vector in-place, by equality.
-    /// Eventually replace with unstable feature: #40062.
     fn remove_every(&mut self, item: &T) -> usize {
-        let mut removed = 0;
-        let range = num::range_step_inclusive(self.len() as isize - 1, 0, -1);
-        for i in range {
-            if self.get(i as usize).map_or(false, |x| x == item) {
-                self.remove(i as usize);
-                removed += 1;
-            }
-        }
-        removed
+        let initial_len = self.len();
+        self.retain(|v| v != item);
+        initial_len - self.len()
     }
 }
 
@@ -182,10 +173,14 @@ impl<K, V> ExtendByAbsorbing for BTreeMap<K, V> where K: Ord, V: Absorb {
 #[test]
 fn test_vec_remove_item() {
     let mut v = vec![1, 2, 3, 4, 5, 4, 3];
-    v.remove_every(&3);
+    let count = v.remove_every(&3);
     assert_eq!(v, vec![1, 2, 4, 5, 4]);
-    v.remove_every(&4);
+    assert_eq!(count, 2);
+    let count = v.remove_every(&4);
     assert_eq!(v, vec![1, 2, 5]);
+    assert_eq!(count, 2);
+    let count = v.remove_every(&9);
+    assert_eq!(count, 0);
 }
 
 //
