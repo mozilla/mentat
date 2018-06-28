@@ -59,6 +59,9 @@ pub enum ProjectorError {
     #[fail(display = "expected {}, got {}", _0, _1)]
     UnexpectedResultsType(&'static str, &'static str),
 
+    #[fail(display = "expected tuple of length {}, got tuple of length {}", _0, _1)]
+    UnexpectedResultsTupleLength(usize, usize),
+
     #[fail(display = "min/max expressions: {} (max 1), corresponding: {}", _0, _1)]
     AmbiguousAggregates(usize, usize),
 
