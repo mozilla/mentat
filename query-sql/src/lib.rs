@@ -8,7 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate regex;
 #[macro_use] extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
@@ -559,15 +558,20 @@ impl QueryFragment for FromClause {
     }
 }
 
+/// `var` is something like `?foo99-people`.
+/// Trim the `?` and escape the rest. Prepend `i` to distinguish from
+/// the inline value space `v`.
+fn format_select_var(var: &str) -> String {
+    let without_question = var.split_at(1).1;
+    let replaced_iter = without_question.chars().map(|c|
+        if c.is_ascii_alphanumeric() { c } else { '_' });
+    // Prefix with `i` (Avoiding this copy is probably not worth the trouble but whatever).
+    ['i'].into_iter().cloned().chain(replaced_iter).collect()
+}
+
 impl SelectQuery {
     fn push_variable_param(&self, var: &Variable, out: &mut QueryBuilder) -> BuildQueryResult {
-        // `var` is something like `?foo99-people`.
-        // Trim the `?` and escape the rest. Prepend `i` to distinguish from
-        // the inline value space `v`.
-        let re = regex::Regex::new("[^a-zA-Z_0-9]").unwrap();
-        let without_question = var.as_str().split_at(1).1;
-        let replaced = re.replace_all(without_question, "_");
-        let bind_param = format!("i{}", replaced);                 // We _could_ avoid this copying.
+        let bind_param = format_select_var(var.as_str());
         out.push_bind_param(bind_param.as_str())
     }
 }
@@ -816,5 +820,12 @@ mod tests {
         assert_eq!("SELECT `datoms00`.e AS `x` FROM `datoms` AS `datoms00`, `datoms` AS `datoms01` WHERE `datoms01`.v = `datoms00`.v AND `datoms00`.a = 65537 AND `datoms01`.a = 65536", sql);
         assert!(args.is_empty());
 
+    }
+
+    #[test]
+    fn test_format_select_var() {
+        assert_eq!(format_select_var("?foo99-people"), "ifoo99_people");
+        assert_eq!(format_select_var("?FOO99-pëople.123"), "iFOO99_p_ople_123");
+        assert_eq!(format_select_var("?foo①bar越"), "ifoo_bar_");
     }
 }
