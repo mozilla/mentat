@@ -562,11 +562,12 @@ impl QueryFragment for FromClause {
 /// Trim the `?` and escape the rest. Prepend `i` to distinguish from
 /// the inline value space `v`.
 fn format_select_var(var: &str) -> String {
+    use std::iter::once;
     let without_question = var.split_at(1).1;
     let replaced_iter = without_question.chars().map(|c|
         if c.is_ascii_alphanumeric() { c } else { '_' });
     // Prefix with `i` (Avoiding this copy is probably not worth the trouble but whatever).
-    ['i'].into_iter().cloned().chain(replaced_iter).collect()
+    once('i').chain(replaced_iter).collect()
 }
 
 impl SelectQuery {
