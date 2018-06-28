@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `DbErrorKind` enum in crate `mentat_db`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, DbErrorKind">
+
+    <title>mentat_db::errors::DbErrorKind - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum DbErrorKind</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.NotYetImplemented">NotYetImplemented</a><a href="#variant.BadValuePair">BadValuePair</a><a href="#variant.BadSQLValuePair">BadSQLValuePair</a><a href="#variant.BadBootstrapDefinition">BadBootstrapDefinition</a><a href="#variant.BadSchemaAssertion">BadSchemaAssertion</a><a href="#variant.UnrecognizedIdent">UnrecognizedIdent</a><a href="#variant.UnrecognizedEntid">UnrecognizedEntid</a><a href="#variant.UnknownAttribute">UnknownAttribute</a><a href="#variant.CannotCacheNonUniqueAttributeInReverse">CannotCacheNonUniqueAttributeInReverse</a><a href="#variant.SchemaAlterationFailed">SchemaAlterationFailed</a><a href="#variant.SchemaConstraintViolation">SchemaConstraintViolation</a><a href="#variant.InputError">InputError</a><a href="#variant.WrongTypeValueForFtsAssertion">WrongTypeValueForFtsAssertion</a><a href="#variant.CacheUpdateFailed">CacheUpdateFailed</a><a href="#variant.CouldNotSetVersionPragma">CouldNotSetVersionPragma</a><a href="#variant.CouldNotGetVersionPragma">CouldNotGetVersionPragma</a><a href="#variant.CouldNotSearch">CouldNotSearch</a><a href="#variant.TxInsertFailedToAddMissingDatoms">TxInsertFailedToAddMissingDatoms</a><a href="#variant.TxInsertFailedToRetractDatoms">TxInsertFailedToRetractDatoms</a><a href="#variant.DatomsUpdateFailedToRetract">DatomsUpdateFailedToRetract</a><a href="#variant.DatomsUpdateFailedToAdd">DatomsUpdateFailedToAdd</a><a href="#variant.FailedToCreateTempTables">FailedToCreateTempTables</a><a href="#variant.NonFtsInsertionIntoTempSearchTableFailed">NonFtsInsertionIntoTempSearchTableFailed</a><a href="#variant.FtsInsertionFailed">FtsInsertionFailed</a><a href="#variant.FtsInsertionIntoTempSearchTableFailed">FtsInsertionIntoTempSearchTableFailed</a><a href="#variant.FtsFailedToDropSearchIds">FtsFailedToDropSearchIds</a><a href="#variant.FailedToUpdatePartitionMap">FailedToUpdatePartitionMap</a><a href="#variant.RusqliteError">RusqliteError</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-From%3CDbErrorKind%3E">From&lt;DbErrorKind&gt;</a><a href="#impl-Clone">Clone</a><a href="#impl-PartialEq">PartialEq</a><a href="#impl-Debug">Debug</a><a href="#impl-Fail">Fail</a><a href="#impl-Display">Display</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">Send</a><a href="#impl-Sync">Sync</a></div></div><p class='location'><a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>errors</a></p><script>window.sidebarCurrent = {name: 'DbErrorKind', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Enum <a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>errors</a>::<wbr><a class="enum" href=''>DbErrorKind</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_db/errors.rs.html#191-298' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust enum'>pub enum DbErrorKind {
+    NotYetImplemented(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    BadValuePair(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>,&nbsp;<a class="enum" href="../../mentat_db/types/enum.ValueType.html" title="enum mentat_db::types::ValueType">ValueType</a>),
+    BadSQLValuePair(Value,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>),
+    BadBootstrapDefinition(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    BadSchemaAssertion(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    UnrecognizedIdent(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    UnrecognizedEntid(<a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>),
+    UnknownAttribute(<a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>),
+    CannotCacheNonUniqueAttributeInReverse(<a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>),
+    SchemaAlterationFailed(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    SchemaConstraintViolation(<a class="enum" href="../../mentat_db/errors/enum.SchemaConstraintViolation.html" title="enum mentat_db::errors::SchemaConstraintViolation">SchemaConstraintViolation</a>),
+    InputError(<a class="enum" href="../../mentat_db/errors/enum.InputError.html" title="enum mentat_db::errors::InputError">InputError</a>),
+    WrongTypeValueForFtsAssertion,
+    CacheUpdateFailed,
+    CouldNotSetVersionPragma,
+    CouldNotGetVersionPragma,
+    CouldNotSearch,
+    TxInsertFailedToAddMissingDatoms,
+    TxInsertFailedToRetractDatoms,
+    DatomsUpdateFailedToRetract,
+    DatomsUpdateFailedToAdd,
+    FailedToCreateTempTables,
+    NonFtsInsertionIntoTempSearchTableFailed,
+    FtsInsertionFailed,
+    FtsInsertionIntoTempSearchTableFailed,
+    FtsFailedToDropSearchIds,
+    FailedToUpdatePartitionMap,
+    RusqliteError(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+}</pre></div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.NotYetImplemented" class="variant small-section-header"><a href="#variant.NotYetImplemented" class="anchor field"></a><span id='NotYetImplemented.v' class='invisible'><code>NotYetImplemented(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>We're just not done yet.  Message that the feature is recognized but not yet
+implemented.</p>
+</div><span id="variant.BadValuePair" class="variant small-section-header"><a href="#variant.BadValuePair" class="anchor field"></a><span id='BadValuePair.v' class='invisible'><code>BadValuePair(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>,&nbsp;<a class="enum" href="../../mentat_db/types/enum.ValueType.html" title="enum mentat_db::types::ValueType">ValueType</a>)</code></span></span><div class='docblock'><p>We've been given a value that isn't the correct Mentat type.</p>
+</div><span id="variant.BadSQLValuePair" class="variant small-section-header"><a href="#variant.BadSQLValuePair" class="anchor field"></a><span id='BadSQLValuePair.v' class='invisible'><code>BadSQLValuePair(Value,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>)</code></span></span><div class='docblock'><p>We've got corrupt data in the SQL store: a value and value_type_tag don't line up.
+TODO _1.data_type()</p>
+</div><span id="variant.BadBootstrapDefinition" class="variant small-section-header"><a href="#variant.BadBootstrapDefinition" class="anchor field"></a><span id='BadBootstrapDefinition.v' class='invisible'><code>BadBootstrapDefinition(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>A bootstrap definition couldn't be parsed or installed.  This is a programmer error, not
+a runtime error.</p>
+</div><span id="variant.BadSchemaAssertion" class="variant small-section-header"><a href="#variant.BadSchemaAssertion" class="anchor field"></a><span id='BadSchemaAssertion.v' class='invisible'><code>BadSchemaAssertion(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>A schema assertion couldn't be parsed.</p>
+</div><span id="variant.UnrecognizedIdent" class="variant small-section-header"><a href="#variant.UnrecognizedIdent" class="anchor field"></a><span id='UnrecognizedIdent.v' class='invisible'><code>UnrecognizedIdent(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>An ident-&gt;entid mapping failed.</p>
+</div><span id="variant.UnrecognizedEntid" class="variant small-section-header"><a href="#variant.UnrecognizedEntid" class="anchor field"></a><span id='UnrecognizedEntid.v' class='invisible'><code>UnrecognizedEntid(<a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>)</code></span></span><div class='docblock'><p>An entid-&gt;ident mapping failed.
+We also use this error if you try to transact an entid that we didn't allocate,
+in part because we blow the stack in error_chain if we define a new enum!</p>
+</div><span id="variant.UnknownAttribute" class="variant small-section-header"><a href="#variant.UnknownAttribute" class="anchor field"></a><span id='UnknownAttribute.v' class='invisible'><code>UnknownAttribute(<a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>)</code></span></span><span id="variant.CannotCacheNonUniqueAttributeInReverse" class="variant small-section-header"><a href="#variant.CannotCacheNonUniqueAttributeInReverse" class="anchor field"></a><span id='CannotCacheNonUniqueAttributeInReverse.v' class='invisible'><code>CannotCacheNonUniqueAttributeInReverse(<a class="type" href="../../mentat_db/types/type.Entid.html" title="type mentat_db::types::Entid">Entid</a>)</code></span></span><span id="variant.SchemaAlterationFailed" class="variant small-section-header"><a href="#variant.SchemaAlterationFailed" class="anchor field"></a><span id='SchemaAlterationFailed.v' class='invisible'><code>SchemaAlterationFailed(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><span id="variant.SchemaConstraintViolation" class="variant small-section-header"><a href="#variant.SchemaConstraintViolation" class="anchor field"></a><span id='SchemaConstraintViolation.v' class='invisible'><code>SchemaConstraintViolation(<a class="enum" href="../../mentat_db/errors/enum.SchemaConstraintViolation.html" title="enum mentat_db::errors::SchemaConstraintViolation">SchemaConstraintViolation</a>)</code></span></span><div class='docblock'><p>A transaction tried to violate a constraint of the schema of the Mentat store.</p>
+</div><span id="variant.InputError" class="variant small-section-header"><a href="#variant.InputError" class="anchor field"></a><span id='InputError.v' class='invisible'><code>InputError(<a class="enum" href="../../mentat_db/errors/enum.InputError.html" title="enum mentat_db::errors::InputError">InputError</a>)</code></span></span><div class='docblock'><p>The transaction was malformed in some way (that was not recognized at parse time; for
+example, in a way that is schema-dependent).</p>
+</div><span id="variant.WrongTypeValueForFtsAssertion" class="variant small-section-header"><a href="#variant.WrongTypeValueForFtsAssertion" class="anchor field"></a><span id='WrongTypeValueForFtsAssertion.v' class='invisible'><code>WrongTypeValueForFtsAssertion</code></span></span><span id="variant.CacheUpdateFailed" class="variant small-section-header"><a href="#variant.CacheUpdateFailed" class="anchor field"></a><span id='CacheUpdateFailed.v' class='invisible'><code>CacheUpdateFailed</code></span></span><span id="variant.CouldNotSetVersionPragma" class="variant small-section-header"><a href="#variant.CouldNotSetVersionPragma" class="anchor field"></a><span id='CouldNotSetVersionPragma.v' class='invisible'><code>CouldNotSetVersionPragma</code></span></span><span id="variant.CouldNotGetVersionPragma" class="variant small-section-header"><a href="#variant.CouldNotGetVersionPragma" class="anchor field"></a><span id='CouldNotGetVersionPragma.v' class='invisible'><code>CouldNotGetVersionPragma</code></span></span><span id="variant.CouldNotSearch" class="variant small-section-header"><a href="#variant.CouldNotSearch" class="anchor field"></a><span id='CouldNotSearch.v' class='invisible'><code>CouldNotSearch</code></span></span><span id="variant.TxInsertFailedToAddMissingDatoms" class="variant small-section-header"><a href="#variant.TxInsertFailedToAddMissingDatoms" class="anchor field"></a><span id='TxInsertFailedToAddMissingDatoms.v' class='invisible'><code>TxInsertFailedToAddMissingDatoms</code></span></span><span id="variant.TxInsertFailedToRetractDatoms" class="variant small-section-header"><a href="#variant.TxInsertFailedToRetractDatoms" class="anchor field"></a><span id='TxInsertFailedToRetractDatoms.v' class='invisible'><code>TxInsertFailedToRetractDatoms</code></span></span><span id="variant.DatomsUpdateFailedToRetract" class="variant small-section-header"><a href="#variant.DatomsUpdateFailedToRetract" class="anchor field"></a><span id='DatomsUpdateFailedToRetract.v' class='invisible'><code>DatomsUpdateFailedToRetract</code></span></span><span id="variant.DatomsUpdateFailedToAdd" class="variant small-section-header"><a href="#variant.DatomsUpdateFailedToAdd" class="anchor field"></a><span id='DatomsUpdateFailedToAdd.v' class='invisible'><code>DatomsUpdateFailedToAdd</code></span></span><span id="variant.FailedToCreateTempTables" class="variant small-section-header"><a href="#variant.FailedToCreateTempTables" class="anchor field"></a><span id='FailedToCreateTempTables.v' class='invisible'><code>FailedToCreateTempTables</code></span></span><span id="variant.NonFtsInsertionIntoTempSearchTableFailed" class="variant small-section-header"><a href="#variant.NonFtsInsertionIntoTempSearchTableFailed" class="anchor field"></a><span id='NonFtsInsertionIntoTempSearchTableFailed.v' class='invisible'><code>NonFtsInsertionIntoTempSearchTableFailed</code></span></span><span id="variant.FtsInsertionFailed" class="variant small-section-header"><a href="#variant.FtsInsertionFailed" class="anchor field"></a><span id='FtsInsertionFailed.v' class='invisible'><code>FtsInsertionFailed</code></span></span><span id="variant.FtsInsertionIntoTempSearchTableFailed" class="variant small-section-header"><a href="#variant.FtsInsertionIntoTempSearchTableFailed" class="anchor field"></a><span id='FtsInsertionIntoTempSearchTableFailed.v' class='invisible'><code>FtsInsertionIntoTempSearchTableFailed</code></span></span><span id="variant.FtsFailedToDropSearchIds" class="variant small-section-header"><a href="#variant.FtsFailedToDropSearchIds" class="anchor field"></a><span id='FtsFailedToDropSearchIds.v' class='invisible'><code>FtsFailedToDropSearchIds</code></span></span><span id="variant.FailedToUpdatePartitionMap" class="variant small-section-header"><a href="#variant.FailedToUpdatePartitionMap" class="anchor field"></a><span id='FailedToUpdatePartitionMap.v' class='invisible'><code>FailedToUpdatePartitionMap</code></span></span><span id="variant.RusqliteError" class="variant small-section-header"><a href="#variant.RusqliteError" class="anchor field"></a><span id='RusqliteError.v' class='invisible'><code>RusqliteError(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+            <div id='implementations-list'>
+        <h3 id='impl-From%3CDbErrorKind%3E' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a>&gt; for <a class="struct" href="../../mentat_db/errors/struct.DbError.html" title="struct mentat_db::errors::DbError">DbError</a></code><a href='#impl-From%3CDbErrorKind%3E' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#172-176' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.from' class="method"><span id='from.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(kind: <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a>) -&gt; <a class="struct" href="../../mentat_db/errors/struct.DbError.html" title="struct mentat_db::errors::DbError">DbError</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#173-175' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-Clone' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-Clone' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span></td><td><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#117-119' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-PartialEq' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-PartialEq' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Fail' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl Fail for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-Fail' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.cause' class="method"><span id='cause.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.cause' class='fnname'>cause</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;Fail&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a reference to the underlying cause of this failure, if it is an error that wraps other errors. <a href="#method.cause">Read more</a></p>
+</div><h4 id='method.backtrace' class="method"><span id='backtrace.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.backtrace' class='fnname'>backtrace</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;Backtrace&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a reference to the <code>Backtrace</code> carried by this failure, if it carries one. <a href="#method.backtrace">Read more</a></p>
+</div><h4 id='method.context' class="method"><span id='context.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.context' class='fnname'>context</a>&lt;D&gt;(self, context: D) -&gt; Context&lt;D&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;D: <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,&nbsp;</span></code></td><td></td></tr></tbody></table></span></h4><div class='docblock'><p>Provides context for this failure. <a href="#method.context">Read more</a></p>
+</div><h4 id='method.compat' class="method"><span id='compat.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.compat' class='fnname'>compat</a>(self) -&gt; Compat&lt;Self&gt;</code></td><td></td></tr></tbody></table></span></h4><div class='docblock'><p>Wraps this failure in a compatibility wrapper that implements <code>std::error::Error</code>. <a href="#method.compat">Read more</a></p>
+</div><h4 id='method.causes' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for Causes&lt;'f&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for Causes&lt;'f&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'f&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for Causes&lt;'f&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'f (Fail + 'static);</span></code></div></div><span id='causes.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.causes' class='fnname'>causes</a>(&amp;self) -&gt; Causes</code></td><td></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns a iterator over the causes of this <code>Fail</code> with itself as the first item and the <code>root_cause</code> as the final item. <a href="#method.causes">Read more</a></p>
+</div><h4 id='method.root_cause' class="method"><span id='root_cause.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.root_cause' class='fnname'>root_cause</a>(&amp;self) -&gt; &amp;(Fail + 'static)</code></td><td></td></tr></tbody></table></span></h4><div class='docblock'><p>Returns the &quot;root cause&quot; of this <code>Fail</code> - the last value in the cause chain which does not return an underlying <code>cause</code>. <a href="#method.root_cause">Read more</a></p>
+</div></div><h3 id='impl-Display' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a> for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-Display' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt-1' class="method"><span id='fmt.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/errors.rs.html#190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt">Read more</a></p>
+</div></div></div>
+                <h2 id='synthetic-implementations' class='small-section-header'>
+                  Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>
+                </h2>
+                <div id='synthetic-implementations-list'>
+            <h3 id='impl-Send' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-Send' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="enum" href="../../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a></code><a href='#impl-Sync' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -566,31 +566,6 @@
 <span id="509">509</span>
 <span id="510">510</span>
 <span id="511">511</span>
-<span id="512">512</span>
-<span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -607,7 +582,7 @@
 <span class="kw">use</span> <span class="ident">db</span>::<span class="ident">TypedSQLValue</span>;
 <span class="kw">use</span> <span class="ident">edn</span>;
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">DbError</span>,
+    <span class="ident">DbErrorKind</span>,
     <span class="prelude-ty">Result</span>,
 };
 <span class="kw">use</span> <span class="ident">edn</span>::<span class="ident">symbols</span>;
@@ -636,19 +611,19 @@
 <span class="kw">impl</span> <span class="ident">AttributeValidation</span> <span class="kw">for</span> <span class="ident">Attribute</span> {
     <span class="kw">fn</span> <span class="ident">validate</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ident</span>: <span class="ident">F</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">Fn</span>() <span class="op">-&gt;</span> <span class="ident">String</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">unique</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Value</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">index</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/unique :db/unique_value without :db/index true for entid: {}&quot;</span>, <span class="ident">ident</span>())))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/unique :db/unique_value without :db/index true for entid: {}&quot;</span>, <span class="ident">ident</span>())))
         }
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">unique</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Identity</span>) <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">index</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/unique :db/unique_identity without :db/index true for entid: {}&quot;</span>, <span class="ident">ident</span>())))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/unique :db/unique_identity without :db/index true for entid: {}&quot;</span>, <span class="ident">ident</span>())))
         }
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">fulltext</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">value_type</span> <span class="op">!=</span> <span class="ident">ValueType</span>::<span class="ident">String</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/fulltext true without :db/valueType :db.type/string for entid: {}&quot;</span>, <span class="ident">ident</span>())))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/fulltext true without :db/valueType :db.type/string for entid: {}&quot;</span>, <span class="ident">ident</span>())))
         }
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">fulltext</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">index</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/fulltext true without :db/index true for entid: {}&quot;</span>, <span class="ident">ident</span>())))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/fulltext true without :db/index true for entid: {}&quot;</span>, <span class="ident">ident</span>())))
         }
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">component</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">value_type</span> <span class="op">!=</span> <span class="ident">ValueType</span>::<span class="ident">Ref</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/isComponent true without :db/valueType :db.type/ref for entid: {}&quot;</span>, <span class="ident">ident</span>())))
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;:db/isComponent true without :db/valueType :db.type/ref for entid: {}&quot;</span>, <span class="ident">ident</span>())))
         }
         <span class="comment">// TODO: consider warning if we have :db/index true for :db/valueType :db.type/string,</span>
         <span class="comment">// since this may be inefficient.  More generally, we should try to drive complex</span>
@@ -747,17 +722,17 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validate_install_attribute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">value_type</span>.<span class="ident">is_none</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;Schema attribute for new attribute does not set :db/valueType&quot;</span>.<span class="ident">into</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;Schema attribute for new attribute does not set :db/valueType&quot;</span>.<span class="ident">into</span>()));
         }
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validate_alter_attribute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">value_type</span>.<span class="ident">is_some</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;Schema alteration must not set :db/valueType&quot;</span>.<span class="ident">into</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;Schema alteration must not set :db/valueType&quot;</span>.<span class="ident">into</span>()));
         }
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">fulltext</span>.<span class="ident">is_some</span>() {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;Schema alteration must not set :db/fulltext&quot;</span>.<span class="ident">into</span>()));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;Schema alteration must not set :db/fulltext&quot;</span>.<span class="ident">into</span>()));
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -844,15 +819,15 @@
 
 <span class="kw">impl</span> <span class="ident">SchemaBuilding</span> <span class="kw">for</span> <span class="ident">Schema</span> {
     <span class="kw">fn</span> <span class="ident">require_ident</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">entid</span>: <span class="ident">Entid</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">symbols</span>::<span class="ident">Keyword</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">get_ident</span>(<span class="ident">entid</span>).<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">entid</span>).<span class="ident">into</span>())
+        <span class="self">self</span>.<span class="ident">get_ident</span>(<span class="ident">entid</span>).<span class="ident">ok_or</span>(<span class="ident">DbErrorKind</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">entid</span>).<span class="ident">into</span>())
     }
 
     <span class="kw">fn</span> <span class="ident">require_entid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ident</span>: <span class="kw-2">&amp;</span><span class="ident">symbols</span>::<span class="ident">Keyword</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">KnownEntid</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">get_entid</span>(<span class="kw-2">&amp;</span><span class="ident">ident</span>).<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">ident</span>.<span class="ident">to_string</span>()).<span class="ident">into</span>())
+        <span class="self">self</span>.<span class="ident">get_entid</span>(<span class="kw-2">&amp;</span><span class="ident">ident</span>).<span class="ident">ok_or</span>(<span class="ident">DbErrorKind</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">ident</span>.<span class="ident">to_string</span>()).<span class="ident">into</span>())
     }
 
     <span class="kw">fn</span> <span class="ident">require_attribute_for_entid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">entid</span>: <span class="ident">Entid</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Attribute</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">attribute_for_entid</span>(<span class="ident">entid</span>).<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">entid</span>).<span class="ident">into</span>())
+        <span class="self">self</span>.<span class="ident">attribute_for_entid</span>(<span class="ident">entid</span>).<span class="ident">ok_or</span>(<span class="ident">DbErrorKind</span>::<span class="ident">UnrecognizedEntid</span>(<span class="ident">entid</span>).<span class="ident">into</span>())
     }
 
     <span class="doccomment">/// Create a valid `Schema` from the constituent maps.</span>
@@ -868,8 +843,8 @@
         <span class="kw">where</span> <span class="ident">U</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span>(<span class="ident">symbols</span>::<span class="ident">Keyword</span>, <span class="ident">symbols</span>::<span class="ident">Keyword</span>, <span class="ident">TypedValue</span>)<span class="op">&gt;</span>{
 
         <span class="kw">let</span> <span class="ident">entid_assertions</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Entid</span>, <span class="ident">Entid</span>, <span class="ident">TypedValue</span>)<span class="op">&gt;&gt;</span> <span class="op">=</span> <span class="ident">assertions</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">symbolic_ident</span>, <span class="ident">symbolic_attr</span>, <span class="ident">value</span>)<span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">ident</span>: <span class="ident">i64</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">ident_map</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">symbolic_ident</span>).<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">symbolic_ident</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">attr</span>: <span class="ident">i64</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">ident_map</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">symbolic_attr</span>).<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">symbolic_attr</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">ident</span>: <span class="ident">i64</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">ident_map</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">symbolic_ident</span>).<span class="ident">ok_or</span>(<span class="ident">DbErrorKind</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">symbolic_ident</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">attr</span>: <span class="ident">i64</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">ident_map</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">symbolic_attr</span>).<span class="ident">ok_or</span>(<span class="ident">DbErrorKind</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">symbolic_attr</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>((<span class="ident">ident</span>, <span class="ident">attr</span>, <span class="ident">value</span>))
         }).<span class="ident">collect</span>();
 
@@ -902,7 +877,7 @@
         <span class="comment">// wrapper function.</span>
         <span class="kw">match</span> <span class="ident">TypedValue</span>::<span class="ident">from_edn_value</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>.<span class="ident">clone</span>().<span class="ident">without_spans</span>()) {
             <span class="comment">// We don&#39;t recognize this EDN at all.  Get out!</span>
-            <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadValuePair</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">value</span>), <span class="ident">value_type</span>)),
+            <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadValuePair</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">value</span>), <span class="ident">value_type</span>)),
             <span class="prelude-val">Some</span>(<span class="ident">typed_value</span>) <span class="op">=&gt;</span> <span class="kw">match</span> (<span class="ident">value_type</span>, <span class="ident">typed_value</span>) {
                 <span class="comment">// Most types don&#39;t coerce at all.</span>
                 (<span class="ident">ValueType</span>::<span class="ident">Boolean</span>, <span class="ident">tv</span> @ <span class="ident">TypedValue</span>::<span class="ident">Boolean</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">tv</span>),
@@ -928,7 +903,7 @@
                 (<span class="ident">vt</span> @ <span class="ident">ValueType</span>::<span class="ident">Instant</span>, <span class="kw">_</span>) <span class="op">|</span>
                 (<span class="ident">vt</span> @ <span class="ident">ValueType</span>::<span class="ident">Keyword</span>, <span class="kw">_</span>) <span class="op">|</span>
                 (<span class="ident">vt</span> @ <span class="ident">ValueType</span>::<span class="ident">Ref</span>, <span class="kw">_</span>)
-                <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadValuePair</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">value</span>), <span class="ident">vt</span>)),
+                <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadValuePair</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">value</span>), <span class="ident">vt</span>)),
             }
         }
     }
@@ -1028,13 +1003,8 @@
             <span class="ident">no_history</span>: <span class="bool-val">false</span>,
         });
 
-        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">err</span>.<span class="ident">is_some</span>());
-
-        <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">unwrap</span>().<span class="ident">downcast</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="ident">message</span>)) <span class="op">=&gt;</span> { <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">message</span>, <span class="string">&quot;:db/unique :db/unique_value without :db/index true for entid: :foo/bar&quot;</span>); },
-            <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected Bad Schema Assertion error, got {:?}&quot;</span>, <span class="ident">x</span>),
-        }
+        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>());
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">err</span>, <span class="prelude-val">Some</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;:db/unique :db/unique_value without :db/index true for entid: :foo/bar&quot;</span>.<span class="ident">into</span>())));
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1051,13 +1021,8 @@
             <span class="ident">no_history</span>: <span class="bool-val">false</span>,
         });
 
-        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">err</span>.<span class="ident">is_some</span>());
-
-        <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">unwrap</span>().<span class="ident">downcast</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="ident">message</span>)) <span class="op">=&gt;</span> { <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">message</span>, <span class="string">&quot;:db/unique :db/unique_identity without :db/index true for entid: :foo/bar&quot;</span>); },
-            <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected Bad Schema Assertion error, got {:?}&quot;</span>, <span class="ident">x</span>),
-        }
+        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>());
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">err</span>, <span class="prelude-val">Some</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;:db/unique :db/unique_identity without :db/index true for entid: :foo/bar&quot;</span>.<span class="ident">into</span>())));
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1074,13 +1039,8 @@
             <span class="ident">no_history</span>: <span class="bool-val">false</span>,
         });
 
-        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">err</span>.<span class="ident">is_some</span>());
-
-        <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">unwrap</span>().<span class="ident">downcast</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="ident">message</span>)) <span class="op">=&gt;</span> { <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">message</span>, <span class="string">&quot;:db/isComponent true without :db/valueType :db.type/ref for entid: :foo/bar&quot;</span>); },
-            <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected Bad Schema Assertion error, got {:?}&quot;</span>, <span class="ident">x</span>),
-        }
+        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>());
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">err</span>, <span class="prelude-val">Some</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;:db/isComponent true without :db/valueType :db.type/ref for entid: :foo/bar&quot;</span>.<span class="ident">into</span>())));
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1097,13 +1057,8 @@
             <span class="ident">no_history</span>: <span class="bool-val">false</span>,
         });
 
-        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">err</span>.<span class="ident">is_some</span>());
-
-        <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">unwrap</span>().<span class="ident">downcast</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="ident">message</span>)) <span class="op">=&gt;</span> { <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">message</span>, <span class="string">&quot;:db/fulltext true without :db/index true for entid: :foo/bar&quot;</span>); },
-            <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected Bad Schema Assertion error, got {:?}&quot;</span>, <span class="ident">x</span>),
-        }
+        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>());
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">err</span>, <span class="prelude-val">Some</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;:db/fulltext true without :db/index true for entid: :foo/bar&quot;</span>.<span class="ident">into</span>())));
     }
 
     <span class="kw">fn</span> <span class="ident">invalid_schema_fulltext_index_not_string</span>() {
@@ -1119,13 +1074,8 @@
             <span class="ident">no_history</span>: <span class="bool-val">false</span>,
         });
 
-        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">err</span>.<span class="ident">is_some</span>());
-
-        <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">unwrap</span>().<span class="ident">downcast</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="ident">message</span>)) <span class="op">=&gt;</span> { <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">message</span>, <span class="string">&quot;:db/fulltext true without :db/valueType :db.type/string for entid: :foo/bar&quot;</span>); },
-            <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected Bad Schema Assertion error, got {:?}&quot;</span>, <span class="ident">x</span>),
-        }
+        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">validate_attribute_map</span>(<span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">entid_map</span>, <span class="kw-2">&amp;</span><span class="ident">schema</span>.<span class="ident">attribute_map</span>).<span class="ident">err</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>());
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">err</span>, <span class="prelude-val">Some</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="string">&quot;:db/fulltext true without :db/valueType :db.type/string for entid: :foo/bar&quot;</span>.<span class="ident">into</span>())));
     }
 }
 </pre>

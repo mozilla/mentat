@@ -34,7 +34,7 @@
     <nav class="sidebar">
         <div class="sidebar-menu">&#9776;</div>
         
-        <p class='location'>Struct InProgressTransactResult</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#fields">Fields</a><div class="sidebar-links"><a href="#structfield.in_progress">in_progress</a><a href="#structfield.result">result</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">!Send</a><a href="#impl-Sync">!Sync</a></div></div><p class='location'><a href='index.html'>mentat_ffi</a></p><script>window.sidebarCurrent = {name: 'InProgressTransactResult', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+        <p class='location'>Struct InProgressTransactResult</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#fields">Fields</a><div class="sidebar-links"><a href="#structfield.in_progress">in_progress</a><a href="#structfield.tx_report">tx_report</a><a href="#structfield.err">err</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">!Send</a><a href="#impl-Sync">!Sync</a></div></div><p class='location'><a href='index.html'>mentat_ffi</a></p><script>window.sidebarCurrent = {name: 'InProgressTransactResult', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
     </nav>
 
     <div class="theme-picker">
@@ -59,25 +59,30 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#231-234' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'><div class="docblock attributes">#[repr(C)]
+               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#179-184' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'><div class="docblock attributes">#[repr(C)]
 </div>pub struct InProgressTransactResult&lt;'a, 'c&gt; {
     pub in_progress: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.InProgress.html" title="struct mentat_ffi::InProgress">InProgress</a>&lt;'a, 'c&gt;,
-    pub result: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.ExternResult.html" title="struct mentat_ffi::ExternResult">ExternResult</a>,
+    pub tx_report: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.TxReport.html" title="struct mentat_ffi::TxReport">TxReport</a>,
+    pub err: <a class="struct" href="../mentat_ffi/utils/error/struct.ExternError.html" title="struct mentat_ffi::utils::error::ExternError">ExternError</a>,
 }</pre></div><h2 id='fields' class='fields small-section-header'>
                        Fields<a href='#fields' class='anchor'></a></h2><span id="structfield.in_progress" class="structfield small-section-header">
                            <a href="#structfield.in_progress" class="anchor field"></a>
                            <span id="in_progress.v" class='invisible'>
                            <code>in_progress: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.InProgress.html" title="struct mentat_ffi::InProgress">InProgress</a>&lt;'a, 'c&gt;</code>
-                           </span></span><span id="structfield.result" class="structfield small-section-header">
-                           <a href="#structfield.result" class="anchor field"></a>
-                           <span id="result.v" class='invisible'>
-                           <code>result: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.ExternResult.html" title="struct mentat_ffi::ExternResult">ExternResult</a></code>
+                           </span></span><span id="structfield.tx_report" class="structfield small-section-header">
+                           <a href="#structfield.tx_report" class="anchor field"></a>
+                           <span id="tx_report.v" class='invisible'>
+                           <code>tx_report: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.TxReport.html" title="struct mentat_ffi::TxReport">TxReport</a></code>
+                           </span></span><span id="structfield.err" class="structfield small-section-header">
+                           <a href="#structfield.err" class="anchor field"></a>
+                           <span id="err.v" class='invisible'>
+                           <code>err: <a class="struct" href="../mentat_ffi/utils/error/struct.ExternError.html" title="struct mentat_ffi::utils::error::ExternError">ExternError</a></code>
                            </span></span>
             <h2 id='implementations' class='small-section-header'>
               Trait Implementations<a href='#implementations' class='anchor'></a>
             </h2>
             <div id='implementations-list'>
-        <h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;'a, 'c&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../mentat_ffi/struct.InProgressTransactResult.html" title="struct mentat_ffi::InProgressTransactResult">InProgressTransactResult</a>&lt;'a, 'c&gt;</code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_ffi/lib.rs.html#230' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_ffi/lib.rs.html#230' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;'a, 'c&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../mentat_ffi/struct.InProgressTransactResult.html" title="struct mentat_ffi::InProgressTransactResult">InProgressTransactResult</a>&lt;'a, 'c&gt;</code><a href='#impl-Debug' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_ffi/lib.rs.html#178' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_ffi/lib.rs.html#178' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
 </div></div></div>
                 <h2 id='synthetic-implementations' class='small-section-header'>
                   Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>

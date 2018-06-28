@@ -449,7 +449,6 @@
 <span id="392">392</span>
 <span id="393">393</span>
 <span id="394">394</span>
-<span id="395">395</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -480,7 +479,6 @@
 <span class="kw">use</span> <span class="ident">errors</span>::{
     <span class="ident">AlgebrizerError</span>,
     <span class="ident">BindingError</span>,
-    <span class="ident">InvalidBinding</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -519,12 +517,12 @@
 
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_empty</span>() {
             <span class="comment">// The binding must introduce at least one bound variable.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
         }
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_valid</span>() {
             <span class="comment">// The binding must not duplicate bound variables.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
         }
 
         <span class="comment">// We should have exactly one binding. Destructure it now.</span>
@@ -532,7 +530,7 @@
             <span class="ident">Binding</span>::<span class="ident">BindRel</span>(<span class="ident">bindings</span>) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">bindings_count</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">len</span>();
                 <span class="kw">if</span> <span class="ident">bindings_count</span> <span class="op">!=</span> <span class="number">1</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
                                                     <span class="ident">BindingError</span>::<span class="ident">InvalidNumberOfBindings</span> {
                                                         <span class="ident">number</span>: <span class="ident">bindings_count</span>,
                                                         <span class="ident">expected</span>: <span class="number">1</span>,
@@ -546,7 +544,7 @@
             <span class="ident">Binding</span>::<span class="ident">BindColl</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="ident">v</span>,
             <span class="ident">Binding</span>::<span class="ident">BindScalar</span>(<span class="kw">_</span>) <span class="op">|</span>
             <span class="ident">Binding</span>::<span class="ident">BindTuple</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">ExpectedBindRelOrBindColl</span>))
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">ExpectedBindRelOrBindColl</span>))
             },
         };
 
@@ -597,12 +595,12 @@
 
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_empty</span>() {
             <span class="comment">// The binding must introduce at least one bound variable.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
         }
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_valid</span>() {
             <span class="comment">// The binding must not duplicate bound variables.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
         }
 
         <span class="comment">// We should have at most five bindings. Destructure them now.</span>
@@ -610,7 +608,7 @@
             <span class="ident">Binding</span>::<span class="ident">BindRel</span>(<span class="ident">bindings</span>) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="ident">bindings_count</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">len</span>();
                 <span class="kw">if</span> <span class="ident">bindings_count</span> <span class="op">&lt;</span> <span class="number">1</span> <span class="op">||</span> <span class="ident">bindings_count</span> <span class="op">&gt;</span> <span class="number">5</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(),
                                                     <span class="ident">BindingError</span>::<span class="ident">InvalidNumberOfBindings</span> {
                                                         <span class="ident">number</span>: <span class="ident">bindings</span>.<span class="ident">len</span>(),
                                                         <span class="ident">expected</span>: <span class="number">5</span>,
@@ -620,7 +618,7 @@
             },
             <span class="ident">Binding</span>::<span class="ident">BindScalar</span>(<span class="kw">_</span>) <span class="op">|</span>
             <span class="ident">Binding</span>::<span class="ident">BindTuple</span>(<span class="kw">_</span>) <span class="op">|</span>
-            <span class="ident">Binding</span>::<span class="ident">BindColl</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">ExpectedBindRel</span>)),
+            <span class="ident">Binding</span>::<span class="ident">BindColl</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">ExpectedBindRel</span>)),
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bindings</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">into_iter</span>();
         <span class="kw">let</span> <span class="ident">b_e</span> <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">next</span>().<span class="ident">unwrap_or</span>(<span class="ident">VariableOrPlaceholder</span>::<span class="ident">Placeholder</span>);

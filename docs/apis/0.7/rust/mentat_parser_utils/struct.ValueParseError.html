@@ -60,8 +60,8 @@
                        [<span class='inner'>&#x2212;</span>]
                    </a>
                </span><a class='srclink' href='../src/mentat_parser_utils/lib.rs.html#21-25' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'>pub struct ValueParseError {
-    pub position: Span,
-    pub errors: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Error&lt;ValueAndSpan, ValueAndSpan&gt;&gt;,
+    pub position: <a class="struct" href="../edn/types/struct.Span.html" title="struct edn::types::Span">Span</a>,
+    pub errors: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Error&lt;<a class="struct" href="../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>, <a class="struct" href="../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>&gt;&gt;,
 }</pre></div><div class='docblock'><p>A <code>ValueParseError</code> is a <code>combine::primitives::ParseError</code>-alike that implements the <code>Debug</code>,
 <code>Display</code>, and <code>std::error::Error</code> traits.  In addition, it doesn't capture references.</p>
 <p>This is achieved by wrapping slices of type <code>&amp;'a [edn::Value]</code> in an owning type that implements
@@ -70,11 +70,11 @@
                        Fields<a href='#fields' class='anchor'></a></h2><span id="structfield.position" class="structfield small-section-header">
                            <a href="#structfield.position" class="anchor field"></a>
                            <span id="position.v" class='invisible'>
-                           <code>position: Span</code>
+                           <code>position: <a class="struct" href="../edn/types/struct.Span.html" title="struct edn::types::Span">Span</a></code>
                            </span></span><span id="structfield.errors" class="structfield small-section-header">
                            <a href="#structfield.errors" class="anchor field"></a>
                            <span id="errors.v" class='invisible'>
-                           <code>errors: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Error&lt;ValueAndSpan, ValueAndSpan&gt;&gt;</code>
+                           <code>errors: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Error&lt;<a class="struct" href="../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>, <a class="struct" href="../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>&gt;&gt;</code>
                            </span></span>
             <h2 id='implementations' class='small-section-header'>
               Trait Implementations<a href='#implementations' class='anchor'></a>

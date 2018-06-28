@@ -436,7 +436,7 @@
 <span class="kw">use</span> <span class="ident">edn</span>::<span class="ident">symbols</span>;
 <span class="kw">use</span> <span class="ident">entids</span>;
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">DbError</span>,
+    <span class="ident">DbErrorKind</span>,
     <span class="prelude-ty">Result</span>,
 };
 <span class="kw">use</span> <span class="ident">mentat_core</span>::{
@@ -533,7 +533,7 @@
                         <span class="ident">builder</span>.<span class="ident">component</span>(<span class="bool-val">false</span>);
                     },
                     <span class="ident">v</span> <span class="op">=&gt;</span> {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Attempted to retract :db/isComponent with the wrong value {:?}.&quot;</span>, <span class="ident">v</span>)));
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Attempted to retract :db/isComponent with the wrong value {:?}.&quot;</span>, <span class="ident">v</span>)));
                     },
                 }
             },
@@ -548,15 +548,15 @@
                                 <span class="ident">builder</span>.<span class="ident">non_unique</span>();
                             },
                             <span class="ident">v</span> <span class="op">=&gt;</span> {
-                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Attempted to retract :db/unique with the wrong value {}.&quot;</span>, <span class="ident">v</span>)));
+                                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Attempted to retract :db/unique with the wrong value {}.&quot;</span>, <span class="ident">v</span>)));
                             },
                         }
                     },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [:db/retract _ :db/unique :db.unique/_] but got [:db/retract {} :db/unique {:?}]&quot;</span>, <span class="ident">entid</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [:db/retract _ :db/unique :db.unique/_] but got [:db/retract {} :db/unique {:?}]&quot;</span>, <span class="ident">entid</span>, <span class="ident">value</span>)))
                 }
             },
             <span class="kw">_</span> <span class="op">=&gt;</span> {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Retracting attribute {} for entity {} not permitted.&quot;</span>, <span class="ident">attr</span>, <span class="ident">entid</span>)));
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Retracting attribute {} for entity {} not permitted.&quot;</span>, <span class="ident">attr</span>, <span class="ident">entid</span>)));
             },
         }
     }
@@ -570,7 +570,7 @@
             <span class="ident">entids</span>::<span class="ident">DB_DOC</span> <span class="op">=&gt;</span> {
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">String</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> {},
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/doc \&quot;string value\&quot;] but got [... :db/doc {:?}] for entid {} and attribute {}&quot;</span>, <span class="ident">value</span>, <span class="ident">entid</span>, <span class="ident">attr</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/doc \&quot;string value\&quot;] but got [... :db/doc {:?}] for entid {} and attribute {}&quot;</span>, <span class="ident">value</span>, <span class="ident">entid</span>, <span class="ident">attr</span>)))
                 }
             },
 
@@ -584,7 +584,7 @@
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_TYPE_REF</span>)     <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">value_type</span>(<span class="ident">ValueType</span>::<span class="ident">Ref</span>); },
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_TYPE_STRING</span>)  <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">value_type</span>(<span class="ident">ValueType</span>::<span class="ident">String</span>); },
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_TYPE_UUID</span>)    <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">value_type</span>(<span class="ident">ValueType</span>::<span class="ident">Uuid</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid {} and attribute {}&quot;</span>, <span class="ident">value</span>, <span class="ident">entid</span>, <span class="ident">attr</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/valueType :db.type/*] but got [... :db/valueType {:?}] for entid {} and attribute {}&quot;</span>, <span class="ident">value</span>, <span class="ident">entid</span>, <span class="ident">attr</span>)))
                 }
             },
 
@@ -592,7 +592,7 @@
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_CARDINALITY_MANY</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">multival</span>(<span class="bool-val">true</span>); },
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_CARDINALITY_ONE</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">multival</span>(<span class="bool-val">false</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]&quot;</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/cardinality :db.cardinality/many|:db.cardinality/one] but got [... :db/cardinality {:?}]&quot;</span>, <span class="ident">value</span>)))
                 }
             },
 
@@ -600,40 +600,40 @@
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_UNIQUE_VALUE</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">unique</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Value</span>); },
                     <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="ident">entids</span>::<span class="ident">DB_UNIQUE_IDENTITY</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">unique</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Identity</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]&quot;</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/unique :db.unique/value|:db.unique/identity] but got [... :db/unique {:?}]&quot;</span>, <span class="ident">value</span>)))
                 }
             },
 
             <span class="ident">entids</span>::<span class="ident">DB_INDEX</span> <span class="op">=&gt;</span> {
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">Boolean</span>(<span class="ident">x</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">index</span>(<span class="ident">x</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/index true|false] but got [... :db/index {:?}]&quot;</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/index true|false] but got [... :db/index {:?}]&quot;</span>, <span class="ident">value</span>)))
                 }
             },
 
             <span class="ident">entids</span>::<span class="ident">DB_FULLTEXT</span> <span class="op">=&gt;</span> {
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">Boolean</span>(<span class="ident">x</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">fulltext</span>(<span class="ident">x</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]&quot;</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/fulltext true|false] but got [... :db/fulltext {:?}]&quot;</span>, <span class="ident">value</span>)))
                 }
             },
 
             <span class="ident">entids</span>::<span class="ident">DB_IS_COMPONENT</span> <span class="op">=&gt;</span> {
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">Boolean</span>(<span class="ident">x</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">component</span>(<span class="ident">x</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]&quot;</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/isComponent true|false] but got [... :db/isComponent {:?}]&quot;</span>, <span class="ident">value</span>)))
                 }
             },
 
             <span class="ident">entids</span>::<span class="ident">DB_NO_HISTORY</span> <span class="op">=&gt;</span> {
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">value</span> {
                     <span class="ident">TypedValue</span>::<span class="ident">Boolean</span>(<span class="ident">x</span>) <span class="op">=&gt;</span> { <span class="ident">builder</span>.<span class="ident">no_history</span>(<span class="ident">x</span>); },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/noHistory true|false] but got [... :db/noHistory {:?}]&quot;</span>, <span class="ident">value</span>)))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected [... :db/noHistory true|false] but got [... :db/noHistory {:?}]&quot;</span>, <span class="ident">value</span>)))
                 }
             },
 
             <span class="kw">_</span> <span class="op">=&gt;</span> {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Do not recognize attribute {} for entid {}&quot;</span>, <span class="ident">attr</span>, <span class="ident">entid</span>)))
+                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Do not recognize attribute {} for entid {}&quot;</span>, <span class="ident">attr</span>, <span class="ident">entid</span>)))
             }
         }
     };
@@ -645,7 +645,7 @@
         <span class="kw">match</span> <span class="ident">attribute_map</span>.<span class="ident">entry</span>(<span class="ident">entid</span>) {
             <span class="ident">Entry</span>::<span class="ident">Vacant</span>(<span class="ident">entry</span>) <span class="op">=&gt;</span> {
                 <span class="comment">// Validate once…</span>
-                <span class="ident">builder</span>.<span class="ident">validate_install_attribute</span>().<span class="ident">context</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Schema alteration for new attribute with entid {} is not valid&quot;</span>, <span class="ident">entid</span>)))<span class="question-mark">?</span>;
+                <span class="ident">builder</span>.<span class="ident">validate_install_attribute</span>().<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Schema alteration for new attribute with entid {} is not valid&quot;</span>, <span class="ident">entid</span>)))<span class="question-mark">?</span>;
 
                 <span class="comment">// … and twice, now we have the Attribute.</span>
                 <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">build</span>();
@@ -655,7 +655,7 @@
             },
 
             <span class="ident">Entry</span>::<span class="ident">Occupied</span>(<span class="kw-2">mut</span> <span class="ident">entry</span>) <span class="op">=&gt;</span> {
-                <span class="ident">builder</span>.<span class="ident">validate_alter_attribute</span>().<span class="ident">context</span>(<span class="ident">DbError</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Schema alteration for existing attribute with entid {} is not valid&quot;</span>, <span class="ident">entid</span>)))<span class="question-mark">?</span>;
+                <span class="ident">builder</span>.<span class="ident">validate_alter_attribute</span>().<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSchemaAssertion</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Schema alteration for existing attribute with entid {} is not valid&quot;</span>, <span class="ident">entid</span>)))<span class="question-mark">?</span>;
                 <span class="kw">let</span> <span class="ident">mutations</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">mutate</span>(<span class="ident">entry</span>.<span class="ident">get_mut</span>());
                 <span class="ident">attributes_altered</span>.<span class="ident">insert</span>(<span class="ident">entid</span>, <span class="ident">mutations</span>);
             },

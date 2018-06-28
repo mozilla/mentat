@@ -377,7 +377,7 @@
 
 <span class="kw">use</span> <span class="ident">edn</span>;
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">DbError</span>,
+    <span class="ident">DbErrorKind</span>,
     <span class="prelude-ty">Result</span>,
 };
 <span class="kw">use</span> <span class="ident">edn</span>::<span class="ident">types</span>::<span class="ident">Value</span>;
@@ -524,7 +524,7 @@
                         :db/cardinality :db.cardinality/many}}&quot;#</span>;
         <span class="ident">edn</span>::<span class="ident">parse</span>::<span class="ident">value</span>(<span class="ident">s</span>)
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">without_spans</span>())
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Unable to parse V1_SYMBOLIC_SCHEMA&quot;</span>.<span class="ident">into</span>()))
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Unable to parse V1_SYMBOLIC_SCHEMA&quot;</span>.<span class="ident">into</span>()))
             .<span class="ident">unwrap</span>()
     };
 }
@@ -575,14 +575,14 @@
             <span class="kw">for</span> (<span class="ident">ident</span>, <span class="ident">mp</span>) <span class="kw">in</span> <span class="ident">m</span> {
                 <span class="kw">let</span> <span class="ident">ident</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">ident</span> {
                     <span class="kw-2">&amp;</span><span class="ident">Value</span>::<span class="ident">Keyword</span>(<span class="kw-2">ref</span> <span class="ident">ident</span>) <span class="op">=&gt;</span> <span class="ident">ident</span>,
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected namespaced keyword for ident but got &#39;{:?}&#39;&quot;</span>, <span class="ident">ident</span>))),
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected namespaced keyword for ident but got &#39;{:?}&#39;&quot;</span>, <span class="ident">ident</span>))),
                 };
                 <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">mp</span> {
                     <span class="ident">Value</span>::<span class="ident">Map</span>(<span class="kw-2">ref</span> <span class="ident">mpp</span>) <span class="op">=&gt;</span> {
                         <span class="kw">for</span> (<span class="ident">attr</span>, <span class="ident">value</span>) <span class="kw">in</span> <span class="ident">mpp</span> {
                             <span class="kw">let</span> <span class="ident">attr</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">attr</span> {
                                 <span class="kw-2">&amp;</span><span class="ident">Value</span>::<span class="ident">Keyword</span>(<span class="kw-2">ref</span> <span class="ident">attr</span>) <span class="op">=&gt;</span> <span class="ident">attr</span>,
-                                <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected namespaced keyword for attr but got &#39;{:?}&#39;&quot;</span>, <span class="ident">attr</span>))),
+                                <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected namespaced keyword for attr but got &#39;{:?}&#39;&quot;</span>, <span class="ident">attr</span>))),
                         };
 
                             <span class="comment">// We have symbolic idents but the transactor handles entids.  Ad-hoc</span>
@@ -597,20 +597,20 @@
                                 <span class="prelude-val">Some</span>(<span class="ident">TypedValue</span>::<span class="ident">Keyword</span>(<span class="kw-2">ref</span> <span class="ident">k</span>)) <span class="op">=&gt;</span> {
                                     <span class="ident">ident_map</span>.<span class="ident">get</span>(<span class="ident">k</span>)
                                         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">entid</span><span class="op">|</span> <span class="ident">TypedValue</span>::<span class="ident">Ref</span>(<span class="kw-2">*</span><span class="ident">entid</span>))
-                                        .<span class="ident">ok_or</span>(<span class="ident">DbError</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">k</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
+                                        .<span class="ident">ok_or</span>(<span class="ident">DbErrorKind</span>::<span class="ident">UnrecognizedIdent</span>(<span class="ident">k</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
                                 },
                                 <span class="prelude-val">Some</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="ident">v</span>,
-                                <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected Mentat typed value for value but got &#39;{:?}&#39;&quot;</span>, <span class="ident">value</span>)))
+                                <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Expected Mentat typed value for value but got &#39;{:?}&#39;&quot;</span>, <span class="ident">value</span>)))
                             };
 
                             <span class="ident">triples</span>.<span class="ident">push</span>((<span class="ident">ident</span>.<span class="ident">clone</span>(), <span class="ident">attr</span>.<span class="ident">clone</span>(), <span class="ident">typed_value</span>));
                         }
                     },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {:db/ident {:db/attr value ...} ...}&quot;</span>.<span class="ident">into</span>()))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {:db/ident {:db/attr value ...} ...}&quot;</span>.<span class="ident">into</span>()))
                 }
             }
         },
-        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {...}&quot;</span>.<span class="ident">into</span>()))
+        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {...}&quot;</span>.<span class="ident">into</span>()))
     }
     <span class="prelude-val">Ok</span>(<span class="ident">triples</span>)
 }
@@ -631,11 +631,11 @@
                                                                <span class="ident">value</span>.<span class="ident">clone</span>()]));
                         }
                     },
-                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {:db/ident {:db/attr value ...} ...}&quot;</span>.<span class="ident">into</span>()))
+                    <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {:db/ident {:db/attr value ...} ...}&quot;</span>.<span class="ident">into</span>()))
                 }
             }
         },
-        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {...}&quot;</span>.<span class="ident">into</span>()))
+        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadBootstrapDefinition</span>(<span class="string">&quot;Expected {...}&quot;</span>.<span class="ident">into</span>()))
     }
     <span class="prelude-val">Ok</span>(<span class="ident">assertions</span>)
 }

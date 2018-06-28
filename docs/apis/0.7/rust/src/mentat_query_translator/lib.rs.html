@@ -88,6 +88,7 @@
 <span id="31">31</span>
 <span id="32">32</span>
 <span id="33">33</span>
+<span id="34">34</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -100,14 +101,13 @@
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure</span>;
+
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_core</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query_algebrizer</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query_projector</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_query_sql</span>;
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mentat_sql</span>;
-
-<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 
 <span class="kw">mod</span> <span class="ident">translate</span>;
 
@@ -121,7 +121,9 @@
     <span class="ident">query_to_select</span>,
 };
 
-<span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+<span class="comment">// query-translator could be folded into query-projector; for now, just type alias the errors.</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">TranslatorError</span> <span class="op">=</span> <span class="ident">mentat_query_projector</span>::<span class="ident">ProjectorError</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">TranslatorError</span><span class="op">&gt;</span>;
 </pre>
 </section>
     <section id='search' class="content hidden"></section>

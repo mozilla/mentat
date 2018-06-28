@@ -447,7 +447,6 @@
 <span id="390">390</span>
 <span id="391">391</span>
 <span id="392">392</span>
-<span id="393">393</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -484,7 +483,6 @@
 <span class="kw">use</span> <span class="ident">errors</span>::{
     <span class="ident">AlgebrizerError</span>,
     <span class="ident">BindingError</span>,
-    <span class="ident">InvalidBinding</span>,
     <span class="prelude-ty">Result</span>,
 };
 
@@ -576,12 +574,12 @@
 
         <span class="kw">if</span> <span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_empty</span>() {
             <span class="comment">// The binding must introduce at least one bound variable.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">NoBoundVariable</span>));
         }
 
         <span class="kw">if</span> <span class="op">!</span><span class="ident">where_fn</span>.<span class="ident">binding</span>.<span class="ident">is_valid</span>() {
             <span class="comment">// The binding must not duplicate bound variables.</span>
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">InvalidBinding</span>::<span class="ident">new</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">AlgebrizerError</span>::<span class="ident">InvalidBinding</span>(<span class="ident">where_fn</span>.<span class="ident">operator</span>.<span class="ident">clone</span>(), <span class="ident">BindingError</span>::<span class="ident">RepeatedBoundVariable</span>));
         }
 
         <span class="kw">let</span> <span class="ident">schema</span> <span class="op">=</span> <span class="ident">known</span>.<span class="ident">schema</span>;

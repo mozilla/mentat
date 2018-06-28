@@ -59,15 +59,14 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#288-291' title='goto source code'>[src]</a></span></h1><pre class='rust fn'><div class="docblock attributes">#[no_mangle]
-</div>pub unsafe extern &quot;C&quot; fn store_begin_transaction(<br>&nbsp;&nbsp;&nbsp;&nbsp;store: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.Store.html" title="struct mentat_ffi::Store">Store</a><br>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.ExternResult.html" title="struct mentat_ffi::ExternResult">ExternResult</a></pre><div class='docblock'><p>Starts a new transaction to allow multiple transacts to be
+               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#251-255' title='goto source code'>[src]</a></span></h1><pre class='rust fn'><div class="docblock attributes">#[no_mangle]
+</div>pub unsafe extern &quot;C&quot; fn store_begin_transaction&lt;'a, 'c&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;store: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.Store.html" title="struct mentat_ffi::Store">Store</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;error: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/utils/error/struct.ExternError.html" title="struct mentat_ffi::utils::error::ExternError">ExternError</a><br>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.InProgress.html" title="struct mentat_ffi::InProgress">InProgress</a>&lt;'a, 'c&gt;</pre><div class='docblock'><p>Starts a new transaction to allow multiple transacts to be
 performed together. This is more efficient than performing
 a large set of individual commits.</p>
-<p>Returns a <a href="mentat::TxReport">Result<TxReport></a> as an <a href="ExternResult">ExternResult</a>.</p>
 <h1 id="safety" class="section-header"><a href="#safety">Safety</a></h1>
 <p>Callers must ensure that the pointer to the <a href="mentat::Store">Store</a> is not dangling.</p>
 <p>Callers are responsible for managing the memory for the return value.
-A destructor <code>tx_report_destroy</code> is provided for releasing the memory for this
+A destructor <code>in_progress_destroy</code> is provided for releasing the memory for this
 pointer type.</p>
 <p>TODO: Document the errors that can result from begin_transaction</p>
 </div></section>

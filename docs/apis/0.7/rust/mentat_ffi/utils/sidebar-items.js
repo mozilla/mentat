@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["log",""],["strings",""]]});
+initSidebarItems({"mod":[["error",""],["log",""],["strings",""]]});

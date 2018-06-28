@@ -59,7 +59,7 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#1754-1761' title='goto source code'>[src]</a></span></h1><pre class='rust fn'><div class="docblock attributes">#[no_mangle]
+               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#1974-1982' title='goto source code'>[src]</a></span></h1><pre class='rust fn'><div class="docblock attributes">#[no_mangle]
 </div>pub unsafe extern &quot;C&quot; fn store_entid_for_attribute(<br>&nbsp;&nbsp;&nbsp;&nbsp;store: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.Store.html" title="struct mentat_ffi::Store">Store</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;attr: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*const </a><a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_char.html" title="type std::os::raw::c_char">c_char</a><br>) -&gt; <a class="type" href="../mentat_ffi/type.Entid.html" title="type mentat_ffi::Entid">Entid</a></pre><div class='docblock'><p>Returns the <a href="mentat::Entid">Entid</a>  associated with the <code>attr</code> as <code>:namespace/name</code>.</p>
 <h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
 <p>If there is no <a href="mentat::Attribute">Attribute</a>  in the <a href="mentat::Schema">Schema</a>  for <code>attr</code>.</p>

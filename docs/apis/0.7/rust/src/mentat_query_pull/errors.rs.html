@@ -85,6 +85,15 @@
 <span id="28">28</span>
 <span id="29">29</span>
 <span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2018 Mozilla</span>
 <span class="comment">//</span>
@@ -98,15 +107,15 @@
 
 <span class="kw">use</span> <span class="ident">std</span>; <span class="comment">// To refer to std::result::Result.</span>
 
+<span class="kw">use</span> <span class="ident">mentat_db</span>::{
+    <span class="ident">DbError</span>,
+};
+
 <span class="kw">use</span> <span class="ident">mentat_core</span>::{
     <span class="ident">Entid</span>,
 };
 
-<span class="kw">use</span> <span class="ident">failure</span>::{
-    <span class="ident">Error</span>,
-};
-
-<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">PullError</span><span class="op">&gt;</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Fail</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PullError</span> {
@@ -115,6 +124,15 @@
 
     <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;:db/id repeated&quot;</span>)]</span>
     <span class="ident">RepeatedDbId</span>,
+
+    <span class="attribute">#[<span class="ident">fail</span>(<span class="ident">display</span> <span class="op">=</span> <span class="string">&quot;{}&quot;</span>, <span class="ident">_0</span>)]</span>
+    <span class="ident">DbError</span>(<span class="attribute">#[<span class="ident">cause</span>]</span> <span class="ident">DbError</span>),
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">DbError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PullError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">error</span>: <span class="ident">DbError</span>) <span class="op">-&gt;</span> <span class="ident">PullError</span> {
+        <span class="ident">PullError</span>::<span class="ident">DbError</span>(<span class="ident">error</span>)
+    }
 }
 </pre>
 </section>

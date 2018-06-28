@@ -344,7 +344,7 @@
     <span class="ident">ValueType</span>,
 };
 <span class="kw">use</span> <span class="ident">edn</span>::<span class="ident">entities</span>::{
-    <span class="ident">Entid</span>,
+    <span class="ident">EntidOrIdent</span>,
 };
 <span class="kw">use</span> <span class="ident">schema</span>::{
     <span class="ident">SchemaBuilding</span>,
@@ -355,8 +355,8 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>,<span class="ident">Debug</span>,<span class="ident">Eq</span>,<span class="ident">Hash</span>,<span class="ident">Ord</span>,<span class="ident">PartialOrd</span>,<span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Datom</span> {
     <span class="comment">// TODO: generalize this.</span>
-    <span class="ident">e</span>: <span class="ident">Entid</span>,
-    <span class="ident">a</span>: <span class="ident">Entid</span>,
+    <span class="ident">e</span>: <span class="ident">EntidOrIdent</span>,
+    <span class="ident">a</span>: <span class="ident">EntidOrIdent</span>,
     <span class="ident">v</span>: <span class="ident">edn</span>::<span class="ident">Value</span>,
     <span class="ident">tx</span>: <span class="ident">i64</span>,
     <span class="ident">added</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>,
@@ -382,10 +382,10 @@
 
 <span class="kw">impl</span> <span class="ident">Datom</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">into_edn</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span> {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">entid</span>: <span class="kw-2">&amp;</span><span class="ident">Entid</span><span class="op">|</span> <span class="op">-&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span> {
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">entid</span>: <span class="kw-2">&amp;</span><span class="ident">EntidOrIdent</span><span class="op">|</span> <span class="op">-&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span> {
             <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">entid</span> {
-                <span class="ident">Entid</span>::<span class="ident">Entid</span>(<span class="kw-2">ref</span> <span class="ident">y</span>) <span class="op">=&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span>::<span class="ident">Integer</span>(<span class="ident">y</span>.<span class="ident">clone</span>()),
-                <span class="ident">Entid</span>::<span class="ident">Ident</span>(<span class="kw-2">ref</span> <span class="ident">y</span>) <span class="op">=&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span>::<span class="ident">Keyword</span>(<span class="ident">y</span>.<span class="ident">clone</span>()),
+                <span class="ident">EntidOrIdent</span>::<span class="ident">Entid</span>(<span class="kw-2">ref</span> <span class="ident">y</span>) <span class="op">=&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span>::<span class="ident">Integer</span>(<span class="ident">y</span>.<span class="ident">clone</span>()),
+                <span class="ident">EntidOrIdent</span>::<span class="ident">Ident</span>(<span class="kw-2">ref</span> <span class="ident">y</span>) <span class="op">=&gt;</span> <span class="ident">edn</span>::<span class="ident">Value</span>::<span class="ident">Keyword</span>(<span class="ident">y</span>.<span class="ident">clone</span>()),
             }
         };
 
@@ -433,8 +433,8 @@
 }
 
 <span class="doccomment">/// Convert a numeric entid to an ident `Entid` if possible, otherwise a numeric `Entid`.</span>
-<span class="kw">fn</span> <span class="ident">to_entid</span>(<span class="ident">schema</span>: <span class="kw-2">&amp;</span><span class="ident">Schema</span>, <span class="ident">entid</span>: <span class="ident">i64</span>) <span class="op">-&gt;</span> <span class="ident">Entid</span> {
-    <span class="ident">schema</span>.<span class="ident">get_ident</span>(<span class="ident">entid</span>).<span class="ident">map_or</span>(<span class="ident">Entid</span>::<span class="ident">Entid</span>(<span class="ident">entid</span>), <span class="op">|</span><span class="ident">ident</span><span class="op">|</span> <span class="ident">Entid</span>::<span class="ident">Ident</span>(<span class="ident">ident</span>.<span class="ident">clone</span>()))
+<span class="kw">fn</span> <span class="ident">to_entid</span>(<span class="ident">schema</span>: <span class="kw-2">&amp;</span><span class="ident">Schema</span>, <span class="ident">entid</span>: <span class="ident">i64</span>) <span class="op">-&gt;</span> <span class="ident">EntidOrIdent</span> {
+    <span class="ident">schema</span>.<span class="ident">get_ident</span>(<span class="ident">entid</span>).<span class="ident">map_or</span>(<span class="ident">EntidOrIdent</span>::<span class="ident">Entid</span>(<span class="ident">entid</span>), <span class="op">|</span><span class="ident">ident</span><span class="op">|</span> <span class="ident">EntidOrIdent</span>::<span class="ident">Ident</span>(<span class="ident">ident</span>.<span class="ident">clone</span>()))
 }
 
 <span class="doccomment">/// Return the set of datoms in the store, ordered by (e, a, v, tx), but not including any datoms of</span>
@@ -472,7 +472,7 @@
         <span class="kw">let</span> <span class="ident">tx</span>: <span class="ident">i64</span> <span class="op">=</span> <span class="ident">row</span>.<span class="ident">get_checked</span>(<span class="number">4</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">Datom</span> {
-            <span class="ident">e</span>: <span class="ident">Entid</span>::<span class="ident">Entid</span>(<span class="ident">e</span>),
+            <span class="ident">e</span>: <span class="ident">EntidOrIdent</span>::<span class="ident">Entid</span>(<span class="ident">e</span>),
             <span class="ident">a</span>: <span class="ident">to_entid</span>(<span class="ident">borrowed_schema</span>, <span class="ident">a</span>),
             <span class="ident">v</span>: <span class="ident">value</span>,
             <span class="ident">tx</span>: <span class="ident">tx</span>,
@@ -509,7 +509,7 @@
         <span class="kw">let</span> <span class="ident">added</span>: <span class="ident">bool</span> <span class="op">=</span> <span class="ident">row</span>.<span class="ident">get_checked</span>(<span class="number">5</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Datom</span> {
-            <span class="ident">e</span>: <span class="ident">Entid</span>::<span class="ident">Entid</span>(<span class="ident">e</span>),
+            <span class="ident">e</span>: <span class="ident">EntidOrIdent</span>::<span class="ident">Entid</span>(<span class="ident">e</span>),
             <span class="ident">a</span>: <span class="ident">to_entid</span>(<span class="ident">borrowed_schema</span>, <span class="ident">a</span>),
             <span class="ident">v</span>: <span class="ident">value</span>,
             <span class="ident">tx</span>: <span class="ident">tx</span>,

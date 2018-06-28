@@ -1172,7 +1172,7 @@
          :where (not [?x :foo/knows ?y])]&quot;#</span>;
         <span class="kw">let</span> <span class="ident">parsed</span> <span class="op">=</span> <span class="ident">parse_find_string</span>(<span class="ident">query</span>).<span class="ident">expect</span>(<span class="string">&quot;parse failed&quot;</span>);
         <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">algebrize</span>(<span class="ident">known</span>, <span class="ident">parsed</span>).<span class="ident">expect_err</span>(<span class="string">&quot;algebrization should have failed&quot;</span>);
-        <span class="kw">match</span> <span class="ident">err</span>.<span class="ident">downcast</span>().<span class="ident">expect</span>(<span class="string">&quot;expected AlgebrizerError&quot;</span>) {
+        <span class="kw">match</span> <span class="ident">err</span> {
             <span class="ident">AlgebrizerError</span>::<span class="ident">UnboundVariable</span>(<span class="ident">var</span>) <span class="op">=&gt;</span> { <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">var</span>, <span class="ident">PlainSymbol</span>(<span class="string">&quot;?x&quot;</span>.<span class="ident">to_string</span>())); },
             <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected Unbound Variable error, got {:?}&quot;</span>, <span class="ident">x</span>),
         }

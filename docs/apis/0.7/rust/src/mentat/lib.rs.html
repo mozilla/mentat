@@ -227,6 +227,17 @@
 <span id="170">170</span>
 <span id="171">171</span>
 <span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -334,9 +345,20 @@
 
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">errors</span>::{
+    <span class="ident">MentatError</span>,
+    <span class="prelude-ty">Result</span>,
+};
+
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">edn</span>::<span class="ident">ParseError</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">mentat_db</span>::<span class="ident">DbError</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">mentat_query_algebrizer</span>::<span class="ident">AlgebrizerError</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">mentat_query_projector</span>::<span class="ident">ProjectorError</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">mentat_query_pull</span>::<span class="ident">PullError</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">mentat_sql</span>::<span class="ident">SQLError</span>;
+
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">conn</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">entity_builder</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">ident</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">query</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">query_builder</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">store</span>;

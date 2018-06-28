@@ -34,7 +34,7 @@
     <nav class="sidebar">
         <div class="sidebar-menu">&#9776;</div>
         
-        <p class='location'>Crate mentat_ffi</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'mentat_ffi', ty: 'mod', relpath: '../'};</script></div>
+        <p class='location'>Crate mentat_ffi</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'mentat_ffi', ty: 'mod', relpath: '../'};</script></div>
     </nav>
 
     <div class="theme-picker">
@@ -59,7 +59,7 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#11-1854' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>This module exposes an Foreign Function Interface (FFI) that allows Mentat to be
+               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#11-2085' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>This module exposes an Foreign Function Interface (FFI) that allows Mentat to be
 called from other languages.</p>
 <p>Functions that are available to other languages in this module are defined as
 extern &quot;C&quot; functions which allow them to be layed out correctly for the
@@ -100,10 +100,12 @@ of calls that have to be made over the FFI to perform a task. An example of this
 <code>store_register_observer</code>, which takes a single native callback function that is then
 wrapped inside a Rust closure and added to a <a href="mentat::TxObserver">TxObserver</a> struct. This is then used to
 register the observer with the store.</p>
-<p><a href="std::result::Result">Result</a> and <a href="std::option::Option">Option</a> Rust types have <code>repr(C)</code> structs that mirror them. This is to provide a more
-native access pattern to callers and to enable easier passing of optional types and error
-propogation. These types have implemented <a href="std::convert::From">From</a> such that conversion from the Rust type
-to the C type is as painless as possible.</p>
+<p>Functions that may fail take an out parameter of type <code>*mut ExternError</code>. In the event the
+function fails, information about the error that occured will be stored inside it (and,
+typically, a null pointer will be returned). Convenience functions for unpacking a
+<code>Result&lt;T, E&gt;</code> as a <code>*mut T</code> while writing any error to the <code>ExternError</code> are provided as
+<code>translate_result</code>, <code>translate_opt_result</code> (for <code>Result&lt;Option&lt;T&gt;&gt;</code>) and <code>translate_void_result</code>
+(for <code>Result&lt;(), T&gt;</code>). Callers are responsible for freeing the <code>message</code> field of <code>ExternError</code>.</p>
 </div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
 <table><tr><td><code>pub use utils::strings::<a class="fn" href="../mentat_ffi/utils/strings/fn.c_char_to_string.html" title="fn mentat_ffi::utils::strings::c_char_to_string">c_char_to_string</a>;</code></td></tr><tr><td><code>pub use utils::strings::<a class="fn" href="../mentat_ffi/utils/strings/fn.kw_from_string.html" title="fn mentat_ffi::utils::strings::kw_from_string">kw_from_string</a>;</code></td></tr><tr><td><code>pub use utils::strings::<a class="fn" href="../mentat_ffi/utils/strings/fn.string_to_c_char.html" title="fn mentat_ffi::utils::strings::string_to_c_char">string_to_c_char</a>;</code></td></tr><tr><td><code>pub use utils::<a class="mod" href="../mentat_ffi/utils/log/index.html" title="mod mentat_ffi::utils::log">log</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
 <table>
@@ -120,6 +122,15 @@ to the C type is as painless as possible.</p>
                            <td class='docblock-short'>
                                 
                            </td>
+                       </tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.assert_not_null.html"
+                                  title='macro mentat_ffi::assert_not_null'>assert_not_null</a></td>
+                           <td class='docblock-short'>
+                                <p>Helper macro for asserting one or more pointers are not null at the same time.</p>
+
+                           </td>
                        </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                        <tr class=' module-item'>
@@ -127,27 +138,6 @@ to the C type is as painless as possible.</p>
                                   title='struct mentat_ffi::EntityBuilder'>EntityBuilder</a></td>
                            <td class='docblock-short'>
                                 
-                           </td>
-                       </tr>
-                       <tr class=' module-item'>
-                           <td><a class="struct" href="struct.ExternOption.html"
-                                  title='struct mentat_ffi::ExternOption'>ExternOption</a></td>
-                           <td class='docblock-short'>
-                                <p>A C representation Rust's <a href="std::option::Option">Option</a>.
-A value of <code>Some</code> results in <code>value</code> containing a raw pointer as a <code>c_void</code>.
-A value of <code>None</code> results in <code>value</code> containing a null pointer.</p>
-
-                           </td>
-                       </tr>
-                       <tr class=' module-item'>
-                           <td><a class="struct" href="struct.ExternResult.html"
-                                  title='struct mentat_ffi::ExternResult'>ExternResult</a></td>
-                           <td class='docblock-short'>
-                                <p>A C representation Rust's <a href="std::result::Result">Result</a>.
-A value of <code>Ok</code> results in <code>ok</code> containing a raw pointer as a <code>c_void</code>
-and <code>err</code> containing a null pointer.
-A value of <code>Err</code> results in <code>value</code> containing a null pointer and <code>err</code> containing an error message.</p>
-
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -871,6 +861,13 @@ If there is no value present at the <code>index</code>, a null pointer is return
                            </td>
                        </tr>
                        <tr class=' module-item'>
+                           <td><a class="fn" href="fn.rust_c_string_destroy.html"
+                                  title='fn mentat_ffi::rust_c_string_destroy'>rust_c_string_destroy</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
                            <td><a class="fn" href="fn.store_begin_transaction.html"
                                   title='fn mentat_ffi::store_begin_transaction'>store_begin_transaction</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
                            <td class='docblock-short'>
@@ -882,7 +879,7 @@ a large set of individual commits.</p>
                        </tr>
                        <tr class=' module-item'>
                            <td><a class="fn" href="fn.store_cache_attribute_bi_directional.html"
-                                  title='fn mentat_ffi::store_cache_attribute_bi_directional'>store_cache_attribute_bi_directional</a></td>
+                                  title='fn mentat_ffi::store_cache_attribute_bi_directional'>store_cache_attribute_bi_directional</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
                            <td class='docblock-short'>
                                 <p>Adds an attribute to the cache.
 <code>store_cache_attribute_bi_directional</code> caches entity in both available directions, forward and reverse.</p>
@@ -891,7 +888,7 @@ a large set of individual commits.</p>
                        </tr>
                        <tr class=' module-item'>
                            <td><a class="fn" href="fn.store_cache_attribute_forward.html"
-                                  title='fn mentat_ffi::store_cache_attribute_forward'>store_cache_attribute_forward</a></td>
+                                  title='fn mentat_ffi::store_cache_attribute_forward'>store_cache_attribute_forward</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
                            <td class='docblock-short'>
                                 <p>Adds an attribute to the cache.
 <code>store_cache_attribute_forward</code> caches values for an attribute keyed by entity
@@ -901,7 +898,7 @@ a large set of individual commits.</p>
                        </tr>
                        <tr class=' module-item'>
                            <td><a class="fn" href="fn.store_cache_attribute_reverse.html"
-                                  title='fn mentat_ffi::store_cache_attribute_reverse'>store_cache_attribute_reverse</a></td>
+                                  title='fn mentat_ffi::store_cache_attribute_reverse'>store_cache_attribute_reverse</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
                            <td class='docblock-short'>
                                 <p>Adds an attribute to the cache.
 <code>store_cache_attribute_reverse</code> caches entities for an attribute keyed by value.
@@ -957,7 +954,7 @@ to allow for programmatic assertion of values.</p>
                            <td class='docblock-short'>
                                 <p>A store cannot be opened twice to the same location.
 Once created, the reference to the store is held by the caller and not Rust,
-therefore the caller is responsible for calling <code>destroy</code> to release the memory
+therefore the caller is responsible for calling <code>store_destroy</code> to release the memory
 used by the <a href="mentat::Store">Store</a> in order to avoid a memory leak.</p>
 
                            </td>
@@ -1000,12 +997,13 @@ Calls <code>callback</code> is a relevant transaction occurs.</p>
                            <td><a class="fn" href="fn.store_value_for_attribute.html"
                                   title='fn mentat_ffi::store_value_for_attribute'>store_value_for_attribute</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
                            <td class='docblock-short'>
-                                <p>Returns an <a href="ExternResult">ExternResult</a> containing the <a href="mentat::Binding">Binding</a> associated with the <code>attribute</code> as <code>:namespace/name</code>
-for the given <code>entid</code>.
-If there is a value for that <code>attribute</code> on the entity with id <code>entid</code> then the value is returned in <code>ok</code>.
+                                <p>Returns a pointer to the the <a href="mentat::Binding">Binding</a> associated with the <code>attribute</code> as
+<code>:namespace/name</code> for the given <code>entid</code>.
+If there is a value for that <code>attribute</code> on the entity with id <code>entid</code> then the value is returned.
 If there no value for that <code>attribute</code> on the entity with id <code>entid</code> but the attribute is value,
-then a null pointer is returned in <code>ok</code>.
-If there is no <a href="mentat::Attribute">Attribute</a> in the <a href="mentat::Schema">Schema</a> for the given <code>attribute</code> then an error is returned in <code>err</code>.</p>
+then a null pointer is returned.
+If there is no <a href="mentat::Attribute">Attribute</a> in the <a href="mentat::Schema">Schema</a> for the given
+<code>attribute</code> then a null pointer is returned and an error is stored in is returned in <code>error</code>,</p>
 
                            </td>
                        </tr>
@@ -1190,6 +1188,13 @@ If there is no value next value, a null pointer is returned.</p>
                            <td class='docblock-short'>
                                 <p>Returns the <a href="mentat::ValueType">ValueType</a> of this <a href="mentat::Binding">Binding</a>.</p>
 
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.uuid_destroy.html"
+                                  title='fn mentat_ffi::uuid_destroy'>uuid_destroy</a><a title='unsafe function' href='#'><sup>⚠</sup></a></td>
+                           <td class='docblock-short'>
+                                
                            </td>
                        </tr>
                        <tr class=' module-item'>

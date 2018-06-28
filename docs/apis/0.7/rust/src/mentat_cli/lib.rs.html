@@ -210,6 +210,24 @@
 <span id="153">153</span>
 <span id="154">154</span>
 <span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2017 Mozilla</span>
 <span class="comment">//</span>
@@ -222,6 +240,10 @@
 <span class="comment">// specific language governing permissions and limitations under the License.</span>
 
 <span class="attribute">#![<span class="ident">crate_name</span> <span class="op">=</span> <span class="string">&quot;mentat_cli&quot;</span>]</span>
+
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">path</span>::{
+    <span class="ident">PathBuf</span>,
+};
 
 <span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">failure_derive</span>;
 <span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">log</span>;
@@ -248,6 +270,17 @@
 <span class="kw">use</span> <span class="ident">termion</span>::{
     <span class="ident">color</span>,
 };
+
+<span class="kw">static</span> <span class="ident">HISTORY_FILE_PATH</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;.mentat_history&quot;</span>;
+
+<span class="doccomment">/// The Mentat CLI stores input history in a readline-compatible file like &quot;~/.mentat_history&quot;.</span>
+<span class="doccomment">/// This accords with main other tools which prefix with &quot;.&quot; and suffix with &quot;_history&quot;: lein,</span>
+<span class="doccomment">/// node_repl, python, and sqlite, at least.</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">history_file_path</span>() <span class="op">-&gt;</span> <span class="ident">PathBuf</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p</span> <span class="op">=</span> ::<span class="ident">std</span>::<span class="ident">env</span>::<span class="ident">home_dir</span>().<span class="ident">unwrap_or_default</span>();
+    <span class="ident">p</span>.<span class="ident">push</span>(::<span class="ident">HISTORY_FILE_PATH</span>);
+    <span class="ident">p</span>
+}
 
 <span class="kw">static</span> <span class="ident">BLUE</span>: <span class="ident">color</span>::<span class="ident">Rgb</span> <span class="op">=</span> <span class="ident">color</span>::<span class="ident">Rgb</span>(<span class="number">0x99</span>, <span class="number">0xaa</span>, <span class="number">0xFF</span>);
 <span class="kw">static</span> <span class="ident">GREEN</span>: <span class="ident">color</span>::<span class="ident">Rgb</span> <span class="op">=</span> <span class="ident">color</span>::<span class="ident">Rgb</span>(<span class="number">0x77</span>, <span class="number">0xFF</span>, <span class="number">0x99</span>);
@@ -277,6 +310,7 @@
     <span class="ident">opts</span>.<span class="ident">optmulti</span>(<span class="string">&quot;t&quot;</span>, <span class="string">&quot;transact&quot;</span>, <span class="string">&quot;Execute a transact on startup. Transacts are executed before queries.&quot;</span>, <span class="string">&quot;TRANSACT&quot;</span>);
     <span class="ident">opts</span>.<span class="ident">optmulti</span>(<span class="string">&quot;i&quot;</span>, <span class="string">&quot;import&quot;</span>, <span class="string">&quot;Execute an import on startup. Imports are executed before queries.&quot;</span>, <span class="string">&quot;PATH&quot;</span>);
     <span class="ident">opts</span>.<span class="ident">optflag</span>(<span class="string">&quot;v&quot;</span>, <span class="string">&quot;version&quot;</span>, <span class="string">&quot;Print version and exit&quot;</span>);
+    <span class="ident">opts</span>.<span class="ident">optflag</span>(<span class="string">&quot;&quot;</span>, <span class="string">&quot;no-tty&quot;</span>, <span class="string">&quot;Don&#39;t try to use a TTY for readline-like input processing&quot;</span>);
 
     <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">opts</span>.<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="ident">args</span>[<span class="number">1</span>..]) {
         <span class="prelude-val">Ok</span>(<span class="ident">m</span>) <span class="op">=&gt;</span> <span class="ident">m</span>,
@@ -334,13 +368,15 @@
         }
     }).<span class="ident">collect</span>();
 
-    <span class="kw">let</span> <span class="ident">repl</span> <span class="op">=</span> <span class="ident">repl</span>::<span class="ident">Repl</span>::<span class="ident">new</span>();
-    <span class="kw">if</span> <span class="ident">repl</span>.<span class="ident">is_ok</span>() {
-        <span class="ident">repl</span>.<span class="ident">unwrap</span>().<span class="ident">run</span>(<span class="prelude-val">Some</span>(<span class="ident">cmds</span>));
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">repl</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">repl</span>::<span class="ident">Repl</span>::<span class="ident">new</span>(<span class="op">!</span><span class="ident">matches</span>.<span class="ident">opt_present</span>(<span class="string">&quot;no-tty&quot;</span>)) {
+        <span class="prelude-val">Ok</span>(<span class="ident">repl</span>) <span class="op">=&gt;</span> <span class="ident">repl</span>,
+        <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
+            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>);
+            <span class="kw">return</span> <span class="number">1</span>
+        }
+    };
 
-    } <span class="kw">else</span> {
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">repl</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>());
-    }
+    <span class="ident">repl</span>.<span class="ident">run</span>(<span class="prelude-val">Some</span>(<span class="ident">cmds</span>));
 
     <span class="number">0</span>
 }

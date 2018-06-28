@@ -59,10 +59,10 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#248-252' title='goto source code'>[src]</a></span></h1><pre class='rust fn'><div class="docblock attributes">#[no_mangle]
+               </span><a class='srclink' href='../src/mentat_ffi/lib.rs.html#212-217' title='goto source code'>[src]</a></span></h1><pre class='rust fn'><div class="docblock attributes">#[no_mangle]
 </div>pub extern &quot;C&quot; fn store_open(uri: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*const </a><a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_char.html" title="type std::os::raw::c_char">c_char</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../mentat_ffi/struct.Store.html" title="struct mentat_ffi::Store">Store</a></pre><div class='docblock'><p>A store cannot be opened twice to the same location.
 Once created, the reference to the store is held by the caller and not Rust,
-therefore the caller is responsible for calling <code>destroy</code> to release the memory
+therefore the caller is responsible for calling <code>store_destroy</code> to release the memory
 used by the <a href="mentat::Store">Store</a> in order to avoid a memory leak.</p>
 <h1 id="safety" class="section-header"><a href="#safety">Safety</a></h1>
 <p>Callers are responsible for managing the memory for the return value.

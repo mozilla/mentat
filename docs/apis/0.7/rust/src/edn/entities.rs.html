@@ -237,16 +237,16 @@
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Entid</span> {
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">EntidOrIdent</span> {
     <span class="ident">Entid</span>(<span class="ident">i64</span>),
     <span class="ident">Ident</span>(<span class="ident">Keyword</span>),
 }
 
-<span class="kw">impl</span> <span class="ident">Entid</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">unreversed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Entid</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">EntidOrIdent</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">unreversed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">EntidOrIdent</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="kw-2">&amp;</span><span class="ident">Entid</span>::<span class="ident">Entid</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
-            <span class="kw-2">&amp;</span><span class="ident">Entid</span>::<span class="ident">Ident</span>(<span class="kw-2">ref</span> <span class="ident">a</span>) <span class="op">=&gt;</span> <span class="ident">a</span>.<span class="ident">unreversed</span>().<span class="ident">map</span>(<span class="ident">Entid</span>::<span class="ident">Ident</span>),
+            <span class="kw-2">&amp;</span><span class="ident">EntidOrIdent</span>::<span class="ident">Entid</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="prelude-val">None</span>,
+            <span class="kw-2">&amp;</span><span class="ident">EntidOrIdent</span>::<span class="ident">Ident</span>(<span class="kw-2">ref</span> <span class="ident">a</span>) <span class="op">=&gt;</span> <span class="ident">a</span>.<span class="ident">unreversed</span>().<span class="ident">map</span>(<span class="ident">EntidOrIdent</span>::<span class="ident">Ident</span>),
         }
     }
 }
@@ -276,13 +276,13 @@
     <span class="kw">pub</span> <span class="ident">op</span>: <span class="ident">PlainSymbol</span>,
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MapNotation</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">Entid</span>, <span class="ident">ValuePlace</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MapNotation</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">EntidOrIdent</span>, <span class="ident">ValuePlace</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;&gt;</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ValuePlace</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span> {
     <span class="comment">// We never know at parse-time whether an integer or ident is really an entid, but we will often</span>
     <span class="comment">// know when building entities programmatically.</span>
-    <span class="ident">Entid</span>(<span class="ident">Entid</span>),
+    <span class="ident">Entid</span>(<span class="ident">EntidOrIdent</span>),
     <span class="comment">// We never know at parse-time whether a string is really a tempid, but we will often know when</span>
     <span class="comment">// building entities programmatically.</span>
     <span class="ident">TempId</span>(<span class="ident">TempId</span>),
@@ -295,7 +295,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">EntityPlace</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span> {
-    <span class="ident">Entid</span>(<span class="ident">Entid</span>),
+    <span class="ident">Entid</span>(<span class="ident">EntidOrIdent</span>),
     <span class="ident">TempId</span>(<span class="ident">TempId</span>),
     <span class="ident">LookupRef</span>(<span class="ident">LookupRef</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>),
     <span class="ident">TxFunction</span>(<span class="ident">TxFunction</span>),
@@ -303,7 +303,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AttributePlace</span> {
-    <span class="ident">Entid</span>(<span class="ident">Entid</span>),
+    <span class="ident">Entid</span>(<span class="ident">EntidOrIdent</span>),
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>)]</span>

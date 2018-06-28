@@ -2833,6 +2833,7 @@
 <span id="2776">2776</span>
 <span id="2777">2777</span>
 <span id="2778">2778</span>
+<span id="2779">2779</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2016 Mozilla</span>
 <span class="comment">//</span>
@@ -2846,7 +2847,9 @@
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 
-<span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">ResultExt</span>;
+<span class="kw">use</span> <span class="ident">failure</span>::{
+    <span class="ident">ResultExt</span>,
+};
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Borrow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
@@ -2892,9 +2895,8 @@
 };
 
 <span class="kw">use</span> <span class="ident">errors</span>::{
-    <span class="ident">DbError</span>,
+    <span class="ident">DbErrorKind</span>,
     <span class="prelude-ty">Result</span>,
-    <span class="ident">DbSqlErrorKind</span>,
 };
 <span class="kw">use</span> <span class="ident">metadata</span>;
 <span class="kw">use</span> <span class="ident">schema</span>::{
@@ -3093,7 +3095,7 @@
 <span class="doccomment">/// documentation](https://www.sqlite.org/pragma.html#pragma_user_version).</span>
 <span class="kw">fn</span> <span class="ident">set_user_version</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">rusqlite</span>::<span class="ident">Connection</span>, <span class="ident">version</span>: <span class="ident">i32</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="ident">conn</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;PRAGMA user_version = {}&quot;</span>, <span class="ident">version</span>), <span class="kw-2">&amp;</span>[])
-        .<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">CouldNotSetVersionPragma</span>)<span class="question-mark">?</span>;
+        .<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">CouldNotSetVersionPragma</span>)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -3104,7 +3106,7 @@
 <span class="kw">fn</span> <span class="ident">get_user_version</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">rusqlite</span>::<span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">query_row</span>(<span class="string">&quot;PRAGMA user_version&quot;</span>, <span class="kw-2">&amp;</span>[], <span class="op">|</span><span class="ident">row</span><span class="op">|</span> {
         <span class="ident">row</span>.<span class="ident">get</span>(<span class="number">0</span>)
-    }).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">CouldNotGetVersionPragma</span>)<span class="question-mark">?</span>;
+    }).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">CouldNotGetVersionPragma</span>)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(<span class="ident">v</span>)
 }
 
@@ -3145,7 +3147,7 @@
     <span class="comment">// TODO: validate metadata mutations that aren&#39;t schema related, like additional partitions.</span>
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">next_schema</span>) <span class="op">=</span> <span class="ident">next_schema</span> {
         <span class="kw">if</span> <span class="ident">next_schema</span> <span class="op">!=</span> <span class="ident">db</span>.<span class="ident">schema</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Initial bootstrap transaction did not produce expected bootstrap schema&quot;</span>)));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Initial bootstrap transaction did not produce expected bootstrap schema&quot;</span>)));
         }
     }
 
@@ -3167,7 +3169,7 @@
         <span class="ident">CURRENT_VERSION</span> <span class="op">=&gt;</span> <span class="ident">read_db</span>(<span class="ident">conn</span>),
 
         <span class="comment">// TODO: support updating an existing store.</span>
-        <span class="ident">v</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Opening databases with Mentat version: {}&quot;</span>, <span class="ident">v</span>))),
+        <span class="ident">v</span> <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Opening databases with Mentat version: {}&quot;</span>, <span class="ident">v</span>))),
     }
 }
 
@@ -3197,7 +3199,7 @@
                 <span class="kw">let</span> <span class="ident">u</span> <span class="op">=</span> <span class="ident">Uuid</span>::<span class="ident">from_bytes</span>(<span class="ident">x</span>.<span class="ident">as_slice</span>());
                 <span class="kw">if</span> <span class="ident">u</span>.<span class="ident">is_err</span>() {
                     <span class="comment">// Rather than exposing Uuid&#39;s ParseError…</span>
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSQLValuePair</span>(<span class="ident">rusqlite</span>::<span class="ident">types</span>::<span class="ident">Value</span>::<span class="ident">Blob</span>(<span class="ident">x</span>),
+                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSQLValuePair</span>(<span class="ident">rusqlite</span>::<span class="ident">types</span>::<span class="ident">Value</span>::<span class="ident">Blob</span>(<span class="ident">x</span>),
                                                      <span class="ident">value_type_tag</span>));
                 }
                 <span class="prelude-val">Ok</span>(<span class="ident">TypedValue</span>::<span class="ident">Uuid</span>(<span class="ident">u</span>.<span class="ident">unwrap</span>()))
@@ -3205,7 +3207,7 @@
             (<span class="number">13</span>, <span class="ident">rusqlite</span>::<span class="ident">types</span>::<span class="ident">Value</span>::<span class="ident">Text</span>(<span class="ident">x</span>)) <span class="op">=&gt;</span> {
                 <span class="ident">to_namespaced_keyword</span>(<span class="kw-2">&amp;</span><span class="ident">x</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">k</span>.<span class="ident">into</span>())
             },
-            (<span class="kw">_</span>, <span class="ident">value</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">BadSQLValuePair</span>(<span class="ident">value</span>, <span class="ident">value_type_tag</span>)),
+            (<span class="kw">_</span>, <span class="ident">value</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">BadSQLValuePair</span>(<span class="ident">value</span>, <span class="ident">value_type_tag</span>)),
         }
     }
 
@@ -3288,12 +3290,12 @@
     <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">read_materialized_view</span>(<span class="ident">conn</span>, <span class="string">&quot;idents&quot;</span>)<span class="question-mark">?</span>;
     <span class="ident">v</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">e</span>, <span class="ident">a</span>, <span class="ident">typed_value</span>)<span class="op">|</span> {
         <span class="kw">if</span> <span class="ident">a</span> <span class="op">!=</span> <span class="ident">entids</span>::<span class="ident">DB_IDENT</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;bad idents materialized view: expected :db/ident but got {}&quot;</span>, <span class="ident">a</span>)));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;bad idents materialized view: expected :db/ident but got {}&quot;</span>, <span class="ident">a</span>)));
         }
         <span class="kw">if</span> <span class="kw">let</span> <span class="ident">TypedValue</span>::<span class="ident">Keyword</span>(<span class="ident">keyword</span>) <span class="op">=</span> <span class="ident">typed_value</span> {
             <span class="prelude-val">Ok</span>((<span class="ident">keyword</span>.<span class="ident">as_ref</span>().<span class="ident">clone</span>(), <span class="ident">e</span>))
         } <span class="kw">else</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;bad idents materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]&quot;</span>, <span class="ident">typed_value</span>)));
+            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;bad idents materialized view: expected [entid :db/ident keyword] but got [entid :db/ident {:?}]&quot;</span>, <span class="ident">typed_value</span>)));
         }
     }).<span class="ident">collect</span>()
 }
@@ -3387,7 +3389,7 @@
          t.a0 = d.a&quot;#</span>;
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>)<span class="question-mark">?</span>;
-    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">CouldNotSearch</span>)<span class="question-mark">?</span>;
+    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">CouldNotSearch</span>)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -3410,7 +3412,7 @@
       WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))&quot;#</span>;
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>)<span class="question-mark">?</span>;
-    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">tx</span>]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">TxInsertFailedToAddMissingDatoms</span>)<span class="question-mark">?</span>;
+    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">tx</span>]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">TxInsertFailedToAddMissingDatoms</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="string">r#&quot;
       INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
@@ -3421,7 +3423,7 @@
              (added0 IS 1 AND search_type IS &#39;:db.cardinality/one&#39; AND v0 IS NOT v))&quot;#</span>;
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>)<span class="question-mark">?</span>;
-    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">tx</span>]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">TxInsertFailedToRetractDatoms</span>)<span class="question-mark">?</span>;
+    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">tx</span>]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">TxInsertFailedToRetractDatoms</span>)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(())
 }
@@ -3443,7 +3445,7 @@
         DELETE FROM datoms WHERE rowid IN ids&quot;#</span>;
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>)<span class="question-mark">?</span>;
-    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">DatomsUpdateFailedToRetract</span>)<span class="question-mark">?</span>;
+    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">DatomsUpdateFailedToRetract</span>)<span class="question-mark">?</span>;
 
     <span class="comment">// Insert datoms that were added and not already present. We also must expand our bitfield into</span>
     <span class="comment">// flags.  Since Mentat follows Datomic and treats its input as a set, it is okay to transact</span>
@@ -3466,7 +3468,7 @@
       <span class="ident">AttributeBitFlags</span>::<span class="ident">UniqueValue</span> <span class="kw">as</span> <span class="ident">u8</span>);
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">prepare_cached</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>)<span class="question-mark">?</span>;
-    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">tx</span>]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">DatomsUpdateFailedToAdd</span>)<span class="question-mark">?</span>;
+    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">tx</span>]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">DatomsUpdateFailedToAdd</span>)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -3593,7 +3595,7 @@
 
         <span class="kw">for</span> <span class="ident">statement</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">statements</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prepare_cached</span>(<span class="ident">statement</span>)<span class="question-mark">?</span>;
-            <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">FailedToCreateTempTables</span>)<span class="question-mark">?</span>;
+            <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">FailedToCreateTempTables</span>)<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -3656,7 +3658,7 @@
             <span class="comment">// TODO: consider ensuring we inserted the expected number of rows.</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>.<span class="ident">as_str</span>())<span class="question-mark">?</span>;
             <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">params</span>)
-                .<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">NonFtsInsertionIntoTempSearchTableFailed</span>)
+                .<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">NonFtsInsertionIntoTempSearchTableFailed</span>)
                 .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">into</span>())
                 .<span class="ident">map</span>(<span class="op">|</span><span class="ident">_c</span><span class="op">|</span> ())
         }).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>()<span class="op">&gt;&gt;</span><span class="op">&gt;</span>();
@@ -3716,7 +3718,7 @@
                         }
                     },
                     <span class="kw">_</span> <span class="op">=&gt;</span> {
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">WrongTypeValueForFtsAssertion</span>);
+                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">WrongTypeValueForFtsAssertion</span>);
                     },
                 }
 
@@ -3743,7 +3745,7 @@
 
             <span class="comment">// TODO: consider ensuring we inserted the expected number of rows.</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prepare_cached</span>(<span class="ident">fts_s</span>.<span class="ident">as_str</span>())<span class="question-mark">?</span>;
-            <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">fts_params</span>).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">FtsInsertionFailed</span>)<span class="question-mark">?</span>;
+            <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">fts_params</span>).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">FtsInsertionFailed</span>)<span class="question-mark">?</span>;
 
             <span class="comment">// Second, insert searches.</span>
             <span class="comment">// `params` reference computed values in `block`.</span>
@@ -3771,14 +3773,14 @@
 
             <span class="comment">// TODO: consider ensuring we inserted the expected number of rows.</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>.<span class="ident">as_str</span>())<span class="question-mark">?</span>;
-            <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">params</span>).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">FtsInsertionIntoTempSearchTableFailed</span>)
+            <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">params</span>).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">FtsInsertionIntoTempSearchTableFailed</span>)
                 .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">into</span>())
                 .<span class="ident">map</span>(<span class="op">|</span><span class="ident">_c</span><span class="op">|</span> ())
         }).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>()<span class="op">&gt;&gt;</span><span class="op">&gt;</span>();
 
         <span class="comment">// Finally, clean up temporary searchids.</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prepare_cached</span>(<span class="string">&quot;UPDATE fulltext_values SET searchid = NULL WHERE searchid IS NOT NULL&quot;</span>)<span class="question-mark">?</span>;
-        <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">FtsFailedToDropSearchIds</span>)<span class="question-mark">?</span>;
+        <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">FtsFailedToDropSearchIds</span>)<span class="question-mark">?</span>;
         <span class="ident">results</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
     }
 
@@ -3810,7 +3812,7 @@
     <span class="kw">let</span> <span class="ident">max_vars</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">limit</span>(<span class="ident">Limit</span>::<span class="ident">SQLITE_LIMIT_VARIABLE_NUMBER</span>) <span class="kw">as</span> <span class="ident">usize</span>;
     <span class="kw">let</span> <span class="ident">max_partitions</span> <span class="op">=</span> <span class="ident">max_vars</span> <span class="op">/</span> <span class="ident">values_per_statement</span>;
     <span class="kw">if</span> <span class="ident">partition_map</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">max_partitions</span> {
-        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;No more than {} partitions are supported&quot;</span>, <span class="ident">max_partitions</span>)));
+        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">NotYetImplemented</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;No more than {} partitions are supported&quot;</span>, <span class="ident">max_partitions</span>)));
     }
 
     <span class="comment">// Like &quot;UPDATE parts SET idx = CASE WHEN part = ? THEN ? WHEN part = ? THEN ? ELSE idx END&quot;.</span>
@@ -3826,7 +3828,7 @@
     <span class="comment">// supported in the Clojure implementation at all, and might not be supported in Mentat soon,</span>
     <span class="comment">// so this is very low priority.</span>
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">prepare_cached</span>(<span class="ident">s</span>.<span class="ident">as_str</span>())<span class="question-mark">?</span>;
-    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">params</span>[..]).<span class="ident">context</span>(<span class="ident">DbSqlErrorKind</span>::<span class="ident">FailedToUpdatePartitionMap</span>)<span class="question-mark">?</span>;
+    <span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span><span class="ident">params</span>[..]).<span class="ident">context</span>(<span class="ident">DbErrorKind</span>::<span class="ident">FailedToUpdatePartitionMap</span>)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -3886,8 +3888,8 @@ SELECT EXISTS
                     <span class="comment">// error message in this case.</span>
                     <span class="kw">if</span> <span class="ident">unique_value_stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="ident">to_bool_ref</span>(<span class="ident">attribute</span>.<span class="ident">unique</span>.<span class="ident">is_some</span>()), <span class="kw-2">&amp;</span><span class="ident">entid</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="ident">ToSql</span>]).<span class="ident">is_err</span>() {
                         <span class="kw">match</span> <span class="ident">attribute</span>.<span class="ident">unique</span> {
-                            <span class="prelude-val">Some</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Value</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaAlterationFailed</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot alter schema attribute {} to be :db.unique/value&quot;</span>, <span class="ident">entid</span>))),
-                            <span class="prelude-val">Some</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Identity</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaAlterationFailed</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot alter schema attribute {} to be :db.unique/identity&quot;</span>, <span class="ident">entid</span>))),
+                            <span class="prelude-val">Some</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Value</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">SchemaAlterationFailed</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot alter schema attribute {} to be :db.unique/value&quot;</span>, <span class="ident">entid</span>))),
+                            <span class="prelude-val">Some</span>(<span class="ident">attribute</span>::<span class="ident">Unique</span>::<span class="ident">Identity</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">SchemaAlterationFailed</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot alter schema attribute {} to be :db.unique/identity&quot;</span>, <span class="ident">entid</span>))),
                             <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(), <span class="comment">// This shouldn&#39;t happen, even after we support removing :db/unique.</span>
                         }
                     }
@@ -3901,7 +3903,7 @@ SELECT EXISTS
                     <span class="kw">if</span> <span class="op">!</span><span class="ident">attribute</span>.<span class="ident">multival</span> {
                         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">cardinality_stmt</span>.<span class="ident">query</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">entid</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="ident">ToSql</span>])<span class="question-mark">?</span>;
                         <span class="kw">if</span> <span class="ident">rows</span>.<span class="ident">next</span>().<span class="ident">is_some</span>() {
-                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbError</span>::<span class="ident">SchemaAlterationFailed</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot alter schema attribute {} to be :db.cardinality/one&quot;</span>, <span class="ident">entid</span>)));
+                            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">DbErrorKind</span>::<span class="ident">SchemaAlterationFailed</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Cannot alter schema attribute {} to be :db.cardinality/one&quot;</span>, <span class="ident">entid</span>)));
                         }
                     }
                 },
@@ -5508,13 +5510,13 @@ SELECT EXISTS
 
         <span class="kw">let</span> <span class="ident">report</span> <span class="op">=</span> <span class="ident">conn</span>.<span class="ident">transact_simple_terms</span>(<span class="ident">terms</span>, <span class="ident">InternSet</span>::<span class="ident">new</span>());
 
-        <span class="kw">match</span> <span class="ident">report</span>.<span class="ident">unwrap_err</span>().<span class="ident">downcast</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">DbError</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">TypeDisagreements</span> { <span class="ident">conflicting_datoms</span> })) <span class="op">=&gt;</span> {
+        <span class="kw">match</span> <span class="ident">report</span>.<span class="ident">err</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>()) {
+            <span class="prelude-val">Some</span>(<span class="ident">DbErrorKind</span>::<span class="ident">SchemaConstraintViolation</span>(<span class="ident">errors</span>::<span class="ident">SchemaConstraintViolation</span>::<span class="ident">TypeDisagreements</span> { <span class="kw-2">ref</span> <span class="ident">conflicting_datoms</span> })) <span class="op">=&gt;</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">BTreeMap</span>::<span class="ident">default</span>();
                 <span class="ident">map</span>.<span class="ident">insert</span>((<span class="number">100</span>, <span class="ident">entids</span>::<span class="ident">DB_TX_INSTANT</span>, <span class="ident">TypedValue</span>::<span class="ident">Long</span>(<span class="op">-</span><span class="number">1</span>)), <span class="ident">ValueType</span>::<span class="ident">Instant</span>);
                 <span class="ident">map</span>.<span class="ident">insert</span>((<span class="number">200</span>, <span class="ident">entids</span>::<span class="ident">DB_IDENT</span>, <span class="ident">TypedValue</span>::<span class="ident">typed_string</span>(<span class="string">&quot;test&quot;</span>)), <span class="ident">ValueType</span>::<span class="ident">Keyword</span>);
 
-                <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">conflicting_datoms</span>, <span class="ident">map</span>);
+                <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">conflicting_datoms</span>, <span class="kw-2">&amp;</span><span class="ident">map</span>);
             },
             <span class="ident">x</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;expected schema constraint violation, got {:?}&quot;</span>, <span class="ident">x</span>),
         }
