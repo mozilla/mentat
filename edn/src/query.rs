@@ -545,19 +545,19 @@ impl std::fmt::Display for PullAttributeSpec {
 }
 
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Pull {
     pub var: Variable,
     pub patterns: Vec<PullAttributeSpec>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Aggregate {
     pub func: QueryFunction,
     pub args: Vec<FnArg>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Element {
     Variable(Variable),
     Aggregate(Aggregate),
@@ -650,7 +650,7 @@ pub enum Limit {
 /// # }
 /// ```
 ///
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FindSpec {
     /// Returns an array of arrays, represented as a single array with length a multiple of width.
     FindRel(Vec<Element>),
