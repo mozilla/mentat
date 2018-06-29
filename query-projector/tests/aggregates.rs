@@ -101,7 +101,7 @@ fn test_the_without_max_or_min() {
     use ::mentat_query_projector::errors::{
         ProjectorError,
     };
-    match projection.err().expect("expected failure").downcast().expect("expected specific error") {
+    match projection.err().expect("expected failure") {
         ProjectorError::InvalidProjection(s) => {
                 assert_eq!(s.as_str(), "Warning: used `the` without `min` or `max`.");
             },

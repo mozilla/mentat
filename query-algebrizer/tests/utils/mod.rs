@@ -13,9 +13,6 @@
 // this module will get warnings otherwise).
 #![allow(dead_code)]
 
-extern crate failure;
-use self::failure::Error;
-
 use mentat_core::{
     Attribute,
     Entid,
@@ -28,6 +25,7 @@ use mentat_query::{
 };
 
 use mentat_query_algebrizer::{
+    AlgebrizerError,
     ConjoiningClauses,
     Known,
     QueryInputs,
@@ -83,12 +81,12 @@ impl SchemaBuilder {
     }
 }
 
-pub fn bails(known: Known, input: &str) -> Error {
+pub fn bails(known: Known, input: &str) -> AlgebrizerError {
     let parsed = parse_find_string(input).expect("query input to have parsed");
     algebrize(known, parsed).expect_err("algebrize to have failed")
 }
 
-pub fn bails_with_inputs(known: Known, input: &str, inputs: QueryInputs) -> Error {
+pub fn bails_with_inputs(known: Known, input: &str, inputs: QueryInputs) -> AlgebrizerError {
     let parsed = parse_find_string(input).expect("query input to have parsed");
     algebrize_with_inputs(known, parsed, 0, inputs).expect_err("algebrize to have failed")
 }

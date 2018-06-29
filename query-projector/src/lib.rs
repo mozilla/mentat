@@ -112,7 +112,7 @@ pub use relresult::{
     StructuredRelResult,
 };
 
-use errors::{
+pub use errors::{
     ProjectorError,
     Result,
 };

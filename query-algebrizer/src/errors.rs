@@ -11,17 +11,9 @@
 extern crate mentat_query;
 
 use std; // To refer to std::result::Result.
-use std::fmt;
-use std::fmt::Display;
-
-use failure::{
-    Backtrace,
-    Context,
-    Error,
-    Fail,
-};
 
 use mentat_core::{
+    EdnParseError,
     ValueType,
     ValueTypeSet,
 };
@@ -30,7 +22,7 @@ use self::mentat_query::{
     PlainSymbol,
 };
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, AlgebrizerError>;
 
 #[macro_export]
 macro_rules! bail {
@@ -39,44 +31,7 @@ macro_rules! bail {
     )
 }
 
-#[derive(Debug)]
-pub struct InvalidBinding {
-    pub function: PlainSymbol,
-    pub inner: Context<BindingError>
-}
-
-impl InvalidBinding {
-    pub fn new(function: PlainSymbol, inner: BindingError) -> InvalidBinding {
-        InvalidBinding {
-            function: function,
-            inner: Context::new(inner)
-        }
-    }
-}
-
-impl Fail for InvalidBinding {
-    fn cause(&self) -> Option<&Fail> {
-        self.inner.cause()
-    }
-
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.inner.backtrace()
-    }
-}
-
-impl Display for InvalidBinding {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "invalid binding for {}: {:?}", self.function, self.inner)
-    }
-}
-
-impl Display for BindingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BindingError: {:?}", self)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Fail)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BindingError {
     NoBoundVariable,
     UnexpectedBinding,
@@ -96,7 +51,7 @@ pub enum BindingError {
     InvalidNumberOfBindings { number: usize, expected: usize },
 }
 
-#[derive(Debug, Fail)]
+#[derive(Clone, Debug, Eq, Fail, PartialEq)]
 pub enum AlgebrizerError {
     #[fail(display = "{} var {} is duplicated", _0, _1)]
     DuplicateVariableError(PlainSymbol, &'static str),
@@ -144,4 +99,16 @@ pub enum AlgebrizerError {
 
     #[fail(display = "non-matching variables in 'not' clause")]
     NonMatchingVariablesInNotClause,
+
+    #[fail(display = "binding error in {}: {:?}", _0, _1)]
+    InvalidBinding(PlainSymbol, BindingError),
+
+    #[fail(display = "{}", _0)]
+    EdnParseError(#[cause] EdnParseError),
+}
+
+impl From<EdnParseError> for AlgebrizerError {
+    fn from(error: EdnParseError) -> AlgebrizerError {
+        AlgebrizerError::EdnParseError(error)
+    }
 }

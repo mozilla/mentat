@@ -521,5 +521,5 @@ pub fn query_to_select(schema: &Schema, query: AlgebraicQuery) -> Result<Project
                 projector: datalog_projector,
             }
         },
-    }).map_err(|e| e.into())
+    })
 }

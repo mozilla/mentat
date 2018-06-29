@@ -72,6 +72,10 @@ use std::sync::Arc;
 
 use std::iter::Peekable;
 
+use failure::{
+    ResultExt,
+};
+
 use rusqlite;
 
 use mentat_core::{
@@ -105,6 +109,7 @@ use db::{
 
 use errors::{
     DbError,
+    DbErrorKind,
     Result,
 };
 
@@ -890,7 +895,7 @@ impl AttributeCaches {
         let table = if is_fulltext { "fulltext_datoms" } else { "datoms" };
         let sql = format!("SELECT a, e, v, value_type_tag FROM {} WHERE a = ? ORDER BY a ASC, e ASC", table);
         let args: Vec<&rusqlite::types::ToSql> = vec![&attribute];
-        let mut stmt = sqlite.prepare(&sql)?;
+        let mut stmt = sqlite.prepare(&sql).context(DbErrorKind::CacheUpdateFailed)?;
         let replacing = true;
         self.repopulate_from_aevt(schema, &mut stmt, args, replacing)
     }
@@ -1149,7 +1154,7 @@ impl CachedAttributes for AttributeCaches {
     }
 }
 
-impl UpdateableCache for AttributeCaches {
+impl UpdateableCache<DbError> for AttributeCaches {
     fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         self.update_with_fallback(None, schema, retractions, assertions)
@@ -1231,7 +1236,7 @@ impl SQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbErrorKind::UnknownAttribute(a))?;
         let caches = self.make_mut();
         caches.forward_cached_attributes.insert(a);
         caches.repopulate(schema, sqlite, a)
@@ -1242,7 +1247,7 @@ impl SQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbErrorKind::UnknownAttribute(a))?;
 
         let caches = self.make_mut();
         caches.reverse_cached_attributes.insert(a);
@@ -1271,7 +1276,7 @@ impl SQLiteAttributeCache {
     }
 }
 
-impl UpdateableCache for SQLiteAttributeCache {
+impl UpdateableCache<DbError> for SQLiteAttributeCache {
     fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         self.make_mut().update(schema, retractions, assertions)
@@ -1349,7 +1354,7 @@ impl InProgressSQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbErrorKind::UnknownAttribute(a))?;
 
         if self.is_attribute_cached_forward(a) {
             return Ok(());
@@ -1365,7 +1370,7 @@ impl InProgressSQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbErrorKind::UnknownAttribute(a))?;
 
         if self.is_attribute_cached_reverse(a) {
             return Ok(());
@@ -1381,7 +1386,7 @@ impl InProgressSQLiteAttributeCache {
         let a = attribute.into();
 
         // The attribute must exist!
-        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbError::UnknownAttribute(a))?;
+        let _ = schema.attribute_for_entid(a).ok_or_else(|| DbErrorKind::UnknownAttribute(a))?;
 
         // TODO: reverse-index unique by default?
         let reverse_done = self.is_attribute_cached_reverse(a);
@@ -1419,7 +1424,7 @@ impl InProgressSQLiteAttributeCache {
     }
 }
 
-impl UpdateableCache for InProgressSQLiteAttributeCache {
+impl UpdateableCache<DbError> for InProgressSQLiteAttributeCache {
     fn update<I>(&mut self, schema: &Schema, retractions: I, assertions: I) -> Result<()>
     where I: Iterator<Item=(Entid, Entid, TypedValue)> {
         self.overlay.update_with_fallback(Some(&self.inner), schema, retractions, assertions)

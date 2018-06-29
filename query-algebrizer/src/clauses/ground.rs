@@ -33,7 +33,6 @@ use clauses::convert::ValueConversion;
 use errors::{
     AlgebrizerError,
     BindingError,
-    InvalidBinding,
     Result,
 };
 
@@ -125,12 +124,12 @@ impl ConjoiningClauses {
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(InvalidBinding::new(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         let schema = known.schema;

@@ -14,16 +14,23 @@ use std; // To refer to std::result::Result.
 
 use std::collections::BTreeSet;
 
-use failure::Error;
+use rusqlite;
+
+use edn;
 
 use mentat_core::{
     Attribute,
     ValueType,
 };
 
+use mentat_db;
 use mentat_query;
+use mentat_query_algebrizer;
+use mentat_query_projector;
+use mentat_query_pull;
+use mentat_sql;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, MentatError>;
 
 #[macro_export]
 macro_rules! bail {
@@ -34,6 +41,9 @@ macro_rules! bail {
 
 #[derive(Debug, Fail)]
 pub enum MentatError {
+    #[fail(display = "bad uuid {}", _0)]
+    BadUuid(String),
+
     #[fail(display = "path {} already exists", _0)]
     PathAlreadyExists(String),
 
@@ -69,4 +79,78 @@ pub enum MentatError {
 
     #[fail(display = "provided value of type {} doesn't match attribute value type {}", _0, _1)]
     ValueTypeMismatch(ValueType, ValueType),
+
+    #[fail(display = "{}", _0)]
+    IoError(#[cause] std::io::Error),
+
+    // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
+    // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
+    #[fail(display = "SQL error: _0")]
+    RusqliteError(String),
+
+    #[fail(display = "{}", _0)]
+    EdnParseError(#[cause] edn::ParseError),
+
+    #[fail(display = "{}", _0)]
+    DbError(#[cause] mentat_db::DbError),
+
+    #[fail(display = "{}", _0)]
+    AlgebrizerError(#[cause] mentat_query_algebrizer::AlgebrizerError),
+
+    #[fail(display = "{}", _0)]
+    ProjectorError(#[cause] mentat_query_projector::ProjectorError),
+
+    #[fail(display = "{}", _0)]
+    PullError(#[cause] mentat_query_pull::PullError),
+
+    #[fail(display = "{}", _0)]
+    SQLError(#[cause] mentat_sql::SQLError),
+}
+
+impl From<std::io::Error> for MentatError {
+    fn from(error: std::io::Error) -> MentatError {
+        MentatError::IoError(error)
+    }
+}
+
+impl From<rusqlite::Error> for MentatError {
+    fn from(error: rusqlite::Error) -> MentatError {
+        MentatError::RusqliteError(error.to_string())
+    }
+}
+
+impl From<edn::ParseError> for MentatError {
+    fn from(error: edn::ParseError) -> MentatError {
+        MentatError::EdnParseError(error)
+    }
+}
+
+impl From<mentat_db::DbError> for MentatError {
+    fn from(error: mentat_db::DbError) -> MentatError {
+        MentatError::DbError(error)
+    }
+}
+
+impl From<mentat_query_algebrizer::AlgebrizerError> for MentatError {
+    fn from(error: mentat_query_algebrizer::AlgebrizerError) -> MentatError {
+        MentatError::AlgebrizerError(error)
+    }
+}
+
+impl From<mentat_query_projector::ProjectorError> for MentatError {
+    fn from(error: mentat_query_projector::ProjectorError) -> MentatError {
+        MentatError::ProjectorError(error)
+    }
+}
+
+impl From<mentat_query_pull::PullError> for MentatError {
+    fn from(error: mentat_query_pull::PullError) -> MentatError {
+        MentatError::PullError(error)
+    }
+}
+
+impl From<mentat_sql::SQLError> for MentatError {
+    fn from(error: mentat_sql::SQLError) -> MentatError {
+        MentatError::SQLError(error)
+    }
 }

@@ -102,7 +102,7 @@ use mentat_query::{
 
 pub mod errors;
 
-use errors::{
+pub use errors::{
     PullError,
     Result,
 };
