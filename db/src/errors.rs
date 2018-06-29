@@ -293,6 +293,6 @@ pub enum DbErrorKind {
 
     // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
     // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
-    #[fail(display = "SQL error: _0")]
+    #[fail(display = "SQL error: {}", _0)]
     RusqliteError(String),
 }
