@@ -10,7 +10,13 @@
 
 #![allow(dead_code)]
 
-use failure::Error;
+use std;
+use rusqlite;
+use uuid;
+use hyper;
+use serde_json;
+
+use mentat_db;
 
 #[macro_export]
 macro_rules! bail {
@@ -19,7 +25,7 @@ macro_rules! bail {
     )
 }
 
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = ::std::result::Result<T, TolstoyError>;
 
 #[derive(Debug, Fail)]
 pub enum TolstoyError {
@@ -40,4 +46,70 @@ pub enum TolstoyError {
 
     #[fail(display = "not yet implemented: {}", _0)]
     NotYetImplemented(String),
+
+    #[fail(display = "{}", _0)]
+    DbError(#[cause] mentat_db::DbError),
+
+    #[fail(display = "{}", _0)]
+    SerializationError(#[cause] serde_json::Error),
+
+    // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
+    // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
+    #[fail(display = "SQL error: _0")]
+    RusqliteError(String),
+
+    #[fail(display = "{}", _0)]
+    IoError(#[cause] std::io::Error),
+
+    #[fail(display = "{}", _0)]
+    UuidError(#[cause] uuid::ParseError),
+
+    #[fail(display = "{}", _0)]
+    NetworkError(#[cause] hyper::Error),
+
+    #[fail(display = "{}", _0)]
+    UriError(#[cause] hyper::error::UriError),
 }
+
+impl From<mentat_db::DbError> for TolstoyError {
+    fn from(error: mentat_db::DbError) -> TolstoyError {
+        TolstoyError::DbError(error)
+    }
+}
+
+impl From<serde_json::Error> for TolstoyError {
+    fn from(error: serde_json::Error) -> TolstoyError {
+        TolstoyError::SerializationError(error)
+    }
+}
+
+impl From<rusqlite::Error> for TolstoyError {
+    fn from(error: rusqlite::Error) -> TolstoyError {
+        TolstoyError::RusqliteError(error.to_string())
+    }
+}
+
+impl From<std::io::Error> for TolstoyError {
+    fn from(error: std::io::Error) -> TolstoyError {
+        TolstoyError::IoError(error)
+    }
+}
+
+impl From<uuid::ParseError> for TolstoyError {
+    fn from(error: uuid::ParseError) -> TolstoyError {
+        TolstoyError::UuidError(error)
+    }
+}
+
+impl From<hyper::Error> for TolstoyError {
+    fn from(error: hyper::Error) -> TolstoyError {
+        TolstoyError::NetworkError(error)
+    }
+}
+
+impl From<hyper::error::UriError> for TolstoyError {
+    fn from(error: hyper::error::UriError) -> TolstoyError {
+        TolstoyError::UriError(error)
+    }
+}
+

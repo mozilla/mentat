@@ -15,6 +15,7 @@ use std; // To refer to std::result::Result.
 use std::collections::BTreeSet;
 
 use rusqlite;
+use uuid;
 
 use edn;
 
@@ -29,6 +30,9 @@ use mentat_query_algebrizer;
 use mentat_query_projector;
 use mentat_query_pull;
 use mentat_sql;
+
+#[cfg(feature = "syncable")]
+use mentat_tolstoy;
 
 pub type Result<T> = std::result::Result<T, MentatError>;
 
@@ -80,6 +84,11 @@ pub enum MentatError {
     #[fail(display = "provided value of type {} doesn't match attribute value type {}", _0, _1)]
     ValueTypeMismatch(ValueType, ValueType),
 
+    /// We're just not done yet.  Message that the feature is recognized but not yet
+    /// implemented.
+    #[fail(display = "not yet implemented: {}", _0)]
+    NotYetImplemented(String),
+
     #[fail(display = "{}", _0)]
     IoError(#[cause] std::io::Error),
 
@@ -104,7 +113,14 @@ pub enum MentatError {
     PullError(#[cause] mentat_query_pull::PullError),
 
     #[fail(display = "{}", _0)]
+    UuidError(#[cause] uuid::ParseError),
+
+    #[fail(display = "{}", _0)]
     SQLError(#[cause] mentat_sql::SQLError),
+
+    #[cfg(feature = "syncable")]
+    #[fail(display = "{}", _0)]
+    TolstoyError(#[cause] mentat_tolstoy::TolstoyError),
 }
 
 impl From<std::io::Error> for MentatError {
@@ -152,5 +168,18 @@ impl From<mentat_query_pull::PullError> for MentatError {
 impl From<mentat_sql::SQLError> for MentatError {
     fn from(error: mentat_sql::SQLError) -> MentatError {
         MentatError::SQLError(error)
+    }
+}
+
+#[cfg(feature = "syncable")]
+impl From<mentat_tolstoy::TolstoyError> for MentatError {
+    fn from(error: mentat_tolstoy::TolstoyError) -> MentatError {
+        MentatError::TolstoyError(error)
+    }
+}
+
+impl From<uuid::ParseError> for MentatError {
+    fn from(error: uuid::ParseError) -> MentatError {
+        MentatError::UuidError(error)
     }
 }
