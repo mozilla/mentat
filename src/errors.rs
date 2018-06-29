@@ -29,6 +29,7 @@ use mentat_query_algebrizer;
 use mentat_query_projector;
 use mentat_query_pull;
 use mentat_sql;
+use mentat_tolstoy;
 
 pub type Result<T> = std::result::Result<T, MentatError>;
 
@@ -105,6 +106,9 @@ pub enum MentatError {
 
     #[fail(display = "{}", _0)]
     SQLError(#[cause] mentat_sql::SQLError),
+
+    #[fail(display = "{}", _0)]
+    TolstoyError(#[cause] mentat_tolstoy::TolstoyError),
 }
 
 impl From<std::io::Error> for MentatError {
@@ -152,5 +156,11 @@ impl From<mentat_query_pull::PullError> for MentatError {
 impl From<mentat_sql::SQLError> for MentatError {
     fn from(error: mentat_sql::SQLError) -> MentatError {
         MentatError::SQLError(error)
+    }
+}
+
+impl From<mentat_tolstoy::TolstoyError> for MentatError {
+    fn from(error: mentat_tolstoy::TolstoyError) -> MentatError {
+        MentatError::TolstoyError(error)
     }
 }

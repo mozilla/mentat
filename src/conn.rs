@@ -185,7 +185,7 @@ pub trait Pullable {
 }
 
 pub trait Syncable {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> ::std::result::Result<(), ::failure::Error>;
+    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
 }
 
 /// Represents an in-progress, not yet committed, set of changes to the store.

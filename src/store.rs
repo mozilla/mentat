@@ -234,7 +234,7 @@ impl Pullable for Store {
 }
 
 impl Syncable for Store {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> ::std::result::Result<(), ::failure::Error> {
+    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
         let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatError::BadUuid(user_uuid.clone()))?;
         Ok(Syncer::flow(&mut self.sqlite, server_uri, &uuid)?)
     }
