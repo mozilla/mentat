@@ -8,6 +8,6 @@ layout: home
 
 ## API Documentation
 
-[Rust](/apis/rust/mentat/latest/index.html)
-: [Swift SDK](/apis/swift/latest/Classes/Mentat.html)
-: [Android Java SDK](/apis/java/latest/index.html)
+[Rust](/apis/latest/rust/mentat/index.html)
+: [Swift SDK](/apis/latest/swift/Classes/Mentat.html)
+: [Android Java SDK](/apis/latest/java/index.html)
