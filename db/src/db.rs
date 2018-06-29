@@ -3264,4 +3264,119 @@ mod tests {
                [?e :db.excise/beforeT {} ?tx4 true]
                [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#, report.tx_id));
     }
+
+    #[test]
+    fn test_excision_fulltext() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200
+             :db/ident :test/fulltext
+             :db/valueType :db.type/string
+             :db/cardinality :db.cardinality/one
+             :db/fulltext true
+             :db/index true}
+        ]"#);
+
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/fulltext "test1"}
+            {:db/id 301
+             :test/fulltext "test2"}
+        ]"#);
+
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/fulltext "test3"}
+            {:db/id 301
+             :test/fulltext "test4"}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.fulltext_values(), r#"
+           [[1 "test1"]
+            [2 "test2"]
+            [3 "test3"]
+            [4 "test4"]]"#);
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/fulltext]
+             [200 :db/valueType :db.type/string]
+             [200 :db/cardinality :db.cardinality/one]
+             [200 :db/index true]
+             [200 :db/fulltext true]
+             [300 :test/fulltext 3]
+             [301 :test/fulltext 4]]"#);
+
+        let tempid_report = assert_transact!(conn, r#"[
+            [:db/add "e" :db/excise 300]
+        ]"#);
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&tempid_report),
+                        "{\"e\" 65536}");
+
+        // After.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/fulltext]
+             [200 :db/valueType :db.type/string]
+             [200 :db/cardinality :db.cardinality/one]
+             [200 :db/index true]
+             [200 :db/fulltext true]
+             [301 :test/fulltext 4]
+             [?e :db/excise 300]]"#);
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            target: 300,
+            attrs: None,
+            before_tx: None,
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/fulltext ?tx1 true]
+              [200 :db/valueType :db.type/string ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [200 :db/index true ?tx1 true]
+              [200 :db/fulltext true ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[300 :test/fulltext 1 ?tx2 true]
+              [301 :test/fulltext 2 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[300 :test/fulltext 1 ?tx3 false]
+              [300 :test/fulltext 3 ?tx3 true]
+              [301 :test/fulltext 2 ?tx3 false]
+              [301 :test/fulltext 4 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]
+             [[?e :db/excise 300 ?tx4 true]
+              [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#);
+
+        excision::ensure_no_pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("ensure_no_pending_excisions");
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the targeted attributes of the target entity.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/fulltext ?tx1 true]
+              [200 :db/valueType :db.type/string ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [200 :db/index true ?tx1 true]
+              [200 :db/fulltext true ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[301 :test/fulltext 2 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[301 :test/fulltext 2 ?tx3 false]
+              [301 :test/fulltext 4 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]
+             [[?e :db/excise 300 ?tx4 true]
+              [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#);
+
+        // After processing the pending excision, we have vacuumed dangling fulltext values.
+        assert_matches!(conn.fulltext_values(), r#"
+            [[2 "test2"]
+             [4 "test4"]]"#);
+    }
 }

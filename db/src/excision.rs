@@ -22,6 +22,7 @@ use mentat_core::{
     Entid,
     HasSchema,
     Schema,
+    TypedValue,
 };
 
 use entids;
@@ -253,5 +254,38 @@ pub(crate) fn ensure_no_pending_excisions(conn: &rusqlite::Connection, partition
 
     conn.execute("UPDATE excisions SET status = 0", &[])?;
 
+    // TODO: only vacuum fulltext if an excision (likely) impacted fulltext values, since this is
+    // very expensive.  As always, correctness first, performance second.
+    vacuum_fulltext_table(conn)?;
+
     Ok(list.into_iter().map(|(entity, excision, _status)| (entity, excision)).collect())
+}
+
+
+/// Delete fulltext values that are no longer refered to in the `datoms` or `transactions` table.
+pub(crate) fn vacuum_fulltext_table(conn: &rusqlite::Connection) -> Result<()> {
+    let (true_value, true_value_type_tag) = TypedValue::Boolean(true).to_sql_value_pair();
+
+    // First, collect all `:db/fulltext true` attributes.  This is easier than extracting them from
+    // a `Schema` (no need to execute multiple insertions for large collections), but less flexible.
+    conn.execute(r#"CREATE TABLE temp.fulltext_as (a SMALLINT NOT NULL)"# , &[])?;
+    conn.execute(r#"INSERT INTO temp.fulltext_as (a)
+                    SELECT e FROM schema WHERE a = ? AND v = ? AND value_type_tag = ?"# ,
+                 &[&entids::DB_FULLTEXT, &true_value, &true_value_type_tag])?;
+
+    // Next, purge values that aren't referenced.  We're using that `:db/fulltext true` attributes
+    // always have `:db/index true`, so that we can use the `avet` index.
+    conn.execute(r#"DELETE FROM fulltext_values
+                    WHERE rowid NOT IN
+                      (SELECT v
+                       FROM datoms
+                       WHERE index_avet IS NOT 0 AND a IN temp.fulltext_as
+                       UNION ALL
+                       SELECT v
+                       FROM transactions
+                       WHERE a IN temp.fulltext_as)"#, &[])?;
+
+    conn.execute(r#"DROP TABLE temp.fulltext_as"# , &[])?;
+
+    Ok(())
 }
