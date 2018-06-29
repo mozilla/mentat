@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `mentat_db` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, mentat_db">
+
+    <title>mentat_db - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate mentat_db</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#constants">Constants</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'mentat_db', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>mentat_db</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/mentat_db/lib.rs.html#11-143' title='goto source code'>[src]</a></span></h1><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>pub use errors::<a class="struct" href="../mentat_db/errors/struct.DbError.html" title="struct mentat_db::errors::DbError">DbError</a>;</code></td></tr><tr><td><code>pub use errors::<a class="enum" href="../mentat_db/errors/enum.DbErrorKind.html" title="enum mentat_db::errors::DbErrorKind">DbErrorKind</a>;</code></td></tr><tr><td><code>pub use errors::<a class="type" href="../mentat_db/errors/type.Result.html" title="type mentat_db::errors::Result">Result</a>;</code></td></tr><tr><td><code>pub use errors::<a class="enum" href="../mentat_db/errors/enum.SchemaConstraintViolation.html" title="enum mentat_db::errors::SchemaConstraintViolation">SchemaConstraintViolation</a>;</code></td></tr><tr><td><code>pub use entids::<a class="constant" href="../mentat_db/entids/constant.DB_SCHEMA_CORE.html" title="constant mentat_db::entids::DB_SCHEMA_CORE">DB_SCHEMA_CORE</a>;</code></td></tr><tr><td><code>pub use db::<a class="trait" href="../mentat_db/db/trait.TypedSQLValue.html" title="trait mentat_db::db::TypedSQLValue">TypedSQLValue</a>;</code></td></tr><tr><td><code>pub use db::<a class="fn" href="../mentat_db/db/fn.new_connection.html" title="fn mentat_db::db::new_connection">new_connection</a>;</code></td></tr><tr><td><code>pub use tx_observer::<a class="struct" href="../mentat_db/tx_observer/struct.InProgressObserverTransactWatcher.html" title="struct mentat_db::tx_observer::InProgressObserverTransactWatcher">InProgressObserverTransactWatcher</a>;</code></td></tr><tr><td><code>pub use tx_observer::<a class="struct" href="../mentat_db/tx_observer/struct.TxObservationService.html" title="struct mentat_db::tx_observer::TxObservationService">TxObservationService</a>;</code></td></tr><tr><td><code>pub use tx_observer::<a class="struct" href="../mentat_db/tx_observer/struct.TxObserver.html" title="struct mentat_db::tx_observer::TxObserver">TxObserver</a>;</code></td></tr><tr><td><code>pub use types::<a class="type" href="../mentat_db/types/type.AttributeSet.html" title="type mentat_db::types::AttributeSet">AttributeSet</a>;</code></td></tr><tr><td><code>pub use types::<a class="struct" href="../mentat_db/types/struct.DB.html" title="struct mentat_db::types::DB">DB</a>;</code></td></tr><tr><td><code>pub use types::<a class="type" href="../mentat_db/types/type.PartitionMap.html" title="type mentat_db::types::PartitionMap">PartitionMap</a>;</code></td></tr><tr><td><code>pub use types::<a class="trait" href="../mentat_db/types/trait.TransactableValue.html" title="trait mentat_db::types::TransactableValue">TransactableValue</a>;</code></td></tr><tr><td><code>pub use types::<a class="struct" href="../mentat_db/types/struct.TxReport.html" title="struct mentat_db::types::TxReport">TxReport</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="cache/index.html"
+                                  title='mod mentat_db::cache'>cache</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="db/index.html"
+                                  title='mod mentat_db::db'>db</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="debug/index.html"
+                                  title='mod mentat_db::debug'>debug</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="entids/index.html"
+                                  title='mod mentat_db::entids'>entids</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="errors/index.html"
+                                  title='mod mentat_db::errors'>errors</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="internal_types/index.html"
+                                  title='mod mentat_db::internal_types'>internal_types</a></td>
+                           <td class='docblock-short'>
+                                <p>Types used only within the transactor.  These should not be exposed outside of this crate.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="tx_observer/index.html"
+                                  title='mod mentat_db::tx_observer'>tx_observer</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="types/index.html"
+                                  title='mod mentat_db::types'>types</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.bail.html"
+                                  title='macro mentat_db::bail'>bail</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.AttributeBuilder.html"
+                                  title='struct mentat_db::AttributeBuilder'>AttributeBuilder</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.CORE_SCHEMA_VERSION.html"
+                                  title='constant mentat_db::CORE_SCHEMA_VERSION'>CORE_SCHEMA_VERSION</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.TX0.html"
+                                  title='constant mentat_db::TX0'>TX0</a></td>
+                           <td class='docblock-short'>
+                                <p>The first transaction ID applied to the knowledge base.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="constant" href="constant.USER0.html"
+                                  title='constant mentat_db::USER0'>USER0</a></td>
+                           <td class='docblock-short'>
+                                <p>This is the start of the :db.part/user partition.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.AttributeValidation.html"
+                                  title='trait mentat_db::AttributeValidation'>AttributeValidation</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.TransactWatcher.html"
+                                  title='trait mentat_db::TransactWatcher'>TransactWatcher</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.repeat_values.html"
+                                  title='fn mentat_db::repeat_values'>repeat_values</a></td>
+                           <td class='docblock-short'>
+                                <p>Prepare an SQL <code>VALUES</code> block, like (?, ?, ?), (?, ?, ?).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.to_namespaced_keyword.html"
+                                  title='fn mentat_db::to_namespaced_keyword'>to_namespaced_keyword</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.transact.html"
+                                  title='fn mentat_db::transact'>transact</a></td>
+                           <td class='docblock-short'>
+                                <p>Transact the given <code>entities</code> against the given SQLite <code>conn</code>, using the given metadata.
+If you want this work to occur inside a SQLite transaction, establish one on the connection
+prior to calling this function.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.transact_terms.html"
+                                  title='fn mentat_db::transact_terms'>transact_terms</a></td>
+                           <td class='docblock-short'>
+                                <p>Just like <code>transact</code>, but accepts lower-level inputs to allow bypassing the parser interface.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

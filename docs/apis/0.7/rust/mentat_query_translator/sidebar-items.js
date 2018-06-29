@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["ProjectedSelect",""],["Projection",""]],"fn":[["cc_to_exists","Return a query that projects `1` if the `cc` matches the store, and returns no results if it doesn't."],["query_to_select","Consume a provided `AlgebraicQuery` to yield a new `ProjectedSelect`."]],"type":[["Result",""],["TranslatorError",""]]});

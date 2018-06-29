@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Item` trait in crate `mentat_parser_utils`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Item">
+
+    <title>mentat_parser_utils::value_and_span::Item - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait Item</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#associated-types">Associated Types</a><div class="sidebar-links"><a href="#associatedtype.Position">Position</a></div><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.start">start</a><a href="#tymethod.update_position">update_position</a><a href="#tymethod.child_iter">child_iter</a><a href="#tymethod.child_stream">child_stream</a><a href="#tymethod.atom_iter">atom_iter</a><a href="#tymethod.atom_stream">atom_stream</a><a href="#tymethod.keyword_map_iter">keyword_map_iter</a><a href="#tymethod.keyword_map_stream">keyword_map_stream</a></div><a class="sidebar-title" href="#foreign-impls">Implementations on Foreign Types</a><div class="sidebar-links"><a href="#impl-Item%3C%27a%3E">ValueAndSpan</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>mentat_parser_utils</a>::<wbr><a href='index.html'>value_and_span</a></p><script>window.sidebarCurrent = {name: 'Item', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>mentat_parser_utils</a>::<wbr><a href='index.html'>value_and_span</a>::<wbr><a class="trait" href=''>Item</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#124-140' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust trait'>pub trait Item&lt;'a&gt;: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> {
+    type <a href='#associatedtype.Position' class="type">Position</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html" title="trait core::cmp::Ord">Ord</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a>;
+    fn <a href='#tymethod.start' class='fnname'>start</a>(&amp;self) -&gt; Self::<a class="type" href="../../mentat_parser_utils/value_and_span/trait.Item.html#associatedtype.Position" title="type mentat_parser_utils::value_and_span::Item::Position">Position</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.update_position' class='fnname'>update_position</a>(&amp;self, _: &amp;mut Self::<a class="type" href="../../mentat_parser_utils/value_and_span/trait.Item.html#associatedtype.Position" title="type mentat_parser_utils::value_and_span::Item::Position">Position</a>);
+<div class='item-spacer'></div>    fn <a href='#tymethod.child_iter' class='fnname'>child_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.child_stream' class='fnname'>child_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.atom_iter' class='fnname'>atom_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.atom_stream' class='fnname'>atom_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.keyword_map_iter' class='fnname'>keyword_map_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.keyword_map_stream' class='fnname'>keyword_map_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;;
+}</pre></div><div class='docblock'><p>Things specific to parsing with <code>combine</code> and our <code>Stream</code> that need a trait to live outside of
+the <code>edn</code> crate.</p>
+</div>
+            <h2 id='associated-types' class='small-section-header'>
+              Associated Types<a href='#associated-types' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='associatedtype.Position' class='method'><span id='Position.t' class='invisible'><code>type <a href='#associatedtype.Position' class="type">Position</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html" title="trait core::cmp::Ord">Ord</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a></code></span></h3><div class='docblock'><p>Position could be specialized to <code>SpanPosition</code>.</p>
+</div></div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.start' class='method'><span id='start.v' class='invisible'><code>fn <a href='#tymethod.start' class='fnname'>start</a>(&amp;self) -&gt; Self::<a class="type" href="../../mentat_parser_utils/value_and_span/trait.Item.html#associatedtype.Position" title="type mentat_parser_utils::value_and_span::Item::Position">Position</a></code></span></h3><div class='docblock'><p>A slight generalization of <code>combine::Positioner</code> that allows to set the position based on
+the <code>edn::ValueAndSpan</code> being iterated.</p>
+</div><h3 id='tymethod.update_position' class='method'><span id='update_position.v' class='invisible'><code>fn <a href='#tymethod.update_position' class='fnname'>update_position</a>(&amp;self, _: &amp;mut Self::<a class="type" href="../../mentat_parser_utils/value_and_span/trait.Item.html#associatedtype.Position" title="type mentat_parser_utils::value_and_span::Item::Position">Position</a>)</code></span></h3><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'a <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>;</span></code></div></div><h3 id='tymethod.child_iter' class='method'><span id='child_iter.v' class='invisible'><code>fn <a href='#tymethod.child_iter' class='fnname'>child_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</code></span></h3><h3 id='tymethod.child_stream' class='method'><span id='child_stream.v' class='invisible'><code>fn <a href='#tymethod.child_stream' class='fnname'>child_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;</code></span></h3><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'a <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>;</span></code></div></div><h3 id='tymethod.atom_iter' class='method'><span id='atom_iter.v' class='invisible'><code>fn <a href='#tymethod.atom_iter' class='fnname'>atom_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</code></span></h3><h3 id='tymethod.atom_stream' class='method'><span id='atom_stream.v' class='invisible'><code>fn <a href='#tymethod.atom_stream' class='fnname'>atom_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;</code></span></h3><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'a <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>;</span></code></div></div><h3 id='tymethod.keyword_map_iter' class='method'><span id='keyword_map_iter.v' class='invisible'><code>fn <a href='#tymethod.keyword_map_iter' class='fnname'>keyword_map_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</code></span></h3><h3 id='tymethod.keyword_map_stream' class='method'><span id='keyword_map_stream.v' class='invisible'><code>fn <a href='#tymethod.keyword_map_stream' class='fnname'>keyword_map_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;</code></span></h3></div>
+                <h2 id='foreign-impls' class='small-section-header'>
+                  Implementations on Foreign Types<a href='#foreign-impls' class='anchor'></a>
+                </h2>
+            <h3 id='impl-Item%3C%27a%3E' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;'a&gt; <a class="trait" href="../../mentat_parser_utils/value_and_span/trait.Item.html" title="trait mentat_parser_utils::value_and_span::Item">Item</a>&lt;'a&gt; for <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a></code><a href='#impl-Item%3C%27a%3E' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#142-196' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><span class='docblock autohide'><div class='impl-items'><h4 id='associatedtype.Position-1' class="type"><span id='Position.t-1' class='invisible'><code>type <a href='#associatedtype.Position' class="type">Position</a> = <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.SpanPosition.html" title="struct mentat_parser_utils::value_and_span::SpanPosition">SpanPosition</a></code></span></h4>
+<h4 id='method.start' class="method"><span id='start.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.start' class='fnname'>start</a>(&amp;self) -&gt; Self::<a class="type" href="../../mentat_parser_utils/value_and_span/trait.Item.html#associatedtype.Position" title="type mentat_parser_utils::value_and_span::Item::Position">Position</a></code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#145-147' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.update_position' class="method"><span id='update_position.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.update_position' class='fnname'>update_position</a>(&amp;self, position: &amp;mut Self::<a class="type" href="../../mentat_parser_utils/value_and_span/trait.Item.html#associatedtype.Position" title="type mentat_parser_utils::value_and_span::Item::Position">Position</a>)</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#149-151' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.keyword_map_iter' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'a <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>;</span></code></div></div><span id='keyword_map_iter.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.keyword_map_iter' class='fnname'>keyword_map_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#153-162' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.keyword_map_stream' class="method"><span id='keyword_map_stream.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.keyword_map_stream' class='fnname'>keyword_map_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#164-167' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.child_iter' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'a <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>;</span></code></div></div><span id='child_iter.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.child_iter' class='fnname'>child_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#169-181' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.child_stream' class="method"><span id='child_stream.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.child_stream' class='fnname'>child_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#183-186' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.atom_iter' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &amp;'a <a class="struct" href="../../edn/types/struct.ValueAndSpan.html" title="struct edn::types::ValueAndSpan">ValueAndSpan</a>;</span></code></div></div><span id='atom_iter.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.atom_iter' class='fnname'>atom_iter</a>(&amp;'a self) -&gt; <a class="enum" href="../../mentat_parser_utils/value_and_span/enum.Iter.html" title="enum mentat_parser_utils::value_and_span::Iter">Iter</a>&lt;'a&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#188-190' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><h4 id='method.atom_stream' class="method"><span id='atom_stream.v-1' class='invisible'><table class='table-display'><tbody><tr><td><code>fn <a href='#method.atom_stream' class='fnname'>atom_stream</a>(&amp;'a self) -&gt; <a class="struct" href="../../mentat_parser_utils/value_and_span/struct.Stream.html" title="struct mentat_parser_utils::value_and_span::Stream">Stream</a>&lt;'a&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_parser_utils/value_and_span.rs.html#192-195' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4></div></span>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript">window.inlined_types=new Set([]);</script><script type="text/javascript" async
+                         src="../../implementors/mentat_parser_utils/value_and_span/trait.Item.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_parser_utils";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -87,3 +87,8 @@ build.xcarchive
 **/*.iml
 **/.idea
 /sdks/android/**/local.properties
+
+# Documentation
+docs/_site
+docs/.sass-cache
+docs/.jekyll-metadata
