@@ -245,7 +245,6 @@ mod tests {
     use super::*;
 
     extern crate time;
-    extern crate mentat_parser_utils;
 
     use std::collections::{
         BTreeSet,

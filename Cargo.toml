@@ -42,9 +42,6 @@ features = ["limits"]
 [dependencies.edn]
 path = "edn"
 
-[dependencies.mentat_parser_utils]
-path = "parser-utils"
-
 [dependencies.mentat_core]
 path = "core"
 

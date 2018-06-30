@@ -39,9 +39,6 @@ features = ["limits"]
 path = "../.."
 default-features = false
 
-[dependencies.mentat_parser_utils]
-path = "../../parser-utils"
-
 [dependencies.edn]
 path = "../../edn"
 
