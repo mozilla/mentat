@@ -247,7 +247,7 @@ lazy_static! {
         r#"CREATE TABLE schema (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, value_type_tag SMALLINT NOT NULL)"#,
         r#"CREATE INDEX idx_schema_unique ON schema (e, a, v, value_type_tag)"#,
         // TODO: store entid instead of ident for partition name.
-        r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, idx INTEGER NOT NULL)"#,
+        r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, end INTEGER NOT NULL, idx INTEGER NOT NULL)"#,
         ]
     };
 }
@@ -299,7 +299,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     // This is necessary: `transact` will only UPDATE parts, not INSERT them if they're missing.
     for (part, partition) in db.partition_map.iter() {
         // TODO: Convert "keyword" part to SQL using Value conversion.
-        tx.execute("INSERT INTO parts VALUES (?, ?, ?)", &[part, &partition.start, &partition.index])?;
+        tx.execute("INSERT INTO parts (part, start, end, idx) VALUES (?, ?, ?, ?)", &[part, &partition.start, &partition.end, &partition.index])?;
     }
 
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
@@ -441,9 +441,9 @@ fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -> Result<Ve
 
 /// Read the partition map materialized view from the given SQL store.
 fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT part, start, idx FROM parts")?;
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT part, start, end, idx FROM parts")?;
     let m = stmt.query_and_then(&[], |row| -> Result<(String, Partition)> {
-        Ok((row.get_checked(0)?, Partition::new(row.get_checked(1)?, row.get_checked(2)?)))
+        Ok((row.get_checked(0)?, Partition::new(row.get_checked(1)?, row.get_checked(2)?, row.get_checked(3)?)))
     })?.collect();
     m
 }
@@ -1280,7 +1280,7 @@ mod tests {
             // Add a fake partition to allow tests to do things like
             // [:db/add 111 :foo/bar 222]
             {
-                let fake_partition = Partition { start: 100, index: 1000 };
+                let fake_partition = Partition { start: 100, end: 2000, index: 1000 };
                 parts.insert(":db.part/fake".into(), fake_partition);
             }
 

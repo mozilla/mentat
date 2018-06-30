@@ -41,18 +41,24 @@ use errors;
 pub struct Partition {
     /// The first entid in the partition.
     pub start: i64,
+    /// Maximum allowed entid in the partition.
+    pub end: i64,
     /// The next entid to be allocated in the partition.
     pub index: i64,
 }
 
 impl Partition {
-    pub fn new(start: i64, next: i64) -> Partition {
+    pub fn new(start: i64, end: i64, next: i64) -> Partition {
         assert!(start <= next, "A partition represents a monotonic increasing sequence of entids.");
-        Partition { start: start, index: next }
+        Partition { start: start, end: end, index: next }
     }
 
     pub fn contains_entid(&self, e: i64) -> bool {
         (e >= self.start) && (e < self.index)
+    }
+
+    pub fn allows_entid(&self, e: i64) -> bool {
+        (e >= self.start) && (e <= self.end)
     }
 }
 
