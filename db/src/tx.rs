@@ -619,7 +619,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
         // Pipeline stage 2: resolve lookup refs -> terms with tempids.
-        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_ref_set.inner.iter().map(|rc| &**rc).collect();
+        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_ref_set.iter().map(|rc| &**rc).collect();
         let lookup_ref_map: AVMap = self.store.resolve_avs(&lookup_ref_avs[..])?;
 
         let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
@@ -700,8 +700,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         // Verify that every tempid we interned either resolved or has been allocated.
-        assert_eq!(tempids.len(), tempid_set.inner.len());
-        for tempid in &tempid_set.inner {
+        assert_eq!(tempids.len(), tempid_set.len());
+        for tempid in tempid_set.iter() {
             assert!(tempids.contains_key(&**tempid));
         }
 

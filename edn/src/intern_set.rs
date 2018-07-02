@@ -12,6 +12,10 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::ops::{
+    Deref,
+    DerefMut,
+};
 
 use ::{
     ValueRc,
@@ -26,7 +30,21 @@ use ::{
 /// See https://en.wikipedia.org/wiki/String_interning for discussion.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InternSet<T> where T: Eq + Hash {
-    pub inner: HashSet<ValueRc<T>>,
+    inner: HashSet<ValueRc<T>>,
+}
+
+impl<T> Deref for InternSet<T> where T: Eq + Hash {
+    type Target = HashSet<ValueRc<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for InternSet<T> where T: Eq + Hash {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 impl<T> InternSet<T> where T: Eq + Hash {
@@ -34,10 +52,6 @@ impl<T> InternSet<T> where T: Eq + Hash {
         InternSet {
             inner: HashSet::new(),
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.inner.len()
     }
 
     /// Intern a value, providing a ref-counted handle to the interned value.
@@ -56,7 +70,7 @@ impl<T> InternSet<T> where T: Eq + Hash {
     ///
     /// let out_two = s.intern(two);
     /// assert_eq!(out_one, out_two);
-    /// assert_eq!(1, s.inner.len());
+    /// assert_eq!(1, s.len());
     /// // assert!(&out_one.ptr_eq(&out_two));   // Nightly-only.
     /// ```
     pub fn intern<R: Into<ValueRc<T>>>(&mut self, value: R) -> ValueRc<T> {
