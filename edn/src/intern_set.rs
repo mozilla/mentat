@@ -12,7 +12,10 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::rc::Rc;
+
+use ::{
+    ValueRc,
+};
 
 /// An `InternSet` allows to "intern" some potentially large values, maintaining a single value
 /// instance owned by the `InternSet` and leaving consumers with lightweight ref-counted handles to
@@ -23,7 +26,7 @@ use std::rc::Rc;
 /// See https://en.wikipedia.org/wiki/String_interning for discussion.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InternSet<T> where T: Eq + Hash {
-    pub inner: HashSet<Rc<T>>,
+    pub inner: HashSet<ValueRc<T>>,
 }
 
 impl<T> InternSet<T> where T: Eq + Hash {
@@ -40,13 +43,12 @@ impl<T> InternSet<T> where T: Eq + Hash {
     /// Intern a value, providing a ref-counted handle to the interned value.
     ///
     /// ```
-    /// use std::rc::Rc;
-    /// use edn::intern_set::InternSet;
+    /// use edn::{InternSet, ValueRc};
     ///
     /// let mut s = InternSet::new();
     ///
     /// let one = "foo".to_string();
-    /// let two = Rc::new("foo".to_string());
+    /// let two = ValueRc::new("foo".to_string());
     ///
     /// let out_one = s.intern(one);
     /// assert_eq!(out_one, two);
@@ -57,8 +59,8 @@ impl<T> InternSet<T> where T: Eq + Hash {
     /// assert_eq!(1, s.inner.len());
     /// // assert!(&out_one.ptr_eq(&out_two));   // Nightly-only.
     /// ```
-    pub fn intern<R: Into<Rc<T>>>(&mut self, value: R) -> Rc<T> {
-        let key: Rc<T> = value.into();
+    pub fn intern<R: Into<ValueRc<T>>>(&mut self, value: R) -> ValueRc<T> {
+        let key: ValueRc<T> = value.into();
         if self.inner.insert(key.clone()) {
             key
         } else {

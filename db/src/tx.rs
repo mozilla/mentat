@@ -56,9 +56,6 @@ use std::collections::{
 use std::iter::{
     once,
 };
-use std::rc::{
-    Rc,
-};
 
 use db;
 use db::{
@@ -68,6 +65,7 @@ use db::{
 use edn::{
     InternSet,
     Keyword,
+    ValueRc,
 };
 use entids;
 use errors;
@@ -303,7 +301,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
             }
 
-            fn intern_temp_id(&mut self, temp_id: TempId) -> Rc<TempId> {
+            fn intern_temp_id(&mut self, temp_id: TempId) -> ValueRc<TempId> {
                 self.temp_ids.intern(temp_id)
             }
 

@@ -17,7 +17,6 @@ use std::collections::{
     BTreeSet,
     HashMap,
 };
-use std::rc::Rc;
 
 use mentat_core::KnownEntid;
 
@@ -27,6 +26,14 @@ use edn;
 use edn::{
     SpannedValue,
     ValueAndSpan,
+    ValueRc,
+};
+use edn::entities;
+use edn::entities::{
+    EntityPlace,
+    OpType,
+    TempId,
+    TxFunction,
 };
 
 use errors;
@@ -46,13 +53,6 @@ use types::{
     TransactableValue,
     TypedValue,
     ValueType,
-};
-use edn::entities;
-use edn::entities::{
-    EntityPlace,
-    OpType,
-    TempId,
-    TxFunction,
 };
 
 impl TransactableValue for ValueAndSpan {
@@ -150,10 +150,10 @@ use self::Either::*;
 pub type KnownEntidOr<T> = Either<KnownEntid, T>;
 pub type TypedValueOr<T> = Either<TypedValue, T>;
 
-pub type TempIdHandle = Rc<TempId>;
+pub type TempIdHandle = ValueRc<TempId>;
 pub type TempIdMap = HashMap<TempIdHandle, KnownEntid>;
 
-pub type LookupRef = Rc<AVPair>;
+pub type LookupRef = ValueRc<AVPair>;
 
 /// Internal representation of an entid on its way to resolution.  We either have the simple case (a
 /// numeric entid), a lookup-ref that still needs to be resolved (an atomized [a v] pair), or a temp
