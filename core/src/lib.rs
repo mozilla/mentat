@@ -365,7 +365,6 @@ impl HasSchema for Schema {
     }
 }
 
-pub mod intern_set;
 pub mod counter;
 pub mod util;
 

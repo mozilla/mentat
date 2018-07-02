@@ -53,6 +53,14 @@
 // We probably need both, but this file provides the latter. Unfortunately, Entity -- the input to
 // the transactor -- is intimately tied to EDN and to spanned values.
 
+use edn::{
+    InternSet,
+};
+use edn::entities::{
+    OpType,
+    TempId,
+};
+
 use mentat_core::{
     HasSchema,
     KnownEntid,
@@ -60,7 +68,6 @@ use mentat_core::{
     TypedValue,
 };
 
-use mentat_core::intern_set::InternSet;
 use mentat_core::util::Either;
 
 use mentat_db::{
@@ -73,11 +80,6 @@ use mentat_db::internal_types::{
     Term,
     TermWithTempIds,
     TypedValueOr,
-};
-
-use edn::entities::{
-    OpType,
-    TempId,
 };
 
 use conn::{

@@ -66,6 +66,7 @@ use db::{
     PartitionMapping,
 };
 use edn::{
+    InternSet,
     Keyword,
 };
 use entids;
@@ -100,8 +101,6 @@ use mentat_core::{
     attribute,
     now,
 };
-
-use mentat_core::intern_set::InternSet;
 
 use edn::entities as entmod;
 use edn::entities::{

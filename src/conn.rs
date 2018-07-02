@@ -41,6 +41,9 @@ use rusqlite::{
 };
 
 use edn;
+use edn::{
+    InternSet,
+};
 
 use mentat_core::{
     Attribute,
@@ -54,8 +57,6 @@ use mentat_core::{
     ValueRc,
     ValueType,
 };
-
-use mentat_core::intern_set::InternSet;
 
 use mentat_db::cache::{
     InProgressCacheTransactWatcher,

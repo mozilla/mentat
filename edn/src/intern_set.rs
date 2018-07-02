@@ -41,7 +41,7 @@ impl<T> InternSet<T> where T: Eq + Hash {
     ///
     /// ```
     /// use std::rc::Rc;
-    /// use mentat_core::intern_set::InternSet;
+    /// use edn::intern_set::InternSet;
     ///
     /// let mut s = InternSet::new();
     ///

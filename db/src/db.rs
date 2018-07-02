@@ -1119,20 +1119,21 @@ mod tests {
     use debug;
     use errors;
     use edn;
+    use edn::{
+        InternSet,
+    };
+    use edn::entities::{
+        OpType,
+        TempId,
+    };
+
     use mentat_core::{
         HasSchema,
         Keyword,
         KnownEntid,
         attribute,
     };
-    use mentat_core::intern_set::{
-        InternSet,
-    };
     use mentat_core::util::Either::*;
-    use edn::entities::{
-        OpType,
-        TempId,
-    };
     use rusqlite;
     use std::collections::{
         BTreeMap,
