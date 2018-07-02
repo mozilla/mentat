@@ -72,7 +72,7 @@ impl TransactableValue for ValueAndSpan {
                     bail!(DbErrorKind::InputError(errors::InputError::BadEntityPlace))
                 }
             },
-            Text(v) => Ok(EntityPlace::TempId(TempId::External(v))),
+            Text(v) => Ok(EntityPlace::TempId(TempId::External(v).into())),
             List(ls) => {
                 let mut it = ls.iter();
                 match (it.next().map(|x| &x.inner), it.next(), it.next(), it.next()) {
@@ -107,7 +107,7 @@ impl TransactableValue for ValueAndSpan {
     }
 
     fn as_tempid(&self) -> Option<TempId> {
-        self.inner.as_text().cloned().map(TempId::External)
+        self.inner.as_text().cloned().map(TempId::External).map(|v| v.into())
     }
 }
 
@@ -123,7 +123,7 @@ impl TransactableValue for TypedValue {
         match self {
             TypedValue::Ref(x) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Entid(x))),
             TypedValue::Keyword(x) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Ident((*x).clone()))),
-            TypedValue::String(x) => Ok(EntityPlace::TempId(TempId::External((*x).clone()))),
+            TypedValue::String(x) => Ok(EntityPlace::TempId(TempId::External((*x).clone()).into())),
             TypedValue::Boolean(_) |
             TypedValue::Long(_) |
             TypedValue::Double(_) |
@@ -134,7 +134,7 @@ impl TransactableValue for TypedValue {
 
     fn as_tempid(&self) -> Option<TempId> {
         match self {
-            &TypedValue::String(ref s) => Some(TempId::External((**s).clone())),
+            &TypedValue::String(ref s) => Some(TempId::External((**s).clone()).into()),
             _ => None,
         }
     }

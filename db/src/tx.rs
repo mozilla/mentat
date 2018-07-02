@@ -65,7 +65,6 @@ use db::{
 use edn::{
     InternSet,
     Keyword,
-    ValueRc,
 };
 use entids;
 use errors;
@@ -301,15 +300,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
             }
 
-            fn intern_temp_id(&mut self, temp_id: TempId) -> ValueRc<TempId> {
-                self.temp_ids.intern(temp_id)
-            }
-
             /// Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
             /// unique within one transaction; they should never escape a transaction.
             fn allocate_mentat_id<W: TransactableValue>(&mut self) -> entmod::EntityPlace<W> {
                 self.mentat_id_count += 1;
-                entmod::EntityPlace::TempId(TempId::Internal(self.mentat_id_count))
+                entmod::EntityPlace::TempId(TempId::Internal(self.mentat_id_count).into())
             }
 
             fn entity_e_into_term_e<W: TransactableValue>(&mut self, x: entmod::EntityPlace<W>) -> Result<KnownEntidOr<LookupRefOrTempId>> {
@@ -323,7 +318,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     },
 
                     entmod::EntityPlace::TempId(e) => {
-                        Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(e))))
+                        Ok(Either::Right(LookupRefOrTempId::TempId(self.temp_ids.intern(e))))
                     },
 
                     entmod::EntityPlace::LookupRef(ref lookup_ref) => {
@@ -369,7 +364,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 // that the given value is in the attribute's value set, or (in
                                 // limited cases) coerce the value into the attribute's value set.
                                 match v.as_tempid() {
-                                    Some(tempid) => Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(tempid)))),
+                                    Some(tempid) => Ok(Either::Right(LookupRefOrTempId::TempId(self.temp_ids.intern(tempid)))),
                                     None => {
                                         if let TypedValue::Ref(entid) = v.into_typed_value(&self.schema, ValueType::Ref)? {
                                             Ok(Either::Left(KnownEntid(entid)))
@@ -385,7 +380,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 Ok(Either::Left(KnownEntid(self.entity_a_into_term_a(entid)?))),
 
                             entmod::ValuePlace::TempId(tempid) =>
-                                Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(tempid)))),
+                                Ok(Either::Right(LookupRefOrTempId::TempId(self.temp_ids.intern(tempid)))),
 
                             entmod::ValuePlace::LookupRef(ref lookup_ref) =>
                                 Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
@@ -456,7 +451,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 // limited cases) coerce the value into the attribute's value set.
                                 if attribute.value_type == ValueType::Ref {
                                     match v.as_tempid() {
-                                        Some(tempid) => Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(tempid))),
+                                        Some(tempid) => Either::Right(LookupRefOrTempId::TempId(in_process.temp_ids.intern(tempid))),
                                         None => v.into_typed_value(&self.schema, attribute.value_type).map(Either::Left)?,
                                     }
                                 } else {
@@ -468,7 +463,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 Either::Left(TypedValue::Ref(in_process.entity_a_into_term_a(entid)?)),
 
                             entmod::ValuePlace::TempId(tempid) =>
-                                Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(tempid))),
+                                Either::Right(LookupRefOrTempId::TempId(in_process.temp_ids.intern(tempid))),
 
                             entmod::ValuePlace::LookupRef(ref lookup_ref) => {
                                 if attribute.value_type != ValueType::Ref {

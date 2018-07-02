@@ -13,6 +13,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+use value_rc::{
+    ValueRc,
+};
+
 use symbols::{
     Keyword,
     PlainSymbol,
@@ -93,7 +97,7 @@ pub enum ValuePlace<V> {
     Entid(EntidOrIdent),
     // We never know at parse-time whether a string is really a tempid, but we will often know when
     // building entities programmatically.
-    TempId(TempId),
+    TempId(ValueRc<TempId>),
     LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
     Vector(Vec<ValuePlace<V>>),
@@ -104,7 +108,7 @@ pub enum ValuePlace<V> {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntityPlace<V> {
     Entid(EntidOrIdent),
-    TempId(TempId),
+    TempId(ValueRc<TempId>),
     LookupRef(LookupRef<V>),
     TxFunction(TxFunction),
 }
