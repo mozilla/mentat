@@ -34,18 +34,20 @@ extern crate mentat_tolstoy;
 
 pub use mentat_core::{
     Attribute,
-    Entid,
-    DateTime,
-    HasSchema,
-    KnownEntid,
-    Keyword,
-    Schema,
     Binding,
+    DateTime,
+    Entid,
+    HasSchema,
+    Keyword,
+    KnownEntid,
+    Schema,
+    StructuredMap,
     TxReport,
     TypedValue,
-    Uuid,
     Utc,
+    Uuid,
     ValueType,
+    now,
 };
 
 pub use mentat_query::{
@@ -109,7 +111,13 @@ pub use errors::{
     Result,
 };
 
-pub use edn::ParseError;
+pub use edn::{
+    FromMicros,
+    FromMillis,
+    ParseError,
+    ToMicros,
+    ToMillis,
+};
 pub use mentat_db::DbError;
 pub use mentat_query_algebrizer::AlgebrizerError;
 pub use mentat_query_projector::ProjectorError;
