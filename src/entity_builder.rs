@@ -54,14 +54,17 @@
 
 use edn::{
     InternSet,
+    PlainSymbol,
     ValueRc,
 };
 use edn::entities::{
     AttributePlace,
     Entity,
     EntityPlace,
+    LookupRef,
     OpType,
     TempId,
+    TxFunction,
     ValuePlace,
 };
 
@@ -91,7 +94,7 @@ pub struct EntityBuilder<T: BuildTerms + Sized> {
 }
 
 pub trait BuildTerms where Self: Sized {
-    fn named_tempid(&mut self, name: String) -> ValueRc<TempId>;
+    fn named_tempid<I>(&mut self, name: I) -> ValueRc<TempId> where I: Into<String>;
     fn describe_tempid(self, name: &str) -> EntityBuilder<Self>;
     fn describe<E>(self, entity: E) -> EntityBuilder<Self> where E: Into<EntityPlace<TypedValue>>;
     fn add<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
@@ -105,12 +108,12 @@ pub trait BuildTerms where Self: Sized {
 }
 
 impl BuildTerms for TermBuilder {
-    fn named_tempid(&mut self, name: String) -> ValueRc<TempId> {
-        self.tempids.intern(TempId::External(name))
+    fn named_tempid<I>(&mut self, name: I) -> ValueRc<TempId> where I: Into<String> {
+        self.tempids.intern(TempId::External(name.into()))
     }
 
     fn describe_tempid(mut self, name: &str) -> EntityBuilder<Self> {
-        let e = self.named_tempid(name.into());
+        let e = self.named_tempid(name);
         self.describe(e)
     }
 
@@ -157,6 +160,16 @@ impl TermBuilder {
     #[allow(dead_code)]
     pub fn numbered_tempid(&mut self, id: i64) -> ValueRc<TempId> {
         self.tempids.intern(TempId::Internal(id))
+    }
+
+    pub fn lookup_ref<A, V>(a: A, v: V) -> LookupRef<TypedValue>
+    where A: Into<AttributePlace>,
+          V: Into<TypedValue> {
+        LookupRef { a: a.into(), v: v.into() }
+    }
+
+    pub fn tx_function(op: &str) -> TxFunction {
+        TxFunction { op: PlainSymbol::plain(op) }
     }
 }
 
@@ -217,12 +230,12 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
 }
 
 impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
-    fn named_tempid(&mut self, name: String) -> ValueRc<TempId> {
+    fn named_tempid<I>(&mut self, name: I) -> ValueRc<TempId> where I: Into<String> {
         self.builder.named_tempid(name)
     }
 
     fn describe_tempid(mut self, name: &str) -> EntityBuilder<InProgressBuilder<'a, 'c>> {
-        let e = self.builder.named_tempid(name.into());
+        let e = self.builder.named_tempid(name.to_string());
         self.describe(e)
     }
 
@@ -288,7 +301,7 @@ mod testing {
     #[test]
     fn test_entity_builder_bogus_entids() {
         let mut builder = TermBuilder::new();
-        let e = builder.named_tempid("x".into());
+        let e = builder.named_tempid("x");
         let a1 = fake_known_entid(37);    // :db/doc
         let a2 = fake_known_entid(999);
         let v = TypedValue::typed_string("Some attribute");
@@ -340,7 +353,7 @@ mod testing {
         let a_many = in_progress.get_entid(&kw!(:foo/many)).expect(":foo/many");
 
         let mut builder = in_progress.builder();
-        let e_x = builder.named_tempid("x".into());
+        let e_x = builder.named_tempid("x");
         let v_many_1 = TypedValue::typed_string("Some text");
         let v_many_2 = TypedValue::typed_string("Other text");
         builder.add(e_x.clone(), kw!(:foo/many), v_many_1).expect("add succeeded");
@@ -378,8 +391,8 @@ mod testing {
             // Scoped borrow of in_progress.
             {
                 let mut builder = TermBuilder::new();
-                let e_x = builder.named_tempid("x".into());
-                let e_y = builder.named_tempid("y".into());
+                let e_x = builder.named_tempid("x");
+                let e_y = builder.named_tempid("y");
                 let a_ref = in_progress.get_entid(&foo_ref).expect(":foo/ref");
                 let a_one = in_progress.get_entid(&foo_one).expect(":foo/one");
                 let a_many = in_progress.get_entid(&foo_many).expect(":foo/many");
