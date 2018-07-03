@@ -402,8 +402,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
     /// This exists so you can make your own.
     pub fn transact_builder(&mut self, builder: TermBuilder) -> Result<TxReport> {
         builder.build()
-               .and_then(|(terms, tempid_set)| {
-                    self.transact_terms(terms, tempid_set)
+               .and_then(|(terms, _tempid_set)| {
+                    self.transact_entities(terms)
                })
     }
 

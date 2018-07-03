@@ -22,6 +22,20 @@ use symbols::{
     PlainSymbol,
 };
 
+use types::{
+    ValueAndSpan,
+};
+
+/// `EntityPlace` and `ValuePlace` embed values, either directly (i.e., `ValuePlace::Atom`) or
+/// indirectly (i.e., `EntityPlace::LookupRef`).  In order to maintain the graph of `Into` and
+/// `From` relations, we need to ensure that `{Value,Entity}Place` can't match as a potential value.
+/// (If it does, the `impl Into<T> for T` default conflicts.) This marker trait allows to mark
+/// acceptable values, thereby removing `{Entity,Value}Place` from consideration.
+pub trait TransactableValueMarker {}
+
+/// `ValueAndSpan` is the value type coming out of the entity parser.
+impl TransactableValueMarker for ValueAndSpan {}
+
 /// A tempid, either an external tempid given in a transaction (usually as an `Value::Text`),
 /// or an internal tempid allocated by Mentat itself.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
@@ -52,6 +66,18 @@ impl fmt::Display for TempId {
 pub enum EntidOrIdent {
     Entid(i64),
     Ident(Keyword),
+}
+
+impl From<i64> for EntidOrIdent {
+    fn from(v: i64) -> Self {
+        EntidOrIdent::Entid(v)
+    }
+}
+
+impl From<Keyword> for EntidOrIdent {
+    fn from(v: Keyword) -> Self {
+        EntidOrIdent::Ident(v)
+    }
 }
 
 impl EntidOrIdent {
@@ -105,6 +131,54 @@ pub enum ValuePlace<V> {
     MapNotation(MapNotation<V>),
 }
 
+impl<V: TransactableValueMarker> From<EntidOrIdent> for ValuePlace<V> {
+    fn from(v: EntidOrIdent) -> Self {
+        ValuePlace::Entid(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<TempId> for ValuePlace<V> {
+    fn from(v: TempId) -> Self {
+        ValuePlace::TempId(v.into())
+    }
+}
+
+impl<V: TransactableValueMarker> From<ValueRc<TempId>> for ValuePlace<V> {
+    fn from(v: ValueRc<TempId>) -> Self {
+        ValuePlace::TempId(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<LookupRef<V>> for ValuePlace<V> {
+    fn from(v: LookupRef<V>) -> Self {
+        ValuePlace::LookupRef(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<TxFunction> for ValuePlace<V> {
+    fn from(v: TxFunction) -> Self {
+        ValuePlace::TxFunction(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<Vec<ValuePlace<V>>> for ValuePlace<V> {
+    fn from(v: Vec<ValuePlace<V>>) -> Self {
+        ValuePlace::Vector(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<V> for ValuePlace<V> {
+    fn from(v: V) -> Self {
+        ValuePlace::Atom(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<MapNotation<V>> for ValuePlace<V> {
+    fn from(v: MapNotation<V>) -> Self {
+        ValuePlace::MapNotation(v)
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum EntityPlace<V> {
     Entid(EntidOrIdent),
@@ -113,9 +187,45 @@ pub enum EntityPlace<V> {
     TxFunction(TxFunction),
 }
 
+impl<V, E: Into<EntidOrIdent>> From<E> for EntityPlace<V> {
+    fn from(v: E) -> Self {
+        EntityPlace::Entid(v.into())
+    }
+}
+
+impl<V: TransactableValueMarker> From<TempId> for EntityPlace<V> {
+    fn from(v: TempId) -> Self {
+        EntityPlace::TempId(v.into())
+    }
+}
+
+impl<V: TransactableValueMarker> From<ValueRc<TempId>> for EntityPlace<V> {
+    fn from(v: ValueRc<TempId>) -> Self {
+        EntityPlace::TempId(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<LookupRef<V>> for EntityPlace<V> {
+    fn from(v: LookupRef<V>) -> Self {
+        EntityPlace::LookupRef(v)
+    }
+}
+
+impl<V: TransactableValueMarker> From<TxFunction> for EntityPlace<V> {
+    fn from(v: TxFunction) -> Self {
+        EntityPlace::TxFunction(v)
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 pub enum AttributePlace {
     Entid(EntidOrIdent),
+}
+
+impl<A: Into<EntidOrIdent>> From<A> for AttributePlace {
+    fn from(v: A) -> Self {
+        AttributePlace::Entid(v.into())
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]

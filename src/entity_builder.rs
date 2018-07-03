@@ -50,36 +50,27 @@
 //
 // The second is to expose a declarative, programmatic builder pattern for constructing entities.
 //
-// We probably need both, but this file provides the latter. Unfortunately, Entity -- the input to
-// the transactor -- is intimately tied to EDN and to spanned values.
+// We probably need both, but this file provides the latter.
 
 use edn::{
     InternSet,
+    ValueRc,
 };
 use edn::entities::{
+    AttributePlace,
+    Entity,
+    EntityPlace,
     OpType,
     TempId,
+    ValuePlace,
 };
 
 use mentat_core::{
-    HasSchema,
-    KnownEntid,
-    Keyword,
     TypedValue,
 };
 
-use mentat_core::util::Either;
-
 use mentat_db::{
     TxReport,
-};
-
-use mentat_db::internal_types::{
-    KnownEntidOr,
-    TempIdHandle,
-    Term,
-    TermWithTempIds,
-    TypedValueOr,
 };
 
 use conn::{
@@ -87,36 +78,37 @@ use conn::{
 };
 
 use errors::{
-    MentatError,
     Result,
 };
 
-pub type Terms = (Vec<TermWithTempIds>, InternSet<TempId>);
+pub type Terms = (Vec<Entity<TypedValue>>, InternSet<TempId>);
 
 pub struct TermBuilder {
     tempids: InternSet<TempId>,
-    terms: Vec<TermWithTempIds>,
+    terms: Vec<Entity<TypedValue>>,
 }
 
 pub struct EntityBuilder<T: BuildTerms + Sized> {
     builder: T,
-    entity: KnownEntidOr<TempIdHandle>,
+    entity: EntityPlace<TypedValue>,
 }
 
 pub trait BuildTerms where Self: Sized {
-    fn named_tempid(&mut self, name: String) -> TempIdHandle;
+    fn named_tempid(&mut self, name: String) -> ValueRc<TempId>;
     fn describe_tempid(self, name: &str) -> EntityBuilder<Self>;
-    fn describe<E>(self, entity: E) -> EntityBuilder<Self> where E: IntoThing<KnownEntidOr<TempIdHandle>>;
-    fn add<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>>;
-    fn retract<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>>;
+    fn describe<E>(self, entity: E) -> EntityBuilder<Self> where E: Into<EntityPlace<TypedValue>>;
+    fn add<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
+    where E: Into<EntityPlace<TypedValue>>,
+          A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>>;
+    fn retract<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
+    where E: Into<EntityPlace<TypedValue>>,
+          A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>>;
 }
 
 impl BuildTerms for TermBuilder {
-    fn named_tempid(&mut self, name: String) -> TempIdHandle {
+    fn named_tempid(&mut self, name: String) -> ValueRc<TempId> {
         self.tempids.intern(TempId::External(name))
     }
 
@@ -125,28 +117,26 @@ impl BuildTerms for TermBuilder {
         self.describe(e)
     }
 
-    fn describe<E>(self, entity: E) -> EntityBuilder<Self> where E: IntoThing<KnownEntidOr<TempIdHandle>> {
+    fn describe<E>(self, entity: E) -> EntityBuilder<Self> where E: Into<EntityPlace<TypedValue>> {
         EntityBuilder {
             builder: self,
-            entity: entity.into_thing(),
+            entity: entity.into(),
         }
     }
 
-    fn add<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>> {
-        let e = e.into_thing();
-        let v = v.into_thing();
-        self.terms.push(Term::AddOrRetract(OpType::Add, e, a.into(), v));
+    fn add<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
+    where E: Into<EntityPlace<TypedValue>>,
+          A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>> {
+        self.terms.push(Entity::AddOrRetract { op: OpType::Add, e: e.into(), a: a.into(), v: v.into() });
         Ok(())
     }
 
-    fn retract<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>> {
-        let e = e.into_thing();
-        let v = v.into_thing();
-        self.terms.push(Term::AddOrRetract(OpType::Retract, e, a.into(), v));
+    fn retract<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
+    where E: Into<EntityPlace<TypedValue>>,
+          A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>> {
+        self.terms.push(Entity::AddOrRetract { op: OpType::Retract, e: e.into(), a: a.into(), v: v.into() });
         Ok(())
     }
 }
@@ -168,23 +158,25 @@ impl TermBuilder {
     }
 
     #[allow(dead_code)]
-    pub fn numbered_tempid(&mut self, id: i64) -> TempIdHandle {
+    pub fn numbered_tempid(&mut self, id: i64) -> ValueRc<TempId> {
         self.tempids.intern(TempId::Internal(id))
     }
 }
 
 impl<T> EntityBuilder<T> where T: BuildTerms {
-    pub fn finish(self) -> (T, KnownEntidOr<TempIdHandle>) {
+    pub fn finish(self) -> (T, EntityPlace<TypedValue>) {
         (self.builder, self.entity)
     }
 
-    pub fn add<V>(&mut self, a: KnownEntid, v: V) -> Result<()>
-    where V: IntoThing<TypedValueOr<TempIdHandle>> {
+    pub fn add<A, V>(&mut self, a: A, v: V) -> Result<()>
+    where A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>> {
         self.builder.add(self.entity.clone(), a, v)
     }
 
-    pub fn retract<V>(&mut self, a: KnownEntid, v: V) -> Result<()>
-    where V: IntoThing<TypedValueOr<TempIdHandle>> {
+    pub fn retract<A, V>(&mut self, a: A, v: V) -> Result<()>
+    where A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>> {
         self.builder.retract(self.entity.clone(), a, v)
     }
 }
@@ -209,8 +201,8 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
         let mut in_progress = self.in_progress;
         let result = self.builder
                          .build()
-                         .and_then(|(terms, tempid_set)| {
-                             in_progress.transact_terms(terms, tempid_set)
+                         .and_then(|(terms, _tempid_set)| {
+                             in_progress.transact_entities(terms)
                          });
         (in_progress, result)
     }
@@ -228,7 +220,7 @@ impl<'a, 'c> InProgressBuilder<'a, 'c> {
 }
 
 impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
-    fn named_tempid(&mut self, name: String) -> TempIdHandle {
+    fn named_tempid(&mut self, name: String) -> ValueRc<TempId> {
         self.builder.named_tempid(name)
     }
 
@@ -237,70 +229,29 @@ impl<'a, 'c> BuildTerms for InProgressBuilder<'a, 'c> {
         self.describe(e)
     }
 
-    fn describe<E>(self, entity: E) -> EntityBuilder<InProgressBuilder<'a, 'c>> where E: IntoThing<KnownEntidOr<TempIdHandle>> {
+    fn describe<E>(self, entity: E) -> EntityBuilder<InProgressBuilder<'a, 'c>> where E: Into<EntityPlace<TypedValue>> {
         EntityBuilder {
             builder: self,
-            entity: entity.into_thing(),
+            entity: entity.into(),
         }
     }
 
-    fn add<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>> {
+    fn add<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
+    where E: Into<EntityPlace<TypedValue>>,
+          A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>> {
         self.builder.add(e, a, v)
     }
 
-    fn retract<E, V>(&mut self, e: E, a: KnownEntid, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>> {
+    fn retract<E, A, V>(&mut self, e: E, a: A, v: V) -> Result<()>
+    where E: Into<EntityPlace<TypedValue>>,
+          A: Into<AttributePlace>,
+          V: Into<ValuePlace<TypedValue>> {
         self.builder.retract(e, a, v)
     }
 }
 
-impl<'a, 'c> InProgressBuilder<'a, 'c> {
-    pub fn add_kw<E, V>(&mut self, e: E, a: &Keyword, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>> {
-        let (attribute, value) = self.extract_kw_value(a, v.into_thing())?;
-        self.add(e, attribute, value)
-    }
-
-    pub fn retract_kw<E, V>(&mut self, e: E, a: &Keyword, v: V) -> Result<()>
-    where E: IntoThing<KnownEntidOr<TempIdHandle>>,
-          V: IntoThing<TypedValueOr<TempIdHandle>> {
-        let (attribute, value) = self.extract_kw_value(a, v.into_thing())?;
-        self.retract(e, attribute, value)
-    }
-
-    fn extract_kw_value(&mut self, a: &Keyword, v: TypedValueOr<TempIdHandle>) -> Result<(KnownEntid, TypedValueOr<TempIdHandle>)> {
-        let attribute: KnownEntid;
-        if let Some((attr, aa)) = self.in_progress.attribute_for_ident(a) {
-            if let Either::Left(ref tv) = v {
-                let provided = tv.value_type();
-                let expected = attr.value_type;
-                if provided != expected {
-                    bail!(MentatError::ValueTypeMismatch(provided, expected));
-                }
-            }
-            attribute = aa;
-        } else {
-            bail!(MentatError::UnknownAttribute(a.to_string()));
-        }
-        Ok((attribute, v))
-    }
-}
-
 impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
-    pub fn add_kw<V>(&mut self, a: &Keyword, v: V) -> Result<()>
-    where V: IntoThing<TypedValueOr<TempIdHandle>> {
-        self.builder.add_kw(self.entity.clone(), a, v)
-    }
-
-    pub fn retract_kw<V>(&mut self, a: &Keyword, v: V) -> Result<()>
-    where V: IntoThing<TypedValueOr<TempIdHandle>> {
-        self.builder.retract_kw(self.entity.clone(), a, v)
-    }
-
     /// Build the terms from this builder and transact them against the current
     /// `InProgress`. This method _always_ returns the `InProgress` -- failure doesn't
     /// imply an automatic rollback.
@@ -315,69 +266,6 @@ impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
     }
 }
 
-// Can't implement Into for Rc<T>.
-pub trait IntoThing<T>: Sized {
-    fn into_thing(self) -> T;
-}
-
-pub trait FromThing<T> {
-    fn from_thing(v: T) -> Self;
-}
-
-impl<T> FromThing<T> for T {
-    fn from_thing(v: T) -> T {
-        v
-    }
-}
-
-impl<I, F> IntoThing<I> for F where I: FromThing<F> {
-    fn into_thing(self) -> I {
-        I::from_thing(self)
-    }
-}
-
-impl<'a> FromThing<&'a TempIdHandle> for TypedValueOr<TempIdHandle> {
-    fn from_thing(v: &'a TempIdHandle) -> Self {
-        Either::Right(v.clone())
-    }
-}
-
-impl FromThing<TempIdHandle> for TypedValueOr<TempIdHandle> {
-    fn from_thing(v: TempIdHandle) -> Self {
-        Either::Right(v)
-    }
-}
-
-impl FromThing<TypedValue> for TypedValueOr<TempIdHandle> {
-    fn from_thing(v: TypedValue) -> Self {
-        Either::Left(v)
-    }
-}
-
-impl FromThing<TempIdHandle> for KnownEntidOr<TempIdHandle> {
-    fn from_thing(v: TempIdHandle) -> Self {
-        Either::Right(v)
-    }
-}
-
-impl<'a> FromThing<&'a KnownEntid> for KnownEntidOr<TempIdHandle> {
-    fn from_thing(v: &'a KnownEntid) -> Self {
-        Either::Left(v.clone())
-    }
-}
-
-impl FromThing<KnownEntid> for KnownEntidOr<TempIdHandle> {
-    fn from_thing(v: KnownEntid) -> Self {
-        Either::Left(v)
-    }
-}
-
-impl FromThing<KnownEntid> for TypedValueOr<TempIdHandle> {
-    fn from_thing(v: KnownEntid) -> Self {
-        Either::Left(v.into())
-    }
-}
-
 #[cfg(test)]
 mod testing {
     extern crate mentat_db;
@@ -386,6 +274,8 @@ mod testing {
         Conn,
         Entid,
         HasSchema,
+        KnownEntid,
+        MentatError,
         Queryable,
         TypedValue,
         TxReport,
@@ -421,7 +311,7 @@ mod testing {
         let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
 
         // This should fail: unrecognized entid.
-        match in_progress.transact_terms(terms, tempids).expect_err("expected transact to fail") {
+        match in_progress.transact_entities(terms).expect_err("expected transact to fail") {
             MentatError::DbError(e) => {
                 assert_eq!(e.kind(), mentat_db::DbErrorKind::UnrecognizedEntid(999));
             },
@@ -456,7 +346,7 @@ mod testing {
         let e_x = builder.named_tempid("x".into());
         let v_many_1 = TypedValue::typed_string("Some text");
         let v_many_2 = TypedValue::typed_string("Other text");
-        builder.add_kw(e_x.clone(), &kw!(:foo/many), v_many_1).expect("add succeeded");
+        builder.add(e_x.clone(), kw!(:foo/many), v_many_1).expect("add succeeded");
         builder.add(e_x.clone(), a_many, v_many_2).expect("add succeeded");
         builder.commit().expect("commit succeeded");
     }
@@ -510,7 +400,7 @@ mod testing {
                 assert_eq!(tempids.len(), 2);
                 assert_eq!(terms.len(), 4);
 
-                report = in_progress.transact_terms(terms, tempids).expect("add succeeded");
+                report = in_progress.transact_entities(terms).expect("add succeeded");
                 let x = report.tempids.get("x").expect("our tempid has an ID");
                 let y = report.tempids.get("y").expect("our tempid has an ID");
                 assert_eq!(in_progress.lookup_value_for_attribute(*y, &foo_ref).expect("lookup succeeded"),

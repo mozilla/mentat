@@ -120,7 +120,6 @@ pub use mentat::entity_builder::{
     BuildTerms,
     EntityBuilder,
     InProgressBuilder,
-    IntoThing,
 };
 
 pub mod android;
@@ -339,7 +338,7 @@ pub unsafe extern "C" fn in_progress_entity_builder_from_temp_id<'m>(in_progress
 pub unsafe extern "C" fn in_progress_entity_builder_from_entid<'m>(in_progress: *mut InProgress<'m, 'm>, entid: c_longlong) -> *mut EntityBuilder<InProgressBuilder> {
     assert_not_null!(in_progress);
     let in_progress = Box::from_raw(in_progress);
-    Box::into_raw(Box::new(in_progress.builder().describe(&KnownEntid(entid))))
+    Box::into_raw(Box::new(in_progress.builder().describe(KnownEntid(entid))))
 }
 
 /// Starts a new transaction and creates a builder using the transaction
@@ -392,7 +391,7 @@ pub unsafe extern "C" fn store_entity_builder_from_entid<'a, 'c>(store: *mut Sto
     assert_not_null!(store);
     let store = &mut *store;
     let result = store.begin_transaction().and_then(|in_progress| {
-        Ok(in_progress.builder().describe(&KnownEntid(entid)))
+        Ok(in_progress.builder().describe(KnownEntid(entid)))
     });
     translate_result(result, error)
 }
@@ -418,7 +417,7 @@ pub unsafe extern "C" fn in_progress_builder_add_string<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -441,7 +440,7 @@ pub unsafe extern "C" fn in_progress_builder_add_long<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -465,7 +464,7 @@ pub unsafe extern "C" fn in_progress_builder_add_ref<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -490,7 +489,7 @@ pub unsafe extern "C" fn in_progress_builder_add_keyword<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -514,7 +513,7 @@ pub unsafe extern "C" fn in_progress_builder_add_boolean<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -538,7 +537,7 @@ pub unsafe extern "C" fn in_progress_builder_add_double<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -562,7 +561,7 @@ pub unsafe extern "C" fn in_progress_builder_add_timestamp<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -588,7 +587,7 @@ pub unsafe extern "C" fn in_progress_builder_add_uuid<'a, 'c>(
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    translate_void_result(builder.add_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.add(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -612,7 +611,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_string<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -636,7 +635,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_long<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -660,7 +659,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_ref<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 
@@ -685,7 +684,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_keyword<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -709,7 +708,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_boolean<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -733,7 +732,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_double<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -757,7 +756,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_timestamp<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -785,7 +784,7 @@ pub unsafe extern "C" fn in_progress_builder_retract_uuid<'a, 'c>(
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    translate_void_result(builder.retract_kw(KnownEntid(entid), &kw, value), error);
+    translate_void_result(builder.retract(KnownEntid(entid), kw, value), error);
 }
 
 /// Transacts and commits all the assertions and retractions that have been performed
@@ -842,7 +841,7 @@ pub unsafe extern "C" fn entity_builder_add_string<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -865,7 +864,7 @@ pub unsafe extern "C" fn entity_builder_add_long<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -888,7 +887,7 @@ pub unsafe extern "C" fn entity_builder_add_ref<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -911,7 +910,7 @@ pub unsafe extern "C" fn entity_builder_add_keyword<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -934,7 +933,7 @@ pub unsafe extern "C" fn entity_builder_add_boolean<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -957,7 +956,7 @@ pub unsafe extern "C" fn entity_builder_add_double<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -980,7 +979,7 @@ pub unsafe extern "C" fn entity_builder_add_timestamp<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to assert `value` for `kw` on entity `entid`.
@@ -1005,7 +1004,7 @@ pub unsafe extern "C" fn entity_builder_add_uuid<'a, 'c>(
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    translate_void_result(builder.add_kw(&kw, value), error);
+    translate_void_result(builder.add(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1028,7 +1027,7 @@ pub unsafe extern "C" fn entity_builder_retract_string<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = c_char_to_string(value).into();
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1051,7 +1050,7 @@ pub unsafe extern "C" fn entity_builder_retract_long<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Long(value);
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1074,7 +1073,7 @@ pub unsafe extern "C" fn entity_builder_retract_ref<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::Ref(value);
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1097,7 +1096,7 @@ pub unsafe extern "C" fn entity_builder_retract_keyword<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = kw_from_string(c_char_to_string(value)).into();
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1120,7 +1119,7 @@ pub unsafe extern "C" fn entity_builder_retract_boolean<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1143,7 +1142,7 @@ pub unsafe extern "C" fn entity_builder_retract_double<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = value.into();
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1166,7 +1165,7 @@ pub unsafe extern "C" fn entity_builder_retract_timestamp<'a, 'c>(
     let builder = &mut *builder;
     let kw = kw_from_string(c_char_to_string(kw));
     let value: TypedValue = TypedValue::instant(value);
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Uses `builder` to retract `value` for `kw` on entity `entid`.
@@ -1192,7 +1191,7 @@ pub unsafe extern "C" fn entity_builder_retract_uuid<'a, 'c>(
     let value = &*value;
     let value = Uuid::from_bytes(value).expect("valid uuid");
     let value: TypedValue = value.into();
-    translate_void_result(builder.retract_kw(&kw, value), error);
+    translate_void_result(builder.retract(kw, value), error);
 }
 
 /// Transacts all the assertions and retractions that have been performed

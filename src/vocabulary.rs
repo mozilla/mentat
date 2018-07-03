@@ -812,14 +812,14 @@ impl VocabularySource for SimpleVocabularySource {
 impl<'a, 'c> VocabularyMechanics for InProgress<'a, 'c> {
     /// Turn the vocabulary into datoms, transact them, and on success return the outcome.
     fn install_vocabulary(&mut self, definition: &Definition) -> Result<VocabularyOutcome> {
-        let (terms, tempids) = definition.description(self)?;
-        self.transact_terms(terms, tempids)?;
+        let (terms, _tempids) = definition.description(self)?;
+        self.transact_entities(terms)?;
         Ok(VocabularyOutcome::Installed)
     }
 
     fn install_attributes_for<'definition>(&mut self, definition: &'definition Definition, attributes: Vec<&'definition (Keyword, Attribute)>) -> Result<VocabularyOutcome> {
-        let (terms, tempids) = definition.description_for_attributes(&attributes, self, None)?;
-        self.transact_terms(terms, tempids)?;
+        let (terms, _tempids) = definition.description_for_attributes(&attributes, self, None)?;
+        self.transact_entities(terms)?;
         Ok(VocabularyOutcome::InstalledMissingAttributes)
     }
 
@@ -834,8 +834,8 @@ impl<'a, 'c> VocabularyMechanics for InProgress<'a, 'c> {
 
         // TODO: don't do work for attributes that are unchanged. Here we rely on the transactor
         // to elide duplicate datoms.
-        let (terms, tempids) = definition.description_diff(self, &from_version)?;
-        self.transact_terms(terms, tempids)?;
+        let (terms, _tempids) = definition.description_diff(self, &from_version)?;
+        self.transact_entities(terms)?;
 
         definition.post(self, &from_version)?;
         Ok(VocabularyOutcome::Upgraded)
