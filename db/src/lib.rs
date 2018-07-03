@@ -106,7 +106,6 @@ pub use types::{
     DB,
     PartitionMap,
     TransactableValue,
-    TxReport,
 };
 
 pub fn to_namespaced_keyword(s: &str) -> Result<symbols::Keyword> {

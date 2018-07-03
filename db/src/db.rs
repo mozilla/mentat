@@ -1131,6 +1131,7 @@ mod tests {
         HasSchema,
         Keyword,
         KnownEntid,
+        TxReport,
         attribute,
     };
     use mentat_core::util::Either::*;
@@ -1142,7 +1143,6 @@ mod tests {
         Term,
         TermWithTempIds,
     };
-    use types::TxReport;
     use tx::{
         transact_terms,
     };

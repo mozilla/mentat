@@ -53,6 +53,7 @@ use mentat_core::{
     Keyword,
     Schema,
     StructuredMap,
+    TxReport,
     TypedValue,
     ValueRc,
     ValueType,
@@ -74,7 +75,6 @@ use mentat_db::{
     TransactWatcher,
     TxObservationService,
     TxObserver,
-    TxReport,
 };
 
 use mentat_db::internal_types::TermWithTempIds;

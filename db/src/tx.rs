@@ -94,6 +94,7 @@ use mentat_core::{
     DateTime,
     KnownEntid,
     Schema,
+    TxReport,
     Utc,
     attribute,
     now,
@@ -119,7 +120,6 @@ use types::{
     Entid,
     PartitionMap,
     TransactableValue,
-    TxReport,
     TypedValue,
     ValueType,
 };

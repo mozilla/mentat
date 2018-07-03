@@ -66,11 +66,8 @@ use edn::entities::{
 };
 
 use mentat_core::{
-    TypedValue,
-};
-
-use mentat_db::{
     TxReport,
+    TypedValue,
 };
 
 use conn::{
@@ -277,8 +274,8 @@ mod testing {
         KnownEntid,
         MentatError,
         Queryable,
-        TypedValue,
         TxReport,
+        TypedValue,
     };
 
     use super::*;

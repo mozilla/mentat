@@ -30,12 +30,12 @@ use mentat_core::{
     Entid,
     Keyword,
     StructuredMap,
+    TxReport,
     TypedValue,
     ValueRc,
 };
 use mentat_db::{
     TxObserver,
-    TxReport,
 };
 
 use mentat_tolstoy::Syncer;
