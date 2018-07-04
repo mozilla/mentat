@@ -72,17 +72,25 @@ use mentat_transaction::query::{
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
 /// for applications that don't require complex connection management.
 pub struct Store {
-    conn: Conn,
+    conn: Arc<Conn>,
     sqlite: rusqlite::Connection,
 }
 
 impl Store {
+    /// Create a Store from a connection and Conn.
+    pub fn new(conn: Arc<Conn>, connection: rusqlite::Connection) -> Result<Store> {
+        Ok(Store {
+            conn: conn,
+            sqlite: connection,
+        })
+    }
+
     /// Open a store at the supplied path, ensuring that it includes the bootstrap schema.
     pub fn open(path: &str) -> Result<Store> {
         let mut connection = ::new_connection(path)?;
         let conn = Conn::connect(&mut connection)?;
         Ok(Store {
-            conn: conn,
+            conn: Arc::new(conn),
             sqlite: connection,
         })
     }
@@ -104,14 +112,33 @@ impl Store {
         let mut connection = ::new_connection_with_key(path, encryption_key)?;
         let conn = Conn::connect(&mut connection)?;
         Ok(Store {
-            conn: conn,
+            conn: Arc::new(conn),
             sqlite: connection,
         })
     }
 
-    /// Change the key for a database that was opened using `open_with_key` (using `PRAGMA
-    /// rekey`). Fails unless linked against sqlcipher (or something else that supports the Sqlite
-    /// Encryption Extension).
+    /// Variant of `open_empty` that allows a key (for encryption/decryption) to
+    /// be supplied. Fails unless linked against sqlcipher (or something else
+    /// that supports the Sqlite Encryption Extension).
+    pub fn open_empty_with_key(path: &str, encryption_key: &str) -> Result<Store> {
+        if !path.is_empty() {
+            if Path::new(path).exists() {
+                bail!(MentatError::PathAlreadyExists(path.to_string()));
+            }
+        }
+
+        let mut connection = ::new_connection_with_key(path, encryption_key)?;
+        let conn = Conn::empty(&mut connection)?;
+        Ok(Store {
+            conn: Arc::new(conn),
+            sqlite: connection,
+        })
+    }
+
+    /// Change the key for a database that was opened using `open_with_key` or
+    /// `open_empty_with_key` (using `PRAGMA rekey`). Fails unless linked
+    /// against sqlcipher (or something else that supports the Sqlite Encryption
+    /// Extension).
     pub fn change_encryption_key(&mut self, new_encryption_key: &str) -> Result<()> {
         ::change_encryption_key(&self.sqlite, new_encryption_key)?;
         Ok(())
@@ -131,12 +158,12 @@ impl Store {
 }
 
 impl Store {
-    pub fn dismantle(self) -> (rusqlite::Connection, Conn) {
+    pub fn dismantle(self) -> (rusqlite::Connection, Arc<Conn>) {
         (self.sqlite, self.conn)
     }
 
-    pub fn conn(&self) -> &Conn {
-        &self.conn
+    pub fn conn(&self) -> Arc<Conn> {
+        self.conn.clone()
     }
 
     pub fn begin_read<'m>(&'m mut self) -> Result<InProgressRead<'m, 'm>> {

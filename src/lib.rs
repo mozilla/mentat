@@ -176,6 +176,7 @@ pub use mentat_transaction::query::{
 pub mod conn;
 pub mod query_builder;
 pub mod store;
+pub mod stores;
 pub mod vocabulary;
 
 pub use query_builder::{
@@ -197,6 +198,10 @@ pub use mentat_transaction::{
 
 pub use store::{
     Store,
+};
+
+pub use stores::{
+    Stores,
 };
 
 #[cfg(test)]
