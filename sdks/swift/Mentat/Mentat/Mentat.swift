@@ -61,6 +61,17 @@ open class Mentat: RustObject {
     public class func open(storeURI: String = "") throws -> Mentat {
         return Mentat(raw: try RustError.unwrap({err in store_open(storeURI, err) }))
     }
+    
+    /**
+     Open a connection to a Store in a given location.
+     If the store does not already exist, one will be created.
+     
+     - Parameter storeURI: The URI as a String of the store to open.
+     If no store URI is provided, an in-memory store will be opened.
+     */
+    public convenience init(namedInMemoryStore name: String) throws {
+        self.init(raw: try RustError.unwrap({err in store_open_named_in_memory_store(name, err) }))
+    }
 
     /**
      Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
