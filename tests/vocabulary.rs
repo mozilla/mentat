@@ -186,7 +186,7 @@ fn test_add_vocab() {
     let foo_v1_b = vocabulary::Definition::new(kw!(:org.mozilla/foo), 1, bar_and_baz.clone());
 
     let mut sqlite = mentat_db::db::new_connection("").unwrap();
-    let mut conn = Conn::connect(&mut sqlite).unwrap();
+    let conn = Conn::connect(&mut sqlite).unwrap();
 
     let foo_version_query = r#"[:find [?version ?aa]
                                 :where

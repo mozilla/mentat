@@ -254,7 +254,7 @@ fn test_instants_and_uuids() {
     let start = Utc::now() + FixedOffset::west(60 * 60);
 
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
     conn.transact(&mut c, r#"[
         [:db/add "s" :db/ident :foo/uuid]
         [:db/add "s" :db/valueType :db.type/uuid]
@@ -291,7 +291,7 @@ fn test_instants_and_uuids() {
 #[test]
 fn test_tx() {
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
     conn.transact(&mut c, r#"[
         [:db/add "s" :db/ident :foo/uuid]
         [:db/add "s" :db/valueType :db.type/uuid]
@@ -324,7 +324,7 @@ fn test_tx() {
 #[test]
 fn test_tx_as_input() {
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
     conn.transact(&mut c, r#"[
         [:db/add "s" :db/ident :foo/uuid]
         [:db/add "s" :db/valueType :db.type/uuid]
@@ -361,7 +361,7 @@ fn test_tx_as_input() {
 #[test]
 fn test_fulltext() {
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
 
     conn.transact(&mut c, r#"[
         [:db/add "a" :db/ident :foo/term]
@@ -467,7 +467,7 @@ fn test_fulltext() {
 #[test]
 fn test_instant_range_query() {
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
 
     conn.transact(&mut c, r#"[
         [:db/add "a" :db/ident :foo/date]
@@ -503,7 +503,7 @@ fn test_instant_range_query() {
 #[test]
 fn test_lookup() {
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
 
     conn.transact(&mut c, r#"[
         [:db/add "a" :db/ident :foo/date]
@@ -656,7 +656,7 @@ fn test_aggregates_type_handling() {
 #[test]
 fn test_type_reqs() {
     let mut c = new_connection("").expect("Couldn't open conn.");
-    let mut conn = Conn::connect(&mut c).expect("Couldn't open DB.");
+    let conn = Conn::connect(&mut c).expect("Couldn't open DB.");
 
     conn.transact(&mut c, r#"[
         {:db/ident :test/boolean :db/valueType :db.type/boolean :db/cardinality :db.cardinality/one}
@@ -1525,4 +1525,64 @@ fn test_encrypted() {
     // We expect this to blow up completely if something is wrong with the encryption,
     // so the specific test we use doesn't matter that much.
     run_tx_data_test(Store::open_with_key("", "secret").expect("opened"));
+}
+
+#[test]
+fn test_conn_cross_thread() {
+    let file = "file:memdb?mode=memory&cache=shared";
+
+    let mut sqlite = mentat_db::db::new_connection(file).expect("Couldn't open in-memory db");
+    let conn = Conn::connect(&mut sqlite).expect("to connect");
+
+    conn.transact(&mut sqlite, r#"[
+        [:db/add "a" :db/ident :foo/term]
+        [:db/add "a" :db/valueType :db.type/string]
+        [:db/add "a" :db/fulltext false]
+        [:db/add "a" :db/cardinality :db.cardinality/many]
+    ]"#).unwrap();
+
+    let _tx1 = conn.transact(&mut sqlite, r#"[
+        [:db/add "e" :foo/term "1"]
+    ]"#).expect("tx1 to apply");
+
+    let _tx2 = conn.transact(&mut sqlite, r#"[
+        [:db/add "e" :foo/term "2"]
+    ]"#).expect("tx2 to apply");
+
+    use std::sync::Arc;
+    use std::sync::mpsc::channel;
+
+    let conn = Arc::new(conn);
+
+    let (tx1, rx1) = channel();
+    let (txs, rxs) = channel();
+    let (tx2, rx2) = channel();
+
+    std::thread::spawn(move || {
+        let shared_conn: Arc<Conn> = rx1.recv().expect("rx1");
+        let mut sqlite1 = mentat_db::db::new_connection(file).expect("Couldn't open in-memory db");
+
+        shared_conn.transact(&mut sqlite1, r#"[
+            [:db/add "a" :db/ident :foo/bar]
+            [:db/add "a" :db/valueType :db.type/long]
+            [:db/add "a" :db/cardinality :db.cardinality/many]
+        ]"#).unwrap();
+
+        txs.send(()).expect("to sync");
+    });
+
+    tx1.send(conn.clone()).expect("tx1");
+
+    rxs.recv().expect("to sync");
+
+    std::thread::spawn(move || {
+        let shared_conn: Arc<Conn> = rx2.recv().expect("rx1");
+        let mut sqlite2 = mentat_db::db::new_connection(file).expect("Couldn't open in-memory db");
+
+        assert_eq!(None, shared_conn.current_schema().get_entid(&Keyword::namespaced("foo", "bar")));
+
+        shared_conn.q_once(&mut sqlite2, "[:find ?e :where [?e _ _]]", None).expect("to prepare");
+    });
+
+    tx2.send(conn.clone()).expect("tx2");
 }
