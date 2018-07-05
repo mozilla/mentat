@@ -30,12 +30,12 @@ use mentat_core::{
     Entid,
     Keyword,
     StructuredMap,
+    TxReport,
     TypedValue,
     ValueRc,
 };
 use mentat_db::{
     TxObserver,
-    TxReport,
 };
 
 use mentat_tolstoy::Syncer;
@@ -607,12 +607,12 @@ mod tests {
                 let name = format!("todo{}", i);
                 let uuid = Uuid::new_v4();
                 let mut builder = in_progress.builder().describe_tempid(&name);
-                builder.add_kw(&kw!(:todo/uuid), TypedValue::Uuid(uuid)).expect("Expected added uuid");
+                builder.add(kw!(:todo/uuid), TypedValue::Uuid(uuid)).expect("Expected added uuid");
                 changeset.insert(uuid_entid.clone());
-                builder.add_kw(&kw!(:todo/name), TypedValue::typed_string(&name)).expect("Expected added name");
+                builder.add(kw!(:todo/name), TypedValue::typed_string(&name)).expect("Expected added name");
                 changeset.insert(name_entid.clone());
                 if i % 2 == 0 {
-                    builder.add_kw(&kw!(:todo/completion_date), TypedValue::current_instant()).expect("Expected added date");
+                    builder.add(kw!(:todo/completion_date), TypedValue::current_instant()).expect("Expected added date");
                     changeset.insert(date_entid.clone());
                 }
                 let (ip, r) = builder.transact();
@@ -622,8 +622,8 @@ mod tests {
                 in_progress = ip;
             }
             let mut builder = in_progress.builder().describe_tempid("Label");
-            builder.add_kw(&kw!(:label/name), TypedValue::typed_string("Label 1")).expect("Expected added name");
-            builder.add_kw(&kw!(:label/color), TypedValue::typed_string("blue")).expect("Expected added color");
+            builder.add(kw!(:label/name), TypedValue::typed_string("Label 1")).expect("Expected added name");
+            builder.add(kw!(:label/color), TypedValue::typed_string("blue")).expect("Expected added color");
             builder.commit().expect("expect transaction to occur");
         }
 
@@ -678,8 +678,8 @@ mod tests {
             for i in 0..3 {
                 let name = format!("label{}", i);
                 let mut builder = in_progress.builder().describe_tempid(&name);
-                builder.add_kw(&kw!(:label/name), TypedValue::typed_string(&name)).expect("Expected added name");
-                builder.add_kw(&kw!(:label/color), TypedValue::typed_string("blue")).expect("Expected added color");
+                builder.add(kw!(:label/name), TypedValue::typed_string(&name)).expect("Expected added name");
+                builder.add(kw!(:label/color), TypedValue::typed_string("blue")).expect("Expected added color");
                 let (ip, _) = builder.transact();
                 in_progress = ip;
             }

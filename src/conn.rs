@@ -41,6 +41,9 @@ use rusqlite::{
 };
 
 use edn;
+use edn::{
+    InternSet,
+};
 
 use mentat_core::{
     Attribute,
@@ -50,12 +53,11 @@ use mentat_core::{
     Keyword,
     Schema,
     StructuredMap,
+    TxReport,
     TypedValue,
     ValueRc,
     ValueType,
 };
-
-use mentat_core::intern_set::InternSet;
 
 use mentat_db::cache::{
     InProgressCacheTransactWatcher,
@@ -73,7 +75,6 @@ use mentat_db::{
     TransactWatcher,
     TxObservationService,
     TxObserver,
-    TxReport,
 };
 
 use mentat_db::internal_types::TermWithTempIds;
@@ -401,8 +402,8 @@ impl<'a, 'c> InProgress<'a, 'c> {
     /// This exists so you can make your own.
     pub fn transact_builder(&mut self, builder: TermBuilder) -> Result<TxReport> {
         builder.build()
-               .and_then(|(terms, tempid_set)| {
-                    self.transact_terms(terms, tempid_set)
+               .and_then(|(terms, _tempid_set)| {
+                    self.transact_entities(terms)
                })
     }
 

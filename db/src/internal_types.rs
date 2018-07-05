@@ -17,7 +17,6 @@ use std::collections::{
     BTreeSet,
     HashMap,
 };
-use std::rc::Rc;
 
 use mentat_core::KnownEntid;
 
@@ -27,6 +26,14 @@ use edn;
 use edn::{
     SpannedValue,
     ValueAndSpan,
+    ValueRc,
+};
+use edn::entities;
+use edn::entities::{
+    EntityPlace,
+    OpType,
+    TempId,
+    TxFunction,
 };
 
 use errors;
@@ -47,13 +54,6 @@ use types::{
     TypedValue,
     ValueType,
 };
-use edn::entities;
-use edn::entities::{
-    EntityPlace,
-    OpType,
-    TempId,
-    TxFunction,
-};
 
 impl TransactableValue for ValueAndSpan {
     fn into_typed_value(self, schema: &Schema, value_type: ValueType) -> Result<TypedValue> {
@@ -72,7 +72,7 @@ impl TransactableValue for ValueAndSpan {
                     bail!(DbErrorKind::InputError(errors::InputError::BadEntityPlace))
                 }
             },
-            Text(v) => Ok(EntityPlace::TempId(TempId::External(v))),
+            Text(v) => Ok(EntityPlace::TempId(TempId::External(v).into())),
             List(ls) => {
                 let mut it = ls.iter();
                 match (it.next().map(|x| &x.inner), it.next(), it.next(), it.next()) {
@@ -107,7 +107,7 @@ impl TransactableValue for ValueAndSpan {
     }
 
     fn as_tempid(&self) -> Option<TempId> {
-        self.inner.as_text().cloned().map(TempId::External)
+        self.inner.as_text().cloned().map(TempId::External).map(|v| v.into())
     }
 }
 
@@ -123,7 +123,7 @@ impl TransactableValue for TypedValue {
         match self {
             TypedValue::Ref(x) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Entid(x))),
             TypedValue::Keyword(x) => Ok(EntityPlace::Entid(entities::EntidOrIdent::Ident((*x).clone()))),
-            TypedValue::String(x) => Ok(EntityPlace::TempId(TempId::External((*x).clone()))),
+            TypedValue::String(x) => Ok(EntityPlace::TempId(TempId::External((*x).clone()).into())),
             TypedValue::Boolean(_) |
             TypedValue::Long(_) |
             TypedValue::Double(_) |
@@ -134,7 +134,7 @@ impl TransactableValue for TypedValue {
 
     fn as_tempid(&self) -> Option<TempId> {
         match self {
-            &TypedValue::String(ref s) => Some(TempId::External((**s).clone())),
+            &TypedValue::String(ref s) => Some(TempId::External((**s).clone()).into()),
             _ => None,
         }
     }
@@ -150,10 +150,10 @@ use self::Either::*;
 pub type KnownEntidOr<T> = Either<KnownEntid, T>;
 pub type TypedValueOr<T> = Either<TypedValue, T>;
 
-pub type TempIdHandle = Rc<TempId>;
+pub type TempIdHandle = ValueRc<TempId>;
 pub type TempIdMap = HashMap<TempIdHandle, KnownEntid>;
 
-pub type LookupRef = Rc<AVPair>;
+pub type LookupRef = ValueRc<AVPair>;
 
 /// Internal representation of an entid on its way to resolution.  We either have the simple case (a
 /// numeric entid), a lookup-ref that still needs to be resolved (an atomized [a v] pair), or a temp

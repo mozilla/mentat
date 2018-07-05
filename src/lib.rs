@@ -41,6 +41,7 @@ pub use mentat_core::{
     Keyword,
     Schema,
     Binding,
+    TxReport,
     TypedValue,
     Uuid,
     Utc,
@@ -56,7 +57,6 @@ pub use mentat_db::{
     DB_SCHEMA_CORE,
     AttributeSet,
     TxObserver,
-    TxReport,
     new_connection,
 };
 

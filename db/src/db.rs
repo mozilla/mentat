@@ -1119,20 +1119,22 @@ mod tests {
     use debug;
     use errors;
     use edn;
-    use mentat_core::{
-        HasSchema,
-        Keyword,
-        KnownEntid,
-        attribute,
-    };
-    use mentat_core::intern_set::{
+    use edn::{
         InternSet,
     };
-    use mentat_core::util::Either::*;
     use edn::entities::{
         OpType,
         TempId,
     };
+
+    use mentat_core::{
+        HasSchema,
+        Keyword,
+        KnownEntid,
+        TxReport,
+        attribute,
+    };
+    use mentat_core::util::Either::*;
     use rusqlite;
     use std::collections::{
         BTreeMap,
@@ -1141,7 +1143,6 @@ mod tests {
         Term,
         TermWithTempIds,
     };
-    use types::TxReport;
     use tx::{
         transact_terms,
     };

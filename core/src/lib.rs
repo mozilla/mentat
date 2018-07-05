@@ -60,8 +60,13 @@ pub use cache::{
 
 /// Core types defining a Mentat knowledge base.
 mod types;
+mod tx_report;
 mod value_type_set;
 mod sql_types;
+
+pub use tx_report::{
+    TxReport,
+};
 
 pub use types::{
     Binding,
@@ -365,7 +370,6 @@ impl HasSchema for Schema {
     }
 }
 
-pub mod intern_set;
 pub mod counter;
 pub mod util;
 

@@ -47,6 +47,14 @@ use ::edn::{
     ValueRc,
 };
 
+use ::edn::entities::{
+    AttributePlace,
+    EntidOrIdent,
+    EntityPlace,
+    ValuePlace,
+    TransactableValueMarker,
+};
+
 use values;
 
 /// Represents one entid in the entid space.
@@ -70,6 +78,24 @@ impl From<KnownEntid> for Entid {
 impl From<KnownEntid> for TypedValue {
     fn from(k: KnownEntid) -> TypedValue {
         TypedValue::Ref(k.0)
+    }
+}
+
+impl<V: TransactableValueMarker> Into<EntityPlace<V>> for KnownEntid {
+    fn into(self) -> EntityPlace<V> {
+        EntityPlace::Entid(EntidOrIdent::Entid(self.0))
+    }
+}
+
+impl Into<AttributePlace> for KnownEntid {
+    fn into(self) -> AttributePlace {
+        AttributePlace::Entid(EntidOrIdent::Entid(self.0))
+    }
+}
+
+impl<V: TransactableValueMarker> Into<ValuePlace<V>> for KnownEntid {
+    fn into(self) -> ValuePlace<V> {
+        ValuePlace::Entid(EntidOrIdent::Entid(self.0))
     }
 }
 
@@ -214,6 +240,9 @@ pub enum TypedValue {
     Keyword(ValueRc<Keyword>),
     Uuid(Uuid),                        // It's only 128 bits, so this should be acceptable to clone.
 }
+
+/// `TypedValue` is the value type for programmatic use in transaction builders.
+impl TransactableValueMarker for TypedValue {}
 
 /// The values bound in a query specification can be:
 ///

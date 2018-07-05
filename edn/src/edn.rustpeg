@@ -260,7 +260,7 @@ tx_function -> TxFunction
     = "(" __ n:$(symbol_name) __ ")" { TxFunction { op: PlainSymbol::plain(n) } }
 
 entity_place -> EntityPlace<ValueAndSpan>
-    = v:raw_text { EntityPlace::TempId(TempId::External(v)) }
+    = v:raw_text { EntityPlace::TempId(TempId::External(v).into()) }
     / v:entid { EntityPlace::Entid(v) }
     / v:lookup_ref { EntityPlace::LookupRef(v) }
     / v:tx_function { EntityPlace::TxFunction(v) }

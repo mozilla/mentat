@@ -56,9 +56,6 @@ use std::collections::{
 use std::iter::{
     once,
 };
-use std::rc::{
-    Rc,
-};
 
 use db;
 use db::{
@@ -66,6 +63,7 @@ use db::{
     PartitionMapping,
 };
 use edn::{
+    InternSet,
     Keyword,
 };
 use entids;
@@ -96,12 +94,11 @@ use mentat_core::{
     DateTime,
     KnownEntid,
     Schema,
+    TxReport,
     Utc,
     attribute,
     now,
 };
-
-use mentat_core::intern_set::InternSet;
 
 use edn::entities as entmod;
 use edn::entities::{
@@ -123,7 +120,6 @@ use types::{
     Entid,
     PartitionMap,
     TransactableValue,
-    TxReport,
     TypedValue,
     ValueType,
 };
@@ -304,15 +300,11 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 Ok(self.lookup_refs.intern((lr_a, lr_typed_value)))
             }
 
-            fn intern_temp_id(&mut self, temp_id: TempId) -> Rc<TempId> {
-                self.temp_ids.intern(temp_id)
-            }
-
             /// Allocate private internal tempids reserved for Mentat.  Internal tempids just need to be
             /// unique within one transaction; they should never escape a transaction.
             fn allocate_mentat_id<W: TransactableValue>(&mut self) -> entmod::EntityPlace<W> {
                 self.mentat_id_count += 1;
-                entmod::EntityPlace::TempId(TempId::Internal(self.mentat_id_count))
+                entmod::EntityPlace::TempId(TempId::Internal(self.mentat_id_count).into())
             }
 
             fn entity_e_into_term_e<W: TransactableValue>(&mut self, x: entmod::EntityPlace<W>) -> Result<KnownEntidOr<LookupRefOrTempId>> {
@@ -326,7 +318,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                     },
 
                     entmod::EntityPlace::TempId(e) => {
-                        Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(e))))
+                        Ok(Either::Right(LookupRefOrTempId::TempId(self.temp_ids.intern(e))))
                     },
 
                     entmod::EntityPlace::LookupRef(ref lookup_ref) => {
@@ -372,7 +364,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 // that the given value is in the attribute's value set, or (in
                                 // limited cases) coerce the value into the attribute's value set.
                                 match v.as_tempid() {
-                                    Some(tempid) => Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(tempid)))),
+                                    Some(tempid) => Ok(Either::Right(LookupRefOrTempId::TempId(self.temp_ids.intern(tempid)))),
                                     None => {
                                         if let TypedValue::Ref(entid) = v.into_typed_value(&self.schema, ValueType::Ref)? {
                                             Ok(Either::Left(KnownEntid(entid)))
@@ -388,7 +380,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 Ok(Either::Left(KnownEntid(self.entity_a_into_term_a(entid)?))),
 
                             entmod::ValuePlace::TempId(tempid) =>
-                                Ok(Either::Right(LookupRefOrTempId::TempId(self.intern_temp_id(tempid)))),
+                                Ok(Either::Right(LookupRefOrTempId::TempId(self.temp_ids.intern(tempid)))),
 
                             entmod::ValuePlace::LookupRef(ref lookup_ref) =>
                                 Ok(Either::Right(LookupRefOrTempId::LookupRef(self.intern_lookup_ref(lookup_ref)?))),
@@ -459,7 +451,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 // limited cases) coerce the value into the attribute's value set.
                                 if attribute.value_type == ValueType::Ref {
                                     match v.as_tempid() {
-                                        Some(tempid) => Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(tempid))),
+                                        Some(tempid) => Either::Right(LookupRefOrTempId::TempId(in_process.temp_ids.intern(tempid))),
                                         None => v.into_typed_value(&self.schema, attribute.value_type).map(Either::Left)?,
                                     }
                                 } else {
@@ -471,7 +463,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                                 Either::Left(TypedValue::Ref(in_process.entity_a_into_term_a(entid)?)),
 
                             entmod::ValuePlace::TempId(tempid) =>
-                                Either::Right(LookupRefOrTempId::TempId(in_process.intern_temp_id(tempid))),
+                                Either::Right(LookupRefOrTempId::TempId(in_process.temp_ids.intern(tempid))),
 
                             entmod::ValuePlace::LookupRef(ref lookup_ref) => {
                                 if attribute.value_type != ValueType::Ref {
@@ -622,7 +614,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         let (terms_with_temp_ids_and_lookup_refs, tempid_set, lookup_ref_set) = self.entities_into_terms_with_temp_ids_and_lookup_refs(entities)?;
 
         // Pipeline stage 2: resolve lookup refs -> terms with tempids.
-        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_ref_set.inner.iter().map(|rc| &**rc).collect();
+        let lookup_ref_avs: Vec<&(i64, TypedValue)> = lookup_ref_set.iter().map(|rc| &**rc).collect();
         let lookup_ref_map: AVMap = self.store.resolve_avs(&lookup_ref_avs[..])?;
 
         let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
@@ -703,8 +695,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         // Verify that every tempid we interned either resolved or has been allocated.
-        assert_eq!(tempids.len(), tempid_set.inner.len());
-        for tempid in &tempid_set.inner {
+        assert_eq!(tempids.len(), tempid_set.len());
+        for tempid in tempid_set.iter() {
             assert!(tempids.contains_key(&**tempid));
         }
 

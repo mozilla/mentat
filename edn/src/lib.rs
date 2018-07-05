@@ -23,6 +23,10 @@ extern crate serde;
 extern crate serde_derive;
 
 pub mod entities;
+pub mod intern_set;
+pub use intern_set::{
+    InternSet,
+};
 // Intentionally not pub.
 mod namespaceable_name;
 pub mod query;
