@@ -73,6 +73,10 @@ use mentat_query_sql::{
 pub mod errors;
 
 mod aggregates;
+mod binding_tuple;
+pub use binding_tuple::{
+    BindingTuple,
+};
 mod project;
 mod projectors;
 mod pull;
@@ -117,7 +121,7 @@ pub use errors::{
     Result,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QueryOutput {
     pub spec: Rc<FindSpec>,
     pub results: QueryResults,
@@ -267,8 +271,15 @@ impl QueryOutput {
         self.results.into_coll()
     }
 
-    pub fn into_tuple(self) -> Result<Option<Vec<Binding>>> {
-        self.results.into_tuple()
+    /// Mentat tuple results can be expressed as multiple different data structures.  Some
+    /// structures are generic (vectors) and some are easier for pattern matching (fixed length
+    /// tuples).
+    ///
+    /// This is the moral equivalent of `collect` (and `BindingTuple` of `FromIterator`), but
+    /// specialized to tuples of expected length.
+    pub fn into_tuple<B>(self) -> Result<Option<B>> where B: BindingTuple {
+        let expected = self.spec.expected_column_count();
+        self.results.into_tuple().and_then(|vec| B::from_binding_vec(expected, vec))
     }
 
     pub fn into_rel(self) -> Result<RelResult<Binding>> {
@@ -513,5 +524,48 @@ pub fn query_projection(schema: &Schema, query: &AlgebraicQuery) -> Result<Eithe
                 }
             },
         }.map(Either::Right)
+    }
+}
+
+#[test]
+fn test_into_tuple() {
+    let query_output = QueryOutput {
+        spec: Rc::new(FindSpec::FindTuple(vec![Element::Variable(Variable::from_valid_name("?x")),
+                                               Element::Variable(Variable::from_valid_name("?y"))])),
+        results: QueryResults::Tuple(Some(vec![Binding::Scalar(TypedValue::Long(0)),
+                                               Binding::Scalar(TypedValue::Long(2))])),
+    };
+
+    assert_eq!(query_output.clone().into_tuple().expect("into_tuple"),
+               Some((Binding::Scalar(TypedValue::Long(0)),
+                     Binding::Scalar(TypedValue::Long(2)))));
+
+    match query_output.clone().into_tuple() {
+        Err(ProjectorError::UnexpectedResultsTupleLength(expected, got)) => {
+            assert_eq!((expected, got), (3, 2));
+        },
+        // This forces the result type.
+        Ok(Some((_, _, _))) | _ => panic!("expected error"),
+    }
+
+    let query_output = QueryOutput {
+        spec: Rc::new(FindSpec::FindTuple(vec![Element::Variable(Variable::from_valid_name("?x")),
+                                               Element::Variable(Variable::from_valid_name("?y"))])),
+        results: QueryResults::Tuple(None),
+    };
+
+
+    match query_output.clone().into_tuple() {
+        Ok(None) => {},
+        // This forces the result type.
+        Ok(Some((_, _))) | _ => panic!("expected error"),
+    }
+
+    match query_output.clone().into_tuple() {
+        Err(ProjectorError::UnexpectedResultsTupleLength(expected, got)) => {
+            assert_eq!((expected, got), (3, 2));
+        },
+        // This forces the result type.
+        Ok(Some((_, _, _))) | _ => panic!("expected error"),
     }
 }

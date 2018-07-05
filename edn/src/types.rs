@@ -649,6 +649,28 @@ impl ToMicros for DateTime<Utc> {
     }
 }
 
+pub trait FromMillis {
+    fn from_millis(ts: i64) -> Self;
+}
+
+impl FromMillis for DateTime<Utc> {
+    fn from_millis(ts: i64) -> Self {
+        Utc.timestamp(ts / 1_000, ((ts % 1_000).abs() as u32) * 1_000)
+    }
+}
+
+pub trait ToMillis {
+    fn to_millis(&self) -> i64;
+}
+
+impl ToMillis for DateTime<Utc> {
+    fn to_millis(&self) -> i64 {
+        let major: i64 = self.timestamp() * 1_000;
+        let minor: i64 = self.timestamp_subsec_millis() as i64;
+        major + minor
+    }
+}
+
 #[cfg(test)]
 mod test {
     extern crate chrono;

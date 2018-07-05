@@ -234,7 +234,7 @@ pub fn lookup_value<'sqlite, 'schema, 'cache, E, A>
         fetch_values(sqlite, known, entid, attrid, true)
             .into_scalar_result()
             // Safe to unwrap: we never retrieve structure.
-            .map(|r| r.map(|v| v.val().unwrap()))
+            .map(|r| r.map(|v| v.into_scalar().unwrap()))
     }
 }
 
@@ -256,7 +256,7 @@ pub fn lookup_values<'sqlite, E, A>
         fetch_values(sqlite, known, entid, attrid, false)
             .into_coll_result()
             // Safe to unwrap: we never retrieve structure.
-            .map(|v| v.into_iter().map(|x| x.val().unwrap()).collect())
+            .map(|v| v.into_iter().map(|x| x.into_scalar().unwrap()).collect())
     }
 }
 
