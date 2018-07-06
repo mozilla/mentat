@@ -45,12 +45,14 @@ pub struct Partition {
     pub end: i64,
     /// The next entid to be allocated in the partition.
     pub index: i64,
+    /// `true` if entids in the partition can be excised with `:db/excise`.
+    pub allow_excision: bool,
 }
 
 impl Partition {
-    pub fn new(start: i64, end: i64, next: i64) -> Partition {
-        assert!(start <= next, "A partition represents a monotonic increasing sequence of entids.");
-        Partition { start: start, end: end, index: next }
+    pub fn new(start: i64, end: i64, index: i64, allow_excision: bool) -> Partition {
+        assert!(start <= index, "A partition represents a monotonic increasing sequence of entids.");
+        Partition { start, end, index, allow_excision }
     }
 
     pub fn contains_entid(&self, e: i64) -> bool {
