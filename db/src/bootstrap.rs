@@ -85,10 +85,10 @@ lazy_static! {
         ]
     };
 
-    static ref V1_PARTS: [(symbols::Keyword, i64, i64); 3] = {
-            [(ns_keyword!("db.part", "db"), 0, (1 + V1_IDENTS.len()) as i64),
-             (ns_keyword!("db.part", "user"), USER0, USER0),
-             (ns_keyword!("db.part", "tx"), TX0, TX0),
+    pub static ref V1_PARTS: [(symbols::Keyword, i64, i64, i64, bool); 3] = {
+            [(ns_keyword!("db.part", "db"), 0, USER0 - 1, (1 + V1_IDENTS.len()) as i64, false),
+             (ns_keyword!("db.part", "user"), USER0, TX0 - 1, USER0, true),
+             (ns_keyword!("db.part", "tx"), TX0, i64::max_value(), TX0, false),
         ]
     };
 
@@ -277,7 +277,7 @@ fn symbolic_schema_to_assertions(symbolic_schema: &Value) -> Result<Vec<Value>> 
 
 pub(crate) fn bootstrap_partition_map() -> PartitionMap {
     V1_PARTS.iter()
-            .map(|&(ref part, start, index)| (part.to_string(), Partition::new(start, index)))
+            .map(|&(ref part, start, end, index, allow_excision)| (part.to_string(), Partition::new(start, end, index, allow_excision)))
             .collect()
 }
 
