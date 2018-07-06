@@ -4,7 +4,6 @@ version = "0.0.1"
 workspace = ".."
 
 [dependencies]
-regex = "0.2"
 
 [dependencies.mentat_core]
 path = "../core"
