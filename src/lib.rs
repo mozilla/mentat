@@ -83,22 +83,36 @@ macro_rules! var {
 /// https://github.com/rust-lang/rust/issues/29638.
 #[macro_export]
 macro_rules! kw {
-    ( : $n:ident ) => {
-        $crate::Keyword::plain(
-            stringify!($n)
+    ( : $ns:ident$(. $nss:ident)+ / $nn:ident$(. $nns:ident)+ ) => {
+        $crate::Keyword::namespaced(
+            concat!(stringify!($ns) $(, ".", stringify!($nss))*),
+            concat!(stringify!($nn) $(, ".", stringify!($nns))*),
         )
     };
 
-    ( : $ns:ident / $n:ident ) => {
+    ( : $ns:ident$(. $nss:ident)+ / $nn:ident ) => {
+        $crate::Keyword::namespaced(
+            concat!(stringify!($ns) $(, ".", stringify!($nss))*),
+            stringify!($nn)
+        )
+    };
+
+    ( : $ns:ident / $nn:ident$(. $nns:ident)+ ) => {
         $crate::Keyword::namespaced(
             stringify!($ns),
-            stringify!($n)
+            concat!(stringify!($nn) $(, ".", stringify!($nns))*),
         )
     };
 
-    ( : $ns:ident$(. $nss:ident)+ / $n:ident ) => {
+    ( : $ns:ident / $nn:ident ) => {
         $crate::Keyword::namespaced(
-            concat!(stringify!($ns) $(, ".", stringify!($nss))+),
+            stringify!($ns),
+            stringify!($nn)
+        )
+    };
+
+    ( : $n:ident ) => {
+        $crate::Keyword::plain(
             stringify!($n)
         )
     };
@@ -181,6 +195,8 @@ mod tests {
     fn test_kw() {
         assert_eq!(kw!(:foo/bar), Keyword::namespaced("foo", "bar"));
         assert_eq!(kw!(:org.mozilla.foo/bar_baz), Keyword::namespaced("org.mozilla.foo", "bar_baz"));
+        assert_eq!(kw!(:_foo_/_bar_._baz_), Keyword::namespaced("_foo_", "_bar_._baz_"));
+        assert_eq!(kw!(:_org_._mozilla_._foo_/_bar_._baz_), Keyword::namespaced("_org_._mozilla_._foo_", "_bar_._baz_"));
     }
 
     #[test]
