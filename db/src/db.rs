@@ -162,7 +162,7 @@ const FALSE: &'static bool = &false;
 ///
 /// `rusqlite` is designed around references to values; this lets us use computed bools easily.
 #[inline(always)]
-fn to_bool_ref(x: bool) -> &'static bool {
+pub(crate) fn to_bool_ref(x: bool) -> &'static bool {
     if x { TRUE } else { FALSE }
 }
 
@@ -196,8 +196,8 @@ lazy_static! {
         // differentiate, e.g., keywords and strings.
         r#"CREATE UNIQUE INDEX idx_datoms_unique_value ON datoms (a, value_type_tag, v) WHERE unique_value IS NOT 0"#,
 
-        r#"CREATE TABLE transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL)"#,
-        r#"CREATE INDEX idx_transactions_tx ON transactions (tx, added)"#,
+        r#"CREATE TABLE timelined_transactions (e INTEGER NOT NULL, a SMALLINT NOT NULL, v BLOB NOT NULL, tx INTEGER NOT NULL, added TINYINT NOT NULL DEFAULT 1, value_type_tag SMALLINT NOT NULL, timeline TINYINT NOT NULL DEFAULT 0)"#,
+        r#"CREATE VIEW transactions AS SELECT e, a, v, value_type_tag, tx, added FROM timelined_transactions WHERE timeline IS 0"#,
 
         // Fulltext indexing.
         // A fulltext indexed value v is an integer rowid referencing fulltext_values.
@@ -569,7 +569,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
     // at this point.
 
     let s = r#"
-      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+      INSERT INTO timelined_transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v0, ?, 1, value_type_tag0
       FROM temp.search_results
       WHERE added0 IS 1 AND ((rid IS NULL) OR ((rid IS NOT NULL) AND (v0 IS NOT v)))"#;
@@ -578,7 +578,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
     stmt.execute(&[&tx]).context(DbErrorKind::TxInsertFailedToAddMissingDatoms)?;
 
     let s = r#"
-      INSERT INTO transactions (e, a, v, tx, added, value_type_tag)
+      INSERT INTO timelined_transactions (e, a, v, tx, added, value_type_tag)
       SELECT e0, a0, v, ?, 0, value_type_tag0
       FROM temp.search_results
       WHERE rid IS NOT NULL AND
