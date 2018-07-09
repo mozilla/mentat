@@ -281,6 +281,8 @@ pub(crate) fn ensure_no_pending_excisions(conn: &rusqlite::Connection, partition
         excise_transactions_before_tx(conn, &excision, *status)?;
     }
 
+    delete_dangling_retractions(conn)?;
+
     conn.execute("UPDATE excisions SET status = 0", &[])?;
 
     // TODO: only vacuum fulltext if an excision (likely) impacted fulltext values, since this is
@@ -315,6 +317,41 @@ pub(crate) fn vacuum_fulltext_table(conn: &rusqlite::Connection) -> Result<()> {
                        WHERE a IN temp.fulltext_as)"#, &[])?;
 
     conn.execute(r#"DROP TABLE temp.fulltext_as"# , &[])?;
+
+    Ok(())
+}
+
+/// Delete dangling retractions from the transaction log.
+///
+/// Suppose that `E` is a fixed entid and that the following transactions are transacted:
+/// ```edn
+/// [[:db/add E :db/doc "first"]]
+/// [[:db/retract E :db/doc "first"]]
+/// [[:db/add E :db/doc "second"]]
+/// ```
+///
+/// If we excise just the first datom -- the datom corresponding to `[:db/add E :db/doc "first"]` --
+/// then there will be a "dangling retraction" in the log, which will look like:
+/// ```edn
+/// [[E :db/doc "first" TX1 false]]
+/// [[E :db/doc "second" TX2 true]]
+/// ```
+///
+/// This function purges such dangling retractions, so that a datom is always asserted before it is
+/// retracted.
+pub(crate) fn delete_dangling_retractions(conn: &rusqlite::Connection) -> Result<()> {
+    // We walk the transactions table.  For each `[e a v]`, we find all of the log entries
+    // corresponding to the first transaction that it appeared in.  We delete any entries that are
+    // retractions; it is not possible to retract an `[e a v]` not asserted in a prior transaction.
+    conn.execute(r#"WITH ids AS
+                    (SELECT rowid FROM
+                     (SELECT MIN(tx), added, rowid
+                      FROM transactions
+                      GROUP BY e, a, v, value_type_tag)
+                     WHERE added = 0)
+                    DELETE FROM transactions
+                    WHERE rowid IN ids"#,
+                 &[])?;
 
     Ok(())
 }

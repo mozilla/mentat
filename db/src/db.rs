@@ -3256,7 +3256,8 @@ mod tests {
               [?tx1 :db/txInstant ?ms ?tx1 true]]
               [[301 :test/ref 300 ?tx2 true]
                [?tx2 :db/txInstant ?ms2 ?tx2 true]]
-              [[300 :test/one 1000 ?tx3 false] ; XXX Is this right?
+              [; Observe that the "dangling retraction" commented out immediately below is not present!
+               ; [300 :test/one 1000 ?tx3 false]
                [300 :test/one 1001 ?tx3 true]
                [300 :test/many 2002 ?tx3 true]
                [300 :test/many 2003 ?tx3 true]
