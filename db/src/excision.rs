@@ -22,7 +22,9 @@ use mentat_core::{
     Entid,
     HasSchema,
     Schema,
+    SQLValueType,
     TypedValue,
+    ValueType,
 };
 
 use entids;
@@ -59,7 +61,7 @@ use types::{
 /// transaction IDs in whatever way they see fit.
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub(crate) struct Excision {
-    pub(crate) target: Entid,
+    pub(crate) targets: BTreeSet<Entid>,
     pub(crate) attrs: Option<BTreeSet<Entid>>,
     pub(crate) before_tx: Option<Entid>,
 }
@@ -93,32 +95,43 @@ pub(crate) fn excisions<'schema>(partition_map: &'schema PartitionMap, schema: &
             }
         }
 
-        let target = avs.get(&pair(entids::DB_EXCISE)?)
-            .and_then(|ars| ars.add.iter().next().cloned())
-            .and_then(|v| v.into_entid())
-            .ok_or_else(|| DbErrorKind::BadExcision("no :db/excise".into()))?; // TODO: more details.
-
-        if schema.get_ident(target).is_some() {
-            bail!(DbErrorKind::BadExcision("cannot mutate schema".into())); // TODO: more details.
-        }
-
-        let partition = partition_map.partition_for_entid(target)
-            .ok_or_else(|| DbErrorKind::BadExcision("target has no partition".into()))?; // TODO: more details.
-        // Right now, Mentat only supports `:db.part/{db,user,tx}`, and tests hack in `:db.part/fake`.
-        if partition == ":db.part/db" || partition == ":db.part/tx" {
-            bail!(DbErrorKind::BadExcision(format!("cannot target entity in partition {}", partition).into())); // TODO: more details.
-        }
-
         let before_tx = avs.get(&pair(entids::DB_EXCISE_BEFORE_T)?)
-            .and_then(|ars| ars.add.iter().next().cloned())
+            .and_then(|ars| {
+                assert_eq!(ars.add.len(), 1, "witnessed more than one :db.excise/beforeT");
+                assert!(ars.retract.is_empty(), "witnessed [:db/retract ... :db.excise/beforeT ...]");
+                ars.add.iter().next().cloned()
+            })
             .and_then(|v| v.into_entid());
 
         let attrs = avs.get(&pair(entids::DB_EXCISE_ATTRS)?)
             .map(|ars| ars.add.clone().into_iter().filter_map(|v| v.into_entid()).collect());
 
+        let targets = avs.get(&pair(entids::DB_EXCISE)?)
+            .map(|ars| {
+                assert!(ars.retract.is_empty(), "witnessed [:db/retract ... :db/excise ...]");
+                assert!(!ars.add.is_empty(), "witnessed empty :db/excise target set");
+                let targets: BTreeSet<_> = ars.add.clone().into_iter().filter_map(|v| v.into_entid()).collect();
+                assert_eq!(targets.len(), ars.add.len(), "witnessed non-entid :db/excise target");
+                targets
+            })
+            .ok_or_else(|| DbErrorKind::BadExcision("no :db/excise".into()))?; // TODO: more details.
+
+        for target in &targets {
+            if schema.get_ident(*target).is_some() {
+                bail!(DbErrorKind::BadExcision("cannot mutate schema".into())); // TODO: more details.
+            }
+
+            let partition = partition_map.partition_for_entid(*target)
+                .ok_or_else(|| DbErrorKind::BadExcision("target has no partition".into()))?; // TODO: more details.
+            // Right now, Mentat only supports `:db.part/{db,user,tx}`, and tests hack in `:db.part/fake`.
+            if partition == ":db.part/db" || partition == ":db.part/tx" {
+                bail!(DbErrorKind::BadExcision(format!("cannot target entity in partition {}", partition).into())); // TODO: more details.
+            }
+        }
+
         let excision = Excision {
-            target,
-            attrs,
+            targets,
+            attrs: attrs.clone(),
             before_tx,
         };
 
@@ -133,24 +146,27 @@ pub(crate) fn excisions<'schema>(partition_map: &'schema PartitionMap, schema: &
 }
 
 fn excise_datoms(conn: &rusqlite::Connection, excision: &Excision) -> Result<()> {
+    let targets = excision.targets.iter().join(", ");
+
     match (excision.before_tx, &excision.attrs) {
         (Some(before_tx), Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.a IN ({}) AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
-                                 excision.target, s, before_tx).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IN ({}) AND d.a IN ({}) AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
+                                 targets, s, before_tx).as_ref(), &[])?;
         },
         (Some(before_tx), None) => {
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
-                                 excision.target, before_tx).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IN ({}) AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
+                                 targets, before_tx).as_ref(), &[])?;
         },
         (None, Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IS {} AND d.a IN ({})) DELETE FROM datoms WHERE rowid IN ids",
-                                 excision.target, s).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IN ({}) AND d.a IN ({})) DELETE FROM datoms WHERE rowid IN ids",
+                                 targets, s).as_ref(), &[])?;
         },
         (None, None) => {
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE (d.e IS {} OR (d.v IS {} AND d.a IS NOT {}))) DELETE FROM datoms WHERE rowid IN ids",
-                                 excision.target, excision.target, entids::DB_EXCISE).as_ref(), &[])?;
+            // TODO: Use AVET index to speed this up?
+            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE (d.e IN ({}) OR (d.v IN ({}) AND d.value_type_tag IS {} AND d.a IS NOT {}))) DELETE FROM datoms WHERE rowid IN ids",
+                                 targets, targets, ValueType::Ref.value_type_tag(), entids::DB_EXCISE).as_ref(), &[])?;
         },
     }
 
@@ -158,24 +174,26 @@ fn excise_datoms(conn: &rusqlite::Connection, excision: &Excision) -> Result<()>
 }
 
 fn excise_transactions_before_tx(conn: &rusqlite::Connection, excision: &Excision, before_tx: Entid) -> Result<()> {
+    let targets = excision.targets.iter().join(", ");
+
     match (excision.before_tx, &excision.attrs) {
         (Some(before_tx), Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
-            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.a IN ({}) AND t.tx <= {}) DELETE FROM transactions WHERE rowid IN ids",
-                                 excision.target, s, before_tx).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IN ({}) AND t.a IN ({}) AND t.tx <= {}) DELETE FROM transactions WHERE rowid IN ids",
+                                 targets, s, before_tx).as_ref(), &[])?;
         },
         (Some(before_tx), None) => {
-            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.tx <= {}) DELETE FROM transactions WHERE rowid IN ids",
-                                 excision.target, before_tx).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IN ({}) AND t.tx <= {}) DELETE FROM transactions WHERE rowid IN ids",
+                                 targets, before_tx).as_ref(), &[])?;
         },
         (None, Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
-            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IS {} AND t.a IN ({})) DELETE FROM transactions WHERE rowid IN ids",
-                                 excision.target, s).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.e IN ({}) AND t.a IN ({})) DELETE FROM transactions WHERE rowid IN ids",
+                                 targets, s).as_ref(), &[])?;
         },
         (None, None) => {
-            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.tx <= {} AND (t.e IS {} OR (t.v IS {} AND t.a IS NOT {}))) DELETE FROM transactions WHERE rowid IN ids",
-                                 before_tx, excision.target, excision.target, entids::DB_EXCISE).as_ref(), &[])?;
+            conn.execute(format!("WITH ids AS (SELECT t.rowid FROM transactions AS t WHERE t.tx <= {} AND (t.e IN ({}) OR (t.v IN ({}) AND t.value_type_tag IS {} AND t.a IS NOT {}))) DELETE FROM transactions WHERE rowid IN ids",
+                                 before_tx, targets, targets, ValueType::Ref.value_type_tag(), entids::DB_EXCISE).as_ref(), &[])?;
         },
     }
 
@@ -183,16 +201,21 @@ fn excise_transactions_before_tx(conn: &rusqlite::Connection, excision: &Excisio
 }
 
 pub(crate) fn enqueue_pending_excisions(conn: &rusqlite::Connection, schema: &Schema, tx_id: Entid, excisions: &ExcisionMap) -> Result<()> {
-    let mut stmt1: rusqlite::Statement = conn.prepare("INSERT INTO excisions VALUES (?, ?, ?, ?)")?;
-    let mut stmt2: rusqlite::Statement = conn.prepare("INSERT INTO excision_attrs VALUES (?, ?)")?;
+    let mut stmt1: rusqlite::Statement = conn.prepare("INSERT INTO excisions VALUES (?, ?, ?)")?;
+    let mut stmt2: rusqlite::Statement = conn.prepare("INSERT INTO excision_targets VALUES (?, ?)")?;
+    let mut stmt3: rusqlite::Statement = conn.prepare("INSERT INTO excision_attrs VALUES (?, ?)")?;
 
     for (entid, excision) in excisions {
         let status = excision.before_tx.unwrap_or(tx_id);
-        stmt1.execute(&[entid, &excision.target, &excision.before_tx, &status])?;
+        stmt1.execute(&[entid, &excision.before_tx, &status])?;
+
+        for target in &excision.targets {
+            stmt2.execute(&[entid, target])?;
+        }
 
         if let Some(ref attrs) = excision.attrs {
             for attr in attrs {
-                stmt2.execute(&[entid, attr])?;
+                stmt3.execute(&[entid, attr])?;
             }
         }
     }
@@ -207,16 +230,22 @@ pub(crate) fn enqueue_pending_excisions(conn: &rusqlite::Connection, schema: &Sc
 }
 
 fn pending_excision_list(conn: &rusqlite::Connection, partition_map: &PartitionMap, schema: &Schema) -> Result<Vec<(Entid, Excision, Entid)>> {
-    let mut stmt1: rusqlite::Statement = conn.prepare("SELECT e, target, before_tx, status FROM excisions WHERE status > 0 ORDER BY e")?;
-    let mut stmt2: rusqlite::Statement = conn.prepare("SELECT a FROM excision_attrs WHERE e IS ?")?;
+    let mut stmt1: rusqlite::Statement = conn.prepare("SELECT e, before_tx, status FROM excisions WHERE status > 0 ORDER BY e")?;
+    let mut stmt2: rusqlite::Statement = conn.prepare("SELECT target FROM excision_targets WHERE e IS ?")?;
+    let mut stmt3: rusqlite::Statement = conn.prepare("SELECT a FROM excision_attrs WHERE e IS ?")?;
 
     let m: Result<Vec<(Entid, Excision, Entid)>> = stmt1.query_and_then(&[], |row| {
         let e: Entid = row.get_checked(0)?;
-        let target: Entid = row.get_checked(1)?;
-        let before_tx: Option<Entid> = row.get_checked(2)?;
-        let status: Entid = row.get_checked(3)?;
+        let before_tx: Option<Entid> = row.get_checked(1)?;
+        let status: Entid = row.get_checked(2)?;
 
-        let attrs: Result<BTreeSet<Entid>> = stmt2.query_and_then(&[&e], |row| {
+        let targets: Result<BTreeSet<Entid>> = stmt2.query_and_then(&[&e], |row| {
+            let target: Entid = row.get_checked(0)?;
+            Ok(target)
+        })?.collect();
+        let targets = targets?;
+
+        let attrs: Result<BTreeSet<Entid>> = stmt3.query_and_then(&[&e], |row| {
             let a: Entid = row.get_checked(0)?;
             Ok(a)
         })?.collect();
@@ -229,7 +258,7 @@ fn pending_excision_list(conn: &rusqlite::Connection, partition_map: &PartitionM
         })?;
 
         let excision = Excision {
-            target,
+            targets,
             before_tx,
             attrs,
         };
