@@ -27,6 +27,10 @@ use mentat_core::{
     ValueType,
 };
 
+use db::{
+    TypedSQLValue,
+};
+
 use entids;
 
 use errors::{
@@ -121,11 +125,10 @@ pub(crate) fn excisions<'schema>(partition_map: &'schema PartitionMap, schema: &
                 bail!(DbErrorKind::BadExcision("cannot mutate schema".into())); // TODO: more details.
             }
 
-            let partition = partition_map.partition_for_entid(*target)
+            let (name, partition) = partition_map.partition_for_entid(*target)
                 .ok_or_else(|| DbErrorKind::BadExcision("target has no partition".into()))?; // TODO: more details.
-            // Right now, Mentat only supports `:db.part/{db,user,tx}`, and tests hack in `:db.part/fake`.
-            if partition == ":db.part/db" || partition == ":db.part/tx" {
-                bail!(DbErrorKind::BadExcision(format!("cannot target entity in partition {}", partition).into())); // TODO: more details.
+            if !partition.allow_excision {
+                bail!(DbErrorKind::BadExcision(format!("cannot target entity in partition {}", name).into())); // TODO: more details.
             }
         }
 

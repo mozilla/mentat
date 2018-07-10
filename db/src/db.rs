@@ -1154,8 +1154,8 @@ impl PartitionMap {
         self.values().any(|partition| partition.contains_entid(entid))
     }
 
-    pub(crate) fn partition_for_entid(&self, entid: Entid) -> Option<&str> {
-        self.iter().find(|(_name, partition)| partition.contains_entid(entid)).map(|x| x.0.as_ref())
+    pub(crate) fn partition_for_entid(&self, entid: Entid) -> Option<(&str, &Partition)> {
+        self.iter().find(|(_name, partition)| partition.contains_entid(entid)).map(|p| (p.0.as_ref(), p.1))
     }
 }
 
@@ -3174,7 +3174,7 @@ mod tests {
              [300 :test/many 2003]
              [301 :test/ref 300]]"#);
 
-        let tempid_report = assert_transact!(conn, format!(r#"[
+        let tempid_report = assert_transact!(conn, &format!(r#"[
             [:db/add "e" :db/excise 300]
             [:db/add "e" :db.excise/beforeT {}]
         ]"#, report.tx_id));
@@ -3183,7 +3183,7 @@ mod tests {
                         "{\"e\" 65536}");
 
         // After.
-        assert_matches!(conn.datoms(), format!(r#"
+        assert_matches!(conn.datoms(), &format!(r#"
             [[200 :db/ident :test/one]
              [200 :db/valueType :db.type/long]
              [200 :db/cardinality :db.cardinality/one]
@@ -3210,7 +3210,7 @@ mod tests {
         })).collect());
 
         // Before processing the pending excision, we have full transactions in the transaction log.
-        assert_matches!(conn.transactions(), format!(r#"
+        assert_matches!(conn.transactions(), &format!(r#"
             [[[200 :db/ident :test/one ?tx1 true]
               [200 :db/valueType :db.type/long ?tx1 true]
               [200 :db/cardinality :db.cardinality/one ?tx1 true]
@@ -3243,7 +3243,7 @@ mod tests {
 
         // After processing the pending excision, we have rewritten transactions in the transaction
         // log to not refer to the targeted attributes of the target entity.
-        assert_matches!(conn.transactions(), format!(r#"
+        assert_matches!(conn.transactions(), &format!(r#"
             [[[200 :db/ident :test/one ?tx1 true]
               [200 :db/valueType :db.type/long ?tx1 true]
               [200 :db/cardinality :db.cardinality/one ?tx1 true]
