@@ -298,6 +298,10 @@ pub(crate) fn ensure_no_pending_excisions(conn: &rusqlite::Connection, partition
     // very expensive.  As always, correctness first, performance second.
     vacuum_fulltext_table(conn)?;
 
+    // This is very (!) expensive, but if we really want to ensure that excised data doesn't remain
+    // on the filesystem, it's necessary.
+    conn.execute("VACUUM", &[])?;
+
     Ok(list.into_iter().map(|(entity, excision, _last_tx_needing_rewrite)| (entity, excision)).collect())
 }
 
