@@ -62,11 +62,6 @@ use errors::{
     DbErrorKind,
     Result,
 };
-// use excision::{
-//     excisions,
-//     Excision,
-//     ExcisionMap,
-// };
 use internal_types::{
     AddAndRetract,
     AEVTrie,
@@ -260,10 +255,7 @@ lazy_static! {
         r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, end INTEGER NOT NULL, idx INTEGER NOT NULL, allow_excision SMALLINT NOT NULL)"#,
 
         // Excisions are transacted as data, so they end up in the transactions table; this
-        // materializes that view.  Excisions are never removed from the transactions (or datoms)
-        // table so it's not required to include the `added` column, but let's do it so that if we
-        // grow a more uniform approach to materialized views of the transactions table, this is
-        // close to the shape of that table.
+        // materializes that view.
         //
         // `status` tracks whether an excision has been applied (0) or is pending (> 0).
         r#"CREATE TABLE excisions (e INTEGER NOT NULL UNIQUE, before_tx INTEGER, status INTEGER NOT NULL)"#,
