@@ -257,8 +257,17 @@ lazy_static! {
         // Excisions are transacted as data, so they end up in the transactions table; this
         // materializes that view.
         //
-        // `status` tracks whether an excision has been applied (0) or is pending (> 0).
-        r#"CREATE TABLE excisions (e INTEGER NOT NULL UNIQUE, before_tx INTEGER, status INTEGER NOT NULL)"#,
+        // In practice, the transactions table will be rewritten after excision incrementally.  The
+        // interval `(0, last_tx_needing_rewrite]` (which may be empty) tracks the status of
+        // incremental rewriting.  Initially, `last_tx_needing_rewrite` is set to `before_tx - 1`,
+        // which itself defaults to `(tx-transaction) - 1` if `:db.excise/beforeT` is not specified.
+        // Each incremental step fixes a length N and rewrites the transactions with IDs in the
+        // interval `(last_tx_needing_rewrite - N, last_tx_needing_rewrite]`.  Then
+        // `last_tx_needing_rewrite` is decremented by the length of the interval N.
+        //
+        // It follows that `last_tx_needing_rewrite` also tracks the whether an excision has
+        // been totally applied (0) or has transaction rewriting still pending (> 0).
+        r#"CREATE TABLE excisions (e INTEGER NOT NULL UNIQUE, before_tx INTEGER, last_tx_needing_rewrite INTEGER NOT NULL)"#,
         r#"CREATE TABLE excision_targets (e INTEGER NOT NULL, target INTEGER NOT NULL, FOREIGN KEY (e) REFERENCES excisions(e))"#,
         r#"CREATE TABLE excision_attrs (e INTEGER NOT NULL, a SMALLINT NOT NULL, FOREIGN KEY (e) REFERENCES excisions(e))"#,
         ]
