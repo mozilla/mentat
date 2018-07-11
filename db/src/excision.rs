@@ -17,6 +17,10 @@ use itertools::Itertools;
 
 use rusqlite;
 
+use edn::entities::{
+    OpType,
+};
+
 use mentat_core::{
     Attribute,
     Entid,
@@ -49,6 +53,10 @@ use schema::{
 
 use types::{
     PartitionMap,
+};
+
+use watcher::{
+    TransactWatcher,
 };
 
 /// Details about an excision:
@@ -146,30 +154,65 @@ pub(crate) fn excisions<'schema>(partition_map: &'schema PartitionMap, schema: &
     }
 }
 
-fn excise_datoms(conn: &rusqlite::Connection, excision: &Excision) -> Result<()> {
+fn excise_datoms_for_excision<W>(conn: &rusqlite::Connection, watcher: &mut W, entid: Entid, excision: &Excision) -> Result<()>
+where W: TransactWatcher {
     let targets = excision.targets.iter().join(", ");
 
+    // Each branch below collects rowids and datoms to excise: datoms for reporting to the given
+    // watcher and rowids for deleting.
     match (excision.before_tx, &excision.attrs) {
         (Some(before_tx), Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IN ({}) AND d.a IN ({}) AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
-                                 targets, s, before_tx).as_ref(), &[])?;
+            conn.execute(format!("CREATE TABLE temp.excision_{} AS SELECT rowid, index_fulltext, e, a, v, value_type_tag FROM datoms WHERE e IN ({}) AND a IN ({}) AND tx <= {}",
+                                 entid, targets, s, before_tx).as_ref(), &[])?;
         },
         (Some(before_tx), None) => {
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IN ({}) AND d.tx <= {}) DELETE FROM datoms WHERE rowid IN ids",
-                                 targets, before_tx).as_ref(), &[])?;
+            conn.execute(format!("CREATE TABLE temp.excision_{} AS SELECT rowid, index_fulltext, e, a, v, value_type_tag FROM datoms WHERE e IN ({}) AND tx <= {}",
+                                 entid, targets, before_tx).as_ref(), &[])?;
         },
         (None, Some(ref attrs)) => {
             let s = attrs.iter().join(", ");
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE d.e IN ({}) AND d.a IN ({})) DELETE FROM datoms WHERE rowid IN ids",
-                                 targets, s).as_ref(), &[])?;
+            conn.execute(format!("CREATE TABLE temp.excision_{} AS SELECT rowid, index_fulltext, e, a, v, value_type_tag FROM datoms WHERE e IN ({}) AND a IN ({})",
+                                 entid, targets, s).as_ref(), &[])?;
         },
         (None, None) => {
             // TODO: Use AVET index to speed this up?
-            conn.execute(format!("WITH ids AS (SELECT d.rowid FROM datoms AS d WHERE (d.e IN ({}) OR (d.v IN ({}) AND d.value_type_tag IS {} AND d.a IS NOT {}))) DELETE FROM datoms WHERE rowid IN ids",
-                                 targets, targets, ValueType::Ref.value_type_tag(), entids::DB_EXCISE).as_ref(), &[])?;
+            conn.execute(format!("CREATE TABLE temp.excision_{} AS SELECT rowid, index_fulltext, e, a, v, value_type_tag FROM datoms WHERE (e IN ({}) OR (v IN ({}) AND value_type_tag IS {} AND a IS NOT {}))",
+                                 entid, targets, targets, ValueType::Ref.value_type_tag(), entids::DB_EXCISE).as_ref(), &[])?;
         },
     }
+
+    // Report all datoms (fulltext and non-fulltext) to the watcher.  This is functionally
+    // equivalent to the `all_datoms` view, but that view doesn't pass through rowid, which is
+    // required for deleting.
+    let s = r#"
+        SELECT e, a, v, value_type_tag
+        FROM temp.excision_{}
+        WHERE index_fulltext IS 0
+
+        UNION ALL
+
+        SELECT e, a, fulltext_values.text AS v, value_type_tag
+        FROM temp.excision_{}, fulltext_values
+        WHERE index_fulltext IS NOT 0 AND temp.excision_{}.v = fulltext_values.rowid
+    "#;
+    let mut stmt = conn.prepare(format!(s, entid, entid, entid).as_ref())?;
+
+    let mut rows = stmt.query(&[])?;
+
+    while let Some(row) = rows.next() {
+        let row = row?;
+        let e: Entid = row.get_checked(0)?;
+        let a: Entid = row.get_checked(1)?;
+        let value_type_tag: i32 = row.get_checked(3)?;
+        let v = TypedValue::from_sql_value_pair(row.get_checked(2)?, value_type_tag)?;
+
+        watcher.datom(OpType::Retract, e, a, &v);
+    }
+
+    conn.execute(format!("WITH rowids AS (SELECT rowid FROM temp.excision_{}) DELETE FROM datoms WHERE rowid IN rowids", entid).as_ref(), &[])?;
+
+    conn.execute(format!("DROP TABLE temp.excision_{}", entid).as_ref(), &[])?;
 
     Ok(())
 }
@@ -206,10 +249,7 @@ fn excise_transactions_in_range(conn: &rusqlite::Connection, excision: &Excision
 }
 
 /// Record the given `excisions` as applying to the transaction with ID `tx_id`.
-///
-/// This also starts processing the excision: right now, that means that the `datoms` table is
-/// updated in place synchronously.
-pub(crate) fn begin_excisions(conn: &rusqlite::Connection, schema: &Schema, tx_id: Entid, excisions: &ExcisionMap) -> Result<()> {
+pub(crate) fn enqueue_excisions(conn: &rusqlite::Connection, schema: &Schema, tx_id: Entid, excisions: &ExcisionMap) -> Result<()> {
     let mut stmt1: rusqlite::Statement = conn.prepare("INSERT INTO excisions VALUES (?, ?, ?)")?;
     let mut stmt2: rusqlite::Statement = conn.prepare("INSERT INTO excision_targets VALUES (?, ?)")?;
     let mut stmt3: rusqlite::Statement = conn.prepare("INSERT INTO excision_attrs VALUES (?, ?)")?;
@@ -229,10 +269,17 @@ pub(crate) fn begin_excisions(conn: &rusqlite::Connection, schema: &Schema, tx_i
         }
     }
 
-    // Might as well not interleave writes to "excisions{_attrs,_targets}" with writes to "datoms".
-    // This also leaves open the door for a more efficient bulk operation.
-    for (_entid, excision) in excisions {
-        excise_datoms(conn, &excision)?;
+    Ok(())
+}
+
+/// Start processing the given `excisions`: update the `datoms` table in place, synchronously.
+///
+/// Purged datoms are reported to the given `watcher`.
+pub(crate) fn excise_datoms_for_excisions<W>(conn: &rusqlite::Connection, watcher: &mut W, excisions: &ExcisionMap) -> Result<()>
+where W: TransactWatcher {
+    // TODO: do this more efficiently.
+    for (entid, excision) in excisions {
+        excise_datoms_for_excision(conn, watcher, *entid, &excision)?;
     }
 
     Ok(())

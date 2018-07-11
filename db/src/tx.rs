@@ -791,6 +791,17 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         self.store.commit_transaction(self.tx_id)?;
 
         db::update_partition_map(self.store, &self.partition_map)?;
+
+        if let Some(excisions) = excisions {
+            if tx_might_update_metadata {
+                bail!(DbErrorKind::BadExcision("cannot mutate schema".into()));
+            }
+
+            excision::enqueue_excisions(self.store, self.schema, self.tx_id, &excisions)?;
+
+            excision::excise_datoms_for_excisions(self.store, &mut self.watcher, &excisions)?;
+        }
+
         self.watcher.done(&self.tx_id, self.schema)?;
 
         if tx_might_update_metadata {
@@ -806,18 +817,10 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             // regular transactor code paths, updating the schema and materialized views uniformly.
             // But, belt-and-braces: handle it gracefully.
             if new_schema != *self.schema_for_mutation {
-                if excisions.is_some() {
-                    bail!(DbErrorKind::BadExcision("cannot mutate schema".into()));
-                }
-
                 let old_schema = (*self.schema_for_mutation).clone(); // Clone the original Schema for comparison.
                 *self.schema_for_mutation.to_mut() = new_schema; // Store the new Schema.
                 db::update_metadata(self.store, &old_schema, &*self.schema_for_mutation, &metadata_report)?;
             }
-        }
-
-        if let Some(excisions) = excisions {
-            excision::begin_excisions(self.store, self.schema, self.tx_id, &excisions)?;
         }
 
         Ok(TxReport {

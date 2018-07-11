@@ -2924,12 +2924,21 @@ mod tests {
              [301 :test/one 1001]
              [301 :test/ref 300]]"#);
 
-        let report = assert_transact!(conn, r#"[
+        let (report, witnessed) = assert_transact_witnessed!(conn, r#"[
             {:db/id "e" :db/excise 300}
         ]"#);
         // This is implementation specific, but it should be deterministic.
         assert_matches!(tempids(&report),
                         "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/one 1000 ?tx false]
+             [300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [300 :test/many 2002 ?tx false]
+             [301 :test/ref 300 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
 
         // After.
         assert_matches!(conn.datoms(), r#"
@@ -3041,12 +3050,22 @@ mod tests {
              [301 :test/one 1001]
              [301 :test/ref 300]]"#);
 
-        let report = assert_transact!(conn, r#"[
+        let (report, witnessed) = assert_transact_witnessed!(conn, r#"[
             {:db/id "e" :db/excise 300 :db.excise/attrs [:test/one :test/many]}
         ]"#);
         // This is implementation specific, but it should be deterministic.
         assert_matches!(tempids(&report),
                         "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/one 1000 ?tx false]
+             [300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [300 :test/many 2002 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [65536 :db.excise/attrs :test/one ?tx true]
+             [65536 :db.excise/attrs :test/many ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
 
         // After.
         assert_matches!(conn.datoms(), r#"
@@ -3175,13 +3194,20 @@ mod tests {
              [300 :test/many 2003]
              [301 :test/ref 300]]"#);
 
-        let tempid_report = assert_transact!(conn, &format!(r#"[
+        let (tempid_report, witnessed) = assert_transact_witnessed!(conn, &format!(r#"[
             [:db/add "e" :db/excise 300]
             [:db/add "e" :db.excise/beforeT {}]
         ]"#, report.tx_id));
         // This is implementation specific, but it should be deterministic.
         assert_matches!(tempids(&tempid_report),
                         "{\"e\" 65536}");
+        assert_matches!(witnessed, format!(r#"
+            [[300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [65536 :db.excise/beforeT {} ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#, report.tx_id));
 
         // After.
         assert_matches!(conn.datoms(), &format!(r#"
@@ -3310,12 +3336,17 @@ mod tests {
              [300 :test/fulltext 3]
              [301 :test/fulltext 4]]"#);
 
-        let tempid_report = assert_transact!(conn, r#"[
+        let (tempid_report, witnessed) = assert_transact_witnessed!(conn, r#"[
             [:db/add "e" :db/excise 300]
         ]"#);
         // This is implementation specific, but it should be deterministic.
         assert_matches!(tempids(&tempid_report),
                         "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/fulltext "test3" ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
 
         // After.
         assert_matches!(conn.datoms(), r#"
@@ -3421,12 +3452,23 @@ mod tests {
              [301 :test/one 1001]
              [301 :test/ref 300]]"#);
 
-        let report = assert_transact!(conn, r#"[
+        let (report, witnessed) = assert_transact_witnessed!(conn, r#"[
             {:db/id "e" :db/excise [300 301]}
         ]"#);
         // This is implementation specific, but it should be deterministic.
         assert_matches!(tempids(&report),
                         "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/one 1000 ?tx false]
+             [300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [300 :test/many 2002 ?tx false]
+             [301 :test/one 1001 ?tx false]
+             [301 :test/ref 300 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [65536 :db/excise 301 ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
 
         // After.
         assert_matches!(conn.datoms(), r#"
