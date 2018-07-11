@@ -38,6 +38,7 @@ use mentat_db::{
     TxObserver,
 };
 
+#[cfg(feature = "syncable")]
 use mentat_tolstoy::Syncer;
 
 use uuid::Uuid;
@@ -237,6 +238,7 @@ impl Pullable for Store {
     }
 }
 
+#[cfg(feature = "syncable")]
 impl Syncable for Store {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
         let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatError::BadUuid(user_uuid.clone()))?;

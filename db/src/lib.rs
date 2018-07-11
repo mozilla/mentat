@@ -15,6 +15,9 @@ extern crate itertools;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 
+#[cfg(feature = "syncable")]
+#[macro_use] extern crate serde_derive;
+
 extern crate petgraph;
 extern crate rusqlite;
 extern crate tabwriter;

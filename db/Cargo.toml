@@ -6,6 +6,7 @@ workspace = ".."
 [features]
 default = []
 sqlcipher = ["rusqlite/sqlcipher"]
+syncable = ["serde", "serde_json", "serde_derive"]
 
 [dependencies]
 failure = "0.1.1"
@@ -17,6 +18,9 @@ log = "0.4"
 ordered-float = "0.5"
 time = "0.1"
 petgraph = "0.4.12"
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+serde_derive = { version = "1.0", optional = true }
 
 [dependencies.rusqlite]
 version = "0.13"

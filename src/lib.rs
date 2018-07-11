@@ -30,6 +30,8 @@ extern crate mentat_query_projector;
 extern crate mentat_query_pull;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
+
+#[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
 
 pub use mentat_core::{
