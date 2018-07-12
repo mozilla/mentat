@@ -60,7 +60,6 @@ use std::iter::{
 use db;
 use db::{
     MentatStoring,
-    PartitionMapping,
 };
 use edn::{
     InternSet,

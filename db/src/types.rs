@@ -10,10 +10,17 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
 use std::collections::{
     BTreeMap,
     BTreeSet,
+    HashMap,
+};
+use std::iter::{
+    FromIterator,
+};
+use std::ops::{
+    Deref,
+    DerefMut,
 };
 
 extern crate mentat_core;
@@ -37,7 +44,7 @@ use edn::entities::{
 use errors;
 
 /// Represents one partition of the entid space.
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
 #[cfg_attr(feature = "syncable", derive(Serialize,Deserialize))]
 pub struct Partition {
     /// The first entid in the partition.
@@ -66,7 +73,28 @@ impl Partition {
 }
 
 /// Map partition names to `Partition` instances.
-pub type PartitionMap = BTreeMap<String, Partition>;
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialOrd, PartialEq)]
+pub struct PartitionMap(BTreeMap<String, Partition>);
+
+impl Deref for PartitionMap {
+    type Target = BTreeMap<String, Partition>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PartitionMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl FromIterator<(String, Partition)> for PartitionMap {
+    fn from_iter<T: IntoIterator<Item=(String, Partition)>>(iter: T) -> Self {
+        PartitionMap(iter.into_iter().collect())
+    }
+}
 
 /// Represents the metadata required to query from, or apply transactions to, a Mentat store.
 ///
