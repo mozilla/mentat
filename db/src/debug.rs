@@ -17,16 +17,16 @@
 // against it.
 //
 // This is a macro only to give nice line numbers when tests fail.
-#[macro_export]
 macro_rules! assert_matches {
     ( $input: expr, $expected: expr ) => {{
         // Failure to parse the expected pattern is a coding error, so we unwrap.
         let pattern_value = edn::parse::value($expected.borrow())
             .expect(format!("to be able to parse expected {}", $expected).as_str())
             .without_spans();
-        assert!($input.matches(&pattern_value),
+        let input_value = $input.to_edn();
+        assert!(input_value.matches(&pattern_value),
                 "Expected value:\n{}\nto match pattern:\n{}\n",
-                $input.to_pretty(120).unwrap(),
+                input_value.to_pretty(120).unwrap(),
                 pattern_value.to_pretty(120).unwrap());
     }}
 }
@@ -34,13 +34,14 @@ macro_rules! assert_matches {
 // Transact $input against the given $conn, expecting success or a `Result<TxReport, String>`.
 //
 // This unwraps safely and makes asserting errors pleasant.
-#[macro_export]
 macro_rules! assert_transact {
     ( $conn: expr, $input: expr, $expected: expr ) => {{
+        trace!("assert_transact: {}", $input);
         let result = $conn.transact($input).map_err(|e| e.to_string());
         assert_eq!(result, $expected.map_err(|e| e.to_string()));
     }};
     ( $conn: expr, $input: expr ) => {{
+        trace!("assert_transact: {}", $input);
         let result = $conn.transact($input);
         assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
         result.unwrap()
@@ -120,7 +121,7 @@ pub struct Transactions(pub Vec<Datoms>);
 pub struct FulltextValues(pub Vec<(i64, String)>);
 
 impl Datom {
-    pub fn into_edn(&self) -> edn::Value {
+    pub fn to_edn(&self) -> edn::Value {
         let f = |entid: &EntidOrIdent| -> edn::Value {
             match *entid {
                 EntidOrIdent::Entid(ref y) => edn::Value::Integer(y.clone()),
@@ -139,19 +140,19 @@ impl Datom {
 }
 
 impl Datoms {
-    pub fn into_edn(&self) -> edn::Value {
-        edn::Value::Vector((&self.0).into_iter().map(|x| x.into_edn()).collect())
+    pub fn to_edn(&self) -> edn::Value {
+        edn::Value::Vector((&self.0).into_iter().map(|x| x.to_edn()).collect())
     }
 }
 
 impl Transactions {
-    pub fn into_edn(&self) -> edn::Value {
-        edn::Value::Vector((&self.0).into_iter().map(|x| x.into_edn()).collect())
+    pub fn to_edn(&self) -> edn::Value {
+        edn::Value::Vector((&self.0).into_iter().map(|x| x.to_edn()).collect())
     }
 }
 
 impl FulltextValues {
-    pub fn into_edn(&self) -> edn::Value {
+    pub fn to_edn(&self) -> edn::Value {
         edn::Value::Vector((&self.0).into_iter().map(|&(x, ref y)| edn::Value::Vector(vec![edn::Value::Integer(x), edn::Value::Text(y.clone())])).collect())
     }
 }
@@ -414,16 +415,20 @@ impl TestConn {
         self.partition_map.get(&":db.part/tx".to_string()).unwrap().index - 1
     }
 
-    pub fn last_transaction(&self) -> edn::Value {
-        transactions_after(&self.sqlite, &self.schema, self.last_tx_id() - 1).expect("last_transaction").0[0].into_edn()
+    pub fn last_transaction(&self) -> Datoms {
+        transactions_after(&self.sqlite, &self.schema, self.last_tx_id() - 1).expect("last_transaction").0.pop().unwrap()
     }
 
-    pub fn datoms(&self) -> edn::Value {
-        datoms_after(&self.sqlite, &self.schema, bootstrap::TX0).expect("datoms").into_edn()
+    pub fn transactions(&self) -> Transactions {
+        transactions_after(&self.sqlite, &self.schema, bootstrap::TX0).expect("transactions")
     }
 
-    pub fn fulltext_values(&self) -> edn::Value {
-        fulltext_values(&self.sqlite).expect("fulltext_values").into_edn()
+    pub fn datoms(&self) -> Datoms {
+        datoms_after(&self.sqlite, &self.schema, bootstrap::TX0).expect("datoms")
+    }
+
+    pub fn fulltext_values(&self) -> FulltextValues {
+        fulltext_values(&self.sqlite).expect("fulltext_values")
     }
 
     pub fn with_sqlite(mut conn: rusqlite::Connection) -> TestConn {
@@ -466,10 +471,18 @@ impl Default for TestConn {
     }
 }
 
-pub fn tempids(report: &TxReport) -> edn::Value {
+pub struct TempIds(edn::Value);
+
+impl TempIds {
+    pub fn to_edn(&self) -> edn::Value {
+        self.0.clone()
+    }
+}
+
+pub fn tempids(report: &TxReport) -> TempIds {
     let mut map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
     for (tempid, &entid) in report.tempids.iter() {
         map.insert(edn::Value::Text(tempid.clone()), edn::Value::Integer(entid));
     }
-    edn::Value::Map(map)
+    TempIds(edn::Value::Map(map))
 }
