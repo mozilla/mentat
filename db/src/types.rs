@@ -48,27 +48,40 @@ use errors;
 #[cfg_attr(feature = "syncable", derive(Serialize,Deserialize))]
 pub struct Partition {
     /// The first entid in the partition.
-    pub start: i64,
+    pub start: Entid,
     /// Maximum allowed entid in the partition.
-    pub end: i64,
-    /// The next entid to be allocated in the partition.
-    pub index: i64,
+    pub end: Entid,
     /// `true` if entids in the partition can be excised with `:db/excise`.
     pub allow_excision: bool,
+    /// The next entid to be allocated in the partition.
+    /// Unless you must use this directly, prefer using provided setter and getter helpers.
+    pub(crate) next_entid_to_allocate: Entid,
 }
 
 impl Partition {
-    pub fn new(start: i64, end: i64, index: i64, allow_excision: bool) -> Partition {
-        assert!(start <= index, "A partition represents a monotonic increasing sequence of entids.");
-        Partition { start, end, index, allow_excision }
+    pub fn new(start: Entid, end: Entid, next_entid_to_allocate: Entid, allow_excision: bool) -> Partition {
+        assert!(
+            start <= next_entid_to_allocate && next_entid_to_allocate <= end,
+            "A partition represents a monotonic increasing sequence of entids."
+        );
+        Partition { start, end, next_entid_to_allocate, allow_excision }
     }
 
-    pub fn contains_entid(&self, e: i64) -> bool {
-        (e >= self.start) && (e < self.index)
+    pub fn contains_entid(&self, e: Entid) -> bool {
+        (e >= self.start) && (e < self.next_entid_to_allocate)
     }
 
-    pub fn allows_entid(&self, e: i64) -> bool {
+    pub fn allows_entid(&self, e: Entid) -> bool {
         (e >= self.start) && (e <= self.end)
+    }
+
+    pub fn next_entid(&self) -> Entid {
+        self.next_entid_to_allocate
+    }
+
+    pub fn set_next_entid(&mut self, e: Entid) {
+        assert!(self.allows_entid(e), "Partition index must be within its allocated space.");
+        self.next_entid_to_allocate = e;
     }
 }
 
@@ -145,4 +158,58 @@ pub trait TransactableValue: Clone {
     fn into_entity_place(self) -> errors::Result<EntityPlace<Self>>;
 
     fn as_tempid(&self) -> Option<TempId>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Partition;
+
+    #[test]
+    #[should_panic(expected = "A partition represents a monotonic increasing sequence of entids.")]
+    fn test_partition_limits_sanity1() {
+        Partition::new(100, 1000, 1001, true);
+    }
+
+    #[test]
+    #[should_panic(expected = "A partition represents a monotonic increasing sequence of entids.")]
+    fn test_partition_limits_sanity2() {
+        Partition::new(100, 1000, 99, true);
+    }
+
+    #[test]
+    #[should_panic(expected = "Partition index must be within its allocated space.")]
+    fn test_partition_limits_boundary1() {
+        let mut part = Partition::new(100, 1000, 100, true);
+        part.set_next_entid(2000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Partition index must be within its allocated space.")]
+    fn test_partition_limits_boundary2() {
+        let mut part = Partition::new(100, 1000, 100, true);
+        part.set_next_entid(1001);
+    }
+
+    #[test]
+    #[should_panic(expected = "Partition index must be within its allocated space.")]
+    fn test_partition_limits_boundary3() {
+        let mut part = Partition::new(100, 1000, 100, true);
+        part.set_next_entid(99);
+    }
+
+    #[test]
+    #[should_panic(expected = "Partition index must be within its allocated space.")]
+    fn test_partition_limits_boundary4() {
+        let mut part = Partition::new(100, 1000, 100, true);
+        part.set_next_entid(-100);
+    }
+
+    #[test]
+    fn test_partition_limits_boundary5() {
+        let mut part = Partition::new(100, 1000, 100, true);
+        part.set_next_entid(100); // First entid that's allowed.
+        part.set_next_entid(101); // Just after first.
+        part.set_next_entid(1000); // Last entid that's allowed.
+        part.set_next_entid(999); // Just before last.
+    }
 }

@@ -297,7 +297,7 @@ pub fn create_current_version(conn: &mut rusqlite::Connection) -> Result<DB> {
     // This is necessary: `transact` will only UPDATE parts, not INSERT them if they're missing.
     for (part, partition) in db.partition_map.iter() {
         // TODO: Convert "keyword" part to SQL using Value conversion.
-        tx.execute("INSERT INTO parts (part, start, end, idx, allow_excision) VALUES (?, ?, ?, ?, ?)", &[part, &partition.start, &partition.end, &partition.index, &partition.allow_excision])?;
+        tx.execute("INSERT INTO parts (part, start, end, idx, allow_excision) VALUES (?, ?, ?, ?, ?)", &[part, &partition.start, &partition.end, &partition.next_entid(), &partition.allow_excision])?;
     }
 
     // TODO: return to transact_internal to self-manage the encompassing SQLite transaction.
@@ -980,9 +980,11 @@ pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &Partiti
     let s = format!("UPDATE parts SET idx = CASE {} ELSE idx END",
                     repeat("WHEN part = ? THEN ?").take(partition_map.len()).join(" "));
 
+    // Lifetimes of temporary values make this building a slice of references annoying if we're
+    // using partition.next_entid() getter; instead, we peek into partition directly.
     let params: Vec<&ToSql> = partition_map.iter().flat_map(|(name, partition)| {
         once(name as &ToSql)
-            .chain(once(&partition.index as &ToSql))
+            .chain(once(&partition.next_entid_to_allocate as &ToSql))
     }).collect();
 
     // TODO: only cache the latest of these statements.  Changing the set of partitions isn't
@@ -1088,9 +1090,9 @@ impl PartitionMap {
     pub(crate) fn allocate_entids(&mut self, partition: &str, n: usize) -> Range<i64> {
         match self.get_mut(partition) {
             Some(partition) => {
-                let idx = partition.index;
-                partition.index += n as i64;
-                idx..partition.index
+                let idx = partition.next_entid();
+                partition.set_next_entid(idx + n as i64);
+                idx..partition.next_entid()
             },
             // This is a programming error.
             None => panic!("Cannot allocate entid from unknown partition: {}", partition),

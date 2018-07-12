@@ -533,7 +533,7 @@ impl<'a, 'c> InProgress<'a, 'c> {
     }
 
     pub fn last_tx_id(&self) -> Entid {
-        self.partition_map[":db.part/tx"].index - 1
+        self.partition_map[":db.part/tx"].next_entid() - 1
     }
 }
 
@@ -630,7 +630,7 @@ impl Conn {
         // The mutex is taken during this entire method.
         let metadata = self.metadata.lock().unwrap();
 
-        metadata.partition_map[":db.part/tx"].index - 1
+        metadata.partition_map[":db.part/tx"].next_entid() - 1
     }
 
     /// Query the Mentat store, using the given connection and the current metadata.
@@ -884,7 +884,7 @@ mod tests {
         // Let's find out the next ID that'll be allocated. We're going to try to collide with it
         // a bit later.
         let next = conn.metadata.lock().expect("metadata")
-                       .partition_map[":db.part/user"].index;
+                       .partition_map[":db.part/user"].next_entid();
         let t = format!("[[:db/add {} :db.schema/attribute \"tempid\"]]", next + 1);
 
         match conn.transact(&mut sqlite, t.as_str()) {
@@ -908,7 +908,7 @@ mod tests {
         let mut conn = Conn::connect(&mut sqlite).unwrap();
 
         // Let's find out the next ID that'll be allocated. We're going to try to collide with it.
-        let next = conn.metadata.lock().expect("metadata").partition_map[":db.part/user"].index;
+        let next = conn.metadata.lock().expect("metadata").partition_map[":db.part/user"].next_entid();
 
         // If this were to be resolved, we'd get [:db/add 65537 :db.schema/attribute 65537], but
         // we should reject this, because the first ID was provided by the user!
@@ -931,9 +931,9 @@ mod tests {
     }
 
     /// Return the entid that will be allocated to the next transacted tempid.
-    fn get_next_entid(conn: &Conn) -> i64 {
+    fn get_next_entid(conn: &Conn) -> Entid {
         let partition_map = &conn.metadata.lock().unwrap().partition_map;
-        partition_map.get(":db.part/user").unwrap().index
+        partition_map.get(":db.part/user").unwrap().next_entid()
     }
 
     #[test]
