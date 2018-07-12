@@ -39,21 +39,51 @@ macro_rules! assert_matches {
 macro_rules! assert_transact {
     ( $conn: expr, $input: expr, $expected: expr ) => {{
         trace!("assert_transact: {}", $input);
-        let result = $conn.transact($input).map_err(|e| e.to_string());
+        let result = $conn.transact($input, NullWatcher()).map_err(|e| e.to_string());
         assert_eq!(result, $expected.map_err(|e| e.to_string()));
     }};
     ( $conn: expr, $input: expr ) => {{
         trace!("assert_transact: {}", $input);
-        let result = $conn.transact($input);
+        let result = $conn.transact($input, NullWatcher());
         assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
         result.unwrap()
     }};
 }
 
-use std::borrow::Borrow;
-use std::collections::BTreeMap;
+// Transact $input against the given $conn, expecting success.
+//
+// This unwraps safely and makes asserting errors pleasant.
+#[macro_export]
+macro_rules! assert_transact_witnessed {
+    ( $conn: expr, $input: expr ) => {{
+        let witnessed = ::std::cell::RefCell::new(None);
+        let result = { // Scope borrow of witnessed.
+            let watcher = debug::CollectingWatcher::new(&witnessed);
+
+            trace!("assert_transact: {}", $input);
+            let result = $conn.transact($input, watcher);
+            assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
+            result
+        };
+
+        let witnessed = witnessed.into_inner();
+        assert!(witnessed.is_some(), "Expected Some(_), got `None`");
+
+        let (datoms, tx) = witnessed.unwrap();
+        let datoms = debug::Datoms::new($conn.schema.clone(), datoms.into_iter().map(|(op, e, a, v)| debug::Datom { e, a, v, tx, added: Some(op == OpType::Add) }).collect());
+
+        (result.unwrap(), datoms)
+    }};
+}
+
+use std::cell::{
+    RefCell,
+};
 use std::cmp::{
     Ordering,
+};
+use std::collections::{
+    BTreeMap,
 };
 use std::io::{
     Write,
@@ -95,6 +125,7 @@ use edn::{
 };
 use edn::entities::{
     EntidOrIdent,
+    OpType,
     TempId,
 };
 use internal_types::{
@@ -103,12 +134,19 @@ use internal_types::{
 use schema::{
     SchemaBuilding,
 };
-use types::*;
 use tx::{
     transact,
     transact_terms,
 };
-use watcher::NullWatcher;
+use types::{
+    Partition,
+    PartitionMap,
+    Schema,
+};
+pub use watcher::{
+    NullWatcher,
+    TransactWatcher,
+};
 
 /// Represents a *datom* (assertion) in the store.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
@@ -372,16 +410,16 @@ impl TestConn {
         assert_eq!(materialized_schema, self.schema);
     }
 
-    pub fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
+    pub fn transact<W>(&mut self, transaction: &str, watcher: W) -> Result<TxReport> where W: TransactWatcher {
         // Failure to parse the transaction is a coding error, so we unwrap.
-        let entities = edn::parse::entities(transaction.borrow()).expect(format!("to be able to parse {} into entities", transaction.borrow()).as_str());
+        let entities = edn::parse::entities(transaction).expect(format!("to be able to parse {} into entities", transaction).as_str());
 
         let details = {
             // The block scopes the borrow of self.sqlite.
             // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
             let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
             // Applying the transaction can fail, so we don't unwrap.
-            let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), entities)?;
+            let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, watcher, entities)?;
             tx.commit()?;
             details
         };
@@ -495,4 +533,33 @@ pub fn tempids(report: &TxReport) -> TempIds {
         map.insert(edn::Value::Text(tempid.clone()), edn::Value::Integer(entid));
     }
     TempIds(edn::Value::Map(map))
+}
+
+/// A `CollectingWatcher` accumulates witnessed datoms.
+///
+/// The internal `RefCell` is how we get data _out_ of a `TransactWatcher`, which isn't well
+/// supported right now.
+pub struct CollectingWatcher<'a> {
+    pub cell: &'a RefCell<Option<(Vec<(OpType, Entid, Entid, TypedValue)>, Entid)>>,
+    pub collection: Vec<(OpType, Entid, Entid, TypedValue)>,
+}
+
+impl<'a> CollectingWatcher<'a> {
+    pub fn new(cell: &'a RefCell<Option<(Vec<(OpType, Entid, Entid, TypedValue)>, Entid)>>) -> Self {
+        CollectingWatcher { cell, collection: Vec::new() }
+    }
+}
+
+impl<'a> TransactWatcher for CollectingWatcher<'a> {
+    fn datom(&mut self, op: OpType, e: Entid, a: Entid, v: &TypedValue) {
+        self.collection.push((op, e, a, v.clone()))
+    }
+
+    fn done(&mut self, tx: &Entid, _schema: &Schema) -> Result<()> {
+        let mut temp = vec![];
+        ::std::mem::swap(&mut temp, &mut self.collection);
+        self.cell.replace(Some((temp, *tx)));
+
+        Ok(())
+    }
 }
