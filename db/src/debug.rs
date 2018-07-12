@@ -379,7 +379,7 @@ impl TestConn {
     }
 
     pub fn last_tx_id(&self) -> Entid {
-        self.partition_map.get(&":db.part/tx".to_string()).unwrap().index - 1
+        self.partition_map.get(&":db.part/tx".to_string()).unwrap().next_entid() - 1
     }
 
     pub fn last_transaction(&self) -> Datoms {
@@ -415,7 +415,7 @@ impl TestConn {
         // Add a fake partition to allow tests to do things like
         // [:db/add 111 :foo/bar 222]
         {
-            let fake_partition = Partition { start: 100, end: 2000, index: 1000, allow_excision: true };
+            let fake_partition = Partition::new(100, 2000, 1000, true);
             parts.insert(":db.part/fake".into(), fake_partition);
         }
 
