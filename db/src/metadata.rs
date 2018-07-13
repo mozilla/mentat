@@ -133,6 +133,7 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                     },
                 }
             },
+
             entids::DB_UNIQUE => {
                 match *value {
                     TypedValue::Ref(u) => {
@@ -151,9 +152,18 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
                     _ => bail!(DbErrorKind::BadSchemaAssertion(format!("Expected [:db/retract _ :db/unique :db.unique/_] but got [:db/retract {} :db/unique {:?}]", entid, value)))
                 }
             },
-            _ => {
+
+            entids::DB_VALUE_TYPE |
+            entids::DB_CARDINALITY |
+            entids::DB_INDEX |
+            entids::DB_FULLTEXT |
+            entids::DB_NO_HISTORY => {
                 bail!(DbErrorKind::BadSchemaAssertion(format!("Retracting attribute {} for entity {} not permitted.", attr, entid)));
             },
+
+            _ => {
+                bail!(DbErrorKind::BadSchemaAssertion(format!("Do not recognize attribute {} for entid {}", attr, entid)))
+            }
         }
     }
 
