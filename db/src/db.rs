@@ -1498,6 +1498,22 @@ mod tests {
                           [200 :db.schema/attribute 101]]");
     }
 
+    #[test]
+    fn test_db_doc_is_not_schema() {
+        let mut conn = TestConn::default();
+
+        // Neither transaction below is defining a new attribute.  That is, it's fine to use :db/doc
+        // to describe any entity in the system, not just attributes.  And in particular, including
+        // :db/doc shouldn't make the transactor consider the entity a schema attribute.
+        assert_transact!(conn, r#"
+            [{:db/doc "test"}]
+        "#);
+
+        assert_transact!(conn, r#"
+            [{:db/ident :test/id :db/doc "test"}]
+        "#);
+    }
+
     // Unique is required!
     #[test]
     fn test_upsert_issue_538() {

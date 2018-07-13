@@ -121,11 +121,8 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
     for (entid, attr, ref value) in retractions.into_iter() {
         let builder = builders.entry(entid).or_insert_with(|| attribute_builder_to_modify(entid, attribute_map));
         match attr {
-            // You can only retract :db/unique, :db/doc, :db/isComponent; all others
-            // must be altered instead of retracted, or are not allowed to change.
-            entids::DB_DOC => {
-                // Nothing to do here; we don't keep docstrings inside `Attribute`s.
-            },
+            // You can only retract :db/unique, :db/isComponent; all others must be altered instead
+            // of retracted, or are not allowed to change.
             entids::DB_IS_COMPONENT => {
                 match value {
                     &TypedValue::Boolean(v) if builder.component == Some(v) => {
@@ -166,13 +163,6 @@ pub fn update_attribute_map_from_entid_triples<A, R>(attribute_map: &mut Attribu
 
         // TODO: improve error messages throughout.
         match attr {
-            entids::DB_DOC => {
-                match *value {
-                    TypedValue::String(_) => {},
-                    _ => bail!(DbErrorKind::BadSchemaAssertion(format!("Expected [... :db/doc \"string value\"] but got [... :db/doc {:?}] for entid {} and attribute {}", value, entid, attr)))
-                }
-            },
-
             entids::DB_VALUE_TYPE => {
                 match *value {
                     TypedValue::Ref(entids::DB_TYPE_BOOLEAN) => { builder.value_type(ValueType::Boolean); },

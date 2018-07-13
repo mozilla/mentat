@@ -61,7 +61,7 @@ pub const DB_SCHEMA_CORE: Entid = 40;
 /// Return `false` if the given attribute will not change the metadata: recognized idents, schema,
 /// partitions in the partition map.
 pub fn might_update_metadata(attribute: Entid) -> bool {
-    if attribute > DB_DOC {
+    if attribute >= DB_DOC {
         return false
     }
     match attribute {
@@ -69,7 +69,6 @@ pub fn might_update_metadata(attribute: Entid) -> bool {
         DB_IDENT |
         // Schema.
         DB_CARDINALITY |
-        DB_DOC |
         DB_FULLTEXT |
         DB_INDEX |
         DB_IS_COMPONENT |
@@ -89,9 +88,8 @@ lazy_static! {
 
     /// Attributes that are "schema related".  These might change the "schema" materialized view.
     pub static ref SCHEMA_SQL_LIST: String = {
-        format!("({}, {}, {}, {}, {}, {}, {})",
+        format!("({}, {}, {}, {}, {}, {})",
                 DB_CARDINALITY,
-                DB_DOC,
                 DB_FULLTEXT,
                 DB_INDEX,
                 DB_IS_COMPONENT,
@@ -101,9 +99,8 @@ lazy_static! {
 
     /// Attributes that are "metadata" related.  These might change one of the materialized views.
     pub static ref METADATA_SQL_LIST: String = {
-        format!("({}, {}, {}, {}, {}, {}, {}, {})",
+        format!("({}, {}, {}, {}, {}, {}, {})",
                 DB_CARDINALITY,
-                DB_DOC,
                 DB_FULLTEXT,
                 DB_IDENT,
                 DB_INDEX,
