@@ -39,11 +39,12 @@ pub use errors::{
 };
 #[macro_use] pub mod errors;
 
+#[macro_use] pub mod debug;
+
 mod add_retract_alter_set;
 pub mod cache;
 pub mod db;
 mod bootstrap;
-pub mod debug;
 pub mod entids;
 pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod metadata;
