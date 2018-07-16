@@ -18,6 +18,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate edn;
+
 extern crate hyper;
 // TODO https://github.com/mozilla/mentat/issues/569
 // extern crate hyper_tls;
@@ -26,7 +28,10 @@ extern crate futures;
 extern crate serde;
 extern crate serde_cbor;
 extern crate serde_json;
-extern crate mentat_db;
+
+// See https://github.com/rust-lang/rust/issues/44342#issuecomment-376010077.
+#[cfg_attr(test, macro_use)] extern crate mentat_db;
+
 extern crate mentat_core;
 extern crate rusqlite;
 extern crate uuid;
