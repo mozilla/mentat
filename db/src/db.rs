@@ -426,14 +426,10 @@ impl TypedSQLValue for TypedValue {
 /// store.
 pub(crate) fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -> Result<Vec<(Entid, Entid, TypedValue)>> {
     let mut stmt: rusqlite::Statement = conn.prepare(format!("SELECT e, a, v, value_type_tag FROM {}", table).as_str())?;
-    let m: Result<Vec<(Entid, Entid, TypedValue)>> = stmt.query_and_then(&[], |row| {
-        let e: Entid = row.get_checked(0)?;
-        let a: Entid = row.get_checked(1)?;
-        let v: rusqlite::types::Value = row.get_checked(2)?;
-        let value_type_tag: i32 = row.get_checked(3)?;
-        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
-        Ok((e, a, typed_value))
-    })?.collect();
+    let m: Result<Vec<_>> = stmt.query_and_then(
+        &[],
+        row_to_datom_assertion
+    )?.collect();
     m
 }
 
@@ -515,14 +511,20 @@ pub trait MentatStoring {
     fn insert_non_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
     fn insert_fts_searches<'a>(&self, entities: &'a [ReducedEntity], search_type: SearchType) -> Result<()>;
 
-    /// Finalize the underlying storage layer after a Mentat transaction.
+    /// Prepare the underlying storage layer for finalization after a Mentat transaction.
     ///
     /// Use this to finalize temporary tables, complete indices, revert pragmas, etc, after the
     /// final `insert_non_fts_searches` invocation.
-    fn commit_transaction(&self, tx_id: Entid) -> Result<()>;
+    fn materialize_mentat_transaction(&self, tx_id: Entid) -> Result<()>;
 
-    /// Extract metadata-related [e a typed_value added] datoms committed in the given transaction.
-    fn committed_metadata_assertions(&self, tx_id: Entid) -> Result<Vec<(Entid, Entid, TypedValue, bool)>>;
+    /// Finalize the underlying storage layer after a Mentat transaction.
+    ///
+    /// This is a final step in performing a transaction.
+    fn commit_mentat_transaction(&self, tx_id: Entid) -> Result<()>;
+
+    /// Extract metadata-related [e a typed_value added] datoms resolved in the last
+    /// materialized transaction.
+    fn resolved_metadata_assertions(&self) -> Result<Vec<(Entid, Entid, TypedValue, bool)>>;
 }
 
 /// Take search rows and complete `temp.search_results`.
@@ -945,23 +947,43 @@ impl MentatStoring for rusqlite::Connection {
         results.map(|_| ())
     }
 
-    fn commit_transaction(&self, tx_id: Entid) -> Result<()> {
-        search(&self)?;
+    fn commit_mentat_transaction(&self, tx_id: Entid) -> Result<()> {
         insert_transaction(&self, tx_id)?;
+        Ok(())
+    }
+
+    fn materialize_mentat_transaction(&self, tx_id: Entid) -> Result<()> {
+        search(&self)?;
         update_datoms(&self, tx_id)?;
         Ok(())
     }
 
-    fn committed_metadata_assertions(&self, tx_id: Entid) -> Result<Vec<(Entid, Entid, TypedValue, bool)>> {
-        // TODO: use concat! to avoid creating String instances.
-        let mut stmt = self.prepare_cached(format!("SELECT e, a, v, value_type_tag, added FROM transactions WHERE tx = ? AND a IN {} ORDER BY e, a, v, value_type_tag, added", entids::METADATA_SQL_LIST.as_str()).as_str())?;
-        let params = [&tx_id as &ToSql];
-        let m: Result<Vec<_>> = stmt.query_and_then(&params[..], |row| -> Result<(Entid, Entid, TypedValue, bool)> {
-            Ok((row.get_checked(0)?,
-                row.get_checked(1)?,
-                TypedValue::from_sql_value_pair(row.get_checked(2)?, row.get_checked(3)?)?,
-                row.get_checked(4)?))
-        })?.collect();
+    fn resolved_metadata_assertions(&self) ->  Result<Vec<(Entid, Entid, TypedValue, bool)>> {
+        let sql_stmt = format!(r#"
+            SELECT e, a, v, value_type_tag, added FROM
+            (
+                SELECT e0 as e, a0 as a, v0 as v, value_type_tag0 as value_type_tag, 1 as added
+                FROM temp.search_results
+                WHERE a0 IN {} AND added0 IS 1 AND ((rid IS NULL) OR
+                    ((rid IS NOT NULL) AND (v0 IS NOT v)))
+
+                UNION
+
+                SELECT e0 as e, a0 as a, v, value_type_tag0 as value_type_tag, 0 as added
+                FROM temp.search_results
+                WHERE a0 in {} AND rid IS NOT NULL AND
+                ((added0 IS 0) OR
+                    (added0 IS 1 AND search_type IS ':db.cardinality/one' AND v0 IS NOT v))
+
+            ) ORDER BY e, a, v, value_type_tag, added"#,
+            entids::METADATA_SQL_LIST.as_str(), entids::METADATA_SQL_LIST.as_str()
+        );
+
+        let mut stmt = self.prepare_cached(&sql_stmt)?;
+        let m: Result<Vec<_>> = stmt.query_and_then(
+            &[],
+            row_to_transaction_assertion
+        )?.collect();
         m
     }
 }
@@ -993,6 +1015,43 @@ pub fn update_partition_map(conn: &rusqlite::Connection, partition_map: &Partiti
     let mut stmt = conn.prepare_cached(s.as_str())?;
     stmt.execute(&params[..]).context(DbErrorKind::FailedToUpdatePartitionMap)?;
     Ok(())
+}
+
+/// Extract metadata-related [e a typed_value added] datoms committed in the given transaction.
+pub fn committed_metadata_assertions(conn: &rusqlite::Connection, tx_id: Entid) -> Result<Vec<(Entid, Entid, TypedValue, bool)>> {
+    let sql_stmt = format!(r#"
+        SELECT e, a, v, value_type_tag, added
+        FROM transactions
+        WHERE tx = ? AND a IN {}
+        ORDER BY e, a, v, value_type_tag, added"#,
+        entids::METADATA_SQL_LIST.as_str()
+    );
+
+    let mut stmt = conn.prepare_cached(&sql_stmt)?;
+    let m: Result<Vec<_>> = stmt.query_and_then(
+        &[&tx_id as &ToSql],
+        row_to_transaction_assertion
+    )?.collect();
+    m
+}
+
+/// Takes a row, produces a transaction quadruple.
+fn row_to_transaction_assertion(row: &rusqlite::Row) -> Result<(Entid, Entid, TypedValue, bool)> {
+    Ok((
+        row.get_checked(0)?,
+        row.get_checked(1)?,
+        TypedValue::from_sql_value_pair(row.get_checked(2)?, row.get_checked(3)?)?,
+        row.get_checked(4)?
+    ))
+}
+
+/// Takes a row, produces a datom quadruple.
+fn row_to_datom_assertion(row: &rusqlite::Row) -> Result<(Entid, Entid, TypedValue)> {
+    Ok((
+        row.get_checked(0)?,
+        row.get_checked(1)?,
+        TypedValue::from_sql_value_pair(row.get_checked(2)?, row.get_checked(3)?)?
+    ))
 }
 
 /// Update the metadata materialized views based on the given metadata report.

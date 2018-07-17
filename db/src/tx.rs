@@ -130,6 +130,21 @@ use watcher::{
     TransactWatcher,
 };
 
+/// Defines transactor's high level behaviour.
+pub(crate) enum TransactorAction {
+    /// Materialize transaction into 'datoms' and metadata
+    /// views, but do not commit it into 'transactions' table.
+    /// Use this if you need transaction's "side-effects", but
+    /// don't want its by-products to end-up in the transaction log,
+    /// e.g. when rewinding.
+    Materialize,
+
+    /// Materialize transaction into 'datoms' and metadata
+    /// views, and also commit it into the 'transactions' table.
+    /// Use this for regular transactions.
+    MaterializeAndCommit,
+}
+
 /// A transaction on its way to being applied.
 #[derive(Debug)]
 pub struct Tx<'conn, 'a, W> where W: TransactWatcher {
@@ -618,10 +633,15 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
         let terms_with_temp_ids = self.resolve_lookup_refs(&lookup_ref_map, terms_with_temp_ids_and_lookup_refs)?;
 
-        self.transact_simple_terms(terms_with_temp_ids, tempid_set)
+        self.transact_simple_terms_with_action(terms_with_temp_ids, tempid_set, TransactorAction::MaterializeAndCommit)
     }
 
     pub fn transact_simple_terms<I>(&mut self, terms: I, tempid_set: InternSet<TempId>) -> Result<TxReport>
+    where I: IntoIterator<Item=TermWithTempIds> {
+        self.transact_simple_terms_with_action(terms, tempid_set, TransactorAction::MaterializeAndCommit)
+    }
+
+    fn transact_simple_terms_with_action<I>(&mut self, terms: I, tempid_set: InternSet<TempId>, action: TransactorAction) -> Result<TxReport>
     where I: IntoIterator<Item=TermWithTempIds> {
         // TODO: push these into an internal transaction report?
         let mut tempids: BTreeMap<TempId, KnownEntid> = BTreeMap::default();
@@ -786,16 +806,29 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
             self.store.insert_fts_searches(&fts_many[..], db::SearchType::Exact)?;
         }
 
-        self.store.commit_transaction(self.tx_id)?;
+        match action {
+            TransactorAction::Materialize => {
+                self.store.materialize_mentat_transaction(self.tx_id)?;
+            },
+            TransactorAction::MaterializeAndCommit => {
+                self.store.materialize_mentat_transaction(self.tx_id)?;
+                self.store.commit_mentat_transaction(self.tx_id)?;
+            }
+        }
+
         }
 
         db::update_partition_map(self.store, &self.partition_map)?;
         self.watcher.done(&self.tx_id, self.schema)?;
 
         if tx_might_update_metadata {
+            println!("might update schema!");
             // Extract changes to metadata from the store.
-            let metadata_assertions = self.store.committed_metadata_assertions(self.tx_id)?;
-
+            let metadata_assertions = match action {
+                TransactorAction::Materialize => self.store.resolved_metadata_assertions()?,
+                TransactorAction::MaterializeAndCommit => db::committed_metadata_assertions(self.store, self.tx_id)?
+            };
+            println!("assertions: {:?}", metadata_assertions);
             let mut new_schema = (*self.schema_for_mutation).clone(); // Clone the underlying Schema for modification.
             let metadata_report = metadata::update_schema_from_entid_quadruples(&mut new_schema, metadata_assertions)?;
 
@@ -874,8 +907,25 @@ pub fn transact_terms<'conn, 'a, I, W>(conn: &'conn rusqlite::Connection,
     where I: IntoIterator<Item=TermWithTempIds>,
           W: TransactWatcher {
 
+    transact_terms_with_action(
+        conn, partition_map, schema_for_mutation, schema, watcher, terms, tempid_set,
+        TransactorAction::MaterializeAndCommit
+    )
+}
+
+pub(crate) fn transact_terms_with_action<'conn, 'a, I, W>(conn: &'conn rusqlite::Connection,
+                                       partition_map: PartitionMap,
+                                       schema_for_mutation: &'a Schema,
+                                       schema: &'a Schema,
+                                       watcher: W,
+                                       terms: I,
+                                       tempid_set: InternSet<TempId>,
+                                       action: TransactorAction) -> Result<(TxReport, PartitionMap, Option<Schema>, W)>
+    where I: IntoIterator<Item=TermWithTempIds>,
+          W: TransactWatcher {
+
     let mut tx = start_tx(conn, partition_map, schema_for_mutation, schema, watcher)?;
-    let report = tx.transact_simple_terms(terms, tempid_set)?;
+    let report = tx.transact_simple_terms_with_action(terms, tempid_set, action)?;
     conclude_tx(tx, report)
 }
 
