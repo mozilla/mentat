@@ -1089,13 +1089,8 @@ impl PartitionMap {
     /// Allocate `n` fresh entids in the given `partition`.
     pub(crate) fn allocate_entids(&mut self, partition: &str, n: usize) -> Range<i64> {
         match self.get_mut(partition) {
-            Some(partition) => {
-                let idx = partition.next_entid();
-                partition.set_next_entid(idx + n as i64);
-                idx..partition.next_entid()
-            },
-            // This is a programming error.
-            None => panic!("Cannot allocate entid from unknown partition: {}", partition),
+            Some(partition) => partition.allocate_entids(n),
+            None => panic!("Cannot allocate entid from unknown partition: {}", partition)
         }
     }
 

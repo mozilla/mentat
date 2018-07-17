@@ -21,6 +21,7 @@ use std::iter::{
 use std::ops::{
     Deref,
     DerefMut,
+    Range,
 };
 
 extern crate mentat_core;
@@ -82,6 +83,12 @@ impl Partition {
     pub fn set_next_entid(&mut self, e: Entid) {
         assert!(self.allows_entid(e), "Partition index must be within its allocated space.");
         self.next_entid_to_allocate = e;
+    }
+
+    pub fn allocate_entids(&mut self, n: usize) -> Range<i64> {
+        let idx = self.next_entid();
+        self.set_next_entid(idx + n as i64);
+        idx..self.next_entid()
     }
 }
 
@@ -205,10 +212,20 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Partition index must be within its allocated space.")]
     fn test_partition_limits_boundary5() {
+        let mut part = Partition::new(100, 1000, 100, true);
+        part.allocate_entids(901); // One more than allowed.
+    }
+
+    #[test]
+    fn test_partition_limits_boundary6() {
         let mut part = Partition::new(100, 1000, 100, true);
         part.set_next_entid(100); // First entid that's allowed.
         part.set_next_entid(101); // Just after first.
+
+        assert_eq!(101..111, part.allocate_entids(10));
+
         part.set_next_entid(1000); // Last entid that's allowed.
         part.set_next_entid(999); // Just before last.
     }
