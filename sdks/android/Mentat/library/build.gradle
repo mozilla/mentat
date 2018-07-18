@@ -1,4 +1,6 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.nishtahir.rust-android'
+
 apply plugin: 'kotlin-android'
 apply plugin: 'com.jfrog.bintray'
 // Simply applying this plugin gets bintray to publish a pom file.
@@ -33,6 +35,14 @@ android {
     }
 }
 
+cargo {
+    module = '../../../../ffi'
+    targetDirectory = '../../../../target'
+    targetInclude = 'libmentat_ffi.so'
+
+    targets = ['x86']
+}
+
 dependencies {
     androidTestImplementation 'com.android.support:support-annotations:27.1.1'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
@@ -41,8 +51,21 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'net.java.dev.jna:jna:4.5.1'
 }
+
 repositories {
     mavenCentral()
+}
+
+afterEvaluate {
+    // The `cargoBuild` tasks isn't available until after evaluation.
+    android.libraryVariants.all { variant ->
+        def productFlavor = ""
+        variant.productFlavors.each {
+            productFlavor += "${it.name.capitalize()}"
+        }
+        def buildType = "${variant.buildType.name.capitalize()}"
+        tasks["generate${productFlavor}${buildType}Assets"].dependsOn(tasks["cargoBuild"])
+    }
 }
 
 // Publishing to jcenter/bintray.
@@ -70,7 +93,6 @@ task sourcesJar(type: Jar) {
 artifacts {
     archives sourcesJar
 }
-
 
 group = libGroupId
 archivesBaseName = libProjectName
