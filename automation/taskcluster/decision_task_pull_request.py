@@ -21,7 +21,8 @@ BRANCH = os.environ.get('GITHUB_HEAD_BRANCH')
 COMMIT = os.environ.get('GITHUB_HEAD_SHA')
 
 def fetch_module_names():
-    process = subprocess.Popen(["./gradlew", "--no-daemon", "printModules"], stdout=subprocess.PIPE)
+    process = subprocess.Popen(["./gradlew", "--no-daemon", "printModules"], stdout=subprocess.PIPE,
+                               cwd=os.path.join(os.getcwd(), "sdks", "android", "Mentat"))
     (output, err) = process.communicate()
     exit_code = process.wait()
 
@@ -67,7 +68,7 @@ def create_task(name, description, command):
                 "/bin/bash",
                 "--login",
                 "-cx",
-                "export TERM=dumb && git fetch %s %s && git config advice.detachedHead false && git checkout %s && ./gradlew --no-daemon clean %s" % (REPO_URL, BRANCH, COMMIT, command)
+                "export TERM=dumb && git fetch %s %s && git config advice.detachedHead false && git checkout %s && cd sdks/android/Mentat && ./gradlew --no-daemon clean %s" % (REPO_URL, BRANCH, COMMIT, command)
             ],
             "artifacts": {},
             "deadline": taskcluster.stringDate(deadline)
