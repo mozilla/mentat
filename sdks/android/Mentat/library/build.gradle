@@ -1,4 +1,6 @@
 apply plugin: 'com.android.library'
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
 apply plugin: 'kotlin-android'
 apply plugin: 'com.jfrog.bintray'
 // Simply applying this plugin gets bintray to publish a pom file.
@@ -33,6 +35,18 @@ android {
     }
 }
 
+cargo {
+    module = '../../../../ffi'
+    targetDirectory = '../../../../target'
+    targetInclude = 'libmentat_ffi.so'
+
+    targets = [
+        'x86',
+        'arm',
+        'arm64',
+    ]
+}
+
 dependencies {
     androidTestImplementation 'com.android.support:support-annotations:27.1.1'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
@@ -41,54 +55,27 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'net.java.dev.jna:jna:4.5.1'
 }
+
 repositories {
     mavenCentral()
 }
 
-// Publishing to jcenter/bintray.
-def libGroupId = properties.libGroupId
-def libRepoName = properties.libRepositoryName
-def libProjectName = properties.libProjectName
-def libProjectDescription = properties.libProjectDescription
-def libUrl = properties.libUrl
-def libVcsUrl = properties.libVcsUrl
-def libLicense = properties.libLicense
-
-Properties localProperties = null
-if (project.rootProject.file('local.properties').canRead()) {
-    localProperties = new Properties()
-    localProperties.load(project.rootProject.file('local.properties').newDataInputStream())
-}
-
-version = rootProject.ext.library['version']
-
-task sourcesJar(type: Jar) {
-    from android.sourceSets.main.java.srcDirs
-    classifier = 'sources'
-}
-
-artifacts {
-    archives sourcesJar
-}
-
-
-group = libGroupId
-archivesBaseName = libProjectName
-
-bintray {
-    user = localProperties != null ? localProperties.getProperty("bintray.user") : ""
-    key = localProperties != null ? localProperties.getProperty("bintray.apikey") : ""
-
-    configurations = ['archives']
-    pkg {
-        repo = libRepoName
-        name = libProjectName
-        userOrg = "grisha" // Temporary org name until package is on jcenter. Issue #725.
-        desc = libProjectDescription
-        websiteUrl = libUrl
-        vcsUrl = libVcsUrl
-        licenses = [libLicense]
-        publish = true
-        publicDownloadNumbers = true
+afterEvaluate {
+    // The `cargoBuild` tasks isn't available until after evaluation.
+    android.libraryVariants.all { variant ->
+        def productFlavor = ""
+        variant.productFlavors.each {
+            productFlavor += "${it.name.capitalize()}"
+        }
+        def buildType = "${variant.buildType.name.capitalize()}"
+        tasks["generate${productFlavor}${buildType}Assets"].dependsOn(tasks["cargoBuild"])
     }
 }
+
+archivesBaseName = 'mentat'
+
+apply from: '../publish.gradle'
+ext.configurePublish(
+        'org.mozilla.mentat',
+        'mentat',
+        'A persistent, embedded knowledge base.')
