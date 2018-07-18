@@ -144,6 +144,9 @@ impl DB {
 /// Used to represent lookup-refs and [TEMPID a v] upserts as they are resolved.
 pub type AVPair = (Entid, TypedValue);
 
+/// Used to represent assertions and retractions.
+pub(crate) type EAV = (Entid, Entid, TypedValue);
+
 /// Map [a v] pairs to existing entids.
 ///
 /// Used to resolve lookup-refs and upserts.

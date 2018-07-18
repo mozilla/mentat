@@ -79,6 +79,21 @@ pub fn might_update_metadata(attribute: Entid) -> bool {
     }
 }
 
+/// Return 'false' if the given attribute might be used to describe a schema attribute.
+pub fn is_a_schema_attribute(attribute: Entid) -> bool {
+    match attribute {
+        DB_IDENT |
+        DB_CARDINALITY |
+        DB_FULLTEXT |
+        DB_INDEX |
+        DB_IS_COMPONENT |
+        DB_UNIQUE |
+        DB_VALUE_TYPE =>
+            true,
+        _ => false,
+    }
+}
+
 lazy_static! {
     /// Attributes that are "ident related".  These might change the "idents" materialized view.
     pub static ref IDENTS_SQL_LIST: String = {
