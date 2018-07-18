@@ -22,7 +22,21 @@ sqlcipher = ["rusqlite/sqlcipher", "mentat_db/sqlcipher"]
 syncable = ["mentat_tolstoy", "mentat_db/syncable"]
 
 [workspace]
-members = ["tools/cli", "ffi"]
+members = [
+  "tools/cli",
+  "ffi",
+  "core",
+  "db",
+  "edn",
+  "query",
+  "query-algebrizer",
+  "query-projector",
+  "query-pull",
+  "query-sql",
+  "query-translator",
+  "sql",
+  "tolstoy",
+]
 
 [build-dependencies]
 rustc_version = "0.2"
