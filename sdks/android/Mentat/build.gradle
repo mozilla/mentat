@@ -41,3 +41,11 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+task printModules {
+    doLast {
+        subprojects.each { p ->
+            println "module: " + p.path
+        }
+    }
+}
