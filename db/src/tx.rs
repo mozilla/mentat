@@ -818,7 +818,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
 
         }
 
-        db::update_partition_map(self.store, &self.partition_map)?;
         self.watcher.done(&self.tx_id, self.schema)?;
 
         if tx_might_update_metadata {
