@@ -185,7 +185,7 @@ where W: TransactWatcher {
     // Report all datoms (fulltext and non-fulltext) to the watcher.  This is functionally
     // equivalent to the `all_datoms` view, but that view doesn't pass through rowid, which is
     // required for deleting.
-    let s = r#"
+    let s = format!(r#"
         SELECT e, a, v, value_type_tag
         FROM temp.excision_{}
         WHERE index_fulltext IS 0
@@ -195,8 +195,8 @@ where W: TransactWatcher {
         SELECT e, a, fulltext_values.text AS v, value_type_tag
         FROM temp.excision_{}, fulltext_values
         WHERE index_fulltext IS NOT 0 AND temp.excision_{}.v = fulltext_values.rowid
-    "#;
-    let mut stmt = conn.prepare(format!(s, entid, entid, entid).as_ref())?;
+    "#, entid, entid, entid);
+    let mut stmt = conn.prepare(s.as_ref())?;
 
     let mut rows = stmt.query(&[])?;
 

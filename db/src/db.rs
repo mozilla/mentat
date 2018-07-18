@@ -3201,7 +3201,7 @@ mod tests {
         // This is implementation specific, but it should be deterministic.
         assert_matches!(tempids(&tempid_report),
                         "{\"e\" 65536}");
-        assert_matches!(witnessed, format!(r#"
+        assert_matches!(witnessed, &format!(r#"
             [[300 :test/many 2000 ?tx false]
              [300 :test/many 2001 ?tx false]
              [65536 :db/excise 300 ?tx true]
