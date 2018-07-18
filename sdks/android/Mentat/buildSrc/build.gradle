@@ -1,0 +1,64 @@
+buildscript {
+    repositories {
+        jcenter()
+        google()
+    }
+
+    ext.kotlin_version = '1.2.41'
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.1.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+repositories {
+    jcenter()
+    google()
+}
+
+apply plugin: "java-gradle-plugin"
+// apply plugin: "maven-publish"
+apply plugin: "kotlin"
+
+gradlePlugin {
+    plugins {
+        simplePlugin {
+            id = "com.nishtahir.rust-android"
+            implementationClass = "com.nishtahir.RustAndroidPlugin"
+        }
+    }
+}
+
+// group 'com.nishtahir'
+// version '0.0.2'
+
+// publishing {
+//     repositories {
+//         maven {
+//             url "../samples/maven-repo"
+//         }
+//     }
+//     publications {
+//         maven(MavenPublication) {
+//             groupId 'com.nishtahir'
+//             artifactId 'rust-android'
+//             version '0.0.2'
+
+//             from components.java
+//         }
+//     }
+// }
+
+dependencies {
+    compileOnly gradleApi()
+    implementation "com.android.tools.build:gradle:3.1.2"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
