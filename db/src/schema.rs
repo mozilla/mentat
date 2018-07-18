@@ -283,7 +283,7 @@ impl SchemaBuilding for Schema {
         let metadata_report = metadata::update_attribute_map_from_entid_triples(&mut schema.attribute_map,
                                                                                 entid_assertions?,
                                                                                 // No retractions.
-                                                                                ::std::iter::empty())?;
+                                                                                vec![])?;
 
         // Rebuild the component attributes list if necessary.
         if metadata_report.attributes_did_change() {
