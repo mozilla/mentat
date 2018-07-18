@@ -63,6 +63,8 @@ pub use bootstrap::{
     USER0,
 };
 
+pub static TIMELINE_MAIN: i64 = 0;
+
 pub use schema::{
     AttributeBuilder,
     AttributeValidation,
