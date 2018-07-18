@@ -4,7 +4,7 @@ buildscript {
     ext.kotlin_version = '1.2.41'
 
     ext.library = [
-            version: '0.3.1'
+            version: '0.8.1'
     ]
 
     ext.build = [
@@ -40,4 +40,12 @@ allprojects {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+task printModules {
+    doLast {
+        subprojects.each { p ->
+            println "module: " + p.path
+        }
+    }
 }
