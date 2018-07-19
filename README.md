@@ -8,6 +8,8 @@ The first version of Project Mentat, named Datomish, [was written in ClojureScri
 
 The Rust implementation gives us a smaller compiled output, better performance, more type safety, better tooling, and easier deployment into Firefox and mobile platforms.
 
+[Documentation](https://mozilla.github.io/mentat)
+
 ---
 
 ## Motivation
