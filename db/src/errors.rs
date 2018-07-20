@@ -291,6 +291,15 @@ pub enum DbErrorKind {
     #[fail(display = "Could not update partition map")]
     FailedToUpdatePartitionMap,
 
+    #[fail(display = "Can't operate over mixed timelines")]
+    TimelinesMixed,
+
+    #[fail(display = "Can't move transactions to a non-empty timeline")]
+    TimelinesMoveToNonEmpty,
+
+    #[fail(display = "Supplied an invalid transaction range")]
+    TimelinesInvalidRange,
+
     // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
     // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
     #[fail(display = "SQL error: {}", _0)]
