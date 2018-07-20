@@ -430,6 +430,10 @@ impl TestConn {
 
         test_conn
     }
+
+    pub fn sanitized_partition_map(&mut self) {
+        self.partition_map.remove(":db.part/fake");
+    }
 }
 
 impl Default for TestConn {

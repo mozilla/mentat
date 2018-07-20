@@ -821,16 +821,13 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         self.watcher.done(&self.tx_id, self.schema)?;
 
         if tx_might_update_metadata {
-            println!("might update schema!");
             // Extract changes to metadata from the store.
             let metadata_assertions = match action {
                 TransactorAction::Materialize => self.store.resolved_metadata_assertions()?,
                 TransactorAction::MaterializeAndCommit => db::committed_metadata_assertions(self.store, self.tx_id)?
             };
-            println!("assertions: {:?}", metadata_assertions);
             let mut new_schema = (*self.schema_for_mutation).clone(); // Clone the underlying Schema for modification.
             let metadata_report = metadata::update_schema_from_entid_quadruples(&mut new_schema, metadata_assertions)?;
-
             // We might not have made any changes to the schema, even though it looked like we
             // would.  This should not happen, even during bootstrapping: we mutate an empty
             // `Schema` in this case specifically to run the bootstrapped assertions through the
