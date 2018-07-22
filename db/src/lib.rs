@@ -46,6 +46,7 @@ pub mod cache;
 pub mod db;
 mod bootstrap;
 pub mod entids;
+mod excision;
 pub mod internal_types;    // pub because we need them for building entities programmatically.
 mod metadata;
 mod schema;

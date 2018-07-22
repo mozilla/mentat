@@ -418,7 +418,10 @@ mod tests {
 
     use edn;
 
-    use mentat_db::debug::{TestConn};
+    use mentat_db::debug::{
+        NullWatcher,
+        TestConn,
+    };
 
     #[test]
     fn test_remote_client_bound_uri() {

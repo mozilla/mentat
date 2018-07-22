@@ -92,11 +92,15 @@ lazy_static! {
         ]
     };
 
-    static ref V1_CORE_SCHEMA: [(symbols::Keyword); 16] = {
+    static ref V1_CORE_SCHEMA: [(symbols::Keyword); 20] = {
             [(ns_keyword!("db", "ident")),
              (ns_keyword!("db.install", "partition")),
              (ns_keyword!("db.install", "valueType")),
              (ns_keyword!("db.install", "attribute")),
+             (ns_keyword!("db", "excise")),
+             (ns_keyword!("db.excise", "attrs")),
+             (ns_keyword!("db.excise", "beforeT")),
+             (ns_keyword!("db.excise", "before")),
              (ns_keyword!("db", "txInstant")),
              (ns_keyword!("db", "valueType")),
              (ns_keyword!("db", "cardinality")),
@@ -124,6 +128,14 @@ lazy_static! {
                         :db/cardinality :db.cardinality/many}
  :db.install/attribute {:db/valueType   :db.type/ref
                         :db/cardinality :db.cardinality/many}
+ :db/excise            {:db/valueType   :db.type/ref
+                        :db/cardinality :db.cardinality/many}
+ :db.excise/attrs      {:db/valueType   :db.type/ref
+                        :db/cardinality :db.cardinality/many}
+ :db.excise/beforeT    {:db/valueType   :db.type/ref
+                        :db/cardinality :db.cardinality/one}
+ :db.excise/before     {:db/valueType   :db.type/instant
+                        :db/cardinality :db.cardinality/one}
  ;; TODO: support user-specified functions in the future.
  ;; :db.install/function {:db/valueType :db.type/ref
  ;;                       :db/cardinality :db.cardinality/many}

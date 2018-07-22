@@ -13,7 +13,7 @@
 
 /// Low-level functions for testing.
 
-// Macro to parse a `Borrow<str>` to an `edn::Value` and assert the given `edn::Value` `matches`
+// Macro to parse a `&str` to an `edn::Value` and assert the given `edn::Value` `matches`
 // against it.
 //
 // This is a macro only to give nice line numbers when tests fail.
@@ -21,7 +21,7 @@
 macro_rules! assert_matches {
     ( $input: expr, $expected: expr ) => {{
         // Failure to parse the expected pattern is a coding error, so we unwrap.
-        let pattern_value = edn::parse::value($expected.borrow())
+        let pattern_value = edn::parse::value($expected)
             .expect(format!("to be able to parse expected {}", $expected).as_str())
             .without_spans();
         let input_value = $input.to_edn();
@@ -39,20 +39,58 @@ macro_rules! assert_matches {
 macro_rules! assert_transact {
     ( $conn: expr, $input: expr, $expected: expr ) => {{
         trace!("assert_transact: {}", $input);
-        let result = $conn.transact($input).map_err(|e| e.to_string());
+        let result = $conn.transact($input, NullWatcher()).map_err(|e| e.to_string());
         assert_eq!(result, $expected.map_err(|e| e.to_string()));
     }};
     ( $conn: expr, $input: expr ) => {{
         trace!("assert_transact: {}", $input);
-        let result = $conn.transact($input);
+        let result = $conn.transact($input, NullWatcher());
         assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
         result.unwrap()
     }};
 }
 
-use std::borrow::Borrow;
-use std::collections::BTreeMap;
-use std::io::{Write};
+// Transact $input against the given $conn, expecting success.
+//
+// This unwraps safely and makes asserting errors pleasant.
+#[macro_export]
+macro_rules! assert_transact_witnessed {
+    ( $conn: expr, $input: expr ) => {{
+        let witnessed = ::std::cell::RefCell::new(None);
+        let result = { // Scope borrow of witnessed.
+            let watcher = debug::CollectingWatcher::new(&witnessed);
+
+            trace!("assert_transact: {}", $input);
+            let result = $conn.transact($input, watcher);
+            assert!(result.is_ok(), "Expected Ok(_), got `{}`", result.unwrap_err());
+            result
+        };
+
+        let witnessed = witnessed.into_inner();
+        assert!(witnessed.is_some(), "Expected Some(_), got `None`");
+
+        let (datoms, tx) = witnessed.unwrap();
+        let datoms = debug::Datoms::new($conn.schema.clone(), datoms.into_iter().map(|(op, e, a, v)| debug::Datom { e, a, v, tx, added: Some(op == OpType::Add) }).collect());
+
+        (result.unwrap(), datoms)
+    }};
+}
+
+use std::cell::{
+    RefCell,
+};
+use std::cmp::{
+    Ordering,
+};
+use std::collections::{
+    BTreeMap,
+};
+use std::io::{
+    Write,
+};
+use std::ops::{
+    Deref,
+};
 
 use itertools::Itertools;
 use rusqlite;
@@ -61,12 +99,21 @@ use rusqlite::types::{ToSql};
 use tabwriter::TabWriter;
 
 use bootstrap;
-use db::*;
-use db::{read_attribute_map,read_ident_map};
-use edn;
+use db::{
+    TypedSQLValue,
+    ensure_current_version,
+    new_connection,
+    read_attribute_map,
+    read_ident_map,
+};
+use edn::{
+    self,
+    ValueRc,
+};
 use entids;
 use errors::Result;
 use mentat_core::{
+    Entid,
     HasSchema,
     SQLValueType,
     TxReport,
@@ -78,6 +125,7 @@ use edn::{
 };
 use edn::entities::{
     EntidOrIdent,
+    OpType,
     TempId,
 };
 use internal_types::{
@@ -86,21 +134,27 @@ use internal_types::{
 use schema::{
     SchemaBuilding,
 };
-use types::*;
 use tx::{
     transact,
     transact_terms,
 };
-use watcher::NullWatcher;
+use types::{
+    Partition,
+    PartitionMap,
+    Schema,
+};
+pub use watcher::{
+    NullWatcher,
+    TransactWatcher,
+};
 
 /// Represents a *datom* (assertion) in the store.
 #[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
 pub struct Datom {
-    // TODO: generalize this.
-    pub e: EntidOrIdent,
-    pub a: EntidOrIdent,
-    pub v: edn::Value,
-    pub tx: i64,
+    pub e: Entid,
+    pub a: Entid,
+    pub v: TypedValue,
+    pub tx: Entid,
     pub added: Option<bool>,
 }
 
@@ -109,7 +163,44 @@ pub struct Datom {
 /// To make comparision easier, we deterministically order.  The ordering is the ascending tuple
 /// ordering determined by `(e, a, (value_type_tag, v), tx)`, where `value_type_tag` is an internal
 /// value that is not exposed but is deterministic.
-pub struct Datoms(pub Vec<Datom>);
+pub struct Datoms {
+    pub schema: ValueRc<Schema>,
+    pub datoms: Vec<Datom>,
+}
+
+/// Sort datoms by `[e a v]`, grouping by `tx` first if `added` is present.
+fn datom_cmp(x: &Datom, y: &Datom) -> Ordering {
+    match x.added.is_some() {
+        true =>
+            (&x.tx, &x.e, &x.a, x.v.value_type().value_type_tag(), &x.v, &x.added).cmp(
+           &(&y.tx, &y.e, &y.a, y.v.value_type().value_type_tag(), &y.v, &y.added)),
+        false =>
+            (&x.e, &x.a, x.v.value_type().value_type_tag(), &x.v, &x.tx).cmp(
+           &(&y.e, &y.a, y.v.value_type().value_type_tag(), &y.v, &y.tx)),
+    }
+}
+
+impl Datoms {
+    pub fn new<I>(schema: I, datoms: Vec<Datom>) -> Self where I: Into<ValueRc<Schema>> {
+        let schema = schema.into();
+
+        let mut datoms = datoms;
+        datoms[..].sort_unstable_by(datom_cmp);
+
+        Datoms {
+            schema,
+            datoms,
+        }
+    }
+}
+
+impl Deref for Datoms {
+    type Target = [Datom];
+
+    fn deref(&self) -> &Self::Target {
+        self.datoms.deref()
+    }
+}
 
 /// Represents an ordered sequence of transactions in the store.
 ///
@@ -119,11 +210,19 @@ pub struct Datoms(pub Vec<Datom>);
 /// retracted assertions appear before added assertions.
 pub struct Transactions(pub Vec<Datoms>);
 
+impl Deref for Transactions {
+    type Target = [Datoms];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
 /// Represents the fulltext values in the store.
 pub struct FulltextValues(pub Vec<(i64, String)>);
 
 impl Datom {
-    pub fn to_edn(&self) -> edn::Value {
+    pub fn to_edn(&self, schema: &Schema) -> edn::Value {
         let f = |entid: &EntidOrIdent| -> edn::Value {
             match *entid {
                 EntidOrIdent::Entid(ref y) => edn::Value::Integer(y.clone()),
@@ -131,7 +230,9 @@ impl Datom {
             }
         };
 
-        let mut v = vec![f(&self.e), f(&self.a), self.v.clone()];
+        let mut v = vec![edn::Value::Integer(self.e),
+                         f(&to_entid_or_ident(schema, self.a)),
+                         self.v.clone().map_ident(schema).to_edn_value_pair().0];
         if let Some(added) = self.added {
             v.push(edn::Value::Integer(self.tx));
             v.push(edn::Value::Boolean(added));
@@ -143,7 +244,7 @@ impl Datom {
 
 impl Datoms {
     pub fn to_edn(&self) -> edn::Value {
-        edn::Value::Vector((&self.0).into_iter().map(|x| x.to_edn()).collect())
+        edn::Value::Vector((&self.datoms).into_iter().map(|x| x.to_edn(&self.schema)).collect())
     }
 }
 
@@ -175,97 +276,77 @@ impl ToIdent for TypedValue {
 }
 
 /// Convert a numeric entid to an ident `Entid` if possible, otherwise a numeric `Entid`.
-pub fn to_entid(schema: &Schema, entid: i64) -> EntidOrIdent {
+pub fn to_entid_or_ident(schema: &Schema, entid: Entid) -> EntidOrIdent {
     schema.get_ident(entid).map_or(EntidOrIdent::Entid(entid), |ident| EntidOrIdent::Ident(ident.clone()))
 }
 
 // /// Convert a symbolic ident to an ident `Entid` if possible, otherwise a numeric `Entid`.
-// pub fn to_ident(schema: &Schema, entid: i64) -> Entid {
+// pub fn to_ident(schema: &Schema, entid: Entid) -> Entid {
 //     schema.get_ident(entid).map_or(Entid::Entid(entid), |ident| Entid::Ident(ident.clone()))
 // }
 
 /// Return the set of datoms in the store, ordered by (e, a, v, tx), but not including any datoms of
 /// the form [... :db/txInstant ...].
-pub fn datoms<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S) -> Result<Datoms> {
+pub fn datoms(conn: &rusqlite::Connection, schema: &Schema) -> Result<Datoms> {
     datoms_after(conn, schema, bootstrap::TX0 - 1)
+}
+
+/// Turn a row like `SELECT e, a, v, value_type_tag, tx[, added]?` into a `Datom`, optionally
+/// filtering `:db/txInstant` datoms out.
+fn row_to_datom(schema: &Schema, filter_tx_instant: bool, row: &rusqlite::Row) -> Result<Option<Datom>> {
+    let e: Entid = row.get_checked(0)?;
+    let a: Entid = row.get_checked(1)?;
+
+    if filter_tx_instant && a == entids::DB_TX_INSTANT {
+        return Ok(None);
+    }
+
+    let v: rusqlite::types::Value = row.get_checked(2)?;
+    let value_type_tag: i32 = row.get_checked(3)?;
+
+    let attribute = schema.require_attribute_for_entid(a)?;
+    let value_type_tag = if !attribute.fulltext { value_type_tag } else { ValueType::Long.value_type_tag() };
+
+    let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
+
+    let tx: Entid = row.get_checked(4)?;
+    let added: Option<bool> = row.get_checked(5).ok();
+
+    Ok(Some(Datom {
+        e,
+        a,
+        v: typed_value,
+        tx,
+        added,
+    }))
 }
 
 /// Return the set of datoms in the store with transaction ID strictly greater than the given `tx`,
 /// ordered by (e, a, v, tx).
 ///
 /// The datom set returned does not include any datoms of the form [... :db/txInstant ...].
-pub fn datoms_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Datoms> {
-    let borrowed_schema = schema.borrow();
+pub(crate) fn datoms_after(conn: &rusqlite::Connection, schema: &Schema, tx: Entid) -> Result<Datoms> {
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx FROM datoms WHERE tx > ?")?;
 
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx FROM datoms WHERE tx > ? ORDER BY e ASC, a ASC, value_type_tag ASC, v ASC, tx ASC")?;
+    let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| row_to_datom(schema, true, row))?.collect();
 
-    let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| {
-        let e: i64 = row.get_checked(0)?;
-        let a: i64 = row.get_checked(1)?;
-
-        if a == entids::DB_TX_INSTANT {
-            return Ok(None);
-        }
-
-        let v: rusqlite::types::Value = row.get_checked(2)?;
-        let value_type_tag: i32 = row.get_checked(3)?;
-
-        let attribute = borrowed_schema.require_attribute_for_entid(a)?;
-        let value_type_tag = if !attribute.fulltext { value_type_tag } else { ValueType::Long.value_type_tag() };
-
-        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?.map_ident(borrowed_schema);
-        let (value, _) = typed_value.to_edn_value_pair();
-
-        let tx: i64 = row.get_checked(4)?;
-
-        Ok(Some(Datom {
-            e: EntidOrIdent::Entid(e),
-            a: to_entid(borrowed_schema, a),
-            v: value,
-            tx: tx,
-            added: None,
-        }))
-    })?.collect();
-
-    Ok(Datoms(r?.into_iter().filter_map(|x| x).collect()))
+    Ok(Datoms::new(schema.clone(), r?.into_iter().filter_map(|x| x).collect()))
 }
 
 /// Return the sequence of transactions in the store with transaction ID strictly greater than the
 /// given `tx`, ordered by (tx, e, a, v).
 ///
 /// Each transaction returned includes the [(transaction-tx) :db/txInstant ...] datom.
-pub fn transactions_after<S: Borrow<Schema>>(conn: &rusqlite::Connection, schema: &S, tx: i64) -> Result<Transactions> {
-    let borrowed_schema = schema.borrow();
+pub fn transactions_after(conn: &rusqlite::Connection, schema: &Schema, tx: Entid) -> Result<Transactions> {
+    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx, added FROM transactions WHERE tx > ?")?;
 
-    let mut stmt: rusqlite::Statement = conn.prepare("SELECT e, a, v, value_type_tag, tx, added FROM transactions WHERE tx > ? ORDER BY tx ASC, e ASC, a ASC, value_type_tag ASC, v ASC, added ASC")?;
+    let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| row_to_datom(schema, false, row))?.collect();
 
-    let r: Result<Vec<_>> = stmt.query_and_then(&[&tx], |row| {
-        let e: i64 = row.get_checked(0)?;
-        let a: i64 = row.get_checked(1)?;
-
-        let v: rusqlite::types::Value = row.get_checked(2)?;
-        let value_type_tag: i32 = row.get_checked(3)?;
-
-        let attribute = borrowed_schema.require_attribute_for_entid(a)?;
-        let value_type_tag = if !attribute.fulltext { value_type_tag } else { ValueType::Long.value_type_tag() };
-
-        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?.map_ident(borrowed_schema);
-        let (value, _) = typed_value.to_edn_value_pair();
-
-        let tx: i64 = row.get_checked(4)?;
-        let added: bool = row.get_checked(5)?;
-
-        Ok(Datom {
-            e: EntidOrIdent::Entid(e),
-            a: to_entid(borrowed_schema, a),
-            v: value,
-            tx: tx,
-            added: Some(added),
-        })
-    })?.collect();
+    let schema_rc: ValueRc<Schema> = schema.clone().into();
 
     // Group by tx.
-    let r: Vec<Datoms> = r?.into_iter().group_by(|x| x.tx).into_iter().map(|(_key, group)| Datoms(group.collect())).collect();
+    let r: Vec<Datoms> = r?.into_iter().filter_map(|x| x).group_by(|x| x.tx).into_iter().map(|(_key, group)| Datoms::new(schema_rc.clone(), group.collect())).collect();
+
     Ok(Transactions(r))
 }
 
@@ -329,16 +410,16 @@ impl TestConn {
         assert_eq!(materialized_schema, self.schema);
     }
 
-    pub fn transact<I>(&mut self, transaction: I) -> Result<TxReport> where I: Borrow<str> {
+    pub fn transact<W>(&mut self, transaction: &str, watcher: W) -> Result<TxReport> where W: TransactWatcher {
         // Failure to parse the transaction is a coding error, so we unwrap.
-        let entities = edn::parse::entities(transaction.borrow()).expect(format!("to be able to parse {} into entities", transaction.borrow()).as_str());
+        let entities = edn::parse::entities(transaction).expect(format!("to be able to parse {} into entities", transaction).as_str());
 
         let details = {
             // The block scopes the borrow of self.sqlite.
             // We're about to write, so go straight ahead and get an IMMEDIATE transaction.
             let tx = self.sqlite.transaction_with_behavior(TransactionBehavior::Immediate)?;
             // Applying the transaction can fail, so we don't unwrap.
-            let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, NullWatcher(), entities)?;
+            let details = transact(&tx, self.partition_map.clone(), &self.schema, &self.schema, watcher, entities)?;
             tx.commit()?;
             details
         };
@@ -403,12 +484,12 @@ impl TestConn {
 
         // Does not include :db/txInstant.
         let datoms = datoms_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(datoms.0.len(), 94);
+        assert_eq!(datoms.len(), 106);
 
         // Includes :db/txInstant.
         let transactions = transactions_after(&conn, &db.schema, 0).unwrap();
-        assert_eq!(transactions.0.len(), 1);
-        assert_eq!(transactions.0[0].0.len(), 95);
+        assert_eq!(transactions.len(), 1);
+        assert_eq!(transactions[0].len(), datoms.len() + 1);
 
         let mut parts = db.partition_map;
 
@@ -452,4 +533,33 @@ pub fn tempids(report: &TxReport) -> TempIds {
         map.insert(edn::Value::Text(tempid.clone()), edn::Value::Integer(entid));
     }
     TempIds(edn::Value::Map(map))
+}
+
+/// A `CollectingWatcher` accumulates witnessed datoms.
+///
+/// The internal `RefCell` is how we get data _out_ of a `TransactWatcher`, which isn't well
+/// supported right now.
+pub struct CollectingWatcher<'a> {
+    pub cell: &'a RefCell<Option<(Vec<(OpType, Entid, Entid, TypedValue)>, Entid)>>,
+    pub collection: Vec<(OpType, Entid, Entid, TypedValue)>,
+}
+
+impl<'a> CollectingWatcher<'a> {
+    pub fn new(cell: &'a RefCell<Option<(Vec<(OpType, Entid, Entid, TypedValue)>, Entid)>>) -> Self {
+        CollectingWatcher { cell, collection: Vec::new() }
+    }
+}
+
+impl<'a> TransactWatcher for CollectingWatcher<'a> {
+    fn datom(&mut self, op: OpType, e: Entid, a: Entid, v: &TypedValue) {
+        self.collection.push((op, e, a, v.clone()))
+    }
+
+    fn done(&mut self, tx: &Entid, _schema: &Schema) -> Result<()> {
+        let mut temp = vec![];
+        ::std::mem::swap(&mut temp, &mut self.collection);
+        self.cell.replace(Some((temp, *tx)));
+
+        Ok(())
+    }
 }

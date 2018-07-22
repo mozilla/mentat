@@ -14,7 +14,10 @@ use failure::{
     ResultExt,
 };
 
-use std::collections::HashMap;
+use std::collections::{
+    BTreeMap,
+    HashMap,
+};
 use std::collections::hash_map::{
     Entry,
 };
@@ -58,6 +61,10 @@ use mentat_core::{
 use errors::{
     DbErrorKind,
     Result,
+};
+use internal_types::{
+    AddAndRetract,
+    AEVTrie,
 };
 use metadata;
 use schema::{
@@ -246,6 +253,23 @@ lazy_static! {
         r#"CREATE INDEX idx_schema_unique ON schema (e, a, v, value_type_tag)"#,
         // TODO: store entid instead of ident for partition name.
         r#"CREATE TABLE parts (part TEXT NOT NULL PRIMARY KEY, start INTEGER NOT NULL, end INTEGER NOT NULL, idx INTEGER NOT NULL, allow_excision SMALLINT NOT NULL)"#,
+
+        // Excisions are transacted as data, so they end up in the transactions table; this
+        // materializes that view.
+        //
+        // In practice, the transactions table will be rewritten after excision incrementally.  The
+        // interval `(0, last_tx_needing_rewrite]` (which may be empty) tracks the status of
+        // incremental rewriting.  Initially, `last_tx_needing_rewrite` is set to `before_tx - 1`,
+        // which itself defaults to `(tx-transaction) - 1` if `:db.excise/beforeT` is not specified.
+        // Each incremental step fixes a length N and rewrites the transactions with IDs in the
+        // interval `(last_tx_needing_rewrite - N, last_tx_needing_rewrite]`.  Then
+        // `last_tx_needing_rewrite` is decremented by the length of the interval N.
+        //
+        // It follows that `last_tx_needing_rewrite` also tracks the whether an excision has
+        // been totally applied (0) or has transaction rewriting still pending (> 0).
+        r#"CREATE TABLE excisions (e INTEGER NOT NULL UNIQUE, before_tx INTEGER, last_tx_needing_rewrite INTEGER NOT NULL)"#,
+        r#"CREATE TABLE excision_targets (e INTEGER NOT NULL, target INTEGER NOT NULL, FOREIGN KEY (e) REFERENCES excisions(e))"#,
+        r#"CREATE TABLE excision_attrs (e INTEGER NOT NULL, a SMALLINT NOT NULL, FOREIGN KEY (e) REFERENCES excisions(e))"#,
         ]
     };
 }
@@ -437,6 +461,39 @@ pub(crate) fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -
     m
 }
 
+/// Read an arbitrary [e a v value_type_tag tx added] materialized view from the given table in the
+/// SQL store, returing an AEV trie.
+pub(crate) fn read_materialized_transaction_aev_trie<'schema>(conn: &rusqlite::Connection, schema: &'schema Schema, table: &str) -> Result<AEVTrie<'schema>> {
+    let mut stmt: rusqlite::Statement = conn.prepare(format!("SELECT e, a, v, value_type_tag, tx, added FROM {}", table).as_str())?;
+    let m: Result<Vec<_>> = stmt.query_and_then(&[], |row| {
+        let e: Entid = row.get_checked(0)?;
+        let a: Entid = row.get_checked(1)?;
+        let v: rusqlite::types::Value = row.get_checked(2)?;
+        let value_type_tag: i32 = row.get_checked(3)?;
+        let typed_value = TypedValue::from_sql_value_pair(v, value_type_tag)?;
+        let tx: Entid = row.get_checked(4)?;
+        let added: bool = row.get_checked(5)?;
+        Ok((e, a, typed_value, tx, added))
+    })?.collect();
+
+    let mut trie = AEVTrie::default();
+
+    for (e, a, v, _, added) in m? {
+        let attribute: &Attribute = schema.require_attribute_for_entid(a)?;
+
+        let a_and_r = trie
+            .entry((a, attribute)).or_insert(BTreeMap::default())
+            .entry(e).or_insert(AddAndRetract::default());
+
+        match added {
+            true => a_and_r.add.insert(v),
+            false => a_and_r.retract.insert(v),
+        };
+    }
+
+    Ok(trie)
+}
+
 /// Read the partition map materialized view from the given SQL store.
 fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
     let mut stmt: rusqlite::Statement = conn.prepare("SELECT part, start, end, idx, allow_excision FROM parts")?;
@@ -494,7 +551,7 @@ pub enum SearchType {
 /// Right now, the only implementation of `MentatStoring` is the SQLite-specific SQL schema.  In the
 /// future, we might consider other SQL engines (perhaps with different fulltext indexing), or
 /// entirely different data stores, say ones shaped like key-value stores.
-pub trait MentatStoring {
+pub(crate) trait MentatStoring {
     /// Given a slice of [a v] lookup-refs, look up the corresponding [e a v] triples.
     ///
     /// It is assumed that the attribute `a` in each lookup-ref is `:db/unique`, so that at most one
@@ -1097,18 +1154,24 @@ impl PartitionMap {
     pub(crate) fn contains_entid(&self, entid: Entid) -> bool {
         self.values().any(|partition| partition.contains_entid(entid))
     }
+
+    pub(crate) fn partition_for_entid(&self, entid: Entid) -> Option<(&str, &Partition)> {
+        self.iter().find(|(_name, partition)| partition.contains_entid(entid)).map(|p| (p.0.as_ref(), p.1))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     extern crate env_logger;
 
-    use std::borrow::{
-        Borrow,
-    };
-
     use super::*;
-    use debug::{TestConn,tempids};
+    use debug::{
+        self,
+        TestConn,
+        tempids,
+    };
+    use errors;
+    use excision;
     use edn::{
         self,
         InternSet,
@@ -1126,7 +1189,6 @@ mod tests {
     use std::collections::{
         BTreeMap,
     };
-    use errors;
     use internal_types::{
         Term,
     };
@@ -2612,5 +2674,869 @@ mod tests {
         let sqlite = new_connection_with_key("", "hunter2").expect("Failed to create encrypted connection");
         // Run a basic test as a sanity check.
         run_test_add(TestConn::with_sqlite(sqlite));
+    }
+
+    #[test]
+    fn test_transaction_watcher() {
+        let mut conn = TestConn::default();
+
+        // Insert a few :db.cardinality/one elements.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/add 100 :db.schema/version 1]
+             [:db/add 101 :db.schema/version 2]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/version 1 ?tx true]
+                          [101 :db.schema/version 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 1]
+                          [101 :db.schema/version 2]]");
+        assert_matches!(witnessed,
+                        "[[100 :db.schema/version 1 ?tx true]
+                          [101 :db.schema/version 2 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // And a few :db.cardinality/many elements.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/add 200 :db.schema/attribute 100]
+             [:db/add 200 :db.schema/attribute 101]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/attribute 100 ?tx true]
+                          [200 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 1]
+                          [101 :db.schema/version 2]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+        assert_matches!(witnessed,
+                        "[[200 :db.schema/attribute 100 ?tx true]
+                          [200 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+
+        // Test replacing existing :db.cardinality/one elements.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/add 100 :db.schema/version 11]
+             [:db/add 101 :db.schema/version 22]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/version 1 ?tx false]
+                          [100 :db.schema/version 11 ?tx true]
+                          [101 :db.schema/version 2 ?tx false]
+                          [101 :db.schema/version 22 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+        // Right now, transaction watchers do not "witness" all datoms that are implied by entities
+        // transacted.
+        // That is, transaction watchers are cheap to implement, not maximally useful.
+        assert_matches!(witnessed,
+                        "[[100 :db.schema/version 11 ?tx true]
+                          [101 :db.schema/version 22 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Test that asserting existing :db.cardinality/one elements doesn't change the store.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/add 100 :db.schema/version 11]
+             [:db/add 101 :db.schema/version 22]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+        // Right now, transaction watchers "witness" datoms that don't actually change the store.
+        // That is, transaction watchers are cheap to implement, not maximally useful.
+        assert_matches!(witnessed,
+                        "[[100 :db.schema/version 11 ?tx true]
+                          [101 :db.schema/version 22 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Test that asserting existing :db.cardinality/many elements doesn't change the store.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/add 200 :db.schema/attribute 100]
+             [:db/add 200 :db.schema/attribute 101]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[100 :db.schema/version 11]
+                          [101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+        // Right now, transaction watchers "witness" datoms that don't actually change the store.
+        // That is, transaction watchers are cheap to implement, not maximally useful.
+        assert_matches!(witnessed,
+                        "[[200 :db.schema/attribute 100 ?tx true]
+                          [200 :db.schema/attribute 101 ?tx true]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Test that we can retract :db.cardinality/one elements.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/retract 100 :db.schema/version 11]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[100 :db.schema/version 11 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[101 :db.schema/version 22]
+                          [200 :db.schema/attribute 100]
+                          [200 :db.schema/attribute 101]]");
+        assert_matches!(witnessed,
+                        "[[100 :db.schema/version 11 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Test that we can retract :db.cardinality/many elements.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/retract 200 :db.schema/attribute 100]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :db.schema/attribute 100 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[101 :db.schema/version 22]
+                          [200 :db.schema/attribute 101]]");
+        assert_matches!(witnessed,
+                        "[[200 :db.schema/attribute 100 ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        // Verify that retracting :db.cardinality/{one,many} elements that are not present doesn't
+        // change the store.
+        let (_, witnessed) = assert_transact_witnessed!(conn, r#"
+            [[:db/retract 100 :db.schema/version 11]
+             [:db/retract 200 :db.schema/attribute 100]]
+        "#);
+        assert_matches!(conn.last_transaction(),
+                        "[[?tx :db/txInstant ?ms ?tx true]]");
+        assert_matches!(conn.datoms(),
+                        "[[101 :db.schema/version 22]
+                          [200 :db.schema/attribute 101]]");
+        // Right now, transaction watchers "witness" datoms that don't actually change the store.
+        // That is, transaction watchers are cheap to implement, not maximally useful.
+        assert_matches!(witnessed,
+                        "[[100 :db.schema/version 11 ?tx false] ; Not actually applied!
+                          [200 :db.schema/attribute 100 ?tx false] ; Not actually applied!
+                          [?tx :db/txInstant ?ms ?tx true]]");
+    }
+
+    fn test_excision_bad_excisions() {
+        let mut conn = TestConn::default();
+
+        // Can't specify `:db.excise/before` at all.
+        assert_transact!(conn, r#"[
+            {:db.excise/before #inst "2016-06-06T00:00:00.000Z"}
+        ]"#,
+        Err("bad excision: :db.excise/before"));
+
+        // Must specify `:db/excise`.
+        assert_transact!(conn, r#"[
+            {:db.excise/attrs [:db/ident :db/doc]}
+        ]"#,
+        Err("bad excision: no :db/excise"));
+
+        assert_transact!(conn, r#"[
+            {:db.excise/beforeT (transaction-tx)}
+        ]"#,
+        Err("bad excision: no :db/excise"));
+
+        // Can't retract anything to do with excision.
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :db/excise 101]
+        ]"#,
+        Err("bad excision: retraction"));
+
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :db.excise/beforeT (transaction-tx)]
+        ]"#,
+        Err("bad excision: retraction"));
+
+        assert_transact!(conn, r#"[
+            [:db/retract 100 :db.excise/attrs :db/ident]
+        ]"#,
+        Err("bad excision: retraction"));
+
+        // Can't mutate the schema.  This isn't completely implemented yet; right now, Mentat will
+        // prevent a consumer excising an attribute entity, but not a datom describing an attribute
+        // of an attribute.  That is, you can't excise `:db/txInstant`, but you could remove the
+        // `:db/valueType :db.type/instant` from `:db/txInstant`.
+        assert_transact!(conn, r#"[
+            {:db/excise :db/txInstant}
+        ]"#,
+        Err("bad excision: cannot mutate schema"));
+
+        // Can't excise in the `:db.part/{db,tx}` partitions.
+        // TODO: test that we can't excise in the `:db.part/db` partition.
+        let report = assert_transact!(conn, r#"[
+        ]"#);
+
+        assert_transact!(conn, &format!(r#"[
+            [:db/add "e" :db/excise {}]
+        ]"#, report.tx_id),
+        Err("bad excision: cannot target entity in partition :db.part/tx"));
+
+        // TODO: Don't allow anything more than excisions in the excising transaction, except
+        // additional facts about the (transaction-tx).
+    }
+
+    #[test]
+    fn test_excision() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+            {:db/id 202 :db/ident :test/ref :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+        ]"#);
+
+        // Simplest case: just a `:db/excise` target, potentially including an inbound ref.
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/one 1000
+             :test/many [2000 2001 2002]}
+            {:db/id 301
+             :test/one 1001
+             :test/ref 300}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/one 1000]
+             [300 :test/many 2000]
+             [300 :test/many 2001]
+             [300 :test/many 2002]
+             [301 :test/one 1001]
+             [301 :test/ref 300]]"#);
+
+        let (report, witnessed) = assert_transact_witnessed!(conn, r#"[
+            {:db/id "e" :db/excise 300}
+        ]"#);
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&report),
+                        "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/one 1000 ?tx false]
+             [300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [300 :test/many 2002 ?tx false]
+             [301 :test/ref 300 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
+
+        // After.
+        assert_matches!(conn.datoms(), r#"
+           [[200 :db/ident :test/one]
+            [200 :db/valueType :db.type/long]
+            [200 :db/cardinality :db.cardinality/one]
+            [201 :db/ident :test/many]
+            [201 :db/valueType :db.type/long]
+            [201 :db/cardinality :db.cardinality/many]
+            [202 :db/ident :test/ref]
+            [202 :db/valueType :db.type/ref]
+            [202 :db/cardinality :db.cardinality/one]
+            [301 :test/one 1001]
+            [?e :db/excise 300]]"#);
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            targets: vec![300].into_iter().collect(),
+            attrs: None,
+            before_tx: None,
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[300 :test/one 1000 ?tx2 true]
+              [300 :test/many 2000 ?tx2 true]
+              [300 :test/many 2001 ?tx2 true]
+              [300 :test/many 2002 ?tx2 true]
+              [301 :test/one 1001 ?tx2 true]
+              [301 :test/ref 300 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
+
+        excision::ensure_no_pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("ensure_no_pending_excisions");
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the target entity of the excision.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[301 :test/one 1001 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
+    }
+
+    #[test]
+    fn test_excision_with_attrs() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+            {:db/id 202 :db/ident :test/ref :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+        ]"#);
+
+        // Simplest case: just a `:db/excise` target, potentially including an inbound ref.  Also
+        // includes a self ref.
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/one 1000
+             :test/many [2000 2001 2002]
+             :test/ref 300}
+            {:db/id 301
+             :test/one 1001
+             :test/ref 300}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/one 1000]
+             [300 :test/many 2000]
+             [300 :test/many 2001]
+             [300 :test/many 2002]
+             [300 :test/ref 300]
+             [301 :test/one 1001]
+             [301 :test/ref 300]]"#);
+
+        let (report, witnessed) = assert_transact_witnessed!(conn, r#"[
+            {:db/id "e" :db/excise 300 :db.excise/attrs [:test/one :test/many]}
+        ]"#);
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&report),
+                        "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/one 1000 ?tx false]
+             [300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [300 :test/many 2002 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [65536 :db.excise/attrs :test/one ?tx true]
+             [65536 :db.excise/attrs :test/many ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
+
+        // After.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/ref 300]
+             [301 :test/one 1001]
+             [301 :test/ref 300]
+             [?e :db/excise 300]
+             [?e :db.excise/attrs :test/one]
+             [?e :db.excise/attrs :test/many]]"#);
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            targets: vec![300].into_iter().collect(),
+            // Ordered by keyword.
+            attrs: Some(::std::iter::once(conn.schema.require_entid(&Keyword::namespaced("test", "many")).unwrap().0)
+                .chain(::std::iter::once(conn.schema.require_entid(&Keyword::namespaced("test", "one")).unwrap().0))
+                .collect()),
+            before_tx: None,
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[300 :test/one 1000 ?tx2 true]
+              [300 :test/many 2000 ?tx2 true]
+              [300 :test/many 2001 ?tx2 true]
+              [300 :test/many 2002 ?tx2 true]
+              [300 :test/ref 300 ?tx2 true]
+              [301 :test/one 1001 ?tx2 true]
+              [301 :test/ref 300 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?e :db.excise/attrs :test/one ?tx3 true]
+              [?e :db.excise/attrs :test/many ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
+
+        excision::ensure_no_pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("ensure_no_pending_excisions");
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the targeted attributes of the target entity.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+              [[300 :test/ref 300 ?tx2 true]
+               [301 :test/one 1001 ?tx2 true]
+               [301 :test/ref 300 ?tx2 true]
+               [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+              [[?e :db/excise 300 ?tx3 true]
+               [?e :db.excise/attrs :test/one ?tx3 true]
+               [?e :db.excise/attrs :test/many ?tx3 true]
+               [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
+    }
+
+    #[test]
+    fn test_excision_with_before_tx() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+            {:db/id 202 :db/ident :test/ref :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+        ]"#);
+
+        // Simplest case: just a `:db/excise` target, potentially including an inbound ref.
+        let report = assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/one 1000
+             :test/many [2000 2001]}
+            {:db/id 301
+             :test/ref 300}
+        ]"#);
+
+        // Let's assert a new cardinality one value.
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/one 1001
+             :test/many [2002 2003]}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/one 1001]
+             [300 :test/many 2000]
+             [300 :test/many 2001]
+             [300 :test/many 2002]
+             [300 :test/many 2003]
+             [301 :test/ref 300]]"#);
+
+        let (tempid_report, witnessed) = assert_transact_witnessed!(conn, &format!(r#"[
+            [:db/add "e" :db/excise 300]
+            [:db/add "e" :db.excise/beforeT {}]
+        ]"#, report.tx_id));
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&tempid_report),
+                        "{\"e\" 65536}");
+        assert_matches!(witnessed, &format!(r#"
+            [[300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [65536 :db.excise/beforeT {} ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#, report.tx_id));
+
+        // After.
+        assert_matches!(conn.datoms(), &format!(r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/one 1001]
+             [300 :test/many 2002]
+             [300 :test/many 2003]
+             [301 :test/ref 300]
+             [?e :db/excise 300]
+             [?e :db.excise/beforeT {}]]"#, report.tx_id));
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            targets: vec![300].into_iter().collect(),
+            // Ordered by keyword.
+            attrs: None,
+            before_tx: Some(report.tx_id),
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), &format!(r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+              [[300 :test/one 1000 ?tx2 true]
+               [300 :test/many 2000 ?tx2 true]
+               [300 :test/many 2001 ?tx2 true]
+               [301 :test/ref 300 ?tx2 true]
+               [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+              [[300 :test/one 1000 ?tx3 false]
+               [300 :test/one 1001 ?tx3 true]
+               [300 :test/many 2002 ?tx3 true]
+               [300 :test/many 2003 ?tx3 true]
+               [?tx3 :db/txInstant ?ms3 ?tx3 true]]
+              [[?e :db/excise 300 ?tx4 true]
+               [?e :db.excise/beforeT {} ?tx4 true]
+               [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#, report.tx_id));
+
+        excision::ensure_no_pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("ensure_no_pending_excisions");
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the targeted attributes of the target entity.
+        assert_matches!(conn.transactions(), &format!(r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+              [[301 :test/ref 300 ?tx2 true]
+               [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+              [; Observe that the "dangling retraction" commented out immediately below is not present!
+               ; [300 :test/one 1000 ?tx3 false]
+               [300 :test/one 1001 ?tx3 true]
+               [300 :test/many 2002 ?tx3 true]
+               [300 :test/many 2003 ?tx3 true]
+               [?tx3 :db/txInstant ?ms3 ?tx3 true]]
+              [[?e :db/excise 300 ?tx4 true]
+               [?e :db.excise/beforeT {} ?tx4 true]
+               [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#, report.tx_id));
+    }
+
+    #[test]
+    fn test_excision_fulltext() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200
+             :db/ident :test/fulltext
+             :db/valueType :db.type/string
+             :db/cardinality :db.cardinality/one
+             :db/fulltext true
+             :db/index true}
+        ]"#);
+
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/fulltext "test1"}
+            {:db/id 301
+             :test/fulltext "test2"}
+        ]"#);
+
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/fulltext "test3"}
+            {:db/id 301
+             :test/fulltext "test4"}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.fulltext_values(), r#"
+           [[1 "test1"]
+            [2 "test2"]
+            [3 "test3"]
+            [4 "test4"]]"#);
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/fulltext]
+             [200 :db/valueType :db.type/string]
+             [200 :db/cardinality :db.cardinality/one]
+             [200 :db/index true]
+             [200 :db/fulltext true]
+             [300 :test/fulltext 3]
+             [301 :test/fulltext 4]]"#);
+
+        let (tempid_report, witnessed) = assert_transact_witnessed!(conn, r#"[
+            [:db/add "e" :db/excise 300]
+        ]"#);
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&tempid_report),
+                        "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/fulltext "test3" ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
+
+        // After.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/fulltext]
+             [200 :db/valueType :db.type/string]
+             [200 :db/cardinality :db.cardinality/one]
+             [200 :db/index true]
+             [200 :db/fulltext true]
+             [301 :test/fulltext 4]
+             [?e :db/excise 300]]"#);
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            targets: vec![300].into_iter().collect(),
+            attrs: None,
+            before_tx: None,
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/fulltext ?tx1 true]
+              [200 :db/valueType :db.type/string ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [200 :db/index true ?tx1 true]
+              [200 :db/fulltext true ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[300 :test/fulltext 1 ?tx2 true]
+              [301 :test/fulltext 2 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[300 :test/fulltext 1 ?tx3 false]
+              [300 :test/fulltext 3 ?tx3 true]
+              [301 :test/fulltext 2 ?tx3 false]
+              [301 :test/fulltext 4 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]
+             [[?e :db/excise 300 ?tx4 true]
+              [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#);
+
+        excision::ensure_no_pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("ensure_no_pending_excisions");
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the targeted attributes of the target entity.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/fulltext ?tx1 true]
+              [200 :db/valueType :db.type/string ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [200 :db/index true ?tx1 true]
+              [200 :db/fulltext true ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[301 :test/fulltext 2 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[301 :test/fulltext 2 ?tx3 false]
+              [301 :test/fulltext 4 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]
+             [[?e :db/excise 300 ?tx4 true]
+              [?tx4 :db/txInstant ?ms4 ?tx4 true]]]"#);
+
+        // After processing the pending excision, we have vacuumed dangling fulltext values.
+        assert_matches!(conn.fulltext_values(), r#"
+            [[2 "test2"]
+             [4 "test4"]]"#);
+    }
+
+    #[test]
+    fn test_excision_multiple() {
+        let mut conn = TestConn::default();
+
+        assert_transact!(conn, r#"[
+            {:db/id 200 :db/ident :test/one :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+            {:db/id 201 :db/ident :test/many :db/valueType :db.type/long :db/cardinality :db.cardinality/many}
+            {:db/id 202 :db/ident :test/ref :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+        ]"#);
+
+        // Simplest case: just a `:db/excise` target, potentially including an inbound ref.
+        assert_transact!(conn, r#"[
+            {:db/id 300
+             :test/one 1000
+             :test/many [2000 2001 2002]}
+            {:db/id 301
+             :test/one 1001
+             :test/ref 300}
+        ]"#);
+
+        // Before.
+        assert_matches!(conn.datoms(), r#"
+            [[200 :db/ident :test/one]
+             [200 :db/valueType :db.type/long]
+             [200 :db/cardinality :db.cardinality/one]
+             [201 :db/ident :test/many]
+             [201 :db/valueType :db.type/long]
+             [201 :db/cardinality :db.cardinality/many]
+             [202 :db/ident :test/ref]
+             [202 :db/valueType :db.type/ref]
+             [202 :db/cardinality :db.cardinality/one]
+             [300 :test/one 1000]
+             [300 :test/many 2000]
+             [300 :test/many 2001]
+             [300 :test/many 2002]
+             [301 :test/one 1001]
+             [301 :test/ref 300]]"#);
+
+        let (report, witnessed) = assert_transact_witnessed!(conn, r#"[
+            {:db/id "e" :db/excise [300 301]}
+        ]"#);
+        // This is implementation specific, but it should be deterministic.
+        assert_matches!(tempids(&report),
+                        "{\"e\" 65536}");
+        assert_matches!(witnessed, r#"
+            [[300 :test/one 1000 ?tx false]
+             [300 :test/many 2000 ?tx false]
+             [300 :test/many 2001 ?tx false]
+             [300 :test/many 2002 ?tx false]
+             [301 :test/one 1001 ?tx false]
+             [301 :test/ref 300 ?tx false]
+             [65536 :db/excise 300 ?tx true]
+             [65536 :db/excise 301 ?tx true]
+             [?tx :db/txInstant ?ms ?tx true]]
+        "#);
+
+        // After.
+        assert_matches!(conn.datoms(), r#"
+           [[200 :db/ident :test/one]
+            [200 :db/valueType :db.type/long]
+            [200 :db/cardinality :db.cardinality/one]
+            [201 :db/ident :test/many]
+            [201 :db/valueType :db.type/long]
+            [201 :db/cardinality :db.cardinality/many]
+            [202 :db/ident :test/ref]
+            [202 :db/valueType :db.type/ref]
+            [202 :db/cardinality :db.cardinality/one]
+            [?e :db/excise 300]
+            [?e :db/excise 301]]"#);
+
+        // We have enqueued a pending excision.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, ::std::iter::once((65536, excision::Excision {
+            targets: vec![300, 301].into_iter().collect(),
+            attrs: None,
+            before_tx: None,
+        })).collect());
+
+        // Before processing the pending excision, we have full transactions in the transaction log.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[300 :test/one 1000 ?tx2 true]
+              [300 :test/many 2000 ?tx2 true]
+              [300 :test/many 2001 ?tx2 true]
+              [300 :test/many 2002 ?tx2 true]
+              [301 :test/one 1001 ?tx2 true]
+              [301 :test/ref 300 ?tx2 true]
+              [?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?e :db/excise 301 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
+
+        excision::ensure_no_pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("ensure_no_pending_excisions");
+
+        // After processing the pending excision, we have nothing left pending.
+        let pending = excision::pending_excisions(&conn.sqlite, &conn.partition_map, &conn.schema).expect("pending_excisions");
+        assert_eq!(pending, Default::default());
+
+        // After processing the pending excision, we have rewritten transactions in the transaction
+        // log to not refer to the target entity of the excision.
+        assert_matches!(conn.transactions(), r#"
+            [[[200 :db/ident :test/one ?tx1 true]
+              [200 :db/valueType :db.type/long ?tx1 true]
+              [200 :db/cardinality :db.cardinality/one ?tx1 true]
+              [201 :db/ident :test/many ?tx1 true]
+              [201 :db/valueType :db.type/long ?tx1 true]
+              [201 :db/cardinality :db.cardinality/many ?tx1 true]
+              [202 :db/ident :test/ref ?tx1 true]
+              [202 :db/valueType :db.type/ref ?tx1 true]
+              [202 :db/cardinality :db.cardinality/one ?tx1 true]
+              [?tx1 :db/txInstant ?ms ?tx1 true]]
+             [[?tx2 :db/txInstant ?ms2 ?tx2 true]]
+             [[?e :db/excise 300 ?tx3 true]
+              [?e :db/excise 301 ?tx3 true]
+              [?tx3 :db/txInstant ?ms3 ?tx3 true]]]"#);
     }
 }

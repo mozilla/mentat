@@ -106,6 +106,7 @@ use edn::entities::{
     OpType,
     TempId,
 };
+use excision;
 use metadata;
 use rusqlite;
 use schema::{
@@ -714,7 +715,6 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         let mut aev_trie = into_aev_trie(&self.schema, final_populations, inert_terms)?;
 
         let tx_instant;
-        { // TODO: Don't use this block to scope borrowing the schema; instead, extract a helper function.
 
         // Assertions that are :db.cardinality/one and not :db.fulltext.
         let mut non_fts_one: Vec<db::ReducedEntity> = vec![];
@@ -740,6 +740,8 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         if !errors.is_empty() {
             bail!(DbErrorKind::SchemaConstraintViolation(errors::SchemaConstraintViolation::CardinalityConflicts { conflicts: errors }));
         }
+
+        let excisions = excision::excisions(&self.partition_map, &self.schema, &aev_trie)?;
 
         // Pipeline stage 4: final terms (after rewriting) -> DB insertions.
         // Collect into non_fts_*.
@@ -787,9 +789,19 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
         }
 
         self.store.commit_transaction(self.tx_id)?;
-        }
 
         db::update_partition_map(self.store, &self.partition_map)?;
+
+        if let Some(excisions) = excisions {
+            if tx_might_update_metadata {
+                bail!(DbErrorKind::BadExcision("cannot mutate schema".into()));
+            }
+
+            excision::enqueue_excisions(self.store, self.schema, self.tx_id, &excisions)?;
+
+            excision::excise_datoms_for_excisions(self.store, &mut self.watcher, &excisions)?;
+        }
+
         self.watcher.done(&self.tx_id, self.schema)?;
 
         if tx_might_update_metadata {
