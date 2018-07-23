@@ -31,4 +31,5 @@ pub use translate::{
 
 // query-translator could be folded into query-projector; for now, just type alias the errors.
 pub type TranslatorError = mentat_query_projector::ProjectorError;
-pub type Result<T> = std::result::Result<T, TranslatorError>;
+pub type TranslatorErrorKind = mentat_query_projector::ProjectorError;
+pub type Result<T> = std::result::Result<T, TranslatorErrorKind>;

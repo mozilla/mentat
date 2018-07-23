@@ -30,7 +30,7 @@ use clauses::{
 };
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     BindingError,
     Result,
 };
@@ -53,17 +53,17 @@ impl ConjoiningClauses {
     #[allow(unused_variables)]
     pub(crate) fn apply_fulltext(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 3 {
-            bail!(AlgebrizerError::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
+            bail!(AlgebrizerErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 3));
         }
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(AlgebrizerErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(AlgebrizerErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         // We should have exactly four bindings. Destructure them now.
@@ -71,7 +71,7 @@ impl ConjoiningClauses {
             Binding::BindRel(bindings) => {
                 let bindings_count = bindings.len();
                 if bindings_count < 1 || bindings_count > 4 {
-                    bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(),
+                    bail!(AlgebrizerErrorKind::InvalidBinding(where_fn.operator.clone(),
                         BindingError::InvalidNumberOfBindings {
                             number: bindings.len(),
                             expected: 4,
@@ -82,7 +82,7 @@ impl ConjoiningClauses {
             },
             Binding::BindScalar(_) |
             Binding::BindTuple(_) |
-            Binding::BindColl(_) => bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
+            Binding::BindColl(_) => bail!(AlgebrizerErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::ExpectedBindRel)),
         };
         let mut bindings = bindings.into_iter();
         let b_entity = bindings.next().unwrap();
@@ -95,7 +95,7 @@ impl ConjoiningClauses {
         // TODO: process source variables.
         match args.next().unwrap() {
             FnArg::SrcVar(SrcVar::DefaultSrc) => {},
-            _ => bail!(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
+            _ => bail!(AlgebrizerErrorKind::InvalidArgument(where_fn.operator.clone(), "source variable", 0)),
         }
 
         let schema = known.schema;
@@ -115,10 +115,10 @@ impl ConjoiningClauses {
                 match self.bound_value(&v) {
                     Some(TypedValue::Ref(entid)) => Some(entid),
                     Some(tv) => {
-                        bail!(AlgebrizerError::InputTypeDisagreement(v.name().clone(), ValueType::Ref, tv.value_type()))
+                        bail!(AlgebrizerErrorKind::InputTypeDisagreement(v.name().clone(), ValueType::Ref, tv.value_type()))
                     },
                     None => {
-                        bail!(AlgebrizerError::UnboundVariable((*v.0).clone()))
+                        bail!(AlgebrizerErrorKind::UnboundVariable((*v.0).clone()))
                     }
                 }
             },
@@ -128,10 +128,10 @@ impl ConjoiningClauses {
         // An unknown ident, or an entity that isn't present in the store, or isn't a fulltext
         // attribute, is likely enough to be a coding error that we choose to bail instead of
         // marking the pattern as known-empty.
-        let a = a.ok_or(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "attribute", 1))?;
+        let a = a.ok_or(AlgebrizerErrorKind::InvalidArgument(where_fn.operator.clone(), "attribute", 1))?;
         let attribute = schema.attribute_for_entid(a)
                               .cloned()
-                              .ok_or(AlgebrizerError::InvalidArgument(where_fn.operator.clone(),
+                              .ok_or(AlgebrizerErrorKind::InvalidArgument(where_fn.operator.clone(),
                                                                 "attribute", 1))?;
 
         if !attribute.fulltext {
@@ -170,18 +170,18 @@ impl ConjoiningClauses {
             FnArg::Variable(in_var) => {
                 match self.bound_value(&in_var) {
                     Some(t @ TypedValue::String(_)) => Either::Left(t),
-                    Some(_) => bail!(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "string", 2)),
+                    Some(_) => bail!(AlgebrizerErrorKind::InvalidArgument(where_fn.operator.clone(), "string", 2)),
                     None => {
                         // Regardless of whether we'll be providing a string later, or the value
                         // comes from a column, it must be a string.
                         if self.known_type(&in_var) != Some(ValueType::String) {
-                            bail!(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "string", 2))
+                            bail!(AlgebrizerErrorKind::InvalidArgument(where_fn.operator.clone(), "string", 2))
                         }
 
                         if self.input_variables.contains(&in_var) {
                             // Sorry, we haven't implemented late binding.
                             // TODO: implement this.
-                            bail!(AlgebrizerError::UnboundVariable((*in_var.0).clone()))
+                            bail!(AlgebrizerErrorKind::UnboundVariable((*in_var.0).clone()))
                         } else {
                             // It must be bound earlier in the query. We already established that
                             // it must be a string column.
@@ -190,13 +190,13 @@ impl ConjoiningClauses {
                                                        .and_then(|bindings| bindings.get(0).cloned()) {
                                 Either::Right(binding)
                             } else {
-                                bail!(AlgebrizerError::UnboundVariable((*in_var.0).clone()))
+                                bail!(AlgebrizerErrorKind::UnboundVariable((*in_var.0).clone()))
                             }
                         }
                     },
                 }
             },
-            _ => bail!(AlgebrizerError::InvalidArgument(where_fn.operator.clone(), "string", 2)),
+            _ => bail!(AlgebrizerErrorKind::InvalidArgument(where_fn.operator.clone(), "string", 2)),
         };
 
         let qv = match search {
@@ -245,7 +245,7 @@ impl ConjoiningClauses {
 
             // We do not allow the score to be bound.
             if self.value_bindings.contains_key(var) || self.input_variables.contains(var) {
-                bail!(AlgebrizerError::InvalidBinding(var.name(), BindingError::UnexpectedBinding));
+                bail!(AlgebrizerErrorKind::InvalidBinding(var.name(), BindingError::UnexpectedBinding));
             }
 
             // We bind the value ourselves. This handily takes care of substituting into existing uses.

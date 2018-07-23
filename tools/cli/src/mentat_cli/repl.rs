@@ -421,7 +421,7 @@ impl Repl {
         if self.path.is_empty() || path != self.path {
             let next = match encryption_key {
                 #[cfg(not(feature = "sqlcipher"))]
-                Some(_) => return Err(::mentat::MentatError::RusqliteError(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature".into())),
+                Some(_) => return Err(::mentat::MentatErrorKind::RusqliteError(".open_encrypted and .empty_encrypted require the sqlcipher Mentat feature".into()).into()),
 
                 #[cfg(feature = "sqlcipher")]
                 Some(k) => {

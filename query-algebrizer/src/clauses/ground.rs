@@ -31,7 +31,7 @@ use clauses::{
 use clauses::convert::ValueConversion;
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     BindingError,
     Result,
 };
@@ -117,19 +117,19 @@ impl ConjoiningClauses {
 
     pub(crate) fn apply_ground(&mut self, known: Known, where_fn: WhereFn) -> Result<()> {
         if where_fn.args.len() != 1 {
-            bail!(AlgebrizerError::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 1));
+            bail!(AlgebrizerErrorKind::InvalidNumberOfArguments(where_fn.operator.clone(), where_fn.args.len(), 1));
         }
 
         let mut args = where_fn.args.into_iter();
 
         if where_fn.binding.is_empty() {
             // The binding must introduce at least one bound variable.
-            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
+            bail!(AlgebrizerErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::NoBoundVariable));
         }
 
         if !where_fn.binding.is_valid() {
             // The binding must not duplicate bound variables.
-            bail!(AlgebrizerError::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
+            bail!(AlgebrizerErrorKind::InvalidBinding(where_fn.operator.clone(), BindingError::RepeatedBoundVariable));
         }
 
         let schema = known.schema;
@@ -145,7 +145,7 @@ impl ConjoiningClauses {
                 // Just the same, but we bind more than one column at a time.
                 if children.len() != places.len() {
                     // Number of arguments don't match the number of values. TODO: better error message.
-                    bail!(AlgebrizerError::GroundBindingsMismatch)
+                    bail!(AlgebrizerErrorKind::GroundBindingsMismatch)
                 }
                 for (place, arg) in places.into_iter().zip(children.into_iter()) {
                     self.apply_ground_place(schema, place, arg)?  // TODO: short-circuit on impossible.
@@ -159,7 +159,7 @@ impl ConjoiningClauses {
             // are all in a single structure. That makes it substantially simpler!
             (Binding::BindColl(var), FnArg::Vector(children)) => {
                 if children.is_empty() {
-                    bail!(AlgebrizerError::InvalidGroundConstant)
+                    bail!(AlgebrizerErrorKind::InvalidGroundConstant)
                 }
 
                 // Turn a collection of arguments into a Vec of `TypedValue`s of the same type.
@@ -177,7 +177,7 @@ impl ConjoiningClauses {
                                                  if accumulated_types.insert(tv.value_type()) &&
                                                     !accumulated_types.is_unit() {
                                                      // Values not all of the same type.
-                                                     Some(Err(AlgebrizerError::InvalidGroundConstant.into()))
+                                                     Some(Err(AlgebrizerErrorKind::InvalidGroundConstant.into()))
                                                  } else {
                                                      Some(Ok(tv))
                                                  }
@@ -208,7 +208,7 @@ impl ConjoiningClauses {
 
             (Binding::BindRel(places), FnArg::Vector(rows)) => {
                 if rows.is_empty() {
-                    bail!(AlgebrizerError::InvalidGroundConstant)
+                    bail!(AlgebrizerErrorKind::InvalidGroundConstant)
                 }
 
                 // Grab the known types to which these args must conform, and track
@@ -229,7 +229,7 @@ impl ConjoiningClauses {
 
                 if expected_width == 0 {
                     // They can't all be placeholders.
-                    bail!(AlgebrizerError::InvalidGroundConstant)
+                    bail!(AlgebrizerErrorKind::InvalidGroundConstant)
                 }
 
                 // Accumulate values into `matrix` and types into `a_t_f_c`.
@@ -245,7 +245,7 @@ impl ConjoiningClauses {
                         FnArg::Vector(cols) => {
                             // Make sure that every row is the same length.
                             if cols.len() != full_width {
-                                bail!(AlgebrizerError::InvalidGroundConstant)
+                                bail!(AlgebrizerErrorKind::InvalidGroundConstant)
                             }
 
                             // TODO: don't accumulate twice.
@@ -280,13 +280,13 @@ impl ConjoiningClauses {
                                 let inserted = acc.insert(val.value_type());
                                 if inserted && !acc.is_unit() {
                                     // Heterogeneous types.
-                                    bail!(AlgebrizerError::InvalidGroundConstant)
+                                    bail!(AlgebrizerErrorKind::InvalidGroundConstant)
                                 }
                                 matrix.push(val);
                             }
 
                         },
-                        _ => bail!(AlgebrizerError::InvalidGroundConstant),
+                        _ => bail!(AlgebrizerErrorKind::InvalidGroundConstant),
                     }
                 }
 
@@ -312,7 +312,7 @@ impl ConjoiningClauses {
                 self.collect_named_bindings(schema, names, types, matrix);
                 Ok(())
             },
-            (_, _) => bail!(AlgebrizerError::InvalidGroundConstant),
+            (_, _) => bail!(AlgebrizerErrorKind::InvalidGroundConstant),
         }
     }
 }

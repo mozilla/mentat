@@ -285,7 +285,7 @@ mod testing {
         Entid,
         HasSchema,
         KnownEntid,
-        MentatError,
+        MentatErrorKind,
         Queryable,
         TxReport,
         TypedValue,
@@ -321,8 +321,8 @@ mod testing {
         let mut in_progress = conn.begin_transaction(&mut sqlite).expect("begun successfully");
 
         // This should fail: unrecognized entid.
-        match in_progress.transact_entities(terms).expect_err("expected transact to fail") {
-            MentatError::DbError(e) => {
+        match in_progress.transact_entities(terms).expect_err("expected transact to fail").kind() {
+            MentatErrorKind::DbError(e) => {
                 assert_eq!(e.kind(), mentat_db::DbErrorKind::UnrecognizedEntid(999));
             },
             _ => panic!("Should have rejected the entid."),

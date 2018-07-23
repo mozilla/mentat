@@ -20,6 +20,12 @@ use mentat_query::{
     PlainSymbol,
 };
 use mentat_query_pull;
+use failure::{
+    Backtrace,
+    Context,
+    Fail,
+};
+use std::fmt;
 
 use aggregates::{
     SimpleAggregationOp,
@@ -34,8 +40,52 @@ macro_rules! bail {
 
 pub type Result<T> = std::result::Result<T, ProjectorError>;
 
+#[derive(Debug)]
+pub struct ProjectorError(Box<Context<ProjectorErrorKind>>);
+
+impl Fail for ProjectorError {
+    #[inline]
+    fn cause(&self) -> Option<&Fail> {
+        self.0.cause()
+    }
+
+    #[inline]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.0.backtrace()
+    }
+}
+
+impl fmt::Display for ProjectorError {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&*self.0, f)
+    }
+}
+
+impl ProjectorError {
+    #[inline]
+    pub fn kind(&self) -> &ProjectorErrorKind {
+        &*self.0.get_context()
+    }
+}
+
+impl From<ProjectorErrorKind> for ProjectorError {
+    #[inline]
+    fn from(kind: ProjectorErrorKind) -> ProjectorError {
+        ProjectorError(Box::new(Context::new(kind)))
+    }
+}
+
+impl From<Context<ProjectorErrorKind>> for ProjectorError {
+    #[inline]
+    fn from(inner: Context<ProjectorErrorKind>) -> ProjectorError {
+        ProjectorError(Box::new(inner))
+    }
+}
+
+
 #[derive(Debug, Fail)]
-pub enum ProjectorError {
+pub enum ProjectorErrorKind {
     /// We're just not done yet.  Message that the feature is recognized but not yet
     /// implemented.
     #[fail(display = "not yet implemented: {}", _0)]
@@ -77,20 +127,38 @@ pub enum ProjectorError {
     PullError(#[cause] mentat_query_pull::PullError),
 }
 
+impl From<rusqlite::Error> for ProjectorErrorKind {
+    fn from(error: rusqlite::Error) -> ProjectorErrorKind {
+        ProjectorErrorKind::RusqliteError(error.to_string())
+    }
+}
+
+impl From<mentat_db::DbError> for ProjectorErrorKind {
+    fn from(error: mentat_db::DbError) -> ProjectorErrorKind {
+        ProjectorErrorKind::DbError(error)
+    }
+}
+
+impl From<mentat_query_pull::PullError> for ProjectorErrorKind {
+    fn from(error: mentat_query_pull::PullError) -> ProjectorErrorKind {
+        ProjectorErrorKind::PullError(error)
+    }
+}
+
 impl From<rusqlite::Error> for ProjectorError {
     fn from(error: rusqlite::Error) -> ProjectorError {
-        ProjectorError::RusqliteError(error.to_string())
+        ProjectorErrorKind::from(error).into()
     }
 }
 
 impl From<mentat_db::DbError> for ProjectorError {
     fn from(error: mentat_db::DbError) -> ProjectorError {
-        ProjectorError::DbError(error)
+        ProjectorErrorKind::from(error).into()
     }
 }
 
 impl From<mentat_query_pull::PullError> for ProjectorError {
     fn from(error: mentat_query_pull::PullError) -> ProjectorError {
-        ProjectorError::PullError(error)
+        ProjectorErrorKind::from(error).into()
     }
 }

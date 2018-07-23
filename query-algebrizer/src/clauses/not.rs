@@ -17,7 +17,7 @@ use mentat_query::{
 use clauses::ConjoiningClauses;
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     Result,
 };
 
@@ -45,7 +45,7 @@ impl ConjoiningClauses {
                 let col = self.column_bindings.get(&v).unwrap()[0].clone();
                 template.column_bindings.insert(v.clone(), vec![col]);
             } else {
-                bail!(AlgebrizerError::UnboundVariable(v.name()));
+                bail!(AlgebrizerErrorKind::UnboundVariable(v.name()));
             }
         }
 
@@ -111,7 +111,7 @@ mod testing {
     };
 
     use errors::{
-        AlgebrizerError,
+        AlgebrizerErrorKind,
     };
 
     use types::{
@@ -553,8 +553,8 @@ mod testing {
          :where (not [?x :foo/knows ?y])]"#;
         let parsed = parse_find_string(query).expect("parse failed");
         let err = algebrize(known, parsed).expect_err("algebrization should have failed");
-        match err {
-            AlgebrizerError::UnboundVariable(var) => { assert_eq!(var, PlainSymbol("?x".to_string())); },
+        match err.kind() {
+            &AlgebrizerErrorKind::UnboundVariable(ref var) => { assert_eq!(var, &PlainSymbol("?x".to_string())); },
             x => panic!("expected Unbound Variable error, got {:?}", x),
         }
     }

@@ -85,7 +85,7 @@ impl Store {
     pub fn open_empty(path: &str) -> Result<Store> {
         if !path.is_empty() {
             if Path::new(path).exists() {
-                bail!(MentatError::PathAlreadyExists(path.to_string()));
+                bail!(MentatErrorKind::PathAlreadyExists(path.to_string()));
             }
         }
 
@@ -125,7 +125,7 @@ impl Store {
     pub fn open_empty_with_key(path: &str, encryption_key: &str) -> Result<Store> {
         if !path.is_empty() {
             if Path::new(path).exists() {
-                bail!(MentatError::PathAlreadyExists(path.to_string()));
+                bail!(MentatErrorKind::PathAlreadyExists(path.to_string()));
             }
         }
 
@@ -241,7 +241,7 @@ impl Pullable for Store {
 #[cfg(feature = "syncable")]
 impl Syncable for Store {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
-        let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatError::BadUuid(user_uuid.clone()))?;
+        let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatErrorKind::BadUuid(user_uuid.clone()))?;
         Ok(Syncer::flow(&mut self.sqlite, server_uri, &uuid)?)
     }
 }

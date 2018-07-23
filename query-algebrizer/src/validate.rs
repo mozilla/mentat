@@ -19,7 +19,7 @@ use mentat_query::{
 };
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     Result,
 };
 
@@ -56,7 +56,7 @@ pub(crate) fn validate_or_join(or_join: &OrJoin) -> Result<()> {
                 let template = clauses.next().unwrap().collect_mentioned_variables();
                 for clause in clauses {
                     if template != clause.collect_mentioned_variables() {
-                        bail!(AlgebrizerError::NonMatchingVariablesInOrClause)
+                        bail!(AlgebrizerErrorKind::NonMatchingVariablesInOrClause)
                     }
                 }
                 Ok(())
@@ -67,7 +67,7 @@ pub(crate) fn validate_or_join(or_join: &OrJoin) -> Result<()> {
             let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
             for clause in &or_join.clauses {
                 if !var_set.is_subset(&clause.collect_mentioned_variables()) {
-                    bail!(AlgebrizerError::NonMatchingVariablesInOrClause)
+                    bail!(AlgebrizerErrorKind::NonMatchingVariablesInOrClause)
                 }
             }
             Ok(())
@@ -85,7 +85,7 @@ pub(crate) fn validate_not_join(not_join: &NotJoin) -> Result<()> {
             // The joined vars must each appear somewhere in the clause's mentioned variables.
             let var_set: BTreeSet<Variable> = vars.iter().cloned().collect();
             if !var_set.is_subset(&not_join.collect_mentioned_variables()) {
-                bail!(AlgebrizerError::NonMatchingVariablesInNotClause)
+                bail!(AlgebrizerErrorKind::NonMatchingVariablesInNotClause)
             }
             Ok(())
         },

@@ -53,7 +53,7 @@ use mentat_query::{
 };
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     Result,
 };
 
@@ -1013,7 +1013,7 @@ impl ConjoiningClauses {
 
             let qa = self.extracted_types
                          .get(&var)
-                         .ok_or_else(|| AlgebrizerError::UnboundVariable(var.name()))?;
+                         .ok_or_else(|| AlgebrizerErrorKind::UnboundVariable(var.name()))?;
             self.wheres.add_intersection(ColumnConstraint::HasTypes {
                 value: qa.0.clone(),
                 value_types: types,

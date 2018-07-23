@@ -124,6 +124,7 @@ macro_rules! kw {
 pub mod errors;
 pub use errors::{
     MentatError,
+    MentatErrorKind,
     Result,
 };
 

@@ -13,7 +13,7 @@ use mentat_core::{
 };
 
 use errors::{
-    ProjectorError,
+    ProjectorErrorKind,
     Result,
 };
 
@@ -32,7 +32,7 @@ impl BindingTuple for Vec<Binding> {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     Ok(Some(vec))
                 }
@@ -45,13 +45,13 @@ impl BindingTuple for Vec<Binding> {
 impl BindingTuple for (Binding,) {
     fn from_binding_vec(expected: usize, vec: Option<Vec<Binding>>) -> Result<Option<Self>> {
         if expected != 1 {
-            return Err(ProjectorError::UnexpectedResultsTupleLength(1, expected));
+            return Err(ProjectorErrorKind::UnexpectedResultsTupleLength(1, expected).into());
         }
         match vec {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     let mut iter = vec.into_iter();
                     Ok(Some((iter.next().unwrap(),)))
@@ -64,13 +64,13 @@ impl BindingTuple for (Binding,) {
 impl BindingTuple for (Binding, Binding) {
     fn from_binding_vec(expected: usize, vec: Option<Vec<Binding>>) -> Result<Option<Self>> {
         if expected != 2 {
-            return Err(ProjectorError::UnexpectedResultsTupleLength(2, expected));
+            return Err(ProjectorErrorKind::UnexpectedResultsTupleLength(2, expected).into());
         }
         match vec {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     let mut iter = vec.into_iter();
                     Ok(Some((iter.next().unwrap(), iter.next().unwrap())))
@@ -83,13 +83,13 @@ impl BindingTuple for (Binding, Binding) {
 impl BindingTuple for (Binding, Binding, Binding) {
     fn from_binding_vec(expected: usize, vec: Option<Vec<Binding>>) -> Result<Option<Self>> {
         if expected != 3 {
-            return Err(ProjectorError::UnexpectedResultsTupleLength(3, expected));
+            return Err(ProjectorErrorKind::UnexpectedResultsTupleLength(3, expected).into());
         }
         match vec {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     let mut iter = vec.into_iter();
                     Ok(Some((iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap())))
@@ -102,13 +102,13 @@ impl BindingTuple for (Binding, Binding, Binding) {
 impl BindingTuple for (Binding, Binding, Binding, Binding) {
     fn from_binding_vec(expected: usize, vec: Option<Vec<Binding>>) -> Result<Option<Self>> {
         if expected != 4 {
-            return Err(ProjectorError::UnexpectedResultsTupleLength(4, expected));
+            return Err(ProjectorErrorKind::UnexpectedResultsTupleLength(4, expected).into());
         }
         match vec {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     let mut iter = vec.into_iter();
                     Ok(Some((iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap())))
@@ -121,13 +121,13 @@ impl BindingTuple for (Binding, Binding, Binding, Binding) {
 impl BindingTuple for (Binding, Binding, Binding, Binding, Binding) {
     fn from_binding_vec(expected: usize, vec: Option<Vec<Binding>>) -> Result<Option<Self>> {
         if expected != 5 {
-            return Err(ProjectorError::UnexpectedResultsTupleLength(5, expected));
+            return Err(ProjectorErrorKind::UnexpectedResultsTupleLength(5, expected).into());
         }
         match vec {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     let mut iter = vec.into_iter();
                     Ok(Some((iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap())))
@@ -142,13 +142,13 @@ impl BindingTuple for (Binding, Binding, Binding, Binding, Binding) {
 impl BindingTuple for (Binding, Binding, Binding, Binding, Binding, Binding) {
     fn from_binding_vec(expected: usize, vec: Option<Vec<Binding>>) -> Result<Option<Self>> {
         if expected != 6 {
-            return Err(ProjectorError::UnexpectedResultsTupleLength(6, expected));
+            return Err(ProjectorErrorKind::UnexpectedResultsTupleLength(6, expected).into());
         }
         match vec {
             None => Ok(None),
             Some(vec) => {
                 if expected != vec.len() {
-                    Err(ProjectorError::UnexpectedResultsTupleLength(expected, vec.len()))
+                    Err(ProjectorErrorKind::UnexpectedResultsTupleLength(expected, vec.len()).into())
                 } else {
                     let mut iter = vec.into_iter();
                     Ok(Some((iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap())))
