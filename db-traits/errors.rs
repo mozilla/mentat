@@ -214,10 +214,12 @@ pub enum DbErrorKind {
     UnrecognizedIdent(String),
 
     /// An entid->ident mapping failed.
-    /// We also use this error if you try to transact an entid that we didn't allocate,
-    /// in part because we blow the stack in error_chain if we define a new enum!
-    #[fail(display = "unrecognized or no ident found for entid: {}", _0)]
+    #[fail(display = "no ident found for entid: {}", _0)]
     UnrecognizedEntid(Entid),
+
+    /// Tried to transact an entid that isn't allocated.
+    #[fail(display = "entid not allocated: {}", _0)]
+    UnallocatedEntid(Entid),
 
     #[fail(display = "unknown attribute for entid: {}", _0)]
     UnknownAttribute(Entid),
