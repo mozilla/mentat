@@ -472,8 +472,11 @@ pub(crate) fn read_materialized_view(conn: &rusqlite::Connection, table: &str) -
 }
 
 /// Read the partition map materialized view from the given SQL store.
-pub(crate) fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
-    // An obviously expensive query, but we only need to run it once.
+pub fn read_partition_map(conn: &rusqlite::Connection) -> Result<PartitionMap> {
+    // An obviously expensive query, but we use it infrequently:
+    // - on first start,
+    // - while moving timelines,
+    // - during sync.
     // First part of the union sprinkles 'allow_excision' into the 'parts' view.
     // Second part of the union takes care of partitions which are known
     // but don't have any transactions.
