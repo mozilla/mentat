@@ -294,7 +294,7 @@ impl<'conn, 'a, W> Tx<'conn, 'a, W> where W: TransactWatcher {
                 if self.partition_map.contains_entid(e) {
                     Ok(KnownEntid(e))
                 } else {
-                    bail!(DbErrorKind::UnrecognizedEntid(e))
+                    bail!(DbErrorKind::UnallocatedEntid(e))
                 }
             }
 
