@@ -41,8 +41,6 @@ use mentat_db::{
 #[cfg(feature = "syncable")]
 use mentat_tolstoy::Syncer;
 
-use uuid::Uuid;
-
 use conn::{
     CacheAction,
     CacheDirection,
@@ -51,7 +49,11 @@ use conn::{
     InProgressRead,
     Pullable,
     Queryable,
-    Syncable
+};
+
+#[cfg(feature = "syncable")]
+use conn::{
+    Syncable,
 };
 
 use errors::*;
@@ -239,6 +241,9 @@ impl Pullable for Store {
 }
 
 #[cfg(feature = "syncable")]
+use uuid::Uuid;
+
+#[cfg(feature = "syncable")]
 impl Syncable for Store {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
         let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatError::BadUuid(user_uuid.clone()))?;
@@ -265,6 +270,8 @@ mod tests {
     use std::time::{
         Duration,
     };
+
+    use uuid::Uuid;
 
     use mentat_db::cache::{
         SQLiteAttributeCache,
