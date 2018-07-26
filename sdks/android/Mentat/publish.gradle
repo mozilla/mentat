@@ -1,0 +1,99 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+def libRepoName = properties.libRepositoryName
+def libUrl = properties.libUrl
+def libVcsUrl = properties.libVcsUrl
+def libLicense = properties.libLicense
+def libLicenseUrl = properties.libLicenseUrl
+
+ext.configurePublish = { groupIdArg, artifactIdArg, descriptionArg ->
+    apply plugin: 'com.github.dcendents.android-maven'
+
+    group = groupIdArg
+
+    install {
+        repositories.mavenInstaller {
+            pom {
+                project {
+                    packaging 'aar'
+                    groupId groupIdArg
+                    artifactId artifactIdArg
+
+                    name libRepoName
+                    description descriptionArg
+                    url libUrl
+
+                    licenses {
+                        license {
+                            name libLicense
+                            url libLicenseUrl
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id 'nalexander'
+                            name 'Nick Alexander'
+                            email 'nalexander@mozilla.com'
+                        }
+                    }
+
+                    scm {
+                        connection libVcsUrl
+                        developerConnection libVcsUrl
+                        url libUrl
+                    }
+                }
+            }
+        }
+    }
+
+    apply plugin: 'com.jfrog.bintray'
+
+    version = rootProject.ext.library['version']
+
+    task sourcesJar(type: Jar) {
+        from android.sourceSets.main.java.srcDirs
+        classifier = 'sources'
+    }
+
+    task javadoc(type: Javadoc) {
+        source = android.sourceSets.main.java.srcDirs
+        classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
+    artifacts {
+        //archives javadocJar
+        archives sourcesJar
+    }
+
+    Properties localProperties = null;
+    if (project.rootProject.file('local.properties').canRead()) {
+        localProperties = new Properties()
+        localProperties.load(project.rootProject.file('local.properties').newDataInputStream())
+    }
+
+    bintray {
+        user = localProperties != null ? localProperties.getProperty("bintray.user") : ""
+        key = localProperties != null ? localProperties.getProperty("bintray.apikey") : ""
+
+        configurations = ['archives']
+        pkg {
+            repo = libRepoName
+            name = artifactIdArg
+            desc = descriptionArg
+            websiteUrl = libUrl
+            vcsUrl = libVcsUrl
+            licenses = [libLicense]
+            publish = true
+            publicDownloadNumbers = true
+        }
+    }
+}

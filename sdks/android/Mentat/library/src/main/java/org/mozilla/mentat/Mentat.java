@@ -21,32 +21,39 @@ import com.sun.jna.Pointer;
  * The raw pointer it holds is a pointer to a Store.
  */
 public class Mentat extends RustObject<JNA.Store> {
-
     static {
         System.loadLibrary("mentat_ffi");
-    }
-
-    /**
-     * Open a connection to a Store in a given location.<br/>
-     * If the store does not already exist, one will be created.
-     * @param dbPath    The URI as a String of the store to open.
-     */
-    public Mentat(String dbPath) {
-        this(JNA.INSTANCE.store_open(dbPath));
-    }
-
-    /**
-     * Open a connection to an in-memory Store.
-     */
-    public Mentat() {
-        this(JNA.INSTANCE.store_open(""));
     }
 
     /**
      * Create a new Mentat with the provided pointer to a Mentat Store
      * @param rawPointer    A pointer to a Mentat Store.
      */
-    public Mentat(JNA.Store rawPointer) { super(rawPointer); }
+    private Mentat(JNA.Store rawPointer) { super(rawPointer); }
+
+    /**
+     * Open a connection to an in-memory Mentat Store.
+     */
+    public static Mentat open() {
+        return open("");
+    }
+
+   /**
+    * Open a connection to a Store in a given location.
+    * <br/>
+    * If the store does not already exist, one will be created.
+    * @param dbPath    The URI as a String of the store to open.
+    */
+    public static Mentat open(String dbPath) {
+        RustError.ByReference err = new RustError.ByReference();
+        JNA.Store store = JNA.INSTANCE.store_open(dbPath, err);
+        if (!err.isSuccess()) {
+            err.logAndConsumeError("Mentat");
+            throw new RuntimeException("Failed to open store: " + dbPath);
+        }
+
+        return new Mentat(store);
+    }
 
     /**
      * Add an attribute to the cache. The {@link CacheDirection} determines how that attribute can be
