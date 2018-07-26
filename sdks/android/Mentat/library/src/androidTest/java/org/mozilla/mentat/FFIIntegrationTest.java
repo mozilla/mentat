@@ -71,7 +71,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void openInMemoryStoreSucceeds() throws Exception {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         assertNotNull(mentat);
     }
 
@@ -79,7 +79,7 @@ public class FFIIntegrationTest {
     public void openStoreInLocationSucceeds() throws Exception {
         Context context = InstrumentationRegistry.getTargetContext();
         String path = context.getDatabasePath("test.db").getAbsolutePath();
-        Mentat mentat = new Mentat(path);
+        Mentat mentat = Mentat.open(path);
         assertNotNull(mentat);
     }
 
@@ -114,7 +114,7 @@ public class FFIIntegrationTest {
 
     public Mentat openAndInitializeCitiesStore() {
         if (this.mentat == null) {
-            this.mentat = new Mentat();
+            this.mentat = Mentat.open();
             this.transactCitiesSchema(mentat);
             this.transactSeattleData(mentat);
         }
@@ -177,7 +177,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void transactingVocabularySucceeds() {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport schemaReport = this.transactCitiesSchema(mentat);
         assertNotNull(schemaReport);
         assertTrue(schemaReport.getTxId() > 0);
@@ -185,7 +185,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void transactingEntitiesSucceeds() {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         this.transactCitiesSchema(mentat);
         TxReport dataReport = this.transactSeattleData(mentat);
         assertNotNull(dataReport);
@@ -363,7 +363,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingLongValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?long :where [?e :foo/long ?long]]";
@@ -384,7 +384,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingRefValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         long stringEntid = mentat.entIdForAttribute(":foo/string");
         final Long bEntid = report.getEntidForTempId("b");
@@ -406,7 +406,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingRefKwValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         String refKeyword = ":foo/string";
         final Long bEntid = report.getEntidForTempId("b");
@@ -428,7 +428,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingKwValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?kw :where [?e :foo/keyword ?kw]]";
@@ -449,7 +449,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingDateValueSucceeds() throws InterruptedException, ParseException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
 
@@ -493,7 +493,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingUuidValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?uuid :where [?e :foo/uuid ?uuid]]";
@@ -515,7 +515,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingBooleanValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?bool :where [?e :foo/boolean ?bool]]";
@@ -537,7 +537,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void bindingDoubleValueSucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?double :where [?e :foo/double ?double]]";
@@ -558,7 +558,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToLong() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/long ?v]]";
@@ -580,7 +580,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToRef() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :where [?e :foo/long 25]]";
@@ -602,7 +602,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToKeyword() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/keyword ?v]]";
@@ -624,7 +624,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToBoolean() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/boolean ?v]]";
@@ -646,7 +646,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToDouble() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/double ?v]]";
@@ -668,7 +668,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToDate() throws InterruptedException, ParseException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/instant ?v]]";
@@ -693,7 +693,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToString() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/string ?v]]";
@@ -715,7 +715,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void typedValueConvertsToUUID() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/uuid ?v]]";
@@ -738,7 +738,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void valueForAttributeOfEntitySucceeds() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         TypedValue value = mentat.valueForAttributeOfEntity(":foo/long", aEntid);
@@ -748,7 +748,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void entidForAttributeSucceeds() {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         this.populateWithTypesSchema(mentat);
         long entid = mentat.entIdForAttribute(":foo/long");
         assertEquals(65540, entid);
@@ -756,7 +756,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testInProgressTransact() {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         assertNotNull(report);
 
@@ -764,7 +764,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testInProgressRollback() {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         assertNotNull(report);
         long aEntid = report.getEntidForTempId("a");
@@ -782,7 +782,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testInProgressEntityBuilder() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         long bEntid = reports.dataReport.getEntidForTempId("b");
         final long longEntid = reports.schemaReport.getEntidForTempId("l");
@@ -862,7 +862,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testEntityBuilderForEntid() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         long bEntid = reports.dataReport.getEntidForTempId("b");
         final long longEntid = reports.schemaReport.getEntidForTempId("l");
@@ -942,7 +942,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testEntityBuilderForTempid() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         final long longEntid = reports.schemaReport.getEntidForTempId("l");
 
@@ -998,7 +998,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testInProgressBuilderTransact() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         long aEntid = reports.dataReport.getEntidForTempId("a");
         long bEntid = reports.dataReport.getEntidForTempId("b");
@@ -1063,7 +1063,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testEntityBuilderTransact() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         long aEntid = reports.dataReport.getEntidForTempId("a");
         long bEntid = reports.dataReport.getEntidForTempId("b");
@@ -1129,7 +1129,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testEntityBuilderRetract() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         long bEntid = reports.dataReport.getEntidForTempId("b");
         final long longEntid = reports.schemaReport.getEntidForTempId("l");
@@ -1199,7 +1199,7 @@ public class FFIIntegrationTest {
 
     @Test
     public void testInProgressBuilderRetract() throws InterruptedException {
-        Mentat mentat = new Mentat();
+        Mentat mentat = Mentat.open();
         DBSetupResult reports = this.populateWithTypesSchema(mentat);
         long bEntid = reports.dataReport.getEntidForTempId("b");
         final long longEntid = reports.schemaReport.getEntidForTempId("l");

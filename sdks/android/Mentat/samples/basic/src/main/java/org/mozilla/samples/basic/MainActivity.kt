@@ -21,8 +21,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Mentat(this.getDatabasePath("test.db").absolutePath).use {
+        this.getDatabasePath("test.db").absoluteFile.parentFile.mkdirs();
+
+        Mentat.open(this.getDatabasePath("test.db").absolutePath).use {
         }
     }
 }
-

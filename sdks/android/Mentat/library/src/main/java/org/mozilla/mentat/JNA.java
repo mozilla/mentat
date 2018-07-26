@@ -42,7 +42,7 @@ public interface JNA extends Library {
     class InProgressBuilder extends PointerType {}
     class EntityBuilder extends PointerType {}
 
-    Store store_open(String dbPath);
+    Store store_open(String dbPath, RustError.ByReference err);
 
     void destroy(Pointer obj);
     void uuid_destroy(Pointer obj);
