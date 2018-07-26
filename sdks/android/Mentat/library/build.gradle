@@ -53,7 +53,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:rules:1.0.2'
     testImplementation 'junit:junit:4.12'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'net.java.dev.jna:jna:4.5.1'
+    implementation 'net.java.dev.jna:jna:4.5.2@aar'
 }
 
 repositories {
