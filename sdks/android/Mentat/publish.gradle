@@ -91,6 +91,9 @@ ext.configurePublish = { groupIdArg, artifactIdArg, descriptionArg ->
             desc = descriptionArg
             websiteUrl = libUrl
             vcsUrl = libVcsUrl
+            if (project.ext.has('vcsTag')) {
+                vcsTag = project.ext.vcsTag
+            }
             licenses = [libLicense]
             publish = true
             publicDownloadNumbers = true
