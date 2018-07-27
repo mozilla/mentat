@@ -46,7 +46,7 @@ public class FFIIntegrationTest {
         TxReport schemaReport;
         TxReport dataReport;
 
-        public DBSetupResult(TxReport schemaReport, TxReport dataReport) {
+        DBSetupResult(TxReport schemaReport, TxReport dataReport) {
             this.schemaReport = schemaReport;
             this.dataReport = dataReport;
         }
@@ -56,29 +56,29 @@ public class FFIIntegrationTest {
         private long startTime = 0;
         private long endTime = 0;
 
-        public void start() {
+        void start() {
             this.startTime = System.nanoTime();
         }
 
-        public void end() {
+        void end() {
             this.endTime = System.nanoTime();
         }
 
-        public long duration() {
+        long duration() {
             return this.endTime - this.startTime;
         }
     }
 
-    Mentat mentat = null;
+    private Mentat mentat = null;
 
     @Test
-    public void openInMemoryStoreSucceeds() throws Exception {
+    public void openInMemoryStoreSucceeds() {
         Mentat mentat = Mentat.open();
         assertNotNull(mentat);
     }
 
     @Test
-    public void openStoreInLocationSucceeds() throws Exception {
+    public void openStoreInLocationSucceeds() {
         Context context = RuntimeEnvironment.application.getApplicationContext();
         String path = context.getDatabasePath("test.db").getAbsolutePath();
         assertTrue(new File(path).getParentFile().mkdirs());
@@ -96,7 +96,7 @@ public class FFIIntegrationTest {
             StringBuilder out = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                out.append(line + "\n");
+                out.append(line).append("\n");
             }
             return out.toString();
         } catch (IOException e) {
@@ -283,7 +283,7 @@ public class FFIIntegrationTest {
                 "        [?c :community/type :community.type/website]\n" +
                 "        [(fulltext $ :community/category \"food\") [[?c ?cat]]]]";
 
-        final LinkedHashMap expectedResults = new LinkedHashMap<String, String>();
+        final LinkedHashMap<String, String> expectedResults = new LinkedHashMap<>();
         expectedResults.put("InBallard", "food");
         expectedResults.put("Seattle Chinatown Guide", "food");
         expectedResults.put("Community Harvest of Southwest Seattle", "sustainable food");
@@ -299,7 +299,7 @@ public class FFIIntegrationTest {
                     assertNotNull(name);
                     String category = row.asString(1);
                     assertNotNull(category);
-                    String expectedCategory = expectedResults.get(name).toString();
+                    String expectedCategory = expectedResults.get(name);
                     assertNotNull(expectedCategory);
                     assertEquals(expectedCategory, category);
                     ++index;
@@ -320,7 +320,7 @@ public class FFIIntegrationTest {
                 "        [?c :community/type :community.type/website]\n" +
                 "        [(fulltext $ :community/category \"food\") [[?c ?cat]]]]";
 
-        final LinkedHashMap expectedResults = new LinkedHashMap<String, String>();
+        final LinkedHashMap<String, String> expectedResults = new LinkedHashMap<>();
         expectedResults.put("InBallard", "food");
         expectedResults.put("Seattle Chinatown Guide", "food");
         expectedResults.put("Community Harvest of Southwest Seattle", "sustainable food");
@@ -337,7 +337,7 @@ public class FFIIntegrationTest {
                     assertNotNull(name);
                     String category = row.asString(1);
                     assertNotNull(category);
-                    String expectedCategory = expectedResults.get(name).toString();
+                    String expectedCategory = expectedResults.get(name);
                     assertNotNull(expectedCategory);
                     assertEquals(expectedCategory, category);
                 }
@@ -422,7 +422,7 @@ public class FFIIntegrationTest {
     }
 
     @Test
-    public void bindingDateValueSucceeds() throws InterruptedException, ParseException {
+    public void bindingDateValueSucceeds() throws InterruptedException {
         Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
@@ -676,7 +676,7 @@ public class FFIIntegrationTest {
     }
 
     @Test
-    public void valueForAttributeOfEntitySucceeds() throws InterruptedException {
+    public void valueForAttributeOfEntitySucceeds() {
         Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
@@ -745,7 +745,7 @@ public class FFIIntegrationTest {
             public void handleRow(TupleResult row) {
                 assertNotNull(row);
                 assertEquals(false, row.asBool(0));
-                assertEquals(new Date(1514804400000l), row.asDate(1));
+                assertEquals(new Date(1514804400000L), row.asDate(1));
                 assertEquals(UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644"), row.asUUID(2));
                 assertEquals(50, row.asLong(3).longValue());
                 assertEquals(new Double(22.46), row.asDouble(4));
@@ -760,7 +760,7 @@ public class FFIIntegrationTest {
 
         InProgressBuilder builder = mentat.entityBuilder();
         builder.add(bEntid, ":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(bEntid, ":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(bEntid, ":foo/uuid", newUUID);
@@ -819,7 +819,7 @@ public class FFIIntegrationTest {
             public void handleRow(TupleResult row) {
                 assertNotNull(row);
                 assertEquals(false, row.asBool(0));
-                assertEquals(new Date(1514804400000l), row.asDate(1));
+                assertEquals(new Date(1514804400000L), row.asDate(1));
                 assertEquals(UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644"), row.asUUID(2));
                 assertEquals(50, row.asLong(3).longValue());
                 assertEquals(new Double(22.46), row.asDouble(4));
@@ -834,7 +834,7 @@ public class FFIIntegrationTest {
 
         EntityBuilder builder = mentat.entityBuilder(bEntid);
         builder.add(":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(":foo/uuid", newUUID);
@@ -875,7 +875,7 @@ public class FFIIntegrationTest {
 
         EntityBuilder builder = mentat.entityBuilder("c");
         builder.add(":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(":foo/uuid", newUUID);
@@ -929,7 +929,7 @@ public class FFIIntegrationTest {
         final long longEntid = reports.schemaReport.getEntidForTempId("l");
         InProgressBuilder builder = mentat.entityBuilder();
         builder.add(bEntid, ":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(bEntid, ":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(bEntid, ":foo/uuid", newUUID);
@@ -992,7 +992,7 @@ public class FFIIntegrationTest {
 
         EntityBuilder builder = mentat.entityBuilder(bEntid);
         builder.add(":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(":foo/uuid", newUUID);
@@ -1066,7 +1066,7 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/ref ?r]]";
 
         final CountDownLatch expectation1 = new CountDownLatch(1);
-        final Date previousDate = new Date(1514804400000l);
+        final Date previousDate = new Date(1514804400000L);
         final UUID previousUuid = UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644");
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
@@ -1130,7 +1130,7 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/ref ?r]]";
 
         final CountDownLatch expectation1 = new CountDownLatch(1);
-        final Date previousDate = new Date(1514804400000l);
+        final Date previousDate = new Date(1514804400000L);
         final UUID previousUuid = UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644");
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
