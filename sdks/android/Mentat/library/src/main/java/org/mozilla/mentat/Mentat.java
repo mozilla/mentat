@@ -21,10 +21,6 @@ import com.sun.jna.Pointer;
  * The raw pointer it holds is a pointer to a Store.
  */
 public class Mentat extends RustObject<JNA.Store> {
-    static {
-        System.loadLibrary("mentat_ffi");
-    }
-
     /**
      * Create a new Mentat with the provided pointer to a Mentat Store
      * @param rawPointer    A pointer to a Mentat Store.

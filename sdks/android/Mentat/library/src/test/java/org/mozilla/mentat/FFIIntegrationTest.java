@@ -11,15 +11,16 @@
 package org.mozilla.mentat;
 
 import android.content.Context;
-import android.content.res.AssetManager;
-import android.util.Log;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -27,18 +28,20 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
-import java.util.Locale;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Instrumentation test, which will execute on an Android device.
  */
-@RunWith(AndroidJUnit4.class)
+@RunWith(RobolectricTestRunner.class)
 public class FFIIntegrationTest {
-
     class DBSetupResult {
         TxReport schemaReport;
         TxReport dataReport;
@@ -76,17 +79,19 @@ public class FFIIntegrationTest {
 
     @Test
     public void openStoreInLocationSucceeds() throws Exception {
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = RuntimeEnvironment.application.getApplicationContext();
         String path = context.getDatabasePath("test.db").getAbsolutePath();
+        assertTrue(new File(path).getParentFile().mkdirs());
         Mentat mentat = Mentat.open(path);
         assertNotNull(mentat);
     }
 
     public String readFile(String fileName) {
-        Context testContext = InstrumentationRegistry.getInstrumentation().getContext();
-        AssetManager assetManager = testContext.getAssets();
+        final File resource = new File(getClass().getClassLoader().getResource(fileName).getFile());
+        assertTrue(resource.exists());
+
         try {
-            InputStream inputStream = assetManager.open(fileName);
+            final FileInputStream inputStream = new FileInputStream(resource);
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             StringBuilder out = new StringBuilder();
             String line;
@@ -261,8 +266,8 @@ public class FFIIntegrationTest {
                 assertNotNull(row);
                 String name = row.asString(0);
                 String category = row.asString(1);
-                assert(name == "Community Harvest of Southwest Seattle");
-                assert(category == "sustainable food");
+                assertEquals("Community Harvest of Southwest Seattle", name);
+                assertEquals("sustainable food", category);
                 expectation.countDown();
             }
         });
@@ -611,10 +616,14 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/instant ?v]]";
-        final CountDownLatch expectation = new CountDownLatch(1);
-        DateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZZZZZ", Locale.ENGLISH);
-        format.parse("2017-01-01T11:00:00+00:00");
+
+        final TimeZone tz = TimeZone.getTimeZone("UTC");
+        final DateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        format.setTimeZone(tz);
+        format.parse("2017-01-01T11:00:00.000Z");
         final Calendar expectedDate = format.getCalendar();
+
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
@@ -1205,10 +1214,8 @@ public class FFIIntegrationTest {
         expectation2.await();
 
         long timingDifference = uncachedTimer.duration() - cachedTimer.duration();
-        Log.d("testCaching", "Cached query is "+ timingDifference +" nanoseconds faster than the uncached query");
-
-        assert cachedTimer.duration() < uncachedTimer.duration();
-
+        assertTrue("Cached query is "+ timingDifference +" nanoseconds faster than the uncached query",
+                cachedTimer.duration() < uncachedTimer.duration());
     }
 
 }
