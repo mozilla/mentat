@@ -6,6 +6,8 @@ apply plugin: 'com.jfrog.bintray'
 // Simply applying this plugin gets bintray to publish a pom file.
 apply plugin: 'com.github.dcendents.android-maven'
 
+import com.sun.jna.Platform
+
 android {
     compileSdkVersion rootProject.ext.build['compileSdkVersion']
     defaultConfig {
@@ -26,6 +28,9 @@ android {
 
     sourceSets {
         androidTest.assets.srcDirs += '../../../../fixtures'
+
+        test.resources.srcDirs += '../../../../fixtures'
+        test.resources.srcDirs += "$buildDir/rustResources"
     }
 
     // TODO silences:
@@ -40,27 +45,60 @@ android {
     packagingOptions {
         doNotStrip "**/*.so"
     }
+
+    testOptions.unitTests.all {
+        maxParallelForks = 4
+    }
 }
 
 cargo {
     module = '../../../../ffi'
     targetDirectory = '../../../../target'
-    targetInclude = 'libmentat_ffi.so'
+    targetIncludes = ['libmentat_ffi.so', 'libmentat_ffi.dylib', 'libmentat_ffi.dll']
 
     targets = [
-        'x86',
+        'default', // For unit tests.
         'arm',
         'arm64',
+        'x86',
     ]
+
+    // This puts the output of `cargo build` (the "default" toolchain) into the correct directory
+    // for JNA to find it.
+    defaultToolchainBuildPrefixDir = Platform.RESOURCE_PREFIX
+}
+
+configurations {
+    // There's an interaction between Gradle's resolution of dependencies with different types
+    // (@jar, @aar) for `implementation` and `testImplementation` and with Android Studio's built-in
+    // JUnit test runner.  The runtime classpath in the built-in JUnit test runner gets the
+    // dependency from the `implementation`, which is type @aar, and therefore the JNA dependency
+    // doesn't provide the JNI dispatch libraries in the correct Java resource directories.  I think
+    // what's happening is that @aar type in `implementation` resolves to the @jar type in
+    // `testImplementation`, and that it wins the dependency resolution battle.
+    //
+    // A workaround is to add a new configuration which depends on the @jar type and to reference
+    // the underlying JAR file directly in `testImplementation`.  This JAR file doesn't resolve to
+    // the @aar type in `implementation`.  This works when invoked via `gradle`, but also sets the
+    // correct runtime classpath when invoked with Android Studio's built-in JUnit test runner.
+    // Success!
+    jnaForTest
 }
 
 dependencies {
+    jnaForTest 'net.java.dev.jna:jna:4.5.2@jar'
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'net.java.dev.jna:jna:4.5.2@aar'
+
+    testImplementation files(configurations.jnaForTest.files)
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.robolectric:robolectric:3.8'
+    testImplementation 'org.mockito:mockito-core:2.20.0'
+
     androidTestImplementation 'com.android.support:support-annotations:27.1.1'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test:rules:1.0.2'
-    testImplementation 'junit:junit:4.12'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'net.java.dev.jna:jna:4.5.2@aar'
 }
 
 repositories {
@@ -68,7 +106,7 @@ repositories {
 }
 
 afterEvaluate {
-    // The `cargoBuild` tasks isn't available until after evaluation.
+    // The `cargoBuild` task isn't available until after evaluation.
     android.libraryVariants.all { variant ->
         def productFlavor = ""
         variant.productFlavors.each {
@@ -76,6 +114,8 @@ afterEvaluate {
         }
         def buildType = "${variant.buildType.name.capitalize()}"
         tasks["generate${productFlavor}${buildType}Assets"].dependsOn(tasks["cargoBuild"])
+
+        tasks["process${productFlavor}${buildType}UnitTestJavaRes"].dependsOn(tasks["cargoBuild"])
     }
 }
 

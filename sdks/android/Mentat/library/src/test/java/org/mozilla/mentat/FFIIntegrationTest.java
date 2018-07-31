@@ -11,17 +11,16 @@
 package org.mozilla.mentat;
 
 import android.content.Context;
-import android.content.res.AssetManager;
-import android.support.test.InstrumentationRegistry;
-import android.support.test.runner.AndroidJUnit4;
-import android.util.Log;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -29,22 +28,25 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
-import java.util.Locale;
+import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Instrumentation test, which will execute on an Android device.
  */
-@RunWith(AndroidJUnit4.class)
+@RunWith(RobolectricTestRunner.class)
 public class FFIIntegrationTest {
-
     class DBSetupResult {
         TxReport schemaReport;
         TxReport dataReport;
 
-        public DBSetupResult(TxReport schemaReport, TxReport dataReport) {
+        DBSetupResult(TxReport schemaReport, TxReport dataReport) {
             this.schemaReport = schemaReport;
             this.dataReport = dataReport;
         }
@@ -54,45 +56,47 @@ public class FFIIntegrationTest {
         private long startTime = 0;
         private long endTime = 0;
 
-        public void start() {
+        void start() {
             this.startTime = System.nanoTime();
         }
 
-        public void end() {
+        void end() {
             this.endTime = System.nanoTime();
         }
 
-        public long duration() {
+        long duration() {
             return this.endTime - this.startTime;
         }
     }
 
-    Mentat mentat = null;
+    private Mentat mentat = null;
 
     @Test
-    public void openInMemoryStoreSucceeds() throws Exception {
+    public void openInMemoryStoreSucceeds() {
         Mentat mentat = Mentat.open();
         assertNotNull(mentat);
     }
 
     @Test
-    public void openStoreInLocationSucceeds() throws Exception {
-        Context context = InstrumentationRegistry.getTargetContext();
+    public void openStoreInLocationSucceeds() {
+        Context context = RuntimeEnvironment.application.getApplicationContext();
         String path = context.getDatabasePath("test.db").getAbsolutePath();
+        assertTrue(new File(path).getParentFile().mkdirs());
         Mentat mentat = Mentat.open(path);
         assertNotNull(mentat);
     }
 
     public String readFile(String fileName) {
-        Context testContext = InstrumentationRegistry.getInstrumentation().getContext();
-        AssetManager assetManager = testContext.getAssets();
+        final File resource = new File(getClass().getClassLoader().getResource(fileName).getFile());
+        assertTrue(resource.exists());
+
         try {
-            InputStream inputStream = assetManager.open(fileName);
+            final FileInputStream inputStream = new FileInputStream(resource);
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             StringBuilder out = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                out.append(line + "\n");
+                out.append(line).append("\n");
             }
             return out.toString();
         } catch (IOException e) {
@@ -198,26 +202,23 @@ public class FFIIntegrationTest {
     public void runScalarSucceeds() throws InterruptedException {
         Mentat mentat = openAndInitializeCitiesStore();
         String query = "[:find ?n . :in ?name :where [(fulltext $ :community/name ?name) [[?e ?n]]]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?name", "Wallingford").run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals("KOMO Communities - Wallingford", value.asString());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
     public void runCollSucceeds() throws InterruptedException {
         Mentat mentat = openAndInitializeCitiesStore();
         String query = "[:find [?when ...] :where [_ :db/txInstant ?when] :order (asc ?when)]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).run(new CollResultHandler() {
             @Override
             public void handleList(CollResult list) {
@@ -225,20 +226,17 @@ public class FFIIntegrationTest {
                 for (int i = 0; i < 3; ++i) {
                     assertNotNull(list.asDate(i));
                 }
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
     public void runCollResultIteratorSucceeds() throws InterruptedException {
         Mentat mentat = openAndInitializeCitiesStore();
         String query = "[:find [?when ...] :where [_ :db/txInstant ?when] :order (asc ?when)]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).run(new CollResultHandler() {
             @Override
             public void handleList(CollResult list) {
@@ -247,13 +245,10 @@ public class FFIIntegrationTest {
                 for(TypedValue value: list) {
                     assertNotNull(value.asDate());
                 }
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -264,22 +259,19 @@ public class FFIIntegrationTest {
                 "        [?c :community/name ?name]\n" +
                 "        [?c :community/type :community.type/website]\n" +
                 "        [(fulltext $ :community/category \"food\") [[?c ?cat]]]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
                 assertNotNull(row);
                 String name = row.asString(0);
                 String category = row.asString(1);
-                assert(name == "Community Harvest of Southwest Seattle");
-                assert(category == "sustainable food");
-                expectation.fulfill();
+                assertEquals("Community Harvest of Southwest Seattle", name);
+                assertEquals("sustainable food", category);
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -291,12 +283,12 @@ public class FFIIntegrationTest {
                 "        [?c :community/type :community.type/website]\n" +
                 "        [(fulltext $ :community/category \"food\") [[?c ?cat]]]]";
 
-        final LinkedHashMap expectedResults = new LinkedHashMap<String, String>();
+        final LinkedHashMap<String, String> expectedResults = new LinkedHashMap<>();
         expectedResults.put("InBallard", "food");
         expectedResults.put("Seattle Chinatown Guide", "food");
         expectedResults.put("Community Harvest of Southwest Seattle", "sustainable food");
         expectedResults.put("University District Food Bank", "food bank");
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).run(new RelResultHandler() {
             @Override
             public void handleRows(RelResult rows) {
@@ -307,19 +299,16 @@ public class FFIIntegrationTest {
                     assertNotNull(name);
                     String category = row.asString(1);
                     assertNotNull(category);
-                    String expectedCategory = expectedResults.get(name).toString();
+                    String expectedCategory = expectedResults.get(name);
                     assertNotNull(expectedCategory);
                     assertEquals(expectedCategory, category);
                     ++index;
                 }
                 assertEquals(expectedResults.size(), index);
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -331,12 +320,12 @@ public class FFIIntegrationTest {
                 "        [?c :community/type :community.type/website]\n" +
                 "        [(fulltext $ :community/category \"food\") [[?c ?cat]]]]";
 
-        final LinkedHashMap expectedResults = new LinkedHashMap<String, String>();
+        final LinkedHashMap<String, String> expectedResults = new LinkedHashMap<>();
         expectedResults.put("InBallard", "food");
         expectedResults.put("Seattle Chinatown Guide", "food");
         expectedResults.put("Community Harvest of Southwest Seattle", "sustainable food");
         expectedResults.put("University District Food Bank", "food bank");
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).run(new RelResultHandler() {
             @Override
             public void handleRows(RelResult rows) {
@@ -348,17 +337,14 @@ public class FFIIntegrationTest {
                     assertNotNull(name);
                     String category = row.asString(1);
                     assertNotNull(category);
-                    String expectedCategory = expectedResults.get(name).toString();
+                    String expectedCategory = expectedResults.get(name);
                     assertNotNull(expectedCategory);
                     assertEquals(expectedCategory, category);
                 }
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -367,19 +353,16 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?long :where [?e :foo/long ?long]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?long", 25).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -389,19 +372,16 @@ public class FFIIntegrationTest {
         long stringEntid = mentat.entIdForAttribute(":foo/string");
         final Long bEntid = report.getEntidForTempId("b");
         String query = "[:find ?e . :in ?ref :where [?e :foo/ref ?ref]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?ref", stringEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(bEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -411,19 +391,16 @@ public class FFIIntegrationTest {
         String refKeyword = ":foo/string";
         final Long bEntid = report.getEntidForTempId("b");
         String query = "[:find ?e . :in ?ref :where [?e :foo/ref ?ref]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindKeywordReference("?ref", refKeyword).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(bEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -432,30 +409,27 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?kw :where [?e :foo/keyword ?kw]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindKeyword("?kw", ":foo/string").run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
-    public void bindingDateValueSucceeds() throws InterruptedException, ParseException {
+    public void bindingDateValueSucceeds() throws InterruptedException {
         Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
 
         Date date = new Date(1523896758000L);
         String query = "[:find [?e ?d] :in ?now :where [?e :foo/instant ?d] [(< ?d ?now)]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?now", date).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
@@ -463,32 +437,26 @@ public class FFIIntegrationTest {
                 TypedValue value = row.get(0);
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
     public void bindingStringValueSucceeds() throws InterruptedException {
         Mentat mentat = this.openAndInitializeCitiesStore();
         String query = "[:find ?n . :in ?name :where [(fulltext $ :community/name ?name) [[?e ?n]]]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?name", "Wallingford").run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals("KOMO Communities - Wallingford", value.asString());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -498,19 +466,16 @@ public class FFIIntegrationTest {
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?uuid :where [?e :foo/uuid ?uuid]]";
         UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?uuid", uuid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -519,20 +484,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?bool :where [?e :foo/boolean ?bool]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?bool", true).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
 
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -541,19 +503,16 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :in ?double :where [?e :foo/double ?double]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bind("?double", 11.23).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -562,20 +521,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/long ?v]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(25, value.asLong().longValue());
                 assertEquals(25, value.asLong().longValue());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -584,20 +540,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?e . :where [?e :foo/long 25]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(aEntid, value.asEntid());
                 assertEquals(aEntid, value.asEntid());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -606,20 +559,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/keyword ?v]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(":foo/string", value.asKeyword());
                 assertEquals(":foo/string", value.asKeyword());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -628,20 +578,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/boolean ?v]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(true, value.asBoolean());
                 assertEquals(true, value.asBoolean());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -650,20 +597,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/double ?v]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(new Double(11.23), value.asDouble());
                 assertEquals(new Double(11.23), value.asDouble());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -672,23 +616,24 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/instant ?v]]";
-        final Expectation expectation = new Expectation();
-        DateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZZZZZ", Locale.ENGLISH);
-        format.parse("2017-01-01T11:00:00+00:00");
+
+        final TimeZone tz = TimeZone.getTimeZone("UTC");
+        final DateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        format.setTimeZone(tz);
+        format.parse("2017-01-01T11:00:00.000Z");
         final Calendar expectedDate = format.getCalendar();
+
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(expectedDate.getTime(), value.asDate());
                 assertEquals(expectedDate.getTime(), value.asDate());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -697,20 +642,17 @@ public class FFIIntegrationTest {
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/string ?v]]";
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals("The higher we soar the smaller we appear to those who cannot fly.", value.asString());
                 assertEquals("The higher we soar the smaller we appear to those who cannot fly.", value.asString());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -720,24 +662,21 @@ public class FFIIntegrationTest {
         final Long aEntid = report.getEntidForTempId("a");
         String query = "[:find ?v . :in ?e :where [?e :foo/uuid ?v]]";
         final UUID expectedUUID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", aEntid).run(new ScalarResultHandler() {
             @Override
             public void handleValue(TypedValue value) {
                 assertNotNull(value);
                 assertEquals(expectedUUID, value.asUUID());
                 assertEquals(expectedUUID, value.asUUID());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
-    public void valueForAttributeOfEntitySucceeds() throws InterruptedException {
+    public void valueForAttributeOfEntitySucceeds() {
         Mentat mentat = Mentat.open();
         TxReport report = this.populateWithTypesSchema(mentat).dataReport;
         final Long aEntid = report.getEntidForTempId("a");
@@ -800,31 +739,28 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation1 = new Expectation();
+        final CountDownLatch expectation1 = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
                 assertNotNull(row);
                 assertEquals(false, row.asBool(0));
-                assertEquals(new Date(1514804400000l), row.asDate(1));
+                assertEquals(new Date(1514804400000L), row.asDate(1));
                 assertEquals(UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644"), row.asUUID(2));
                 assertEquals(50, row.asLong(3).longValue());
                 assertEquals(new Double(22.46), row.asDouble(4));
                 assertEquals("Silence is worse; all truths that are kept silent become poisonous.", row.asString(5));
                 assertEquals(":foo/string", row.asKeyword(6));
                 assertEquals(stringEntid, row.asEntid(7).longValue());
-                expectation1.fulfill();
+                expectation1.countDown();
             }
         });
 
-        synchronized (expectation1) {
-            expectation1.wait(1000);
-        }
-        assertTrue(expectation1.isFulfilled);
+        expectation1.await();
 
         InProgressBuilder builder = mentat.entityBuilder();
         builder.add(bEntid, ":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(bEntid, ":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(bEntid, ":foo/uuid", newUUID);
@@ -836,7 +772,7 @@ public class FFIIntegrationTest {
         builder.commit();
 
 
-        final Expectation expectation2 = new Expectation();
+        final CountDownLatch expectation2 = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
@@ -850,14 +786,11 @@ public class FFIIntegrationTest {
                 assertEquals("Become who you are!", row.asString(5));
                 assertEquals(":foo/long", row.asKeyword(6));
                 assertEquals(longEntid, row.asEntid(7).longValue());
-                expectation2.fulfill();
+                expectation2.countDown();
             }
         });
 
-        synchronized (expectation2) {
-            expectation2.wait(1000);
-        }
-        assertTrue(expectation2.isFulfilled);
+        expectation2.await();
     }
 
     @Test
@@ -880,31 +813,28 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation1 = new Expectation();
+        final CountDownLatch expectation1 = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
                 assertNotNull(row);
                 assertEquals(false, row.asBool(0));
-                assertEquals(new Date(1514804400000l), row.asDate(1));
+                assertEquals(new Date(1514804400000L), row.asDate(1));
                 assertEquals(UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644"), row.asUUID(2));
                 assertEquals(50, row.asLong(3).longValue());
                 assertEquals(new Double(22.46), row.asDouble(4));
                 assertEquals("Silence is worse; all truths that are kept silent become poisonous.", row.asString(5));
                 assertEquals(":foo/string", row.asKeyword(6));
                 assertEquals(stringEntid, row.asEntid(7).longValue());
-                expectation1.fulfill();
+                expectation1.countDown();
             }
         });
 
-        synchronized (expectation1) {
-            expectation1.wait(1000);
-        }
-        assertTrue(expectation1.isFulfilled);
+        expectation1.await();
 
         EntityBuilder builder = mentat.entityBuilder(bEntid);
         builder.add(":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(":foo/uuid", newUUID);
@@ -916,7 +846,7 @@ public class FFIIntegrationTest {
         builder.commit();
 
 
-        final Expectation expectation2 = new Expectation();
+        final CountDownLatch expectation2 = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
@@ -930,14 +860,11 @@ public class FFIIntegrationTest {
                 assertEquals("Become who you are!", row.asString(5));
                 assertEquals(":foo/long", row.asKeyword(6));
                 assertEquals(longEntid, row.asEntid(7).longValue());
-                expectation2.fulfill();
+                expectation2.countDown();
             }
         });
 
-        synchronized (expectation2) {
-            expectation2.wait(1000);
-        }
-        assertTrue(expectation2.isFulfilled);
+        expectation2.await();
     }
 
     @Test
@@ -948,7 +875,7 @@ public class FFIIntegrationTest {
 
         EntityBuilder builder = mentat.entityBuilder("c");
         builder.add(":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(":foo/uuid", newUUID);
@@ -972,7 +899,7 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", cEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
@@ -986,14 +913,11 @@ public class FFIIntegrationTest {
                 assertEquals("Become who you are!", row.asString(5));
                 assertEquals(":foo/long", row.asKeyword(6));
                 assertEquals(longEntid, row.asEntid(7).longValue());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
 
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
     }
 
     @Test
@@ -1005,7 +929,7 @@ public class FFIIntegrationTest {
         final long longEntid = reports.schemaReport.getEntidForTempId("l");
         InProgressBuilder builder = mentat.entityBuilder();
         builder.add(bEntid, ":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(bEntid, ":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(bEntid, ":foo/uuid", newUUID);
@@ -1034,7 +958,7 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
@@ -1048,14 +972,11 @@ public class FFIIntegrationTest {
                 assertEquals("Become who you are!", row.asString(5));
                 assertEquals(":foo/long", row.asKeyword(6));
                 assertEquals(longEntid, row.asEntid(7).longValue());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
 
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
 
         TypedValue longValue = mentat.valueForAttributeOfEntity(":foo/long", aEntid);
         assertEquals(22, longValue.asLong().longValue());
@@ -1071,7 +992,7 @@ public class FFIIntegrationTest {
 
         EntityBuilder builder = mentat.entityBuilder(bEntid);
         builder.add(":foo/boolean", true);
-        final Date newDate = new Date(1524743301000l);
+        final Date newDate = new Date(1524743301000L);
         builder.add(":foo/instant", newDate);
         final UUID newUUID = UUID.randomUUID();
         builder.add(":foo/uuid", newUUID);
@@ -1100,7 +1021,7 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation = new Expectation();
+        final CountDownLatch expectation = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
@@ -1114,14 +1035,11 @@ public class FFIIntegrationTest {
                 assertEquals("Become who you are!", row.asString(5));
                 assertEquals(":foo/long", row.asKeyword(6));
                 assertEquals(longEntid, row.asEntid(7).longValue());
-                expectation.fulfill();
+                expectation.countDown();
             }
         });
 
-        synchronized (expectation) {
-            expectation.wait(1000);
-        }
-        assertTrue(expectation.isFulfilled);
+        expectation.await();
 
         TypedValue longValue = mentat.valueForAttributeOfEntity(":foo/long", aEntid);
         assertEquals(22, longValue.asLong().longValue());
@@ -1147,8 +1065,8 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation1 = new Expectation();
-        final Date previousDate = new Date(1514804400000l);
+        final CountDownLatch expectation1 = new CountDownLatch(1);
+        final Date previousDate = new Date(1514804400000L);
         final UUID previousUuid = UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644");
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
@@ -1162,14 +1080,11 @@ public class FFIIntegrationTest {
                 assertEquals("Silence is worse; all truths that are kept silent become poisonous.", row.asString(5));
                 assertEquals(":foo/string", row.asKeyword(6));
                 assertEquals(stringEntid, row.asEntid(7).longValue());
-                expectation1.fulfill();
+                expectation1.countDown();
             }
         });
 
-        synchronized (expectation1) {
-            expectation1.wait(1000);
-        }
-        assertTrue(expectation1.isFulfilled);
+        expectation1.await();
 
         EntityBuilder builder = mentat.entityBuilder(bEntid);
         builder.retract(":foo/boolean", false);
@@ -1182,19 +1097,16 @@ public class FFIIntegrationTest {
         builder.retractRef(":foo/ref", stringEntid);
         builder.commit();
 
-        final Expectation expectation2 = new Expectation();
+        final CountDownLatch expectation2 = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
                 assertNull(row);
-                expectation2.fulfill();
+                expectation2.countDown();
             }
         });
 
-        synchronized (expectation2) {
-            expectation2.wait(1000);
-        }
-        assertTrue(expectation2.isFulfilled);
+        expectation2.await();
     }
 
     @Test
@@ -1217,8 +1129,8 @@ public class FFIIntegrationTest {
                 "                            [?e :foo/keyword ?k]\n" +
                 "                            [?e :foo/ref ?r]]";
 
-        final Expectation expectation1 = new Expectation();
-        final Date previousDate = new Date(1514804400000l);
+        final CountDownLatch expectation1 = new CountDownLatch(1);
+        final Date previousDate = new Date(1514804400000L);
         final UUID previousUuid = UUID.fromString("4cb3f828-752d-497a-90c9-b1fd516d5644");
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
@@ -1232,14 +1144,11 @@ public class FFIIntegrationTest {
                 assertEquals("Silence is worse; all truths that are kept silent become poisonous.", row.asString(5));
                 assertEquals(":foo/string", row.asKeyword(6));
                 assertEquals(stringEntid, row.asEntid(7).longValue());
-                expectation1.fulfill();
+                expectation1.countDown();
             }
         });
 
-        synchronized (expectation1) {
-            expectation1.wait(1000);
-        }
-        assertTrue(expectation1.isFulfilled);
+        expectation1.await();
 
         InProgressBuilder builder = mentat.entityBuilder();
         builder.retract(bEntid, ":foo/boolean", false);
@@ -1252,19 +1161,16 @@ public class FFIIntegrationTest {
         builder.retractRef(bEntid, ":foo/ref", stringEntid);
         builder.commit();
 
-        final Expectation expectation2 = new Expectation();
+        final CountDownLatch expectation2 = new CountDownLatch(1);
         mentat.query(query).bindEntidReference("?e", bEntid).run(new TupleResultHandler() {
             @Override
             public void handleRow(TupleResult row) {
                 assertNull(row);
-                expectation2.fulfill();
+                expectation2.countDown();
             }
         });
 
-        synchronized (expectation2) {
-            expectation2.wait(1000);
-        }
-        assertTrue(expectation2.isFulfilled);
+        expectation2.await();
     }
 
     @Test
@@ -1276,7 +1182,7 @@ public class FFIIntegrationTest {
 
         Mentat mentat = openAndInitializeCitiesStore();
 
-        final Expectation expectation1 = new Expectation();
+        final CountDownLatch expectation1 = new CountDownLatch(1);
         final QueryTimer uncachedTimer = new QueryTimer();
         uncachedTimer.start();
         mentat.query(query).run(new RelResultHandler() {
@@ -1284,19 +1190,16 @@ public class FFIIntegrationTest {
             public void handleRows(RelResult rows) {
                 uncachedTimer.end();
                 assertNotNull(rows);
-                expectation1.fulfill();
+                expectation1.countDown();
             }
         });
 
-        synchronized (expectation1) {
-            expectation1.wait(1000);
-        }
-        assertTrue(expectation1.isFulfilled);
+        expectation1.await();
 
         mentat.cache(":neighborhood/name", CacheDirection.REVERSE);
         mentat.cache(":neighborhood/district", CacheDirection.FORWARD);
 
-        final Expectation expectation2 = new Expectation();
+        final CountDownLatch expectation2 = new CountDownLatch(1);
         final QueryTimer cachedTimer = new QueryTimer();
         cachedTimer.start();
         mentat.query(query).run(new RelResultHandler() {
@@ -1304,20 +1207,15 @@ public class FFIIntegrationTest {
             public void handleRows(RelResult rows) {
                 cachedTimer.end();
                 assertNotNull(rows);
-                expectation2.fulfill();
+                expectation2.countDown();
             }
         });
 
-        synchronized (expectation2) {
-            expectation2.wait(1000);
-        }
-        assertTrue(expectation2.isFulfilled);
+        expectation2.await();
 
         long timingDifference = uncachedTimer.duration() - cachedTimer.duration();
-        Log.d("testCaching", "Cached query is "+ timingDifference +" nanoseconds faster than the uncached query");
-
-        assert cachedTimer.duration() < uncachedTimer.duration();
-
+        assertTrue("Cached query is "+ timingDifference +" nanoseconds faster than the uncached query",
+                cachedTimer.duration() < uncachedTimer.duration());
     }
 
 }
