@@ -95,6 +95,7 @@ impl Partition {
 
 /// Map partition names to `Partition` instances.
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialOrd, PartialEq)]
+#[cfg_attr(feature = "syncable", derive(Serialize,Deserialize))]
 pub struct PartitionMap(BTreeMap<String, Partition>);
 
 impl Deref for PartitionMap {

@@ -55,11 +55,11 @@ mod tx_checking;
 pub mod types;
 mod upsert_resolution;
 
-// Export these for reference from tests. cfg(test) should work, but doesn't.
-// #[cfg(test)]
+// Export these for reference from sync code and tests.
 pub use bootstrap::{
     TX0,
     USER0,
+    V1_PARTS,
 };
 
 pub static TIMELINE_MAIN: i64 = 0;
@@ -108,6 +108,7 @@ pub use tx_observer::{
 pub use types::{
     AttributeSet,
     DB,
+    Partition,
     PartitionMap,
     TransactableValue,
 };
