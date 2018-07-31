@@ -1,3 +1,12 @@
+# 0.11 (2018-07-31)
+
+* sdks/android compiled against:
+  * Kotlin standard library 1.2.41
+
+* **sdks/android**: `Mentat()` constructor replaced with `open` factory method.
+
+* [Commits](https://github.com/mozilla/mentat/compare/v0.10.0...v0.11.0)
+
 # 0.10 (2018-07-26)
 
 * sdks/android compiled against:
