@@ -70,7 +70,7 @@ tasks:
           && python automation/taskcluster/release/fetch-bintray-api-key.py
           && cd sdks/android/Mentat
           && ./gradlew --no-daemon clean library:assembleRelease
-          && ./gradlew bintrayUpload --debug -PvcsTag=`git show-ref {{ event.version }}`
+          && VCS_TAG=`git show-ref {{ event.version }}` ./gradlew bintrayUpload --debug -PvcsTag="$VCS_TAG"
       features:
         taskclusterProxy: true
     metadata:
