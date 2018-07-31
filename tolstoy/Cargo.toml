@@ -31,6 +31,7 @@ path = "../core-traits"
 
 [dependencies.mentat_db]
 path = "../db"
+features = ["syncable"]
 
 [dependencies.db_traits]
 path = "../db-traits"
