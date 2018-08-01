@@ -11,7 +11,6 @@ MAINTAINER Nick Alexander "nalexander@mozilla.com"
 #----------------------------------------------------------------------------------------------------------------------
 
 ENV ANDROID_NDK_VERSION "r17b"
-ENV PROJECT_REPOSITORY "https://github.com/mozilla/mentat.git"
 
 #----------------------------------------------------------------------------------------------------------------------
 #-- System ------------------------------------------------------------------------------------------------------------
@@ -26,19 +25,24 @@ RUN apt-get update -qq
 RUN mkdir -p /build
 WORKDIR /build
 
-# ENV ANDROID_HOME /build/android-sdk
-# ENV ANDROID_SDK_HOME /build/android-sdk
 ENV ANDROID_NDK_HOME /build/android-ndk
-# ENV PATH ${PATH}:${ANDROID_NDK_HOME}/tools:${ANDROID_SDK_HOME}/tools/bin:${ANDROID_SDK_HOME}/platform-tools:/opt/tools:${ANDROID_SDK_HOME}/build-tools/${ANDROID_BUILD_TOOLS}
 
 RUN curl -L https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip > ndk.zip \
 	&& unzip ndk.zip -d /build \
 	&& rm ndk.zip \
   && mv /build/android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_HOME}
 
+ENV ANDROID_NDK_TOOLCHAIN_DIR /build/android-ndk-toolchain
+ENV ANDROID_NDK_API_VERSION 26
+
+RUN set -eux; \
+    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="arm"   --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/arm-$ANDROID_NDK_API_VERSION" --force; \
+    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="arm64" --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/arm64-$ANDROID_NDK_API_VERSION" --force; \
+    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="x86"   --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/x86-$ANDROID_NDK_API_VERSION" --force
+
 #----------------------------------------------------------------------------------------------------------------------
 #-- Rust (cribbed from https://github.com/rust-lang-nursery/docker-rust/blob/ced83778ec6fea7f63091a484946f95eac0ee611/1.27.1/stretch/Dockerfile)
-#-- Rust after the Android NDK since Rust rolls forward more frequently.
+#-- Rust is after the Android NDK since Rust rolls forward more frequently.  Both stable and beta for advanced consumers.
 #----------------------------------------------------------------------------------------------------------------------
 
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -59,37 +63,19 @@ RUN set -eux; \
     cargo --version; \
     rustc --version; \
     rustup target add i686-linux-android; \
-    rustup target add arm-linux-androideabi; \
+    rustup target add armv7-linux-androideabi; \
     rustup target add aarch64-linux-android
 
-#----------------------------------------------------------------------------------------------------------------------
-#-- Project -----------------------------------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------------------------------
-
-RUN git clone $PROJECT_REPOSITORY
-
-WORKDIR /build/mentat
-
-# Temporary.
-RUN git fetch origin build-android-sdk && git checkout origin/build-android-sdk &&    git show-ref HEAD
-
-# Populate dependencies.
-RUN ./sdks/android/Mentat/gradlew --no-daemon -p sdks/android/Mentat tasks
-
-# Cache toolchains.
-RUN ./sdks/android/Mentat/gradlew --no-daemon -p sdks/android/Mentat generateToolchains
-
-# Build Rust.
-RUN ./sdks/android/Mentat/gradlew --no-daemon -p sdks/android/Mentat cargoBuild
-
-# Actually build.  In the future, we might also test and lint (to cache additional dependencies).
-RUN ./sdks/android/Mentat/gradlew --no-daemon -p sdks/android/Mentat assemble
-
-# Drop built Rust artifacts.
-RUN cargo clean
+RUN set -eux; \
+    rustup install beta; \
+    rustup target add --toolchain beta i686-linux-android; \
+    rustup target add --toolchain beta armv7-linux-androideabi; \
+    rustup target add --toolchain beta aarch64-linux-android
 
 #----------------------------------------------------------------------------------------------------------------------
 # -- Cleanup ----------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------------
+
+WORKDIR /build
 
 RUN apt-get clean
