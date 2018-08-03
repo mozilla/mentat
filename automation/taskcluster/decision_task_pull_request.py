@@ -63,7 +63,7 @@ def create_task(name, description, command):
         "payload": {
             "features": {},
             "maxRunTime": 7200,
-            "image": "mozillamobile/mentat:1.1",
+            "image": "mozillamobile/mentat:1.2",
             "command": [
                 "/bin/bash",
                 "--login",
