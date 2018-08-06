@@ -35,10 +35,8 @@ class MentatTests: XCTestCase {
 
     // test that a store can be opened in a specific location
     func testOpenStoreInLocation() {
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let documentsURL = paths[0]
-        let storeURI = documentsURL.appendingPathComponent("test.db", isDirectory: false).absoluteString
-    
+        let documentsURL = NSURL(fileURLWithPath: NSTemporaryDirectory())
+        let storeURI = documentsURL.appendingPathComponent("test.db", isDirectory: false)!.absoluteString
         XCTAssertNotNil(try Mentat.open(storeURI: storeURI).raw)
     }
 
