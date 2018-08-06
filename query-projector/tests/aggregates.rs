@@ -99,10 +99,10 @@ fn test_the_without_max_or_min() {
     let projection = query_projection(&schema, &algebrized);
     assert!(projection.is_err());
     use ::mentat_query_projector::errors::{
-        ProjectorError,
+        ProjectorErrorKind,
     };
-    match projection.err().expect("expected failure") {
-        ProjectorError::InvalidProjection(s) => {
+    match projection.err().expect("expected failure").kind() {
+        &ProjectorErrorKind::InvalidProjection(ref s) => {
                 assert_eq!(s.as_str(), "Warning: used `the` without `min` or `max`.");
             },
         _ => panic!(),

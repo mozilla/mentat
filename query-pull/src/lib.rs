@@ -104,6 +104,7 @@ pub mod errors;
 
 pub use errors::{
     PullError,
+    PullErrorKind,
     Result,
 };
 
@@ -165,7 +166,7 @@ impl Puller {
             // In the unlikely event that we have an attribute with no name, we bail.
             schema.get_ident(*i)
                     .map(|ident| ValueRc::new(ident.clone()))
-                    .ok_or_else(|| PullError::UnnamedAttribute(*i))
+                    .ok_or_else(|| PullError::from(PullErrorKind::UnnamedAttribute(*i)))
         };
 
         let mut names: BTreeMap<Entid, ValueRc<Keyword>> = Default::default();
@@ -194,7 +195,7 @@ impl Puller {
                         &PullConcreteAttribute::Ident(ref i) if i.as_ref() == db_id.as_ref() => {
                             // We only allow :db/id once.
                             if db_id_alias.is_some() {
-                                Err(PullError::RepeatedDbId)?
+                                Err(PullErrorKind::RepeatedDbId)?
                             }
                             db_id_alias = Some(alias.unwrap_or_else(|| db_id.to_value_rc()));
                         },

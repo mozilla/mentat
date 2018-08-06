@@ -21,6 +21,12 @@ use mentat_core::{
 use self::mentat_query::{
     PlainSymbol,
 };
+use std::fmt;
+use failure::{
+    Backtrace,
+    Context,
+    Fail,
+};
 
 pub type Result<T> = std::result::Result<T, AlgebrizerError>;
 
@@ -29,6 +35,49 @@ macro_rules! bail {
     ($e:expr) => (
         return Err($e.into());
     )
+}
+
+#[derive(Debug)]
+pub struct AlgebrizerError(Box<Context<AlgebrizerErrorKind>>);
+
+impl Fail for AlgebrizerError {
+    #[inline]
+    fn cause(&self) -> Option<&Fail> {
+        self.0.cause()
+    }
+
+    #[inline]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.0.backtrace()
+    }
+}
+
+impl fmt::Display for AlgebrizerError {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&*self.0, f)
+    }
+}
+
+impl AlgebrizerError {
+    #[inline]
+    pub fn kind(&self) -> &AlgebrizerErrorKind {
+        &*self.0.get_context()
+    }
+}
+
+impl From<AlgebrizerErrorKind> for AlgebrizerError {
+    #[inline]
+    fn from(kind: AlgebrizerErrorKind) -> AlgebrizerError {
+        AlgebrizerError(Box::new(Context::new(kind)))
+    }
+}
+
+impl From<Context<AlgebrizerErrorKind>> for AlgebrizerError {
+    #[inline]
+    fn from(inner: Context<AlgebrizerErrorKind>) -> AlgebrizerError {
+        AlgebrizerError(Box::new(inner))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -52,7 +101,7 @@ pub enum BindingError {
 }
 
 #[derive(Clone, Debug, Eq, Fail, PartialEq)]
-pub enum AlgebrizerError {
+pub enum AlgebrizerErrorKind {
     #[fail(display = "{} var {} is duplicated", _0, _1)]
     DuplicateVariableError(PlainSymbol, &'static str),
 
@@ -107,8 +156,14 @@ pub enum AlgebrizerError {
     EdnParseError(#[cause] EdnParseError),
 }
 
+impl From<EdnParseError> for AlgebrizerErrorKind {
+    fn from(error: EdnParseError) -> AlgebrizerErrorKind {
+        AlgebrizerErrorKind::EdnParseError(error)
+    }
+}
+
 impl From<EdnParseError> for AlgebrizerError {
     fn from(error: EdnParseError) -> AlgebrizerError {
-        AlgebrizerError::EdnParseError(error)
+        AlgebrizerErrorKind::from(error).into()
     }
 }

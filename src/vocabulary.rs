@@ -121,7 +121,7 @@ use ::conn::{
 };
 
 use ::errors::{
-    MentatError,
+    MentatErrorKind,
     Result,
 };
 
@@ -375,17 +375,17 @@ trait HasCoreSchema {
 impl<T> HasCoreSchema for T where T: HasSchema {
     fn core_type(&self, t: ValueType) -> Result<KnownEntid> {
         self.entid_for_type(t)
-            .ok_or_else(|| MentatError::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
+            .ok_or_else(|| MentatErrorKind::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
     }
 
     fn core_entid(&self, ident: &Keyword) -> Result<KnownEntid> {
         self.get_entid(ident)
-            .ok_or_else(|| MentatError::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
+            .ok_or_else(|| MentatErrorKind::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
     }
 
     fn core_attribute(&self, ident: &Keyword) -> Result<KnownEntid> {
         self.attribute_for_ident(ident)
-            .ok_or_else(|| MentatError::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
+            .ok_or_else(|| MentatErrorKind::MissingCoreVocabulary(DB_SCHEMA_VERSION.clone()).into())
             .map(|(_, e)| e)
     }
 }
@@ -568,7 +568,7 @@ pub trait VersionedStore: HasVocabularies + HasSchema {
                                 // We have two vocabularies with the same name, same version, and
                                 // different definitions for an attribute. That's a coding error.
                                 // We can't accept this vocabulary.
-                                bail!(MentatError::ConflictingAttributeDefinitions(
+                                bail!(MentatErrorKind::ConflictingAttributeDefinitions(
                                           definition.name.to_string(),
                                           definition.version,
                                           pair.0.to_string(),
@@ -615,13 +615,13 @@ pub trait VersionedStore: HasVocabularies + HasSchema {
     fn verify_core_schema(&self) -> Result<()> {
         if let Some(core) = self.read_vocabulary_named(&DB_SCHEMA_CORE)? {
             if core.version != CORE_SCHEMA_VERSION {
-                bail!(MentatError::UnexpectedCoreSchema(CORE_SCHEMA_VERSION, Some(core.version)));
+                bail!(MentatErrorKind::UnexpectedCoreSchema(CORE_SCHEMA_VERSION, Some(core.version)));
             }
 
             // TODO: check things other than the version.
         } else {
             // This would be seriously messed up.
-            bail!(MentatError::UnexpectedCoreSchema(CORE_SCHEMA_VERSION, None));
+            bail!(MentatErrorKind::UnexpectedCoreSchema(CORE_SCHEMA_VERSION, None));
         }
         Ok(())
     }
@@ -682,7 +682,7 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
             VocabularyCheck::NotPresent => self.install_vocabulary(definition),
             VocabularyCheck::PresentButNeedsUpdate { older_version } => self.upgrade_vocabulary(definition, older_version),
             VocabularyCheck::PresentButMissingAttributes { attributes } => self.install_attributes_for(definition, attributes),
-            VocabularyCheck::PresentButTooNew { newer_version } => Err(MentatError::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version).into()),
+            VocabularyCheck::PresentButTooNew { newer_version } => Err(MentatErrorKind::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version).into()),
         }
     }
 
@@ -701,7 +701,7 @@ impl<'a, 'c> VersionedStore for InProgress<'a, 'c> {
                     out.insert(definition.name.clone(), VocabularyOutcome::Existed);
                 },
                 VocabularyCheck::PresentButTooNew { newer_version } => {
-                    bail!(MentatError::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version));
+                    bail!(MentatErrorKind::ExistingVocabularyTooNew(definition.name.to_string(), newer_version.version, definition.version));
                 },
 
                 c @ VocabularyCheck::NotPresent |
@@ -868,7 +868,7 @@ impl<T> HasVocabularies for T where T: HasSchema + Queryable {
                             attributes: attributes,
                         }))
                     },
-                Some(_) => bail!(MentatError::InvalidVocabularyVersion),
+                Some(_) => bail!(MentatErrorKind::InvalidVocabularyVersion),
             }
         } else {
             Ok(None)

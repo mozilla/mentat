@@ -55,7 +55,7 @@ use aggregates::{
 };
 
 use errors::{
-    ProjectorError,
+    ProjectorErrorKind,
     Result,
 };
 
@@ -127,14 +127,14 @@ fn candidate_type_column(cc: &ConjoiningClauses, var: &Variable) -> Result<(Colu
           let type_name = VariableColumn::VariableTypeTag(var.clone()).column_name();
           (ColumnOrExpression::Column(alias), type_name)
       })
-      .ok_or_else(|| ProjectorError::UnboundVariable(var.name()).into())
+      .ok_or_else(|| ProjectorErrorKind::UnboundVariable(var.name()).into())
 }
 
 fn cc_column(cc: &ConjoiningClauses, var: &Variable) -> Result<QualifiedAlias> {
     cc.column_bindings
       .get(var)
       .and_then(|cols| cols.get(0).cloned())
-      .ok_or_else(|| ProjectorError::UnboundVariable(var.name()).into())
+      .ok_or_else(|| ProjectorErrorKind::UnboundVariable(var.name()).into())
 }
 
 fn candidate_column(cc: &ConjoiningClauses, var: &Variable) -> Result<(ColumnOrExpression, Name)> {
@@ -211,18 +211,18 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
         match e {
             &Element::Variable(ref var) => {
                 if outer_variables.contains(var) {
-                    bail!(ProjectorError::InvalidProjection(format!("Duplicate variable {} in query.", var)));
+                    bail!(ProjectorErrorKind::InvalidProjection(format!("Duplicate variable {} in query.", var)));
                 }
                 if corresponded_variables.contains(var) {
-                    bail!(ProjectorError::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
+                    bail!(ProjectorErrorKind::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
                 }
             },
             &Element::Corresponding(ref var) => {
                 if outer_variables.contains(var) {
-                    bail!(ProjectorError::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
+                    bail!(ProjectorErrorKind::InvalidProjection(format!("Can't project both {} and `(the {})` from a query.", var, var)));
                 }
                 if corresponded_variables.contains(var) {
-                    bail!(ProjectorError::InvalidProjection(format!("`(the {})` appears twice in query.", var)));
+                    bail!(ProjectorErrorKind::InvalidProjection(format!("`(the {})` appears twice in query.", var)));
                 }
             },
             &Element::Aggregate(_) => {
@@ -346,7 +346,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                     i += 1;
                 } else {
                     // TODO: complex aggregates.
-                    bail!(ProjectorError::NotYetImplemented("complex aggregates".into()));
+                    bail!(ProjectorErrorKind::NotYetImplemented("complex aggregates".into()));
                 }
             },
         }
@@ -355,13 +355,13 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
     match (min_max_count, corresponded_variables.len()) {
         (0, 0) | (_, 0) => {},
         (0, _) => {
-            bail!(ProjectorError::InvalidProjection("Warning: used `the` without `min` or `max`.".to_string()));
+            bail!(ProjectorErrorKind::InvalidProjection("Warning: used `the` without `min` or `max`.".to_string()));
         },
         (1, _) => {
             // This is the success case!
         },
         (n, c) => {
-            bail!(ProjectorError::AmbiguousAggregates(n, c));
+            bail!(ProjectorErrorKind::AmbiguousAggregates(n, c));
         },
     }
 
@@ -465,7 +465,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                                     .extracted_types
                                     .get(&var)
                                     .cloned()
-                                    .ok_or_else(|| ProjectorError::NoTypeAvailableForVariable(var.name().clone()))?;
+                                    .ok_or_else(|| ProjectorErrorKind::NoTypeAvailableForVariable(var.name().clone()))?;
                 inner_projection.push(ProjectedColumn(ColumnOrExpression::Column(type_col), type_name.clone()));
             }
             if group {

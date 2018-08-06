@@ -13,15 +13,64 @@ use std; // To refer to std::result::Result.
 use mentat_db::{
     DbError,
 };
+use failure::{
+    Backtrace,
+    Context,
+    Fail,
+};
 
 use mentat_core::{
     Entid,
 };
+use std::fmt;
 
 pub type Result<T> = std::result::Result<T, PullError>;
 
+#[derive(Debug)]
+pub struct PullError(Box<Context<PullErrorKind>>);
+
+impl Fail for PullError {
+    #[inline]
+    fn cause(&self) -> Option<&Fail> {
+        self.0.cause()
+    }
+
+    #[inline]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.0.backtrace()
+    }
+}
+
+impl fmt::Display for PullError {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&*self.0, f)
+    }
+}
+
+impl PullError {
+    #[inline]
+    pub fn kind(&self) -> &PullErrorKind {
+        &*self.0.get_context()
+    }
+}
+
+impl From<PullErrorKind> for PullError {
+    #[inline]
+    fn from(kind: PullErrorKind) -> PullError {
+        PullError(Box::new(Context::new(kind)))
+    }
+}
+
+impl From<Context<PullErrorKind>> for PullError {
+    #[inline]
+    fn from(inner: Context<PullErrorKind>) -> PullError {
+        PullError(Box::new(inner))
+    }
+}
+
 #[derive(Debug, Fail)]
-pub enum PullError {
+pub enum PullErrorKind {
     #[fail(display = "attribute {:?} has no name", _0)]
     UnnamedAttribute(Entid),
 
@@ -32,8 +81,13 @@ pub enum PullError {
     DbError(#[cause] DbError),
 }
 
+impl From<DbError> for PullErrorKind {
+    fn from(error: DbError) -> PullErrorKind {
+        PullErrorKind::DbError(error)
+    }
+}
 impl From<DbError> for PullError {
     fn from(error: DbError) -> PullError {
-        PullError::DbError(error)
+        PullErrorKind::from(error).into()
     }
 }

@@ -16,7 +16,7 @@ extern crate rusqlite;
 extern crate mentat_core;
 
 use std::rc::Rc;
-
+use std::fmt;
 use std::collections::HashMap;
 
 use ordered_float::OrderedFloat;
@@ -27,10 +27,59 @@ use mentat_core::{
     ValueRc,
 };
 
+use failure::{
+    Backtrace,
+    Context,
+    Fail,
+};
+
 pub use rusqlite::types::Value;
 
+#[derive(Debug)]
+pub struct SQLError(Box<Context<SQLErrorKind>>);
+
+impl Fail for SQLError {
+    #[inline]
+    fn cause(&self) -> Option<&Fail> {
+        self.0.cause()
+    }
+
+    #[inline]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.0.backtrace()
+    }
+}
+
+impl fmt::Display for SQLError {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&*self.0, f)
+    }
+}
+
+impl SQLError {
+    #[inline]
+    pub fn kind(&self) -> &SQLErrorKind {
+        &*self.0.get_context()
+    }
+}
+
+impl From<SQLErrorKind> for SQLError {
+    #[inline]
+    fn from(kind: SQLErrorKind) -> SQLError {
+        SQLError(Box::new(Context::new(kind)))
+    }
+}
+
+impl From<Context<SQLErrorKind>> for SQLError {
+    #[inline]
+    fn from(inner: Context<SQLErrorKind>) -> SQLError {
+        SQLError(Box::new(inner))
+    }
+}
+
 #[derive(Debug, Fail)]
-pub enum SQLError {
+pub enum SQLErrorKind {
     #[fail(display = "invalid parameter name: {}", _0)]
     InvalidParameterName(String),
 
@@ -204,12 +253,12 @@ impl QueryBuilder for SQLiteQueryBuilder {
         // Do some validation first.
         // This is not free, but it's probably worth it for now.
         if !name.chars().all(|c| char::is_alphanumeric(c) || c == '_') {
-            return Err(SQLError::InvalidParameterName(name.to_string()))
+            return Err(SQLErrorKind::InvalidParameterName(name.to_string()).into())
         }
 
         if name.starts_with(self.arg_prefix.as_str()) &&
            name.chars().skip(self.arg_prefix.len()).all(char::is_numeric) {
-               return Err(SQLError::BindParamCouldBeGenerated(name.to_string()))
+               return Err(SQLErrorKind::BindParamCouldBeGenerated(name.to_string()).into())
         }
 
         self.push_sql("$");

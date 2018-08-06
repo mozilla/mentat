@@ -26,7 +26,7 @@ use clauses::ConjoiningClauses;
 use clauses::convert::ValueTypes;
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     Result,
 };
 
@@ -53,7 +53,7 @@ impl ConjoiningClauses {
         if let Some(op) = Inequality::from_datalog_operator(predicate.operator.0.as_str()) {
             self.apply_inequality(known, op, predicate)
         } else {
-            bail!(AlgebrizerError::UnknownFunction(predicate.operator.clone()))
+            bail!(AlgebrizerErrorKind::UnknownFunction(predicate.operator.clone()))
         }
     }
 
@@ -69,7 +69,7 @@ impl ConjoiningClauses {
     pub(crate) fn apply_type_anno(&mut self, anno: &TypeAnnotation) -> Result<()> {
         match ValueType::from_keyword(&anno.value_type) {
             Some(value_type) => self.add_type_requirement(anno.variable.clone(), ValueTypeSet::of_one(value_type)),
-            None => bail!(AlgebrizerError::InvalidArgumentType(PlainSymbol::plain("type"), ValueTypeSet::any(), 2)),
+            None => bail!(AlgebrizerErrorKind::InvalidArgumentType(PlainSymbol::plain("type"), ValueTypeSet::any(), 2)),
         }
         Ok(())
     }
@@ -80,7 +80,7 @@ impl ConjoiningClauses {
     /// - Accumulates an `Inequality` constraint into the `wheres` list.
     pub(crate) fn apply_inequality(&mut self, known: Known, comparison: Inequality, predicate: Predicate) -> Result<()> {
         if predicate.args.len() != 2 {
-            bail!(AlgebrizerError::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
+            bail!(AlgebrizerErrorKind::InvalidNumberOfArguments(predicate.operator.clone(), predicate.args.len(), 2));
         }
 
         // Go from arguments -- parser output -- to columns or values.
@@ -97,13 +97,13 @@ impl ConjoiningClauses {
         let mut left_types = self.potential_types(known.schema, &left)?
                                  .intersection(&supported_types);
         if left_types.is_empty() {
-            bail!(AlgebrizerError::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
+            bail!(AlgebrizerErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
         }
 
         let mut right_types = self.potential_types(known.schema, &right)?
                                   .intersection(&supported_types);
         if right_types.is_empty() {
-            bail!(AlgebrizerError::InvalidArgumentType(predicate.operator.clone(), supported_types, 1));
+            bail!(AlgebrizerErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 1));
         }
 
         // We would like to allow longs to compare to doubles.
@@ -150,7 +150,7 @@ impl ConjoiningClauses {
             left_v = self.resolve_ref_argument(known.schema, &predicate.operator, 0, left)?;
             right_v = self.resolve_ref_argument(known.schema, &predicate.operator, 1, right)?;
         } else {
-            bail!(AlgebrizerError::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
+            bail!(AlgebrizerErrorKind::InvalidArgumentType(predicate.operator.clone(), supported_types, 0));
         }
 
         // These arguments must be variables or instant/numeric constants.

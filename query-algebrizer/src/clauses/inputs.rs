@@ -20,7 +20,7 @@ use mentat_query::{
 };
 
 use errors::{
-    AlgebrizerError,
+    AlgebrizerErrorKind,
     Result,
 };
 
@@ -72,7 +72,7 @@ impl QueryInputs {
             let old = types.insert(var.clone(), t);
             if let Some(old) = old {
                 if old != t {
-                    bail!(AlgebrizerError::InputTypeDisagreement(var.name(), old, t));
+                    bail!(AlgebrizerErrorKind::InputTypeDisagreement(var.name(), old, t));
                 }
             }
         }
