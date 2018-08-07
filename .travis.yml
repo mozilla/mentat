@@ -54,35 +54,6 @@ matrix:
     - language: rust
       dist: trusty
       rust: stable
-      jdk:
-        - oraclejdk8
-      env:
-        # Get revision number from https://dl.google.com/android/repository/repository2-1.xml
-        # Look for the string 'sdk-tools-linux-'.
-        - ANDROID_SDK_VERSION=4333796
-
-      before_install:
-        - >
-          PKG_OS="$TRAVIS_OS_NAME";
-          export ANDROID_HOME="${HOME}/android-sdk";
-          export PATH=$PATH:"${ANDROID_HOME}/tools/bin";
-          mkdir $ANDROID_HOME
-      install:
-        # SDK Tools.
-        - >
-          curl -o sdk.zip "https://dl.google.com/android/repository/sdk-tools-${PKG_OS}-${ANDROID_SDK_VERSION}.zip" &&
-          unzip -q sdk.zip -d $ANDROID_HOME;  > /dev/null
-        # Android SDK and NDK
-        # Unfortunately we need to get rid of all output, otherwise it can easily fill up the 4 MB log limit
-        - yes | sdkmanager --licenses > /dev/null
-        - sdkmanager 'platform-tools' 'build-tools;27.0.0' 'platforms;android-27' 'ndk-bundle' > /dev/null
-      script:
-        - cd sdks/android/Mentat
-        - ./gradlew --no-daemon clean :library:assemble :library:test :library:lint
-        - cd ../../..
-    - language: rust
-      dist: trusty
-      rust: stable
       os: osx
       install:
         - rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
