@@ -60,10 +60,10 @@ matrix:
         - cargo install cargo-lipo
       script:
         - >
-          cd ffi
-          cargo lipo --release
+          cd ffi &&
+          cargo lipo --release &&
           cd ..
         - >
-          cd sdks/swift/Mentat
-          xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone SE,OS=latest' | xcpretty
+          cd sdks/swift/Mentat &&
+          xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone SE,OS=latest' | xcpretty &&
           cd ../../..
