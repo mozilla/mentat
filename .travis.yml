@@ -85,14 +85,13 @@ matrix:
       rust: stable
       os: osx
       before_install:
-        - PKG_OS="darwin";
+        - PKG_OS="darwin"
       install:
-        - |
-        rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
-        cargo install cargo-lipo
+        - rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
+        - cargo install cargo-lipo
       script:
         - ./scripts/ios_build.sh
-        - |
+        - >
           cd sdks/swift/Mentat
           xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone SE,OS=latest' | xcpretty
           cd ../../..
