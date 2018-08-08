@@ -13,6 +13,7 @@ extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
+extern crate query_projector_traits;
 
 use core_traits::{
     Entid,
@@ -102,7 +103,7 @@ fn test_the_without_max_or_min() {
     // … when we look at the projection list, we cannot reconcile the types.
     let projection = query_projection(&schema, &algebrized);
     assert!(projection.is_err());
-    use ::mentat_query_projector::errors::{
+    use query_projector_traits::errors::{
         ProjectorError,
     };
     match projection.err().expect("expected failure") {

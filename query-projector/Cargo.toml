@@ -5,7 +5,6 @@ workspace = ".."
 
 [dependencies]
 failure = "0.1.1"
-failure_derive = "0.1.1"
 indexmap = "1"
 
 [dependencies.rusqlite]
@@ -38,6 +37,9 @@ path = "../query-pull"
 
 [dependencies.query_pull_traits]
 path = "../query-pull-traits"
+
+[dependencies.query_projector_traits]
+path = "../query-projector-traits"
 
 [dependencies.mentat_query_sql]
 path = "../query-sql"

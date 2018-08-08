@@ -30,7 +30,9 @@ use db_traits::errors::DbError;
 use query_algebrizer_traits::errors::{
     AlgebrizerError,
 };
-use mentat_query_projector;
+use query_projector_traits::errors::{
+    ProjectorError,
+};
 use query_pull_traits::errors::{
     PullError,
 };
@@ -107,7 +109,7 @@ pub enum MentatError {
     AlgebrizerError(#[cause] AlgebrizerError),
 
     #[fail(display = "{}", _0)]
-    ProjectorError(#[cause] mentat_query_projector::ProjectorError),
+    ProjectorError(#[cause] ProjectorError),
 
     #[fail(display = "{}", _0)]
     PullError(#[cause] PullError),
@@ -150,8 +152,8 @@ impl From<AlgebrizerError> for MentatError {
     }
 }
 
-impl From<mentat_query_projector::ProjectorError> for MentatError {
-    fn from(error: mentat_query_projector::ProjectorError) -> MentatError {
+impl From<ProjectorError> for MentatError {
+    fn from(error: ProjectorError) -> MentatError {
         MentatError::ProjectorError(error)
     }
 }

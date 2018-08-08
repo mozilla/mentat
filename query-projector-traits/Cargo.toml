@@ -1,0 +1,40 @@
+[package]
+name = "query_projector_traits"
+version = "0.0.1"
+workspace = ".."
+
+[lib]
+name = "query_projector_traits"
+path = "lib.rs"
+
+[dependencies]
+failure = "0.1.1"
+failure_derive = "0.1.1"
+
+[dependencies.rusqlite]
+version = "0.13"
+features = ["limits"]
+
+[dependencies.edn]
+path = "../edn"
+
+[dependencies.core_traits]
+path = "../core-traits"
+
+[dependencies.db_traits]
+path = "../db-traits"
+
+[dependencies.query_pull_traits]
+path = "../query-pull-traits"
+
+[dependencies.mentat_query_algebrizer]
+path = "../query-algebrizer"
+
+[dependencies.mentat_query_sql]
+path = "../query-sql"
+
+[dev-dependencies.mentat_core]
+path = "../core"
+
+[dev-dependencies.mentat_query_projector]
+path = "../query-projector"

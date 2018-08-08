@@ -52,12 +52,12 @@ use mentat_query_sql::{
     ProjectedColumn,
 };
 
-use aggregates::{
+use query_projector_traits::aggregates::{
     SimpleAggregation,
     projected_column_for_simple_aggregate,
 };
 
-use errors::{
+use query_projector_traits::errors::{
     ProjectorError,
     Result,
 };
@@ -313,7 +313,7 @@ pub(crate) fn project_elements<'a, I: IntoIterator<Item = &'a Element>>(
                 if let Some(simple) = a.to_simple() {
                     aggregates = true;
 
-                    use aggregates::SimpleAggregationOp::*;
+                    use query_projector_traits::aggregates::SimpleAggregationOp::*;
                     match simple.op {
                         Max | Min => {
                             min_max_count += 1;

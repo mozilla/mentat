@@ -44,7 +44,7 @@ use ::pull::{
     PullTemplate,
 };
 
-use ::errors::{
+use query_projector_traits::errors::{
     Result,
 };
 

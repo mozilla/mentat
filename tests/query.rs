@@ -19,7 +19,7 @@ extern crate mentat_db;
 
 // TODO: when we switch to `failure`, make this more humane.
 extern crate query_algebrizer_traits;       // For errors;
-extern crate mentat_query_projector;        // For errors.
+extern crate query_projector_traits;        // For errors.
 extern crate mentat_query_translator;       // For errors.
 
 use std::str::FromStr;
@@ -40,7 +40,7 @@ use mentat_core::{
     Uuid,
 };
 
-use mentat_query_projector::{
+use query_projector_traits::aggregates::{
     SimpleAggregationOp,
 };
 
@@ -587,7 +587,7 @@ fn test_aggregates_type_handling() {
     let r = store.q_once(r#"[:find (sum ?v) . :where [_ _ ?v]]"#, None);
     let all_types = ValueTypeSet::any();
     match r.expect_err("expected query to fail") {
-        MentatError::ProjectorError(::mentat_query_projector::errors::ProjectorError::CannotApplyAggregateOperationToTypes(
+        MentatError::ProjectorError(::query_projector_traits::errors::ProjectorError::CannotApplyAggregateOperationToTypes(
             SimpleAggregationOp::Sum, types)) => {
                 assert_eq!(types, all_types);
         },
@@ -599,7 +599,7 @@ fn test_aggregates_type_handling() {
                              :where [_ _ ?v] [(type ?v :db.type/instant)]]"#,
                          None);
     match r.expect_err("expected query to fail") {
-        MentatError::ProjectorError(::mentat_query_projector::errors::ProjectorError::CannotApplyAggregateOperationToTypes(
+        MentatError::ProjectorError(::query_projector_traits::errors::ProjectorError::CannotApplyAggregateOperationToTypes(
             SimpleAggregationOp::Sum,
             types)) => {
                 assert_eq!(types, ValueTypeSet::of_one(ValueType::Instant));
@@ -1341,7 +1341,7 @@ fn test_aggregation_implicit_grouping() {
                                [?person :foo/is-vegetarian true]
                                [?person :foo/name ?name]]"#, None);
     match res.expect_err("expected query to fail") {
-        MentatError::ProjectorError(::mentat_query_projector::errors::ProjectorError::AmbiguousAggregates(mmc, cc)) => {
+        MentatError::ProjectorError(::query_projector_traits::errors::ProjectorError::AmbiguousAggregates(mmc, cc)) => {
             assert_eq!(mmc, 2);
             assert_eq!(cc, 1);
         },

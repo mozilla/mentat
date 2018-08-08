@@ -33,7 +33,7 @@ use mentat_query_pull::{
     Puller,
 };
 
-use errors::Result;
+use query_projector_traits::errors::Result;
 
 use super::{
     Index,

@@ -10,8 +10,6 @@
 
 extern crate failure;
 
-#[macro_use]
-extern crate failure_derive;
 extern crate indexmap;
 extern crate rusqlite;
 
@@ -23,6 +21,8 @@ extern crate mentat_db;                 // For value conversion.
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_pull;
 extern crate query_pull_traits;
+#[macro_use]
+extern crate query_projector_traits;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
 
@@ -42,7 +42,6 @@ use rusqlite::{
 use core_traits::{
     Binding,
     TypedValue,
-    ValueType,
 };
 
 use mentat_core::{
@@ -75,10 +74,6 @@ use mentat_query_sql::{
     Projection,
 };
 
-#[macro_use]
-pub mod errors;
-
-mod aggregates;
 mod binding_tuple;
 pub use binding_tuple::{
     BindingTuple,
@@ -87,10 +82,6 @@ mod project;
 mod projectors;
 mod pull;
 mod relresult;
-
-pub use aggregates::{
-    SimpleAggregationOp,
-};
 
 use project::{
     ProjectedElements,
@@ -122,7 +113,7 @@ pub use relresult::{
     StructuredRelResult,
 };
 
-pub use errors::{
+use query_projector_traits::errors::{
     ProjectorError,
     Result,
 };

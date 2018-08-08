@@ -25,5 +25,8 @@ path = "../query-algebrizer"
 [dependencies.mentat_query_projector]
 path = "../query-projector"
 
+[dependencies.query_projector_traits]
+path = "../query-projector-traits"
+
 [dependencies.mentat_query_sql]
 path = "../query-sql"
