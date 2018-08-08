@@ -19,7 +19,7 @@ use core_traits::{
     ValueType,
 };
 
-use errors::{
+use db_traits::errors::{
     CardinalityConflict,
 };
 

@@ -110,7 +110,7 @@ use db::{
     TypedSQLValue,
 };
 
-use errors::{
+use db_traits::errors::{
     DbError,
     DbErrorKind,
     Result,

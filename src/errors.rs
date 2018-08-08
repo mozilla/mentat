@@ -26,7 +26,7 @@ use mentat_core::{
     Attribute,
 };
 
-use mentat_db;
+use db_traits::errors::DbError;
 use mentat_query;
 use mentat_query_algebrizer;
 use mentat_query_projector;
@@ -98,7 +98,7 @@ pub enum MentatError {
     EdnParseError(#[cause] edn::ParseError),
 
     #[fail(display = "{}", _0)]
-    DbError(#[cause] mentat_db::DbError),
+    DbError(#[cause] DbError),
 
     #[fail(display = "{}", _0)]
     AlgebrizerError(#[cause] mentat_query_algebrizer::AlgebrizerError),
@@ -135,8 +135,8 @@ impl From<edn::ParseError> for MentatError {
     }
 }
 
-impl From<mentat_db::DbError> for MentatError {
-    fn from(error: mentat_db::DbError) -> MentatError {
+impl From<DbError> for MentatError {
+    fn from(error: DbError) -> MentatError {
         MentatError::DbError(error)
     }
 }

@@ -30,6 +30,9 @@ path = "../core-traits"
 [dependencies.mentat_db]
 path = "../db"
 
+[dependencies.db_traits]
+path = "../db-traits"
+
 [dependencies.rusqlite]
 version = "0.13"
 features = ["limits"]

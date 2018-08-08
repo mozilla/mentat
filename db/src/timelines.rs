@@ -12,7 +12,7 @@ use std::ops::RangeFrom;
 
 use rusqlite;
 
-use errors::{
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };

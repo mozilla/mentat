@@ -34,7 +34,7 @@ use add_retract_alter_set::{
 };
 use edn::symbols;
 use entids;
-use errors::{
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };

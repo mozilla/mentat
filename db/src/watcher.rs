@@ -30,7 +30,7 @@ use edn::entities::{
     OpType,
 };
 
-use errors::{
+use db_traits::errors::{
     Result,
 };
 

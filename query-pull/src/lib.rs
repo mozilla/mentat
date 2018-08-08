@@ -67,6 +67,7 @@ extern crate rusqlite;
 extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_db;
+extern crate db_traits;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_sql;

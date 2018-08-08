@@ -9,7 +9,6 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate failure;
-#[macro_use] extern crate failure_derive;
 extern crate indexmap;
 extern crate itertools;
 #[macro_use] extern crate lazy_static;
@@ -25,6 +24,7 @@ extern crate time;
 
 #[macro_use] extern crate edn;
 #[macro_use] extern crate mentat_core;
+#[macro_use] extern crate db_traits;
 extern crate core_traits;
 extern crate mentat_sql;
 
@@ -32,13 +32,10 @@ use std::iter::repeat;
 
 use itertools::Itertools;
 
-pub use errors::{
-    DbError,
+use db_traits::errors::{
     DbErrorKind,
     Result,
-    SchemaConstraintViolation,
 };
-#[macro_use] pub mod errors;
 
 #[macro_use] pub mod debug;
 

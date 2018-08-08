@@ -8,32 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-use std; // To refer to std::result::Result.
 
-use db_traits::errors::{
-    DbError,
-};
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
+extern crate rusqlite;
 
-use core_traits::{
-    Entid,
-};
+extern crate edn;
+extern crate core_traits;
 
-pub type Result<T> = std::result::Result<T, PullError>;
-
-#[derive(Debug, Fail)]
-pub enum PullError {
-    #[fail(display = "attribute {:?} has no name", _0)]
-    UnnamedAttribute(Entid),
-
-    #[fail(display = ":db/id repeated")]
-    RepeatedDbId,
-
-    #[fail(display = "{}", _0)]
-    DbError(#[cause] DbError),
-}
-
-impl From<DbError> for PullError {
-    fn from(error: DbError) -> PullError {
-        PullError::DbError(error)
-    }
-}
+pub mod errors;

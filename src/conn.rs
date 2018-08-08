@@ -562,7 +562,7 @@ impl<'a, 'o> TransactWatcher for InProgressTransactWatcher<'a, 'o> {
         self.observer_watcher.datom(op.clone(), e.clone(), a.clone(), v);
     }
 
-    fn done(&mut self, t: &Entid, schema: &Schema) -> ::mentat_db::errors::Result<()> {
+    fn done(&mut self, t: &Entid, schema: &Schema) -> ::db_traits::errors::Result<()> {
         self.cache_watcher.done(t, schema)?;
         self.observer_watcher.done(t, schema)?;
         self.tx_id = Some(t.clone());
@@ -895,7 +895,7 @@ mod tests {
 
         match conn.transact(&mut sqlite, t.as_str()) {
             Err(MentatError::DbError(e)) => {
-                assert_eq!(e.kind(), ::mentat_db::DbErrorKind::UnrecognizedEntid(next + 1));
+                assert_eq!(e.kind(), ::db_traits::errors::DbErrorKind::UnrecognizedEntid(next + 1));
             },
             x => panic!("expected db error, got {:?}", x),
         }
@@ -923,7 +923,7 @@ mod tests {
         match conn.transact(&mut sqlite, t.as_str()) {
             Err(MentatError::DbError(e)) => {
                 // All this, despite this being the ID we were about to allocate!
-                assert_eq!(e.kind(), ::mentat_db::DbErrorKind::UnrecognizedEntid(next));
+                assert_eq!(e.kind(), ::db_traits::errors::DbErrorKind::UnrecognizedEntid(next));
             },
             x => panic!("expected db error, got {:?}", x),
         }
@@ -1107,7 +1107,7 @@ mod tests {
         match report.expect_err("expected transact error") {
             MentatError::DbError(e) => {
                 match e.kind() {
-                    ::mentat_db::DbErrorKind::SchemaConstraintViolation(_) => {},
+                    ::db_traits::errors::DbErrorKind::SchemaConstraintViolation(_) => {},
                     _ => panic!("expected SchemaConstraintViolation"),
                 }
             },
