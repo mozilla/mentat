@@ -15,7 +15,7 @@ use core_traits::{
     TypedValue,
 };
 
-use mentat_query::{
+use edn::query::{
     Variable,
 };
 

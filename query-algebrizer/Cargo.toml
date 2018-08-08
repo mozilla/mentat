@@ -7,14 +7,14 @@ workspace = ".."
 failure = "0.1.1"
 failure_derive = "0.1.1"
 
+[dependencies.edn]
+path = "../edn"
+
 [dependencies.mentat_core]
 path = "../core"
 
 [dependencies.core_traits]
 path = "../core-traits"
-
-[dependencies.mentat_query]
-path = "../query"
 
 [dev-dependencies]
 itertools = "0.7"

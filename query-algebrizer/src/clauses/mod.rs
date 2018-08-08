@@ -42,16 +42,13 @@ use mentat_core::{
 
 use mentat_core::counter::RcCounter;
 
-use mentat_query::{
+use edn::query::{
     Element,
     FindSpec,
     Keyword,
     Pull,
     Variable,
     WhereClause,
-};
-
-use mentat_query::{
     PatternNonValuePlace,
 };
 

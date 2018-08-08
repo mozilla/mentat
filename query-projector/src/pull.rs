@@ -25,7 +25,7 @@ use mentat_core::{
     ValueRc,
 };
 
-use mentat_query::{
+use edn::query::{
     PullAttributeSpec,
 };
 

@@ -15,6 +15,9 @@ features = ["limits"]
 [dependencies.core_traits]
 path = "../core-traits"
 
+[dependencies.edn]
+path = "../edn"
+
 [dependencies.mentat_core]
 path = "../core"
 
@@ -26,9 +29,6 @@ path = "../db-traits"
 
 [dependencies.mentat_sql]
 path = "../sql"
-
-[dependencies.mentat_query]
-path = "../query"
 
 [dependencies.mentat_query_algebrizer]
 path = "../query-algebrizer"

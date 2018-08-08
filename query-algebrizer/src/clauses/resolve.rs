@@ -18,7 +18,7 @@ use mentat_core::{
     Schema,
 };
 
-use mentat_query::{
+use edn::query::{
     FnArg,
     NonIntegerConstant,
     PlainSymbol,

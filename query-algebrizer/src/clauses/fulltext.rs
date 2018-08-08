@@ -19,7 +19,7 @@ use mentat_core::{
 
 use mentat_core::util::Either;
 
-use mentat_query::{
+use edn::query::{
     Binding,
     FnArg,
     NonIntegerConstant,
@@ -273,7 +273,7 @@ mod testing {
         Schema,
     };
 
-    use mentat_query::{
+    use edn::query::{
         Binding,
         FnArg,
         Keyword,

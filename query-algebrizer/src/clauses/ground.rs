@@ -18,7 +18,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::{
+use edn::query::{
     Binding,
     FnArg,
     Variable,
@@ -332,7 +332,7 @@ mod testing {
         Attribute,
     };
 
-    use mentat_query::{
+    use edn::query::{
         Binding,
         FnArg,
         Keyword,

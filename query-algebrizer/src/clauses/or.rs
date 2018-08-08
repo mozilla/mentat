@@ -18,7 +18,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::{
+use edn::query::{
     OrJoin,
     OrWhereClause,
     Pattern,
@@ -763,7 +763,7 @@ mod testing {
         Schema,
     };
 
-    use mentat_query::{
+    use edn::query::{
         Keyword,
         Variable,
     };

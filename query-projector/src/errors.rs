@@ -16,7 +16,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 use db_traits::errors::DbError;
-use mentat_query::{
+use edn::query::{
     PlainSymbol,
 };
 use query_pull_traits::errors::{

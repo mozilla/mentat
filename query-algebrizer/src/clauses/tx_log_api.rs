@@ -12,7 +12,7 @@ use core_traits::{
     ValueType,
 };
 
-use mentat_query::{
+use edn::query::{
     Binding,
     FnArg,
     SrcVar,
@@ -257,7 +257,7 @@ mod testing {
         Schema,
     };
 
-    use mentat_query::{
+    use edn::query::{
         Binding,
         FnArg,
         PlainSymbol,

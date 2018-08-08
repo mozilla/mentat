@@ -12,9 +12,9 @@ extern crate failure;
 
 #[macro_use] extern crate failure_derive;
 
+extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
-extern crate mentat_query;
 
 use std::collections::BTreeSet;
 use std::ops::Sub;
@@ -40,7 +40,7 @@ use mentat_core::{
 
 use mentat_core::counter::RcCounter;
 
-use mentat_query::{
+use edn::query::{
     Element,
     FindSpec,
     Limit,
