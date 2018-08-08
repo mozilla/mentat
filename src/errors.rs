@@ -36,7 +36,9 @@ use query_projector_traits::errors::{
 use query_pull_traits::errors::{
     PullError,
 };
-use mentat_sql;
+use sql_traits::errors::{
+    SQLError,
+};
 
 #[cfg(feature = "syncable")]
 use mentat_tolstoy;
@@ -115,7 +117,7 @@ pub enum MentatError {
     PullError(#[cause] PullError),
 
     #[fail(display = "{}", _0)]
-    SQLError(#[cause] mentat_sql::SQLError),
+    SQLError(#[cause] SQLError),
 
     #[cfg(feature = "syncable")]
     #[fail(display = "{}", _0)]
@@ -164,8 +166,8 @@ impl From<PullError> for MentatError {
     }
 }
 
-impl From<mentat_sql::SQLError> for MentatError {
-    fn from(error: mentat_sql::SQLError) -> MentatError {
+impl From<SQLError> for MentatError {
+    fn from(error: SQLError) -> MentatError {
         MentatError::SQLError(error)
     }
 }

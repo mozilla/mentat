@@ -7,13 +7,14 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
 extern crate failure;
 
-#[macro_use] extern crate failure_derive;
 extern crate ordered_float;
 extern crate rusqlite;
 
 extern crate core_traits;
+extern crate sql_traits;
 extern crate mentat_core;
 
 use std::rc::Rc;
@@ -26,23 +27,17 @@ use core_traits::{
     TypedValue,
 };
 
+use sql_traits::errors::{
+    BuildQueryResult,
+    SQLError,
+};
+
 use mentat_core::{
     ToMicros,
     ValueRc,
 };
 
 pub use rusqlite::types::Value;
-
-#[derive(Debug, Fail)]
-pub enum SQLError {
-    #[fail(display = "invalid parameter name: {}", _0)]
-    InvalidParameterName(String),
-
-    #[fail(display = "parameter name could be generated: '{}'", _0)]
-    BindParamCouldBeGenerated(String)
-}
-
-pub type BuildQueryResult = Result<(), SQLError>;
 
 /// We want to accumulate values that will later be substituted into a SQL statement execution.
 /// This struct encapsulates the generated string and the _initial_ argument list.

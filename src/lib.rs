@@ -32,6 +32,7 @@ extern crate mentat_query_projector;
 extern crate query_projector_traits;
 extern crate mentat_query_pull;
 extern crate query_pull_traits;
+extern crate sql_traits;
 extern crate mentat_sql;
 
 #[cfg(feature = "syncable")]
@@ -148,7 +149,7 @@ pub use mentat_query_projector::{
     BindingTuple,
 };
 pub use query_pull_traits::errors::PullError;
-pub use mentat_sql::SQLError;
+pub use sql_traits::errors::SQLError;
 
 pub mod conn;
 pub mod entity_builder;

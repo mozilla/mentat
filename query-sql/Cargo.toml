@@ -17,5 +17,8 @@ path = "../core"
 [dependencies.mentat_sql]
 path = "../sql"
 
+[dependencies.sql_traits]
+path = "../sql-traits"
+
 [dependencies.mentat_query_algebrizer]
 path = "../query-algebrizer"

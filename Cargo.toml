@@ -79,6 +79,9 @@ path = "query-pull-traits"
 [dependencies.mentat_query_sql]
 path = "query-sql"
 
+[dependencies.sql_traits]
+path = "sql-traits"
+
 [dependencies.mentat_tolstoy]
 path = "tolstoy"
 optional = true
