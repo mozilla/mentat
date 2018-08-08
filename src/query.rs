@@ -76,7 +76,7 @@ pub use mentat_query_projector::{
     RelResult,
 };
 
-use errors::{
+use public_traits::errors::{
     MentatError,
     Result,
 };

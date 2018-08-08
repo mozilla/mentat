@@ -59,7 +59,10 @@ use conn::{
     Syncable,
 };
 
-use errors::*;
+use public_traits::errors::{
+    MentatError,
+    Result,
+};
 
 use query::{
     PreparedResult,

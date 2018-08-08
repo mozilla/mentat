@@ -97,7 +97,7 @@ use entity_builder::{
     TermBuilder,
 };
 
-use errors::{
+use public_traits::errors::{
     Result,
     MentatError,
 };

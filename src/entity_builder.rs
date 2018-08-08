@@ -80,7 +80,7 @@ use conn::{
     InProgress,
 };
 
-use errors::{
+use public_traits::errors::{
     Result,
 };
 
