@@ -19,11 +19,8 @@ use rusqlite;
 use edn;
 
 use core_traits::{
-    ValueType,
-};
-
-use mentat_core::{
     Attribute,
+    ValueType,
 };
 
 use db_traits::errors::DbError;

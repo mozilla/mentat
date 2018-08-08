@@ -93,14 +93,12 @@
 
 use std::collections::BTreeMap;
 
-pub use mentat_core::attribute;
-
-use mentat_core::attribute::{
-    Unique,
-};
-
 use core_traits::{
     KnownEntid,
+};
+
+use core_traits::attribute::{
+    Unique,
 };
 
 use ::{

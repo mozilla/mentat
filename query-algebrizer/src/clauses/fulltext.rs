@@ -265,11 +265,11 @@ mod testing {
     use super::*;
 
     use core_traits::{
+        Attribute,
         ValueType,
     };
 
     use mentat_core::{
-        Attribute,
         Schema,
     };
 

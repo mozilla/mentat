@@ -19,6 +19,8 @@ use db_traits::errors::{
 use edn::symbols;
 
 use core_traits::{
+    attribute,
+    Attribute,
     Entid,
     KnownEntid,
     TypedValue,
@@ -26,8 +28,6 @@ use core_traits::{
 };
 
 use mentat_core::{
-    attribute,
-    Attribute,
     EntidMap,
     HasSchema,
     IdentMap,

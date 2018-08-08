@@ -325,11 +325,8 @@ mod testing {
     use super::*;
 
     use core_traits::{
-        ValueType,
-    };
-
-    use mentat_core::{
         Attribute,
+        ValueType,
     };
 
     use edn::query::{

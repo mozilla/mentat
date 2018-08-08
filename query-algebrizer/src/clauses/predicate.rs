@@ -190,13 +190,13 @@ impl Inequality {
 mod testing {
     use super::*;
 
-    use mentat_core::attribute::Unique;
+    use core_traits::attribute::{
+        Unique,
+    };
     use core_traits::{
+        Attribute,
         TypedValue,
         ValueType,
-    };
-    use mentat_core::{
-        Attribute,
     };
 
     use edn::query::{

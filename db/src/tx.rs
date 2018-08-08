@@ -90,6 +90,8 @@ use internal_types::{
 use mentat_core::util::Either;
 
 use core_traits::{
+    attribute,
+    Attribute,
     Entid,
     KnownEntid,
     TypedValue,
@@ -102,7 +104,6 @@ use mentat_core::{
     Schema,
     TxReport,
     Utc,
-    attribute,
 };
 
 use edn::entities as entmod;
@@ -121,7 +122,6 @@ use tx_checking;
 use types::{
     AVMap,
     AVPair,
-    Attribute,
     PartitionMap,
     TransactableValue,
 };

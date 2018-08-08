@@ -16,12 +16,12 @@ extern crate mentat_query_projector;
 extern crate query_projector_traits;
 
 use core_traits::{
+    Attribute,
     Entid,
     ValueType,
 };
 
 use mentat_core::{
-    Attribute,
     Schema,
 };
 

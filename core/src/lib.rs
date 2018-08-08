@@ -20,9 +20,9 @@ extern crate core_traits;
 extern crate edn;
 
 use core_traits::{
+    Attribute,
     Entid,
     KnownEntid,
-    values,
     ValueType,
 };
 
@@ -76,161 +76,6 @@ pub use sql_types::{
     SQLValueType,
     SQLValueTypeSet,
 };
-
-/// Bit flags used in `flags0` column in temporary tables created during search,
-/// such as the `search_results`, `inexact_searches` and `exact_searches` tables.
-/// When moving to a more concrete table, such as `datoms`, they are expanded out
-/// via these flags and put into their own column rather than a bit field.
-pub enum AttributeBitFlags {
-    IndexAVET     = 1 << 0,
-    IndexVAET     = 1 << 1,
-    IndexFulltext = 1 << 2,
-    UniqueValue   = 1 << 3,
-}
-
-pub mod attribute {
-    use core_traits::{
-        TypedValue,
-    };
-
-    #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
-    pub enum Unique {
-        Value,
-        Identity,
-    }
-
-    impl Unique {
-        // This is easier than rejigging DB_UNIQUE_VALUE to not be EDN.
-        pub fn into_typed_value(self) -> TypedValue {
-            match self {
-                Unique::Value => TypedValue::typed_ns_keyword("db.unique", "value"),
-                Unique::Identity => TypedValue::typed_ns_keyword("db.unique", "identity"),
-            }
-        }
-    }
-}
-
-/// A Mentat schema attribute has a value type and several other flags determining how assertions
-/// with the attribute are interpreted.
-///
-/// TODO: consider packing this into a bitfield or similar.
-#[derive(Clone,Debug,Eq,Hash,Ord,PartialOrd,PartialEq)]
-pub struct Attribute {
-    /// The associated value type, i.e., `:db/valueType`?
-    pub value_type: ValueType,
-
-    /// `true` if this attribute is multi-valued, i.e., it is `:db/cardinality
-    /// :db.cardinality/many`.  `false` if this attribute is single-valued (the default), i.e., it
-    /// is `:db/cardinality :db.cardinality/one`.
-    pub multival: bool,
-
-    /// `None` if this attribute is neither unique-value nor unique-identity.
-    ///
-    /// `Some(attribute::Unique::Value)` if this attribute is unique-value, i.e., it is `:db/unique
-    /// :db.unique/value`.
-    ///
-    /// *Unique-value* means that there is at most one assertion with the attribute and a
-    /// particular value in the datom store.  Unique-value attributes can be used in lookup-refs.
-    ///
-    /// `Some(attribute::Unique::Identity)` if this attribute is unique-identity, i.e., it is `:db/unique
-    /// :db.unique/identity`.
-    ///
-    /// Unique-identity attributes always have value type `Ref`.
-    ///
-    /// *Unique-identity* means that the attribute is *unique-value* and that they can be used in
-    /// lookup-refs and will automatically upsert where appropriate.
-    pub unique: Option<attribute::Unique>,
-
-    /// `true` if this attribute is automatically indexed, i.e., it is `:db/indexing true`.
-    pub index: bool,
-
-    /// `true` if this attribute is automatically fulltext indexed, i.e., it is `:db/fulltext true`.
-    ///
-    /// Fulltext attributes always have string values.
-    pub fulltext: bool,
-
-    /// `true` if this attribute is a component, i.e., it is `:db/isComponent true`.
-    ///
-    /// Component attributes always have value type `Ref`.
-    ///
-    /// They are used to compose entities from component sub-entities: they are fetched recursively
-    /// by pull expressions, and they are automatically recursively deleted where appropriate.
-    pub component: bool,
-
-    /// `true` if this attribute doesn't require history to be kept, i.e., it is `:db/noHistory true`.
-    pub no_history: bool,
-}
-
-impl Attribute {
-    /// Combine several attribute flags into a bitfield used in temporary search tables.
-    pub fn flags(&self) -> u8 {
-        let mut flags: u8 = 0;
-
-        if self.index {
-            flags |= AttributeBitFlags::IndexAVET as u8;
-        }
-        if self.value_type == ValueType::Ref {
-            flags |= AttributeBitFlags::IndexVAET as u8;
-        }
-        if self.fulltext {
-            flags |= AttributeBitFlags::IndexFulltext as u8;
-        }
-        if self.unique.is_some() {
-            flags |= AttributeBitFlags::UniqueValue as u8;
-        }
-        flags
-    }
-
-    pub fn to_edn_value(&self, ident: Option<Keyword>) -> edn::Value {
-        let mut attribute_map: BTreeMap<edn::Value, edn::Value> = BTreeMap::default();
-        if let Some(ident) = ident {
-            attribute_map.insert(values::DB_IDENT.clone(), edn::Value::Keyword(ident));
-        }
-
-        attribute_map.insert(values::DB_VALUE_TYPE.clone(), self.value_type.into_edn_value());
-
-        attribute_map.insert(values::DB_CARDINALITY.clone(), if self.multival { values::DB_CARDINALITY_MANY.clone() } else { values::DB_CARDINALITY_ONE.clone() });
-
-        match self.unique {
-            Some(attribute::Unique::Value) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_VALUE.clone()); },
-            Some(attribute::Unique::Identity) => { attribute_map.insert(values::DB_UNIQUE.clone(), values::DB_UNIQUE_IDENTITY.clone()); },
-            None => (),
-        }
-
-        if self.index {
-            attribute_map.insert(values::DB_INDEX.clone(), edn::Value::Boolean(true));
-        }
-
-        if self.fulltext {
-            attribute_map.insert(values::DB_FULLTEXT.clone(), edn::Value::Boolean(true));
-        }
-
-        if self.component {
-            attribute_map.insert(values::DB_IS_COMPONENT.clone(), edn::Value::Boolean(true));
-        }
-
-        if self.no_history {
-            attribute_map.insert(values::DB_NO_HISTORY.clone(), edn::Value::Boolean(true));
-        }
-
-        edn::Value::Map(attribute_map)
-    }
-}
-
-impl Default for Attribute {
-    fn default() -> Attribute {
-        Attribute {
-            // There's no particular reason to favour one value type, so Ref it is.
-            value_type: ValueType::Ref,
-            fulltext: false,
-            index: false,
-            multival: false,
-            unique: None,
-            component: false,
-            no_history: false,
-        }
-    }
-}
 
 /// Map `Keyword` idents (`:db/ident`) to positive integer entids (`1`).
 pub type IdentMap = BTreeMap<Keyword, Entid>;
@@ -409,6 +254,7 @@ mod test {
     use std::str::FromStr;
 
     use core_traits::{
+        attribute,
         TypedValue,
     };
 
@@ -419,54 +265,6 @@ mod test {
 
     fn add_attribute(schema: &mut Schema, e: Entid, a: Attribute) {
         schema.attribute_map.insert(e, a);
-    }
-
-    #[test]
-    fn test_attribute_flags() {
-        let attr1 = Attribute {
-            index: true,
-            value_type: ValueType::Ref,
-            fulltext: false,
-            unique: None,
-            multival: false,
-            component: false,
-            no_history: false,
-        };
-
-        assert!(attr1.flags() & AttributeBitFlags::IndexAVET as u8 != 0);
-        assert!(attr1.flags() & AttributeBitFlags::IndexVAET as u8 != 0);
-        assert!(attr1.flags() & AttributeBitFlags::IndexFulltext as u8 == 0);
-        assert!(attr1.flags() & AttributeBitFlags::UniqueValue as u8 == 0);
-
-        let attr2 = Attribute {
-            index: false,
-            value_type: ValueType::Boolean,
-            fulltext: true,
-            unique: Some(attribute::Unique::Value),
-            multival: false,
-            component: false,
-            no_history: false,
-        };
-
-        assert!(attr2.flags() & AttributeBitFlags::IndexAVET as u8 == 0);
-        assert!(attr2.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
-        assert!(attr2.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
-        assert!(attr2.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
-
-        let attr3 = Attribute {
-            index: false,
-            value_type: ValueType::Boolean,
-            fulltext: true,
-            unique: Some(attribute::Unique::Identity),
-            multival: false,
-            component: false,
-            no_history: false,
-        };
-
-        assert!(attr3.flags() & AttributeBitFlags::IndexAVET as u8 == 0);
-        assert!(attr3.flags() & AttributeBitFlags::IndexVAET as u8 == 0);
-        assert!(attr3.flags() & AttributeBitFlags::IndexFulltext as u8 != 0);
-        assert!(attr3.flags() & AttributeBitFlags::UniqueValue as u8 != 0);
     }
 
     #[test]

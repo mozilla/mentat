@@ -42,15 +42,15 @@ use edn::{
 use entids;
 
 use core_traits::{
+    attribute,
+    Attribute,
+    AttributeBitFlags,
     Entid,
     TypedValue,
     ValueType,
 };
 
 use mentat_core::{
-    attribute,
-    Attribute,
-    AttributeBitFlags,
     FromMicros,
     IdentMap,
     Schema,
@@ -1227,12 +1227,12 @@ mod tests {
         OpType,
     };
     use core_traits::{
+        attribute,
         KnownEntid,
     };
     use mentat_core::{
         HasSchema,
         Keyword,
-        attribute,
     };
     use mentat_core::util::Either::*;
     use std::collections::{

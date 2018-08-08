@@ -41,13 +41,13 @@ use internal_types::{
 use mentat_core::util::Either::*;
 
 use core_traits::{
+    attribute,
+    Attribute,
     Entid,
     TypedValue,
 };
 
 use mentat_core::{
-    attribute,
-    Attribute,
     Schema,
 };
 use edn::entities::OpType;

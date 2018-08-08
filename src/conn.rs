@@ -46,6 +46,7 @@ use edn::{
 };
 
 pub use core_traits::{
+    Attribute,
     Entid,
     KnownEntid,
     StructuredMap,
@@ -54,7 +55,6 @@ pub use core_traits::{
 };
 
 use mentat_core::{
-    Attribute,
     HasSchema,
     Keyword,
     Schema,

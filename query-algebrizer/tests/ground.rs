@@ -19,12 +19,12 @@ mod utils;
 use std::collections::BTreeMap;
 
 use core_traits::{
+    Attribute,
     ValueType,
     TypedValue,
 };
 
 use mentat_core::{
-    Attribute,
     Schema,
 };
 

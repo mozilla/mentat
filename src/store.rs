@@ -308,7 +308,7 @@ mod tests {
         VersionedStore,
     };
 
-    use ::vocabulary::attribute::{
+    use core_traits::attribute::{
         Unique,
     };
 

@@ -26,13 +26,13 @@ use edn::query::{
 };
 
 use core_traits::{
+    Attribute,
     Entid,
     TypedValue,
     ValueType,
 };
 
 use mentat_core::{
-    Attribute,
     Schema,
 };
 
