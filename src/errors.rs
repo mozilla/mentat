@@ -71,14 +71,14 @@ pub enum MentatError {
     #[fail(display = "invalid vocabulary version")]
     InvalidVocabularyVersion,
 
-    #[fail(display = "vocabulary {}/{} already has attribute {}, and the requested definition differs", _0, _1, _2)]
-    ConflictingAttributeDefinitions(String, ::vocabulary::Version, String, Attribute, Attribute),
+    #[fail(display = "vocabulary {}/version {} already has attribute {}, and the requested definition differs", _0, _1, _2)]
+    ConflictingAttributeDefinitions(String, u32, String, Attribute, Attribute),
 
-    #[fail(display = "existing vocabulary {} too new: wanted {}, got {}", _0, _1, _2)]
-    ExistingVocabularyTooNew(String, ::vocabulary::Version, ::vocabulary::Version),
+    #[fail(display = "existing vocabulary {} too new: wanted version {}, got version {}", _0, _1, _2)]
+    ExistingVocabularyTooNew(String, u32, u32),
 
-    #[fail(display = "core schema: wanted {}, got {:?}", _0, _1)]
-    UnexpectedCoreSchema(::vocabulary::Version, Option<::vocabulary::Version>),
+    #[fail(display = "core schema: wanted version {}, got version {:?}", _0, _1)]
+    UnexpectedCoreSchema(u32, Option<u32>),
 
     #[fail(display = "Lost the transact() race!")]
     UnexpectedLostTransactRace,
