@@ -64,6 +64,7 @@ matrix:
         - cargo lipo --release
         - cd ..
         - cd sdks/swift/Mentat
+        - echo "" | xcversion simulators --install='iOS 10.3.1' 
         - instruments -s devices
         - xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=jibberish' | xcpretty
         - cd ../../..
