@@ -13,6 +13,16 @@ matrix:
   allow_failures:
     - rust: nightly
   fast_finish: true
+install:
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" = "1.25.0" ]]; then
+      rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios &&
+      # Cargo-lipo needs to be Beta version available on master and not crates version to handle building in subdirectories
+      cargo install --git https://github.com/TimNN/cargo-lipo &&
+      # If we don't list the devices available then when we come to pick on during the test run travis can't find our device.
+      # TODO: See if there is a less time consuming way of doing this.
+      instruments -s devices
+    fi
 script:
   - cargo test --verbose --all
   - cargo test --features edn/serde_support --verbose --all
@@ -24,6 +34,14 @@ script:
     for manifest in $(find . -type f -name Cargo.toml); do
       cargo test --manifest-path $manifest --verbose --no-default-features --features sqlcipher
     done
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" = "1.25.0" ]]; then
+      cd ffi &&
+      cargo lipo --release &&
+      cd ../sdks/swift/Mentat &&
+      xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone X,OS=11.4' &&
+      cd ../../..
+    fi
 after_success:
   - |
     if [[ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" ]]; then
