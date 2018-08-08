@@ -74,6 +74,8 @@ use mentat_query_sql::{
     Projection,
 };
 
+pub mod translate;
+
 mod binding_tuple;
 pub use binding_tuple::{
     BindingTuple,

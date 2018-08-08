@@ -13,7 +13,6 @@ extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
-extern crate mentat_query_translator;
 extern crate mentat_sql;
 
 use std::collections::BTreeMap;
@@ -49,7 +48,7 @@ use mentat_query_projector::{
     ConstantProjector,
 };
 
-use mentat_query_translator::{
+use mentat_query_projector::translate::{
     ProjectedSelect,
     query_to_select,
 };

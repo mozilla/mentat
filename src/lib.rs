@@ -32,7 +32,6 @@ extern crate mentat_query_projector;
 extern crate query_projector_traits;
 extern crate mentat_query_pull;
 extern crate query_pull_traits;
-extern crate mentat_query_translator;
 extern crate mentat_sql;
 
 #[cfg(feature = "syncable")]

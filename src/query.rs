@@ -57,13 +57,13 @@ use mentat_query_projector::{
     Projector,
 };
 
-use mentat_sql::{
-    SQLQuery,
-};
-
-use mentat_query_translator::{
+use mentat_query_projector::translate::{
     ProjectedSelect,
     query_to_select,
+};
+
+use mentat_sql::{
+    SQLQuery,
 };
 
 pub use mentat_query_algebrizer::{
