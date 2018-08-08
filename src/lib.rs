@@ -30,6 +30,7 @@ extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
 extern crate mentat_query_pull;
+extern crate query_pull_traits;
 extern crate mentat_query_translator;
 extern crate mentat_sql;
 
@@ -144,7 +145,7 @@ pub use mentat_query_projector::{
     BindingTuple,
     ProjectorError,
 };
-pub use mentat_query_pull::PullError;
+pub use query_pull_traits::errors::PullError;
 pub use mentat_sql::SQLError;
 
 pub mod conn;

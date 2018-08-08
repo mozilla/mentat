@@ -22,6 +22,7 @@ extern crate mentat_db;                 // For value conversion.
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_pull;
+extern crate query_pull_traits;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
 

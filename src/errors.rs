@@ -30,7 +30,9 @@ use db_traits::errors::DbError;
 use mentat_query;
 use mentat_query_algebrizer;
 use mentat_query_projector;
-use mentat_query_pull;
+use query_pull_traits::errors::{
+    PullError,
+};
 use mentat_sql;
 
 #[cfg(feature = "syncable")]
@@ -107,7 +109,7 @@ pub enum MentatError {
     ProjectorError(#[cause] mentat_query_projector::ProjectorError),
 
     #[fail(display = "{}", _0)]
-    PullError(#[cause] mentat_query_pull::PullError),
+    PullError(#[cause] PullError),
 
     #[fail(display = "{}", _0)]
     SQLError(#[cause] mentat_sql::SQLError),
@@ -153,8 +155,8 @@ impl From<mentat_query_projector::ProjectorError> for MentatError {
     }
 }
 
-impl From<mentat_query_pull::PullError> for MentatError {
-    fn from(error: mentat_query_pull::PullError) -> MentatError {
+impl From<PullError> for MentatError {
+    fn from(error: PullError) -> MentatError {
         MentatError::PullError(error)
     }
 }

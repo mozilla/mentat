@@ -70,6 +70,9 @@ path = "query-projector"
 [dependencies.mentat_query_pull]
 path = "query-pull"
 
+[dependencies.query_pull_traits]
+path = "query-pull-traits"
+
 [dependencies.mentat_query_sql]
 path = "query-sql"
 
