@@ -12,8 +12,11 @@ use std::collections::{
     BTreeSet,
 };
 
-use types::{
+use core_traits::{
     ValueType,
+};
+
+use types::{
     ValueTypeTag,
 };
 
@@ -70,7 +73,10 @@ impl SQLValueType for ValueType {
     /// example, `1` is how we encode `true`.
     ///
     /// ```
-    /// use mentat_core::{ValueType, SQLValueType};
+    /// extern crate core_traits;
+    /// extern crate mentat_core;
+    /// use core_traits::ValueType;
+    /// use mentat_core::SQLValueType;
     /// assert!(!ValueType::Instant.accommodates_integer(1493399581314));
     /// assert!(!ValueType::Instant.accommodates_integer(1493399581314000));
     /// assert!(ValueType::Boolean.accommodates_integer(1));

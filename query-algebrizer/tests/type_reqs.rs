@@ -8,8 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate mentat_core;
 extern crate core_traits;
+extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 
@@ -21,9 +21,12 @@ use utils::{
     bails,
 };
 
+use core_traits::{
+    ValueType,
+};
+
 use mentat_core::{
     Schema,
-    ValueType,
 };
 
 use mentat_query_algebrizer::Known;

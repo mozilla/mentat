@@ -29,6 +29,7 @@ use chrono::FixedOffset;
 use core_traits::{
     Entid,
     KnownEntid,
+    ValueType,
 };
 
 use mentat_core::{
@@ -36,7 +37,6 @@ use mentat_core::{
     HasSchema,
     Utc,
     Uuid,
-    ValueType,
     ValueTypeSet,
 };
 

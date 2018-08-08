@@ -42,13 +42,13 @@ use mentat_core::util::Either::*;
 
 use core_traits::{
     Entid,
+    TypedValue,
 };
 
 use mentat_core::{
     attribute,
     Attribute,
     Schema,
-    TypedValue,
 };
 use edn::entities::OpType;
 use schema::SchemaBuilding;

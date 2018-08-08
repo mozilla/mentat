@@ -9,7 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate edn;
-extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_db;
 extern crate ordered_float;
 extern crate rusqlite;
@@ -18,7 +18,10 @@ use ordered_float::OrderedFloat;
 
 use edn::symbols;
 
-use mentat_core::{TypedValue, ValueType};
+use core_traits::{
+    TypedValue,
+    ValueType,
+};
 use mentat_db::db::TypedSQLValue;
 
 // It's not possible to test to_sql_value_pair since rusqlite::ToSqlOutput doesn't implement

@@ -9,7 +9,6 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat;
-extern crate mentat_core;
 extern crate core_traits;
 
 #[cfg(feature = "syncable")]
@@ -30,8 +29,6 @@ mod tests {
     use mentat_tolstoy::errors::Result;
     use core_traits::{
         Entid,
-    };
-    use mentat_core::{
         TypedValue,
         ValueType,
     };

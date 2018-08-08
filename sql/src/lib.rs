@@ -13,6 +13,7 @@ extern crate failure;
 extern crate ordered_float;
 extern crate rusqlite;
 
+extern crate core_traits;
 extern crate mentat_core;
 
 use std::rc::Rc;
@@ -21,9 +22,12 @@ use std::collections::HashMap;
 
 use ordered_float::OrderedFloat;
 
+use core_traits::{
+    TypedValue,
+};
+
 use mentat_core::{
     ToMicros,
-    TypedValue,
     ValueRc,
 };
 

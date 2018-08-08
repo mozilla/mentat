@@ -90,11 +90,14 @@ mod testing {
 
     use super::*;
 
+    use core_traits::{
+        TypedValue,
+        ValueType,
+    };
+
     use mentat_core::{
         Attribute,
         Schema,
-        TypedValue,
-        ValueType,
         ValueTypeSet,
     };
 

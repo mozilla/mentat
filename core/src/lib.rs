@@ -14,24 +14,18 @@ extern crate failure;
 extern crate indexmap;
 extern crate ordered_float;
 extern crate uuid;
-extern crate serde;
 
 extern crate core_traits;
-
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate serde_derive;
 
 extern crate edn;
 
 use core_traits::{
     Entid,
     KnownEntid,
+    values,
+    ValueType,
 };
 
-pub mod values;
 mod cache;
 
 use std::collections::{
@@ -76,12 +70,7 @@ pub use tx_report::{
 };
 
 pub use types::{
-    Binding,
-    StructuredMap,
-    TypedValue,
-    ValueType,
     ValueTypeTag,
-    now,
 };
 
 pub use value_type_set::{
@@ -106,7 +95,9 @@ pub enum AttributeBitFlags {
 }
 
 pub mod attribute {
-    use TypedValue;
+    use core_traits::{
+        TypedValue,
+    };
 
     #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]
     pub enum Unique {
@@ -422,6 +413,10 @@ mod test {
     use super::*;
 
     use std::str::FromStr;
+
+    use core_traits::{
+        TypedValue,
+    };
 
     fn associate_ident(schema: &mut Schema, i: Keyword, e: Entid) {
         schema.entid_map.insert(e, i.clone());

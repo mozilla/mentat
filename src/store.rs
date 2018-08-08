@@ -28,13 +28,13 @@ use edn;
 
 use core_traits::{
     Entid,
+    StructuredMap,
+    TypedValue,
 };
 
 use mentat_core::{
     Keyword,
-    StructuredMap,
     TxReport,
-    TypedValue,
     ValueRc,
 };
 use mentat_db::{
@@ -280,11 +280,14 @@ mod tests {
         SQLiteAttributeCache,
     };
 
+    use core_traits::{
+        TypedValue,
+        ValueType,
+    };
+
     use mentat_core::{
         CachedAttributes,
         HasSchema,
-        TypedValue,
-        ValueType,
     };
 
     use ::entity_builder::{

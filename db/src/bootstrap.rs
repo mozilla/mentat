@@ -20,11 +20,15 @@ use edn::symbols;
 use entids;
 use db::TypedSQLValue;
 use edn::entities::Entity;
+
+use core_traits::{
+    TypedValue,
+    values,
+};
+
 use mentat_core::{
     IdentMap,
     Schema,
-    TypedValue,
-    values,
 };
 use schema::SchemaBuilding;
 use types::{Partition, PartitionMap};

@@ -28,6 +28,8 @@ extern crate mentat_core;
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 pub use self::mentat_core::{
@@ -35,9 +37,7 @@ pub use self::mentat_core::{
     AttributeBitFlags,
     DateTime,
     Schema,
-    TypedValue,
     Utc,
-    ValueType,
 };
 
 use edn::entities::{

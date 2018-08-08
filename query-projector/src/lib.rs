@@ -37,11 +37,14 @@ use rusqlite::{
     Rows,
 };
 
-use mentat_core::{
+use core_traits::{
     Binding,
-    Schema,
     TypedValue,
     ValueType,
+};
+
+use mentat_core::{
+    Schema,
     ValueTypeTag,
 };
 

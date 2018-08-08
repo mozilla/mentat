@@ -16,12 +16,12 @@ use std::fmt::{
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
-    TypedValue,
     ValueRc,
-    ValueType,
     ValueTypeSet,
 };
 

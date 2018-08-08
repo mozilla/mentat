@@ -21,6 +21,8 @@ use std::collections::{
 use core_traits::{
     Entid,
     KnownEntid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::util::Either;
@@ -53,8 +55,6 @@ use types::{
     AVPair,
     Schema,
     TransactableValue,
-    TypedValue,
-    ValueType,
 };
 
 impl TransactableValue for ValueAndSpan {

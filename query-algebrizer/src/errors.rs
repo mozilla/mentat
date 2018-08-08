@@ -12,9 +12,12 @@ extern crate mentat_query;
 
 use std; // To refer to std::result::Result.
 
+use core_traits::{
+    ValueType,
+};
+
 use mentat_core::{
     EdnParseError,
-    ValueType,
     ValueTypeSet,
 };
 

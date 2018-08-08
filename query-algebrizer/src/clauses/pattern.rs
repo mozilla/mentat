@@ -10,13 +10,13 @@
 
 use core_traits::{
     Entid,
+    ValueType,
+    TypedValue,
 };
 
 use mentat_core::{
     Cloned,
     HasSchema,
-    TypedValue,
-    ValueType,
     ValueTypeSet,
 };
 

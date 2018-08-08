@@ -68,9 +68,12 @@ use edn::entities::{
     ValuePlace,
 };
 
+use core_traits::{
+    TypedValue,
+};
+
 use mentat_core::{
     TxReport,
-    TypedValue,
 };
 
 use conn::{

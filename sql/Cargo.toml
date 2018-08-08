@@ -12,5 +12,8 @@ ordered-float = "0.5"
 version = "0.13"
 features = ["limits"]
 
+[dependencies.core_traits]
+path = "../core-traits"
+
 [dependencies.mentat_core]
 path = "../core"

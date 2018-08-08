@@ -8,10 +8,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use core_traits::{
+    ValueType,
+    TypedValue,
+};
+
 use mentat_core::{
     HasSchema,
-    TypedValue,
-    ValueType,
 };
 
 use mentat_core::util::Either;
@@ -261,10 +264,13 @@ impl ConjoiningClauses {
 mod testing {
     use super::*;
 
+    use core_traits::{
+        ValueType,
+    };
+
     use mentat_core::{
         Attribute,
         Schema,
-        ValueType,
     };
 
     use mentat_query::{

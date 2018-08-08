@@ -18,9 +18,12 @@ use rusqlite;
 
 use edn;
 
+use core_traits::{
+    ValueType,
+};
+
 use mentat_core::{
     Attribute,
-    ValueType,
 };
 
 use mentat_db;

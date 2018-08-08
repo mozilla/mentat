@@ -30,9 +30,6 @@ use edn::entities::{
 use core_traits::{
     Entid,
     KnownEntid,
-};
-
-use types::{
     TypedValue,
     ValueType,
 };

@@ -14,15 +14,15 @@ use rusqlite::types::ToSql;
 use std::rc::Rc;
 
 use core_traits::{
+    Binding,
     Entid,
     KnownEntid,
+    TypedValue,
 };
 
 use mentat_core::{
-    Binding,
     HasSchema,
     Schema,
-    TypedValue,
 };
 
 use mentat_query_algebrizer::{

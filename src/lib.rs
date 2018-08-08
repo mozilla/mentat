@@ -36,24 +36,24 @@ extern crate mentat_sql;
 extern crate mentat_tolstoy;
 
 pub use core_traits::{
+    Binding,
     Entid,
     KnownEntid,
+    StructuredMap,
+    TypedValue,
+    ValueType,
+    now,
 };
 
 pub use mentat_core::{
     Attribute,
-    Binding,
     DateTime,
     HasSchema,
     Keyword,
     Schema,
-    StructuredMap,
     TxReport,
-    TypedValue,
     Utc,
     Uuid,
-    ValueType,
-    now,
 };
 
 pub use mentat_query::{
