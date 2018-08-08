@@ -29,6 +29,7 @@ use core_traits::{
     Entid,
     KnownEntid,
     ValueType,
+    ValueTypeSet,
     TypedValue,
 };
 
@@ -37,7 +38,6 @@ use mentat_core::{
     Cloned,
     HasSchema,
     Schema,
-    ValueTypeSet,
 };
 
 use mentat_core::counter::RcCounter;

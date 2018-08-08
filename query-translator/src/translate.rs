@@ -11,6 +11,7 @@
 use core_traits::{
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_core::{
@@ -19,7 +20,6 @@ use mentat_core::{
     SQLValueType,
     SQLValueTypeSet,
     ValueTypeTag,
-    ValueTypeSet,
 };
 
 use mentat_core::util::{

@@ -16,10 +16,13 @@ use indexmap::{
     IndexSet,
 };
 
+use core_traits::{
+    ValueTypeSet,
+};
+
 use mentat_core::{
     SQLValueType,
     SQLValueTypeSet,
-    ValueTypeSet,
 };
 
 use mentat_core::util::{

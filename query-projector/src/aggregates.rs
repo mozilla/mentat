@@ -10,9 +10,6 @@
 
 use core_traits::{
     ValueType,
-};
-
-use mentat_core::{
     ValueTypeSet,
 };
 

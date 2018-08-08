@@ -73,6 +73,11 @@ use edn::entities::{
 };
 
 pub mod values;
+mod value_type_set;
+
+pub use value_type_set::{
+    ValueTypeSet,
+};
 
 /// Represents one entid in the entid space.
 ///

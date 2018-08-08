@@ -93,12 +93,12 @@ mod testing {
     use core_traits::{
         TypedValue,
         ValueType,
+        ValueTypeSet,
     };
 
     use mentat_core::{
         Attribute,
         Schema,
-        ValueTypeSet,
     };
 
     use edn::query::{

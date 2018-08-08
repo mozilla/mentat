@@ -30,6 +30,7 @@ use core_traits::{
     Entid,
     KnownEntid,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_core::{
@@ -37,7 +38,6 @@ use mentat_core::{
     HasSchema,
     Utc,
     Uuid,
-    ValueTypeSet,
 };
 
 use mentat_query_projector::{

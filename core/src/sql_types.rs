@@ -14,14 +14,11 @@ use std::collections::{
 
 use core_traits::{
     ValueType,
+    ValueTypeSet,
 };
 
 use types::{
     ValueTypeTag,
-};
-
-use value_type_set::{
-    ValueTypeSet,
 };
 
 /// Type safe representation of the possible return values from SQLite's `typeof`

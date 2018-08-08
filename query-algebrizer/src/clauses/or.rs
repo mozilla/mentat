@@ -14,7 +14,7 @@ use std::collections::{
     BTreeSet,
 };
 
-use mentat_core::{
+use core_traits::{
     ValueTypeSet,
 };
 
