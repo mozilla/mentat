@@ -51,7 +51,6 @@ pub use edn::{
 
 pub use edn::parse::{
     parse_query,
-    ParseError as EdnParseError,
 };
 
 pub use cache::{
