@@ -10,6 +10,7 @@
 
 #[macro_use] extern crate mentat_core;
 extern crate core_traits;
+extern crate sql_traits;
 extern crate edn;
 extern crate mentat_query_algebrizer;
 extern crate mentat_sql;
@@ -42,11 +43,14 @@ use mentat_query_algebrizer::{
     VariableColumn,
 };
 
-use mentat_sql::{
+use sql_traits::errors::{
     BuildQueryResult,
+    SQLError,
+};
+
+use mentat_sql::{
     QueryBuilder,
     QueryFragment,
-    SQLError,
     SQLiteQueryBuilder,
     SQLQuery,
 };
