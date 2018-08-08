@@ -28,7 +28,7 @@ use clauses::ConjoiningClauses;
 
 use clauses::convert::ValueTypes;
 
-use errors::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
     Result,
 };

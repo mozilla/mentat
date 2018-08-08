@@ -1,0 +1,18 @@
+[package]
+name = "query_algebrizer_traits"
+version = "0.0.1"
+workspace = ".."
+
+[lib]
+name = "query_algebrizer_traits"
+path = "lib.rs"
+
+[dependencies]
+failure = "0.1.1"
+failure_derive = "0.1.1"
+
+[dependencies.edn]
+path = "../edn"
+
+[dependencies.core_traits]
+path = "../core-traits"

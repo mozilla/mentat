@@ -27,7 +27,9 @@ use mentat_core::{
 };
 
 use db_traits::errors::DbError;
-use mentat_query_algebrizer;
+use query_algebrizer_traits::errors::{
+    AlgebrizerError,
+};
 use mentat_query_projector;
 use query_pull_traits::errors::{
     PullError,
@@ -102,7 +104,7 @@ pub enum MentatError {
     DbError(#[cause] DbError),
 
     #[fail(display = "{}", _0)]
-    AlgebrizerError(#[cause] mentat_query_algebrizer::AlgebrizerError),
+    AlgebrizerError(#[cause] AlgebrizerError),
 
     #[fail(display = "{}", _0)]
     ProjectorError(#[cause] mentat_query_projector::ProjectorError),
@@ -142,8 +144,8 @@ impl From<DbError> for MentatError {
     }
 }
 
-impl From<mentat_query_algebrizer::AlgebrizerError> for MentatError {
-    fn from(error: mentat_query_algebrizer::AlgebrizerError) -> MentatError {
+impl From<AlgebrizerError> for MentatError {
+    fn from(error: AlgebrizerError) -> MentatError {
         MentatError::AlgebrizerError(error)
     }
 }

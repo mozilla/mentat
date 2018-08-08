@@ -19,7 +19,7 @@ use edn::query::{
     Variable,
 };
 
-use errors::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
     Result,
 };

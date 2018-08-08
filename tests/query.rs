@@ -18,7 +18,7 @@ extern crate core_traits;
 extern crate mentat_db;
 
 // TODO: when we switch to `failure`, make this more humane.
-extern crate mentat_query_algebrizer;       // For errors.
+extern crate query_algebrizer_traits;       // For errors;
 extern crate mentat_query_projector;        // For errors.
 extern crate mentat_query_translator;       // For errors.
 
@@ -416,7 +416,7 @@ fn test_fulltext() {
                     ]"#;
     let r = conn.q_once(&mut c, query, None);
     match r.expect_err("expected query to fail") {
-        MentatError::AlgebrizerError(mentat_query_algebrizer::AlgebrizerError::InvalidArgument(PlainSymbol(s), ty, i)) => {
+        MentatError::AlgebrizerError(query_algebrizer_traits::errors::AlgebrizerError::InvalidArgument(PlainSymbol(s), ty, i)) => {
             assert_eq!(s, "fulltext");
             assert_eq!(ty, "string");
             assert_eq!(i, 2);
@@ -431,7 +431,7 @@ fn test_fulltext() {
                     [(fulltext $ :foo/fts ?a) [[?x ?val]]]]"#;
     let r = conn.q_once(&mut c, query, None);
     match r.expect_err("expected query to fail") {
-        MentatError::AlgebrizerError(mentat_query_algebrizer::AlgebrizerError::InvalidArgument(PlainSymbol(s), ty, i)) => {
+        MentatError::AlgebrizerError(query_algebrizer_traits::errors::AlgebrizerError::InvalidArgument(PlainSymbol(s), ty, i)) => {
             assert_eq!(s, "fulltext");
             assert_eq!(ty, "string");
             assert_eq!(i, 2);

@@ -12,6 +12,7 @@ extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_query_algebrizer;
+extern crate query_algebrizer_traits;
 
 mod utils;
 
@@ -34,8 +35,11 @@ use edn::query::{
     Variable,
 };
 
-use mentat_query_algebrizer::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
+};
+
+use mentat_query_algebrizer::{
     EmptyBecause,
     Known,
     QueryInputs,
