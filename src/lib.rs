@@ -21,6 +21,7 @@ extern crate uuid;
 
 pub extern crate edn;
 extern crate mentat_core;
+#[macro_use]
 extern crate core_traits;
 extern crate mentat_db;
 extern crate db_traits;
@@ -32,7 +33,6 @@ extern crate mentat_query_pull;
 extern crate query_pull_traits;
 extern crate sql_traits;
 extern crate mentat_sql;
-#[macro_use]
 extern crate public_traits;
 
 #[cfg(feature = "syncable")]

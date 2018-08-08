@@ -30,6 +30,7 @@ extern crate time;
 
 extern crate mentat;
 extern crate edn;
+#[macro_use]
 extern crate core_traits;
 extern crate mentat_db;
 

@@ -44,13 +44,6 @@ use tolstoy_traits::errors::{
 
 pub type Result<T> = std::result::Result<T, MentatError>;
 
-#[macro_export]
-macro_rules! bail {
-    ($e:expr) => (
-        return Err($e.into());
-    )
-}
-
 #[derive(Debug, Fail)]
 pub enum MentatError {
     #[fail(display = "bad uuid {}", _0)]

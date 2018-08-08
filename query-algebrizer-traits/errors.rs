@@ -25,13 +25,6 @@ use edn::query::{
 
 pub type Result<T> = std::result::Result<T, AlgebrizerError>;
 
-#[macro_export]
-macro_rules! bail {
-    ($e:expr) => (
-        return Err($e.into());
-    )
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BindingError {
     NoBoundVariable,

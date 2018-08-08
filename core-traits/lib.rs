@@ -81,6 +81,13 @@ pub use value_type_set::{
     ValueTypeSet,
 };
 
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => (
+        return Err($e.into());
+    )
+}
+
 /// Represents one entid in the entid space.
 ///
 /// Per https://www.sqlite.org/datatype3.html (see also http://stackoverflow.com/a/8499544), SQLite

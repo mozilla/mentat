@@ -24,8 +24,8 @@ extern crate time;
 
 #[macro_use] extern crate edn;
 #[macro_use] extern crate mentat_core;
-#[macro_use] extern crate db_traits;
-extern crate core_traits;
+extern crate db_traits;
+#[macro_use] extern crate core_traits;
 extern crate mentat_sql;
 
 use std::iter::repeat;

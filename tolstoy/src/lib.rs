@@ -33,11 +33,11 @@ extern crate serde_json;
 
 extern crate mentat_core;
 extern crate db_traits;
+#[macro_use]
 extern crate core_traits;
 extern crate rusqlite;
 extern crate uuid;
 
-#[macro_use]
 extern crate tolstoy_traits;
 
 pub mod schema;
