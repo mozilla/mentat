@@ -10,11 +10,11 @@
 
 use core_traits::{
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_core::{
     Schema,
-    ValueTypeSet,
 };
 
 use edn::query::{

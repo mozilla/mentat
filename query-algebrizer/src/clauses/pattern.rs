@@ -12,12 +12,12 @@ use core_traits::{
     Entid,
     ValueType,
     TypedValue,
+    ValueTypeSet,
 };
 
 use mentat_core::{
     Cloned,
     HasSchema,
-    ValueTypeSet,
 };
 
 use edn::query::{
@@ -660,10 +660,12 @@ mod testing {
     use std::collections::BTreeSet;
 
     use mentat_core::attribute::Unique;
+    use core_traits::{
+        ValueTypeSet,
+    };
     use mentat_core::{
         Attribute,
         Schema,
-        ValueTypeSet,
     };
 
     use edn::query::{

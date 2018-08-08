@@ -18,11 +18,11 @@ use core_traits::{
     Entid,
     TypedValue,
     ValueType,
+    ValueTypeSet,
 };
 
 use mentat_core::{
     ValueRc,
-    ValueTypeSet,
 };
 
 use edn::query::{

@@ -18,6 +18,7 @@ mod utils;
 use core_traits::{
     ValueType,
     TypedValue,
+    ValueTypeSet,
 };
 
 use mentat_core::{
@@ -25,7 +26,6 @@ use mentat_core::{
     DateTime,
     Schema,
     Utc,
-    ValueTypeSet,
 };
 
 use edn::query::{

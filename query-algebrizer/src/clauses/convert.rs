@@ -10,6 +10,7 @@
 
 use core_traits::{
     ValueType,
+    ValueTypeSet,
     TypedValue,
 };
 
@@ -17,7 +18,6 @@ use mentat_core::{
     HasSchema,
     Schema,
     SQLValueType,
-    ValueTypeSet,
 };
 
 use edn::query::{

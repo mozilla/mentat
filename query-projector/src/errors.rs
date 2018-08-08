@@ -12,7 +12,7 @@ use std; // To refer to std::result::Result.
 
 use rusqlite;
 
-use mentat_core::{
+use core_traits::{
     ValueTypeSet,
 };
 use db_traits::errors::DbError;
