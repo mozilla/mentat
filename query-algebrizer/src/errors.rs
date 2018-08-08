@@ -15,8 +15,11 @@ use core_traits::{
 };
 
 use mentat_core::{
-    EdnParseError,
     ValueTypeSet,
+};
+
+use edn::parse::{
+    ParseError,
 };
 
 use edn::query::{
@@ -105,11 +108,11 @@ pub enum AlgebrizerError {
     InvalidBinding(PlainSymbol, BindingError),
 
     #[fail(display = "{}", _0)]
-    EdnParseError(#[cause] EdnParseError),
+    EdnParseError(#[cause] ParseError),
 }
 
-impl From<EdnParseError> for AlgebrizerError {
-    fn from(error: EdnParseError) -> AlgebrizerError {
+impl From<ParseError> for AlgebrizerError {
+    fn from(error: ParseError) -> AlgebrizerError {
         AlgebrizerError::EdnParseError(error)
     }
 }
