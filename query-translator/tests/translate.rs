@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
@@ -25,9 +26,12 @@ use mentat_query::{
     Variable,
 };
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     Attribute,
-    Entid,
     Schema,
     TypedValue,
     ValueType,

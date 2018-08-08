@@ -66,6 +66,11 @@ use db::{read_attribute_map,read_ident_map};
 use edn;
 use entids;
 use errors::Result;
+
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     HasSchema,
     SQLValueType,

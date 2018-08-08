@@ -17,14 +17,18 @@ use errors::{
     Result,
 };
 use edn::symbols;
+
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 use mentat_core::{
     attribute,
     Attribute,
-    Entid,
     EntidMap,
     HasSchema,
     IdentMap,
-    KnownEntid,
     Schema,
     AttributeMap,
     TypedValue,

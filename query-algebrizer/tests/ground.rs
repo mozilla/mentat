@@ -9,6 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 

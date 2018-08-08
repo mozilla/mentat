@@ -24,6 +24,9 @@ path = "../edn"
 [dependencies.mentat_core]
 path = "../core"
 
+[dependencies.core_traits]
+path = "../core-traits"
+
 [dependencies.mentat_db]
 path = "../db"
 

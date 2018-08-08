@@ -1,0 +1,11 @@
+[package]
+name = "core_traits"
+version = "0.0.1"
+workspace = ".."
+
+[lib]
+name = "core_traits"
+path = "lib.rs"
+
+[dependencies.edn]
+path = "../edn"

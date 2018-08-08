@@ -14,6 +14,7 @@ extern crate time;
 #[macro_use]
 extern crate mentat;
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_db;
 
 // TODO: when we switch to `failure`, make this more humane.
@@ -25,11 +26,14 @@ use std::str::FromStr;
 
 use chrono::FixedOffset;
 
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 use mentat_core::{
     DateTime,
-    Entid,
     HasSchema,
-    KnownEntid,
     Utc,
     Uuid,
     ValueType,

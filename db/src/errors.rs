@@ -26,11 +26,13 @@ use rusqlite;
 use edn::entities::{
     TempId,
 };
-use mentat_core::{
+
+use core_traits::{
+    Entid,
     KnownEntid,
 };
+
 use types::{
-    Entid,
     TypedValue,
     ValueType,
 };

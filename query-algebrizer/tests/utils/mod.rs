@@ -13,9 +13,12 @@
 // this module will get warnings otherwise).
 #![allow(dead_code)]
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     Attribute,
-    Entid,
     Schema,
     ValueType,
 };

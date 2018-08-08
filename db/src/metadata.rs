@@ -38,9 +38,13 @@ use errors::{
     DbErrorKind,
     Result,
 };
+
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     attribute,
-    Entid,
     Schema,
     AttributeMap,
     TypedValue,

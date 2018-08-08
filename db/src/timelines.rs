@@ -17,11 +17,14 @@ use errors::{
     Result,
 };
 
-use mentat_core::{
+use core_traits::{
     Entid,
+    KnownEntid,
+};
+
+use mentat_core::{
     Schema,
     TypedValue,
-    KnownEntid,
 };
 
 use edn::{

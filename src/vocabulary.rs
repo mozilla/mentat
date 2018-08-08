@@ -99,7 +99,7 @@ use mentat_core::attribute::{
     Unique,
 };
 
-use mentat_core::{
+use core_traits::{
     KnownEntid,
 };
 

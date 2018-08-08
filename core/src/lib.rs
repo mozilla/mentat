@@ -16,6 +16,8 @@ extern crate ordered_float;
 extern crate uuid;
 extern crate serde;
 
+extern crate core_traits;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -23,6 +25,11 @@ extern crate lazy_static;
 extern crate serde_derive;
 
 extern crate edn;
+
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
 
 pub mod values;
 mod cache;
@@ -70,8 +77,6 @@ pub use tx_report::{
 
 pub use types::{
     Binding,
-    Entid,
-    KnownEntid,
     StructuredMap,
     TypedValue,
     ValueType,

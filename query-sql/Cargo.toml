@@ -5,6 +5,9 @@ workspace = ".."
 
 [dependencies]
 
+[dependencies.core_traits]
+path = "../core-traits"
+
 [dependencies.mentat_core]
 path = "../core"
 

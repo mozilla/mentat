@@ -57,54 +57,19 @@ use ::edn::{
 };
 
 use ::edn::entities::{
-    AttributePlace,
-    EntidOrIdent,
-    EntityPlace,
-    ValuePlace,
     TransactableValueMarker,
 };
 
 use values;
 
-/// Represents one entid in the entid space.
-///
-/// Per https://www.sqlite.org/datatype3.html (see also http://stackoverflow.com/a/8499544), SQLite
-/// stores signed integers up to 64 bits in size.  Since u32 is not appropriate for our use case, we
-/// use i64 rather than manually truncating u64 to u63 and casting to i64 throughout the codebase.
-pub type Entid = i64;
-
-/// An entid that's either already in the store, or newly allocated to a tempid.
-/// TODO: we'd like to link this in some way to the lifetime of a particular PartitionMap.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct KnownEntid(pub Entid);
-
-impl From<KnownEntid> for Entid {
-    fn from(k: KnownEntid) -> Entid {
-        k.0
-    }
-}
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
 
 impl From<KnownEntid> for TypedValue {
     fn from(k: KnownEntid) -> TypedValue {
         TypedValue::Ref(k.0)
-    }
-}
-
-impl<V: TransactableValueMarker> Into<EntityPlace<V>> for KnownEntid {
-    fn into(self) -> EntityPlace<V> {
-        EntityPlace::Entid(EntidOrIdent::Entid(self.0))
-    }
-}
-
-impl Into<AttributePlace> for KnownEntid {
-    fn into(self) -> AttributePlace {
-        AttributePlace::Entid(EntidOrIdent::Entid(self.0))
-    }
-}
-
-impl<V: TransactableValueMarker> Into<ValuePlace<V>> for KnownEntid {
-    fn into(self) -> ValuePlace<V> {
-        ValuePlace::Entid(EntidOrIdent::Entid(self.0))
     }
 }
 

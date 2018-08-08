@@ -13,9 +13,12 @@ use std::collections::{
     BTreeSet,
 };
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     Binding,
-    Entid,
     Schema,
     StructuredMap,
     TypedValue,

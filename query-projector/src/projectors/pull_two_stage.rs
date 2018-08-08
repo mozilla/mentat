@@ -18,7 +18,7 @@ use mentat_query_pull::{
     Puller,
 };
 
-use mentat_core::{
+use core_traits::{
     Entid,
 };
 

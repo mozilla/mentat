@@ -40,10 +40,13 @@ use internal_types::{
 
 use mentat_core::util::Either::*;
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     attribute,
     Attribute,
-    Entid,
     Schema,
     TypedValue,
 };

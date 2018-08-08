@@ -17,8 +17,11 @@
 // - When observers are registered we want to flip some flags as writes occur so that we can
 //   notifying them outside the transaction.
 
-use mentat_core::{
+use core_traits::{
     Entid,
+};
+
+use mentat_core::{
     Schema,
     TypedValue,
 };

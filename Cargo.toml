@@ -43,6 +43,9 @@ features = ["limits"]
 [dependencies.edn]
 path = "edn"
 
+[dependencies.core_traits]
+path = "core-traits"
+
 [dependencies.mentat_core]
 path = "core"
 

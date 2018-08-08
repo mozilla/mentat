@@ -18,7 +18,10 @@ use std::collections::{
     HashMap,
 };
 
-use mentat_core::KnownEntid;
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
 
 use mentat_core::util::Either;
 
@@ -48,7 +51,6 @@ use types::{
     Attribute,
     AVMap,
     AVPair,
-    Entid,
     Schema,
     TransactableValue,
     TypedValue,
