@@ -8,9 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
-extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
 extern crate mentat_query_translator;
@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 
 use std::rc::Rc;
 
-use mentat_query::{
+use edn::query::{
     FindSpec,
     Keyword,
     Variable,

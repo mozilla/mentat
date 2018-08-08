@@ -8,9 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
-extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 
 mod utils;
@@ -28,7 +28,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::{
+use edn::query::{
     Keyword,
     PlainSymbol,
     Variable,

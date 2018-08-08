@@ -10,7 +10,7 @@
 
 #[macro_use] extern crate mentat_core;
 extern crate core_traits;
-extern crate mentat_query;
+extern crate edn;
 extern crate mentat_query_algebrizer;
 extern crate mentat_sql;
 
@@ -26,7 +26,7 @@ use mentat_core::{
     SQLTypeAffinity,
 };
 
-use mentat_query::{
+use edn::query::{
     Direction,
     Limit,
     Variable,

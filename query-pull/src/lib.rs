@@ -60,11 +60,11 @@
 extern crate failure;
 extern crate rusqlite;
 
+extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_db;
 extern crate db_traits;
-extern crate mentat_query;
 extern crate query_pull_traits;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_sql;
@@ -96,7 +96,7 @@ use mentat_core::{
 
 use mentat_db::cache;
 
-use mentat_query::{
+use edn::query::{
     NamedPullAttribute,
     PullAttributeSpec,
     PullConcreteAttribute,

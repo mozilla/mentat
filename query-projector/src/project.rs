@@ -26,7 +26,7 @@ use mentat_core::util::{
     Either,
 };
 
-use mentat_query::{
+use edn::query::{
     Element,
     Pull,
     Variable,

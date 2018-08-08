@@ -17,7 +17,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::{
+use edn::query::{
     FnArg,
     PlainSymbol,
     Predicate,
@@ -199,7 +199,7 @@ mod testing {
         Attribute,
     };
 
-    use mentat_query::{
+    use edn::query::{
         FnArg,
         Keyword,
         Pattern,

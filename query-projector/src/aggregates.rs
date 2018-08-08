@@ -16,7 +16,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::{
+use edn::query::{
     Aggregate,
     QueryFunction,
     Variable,

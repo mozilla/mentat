@@ -37,13 +37,13 @@ pub use mentat_query_algebrizer::{
     QueryInputs,
 };
 
-pub use mentat_query::{
+pub use edn::query::{
     Keyword,
     PlainSymbol,
     Variable,
 };
 
-use mentat_query::{
+use edn::query::{
     Element,
     FindSpec,
     Pattern,

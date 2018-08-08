@@ -27,7 +27,6 @@ use mentat_core::{
 };
 
 use db_traits::errors::DbError;
-use mentat_query;
 use mentat_query_algebrizer;
 use mentat_query_projector;
 use query_pull_traits::errors::{
@@ -80,7 +79,7 @@ pub enum MentatError {
     UnexpectedLostTransactRace,
 
     #[fail(display = "missing core attribute {}", _0)]
-    MissingCoreVocabulary(mentat_query::Keyword),
+    MissingCoreVocabulary(edn::query::Keyword),
 
     #[fail(display = "schema changed since query was prepared")]
     PreparedQuerySchemaMismatch,

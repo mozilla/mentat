@@ -10,7 +10,7 @@
 
 use std::collections::BTreeSet;
 
-use mentat_query::{
+use edn::query::{
     ContainsVariables,
     OrJoin,
     NotJoin,
@@ -95,9 +95,9 @@ pub(crate) fn validate_not_join(not_join: &NotJoin) -> Result<()> {
 #[cfg(test)]
 mod tests {
     extern crate mentat_core;
-    extern crate mentat_query;
+    extern crate edn;
 
-    use self::mentat_query::{
+    use edn::query::{
         Keyword,
         OrWhereClause,
         Pattern,

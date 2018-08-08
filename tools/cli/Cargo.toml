@@ -43,9 +43,6 @@ default-features = false
 [dependencies.edn]
 path = "../../edn"
 
-[dependencies.mentat_query]
-path = "../../query"
-
 [dependencies.core_traits]
 path = "../../core-traits"
 

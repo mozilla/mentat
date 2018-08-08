@@ -20,7 +20,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use mentat_query::{
+use edn::query::{
     NonIntegerConstant,
     Pattern,
     PatternValuePlace,
@@ -666,7 +666,7 @@ mod testing {
         ValueTypeSet,
     };
 
-    use mentat_query::{
+    use edn::query::{
         Keyword,
         Variable,
     };

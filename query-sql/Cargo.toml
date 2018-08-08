@@ -5,6 +5,9 @@ workspace = ".."
 
 [dependencies]
 
+[dependencies.edn]
+path = "../edn"
+
 [dependencies.core_traits]
 path = "../core-traits"
 
@@ -13,9 +16,6 @@ path = "../core"
 
 [dependencies.mentat_sql]
 path = "../sql"
-
-[dependencies.mentat_query]
-path = "../query"
 
 [dependencies.mentat_query_algebrizer]
 path = "../query-algebrizer"

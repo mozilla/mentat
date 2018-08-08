@@ -23,7 +23,7 @@ use mentat_core::{
     Schema,
 };
 
-use mentat_query::{
+use edn::query::{
     Keyword,
 };
 

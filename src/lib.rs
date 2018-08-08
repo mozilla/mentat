@@ -26,7 +26,6 @@ extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_db;
 extern crate db_traits;
-extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
 extern crate mentat_query_pull;
@@ -58,7 +57,7 @@ pub use mentat_core::{
     Uuid,
 };
 
-pub use mentat_query::{
+pub use edn::query::{
     FindSpec,
 };
 

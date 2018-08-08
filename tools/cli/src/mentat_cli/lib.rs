@@ -30,7 +30,6 @@ extern crate time;
 
 extern crate mentat;
 extern crate edn;
-extern crate mentat_query;
 extern crate core_traits;
 extern crate mentat_db;
 

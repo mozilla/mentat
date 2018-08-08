@@ -15,11 +15,11 @@ extern crate failure_derive;
 extern crate indexmap;
 extern crate rusqlite;
 
+extern crate edn;
 extern crate mentat_core;
 extern crate db_traits;
 extern crate core_traits;
 extern crate mentat_db;                 // For value conversion.
-extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_pull;
 extern crate query_pull_traits;
@@ -58,7 +58,7 @@ use mentat_db::{
     TypedSQLValue,
 };
 
-use mentat_query::{
+use edn::query::{
     Element,
     FindSpec,
     Limit,

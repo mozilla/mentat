@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-extern crate mentat_query;
-
 use std; // To refer to std::result::Result.
 
 use core_traits::{
@@ -21,7 +19,7 @@ use mentat_core::{
     ValueTypeSet,
 };
 
-use self::mentat_query::{
+use edn::query::{
     PlainSymbol,
 };
 
