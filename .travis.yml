@@ -58,12 +58,10 @@ matrix:
       install:
         - rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
         - cargo install --git https://github.com/TimNN/cargo-lipo
-        - gem install xcode-install
-        - instruments -s devices
       script:
         - cd ffi
         - cargo lipo --release
         - cd ..
         - cd sdks/swift/Mentat
-        - xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=jibberish' | xcpretty
+        - xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone X,OS=11.4' | xcpretty
         - cd ../../..
