@@ -43,13 +43,6 @@ use mentat::{
     CacheDirection,
 };
 
-#[macro_export]
-macro_rules! bail {
-    ($e:expr) => (
-        return Err($e.into());
-    )
-}
-
 pub static COMMAND_CACHE: &'static str = &"cache";
 pub static COMMAND_CLOSE: &'static str = &"close";
 pub static COMMAND_EXIT_LONG: &'static str = &"exit";

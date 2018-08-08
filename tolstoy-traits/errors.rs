@@ -16,13 +16,6 @@ use serde_json;
 
 use db_traits::errors::DbError;
 
-#[macro_export]
-macro_rules! bail {
-    ($e:expr) => (
-        return Err($e.into());
-    )
-}
-
 pub type Result<T> = ::std::result::Result<T, TolstoyError>;
 
 #[derive(Debug, Fail)]

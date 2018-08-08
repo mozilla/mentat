@@ -13,6 +13,7 @@ extern crate failure;
 extern crate failure_derive;
 extern crate rusqlite;
 
+#[macro_use]
 extern crate core_traits;
 extern crate db_traits;
 extern crate edn;
@@ -22,7 +23,6 @@ extern crate query_pull_traits;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_sql;
 
-#[macro_use]
 pub mod errors;
 pub mod aggregates;
 

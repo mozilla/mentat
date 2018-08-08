@@ -12,8 +12,8 @@ extern crate failure;
 
 extern crate edn;
 extern crate mentat_core;
-extern crate core_traits;
 #[macro_use]
+extern crate core_traits;
 extern crate query_algebrizer_traits;
 
 use std::collections::BTreeSet;

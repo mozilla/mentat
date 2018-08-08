@@ -34,13 +34,6 @@ use core_traits::{
     ValueType,
 };
 
-#[macro_export]
-macro_rules! bail {
-    ($e:expr) => (
-        return Err($e.into());
-    )
-}
-
 pub type Result<T> = ::std::result::Result<T, DbError>;
 
 // TODO Error/ErrorKind pair

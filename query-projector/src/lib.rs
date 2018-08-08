@@ -16,12 +16,12 @@ extern crate rusqlite;
 extern crate edn;
 extern crate mentat_core;
 extern crate db_traits;
+#[macro_use]
 extern crate core_traits;
 extern crate mentat_db;                 // For value conversion.
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_pull;
 extern crate query_pull_traits;
-#[macro_use]
 extern crate query_projector_traits;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
