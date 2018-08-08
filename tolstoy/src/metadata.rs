@@ -14,7 +14,7 @@ use rusqlite;
 use uuid::Uuid;
 
 use schema;
-use errors::{
+use tolstoy_traits::errors::{
     TolstoyError,
     Result,
 };

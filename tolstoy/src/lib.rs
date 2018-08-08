@@ -9,8 +9,6 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate failure;
-#[macro_use]
-extern crate failure_derive;
 
 #[macro_use]
 extern crate lazy_static;
@@ -40,14 +38,11 @@ extern crate rusqlite;
 extern crate uuid;
 
 #[macro_use]
-pub mod errors;
+extern crate tolstoy_traits;
+
 pub mod schema;
 pub mod metadata;
 pub mod tx_processor;
 pub mod syncer;
 pub mod tx_mapper;
 pub use syncer::Syncer;
-pub use errors::{
-    TolstoyError,
-    Result,
-};

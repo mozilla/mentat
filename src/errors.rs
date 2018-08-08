@@ -38,7 +38,9 @@ use sql_traits::errors::{
 };
 
 #[cfg(feature = "syncable")]
-use mentat_tolstoy;
+use tolstoy_traits::errors::{
+    TolstoyError,
+};
 
 pub type Result<T> = std::result::Result<T, MentatError>;
 
@@ -118,7 +120,7 @@ pub enum MentatError {
 
     #[cfg(feature = "syncable")]
     #[fail(display = "{}", _0)]
-    TolstoyError(#[cause] mentat_tolstoy::TolstoyError),
+    TolstoyError(#[cause] TolstoyError),
 }
 
 impl From<std::io::Error> for MentatError {
@@ -170,8 +172,8 @@ impl From<SQLError> for MentatError {
 }
 
 #[cfg(feature = "syncable")]
-impl From<mentat_tolstoy::TolstoyError> for MentatError {
-    fn from(error: mentat_tolstoy::TolstoyError) -> MentatError {
+impl From<TolstoyError> for MentatError {
+    fn from(error: TolstoyError) -> MentatError {
         MentatError::TolstoyError(error)
     }
 }

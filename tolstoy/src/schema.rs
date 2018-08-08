@@ -9,7 +9,7 @@
 // specific language governing permissions and limitations under the License.
 
 use rusqlite;
-use errors::Result;
+use tolstoy_traits::errors::Result;
 
 pub static REMOTE_HEAD_KEY: &str = r#"remote_head"#;
 

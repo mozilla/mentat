@@ -16,7 +16,7 @@ use core_traits::{
     Entid,
 };
 
-use errors::{
+use tolstoy_traits::errors::{
     TolstoyError,
     Result,
 };

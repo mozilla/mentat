@@ -11,7 +11,7 @@ use std::iter::Peekable;
 
 use rusqlite;
 
-use errors::{
+use tolstoy_traits::errors::{
     Result,
 };
 

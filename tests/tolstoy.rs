@@ -15,6 +15,9 @@ extern crate core_traits;
 extern crate mentat_tolstoy;
 
 #[cfg(feature = "syncable")]
+extern crate tolstoy_traits;
+
+#[cfg(feature = "syncable")]
 mod tests {
     use std::collections::BTreeMap;
 
@@ -26,7 +29,7 @@ mod tests {
         TxReceiver,
         TxPart,
     };
-    use mentat_tolstoy::errors::Result;
+    use tolstoy_traits::errors::Result;
     use core_traits::{
         Entid,
         TypedValue,

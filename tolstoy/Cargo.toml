@@ -6,7 +6,6 @@ authors = ["Grisha Kruglov <gkruglov@mozilla.com>"]
 
 [dependencies]
 failure = "0.1.1"
-failure_derive = "0.1.1"
 futures = "0.1"
 hyper = "0.11"
 log = "0.4"
@@ -32,6 +31,9 @@ path = "../db"
 
 [dependencies.db_traits]
 path = "../db-traits"
+
+[dependencies.tolstoy_traits]
+path = "../tolstoy-traits"
 
 [dependencies.rusqlite]
 version = "0.13"
