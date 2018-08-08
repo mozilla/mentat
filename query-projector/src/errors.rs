@@ -19,7 +19,9 @@ use db_traits::errors::DbError;
 use mentat_query::{
     PlainSymbol,
 };
-use mentat_query_pull;
+use query_pull_traits::errors::{
+    PullError,
+};
 
 use aggregates::{
     SimpleAggregationOp,
@@ -74,7 +76,7 @@ pub enum ProjectorError {
     DbError(#[cause] DbError),
 
     #[fail(display = "{}", _0)]
-    PullError(#[cause] mentat_query_pull::PullError),
+    PullError(#[cause] PullError),
 }
 
 impl From<rusqlite::Error> for ProjectorError {
@@ -89,8 +91,8 @@ impl From<DbError> for ProjectorError {
     }
 }
 
-impl From<mentat_query_pull::PullError> for ProjectorError {
-    fn from(error: mentat_query_pull::PullError) -> ProjectorError {
+impl From<PullError> for ProjectorError {
+    fn from(error: PullError) -> ProjectorError {
         ProjectorError::PullError(error)
     }
 }

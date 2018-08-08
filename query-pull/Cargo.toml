@@ -5,7 +5,9 @@ workspace = ".."
 
 [dependencies]
 failure = "0.1.1"
-failure_derive = "0.1.1"
+
+[dependencies.query_pull_traits]
+path = "../query-pull-traits"
 
 [dependencies.rusqlite]
 version = "0.13"

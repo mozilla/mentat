@@ -58,10 +58,6 @@
 ///! ```
 
 extern crate failure;
-
-#[macro_use]
-extern crate failure_derive;
-
 extern crate rusqlite;
 
 extern crate mentat_core;
@@ -69,6 +65,7 @@ extern crate core_traits;
 extern crate mentat_db;
 extern crate db_traits;
 extern crate mentat_query;
+extern crate query_pull_traits;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_sql;
 extern crate mentat_sql;
@@ -105,9 +102,7 @@ use mentat_query::{
     PullConcreteAttribute,
 };
 
-pub mod errors;
-
-pub use errors::{
+use query_pull_traits::errors::{
     PullError,
     Result,
 };
