@@ -21,7 +21,7 @@ use std::collections::{
 use indexmap;
 use petgraph::unionfind;
 
-use errors::{
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };

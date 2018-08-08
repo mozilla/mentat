@@ -25,6 +25,7 @@ pub extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_db;
+extern crate db_traits;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_query_projector;
@@ -138,7 +139,6 @@ pub use edn::{
     ToMicros,
     ToMillis,
 };
-pub use mentat_db::DbError;
 pub use mentat_query_algebrizer::AlgebrizerError;
 pub use mentat_query_projector::{
     BindingTuple,

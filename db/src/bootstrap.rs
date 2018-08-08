@@ -11,7 +11,7 @@
 #![allow(dead_code)]
 
 use edn;
-use errors::{
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };

@@ -12,7 +12,7 @@
 
 use db::TypedSQLValue;
 use edn;
-use errors::{
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };

@@ -15,7 +15,7 @@ use rusqlite;
 use mentat_core::{
     ValueTypeSet,
 };
-use mentat_db;
+use db_traits::errors::DbError;
 use mentat_query::{
     PlainSymbol,
 };
@@ -71,7 +71,7 @@ pub enum ProjectorError {
     RusqliteError(String),
 
     #[fail(display = "{}", _0)]
-    DbError(#[cause] mentat_db::DbError),
+    DbError(#[cause] DbError),
 
     #[fail(display = "{}", _0)]
     PullError(#[cause] mentat_query_pull::PullError),
@@ -83,8 +83,8 @@ impl From<rusqlite::Error> for ProjectorError {
     }
 }
 
-impl From<mentat_db::DbError> for ProjectorError {
-    fn from(error: mentat_db::DbError) -> ProjectorError {
+impl From<DbError> for ProjectorError {
+    fn from(error: DbError) -> ProjectorError {
         ProjectorError::DbError(error)
     }
 }

@@ -14,7 +14,7 @@ use uuid;
 use hyper;
 use serde_json;
 
-use mentat_db;
+use db_traits::errors::DbError;
 
 #[macro_export]
 macro_rules! bail {
@@ -46,7 +46,7 @@ pub enum TolstoyError {
     NotYetImplemented(String),
 
     #[fail(display = "{}", _0)]
-    DbError(#[cause] mentat_db::DbError),
+    DbError(#[cause] DbError),
 
     #[fail(display = "{}", _0)]
     SerializationError(#[cause] serde_json::Error),
@@ -69,8 +69,8 @@ pub enum TolstoyError {
     UriError(#[cause] hyper::error::UriError),
 }
 
-impl From<mentat_db::DbError> for TolstoyError {
-    fn from(error: mentat_db::DbError) -> TolstoyError {
+impl From<DbError> for TolstoyError {
+    fn from(error: DbError) -> TolstoyError {
         TolstoyError::DbError(error)
     }
 }

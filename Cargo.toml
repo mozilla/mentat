@@ -55,6 +55,9 @@ path = "sql"
 [dependencies.mentat_db]
 path = "db"
 
+[dependencies.db_traits]
+path = "db-traits"
+
 [dependencies.mentat_query]
 path = "query"
 

@@ -10,7 +10,6 @@ syncable = ["serde", "serde_json", "serde_derive"]
 
 [dependencies]
 failure = "0.1.1"
-failure_derive = "0.1.1"
 indexmap = "1"
 itertools = "0.7"
 lazy_static = "0.2"
@@ -34,6 +33,9 @@ path = "../core"
 
 [dependencies.core_traits]
 path = "../core-traits"
+
+[dependencies.db_traits]
+path = "../db-traits"
 
 [dependencies.mentat_sql]
 path = "../sql"

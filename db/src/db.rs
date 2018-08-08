@@ -59,10 +59,11 @@ use mentat_core::{
     ValueRc,
 };
 
-use errors::{
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };
+
 use metadata;
 use schema::{
     SchemaBuilding,
@@ -1237,7 +1238,7 @@ mod tests {
     use std::collections::{
         BTreeMap,
     };
-    use errors;
+    use db_traits::errors as errors;
     use internal_types::{
         Term,
     };

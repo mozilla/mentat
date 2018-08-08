@@ -66,8 +66,8 @@ use edn::{
     Keyword,
 };
 use entids;
-use errors;
-use errors::{
+use db_traits::errors as errors;
+use db_traits::errors::{
     DbErrorKind,
     Result,
 };

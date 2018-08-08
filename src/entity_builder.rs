@@ -282,6 +282,7 @@ impl<'a, 'c> EntityBuilder<InProgressBuilder<'a, 'c>> {
 #[cfg(test)]
 mod testing {
     extern crate mentat_db;
+    extern crate db_traits;
 
     use ::{
         Conn,
@@ -326,7 +327,7 @@ mod testing {
         // This should fail: unrecognized entid.
         match in_progress.transact_entities(terms).expect_err("expected transact to fail") {
             MentatError::DbError(e) => {
-                assert_eq!(e.kind(), mentat_db::DbErrorKind::UnrecognizedEntid(999));
+                assert_eq!(e.kind(), db_traits::errors::DbErrorKind::UnrecognizedEntid(999));
             },
             _ => panic!("Should have rejected the entid."),
         }

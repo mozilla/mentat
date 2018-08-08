@@ -65,7 +65,7 @@ use db::*;
 use db::{read_attribute_map,read_ident_map};
 use edn;
 use entids;
-use errors::Result;
+use db_traits::errors::Result;
 
 use core_traits::{
     Entid,

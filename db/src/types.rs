@@ -45,7 +45,7 @@ use edn::entities::{
     TempId,
 };
 
-use errors;
+use db_traits::errors as errors;
 
 /// Represents one partition of the entid space.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq)]

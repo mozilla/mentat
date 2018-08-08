@@ -16,6 +16,7 @@ extern crate indexmap;
 extern crate rusqlite;
 
 extern crate mentat_core;
+extern crate db_traits;
 extern crate core_traits;
 extern crate mentat_db;                 // For value conversion.
 extern crate mentat_query;

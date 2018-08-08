@@ -34,6 +34,7 @@ extern crate serde_json;
 #[cfg_attr(test, macro_use)] extern crate mentat_db;
 
 extern crate mentat_core;
+extern crate db_traits;
 extern crate core_traits;
 extern crate rusqlite;
 extern crate uuid;
