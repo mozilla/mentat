@@ -1,4 +1,4 @@
-// Copyright 2016 Mozilla
+// Copyright 2018 Mozilla
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -9,28 +9,20 @@
 // specific language governing permissions and limitations under the License.
 
 extern crate failure;
+#[macro_use]
+extern crate failure_derive;
+extern crate rusqlite;
 
-extern crate edn;
 extern crate core_traits;
-extern crate mentat_core;
+extern crate db_traits;
+extern crate edn;
+extern crate query_pull_traits;
+
+// TODO we only want to import a *_traits here, this is a smell.
 extern crate mentat_query_algebrizer;
-extern crate mentat_query_projector;
-extern crate query_projector_traits;
 extern crate mentat_query_sql;
-extern crate mentat_sql;
 
-mod translate;
+#[macro_use]
+pub mod errors;
+pub mod aggregates;
 
-pub use mentat_query_sql::{
-    Projection,
-};
-
-pub use translate::{
-    ProjectedSelect,
-    cc_to_exists,
-    query_to_select,
-};
-
-// query-translator could be folded into query-projector; for now, just type alias the errors.
-pub type TranslatorError = query_projector_traits::errors::ProjectorError;
-pub type Result<T> = std::result::Result<T, TranslatorError>;

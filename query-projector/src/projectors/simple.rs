@@ -26,7 +26,7 @@ use ::{
     rusqlite,
 };
 
-use ::errors::{
+use query_projector_traits::errors::{
     Result,
 };
 

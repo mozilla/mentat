@@ -16,7 +16,7 @@ use super::{
     rusqlite,
 };
 
-use super::errors::{
+use query_projector_traits::errors::{
     Result,
 };
 

@@ -12,7 +12,7 @@ use core_traits::{
     Binding,
 };
 
-use errors::{
+use query_projector_traits::errors::{
     ProjectorError,
     Result,
 };

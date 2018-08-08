@@ -47,7 +47,7 @@ pub enum SimpleAggregationOp {
 }
 
 impl SimpleAggregationOp {
-    pub(crate) fn to_sql(&self) -> &'static str {
+    pub fn to_sql(&self) -> &'static str {
         use self::SimpleAggregationOp::*;
         match self {
             &Avg => "avg",
@@ -76,7 +76,7 @@ impl SimpleAggregationOp {
     /// but invalid to take `Max` of `{Uuid, String}`.
     ///
     /// The returned type is the type of the result of the aggregation.
-    pub(crate) fn is_applicable_to_types(&self, possibilities: ValueTypeSet) -> Result<ValueType> {
+    pub fn is_applicable_to_types(&self, possibilities: ValueTypeSet) -> Result<ValueType> {
         use self::SimpleAggregationOp::*;
         if possibilities.is_empty() {
             bail!(ProjectorError::CannotProjectImpossibleBinding(*self))
@@ -110,7 +110,7 @@ impl SimpleAggregationOp {
 
             &Max | &Min => {
                 if possibilities.is_unit() {
-                    use ValueType::*;
+                    use self::ValueType::*;
                     let the_type = possibilities.exemplar().expect("a type");
                     match the_type {
                         // These types are numerically ordered.
@@ -147,17 +147,17 @@ impl SimpleAggregationOp {
     }
 }
 
-pub(crate) struct SimpleAggregate {
+pub struct SimpleAggregate {
     pub op: SimpleAggregationOp,
     pub var: Variable,
 }
 
 impl SimpleAggregate {
-    pub(crate) fn column_name(&self) -> Name {
+    pub fn column_name(&self) -> Name {
         format!("({} {})", self.op.to_sql(), self.var.name())
     }
 
-    pub(crate) fn use_static_value(&self) -> bool {
+    pub fn use_static_value(&self) -> bool {
         use self::SimpleAggregationOp::*;
         match self.op {
             Avg | Max | Min => true,
@@ -166,7 +166,7 @@ impl SimpleAggregate {
     }
 
     /// Return `true` if this aggregate can be `NULL` over 0 rows.
-    pub(crate) fn is_nullable(&self) -> bool {
+    pub fn is_nullable(&self) -> bool {
         use self::SimpleAggregationOp::*;
         match self.op {
             Avg | Max | Min => true,
@@ -175,7 +175,7 @@ impl SimpleAggregate {
     }
 }
 
-pub(crate) trait SimpleAggregation {
+pub trait SimpleAggregation {
     fn to_simple(&self) -> Option<SimpleAggregate>;
 }
 
@@ -195,7 +195,7 @@ impl SimpleAggregation for Aggregate {
 /// - The `ColumnOrExpression` to use in the query. This will always refer to other
 ///   variables by name; never to a datoms column.
 /// - The known type of that value.
-pub(crate) fn projected_column_for_simple_aggregate(simple: &SimpleAggregate, cc: &ConjoiningClauses) -> Result<(ProjectedColumn, ValueType)> {
+pub fn projected_column_for_simple_aggregate(simple: &SimpleAggregate, cc: &ConjoiningClauses) -> Result<(ProjectedColumn, ValueType)> {
     let known_types = cc.known_type_set(&simple.var);
     let return_type = simple.op.is_applicable_to_types(known_types)?;
     let projected_column_or_expression =
