@@ -30,7 +30,7 @@ use time::{
     PreciseTime,
 };
 
-use mentat_core::{
+use core_traits::{
     StructuredMap,
 };
 

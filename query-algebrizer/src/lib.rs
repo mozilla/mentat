@@ -28,13 +28,13 @@ mod clauses;
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
     CachedAttributes,
     Schema,
-    TypedValue,
-    ValueType,
     parse_query,
 };
 

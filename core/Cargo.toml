@@ -8,11 +8,8 @@ chrono = { version = "0.4", features = ["serde"] }
 enum-set = "0.0.7"
 failure = "0.1.1"
 indexmap = "1"
-lazy_static = "0.2"
 ordered-float = { version = "0.5", features = ["serde"] }
 uuid = { version = "0.5", features = ["v4", "serde"] }
-serde = { version = "1.0", features = ["rc"] }
-serde_derive = "1.0"
 
 [dependencies.core_traits]
 path = "../core-traits"

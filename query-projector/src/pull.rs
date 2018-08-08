@@ -14,14 +14,14 @@ use std::collections::{
 };
 
 use core_traits::{
+    Binding,
     Entid,
+    StructuredMap,
+    TypedValue,
 };
 
 use mentat_core::{
-    Binding,
     Schema,
-    StructuredMap,
-    TypedValue,
     ValueRc,
 };
 

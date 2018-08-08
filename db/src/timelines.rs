@@ -20,11 +20,11 @@ use errors::{
 use core_traits::{
     Entid,
     KnownEntid,
+    TypedValue,
 };
 
 use mentat_core::{
     Schema,
-    TypedValue,
 };
 
 use edn::{

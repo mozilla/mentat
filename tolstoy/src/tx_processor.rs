@@ -21,9 +21,6 @@ use mentat_db::{
 
 use core_traits::{
     Entid,
-};
-
-use mentat_core::{
     TypedValue,
 };
 

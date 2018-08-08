@@ -43,6 +43,8 @@ use entids;
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
@@ -53,9 +55,7 @@ use mentat_core::{
     IdentMap,
     Schema,
     AttributeMap,
-    TypedValue,
     ToMicros,
-    ValueType,
     ValueRc,
 };
 

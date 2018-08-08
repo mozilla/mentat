@@ -8,9 +8,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+use core_traits::{
+    ValueType,
+};
+
 use mentat_core::{
     Schema,
-    ValueType,
     ValueTypeSet,
 };
 
@@ -188,10 +191,12 @@ mod testing {
     use super::*;
 
     use mentat_core::attribute::Unique;
-    use mentat_core::{
-        Attribute,
+    use core_traits::{
         TypedValue,
         ValueType,
+    };
+    use mentat_core::{
+        Attribute,
     };
 
     use mentat_query::{

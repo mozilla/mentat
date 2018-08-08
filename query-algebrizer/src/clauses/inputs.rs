@@ -10,9 +10,9 @@
 
 use std::collections::BTreeMap;
 
-use mentat_core::{
-    TypedValue,
+use core_traits::{
     ValueType,
+    TypedValue,
 };
 
 use mentat_query::{

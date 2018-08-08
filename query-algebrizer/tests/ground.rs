@@ -17,11 +17,14 @@ mod utils;
 
 use std::collections::BTreeMap;
 
+use core_traits::{
+    ValueType,
+    TypedValue,
+};
+
 use mentat_core::{
     Attribute,
     Schema,
-    ValueType,
-    TypedValue,
 };
 
 use mentat_query::{

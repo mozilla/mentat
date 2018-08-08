@@ -31,7 +31,7 @@ extern crate time;
 extern crate mentat;
 extern crate edn;
 extern crate mentat_query;
-extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_db;
 
 use getopts::Options;

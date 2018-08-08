@@ -11,6 +11,7 @@
 #[macro_use]
 extern crate mentat;
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_query_pull;
 
 use std::collections::{
@@ -23,10 +24,13 @@ use std::path::{
     PathBuf,
 };
 
-// TODO: re-export from Mentat.
-use mentat_core::{
+use core_traits::{
     Binding,
     StructuredMap,
+};
+
+// TODO: re-export from Mentat.
+use mentat_core::{
     ValueRc,
 };
 

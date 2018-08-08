@@ -10,6 +10,7 @@
 
 extern crate failure;
 
+extern crate core_traits;
 extern crate mentat_core;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;

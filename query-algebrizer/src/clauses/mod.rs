@@ -28,6 +28,8 @@ use std::fmt::{
 use core_traits::{
     Entid,
     KnownEntid,
+    ValueType,
+    TypedValue,
 };
 
 use mentat_core::{
@@ -35,8 +37,6 @@ use mentat_core::{
     Cloned,
     HasSchema,
     Schema,
-    TypedValue,
-    ValueType,
     ValueTypeSet,
 };
 

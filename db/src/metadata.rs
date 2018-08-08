@@ -41,14 +41,14 @@ use errors::{
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
     attribute,
     Schema,
     AttributeMap,
-    TypedValue,
-    ValueType,
 };
 
 use schema::{

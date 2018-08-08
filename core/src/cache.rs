@@ -16,11 +16,11 @@ use std::collections::{
 
 use core_traits::{
     Entid,
+    TypedValue,
 };
 
 use ::{
     Schema,
-    TypedValue,
 };
 
 pub trait CachedAttributes {

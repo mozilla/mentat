@@ -79,15 +79,15 @@ use failure::{
 use rusqlite;
 
 use core_traits::{
+    Binding,
     Entid,
+    TypedValue,
 };
 
 use mentat_core::{
-    Binding,
     CachedAttributes,
     HasSchema,
     Schema,
-    TypedValue,
     UpdateableCache,
     ValueRc,
 };

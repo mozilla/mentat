@@ -753,11 +753,14 @@ fn union_types(into: &mut BTreeMap<Variable, ValueTypeSet>,
 mod testing {
     use super::*;
 
+    use core_traits::{
+        ValueType,
+        TypedValue,
+    };
+
     use mentat_core::{
         Attribute,
         Schema,
-        TypedValue,
-        ValueType,
     };
 
     use mentat_query::{

@@ -92,6 +92,9 @@ use mentat_core::util::Either;
 use core_traits::{
     Entid,
     KnownEntid,
+    TypedValue,
+    ValueType,
+    now,
 };
 
 use mentat_core::{
@@ -100,7 +103,6 @@ use mentat_core::{
     TxReport,
     Utc,
     attribute,
-    now,
 };
 
 use edn::entities as entmod;
@@ -122,8 +124,6 @@ use types::{
     Attribute,
     PartitionMap,
     TransactableValue,
-    TypedValue,
-    ValueType,
 };
 use upsert_resolution::{
     FinalPopulations,

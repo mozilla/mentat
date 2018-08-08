@@ -69,14 +69,14 @@ use errors::Result;
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
     HasSchema,
     SQLValueType,
     TxReport,
-    TypedValue,
-    ValueType,
 };
 use edn::{
     InternSet,

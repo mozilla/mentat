@@ -28,13 +28,13 @@ use mentat_query::{
 
 use core_traits::{
     Entid,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
     Attribute,
     Schema,
-    TypedValue,
-    ValueType,
 };
 
 use mentat_query_algebrizer::{

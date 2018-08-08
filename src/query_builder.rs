@@ -15,15 +15,15 @@ use std::collections::{
 
 pub use core_traits::{
     Entid,
+    Binding,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
     DateTime,
     Keyword,
-    Binding,
-    TypedValue,
     Utc,
-    ValueType,
 };
 
 use ::{

@@ -12,7 +12,7 @@ use ::enum_set::{
     EnumSet,
 };
 
-use ::types::{
+use core_traits::{
     ValueType,
 };
 

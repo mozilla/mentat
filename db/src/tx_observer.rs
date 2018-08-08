@@ -28,11 +28,11 @@ use indexmap::{
 
 use core_traits::{
     Entid,
+    TypedValue,
 };
 
 use mentat_core::{
     Schema,
-    TypedValue,
 };
 
 use edn::entities::{

@@ -82,17 +82,17 @@ use std::iter::{
 };
 
 use core_traits::{
+    Binding,
     Entid,
+    TypedValue,
+    StructuredMap,
 };
 
 use mentat_core::{
-    Binding,
     Cloned,
     HasSchema,
     Keyword,
     Schema,
-    StructuredMap,
-    TypedValue,
     ValueRc,
 };
 

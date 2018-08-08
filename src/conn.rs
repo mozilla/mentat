@@ -48,6 +48,9 @@ use edn::{
 pub use core_traits::{
     Entid,
     KnownEntid,
+    StructuredMap,
+    TypedValue,
+    ValueType,
 };
 
 use mentat_core::{
@@ -55,11 +58,8 @@ use mentat_core::{
     HasSchema,
     Keyword,
     Schema,
-    StructuredMap,
     TxReport,
-    TypedValue,
     ValueRc,
-    ValueType,
 };
 
 use mentat_db::cache::{
@@ -861,10 +861,13 @@ mod tests {
         Instant,
     };
 
-    use mentat_core::{
-        CachedAttributes,
+    use core_traits::{
         Binding,
         TypedValue,
+    };
+
+    use mentat_core::{
+        CachedAttributes,
     };
 
     use ::query::{

@@ -15,12 +15,12 @@
 
 use core_traits::{
     Entid,
+    ValueType,
 };
 
 use mentat_core::{
     Attribute,
     Schema,
-    ValueType,
 };
 
 use mentat_query::{
