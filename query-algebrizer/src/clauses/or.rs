@@ -34,7 +34,7 @@ use clauses::{
     PushComputed,
 };
 
-use errors::{
+use query_algebrizer_traits::errors::{
     Result,
 };
 

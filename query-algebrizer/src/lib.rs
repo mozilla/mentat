@@ -10,18 +10,16 @@
 
 extern crate failure;
 
-#[macro_use] extern crate failure_derive;
-
 extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
+#[macro_use]
+extern crate query_algebrizer_traits;
 
 use std::collections::BTreeSet;
 use std::ops::Sub;
 use std::rc::Rc;
 
-#[macro_use]
-mod errors;
 mod types;
 mod validate;
 mod clauses;
@@ -51,9 +49,8 @@ use edn::query::{
     WhereClause,
 };
 
-pub use errors::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
-    BindingError,
     Result,
 };
 

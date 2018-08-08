@@ -33,7 +33,7 @@ use clauses::{
 
 use clauses::convert::ValueConversion;
 
-use errors::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
     BindingError,
     Result,

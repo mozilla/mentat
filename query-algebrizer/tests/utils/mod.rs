@@ -27,8 +27,11 @@ use edn::query::{
     Keyword,
 };
 
-use mentat_query_algebrizer::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
+};
+
+use mentat_query_algebrizer::{
     ConjoiningClauses,
     Known,
     QueryInputs,

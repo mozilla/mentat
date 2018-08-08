@@ -32,7 +32,7 @@ use clauses::{
     ConjoiningClauses,
 };
 
-use errors::{
+use query_algebrizer_traits::errors::{
     AlgebrizerError,
     BindingError,
     Result,
