@@ -14,9 +14,12 @@ use std::collections::{
     BTreeMap,
 };
 
+use core_traits::{
+    Entid,
+};
+
 use ::{
     DateTime,
-    Entid,
     Utc,
 };
 

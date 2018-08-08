@@ -14,7 +14,9 @@
 ///
 /// Used through-out the transactor to match core DB constructs.
 
-use types::{Entid};
+use core_traits::{
+    Entid,
+};
 
 // Added in SQL schema v1.
 pub const DB_IDENT: Entid = 1;

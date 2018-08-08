@@ -26,11 +26,14 @@ use std::ops::{
 
 extern crate mentat_core;
 
+use core_traits::{
+    Entid,
+};
+
 pub use self::mentat_core::{
     Attribute,
     AttributeBitFlags,
     DateTime,
-    Entid,
     Schema,
     TypedValue,
     Utc,

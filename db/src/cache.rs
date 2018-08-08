@@ -78,10 +78,13 @@ use failure::{
 
 use rusqlite;
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     Binding,
     CachedAttributes,
-    Entid,
     HasSchema,
     Schema,
     TypedValue,

@@ -23,6 +23,7 @@ extern crate uuid;
 
 pub extern crate edn;
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
@@ -34,14 +35,17 @@ extern crate mentat_sql;
 #[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
 
+pub use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 pub use mentat_core::{
     Attribute,
     Binding,
     DateTime,
-    Entid,
     HasSchema,
     Keyword,
-    KnownEntid,
     Schema,
     StructuredMap,
     TxReport,

@@ -89,9 +89,13 @@ use internal_types::{
 
 use mentat_core::util::Either;
 
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 use mentat_core::{
     DateTime,
-    KnownEntid,
     Schema,
     TxReport,
     Utc,
@@ -116,7 +120,6 @@ use types::{
     AVMap,
     AVPair,
     Attribute,
-    Entid,
     PartitionMap,
     TransactableValue,
     TypedValue,

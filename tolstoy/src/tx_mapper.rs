@@ -11,7 +11,10 @@
 use std::collections::HashMap;
 use rusqlite;
 use uuid::Uuid;
-use mentat_core::Entid;
+
+use core_traits::{
+    Entid,
+};
 
 use errors::{
     TolstoyError,

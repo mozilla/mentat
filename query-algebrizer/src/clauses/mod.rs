@@ -25,12 +25,15 @@ use std::fmt::{
     Formatter,
 };
 
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 use mentat_core::{
     Attribute,
     Cloned,
-    Entid,
     HasSchema,
-    KnownEntid,
     Schema,
     TypedValue,
     ValueType,

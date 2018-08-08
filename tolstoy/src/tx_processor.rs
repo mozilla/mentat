@@ -19,8 +19,11 @@ use mentat_db::{
     TypedSQLValue,
 };
 
-use mentat_core::{
+use core_traits::{
     Entid,
+};
+
+use mentat_core::{
     TypedValue,
 };
 

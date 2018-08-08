@@ -14,8 +14,11 @@ use std::collections::{
     BTreeSet,
 };
 
-use ::{
+use core_traits::{
     Entid,
+};
+
+use ::{
     Schema,
     TypedValue,
 };

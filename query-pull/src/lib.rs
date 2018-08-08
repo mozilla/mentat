@@ -65,6 +65,7 @@ extern crate failure_derive;
 extern crate rusqlite;
 
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_db;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
@@ -80,10 +81,13 @@ use std::iter::{
     once,
 };
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     Binding,
     Cloned,
-    Entid,
     HasSchema,
     Keyword,
     Schema,

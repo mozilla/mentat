@@ -45,11 +45,14 @@ use edn::{
     InternSet,
 };
 
+pub use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 use mentat_core::{
     Attribute,
-    Entid,
     HasSchema,
-    KnownEntid,
     Keyword,
     Schema,
     StructuredMap,

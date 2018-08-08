@@ -25,7 +25,10 @@ use serde_json;
 use tokio_core::reactor::Core;
 use uuid::Uuid;
 
-use mentat_core::Entid;
+use core_traits::{
+    Entid,
+};
+
 use metadata::SyncMetadataClient;
 use metadata::HeadTrackable;
 use schema::ensure_current_version;

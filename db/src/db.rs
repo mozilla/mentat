@@ -40,11 +40,15 @@ use edn::{
 };
 
 use entids;
+
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     attribute,
     Attribute,
     AttributeBitFlags,
-    Entid,
     FromMicros,
     IdentMap,
     Schema,
@@ -1221,10 +1225,12 @@ mod tests {
     use edn::entities::{
         OpType,
     };
+    use core_traits::{
+        KnownEntid,
+    };
     use mentat_core::{
         HasSchema,
         Keyword,
-        KnownEntid,
         attribute,
     };
     use mentat_core::util::Either::*;

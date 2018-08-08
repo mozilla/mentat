@@ -9,13 +9,18 @@
 // specific language governing permissions and limitations under the License.
 
 #[macro_use] extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_query;
 extern crate mentat_query_algebrizer;
 extern crate mentat_sql;
 
 use std::boxed::Box;
-use mentat_core::{
+
+use core_traits::{
     Entid,
+};
+
+use mentat_core::{
     SQLTypeAffinity,
     TypedValue,
     ValueType,

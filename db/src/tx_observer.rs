@@ -26,8 +26,11 @@ use indexmap::{
     IndexMap,
 };
 
-use mentat_core::{
+use core_traits::{
     Entid,
+};
+
+use mentat_core::{
     Schema,
     TypedValue,
 };

@@ -13,9 +13,12 @@ use std::collections::{
     BTreeMap,
 };
 
+pub use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     DateTime,
-    Entid,
     Keyword,
     Binding,
     TypedValue,

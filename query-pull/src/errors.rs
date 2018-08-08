@@ -14,7 +14,7 @@ use mentat_db::{
     DbError,
 };
 
-use mentat_core::{
+use core_traits::{
     Entid,
 };
 

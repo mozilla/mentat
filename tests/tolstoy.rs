@@ -10,6 +10,7 @@
 
 extern crate mentat;
 extern crate mentat_core;
+extern crate core_traits;
 
 #[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
@@ -27,8 +28,10 @@ mod tests {
         TxPart,
     };
     use mentat_tolstoy::errors::Result;
-    use mentat_core::{
+    use core_traits::{
         Entid,
+    };
+    use mentat_core::{
         TypedValue,
         ValueType,
     };

@@ -13,6 +13,7 @@ extern crate failure;
 #[macro_use] extern crate failure_derive;
 
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_query;
 
 use std::collections::BTreeSet;
@@ -25,9 +26,12 @@ mod types;
 mod validate;
 mod clauses;
 
+use core_traits::{
+    Entid,
+};
+
 use mentat_core::{
     CachedAttributes,
-    Entid,
     Schema,
     TypedValue,
     ValueType,

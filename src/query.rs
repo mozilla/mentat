@@ -13,11 +13,14 @@ use rusqlite::types::ToSql;
 
 use std::rc::Rc;
 
+use core_traits::{
+    Entid,
+    KnownEntid,
+};
+
 use mentat_core::{
     Binding,
-    Entid,
     HasSchema,
-    KnownEntid,
     Schema,
     TypedValue,
 };
