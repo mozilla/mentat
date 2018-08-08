@@ -14,6 +14,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate mentat;
 extern crate mentat_core;
+extern crate core_traits;
 extern crate mentat_db;
 extern crate rusqlite;
 
@@ -35,6 +36,10 @@ use mentat::query::IntoResult;
 
 use mentat_core::{
     HasSchema,
+};
+
+use core_traits::attribute::{
+    Unique,
 };
 
 // To check our working.
@@ -79,7 +84,7 @@ lazy_static! {
                 vocabulary::AttributeBuilder::helpful()
                     .value_type(ValueType::String)
                     .multival(false)
-                    .unique(vocabulary::attribute::Unique::Identity)
+                    .unique(Unique::Identity)
                     .build()),
                 (FOO_MOMENT.clone(),
                 vocabulary::AttributeBuilder::helpful()
@@ -452,7 +457,7 @@ fn test_upgrade_with_functions() {
              vocabulary::AttributeBuilder::helpful()
                 .value_type(ValueType::String)
                 .multival(false)
-                .unique(vocabulary::attribute::Unique::Identity)
+                .unique(Unique::Identity)
                 .index(true)
                 .build()),
         ],
@@ -468,7 +473,7 @@ fn test_upgrade_with_functions() {
              vocabulary::AttributeBuilder::helpful()
                 .value_type(ValueType::String)
                 .multival(false)
-                .unique(vocabulary::attribute::Unique::Identity)
+                .unique(Unique::Identity)
                 .index(true)
                 .build()),
             (kw!(:person/height),
@@ -759,7 +764,7 @@ fn test_upgrade_with_functions() {
              vocabulary::AttributeBuilder::helpful()
                 .value_type(ValueType::String)
                 .multival(false)
-                .unique(vocabulary::attribute::Unique::Identity)
+                .unique(Unique::Identity)
                 .build()),
         ],
         pre: |ip, from| {
@@ -781,7 +786,7 @@ fn test_upgrade_with_functions() {
              vocabulary::AttributeBuilder::helpful()
                 .value_type(ValueType::String)
                 .multival(false)
-                .unique(vocabulary::attribute::Unique::Identity)
+                .unique(Unique::Identity)
                 .build()),
         ],
         pre: |ip, from| {
@@ -877,7 +882,7 @@ fn test_upgrade_with_functions() {
              vocabulary::AttributeBuilder::helpful()
                 .value_type(ValueType::String)
                 .multival(false)
-                .unique(vocabulary::attribute::Unique::Identity)
+                .unique(Unique::Identity)
                 .build()),
 
             // This phrasing is backward, but this is just a test.

@@ -26,6 +26,7 @@ use std::fmt::{
 };
 
 use core_traits::{
+    Attribute,
     Entid,
     KnownEntid,
     ValueType,
@@ -34,7 +35,6 @@ use core_traits::{
 };
 
 use mentat_core::{
-    Attribute,
     Cloned,
     HasSchema,
     Schema,

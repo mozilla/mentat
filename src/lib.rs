@@ -39,6 +39,7 @@ extern crate mentat_sql;
 extern crate mentat_tolstoy;
 
 pub use core_traits::{
+    Attribute,
     Binding,
     Entid,
     KnownEntid,
@@ -49,7 +50,6 @@ pub use core_traits::{
 };
 
 pub use mentat_core::{
-    Attribute,
     DateTime,
     HasSchema,
     Keyword,

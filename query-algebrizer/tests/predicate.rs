@@ -17,13 +17,13 @@ extern crate query_algebrizer_traits;
 mod utils;
 
 use core_traits::{
+    Attribute,
     ValueType,
     TypedValue,
     ValueTypeSet,
 };
 
 use mentat_core::{
-    Attribute,
     DateTime,
     Schema,
     Utc,

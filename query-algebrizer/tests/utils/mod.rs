@@ -14,12 +14,12 @@
 #![allow(dead_code)]
 
 use core_traits::{
+    Attribute,
     Entid,
     ValueType,
 };
 
 use mentat_core::{
-    Attribute,
     Schema,
 };
 

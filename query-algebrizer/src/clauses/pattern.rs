@@ -659,12 +659,14 @@ mod testing {
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
 
-    use mentat_core::attribute::Unique;
+    use core_traits::attribute::{
+        Unique,
+    };
     use core_traits::{
+        Attribute,
         ValueTypeSet,
     };
     use mentat_core::{
-        Attribute,
         Schema,
     };
 

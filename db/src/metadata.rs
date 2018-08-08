@@ -40,13 +40,13 @@ use db_traits::errors::{
 };
 
 use core_traits::{
+    attribute,
     Entid,
     TypedValue,
     ValueType,
 };
 
 use mentat_core::{
-    attribute,
     Schema,
     AttributeMap,
 };

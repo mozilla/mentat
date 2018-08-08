@@ -17,11 +17,11 @@ extern crate query_algebrizer_traits;
 mod utils;
 
 use core_traits::{
+    Attribute,
     ValueType,
 };
 
 use mentat_core::{
-    Attribute,
     Schema,
 };
 

@@ -33,8 +33,6 @@ use core_traits::{
 };
 
 pub use self::mentat_core::{
-    Attribute,
-    AttributeBitFlags,
     DateTime,
     Schema,
     Utc,

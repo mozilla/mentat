@@ -19,6 +19,7 @@ use std::collections::{
 };
 
 use core_traits::{
+    Attribute,
     Entid,
     KnownEntid,
     TypedValue,
@@ -50,7 +51,6 @@ use schema::{
     SchemaTypeChecking,
 };
 use types::{
-    Attribute,
     AVMap,
     AVPair,
     Schema,
