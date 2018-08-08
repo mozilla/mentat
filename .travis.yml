@@ -63,6 +63,6 @@ matrix:
         - cd ffi
         - cargo lipo --release
         - cd ..
-        - cd sdks/swift/Mentat &&
+        - cd sdks/swift/Mentat
         - xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone SE,OS=latest' | xcpretty
         - cd ../../..
