@@ -10,8 +10,6 @@
 
 #![recursion_limit="128"]
 
-#[macro_use]
-extern crate failure_derive;
 extern crate failure;
 
 #[macro_use]
@@ -34,6 +32,8 @@ extern crate mentat_query_pull;
 extern crate query_pull_traits;
 extern crate sql_traits;
 extern crate mentat_sql;
+#[macro_use]
+extern crate public_traits;
 
 #[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
@@ -130,9 +130,8 @@ macro_rules! kw {
     };
 }
 
-#[macro_use]
-pub mod errors;
-pub use errors::{
+pub use public_traits::errors;
+pub use public_traits::errors::{
     MentatError,
     Result,
 };

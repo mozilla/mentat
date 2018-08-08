@@ -1,0 +1,45 @@
+[package]
+name = "public_traits"
+version = "0.0.1"
+workspace = ".."
+
+[lib]
+name = "public_traits"
+path = "lib.rs"
+
+[features]
+default = ["syncable"]
+syncable = ["tolstoy_traits"]
+
+[dependencies]
+failure = "0.1.1"
+failure_derive = "0.1.1"
+
+[dependencies.rusqlite]
+version = "0.13"
+features = ["limits"]
+
+[dependencies.edn]
+path = "../edn"
+
+[dependencies.core_traits]
+path = "../core-traits"
+
+[dependencies.db_traits]
+path = "../db-traits"
+
+[dependencies.query_algebrizer_traits]
+path = "../query-algebrizer-traits"
+
+[dependencies.query_projector_traits]
+path = "../query-projector-traits"
+
+[dependencies.query_pull_traits]
+path = "../query-pull-traits"
+
+[dependencies.sql_traits]
+path = "../sql-traits"
+
+[dependencies.tolstoy_traits]
+path = "../tolstoy-traits"
+optional = true

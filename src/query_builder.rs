@@ -36,7 +36,7 @@ use ::{
     Variable,
 };
 
-use errors::{
+use public_traits::errors::{
     MentatError,
     Result,
 };
