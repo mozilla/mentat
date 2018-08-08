@@ -59,7 +59,6 @@ matrix:
         - rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
         - cargo install --git https://github.com/TimNN/cargo-lipo
         - gem install xcode-install
-        - echo "" | xcversion simulators --install='iOS 10.3.1'
         - instruments -s devices
       script:
         - cd ffi
