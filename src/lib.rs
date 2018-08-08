@@ -38,6 +38,9 @@ extern crate mentat_sql;
 #[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
 
+#[cfg(feature = "syncable")]
+extern crate tolstoy_traits;
+
 pub use core_traits::{
     Attribute,
     Binding,

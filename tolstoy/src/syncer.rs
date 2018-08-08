@@ -33,7 +33,7 @@ use metadata::SyncMetadataClient;
 use metadata::HeadTrackable;
 use schema::ensure_current_version;
 
-use errors::{
+use tolstoy_traits::errors::{
     TolstoyError,
     Result,
 };

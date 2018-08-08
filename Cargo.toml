@@ -19,7 +19,7 @@ build = "build/version.rs"
 default = ["bundled_sqlite3", "syncable"]
 bundled_sqlite3 = ["rusqlite/bundled"]
 sqlcipher = ["rusqlite/sqlcipher", "mentat_db/sqlcipher"]
-syncable = ["mentat_tolstoy", "mentat_db/syncable"]
+syncable = ["mentat_tolstoy", "tolstoy_traits", "mentat_db/syncable"]
 
 [workspace]
 members = ["tools/cli", "ffi"]
@@ -84,6 +84,10 @@ path = "sql-traits"
 
 [dependencies.mentat_tolstoy]
 path = "tolstoy"
+optional = true
+
+[dependencies.tolstoy_traits]
+path = "tolstoy-traits"
 optional = true
 
 [profile.release]
