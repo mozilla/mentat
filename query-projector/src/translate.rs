@@ -49,7 +49,7 @@ use mentat_query_algebrizer::{
     VariableColumn,
 };
 
-use mentat_query_projector::{
+use ::{
     CombinedProjection,
     ConstantProjector,
     Projector,

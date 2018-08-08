@@ -20,7 +20,6 @@ extern crate mentat_db;
 // TODO: when we switch to `failure`, make this more humane.
 extern crate query_algebrizer_traits;       // For errors;
 extern crate query_projector_traits;        // For errors.
-extern crate mentat_query_translator;       // For errors.
 
 use std::str::FromStr;
 
