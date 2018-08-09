@@ -68,19 +68,6 @@ impl SQLValueType for ValueType {
 
     /// Returns true if the provided integer is in the SQLite value space of this type. For
     /// example, `1` is how we encode `true`.
-    ///
-    /// ```
-    /// extern crate core_traits;
-    /// extern crate mentat_core;
-    /// use core_traits::ValueType;
-    /// use mentat_core::SQLValueType;
-    /// assert!(!ValueType::Instant.accommodates_integer(1493399581314));
-    /// assert!(!ValueType::Instant.accommodates_integer(1493399581314000));
-    /// assert!(ValueType::Boolean.accommodates_integer(1));
-    /// assert!(!ValueType::Boolean.accommodates_integer(-1));
-    /// assert!(!ValueType::Boolean.accommodates_integer(10));
-    /// assert!(!ValueType::String.accommodates_integer(10));
-    /// ```
     fn accommodates_integer(&self, int: i64) -> bool {
         use ValueType::*;
         match *self {
@@ -138,5 +125,25 @@ impl SQLValueTypeSet for ValueTypeSet {
             }
         }
         !acc.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core_traits::{
+        ValueType,
+    };
+    use sql_types::{
+        SQLValueType,
+    };
+
+    #[test]
+    fn test_accommodates_integer() {
+        assert!(!ValueType::Instant.accommodates_integer(1493399581314));
+        assert!(!ValueType::Instant.accommodates_integer(1493399581314000));
+        assert!(ValueType::Boolean.accommodates_integer(1));
+        assert!(!ValueType::Boolean.accommodates_integer(-1));
+        assert!(!ValueType::Boolean.accommodates_integer(10));
+        assert!(!ValueType::String.accommodates_integer(10));
     }
 }
