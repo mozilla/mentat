@@ -26,9 +26,6 @@ path = "../db"
 [dependencies.db_traits]
 path = "../db-traits"
 
-[dependencies.mentat_sql]
-path = "../sql"
-
 [dependencies.mentat_query_algebrizer]
 path = "../query-algebrizer"
 
@@ -44,3 +41,5 @@ path = "../query-projector-traits"
 [dependencies.mentat_query_sql]
 path = "../query-sql"
 
+[dev-dependencies.mentat_sql]
+path = "../sql"
