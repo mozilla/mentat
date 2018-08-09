@@ -10,7 +10,9 @@ MAINTAINER Nick Alexander "nalexander@mozilla.com"
 #-- Configuration -----------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------------
 
-ENV ANDROID_NDK_VERSION "r17b"
+# r15c agrees with mozilla-central and, critically, supports the --deprecated-headers flag needed to
+# build OpenSSL.
+ENV ANDROID_NDK_VERSION "r15c"
 
 #----------------------------------------------------------------------------------------------------------------------
 #-- System ------------------------------------------------------------------------------------------------------------
@@ -33,12 +35,12 @@ RUN curl -L https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_V
   && mv /build/android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_HOME}
 
 ENV ANDROID_NDK_TOOLCHAIN_DIR /build/android-ndk-toolchain
-ENV ANDROID_NDK_API_VERSION 26
+ENV ANDROID_NDK_API_VERSION 21
 
 RUN set -eux; \
-    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="arm"   --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/arm-$ANDROID_NDK_API_VERSION" --force; \
-    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="arm64" --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/arm64-$ANDROID_NDK_API_VERSION" --force; \
-    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="x86"   --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/x86-$ANDROID_NDK_API_VERSION" --force
+    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="arm"   --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/arm-$ANDROID_NDK_API_VERSION" --deprecated-headers --force; \
+    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="arm64" --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/arm64-$ANDROID_NDK_API_VERSION" --deprecated-headers --force; \
+    python "$ANDROID_NDK_HOME/build/tools/make_standalone_toolchain.py" --arch="x86"   --api="$ANDROID_NDK_API_VERSION" --install-dir="$ANDROID_NDK_TOOLCHAIN_DIR/x86-$ANDROID_NDK_API_VERSION" --deprecated-headers --force
 
 #----------------------------------------------------------------------------------------------------------------------
 #-- Rust (cribbed from https://github.com/rust-lang-nursery/docker-rust/blob/ced83778ec6fea7f63091a484946f95eac0ee611/1.27.1/stretch/Dockerfile)
