@@ -1,3 +1,12 @@
+# 0.11.1 (2018-08-09)
+
+* sdks/android compiled against:
+  * Kotlin standard library 1.2.41
+
+* **API changes**: Changed wording of MentatError::ConflictingAttributeDefinitions, MentatError::ExistingVocabularyTooNew, MentatError::UnexpectedCoreSchema.
+
+* [Commits](https://github.com/mozilla/mentat/compare/v0.11.0...v0.11.1)
+
 # 0.11 (2018-07-31)
 
 * sdks/android compiled against:
