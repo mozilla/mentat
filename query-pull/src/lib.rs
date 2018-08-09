@@ -64,11 +64,7 @@ extern crate edn;
 extern crate mentat_core;
 extern crate core_traits;
 extern crate mentat_db;
-extern crate db_traits;
 extern crate query_pull_traits;
-extern crate mentat_query_algebrizer;
-extern crate mentat_query_sql;
-extern crate mentat_sql;
 
 use std::collections::{
     BTreeMap,
