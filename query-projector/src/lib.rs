@@ -24,7 +24,6 @@ extern crate mentat_query_pull;
 extern crate query_pull_traits;
 extern crate query_projector_traits;
 extern crate mentat_query_sql;
-extern crate mentat_sql;
 
 use std::collections::{
     BTreeSet,
