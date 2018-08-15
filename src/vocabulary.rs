@@ -113,17 +113,17 @@ use ::{
     ValueType,
 };
 
-use ::conn::{
-    InProgress,
-    Queryable,
-};
-
 use ::errors::{
     MentatError,
     Result,
 };
 
-use ::entity_builder::{
+use mentat_transaction::{
+    InProgress,
+    Queryable,
+};
+
+use mentat_transaction::entity_builder::{
     BuildTerms,
     TermBuilder,
     Terms,
@@ -476,7 +476,7 @@ impl Definition {
             }
         }
 
-        builder.build()
+        builder.build().map_err(|e| e.into())
     }
 
     /// Return a sequence of terms that describes this vocabulary definition and its attributes.

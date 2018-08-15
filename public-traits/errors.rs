@@ -23,7 +23,9 @@ use core_traits::{
     ValueType,
 };
 
-use db_traits::errors::DbError;
+use db_traits::errors::{
+    DbError,
+};
 use query_algebrizer_traits::errors::{
     AlgebrizerError,
 };

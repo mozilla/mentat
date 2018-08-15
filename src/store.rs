@@ -14,10 +14,6 @@ use std::collections::{
     BTreeMap,
 };
 
-use std::path::{
-    Path,
-};
-
 use std::sync::{
     Arc,
 };
@@ -44,27 +40,29 @@ use mentat_db::{
 #[cfg(feature = "syncable")]
 use mentat_tolstoy::Syncer;
 
-use conn::{
+use mentat_transaction::{
     CacheAction,
     CacheDirection,
-    Conn,
     InProgress,
     InProgressRead,
     Pullable,
     Queryable,
 };
 
-#[cfg(feature = "syncable")]
 use conn::{
-    Syncable,
+    Conn,
 };
 
 use public_traits::errors::{
-    MentatError,
     Result,
 };
 
-use query::{
+#[cfg(feature = "syncable")]
+use public_traits::errors::{
+    MentatError,
+};
+
+use mentat_transaction::query::{
     PreparedResult,
     QueryExplanation,
     QueryInputs,
@@ -215,6 +213,9 @@ impl Pullable for Store {
 use uuid::Uuid;
 
 #[cfg(feature = "syncable")]
+use conn::Syncable;
+
+#[cfg(feature = "syncable")]
 impl Syncable for Store {
     fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
         let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatError::BadUuid(user_uuid.clone()))?;
@@ -232,6 +233,7 @@ mod tests {
         BTreeSet,
     };
     use std::path::{
+        Path,
         PathBuf,
     };
     use std::sync::mpsc;
@@ -258,11 +260,11 @@ mod tests {
         HasSchema,
     };
 
-    use ::entity_builder::{
+    use mentat_transaction::entity_builder::{
         BuildTerms,
     };
 
-    use ::query::{
+    use mentat_transaction::query::{
         PreparedQuery,
     };
 
