@@ -51,10 +51,10 @@ use core_traits::{
 };
 
 use mentat_core::{
+    AttributeMap,
     FromMicros,
     IdentMap,
     Schema,
-    AttributeMap,
     ToMicros,
     ValueRc,
 };

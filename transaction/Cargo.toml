@@ -1,0 +1,47 @@
+[package]
+name = "mentat_transaction"
+version = "0.0.1"
+workspace = ".."
+
+[features]
+sqlcipher = ["rusqlite/sqlcipher"]
+
+[dependencies]
+failure = "0.1.1"
+
+[dependencies.edn]
+path = "../edn"
+
+[dependencies.public_traits]
+path = "../public-traits"
+
+[dependencies.mentat_core]
+path = "../core"
+
+[dependencies.core_traits]
+path = "../core-traits"
+
+[dependencies.mentat_db]
+path = "../db"
+
+[dependencies.db_traits]
+path = "../db-traits"
+
+[dependencies.mentat_sql]
+path = "../sql"
+
+[dependencies.mentat_query_algebrizer]
+path = "../query-algebrizer"
+
+[dependencies.mentat_query_projector]
+path = "../query-projector"
+
+[dependencies.mentat_query_pull]
+path = "../query-pull"
+
+[dependencies.mentat_query_sql]
+path = "../query-sql"
+
+[dependencies.rusqlite]
+version = "0.13"
+features = ["limits"]

@@ -15,7 +15,10 @@ extern crate time;
 extern crate mentat;
 extern crate mentat_core;
 extern crate core_traits;
+extern crate public_traits;
 extern crate mentat_db;
+
+extern crate mentat_transaction;
 
 // TODO: when we switch to `failure`, make this more humane.
 extern crate query_algebrizer_traits;       // For errors;
@@ -63,7 +66,7 @@ use mentat::query::q_uncached;
 
 use mentat::conn::Conn;
 
-use mentat::errors::{
+use public_traits::errors::{
     MentatError,
 };
 

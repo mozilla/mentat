@@ -84,6 +84,9 @@ path = "sql-traits"
 [dependencies.public_traits]
 path = "public-traits"
 
+[dependencies.mentat_transaction]
+path = "transaction"
+
 [dependencies.mentat_tolstoy]
 path = "tolstoy"
 optional = true

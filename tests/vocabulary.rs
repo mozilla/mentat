@@ -623,7 +623,7 @@ fn test_upgrade_with_functions() {
             return Ok(());
         }
 
-        ip.transact_builder(builder).and(Ok(()))
+        ip.transact_builder(builder).and(Ok(())).map_err(|e| e.into())
     }
 
     fn people_v1_to_v2(ip: &mut InProgress, from: &Vocabulary) -> mentat::errors::Result<()> {
@@ -696,7 +696,7 @@ fn test_upgrade_with_functions() {
             return Ok(());
         }
 
-        ip.transact_builder(builder).and(Ok(()))
+        ip.transact_builder(builder).and(Ok(())).map_err(|e| e.into())
     }
 
     /// This is the function we write to dedupe. This logic is very suitable for sharing:
@@ -751,7 +751,7 @@ fn test_upgrade_with_functions() {
             return Ok(());
         }
 
-        ip.transact_builder(builder).and(Ok(()))
+        ip.transact_builder(builder).and(Ok(())).map_err(|e| e.into())
     }
 
     // This migration is bad: it can't impose the uniqueness constraint because we end up with
@@ -992,7 +992,7 @@ fn test_upgrade_with_functions() {
 
             builder.add(person_likes, db_doc,
                         TypedValue::typed_string("Deprecated. Use :movie/likes or :food/likes instead."))?;
-            ip.transact_builder(builder).and(Ok(()))
+            ip.transact_builder(builder).and(Ok(())).map_err(|e| e.into())
         }
     };
 

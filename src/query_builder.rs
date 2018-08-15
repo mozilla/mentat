@@ -95,7 +95,7 @@ impl<'a> QueryBuilder<'a> {
         let types = ::std::mem::replace(&mut self.types, Default::default());
         let query_inputs = QueryInputs::new(types, values)?;
         let read = self.store.begin_read()?;
-        read.q_once(&self.query, query_inputs)
+        read.q_once(&self.query, query_inputs).map_err(|e| e.into())
     }
 
     pub fn execute_scalar(&mut self) -> Result<Option<Binding>> {

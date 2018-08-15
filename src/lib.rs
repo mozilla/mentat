@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#![recursion_limit="128"]
-
 extern crate failure;
 
 #[macro_use]
@@ -34,6 +32,7 @@ extern crate query_pull_traits;
 extern crate sql_traits;
 extern crate mentat_sql;
 extern crate public_traits;
+extern crate mentat_transaction;
 
 #[cfg(feature = "syncable")]
 extern crate mentat_tolstoy;
@@ -153,14 +152,14 @@ pub use mentat_query_projector::{
 pub use query_pull_traits::errors::PullError;
 pub use sql_traits::errors::SQLError;
 
-pub mod conn;
-pub mod entity_builder;
-pub mod query;
-pub mod query_builder;
-pub mod store;
-pub mod vocabulary;
+pub use mentat_transaction::{
+    Metadata,
+};
 
-pub use query::{
+pub use mentat_transaction::query;
+pub use mentat_transaction::entity_builder;
+
+pub use mentat_transaction::query::{
     IntoResult,
     PlainSymbol,
     QueryExecutionResult,
@@ -174,19 +173,26 @@ pub use query::{
     q_once,
 };
 
+pub mod conn;
+pub mod query_builder;
+pub mod store;
+pub mod vocabulary;
+
 pub use query_builder::{
     QueryBuilder,
 };
 
 pub use conn::{
+    Conn,
+    Syncable,
+};
+
+pub use mentat_transaction::{
     CacheAction,
     CacheDirection,
-    Conn,
     InProgress,
-    Metadata,
     Pullable,
     Queryable,
-    Syncable,
 };
 
 pub use store::{
