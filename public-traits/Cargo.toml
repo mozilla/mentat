@@ -9,6 +9,7 @@ path = "lib.rs"
 
 [features]
 default = ["syncable"]
+sqlcipher = ["rusqlite/sqlcipher"]
 syncable = ["tolstoy_traits"]
 
 [dependencies]

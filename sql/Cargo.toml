@@ -3,6 +3,9 @@ name = "mentat_sql"
 version = "0.0.1"
 workspace = ".."
 
+[features]
+sqlcipher = ["rusqlite/sqlcipher"]
+
 [dependencies]
 failure = "0.1.1"
 ordered-float = "0.5"
