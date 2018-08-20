@@ -4,6 +4,9 @@ version = "0.0.1"
 workspace = ".."
 authors = ["Grisha Kruglov <gkruglov@mozilla.com>"]
 
+[features]
+sqlcipher = ["rusqlite/sqlcipher"]
+
 [dependencies]
 failure = "0.1.1"
 futures = "0.1"

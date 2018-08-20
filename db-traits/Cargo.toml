@@ -7,6 +7,9 @@ workspace = ".."
 name = "db_traits"
 path = "lib.rs"
 
+[features]
+sqlcipher = ["rusqlite/sqlcipher"]
+
 [dependencies]
 failure = "0.1.1"
 failure_derive = "0.1.1"
