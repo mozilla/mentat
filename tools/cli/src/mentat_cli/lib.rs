@@ -20,6 +20,7 @@ use std::path::{
 
 extern crate combine;
 extern crate env_logger;
+extern crate dirs;
 extern crate failure;
 extern crate getopts;
 extern crate linefeed;
@@ -46,7 +47,7 @@ static HISTORY_FILE_PATH: &str = ".mentat_history";
 /// This accords with main other tools which prefix with "." and suffix with "_history": lein,
 /// node_repl, python, and sqlite, at least.
 pub(crate) fn history_file_path() -> PathBuf {
-    let mut p = ::std::env::home_dir().unwrap_or_default();
+    let mut p = dirs::home_dir().unwrap_or_default();
     p.push(::HISTORY_FILE_PATH);
     p
 }
