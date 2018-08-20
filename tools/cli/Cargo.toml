@@ -20,6 +20,7 @@ test = false
 
 [dependencies]
 combine = "2.2.2"
+dirs = "1.0.3"
 env_logger = "0.5"
 failure = "0.1.1"
 failure_derive = "0.1.1"
