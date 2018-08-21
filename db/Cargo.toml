@@ -9,7 +9,7 @@ sqlcipher = ["rusqlite/sqlcipher"]
 syncable = ["serde", "serde_json", "serde_derive"]
 
 [dependencies]
-failure = "0.1.1"
+failure = "0.1.2"
 indexmap = "1"
 itertools = "0.7"
 lazy_static = "0.2"
